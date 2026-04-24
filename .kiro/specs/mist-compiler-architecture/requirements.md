@@ -2,9 +2,11 @@
 
 ## Introduction
 
-Mist is a new programming language inspired by C#, Haskell, and TypeScript. This document specifies the architectural requirements for the Mist compiler and its supporting tooling. The compiler is implemented in C# 14 targeting .NET 10, and consumes a formal grammar definition written in a separate grammar language called Storm. The Storm grammar is processed at build time by a C# source generator that produces an explicit lexer, parser, and AST node type definitions for Mist. The compiler pipeline transforms Mist source code through a series of well-defined stages: lexing, parsing, semantic model construction, analysis, and backend code generation. The first supported backend is a C# transpiler that emits C# source code and invokes the .NET compiler to produce executable output.
+Mist is a new programming language inspired by C#, Haskell, and TypeScript. This document specifies the architectural requirements for the Mist compiler and its supporting tooling. The compiler is implemented in C# 14 targeting .NET 10, and consumes a formal grammar definition written in a separate grammar language called Storm. The Storm grammar is processed at build time by a language-agnostic C# source generator (the Storm_Source_Generator) that produces an explicit lexer, parser, and AST node type definitions for whichever language's grammar it is supplied with. The Mist compiler is one consumer of the Storm_Source_Generator: it supplies the Storm grammar file(s) describing Mist and consumes the generated lexer, parser, and AST types. The compiler pipeline transforms Mist source code through a series of well-defined stages: lexing, parsing, semantic model construction, analysis, and backend code generation. The first supported backend is a C# transpiler that emits C# source code and invokes the .NET compiler to produce executable output.
 
-This specification focuses on architectural concerns: pipeline stage boundaries, component contracts, extensibility points (pluggable analyzers and backends), Storm's high-level shape and contract with the source generator, and tooling integration. The concrete syntax and semantics of Mist are intentionally deferred to a follow-up specification. Storm's shape is captured here at a contract level; a separate follow-up specification will pin down Storm's concrete grammar.
+This specification focuses on architectural concerns: pipeline stage boundaries, component contracts, extensibility points (pluggable analyzers and backends), Storm's high-level shape and contract with the source generator, the separation between the reusable Storm_Source_Generator and the Mist-specific compiler that consumes it, and tooling integration. The concrete syntax and semantics of Mist are intentionally deferred to a follow-up specification. Storm's shape is captured here at a contract level; a separate follow-up specification will pin down Storm's concrete grammar.
+
+Reusability of the Storm_Source_Generator across languages is an explicit architectural goal for v1: the generator consumes a Storm grammar as input and emits a lexer, parser, and AST for whatever language that grammar describes, without containing Mist-specific logic, types, or knowledge. This keeps the generator a general-purpose tool that other .NET language projects could adopt, and prevents the v1 design from accidentally baking in Mist-specific assumptions.
 
 This v1 specification is scoped for time-to-value: it captures the minimum architectural surface required to get a working end-to-end compiler from Mist source to an executable .NET assembly via the C# transpiler backend. A "Non-Goals" section at the end of this document enumerates deliberately deferred concerns that a later refactor pass is expected to address.
 
@@ -18,7 +20,8 @@ This v1 specification is scoped for time-to-value: it captures the minimum archi
 - **Storm_Fragment**: A Storm declaration introduced by the `fragment` keyword that defines a reusable sub-pattern for tokens. Fragments do not themselves produce tokens in the Token_Stream.
 - **Storm_Hidden_Token**: A Storm_Token declared with the `hidden` modifier. Hidden tokens are emitted into the Token_Stream but are skipped by the Parser while remaining available to downstream tooling.
 - **Source_Generator**: A C# source generator (as defined by the Roslyn source generator API) that runs at compile time and emits additional C# source code into a compilation.
-- **Mist_Source_Generator**: The Source_Generator that consumes a Storm_Grammar_File and emits C# source for the Lexer, Parser, and AST node types of the described language.
+- **Storm_Source_Generator**: A language-agnostic Source_Generator that consumes one or more Storm_Grammar_Files and emits C# source for the Lexer, Parser, and AST node types of the language described by those grammar files. The Storm_Source_Generator contains no knowledge of Mist or any other specific language; it is reusable across any consumer that supplies a Storm grammar.
+- **Mist_Compiler_Project**: The .NET project (or set of .NET projects) that implements the Mist compiler. The Mist_Compiler_Project depends on the Storm_Source_Generator and supplies its own Storm_Grammar_File(s) describing Mist.
 - **Lexer**: The compiler component that converts a stream of Mist source characters into a stream of Tokens.
 - **Token**: A single lexical unit produced by the Lexer, carrying a kind, source text span, channel (default or hidden), and position information.
 - **Token_Stream**: An ordered sequence of Tokens produced by the Lexer from a single source input.
@@ -49,6 +52,9 @@ This v1 specification is scoped for time-to-value: it captures the minimum archi
 2. THE Mist_Compiler SHALL target the .NET 10 runtime.
 3. THE Mist_Compiler SHALL follow idiomatic C# conventions for naming, nullability annotations, and async usage.
 4. THE Mist_Compiler SHALL be organized as a set of .NET projects with explicit boundaries between the Compiler_CLI, Compiler_Driver, pipeline stages, analyzers, and backends.
+5. THE Storm_Source_Generator SHALL reside in its own .NET project independent of the Mist_Compiler_Project.
+6. THE Mist_Compiler_Project SHALL consume the Storm_Source_Generator as an external dependency and supply its own Storm_Grammar_File(s) describing Mist.
+7. THE Storm_Source_Generator SHALL NOT contain any Mist-specific logic, types, identifiers, or knowledge.
 
 ### Requirement 2: Storm Grammar Consumption
 
@@ -56,11 +62,11 @@ This v1 specification is scoped for time-to-value: it captures the minimum archi
 
 #### Acceptance Criteria
 
-1. THE Mist_Compiler SHALL define Mist's lexical and syntactic grammar in a Storm_Grammar_File rooted at a single entry Storm_Grammar_File.
+1. THE Mist_Compiler_Project SHALL define Mist's lexical and syntactic grammar in a Storm_Grammar_File rooted at a single entry Storm_Grammar_File.
 2. THE Storm language SHALL be a distinct formal grammar language from Mist, inspired by ANTLR, without a requirement of ANTLR compatibility.
-3. THE Mist_Compiler build SHALL treat the root Storm_Grammar_File and all files it transitively imports as the authoritative source of Mist's grammar.
-4. WHEN any Storm_Grammar_File in the transitive import closure changes, THE Mist_Compiler build SHALL regenerate the Lexer, Parser, and AST node type sources during the next build.
-5. IF a Storm_Grammar_File contains a syntax error, THEN THE Mist_Source_Generator SHALL emit a build-time Diagnostic identifying the file, line, and column of the error, and SHALL fail the build.
+3. THE Mist_Compiler_Project build SHALL treat the root Storm_Grammar_File and all files it transitively imports as the authoritative source of Mist's grammar.
+4. WHEN any Storm_Grammar_File in the transitive import closure of a consumer project's root Storm_Grammar_File changes, THE consumer project's build SHALL regenerate the Lexer, Parser, and AST node type sources during the next build by re-invoking the Storm_Source_Generator.
+5. IF a Storm_Grammar_File contains a syntax error, THEN THE Storm_Source_Generator SHALL emit a build-time Diagnostic identifying the file, line, and column of the error, and SHALL fail the build.
 
 ### Requirement 3: Storm Grammar Language — Declarations and Expressions
 
@@ -76,7 +82,7 @@ This v1 specification is scoped for time-to-value: it captures the minimum archi
 6. THE Storm_Rule, Storm_Token, and Storm_Fragment expression syntax SHALL support the following combinators: sequence (juxtaposition), alternation (`|`), grouping (`(` `)`), optional (`?`), zero-or-more (`*`), and one-or-more (`+`).
 7. THE Storm_Token and Storm_Fragment expressions SHALL additionally support string literals, regular-expression-style character classes (including ranges such as `[a-zA-Z_]` and negated classes such as `[^"\\]`), and references to other Storm_Tokens and Storm_Fragments.
 8. THE Storm_Rule expressions SHALL additionally support references to Storm_Tokens, references to other Storm_Rules, and anonymous string literals; an anonymous string literal appearing within a Storm_Rule SHALL be treated as an implicit reference to a token matching exactly that literal text.
-9. THE Storm language SHALL support named alternatives within a Storm_Rule, where each top-level alternative of a rule MAY be labeled with a name that the Mist_Source_Generator uses to name the corresponding AST subtype.
+9. THE Storm language SHALL support named alternatives within a Storm_Rule, where each top-level alternative of a rule MAY be labeled with a name that the Storm_Source_Generator uses to name the corresponding AST subtype.
 10. THE Storm language SHALL support `//` line comments.
 
 ### Requirement 4: Storm Grammar Language — Tokens, Hidden Channel, and Fragment Semantics
@@ -89,7 +95,7 @@ This v1 specification is scoped for time-to-value: it captures the minimum archi
 2. THE Lexer SHALL emit all Tokens, including Tokens derived from Storm_Hidden_Tokens, into the Token_Stream with accurate source spans and positions.
 3. THE Lexer SHALL mark Tokens derived from Storm_Hidden_Tokens with a distinct channel indicator that identifies them as hidden.
 4. THE Parser SHALL skip Tokens marked as hidden when matching Storm_Rule expressions.
-5. THE Mist_Source_Generator SHALL NOT generate a Token kind for a Storm_Fragment; fragments SHALL only appear as building blocks of Storm_Tokens.
+5. THE Storm_Source_Generator SHALL NOT generate a Token kind for a Storm_Fragment; fragments SHALL only appear as building blocks of Storm_Tokens.
 6. WHEN the Lexer matches input against the set of Storm_Tokens, THE Lexer SHALL use maximal-munch: the longest matching Storm_Token is selected.
 7. WHEN multiple Storm_Tokens match the same maximal-munch input length, THE Lexer SHALL resolve the tie using the declaration order of the Storm_Tokens within the effective grammar.
 
@@ -101,9 +107,9 @@ This v1 specification is scoped for time-to-value: it captures the minimum archi
 
 1. THE generated Parser SHALL implement LL(*) (predicated LL) parsing for Storm_Rule expressions.
 2. THE generated Parser SHALL resolve alternation within a Storm_Rule using ordered choice (PEG semantics): when multiple alternatives of a Storm_Rule match at a given position, the first alternative in declaration order that matches SHALL be selected.
-3. THE Mist_Source_Generator SHALL generate a public parser entry point for every Storm_Rule declared in the effective grammar.
-4. THE Mist_Source_Generator SHALL NOT generate a parser entry point for any Storm_Token or Storm_Fragment.
-5. THE selection of which Storm_Rule serves as the top-level entry point for a full Mist Compilation_Unit SHALL be a Mist_Compiler concern, not a Storm concern.
+3. THE Storm_Source_Generator SHALL generate a public parser entry point for every Storm_Rule declared in the effective grammar.
+4. THE Storm_Source_Generator SHALL NOT generate a parser entry point for any Storm_Token or Storm_Fragment.
+5. THE selection of which Storm_Rule serves as the top-level entry point for a full Mist Compilation_Unit SHALL be a Mist_Compiler_Project concern, not a Storm or Storm_Source_Generator concern.
 
 ### Requirement 6: Storm Grammar Language — Imports and Namespaces
 
@@ -113,13 +119,13 @@ This v1 specification is scoped for time-to-value: it captures the minimum archi
 
 1. THE Storm language SHALL support an `import "<path>";` declaration that references another Storm_Grammar_File.
 2. THE Storm language SHALL support an `import "<path>" as <namespace>;` declaration that imports the referenced Storm_Grammar_File under a named namespace.
-3. WHEN an unnamespaced `import "<path>";` is resolved, THE Mist_Source_Generator SHALL merge the imported file's declarations into the importing file's top-level declaration set.
-4. WHEN a namespaced `import "<path>" as <namespace>;` is resolved, THE Mist_Source_Generator SHALL make the imported file's declarations accessible only via qualified references of the form `<namespace>.<name>` within the importing file.
-5. IF an unnamespaced import introduces a Storm_Rule, Storm_Token, or Storm_Fragment name that is already defined in the importing file or in another unnamespaced imported file, THEN THE Mist_Source_Generator SHALL emit a build-time Diagnostic identifying the duplicated name and the conflicting source locations, and SHALL fail the build.
-6. IF an import path cannot be resolved, THEN THE Mist_Source_Generator SHALL emit a build-time Diagnostic identifying the importing file, the import declaration's location, and the unresolved path, and SHALL fail the build.
-7. WHEN the Mist_Source_Generator resolves imports, THE Mist_Source_Generator SHALL resolve each import path once per build regardless of how many times the same file is imported, so that cycles among imports are harmless.
+3. WHEN an unnamespaced `import "<path>";` is resolved, THE Storm_Source_Generator SHALL merge the imported file's declarations into the importing file's top-level declaration set.
+4. WHEN a namespaced `import "<path>" as <namespace>;` is resolved, THE Storm_Source_Generator SHALL make the imported file's declarations accessible only via qualified references of the form `<namespace>.<name>` within the importing file.
+5. IF an unnamespaced import introduces a Storm_Rule, Storm_Token, or Storm_Fragment name that is already defined in the importing file or in another unnamespaced imported file, THEN THE Storm_Source_Generator SHALL emit a build-time Diagnostic identifying the duplicated name and the conflicting source locations, and SHALL fail the build.
+6. IF an import path cannot be resolved, THEN THE Storm_Source_Generator SHALL emit a build-time Diagnostic identifying the importing file, the import declaration's location, and the unresolved path, and SHALL fail the build.
+7. WHEN the Storm_Source_Generator resolves imports, THE Storm_Source_Generator SHALL resolve each import path once per build regardless of how many times the same file is imported, so that cycles among imports are harmless.
 8. THE effective declaration order used for token-match tiebreaking under Requirement 4.7 SHALL be: declarations in the root Storm_Grammar_File first, followed by declarations contributed by unnamespaced imports in the order those imports appear, followed by declarations reached only through namespaced imports.
-9. WHEN an import path is relative, THE Mist_Source_Generator SHALL resolve the path relative to the directory of the importing Storm_Grammar_File.
+9. WHEN an import path is relative, THE Storm_Source_Generator SHALL resolve the path relative to the directory of the importing Storm_Grammar_File.
 
 ### Requirement 7: Storm Grammar Language — Semantic Validation
 
@@ -127,19 +133,19 @@ This v1 specification is scoped for time-to-value: it captures the minimum archi
 
 #### Acceptance Criteria
 
-1. IF a Storm_Rule, Storm_Token, or Storm_Fragment references an undefined name, THEN THE Mist_Source_Generator SHALL emit a build-time Diagnostic identifying the reference's source location and the undefined name, and SHALL fail the build.
-2. IF a Storm_Rule contains an alternative that is statically unreachable given ordered-choice semantics, THEN THE Mist_Source_Generator SHALL emit a build-time Diagnostic identifying the unreachable alternative.
-3. IF the Mist_Source_Generator detects direct or indirect left-recursion that it cannot lower to LL(*), THEN THE Mist_Source_Generator SHALL emit a build-time Diagnostic identifying the offending Storm_Rule and its recursion path, and SHALL fail the build.
-4. IF the Mist_Source_Generator detects a grammar ambiguity it cannot resolve via lookahead, THEN THE Mist_Source_Generator SHALL emit a build-time Diagnostic of at least Warning severity identifying the ambiguous Storm_Rule and the ambiguous alternatives.
+1. IF a Storm_Rule, Storm_Token, or Storm_Fragment references an undefined name, THEN THE Storm_Source_Generator SHALL emit a build-time Diagnostic identifying the reference's source location and the undefined name, and SHALL fail the build.
+2. IF a Storm_Rule contains an alternative that is statically unreachable given ordered-choice semantics, THEN THE Storm_Source_Generator SHALL emit a build-time Diagnostic identifying the unreachable alternative.
+3. IF the Storm_Source_Generator detects direct or indirect left-recursion that it cannot lower to LL(*), THEN THE Storm_Source_Generator SHALL emit a build-time Diagnostic identifying the offending Storm_Rule and its recursion path, and SHALL fail the build.
+4. IF the Storm_Source_Generator detects a grammar ambiguity it cannot resolve via lookahead, THEN THE Storm_Source_Generator SHALL emit a build-time Diagnostic of at least Warning severity identifying the ambiguous Storm_Rule and the ambiguous alternatives.
 
 ### Requirement 8: Storm Bootstrap
 
-**User Story:** As a compiler developer, I want Storm itself to be parsed by simple, hand-written code, so that there is no bootstrap problem when building the Mist_Source_Generator.
+**User Story:** As a compiler developer, I want Storm itself to be parsed by simple, hand-written code, so that there is no bootstrap problem when building the Storm_Source_Generator.
 
 #### Acceptance Criteria
 
-1. THE Mist_Source_Generator SHALL parse Storm_Grammar_Files using a hand-written C# parser for the Storm language.
-2. THE Mist_Source_Generator SHALL NOT depend on a previously generated Storm-in-Storm parser to parse Storm_Grammar_Files.
+1. THE Storm_Source_Generator SHALL parse Storm_Grammar_Files using a hand-written C# parser for the Storm language.
+2. THE Storm_Source_Generator SHALL NOT depend on a previously generated Storm-in-Storm parser to parse Storm_Grammar_Files.
 
 ### Requirement 9: Source-Generated Lexer, Parser, and AST
 
@@ -147,14 +153,14 @@ This v1 specification is scoped for time-to-value: it captures the minimum archi
 
 #### Acceptance Criteria
 
-1. THE Mist_Source_Generator SHALL be implemented as a C# source generator using the Roslyn source generator API supported by .NET 10.
-2. WHEN the Mist_Source_Generator is invoked with a root Storm_Grammar_File as input, THE Mist_Source_Generator SHALL emit C# source code for an explicit Lexer, an explicit Parser, and AST node types for the described language.
+1. THE Storm_Source_Generator SHALL be implemented as a C# source generator using the Roslyn source generator API supported by .NET 10.
+2. WHEN the Storm_Source_Generator is invoked with a root Storm_Grammar_File as input, THE Storm_Source_Generator SHALL emit C# source code for an explicit Lexer, an explicit Parser, and AST node types for the described language.
 3. THE generated Lexer and Parser SHALL NOT rely on runtime reflection to perform lexing or parsing.
-4. THE generated Lexer SHALL expose an API that consumes Mist source text and produces a Token_Stream.
+4. THE generated Lexer SHALL expose an API that consumes source text in the described language and produces a Token_Stream.
 5. THE generated Parser SHALL expose an API that consumes a Token_Stream and produces an AST, with one public entry point per Storm_Rule as specified in Requirement 5.3.
-6. THE Mist_Source_Generator SHALL generate exactly one AST node type per Storm_Rule, with the generated type's name and shape determined by the Storm_Rule's name, its expression structure, and any named alternatives.
+6. THE Storm_Source_Generator SHALL generate exactly one AST node type per Storm_Rule, with the generated type's name and shape determined by the Storm_Rule's name, its expression structure, and any named alternatives.
 7. THE generated Lexer, Parser, and AST node type source code SHALL be deterministic for a given transitive closure of Storm_Grammar_File inputs, producing byte-identical output across repeated builds with unchanged inputs.
-8. WHERE the Mist_Source_Generator encounters a grammar rule it cannot lower to C#, THE Mist_Source_Generator SHALL emit a build-time Diagnostic describing the unsupported construct and SHALL fail the build.
+8. WHERE the Storm_Source_Generator encounters a grammar rule it cannot lower to C#, THE Storm_Source_Generator SHALL emit a build-time Diagnostic describing the unsupported construct and SHALL fail the build.
 
 ### Requirement 10: Lexing Stage
 
@@ -283,6 +289,8 @@ This v1 specification is scoped for time-to-value: it captures the minimum archi
 4. THE Semantic_Model_Builder project SHALL NOT depend on the Analyzer or Backend projects.
 5. THE Analyzer framework project SHALL NOT depend on any Backend project.
 6. Each pipeline stage SHALL expose its contract through public interfaces or abstract types separate from its implementation types.
+7. THE Storm_Source_Generator SHALL reside in a .NET project that has no source-code or project-reference dependency on any Mist_Compiler_Project project.
+8. THE Storm_Source_Generator SHALL be consumable by any .NET project that supplies a Storm_Grammar_File, independent of Mist.
 
 ### Requirement 20: Determinism and Reproducibility
 
@@ -319,7 +327,7 @@ The following concerns are intentionally out of scope for v1 of the Mist compile
 6. **Source mapping from emitted C# back to Mist.** v1's CSharp_Transpiler_Backend emits C# and surfaces .NET compiler diagnostics as-is. Attributing emitted C# constructs back to originating Mist source spans (e.g., via `#line` directives or source maps) is deferred.
 7. **Round-trip pretty-printer seam.** v1 does not require a Mist pretty-printer or a parse → print → parse round-trip testability hook. This is valuable for property-based testing but is deferred until the Mist syntax stabilizes.
 8. **Diagnostic suggestions / "did you mean" hints.** v1's Storm and Mist Diagnostics identify errors precisely but do not offer corrective suggestions.
-9. **Self-hosted Storm.** v1's Mist_Source_Generator parses Storm with a hand-written C# parser (Requirement 8). Expressing Storm's grammar in Storm and bootstrapping the generator from its own output is deferred.
+9. **Self-hosted Storm.** v1's Storm_Source_Generator parses Storm with a hand-written C# parser (Requirement 8). Expressing Storm's grammar in Storm and bootstrapping the generator from its own output is deferred.
 10. **Self-hosted Mist.** v1 is implemented in C#. Rewriting the Mist compiler in Mist is a long-term north star, not a v1 concern.
 11. **Concrete Mist syntax and semantics.** Deferred to a follow-up specification. This document pins down only the architectural contracts that downstream stages depend on.
 12. **Concrete Storm syntax fine-tuning.** This document captures Storm's declarations, expressions, semantics, imports, and validation rules at a contract level. A follow-up specification will pin down the exact concrete syntax (precedence of combinators, escape rules in string literals and character classes, exact lexical rules for Storm identifiers, etc.).

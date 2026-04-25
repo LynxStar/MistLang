@@ -59,12 +59,12 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
 
         // Parse all storm files to find the one with a grammar declaration
         var parsedFiles = new Dictionary<string, Frontend.StormFile>(StringComparer.OrdinalIgnoreCase);
-        var parseDiagnostics = new List<Diagnostics.StormDiagnostic>();
+        var parseDiagnostics = new List<StormDiagnostic>();
 
         foreach(var kv in fileContents)
         {
             var source = new Frontend.StormSourceText(kv.Key, kv.Value);
-            var fileDiags = new List<Diagnostics.StormDiagnostic>();
+            var fileDiags = new List<StormDiagnostic>();
             var tokens = Frontend.StormLexer.Tokenize(source, fileDiags);
             var stormFile = Frontend.StormParser.Parse(tokens, source, fileDiags);
             parsedFiles[kv.Key] = stormFile;
@@ -85,9 +85,9 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
                 if(rootPath != null)
                 {
                     // Multiple grammar declarations — report and bail
-                    context.ReportDiagnostic(new Diagnostics.StormDiagnostic(
-                        Diagnostics.StormDiagnosticIds.STORM_MULTIPLE_ROOT_GRAMMARS,
-                        Diagnostics.StormDiagnosticSeverity.Error,
+                    context.ReportDiagnostic(new StormDiagnostic(
+                        StormDiagnosticIds.STORM_MULTIPLE_ROOT_GRAMMARS,
+                        StormDiagnosticSeverity.Error,
                         $"Multiple files declare a `grammar` directive: first in '{firstDeclPath}' at {firstDecl!.Line}:{firstDecl.Column}, also in '{kv.Key}' at {kv.Value.GrammarDeclaration.Line}:{kv.Value.GrammarDeclaration.Column}",
                         kv.Key,
                         kv.Value.GrammarDeclaration.Line,
@@ -112,9 +112,9 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
         if(rootPath == null || grammarName == null)
         {
             // No grammar declaration found
-            context.ReportDiagnostic(new Diagnostics.StormDiagnostic(
-                Diagnostics.StormDiagnosticIds.STORM_NO_ROOT_GRAMMAR,
-                Diagnostics.StormDiagnosticSeverity.Error,
+            context.ReportDiagnostic(new StormDiagnostic(
+                StormDiagnosticIds.STORM_NO_ROOT_GRAMMAR,
+                StormDiagnosticSeverity.Error,
                 "No file declares a `grammar` directive",
                 stormTexts[0].Path,
                 1,

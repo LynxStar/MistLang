@@ -8,7 +8,7 @@ The design pins down three deliverables:
 
 1. **`Storm.SourceGenerator`** — a language-agnostic Roslyn source generator (`netstandard2.0`) that consumes Storm grammar files and emits a Lexer, Parser, and AST for whatever language the grammar describes. It contains zero Mist-specific code.
 2. **`Mist`** — a single .NET 10 / C# 14 class library that contains every compiler stage: it supplies the Mist Storm grammar, consumes the generated Lexer/Parser/AST, then builds the semantic model, runs analyzers (including the type checker), and drives the C# transpiler backend. Stage boundaries are enforced by folder + namespace convention and by a dedicated contracts namespace per stage.
-3. **`Mist.Cli`** — a thin executable that wires command-line arguments into `Mist`'s compiler driver.
+3. **`Mist.CLI`** — a thin executable that wires command-line arguments into `Mist`'s compiler driver.
 
 All concrete Mist syntax and semantics are out of scope. Everything here is architecture: contracts, stage pipelines, determinism strategy, and testability seams. Concrete Storm syntax details (escape rules, exact identifier lexing, combinator precedence) are left to a follow-up spec; this design commits only to the Storm shape the Requirements document already pins down.
 
@@ -19,15 +19,15 @@ The design follows the Requirements document's numbering so that every architect
 ### Solution layout
 
 ```
-Mist.sln
+Mist.slnx
 ├── Source/
 │   ├── Storm.SourceGenerator/          # netstandard2.0, Roslyn source generator
 │   ├── Mist/                           # net10.0, compiler library
-│   └── Mist.Cli/                       # net10.0, executable
+│   └── Mist.CLI/                       # net10.0, executable
 └── Test/
     ├── Storm.SourceGenerator.Tests/
     ├── Mist.Tests/
-    └── Mist.Cli.Tests/
+    └── Mist.CLI.Tests/
 ```
 
 Exactly three non-test projects, per R1.4. Test projects are unconstrained in number.
@@ -41,12 +41,12 @@ Storm.SourceGenerator/
 │   └── StormIncrementalGenerator.cs    # IIncrementalGenerator entry point
 ├── Frontend/                           # Storm parsing, hand-written
 │   ├── StormLexer.cs
-│   ├── StormParser.cs
+│   ├── StormParser.cs                  # recognizes `grammar`, `import`, `rule`, `token`, `fragment`, `hidden`
 │   ├── StormSyntax.cs                  # Storm AST node types
 │   └── StormSourceText.cs
 ├── Resolve/                            # Import resolution + name binding
 │   ├── StormImportResolver.cs
-│   └── StormGrammar.cs                 # "Effective grammar" aggregate
+│   └── StormGrammar.cs                 # "Effective grammar" aggregate; exposes GrammarName
 ├── Validate/                           # Semantic validation of Storm grammars
 │   ├── NameResolutionPass.cs
 │   ├── LeftRecursionPass.cs
@@ -70,7 +70,7 @@ Storm.SourceGenerator/
 
 Notes:
 
-- The source generator has no dependency on `Mist` or `Mist.Cli` (R19.4). The runtime support types that the generated code references (`Token`, `TokenChannel`, `SourceSpan`, AST base classes) are **also emitted** by the source generator into the consumer's compilation under a `Storm.Runtime` namespace. This keeps `Storm.SourceGenerator` usable by any consumer (R19.5) without requiring a separate runtime NuGet package in v1.
+- The source generator has no dependency on `Mist` or `Mist.CLI` (R19.4). The runtime support types that the generated code references (`Token`, `TokenChannel`, `SourceSpan`, AST base classes) are **also emitted** by the source generator into the consumer's compilation under a `Storm.Runtime` namespace. This keeps `Storm.SourceGenerator` usable by any consumer (R19.5) without requiring a separate runtime NuGet package in v1.
 - Every file under `Frontend/` is hand-written (R8.1, R8.2).
 
 ### `Mist` layout
@@ -89,13 +89,13 @@ Mist/
 │   │   ├── DiagnosticId.cs
 │   │   ├── PipelineStage.cs
 │   │   └── DiagnosticBag.cs
-│   ├── SourceText/                     # Mist.Common.SourceText
+│   ├── SourceText/                     # Mist.Common.Text
 │   │   ├── SourceText.cs
 │   │   ├── SourceSpan.cs
 │   │   ├── LinePosition.cs
 │   │   └── LinePositionSpan.cs
 │   └── Collections/
-│       └── ImmutableOrderedMap.cs      # deterministic ordered dictionary
+│       └── ImmutableOrderedDictionary.cs # deterministic ordered dictionary
 ├── Lexing/
 │   ├── Contracts/                      # Mist.Lexing.Contracts
 │   │   ├── ILexer.cs
@@ -141,7 +141,7 @@ Mist/
 ├── Driver/
 │   ├── Contracts/                      # Mist.Driver.Contracts
 │   │   ├── ICompilerDriver.cs
-│   │   ├── Compilation.cs
+│   │   ├── Compilation.cs              # MistCompilation type
 │   │   ├── CompilationUnit.cs
 │   │   ├── CompilerOptions.cs
 │   │   └── CompilerResult.cs
@@ -157,11 +157,11 @@ Namespace convention:
 - Shared primitives (Diagnostic, SourceSpan, etc.) live in `Mist.Common.*`.
 - Generator output lives in `Mist.Generated.*` plus a `Storm.Runtime` namespace for emitted runtime support.
 
-### `Mist.Cli` layout
+### `Mist.CLI` layout
 
 ```
-Mist.Cli/
-├── Mist.Cli.csproj                     # net10.0, OutputType=Exe
+Mist.CLI/
+├── Mist.CLI.csproj                     # net10.0, OutputType=Exe
 ├── Program.cs                          # Main, wires args → CompilerDriver
 ├── Args/
 │   ├── CliArguments.cs
@@ -170,7 +170,7 @@ Mist.Cli/
     └── DiagnosticFormatter.cs          # human-readable diagnostic rendering
 ```
 
-`Mist.Cli` contains no pipeline-stage logic (R1.9). `Program.cs` constructs `CompilerOptions` from parsed arguments, calls `ICompilerDriver.Compile`, formats diagnostics to stderr, and maps the aggregated result to an exit code.
+`Mist.CLI` contains no pipeline-stage logic (R1.9). `Program.cs` constructs `CompilerOptions` from parsed arguments, calls `ICompilerDriver.Compile`, formats diagnostics to stderr, and maps the aggregated result to an exit code.
 
 ## Core Domain Types
 
@@ -223,7 +223,7 @@ public sealed class DiagnosticBag
 ### Source location
 
 ```csharp
-namespace Mist.Common.SourceText;
+namespace Mist.Common.Text;
 
 public readonly record struct LinePosition(int Line, int Column); // both 1-based
 
@@ -322,7 +322,7 @@ namespace Mist.Semantics.Contracts;
 
 public interface ISemanticModel
 {
-    Compilation Compilation { get; }
+    MistCompilation Compilation { get; }
     IScope GlobalScope { get; }
     IReadOnlyList<CompilationUnit> Units { get; }
 
@@ -367,14 +367,14 @@ public enum TypeKind { /* deferred to Mist-language spec */ }
 
 Immutability (R12.4) is enforced by exposing only `IReadOnly*` / `ImmutableArray` surfaces and by constructing the entire model in one `SemanticModelBuilder.Build` call that freezes internal mutable builders before returning.
 
-### Compilation and CompilationUnit
+### MistCompilation and CompilationUnit
 
 ```csharp
 namespace Mist.Driver.Contracts;
 
 public sealed record CompilationUnit(SourceText Source);
 
-public sealed record Compilation(ImmutableArray<CompilationUnit> Units)
+public sealed record MistCompilation(ImmutableArray<CompilationUnit> Units)
 {
     public string DisplayName { get; init; } = "";
 }
@@ -391,7 +391,7 @@ public sealed record CompilerResult(
     ImmutableArray<Diagnostic> Diagnostics); // aggregated, in stage order (R16.2, R17.4)
 ```
 
-`Compilation` is the unit of work the driver operates on (R12.1, R16.1). `CompilationUnit` is one Mist source file (glossary; R16.3–R16.5). `CompilerResult` is the single structured artifact returned by `ICompilerDriver.Compile` (R16.6).
+`MistCompilation` is the unit of work the driver operates on (R12.1, R16.1). `CompilationUnit` is one Mist source file (glossary; R16.3–R16.5). `CompilerResult` is the single structured artifact returned by `ICompilerDriver.Compile` (R16.6).
 
 ## Storm Language Design (Contract Level)
 
@@ -401,17 +401,21 @@ This section describes Storm at the architectural contract level. Concrete synta
 
 A Storm grammar file is a sequence of:
 
-1. Zero or more `import` declarations.
-2. One or more top-level declarations: `rule`, `token`, `hidden token`, or `fragment`.
-3. `//` line comments, which may appear anywhere.
+1. An optional `grammar <Name>;` declaration (must be the first declaration if present, before imports).
+2. Zero or more `import` declarations.
+3. One or more top-level declarations: `rule`, `token`, `hidden token`, or `fragment`.
+4. `//` line comments, which may appear anywhere.
 
-There is no file header, no module declaration, no semantic-action blocks (R3.5).
+There is no file header (other than the optional `grammar` declaration), no module declaration, no semantic-action blocks (R3.5).
+
+Only one file in the transitive import closure may contain a `grammar` declaration — that file is the root Storm_Grammar_File. The grammar name drives generated class names (e.g., `MistLexer`, `MistParser`) and the consumer namespace (`<Name>.Generated`). If no file declares a `grammar` directive, the Storm_Source_Generator emits `STORM_NO_ROOT_GRAMMAR` (STORM0009) and fails the build. If multiple files declare a `grammar` directive, the Storm_Source_Generator emits `STORM_MULTIPLE_ROOT_GRAMMARS` (STORM0010) and fails the build.
 
 ### Declarations
 
-Three top-level declaration forms (R3.1):
+Four top-level declaration forms (R3.1, R3.12):
 
 ```
+grammar   <Name>                  ;   // optional, at most one per import closure
 rule      <Name> = <RuleExpr>     ;
 token     <Name> = <TokenExpr>    ;
 fragment  <Name> = <TokenExpr>    ;
@@ -456,7 +460,7 @@ Path resolution (R6.9): relative paths resolve against the importing file's dire
 
 Resolution algorithm:
 
-1. Start from the root Storm grammar file the consumer project declares (for Mist: `Grammar/Mist.storm`).
+1. Start from the root Storm grammar file — the file containing the `grammar <Name>;` declaration. The Storm_Source_Generator scans all Storm grammar files in the consumer project's import closure to locate the file with the `grammar` declaration. If no file declares a `grammar` directive, emit `STORM_NO_ROOT_GRAMMAR` (STORM0009) and fail. If multiple files declare a `grammar` directive, emit `STORM_MULTIPLE_ROOT_GRAMMARS` (STORM0010) and fail.
 2. Maintain `visitedPaths: Set<CanonicalPath>` and `byPath: OrderedDict<CanonicalPath, ParsedStormFile>` keyed by canonicalized absolute path.
 3. For each file being processed:
    - Parse it (hand-written parser, R8.1).
@@ -465,7 +469,7 @@ Resolution algorithm:
      - If `canonical ∈ visitedPaths`, skip (cycles harmless per R6.7).
      - Otherwise add to `visitedPaths`, parse, and recursively resolve its imports.
      - If the file cannot be read/resolved → emit `STORM_IMPORT_NOT_FOUND` and fail (R6.6).
-4. Build the **effective grammar**:
+4. Build the **effective grammar** (represented by `StormGrammar`, which exposes a `GrammarName` property derived from the `grammar` declaration):
    - Start with the root file's declarations in declaration order.
    - Append, in DFS-pre-order of first visit, declarations contributed by each unnamespaced import's file (recursively merged).
    - Namespaced imports' declarations are stored under a qualified name table keyed by `<Namespace>.<Name>` and are accessible only via qualified reference (R6.4).
@@ -480,6 +484,19 @@ Over the effective grammar (R7):
 2. **Left-recursion check** — build the rule-call graph. Detect direct and indirect left-recursion. If found and not expressible as the generator's supported left-recursion-elimination form (see "Generated parser architecture"), emit `STORM_LEFT_RECURSION` with the cycle path and fail (R7.3).
 3. **Reachability / unreachable-alternative check** — for each `rule`, statically check that no alternative is shadowed by an earlier alternative under PEG ordered-choice semantics (R7.2, R5.2). This uses the LL(*) lookahead sets computed for code generation; if alternative *k*'s lookahead set is a subset of the union of alternatives *1..k-1*'s lookahead sets, alternative *k* is unreachable. Emit `STORM_UNREACHABLE_ALTERNATIVE` (Warning severity).
 4. **Ambiguity check** — for each rule, check that alternatives' LL(*) lookahead sets are distinguishable within the bounded lookahead the generator uses. If not, emit `STORM_AMBIGUOUS_RULE` with at least Warning severity (R7.4). Not a build failure; v1 resolves ambiguity via PEG order.
+
+### Diagnostic ID summary
+
+| ID | Constant | Trigger |
+|---|---|---|
+| STORM0001 | `STORM_IMPORT_NOT_FOUND` | Import path cannot be resolved (R6.6) |
+| STORM0002 | `STORM_DUPLICATE_NAME` | Duplicate unnamespaced declaration name (R6.5) |
+| STORM0003 | `STORM_UNDEFINED_REFERENCE` | Reference to undefined rule/token/fragment (R7.1) |
+| STORM0004 | `STORM_LEFT_RECURSION` | Unresolvable left-recursion detected (R7.3) |
+| STORM0005 | `STORM_UNREACHABLE_ALTERNATIVE` | Alternative shadowed by earlier alternative (R7.2) |
+| STORM0006 | `STORM_AMBIGUOUS_RULE` | Ambiguous alternatives within bounded lookahead (R7.4) |
+| STORM0009 | `STORM_NO_ROOT_GRAMMAR` | No file declares a `grammar` directive |
+| STORM0010 | `STORM_MULTIPLE_ROOT_GRAMMARS` | Multiple files declare a `grammar` directive |
 
 Validation passes run in the order listed. Later passes depend on earlier passes succeeding.
 
@@ -507,9 +524,9 @@ The `LexerEmitter` in `Storm.SourceGenerator` emits a self-contained C# lexer cl
 ### Generated lexer API
 
 ```csharp
-namespace <ConsumerNamespace>.Generated; // e.g. Mist.Generated
+namespace <ConsumerNamespace>.Generated; // e.g. Mist.Generated (driven by `grammar Mist;`)
 
-public sealed class MistLexer // name derived from grammar file name
+public sealed class MistLexer // name derived from grammar declaration (e.g., `grammar Mist;` → MistLexer)
 {
     public static TokenStream Lex(SourceText source, DiagnosticBag diagnostics);
 }
@@ -540,7 +557,7 @@ The emitter prefers (1) over (2) over (3) for performance. Validation pass 4 (am
 One `public static` parse method per `Storm_Rule` (R5.3, R9.5):
 
 ```csharp
-namespace <ConsumerNamespace>.Generated;
+namespace <ConsumerNamespace>.Generated; // driven by `grammar <Name>;` declaration
 
 public static class MistParser
 {
@@ -627,7 +644,7 @@ namespace Mist.Semantics.Contracts;
 
 public interface ISemanticModelBuilder
 {
-    ISemanticModel Build(Compilation compilation, ImmutableArray<SyntaxNode> asts, DiagnosticBag diagnostics);
+    ISemanticModel Build(MistCompilation compilation, ImmutableArray<SyntaxNode> asts, DiagnosticBag diagnostics);
 }
 ```
 
@@ -706,7 +723,7 @@ CompilerOptions
   ▼
 ┌─────────────────────────────────────────────┐
 │ 1. Load source files → CompilationUnits     │
-│    Create Compilation                        │
+│    Create MistCompilation                    │
 └─────────────────────────────────────────────┘
   │
   ▼  (per CompilationUnit)
@@ -792,7 +809,7 @@ The emitter sorts all output by symbol name, uses no timestamps, and writes file
 
 ## Command-Line Interface
 
-`Mist.Cli` is a thin shell (R1.9, R18).
+`Mist.CLI` is a thin shell (R1.9, R18).
 
 ### Argument parsing
 
@@ -850,7 +867,7 @@ Integration tests can also wire the full pipeline through `ICompilerDriver.Compi
 
 - `Storm.SourceGenerator.Tests` — tests the hand-written Storm parser, import resolution, validation passes, and emitted code (by compiling emitted source in-memory and asserting on the resulting types).
 - `Mist.Tests` — tests each Mist pipeline stage in isolation via contract interfaces, plus integration tests through the driver.
-- `Mist.Cli.Tests` — tests argument parsing and diagnostic formatting; end-to-end tests invoke the CLI as a subprocess.
+- `Mist.CLI.Tests` — tests argument parsing and diagnostic formatting; end-to-end tests invoke the CLI as a subprocess.
 
 ## Correctness Properties
 

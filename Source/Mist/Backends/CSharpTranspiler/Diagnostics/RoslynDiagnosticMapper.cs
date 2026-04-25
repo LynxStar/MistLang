@@ -18,8 +18,10 @@ public sealed partial class RoslynDiagnosticMapper
     public static Diagnostic? TryParse(string line)
     {
         var match = DiagnosticLineRegex().Match(line.Trim());
-        if (!match.Success)
+        if(!match.Success)
+        {
             return null;
+        }
 
         var filePath = match.Groups[1].Value;
         var lineNum = int.Parse(match.Groups[2].Value);

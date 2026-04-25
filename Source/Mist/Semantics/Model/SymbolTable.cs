@@ -49,9 +49,9 @@ public sealed class MistType : IType
 /// </summary>
 public sealed class SymbolTable
 {
-    private readonly List<ISymbol> _allSymbols = [];
-    private readonly Dictionary<Storm.Runtime.SyntaxNode, ISymbol> _nodeToSymbol = [];
-    private readonly Dictionary<ISymbol, Storm.Runtime.SyntaxNode> _symbolToNode = [];
+    private List<ISymbol> _allSymbols = [];
+    private Dictionary<Storm.Runtime.SyntaxNode, ISymbol> _nodeToSymbol = [];
+    private Dictionary<ISymbol, Storm.Runtime.SyntaxNode> _symbolToNode = [];
 
     public void Register(ISymbol symbol, Storm.Runtime.SyntaxNode declaringNode)
     {

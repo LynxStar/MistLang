@@ -10,7 +10,7 @@ namespace Mist.Semantics.Model;
 /// </summary>
 public sealed class SemanticModel : ISemanticModel
 {
-    private readonly SymbolTable _symbolTable;
+    private SymbolTable _symbolTable;
 
     internal SemanticModel(
         MistCompilation compilation,

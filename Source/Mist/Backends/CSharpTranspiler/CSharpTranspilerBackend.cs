@@ -22,7 +22,7 @@ public sealed class CSharpTranspilerBackend : IBackend
             // Step 1: Emit C# source files
             CSharpEmitter.Emit(model, outputDirectory, bag);
 
-            if (bag.HasErrors)
+            if(bag.HasErrors)
             {
                 return new BackendResult(
                     Succeeded: false,
@@ -35,7 +35,7 @@ public sealed class CSharpTranspilerBackend : IBackend
 
             return compileResult;
         }
-        catch (Exception ex)
+        catch(Exception ex)
         {
             bag.Add(new Diagnostic(
                 new DiagnosticId("MIST_BACKEND_ERROR"),

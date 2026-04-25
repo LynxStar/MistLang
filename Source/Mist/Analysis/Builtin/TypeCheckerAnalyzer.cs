@@ -17,7 +17,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Walk all symbols and verify type rules.
         // Concrete type rules are deferred to the Mist-language spec.
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
             // TODO: Implement type-checking rules once the Mist type system is defined.
             // For now, this is a no-op stub that establishes the analyzer contract.

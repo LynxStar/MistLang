@@ -7,7 +7,7 @@ namespace Mist.Semantics.Model;
 /// </summary>
 public sealed class Scope : IScope
 {
-    private readonly List<ISymbol> _members = [];
+    private List<ISymbol> _members = [];
 
     public Scope(IScope? parent)
     {
@@ -20,10 +20,12 @@ public sealed class Scope : IScope
 
     public ISymbol? Lookup(string name)
     {
-        foreach (var member in _members)
+        foreach(var member in _members)
         {
-            if (member.Name == name)
+            if(member.Name == name)
+            {
                 return member;
+            }
         }
 
         return Parent?.Lookup(name);

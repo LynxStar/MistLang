@@ -71,10 +71,10 @@ public class SemanticModelDiagnosticsPropertyTests
             typeof(IScope),
         };
 
-        foreach (var iface in interfaces)
+        foreach(var iface in interfaces)
         {
             var properties = iface.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-            foreach (var prop in properties)
+            foreach(var prop in properties)
             {
                 Assert.Null(prop.GetSetMethod());
             }
@@ -85,7 +85,7 @@ public class SemanticModelDiagnosticsPropertyTests
     {
         var properties = interfaceType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
-        foreach (var prop in properties)
+        foreach(var prop in properties)
         {
             // No public setters
             var setter = prop.GetSetMethod();
@@ -94,7 +94,7 @@ public class SemanticModelDiagnosticsPropertyTests
 
             // Collection-typed properties should return IReadOnly* or Immutable* types
             var returnType = prop.PropertyType;
-            if (IsCollectionType(returnType))
+            if(IsCollectionType(returnType))
             {
                 Assert.True(
                     IsImmutableCollectionType(returnType),
@@ -106,10 +106,14 @@ public class SemanticModelDiagnosticsPropertyTests
 
     private static bool IsCollectionType(Type type)
     {
-        if (type.IsArray) return true;
-
-        if (!type.IsGenericType) return false;
-
+        if(type.IsArray)
+        {
+            return true;
+        }
+        if(!type.IsGenericType)
+        {
+            return false;
+        }
         var genericDef = type.GetGenericTypeDefinition();
         return genericDef == typeof(IList<>)
             || genericDef == typeof(List<>)
@@ -123,8 +127,10 @@ public class SemanticModelDiagnosticsPropertyTests
 
     private static bool IsImmutableCollectionType(Type type)
     {
-        if (!type.IsGenericType) return false;
-
+        if(!type.IsGenericType)
+        {
+            return false;
+        }
         var genericDef = type.GetGenericTypeDefinition();
         return genericDef == typeof(IReadOnlyList<>)
             || genericDef == typeof(IReadOnlyCollection<>)
@@ -147,7 +153,7 @@ public class SemanticModelDiagnosticsPropertyTests
         // Create diagnostics from various pipeline stages and verify completeness
         var diagnostics = CreateSampleDiagnostics();
 
-        foreach (var diag in diagnostics)
+        foreach(var diag in diagnostics)
         {
             // Non-null Id
             Assert.NotNull(diag.Id.Value);
@@ -166,7 +172,7 @@ public class SemanticModelDiagnosticsPropertyTests
             Assert.NotEmpty(diag.Message);
 
             // If location is present, Start ≤ End
-            if (diag.Location is not null)
+            if(diag.Location is not null)
             {
                 var loc = diag.Location.Value;
                 Assert.True(
@@ -210,14 +216,14 @@ public class SemanticModelDiagnosticsPropertyTests
             .AddRange(semBag.ToImmutableArray());
 
         // Verify each diagnostic
-        foreach (var diag in allDiagnostics)
+        foreach(var diag in allDiagnostics)
         {
             Assert.NotNull(diag.Id.Value);
             Assert.True(Enum.IsDefined(typeof(DiagnosticSeverity), diag.Severity));
             Assert.True(Enum.IsDefined(typeof(PipelineStage), diag.Stage));
             Assert.NotNull(diag.Message);
 
-            if (diag.Location is not null)
+            if(diag.Location is not null)
             {
                 var loc = diag.Location.Value;
                 Assert.True(

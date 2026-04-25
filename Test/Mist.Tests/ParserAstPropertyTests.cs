@@ -14,8 +14,8 @@ namespace Mist.Tests;
 /// </summary>
 public class ParserAstPropertyTests
 {
-    private static readonly MistLexer Lexer = new();
-    private static readonly MistParser Parser = new();
+    private static MistLexer Lexer = new();
+    private static MistParser Parser = new();
 
     // ---------------------------------------------------------------
     //  27.1 — Parser span coverage
@@ -39,7 +39,7 @@ public class ParserAstPropertyTests
             "// comment\nlet y = true;",
         };
 
-        foreach (var input in inputs)
+        foreach(var input in inputs)
         {
             var source = new Mist.Common.Text.SourceText("test.mist", input);
             var lexBag = new DiagnosticBag();
@@ -48,7 +48,7 @@ public class ParserAstPropertyTests
             var parseBag = new DiagnosticBag();
             var parseResult = Parser.Parse(tokenStream, parseBag);
 
-            if (parseResult.Root is null)
+            if(parseResult.Root is null)
             {
                 // Skeletal parser: Root is null. This is expected for v1.
                 // When the full parser is implemented, this test will exercise
@@ -58,8 +58,10 @@ public class ParserAstPropertyTests
 
             // When Root is non-null, verify span coverage
             var defaultTokens = tokenStream.DefaultChannelTokens;
-            if (defaultTokens.Length == 0)
+            if(defaultTokens.Length == 0)
+            {
                 continue;
+            }
 
             var firstTokenStart = defaultTokens[0].Span.Start;
             var lastTokenEnd = defaultTokens[^1].Span.End;
@@ -90,7 +92,7 @@ public class ParserAstPropertyTests
             "fn main() { return 0; }",
         };
 
-        foreach (var input in inputs)
+        foreach(var input in inputs)
         {
             var source = new Mist.Common.Text.SourceText("test.mist", input);
             var lexBag = new DiagnosticBag();
@@ -99,7 +101,7 @@ public class ParserAstPropertyTests
             var parseBag = new DiagnosticBag();
             var parseResult = Parser.Parse(tokenStream, parseBag);
 
-            if (parseResult.Root is null)
+            if(parseResult.Root is null)
             {
                 // Skeletal parser: Root is null. Expected for v1.
                 continue;
@@ -117,13 +119,13 @@ public class ParserAstPropertyTests
         var children2 = node.Children().ToList();
 
         Assert.Equal(children1.Count, children2.Count);
-        for (int i = 0; i < children1.Count; i++)
+        for(var i = 0; i < children1.Count; i++)
         {
             Assert.Same(children1[i], children2[i]);
         }
 
         // Every child's span should be within the parent's span
-        foreach (var child in children1)
+        foreach(var child in children1)
         {
             Assert.True(child.Span.Start >= node.Span.Start,
                 $"Child span start ({child.Span.Start}) should be >= parent span start ({node.Span.Start})");

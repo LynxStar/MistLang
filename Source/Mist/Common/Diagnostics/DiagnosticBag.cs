@@ -7,7 +7,7 @@ namespace Mist.Common.Diagnostics;
 /// </summary>
 public sealed class DiagnosticBag
 {
-    private readonly List<Diagnostic> _diagnostics = [];
+    private List<Diagnostic> _diagnostics = [];
 
     /// <summary>
     /// Adds a diagnostic to the bag.

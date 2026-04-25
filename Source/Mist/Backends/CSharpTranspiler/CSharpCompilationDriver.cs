@@ -29,7 +29,7 @@ public sealed class CSharpCompilationDriver
         try
         {
             using var process = Process.Start(psi);
-            if (process is null)
+            if(process is null)
             {
                 diagnostics.Add(new Diagnostic(
                     new DiagnosticId("MIST_BUILD_ERROR"),
@@ -49,23 +49,23 @@ public sealed class CSharpCompilationDriver
 
             // Parse MSBuild diagnostic lines from output
             var allOutput = stdout + "\n" + stderr;
-            foreach (var line in allOutput.Split('\n'))
+            foreach(var line in allOutput.Split('\n'))
             {
                 var diagnostic = RoslynDiagnosticMapper.TryParse(line);
-                if (diagnostic is not null)
+                if(diagnostic is not null)
                 {
                     diagnostics.Add(diagnostic);
                 }
             }
 
-            bool succeeded = process.ExitCode == 0;
+            var succeeded = process.ExitCode == 0;
             string? artifactPath = succeeded
                 ? Path.Combine(projectDirectory, "bin", "Debug", "net10.0", "MistOutput.dll")
                 : null;
 
             return new BackendResult(succeeded, artifactPath, diagnostics.ToImmutableArray());
         }
-        catch (Exception ex)
+        catch(Exception ex)
         {
             diagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_BUILD_ERROR"),

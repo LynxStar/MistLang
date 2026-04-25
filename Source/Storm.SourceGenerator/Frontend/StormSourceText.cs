@@ -39,7 +39,7 @@ namespace Storm.SourceGenerator.Frontend
         /// <returns>A tuple of (Line, Column), both 1-based.</returns>
         public (int Line, int Column) GetLineAndColumn(int offset)
         {
-            if (offset < 0 || offset > Contents.Length)
+            if(offset < 0 || offset > Contents.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(offset));
             }
@@ -47,12 +47,12 @@ namespace Storm.SourceGenerator.Frontend
             var lineStarts = GetLineStarts();
 
             // Binary search for the line containing this offset.
-            int lo = 0;
-            int hi = lineStarts.Length - 1;
-            while (lo < hi)
+            var lo = 0;
+            var hi = lineStarts.Length - 1;
+            while(lo < hi)
             {
-                int mid = lo + (hi - lo + 1) / 2;
-                if (lineStarts[mid] <= offset)
+                var mid = lo + (hi - lo + 1) / 2;
+                if(lineStarts[mid] <= offset)
                 {
                     lo = mid;
                 }
@@ -62,8 +62,8 @@ namespace Storm.SourceGenerator.Frontend
                 }
             }
 
-            int line = lo + 1;           // 1-based
-            int column = offset - lineStarts[lo] + 1; // 1-based
+            var line = lo + 1;           // 1-based
+            var column = offset - lineStarts[lo] + 1; // 1-based
             return (line, column);
         }
 
@@ -73,23 +73,23 @@ namespace Storm.SourceGenerator.Frontend
         /// </summary>
         private int[] GetLineStarts()
         {
-            if (_lineStarts != null)
+            if(_lineStarts != null)
             {
                 return _lineStarts;
             }
 
             var starts = new List<int> { 0 };
-            for (int i = 0; i < Contents.Length; i++)
+            for(var i = 0; i < Contents.Length; i++)
             {
-                char c = Contents[i];
-                if (c == '\n')
+                var c = Contents[i];
+                if(c == '\n')
                 {
                     starts.Add(i + 1);
                 }
-                else if (c == '\r')
+                else if(c == '\r')
                 {
                     // \r\n counts as a single newline
-                    if (i + 1 < Contents.Length && Contents[i + 1] == '\n')
+                    if(i + 1 < Contents.Length && Contents[i + 1] == '\n')
                     {
                         i++;
                     }

@@ -105,7 +105,7 @@ namespace Storm.SourceGenerator.Emit
                 // DiagnosticBag (simple collection for generated code)
                 writer.WriteBlock("public class DiagnosticBag", () =>
                 {
-                    writer.WriteLine("private readonly System.Collections.Generic.List<string> _messages = new System.Collections.Generic.List<string>();");
+                    writer.WriteLine("private System.Collections.Generic.List<string> _messages = new System.Collections.Generic.List<string>();");
                     writer.WriteEmptyLine();
                     writer.WriteBlock("public void Add(string message)", () =>
                     {
@@ -141,9 +141,9 @@ namespace Storm.SourceGenerator.Emit
                         writer.WriteLine("Source = source;");
                         writer.WriteLine("AllTokens = tokens;");
                         writer.WriteLine("var defaultBuilder = ImmutableArray.CreateBuilder<Token>();");
-                        writer.WriteBlock("foreach (var token in tokens)", () =>
+                        writer.WriteBlock("foreach(var token in tokens)", () =>
                         {
-                            writer.WriteBlock("if (token.Channel == TokenChannel.Default)", () =>
+                            writer.WriteBlock("if(token.Channel == TokenChannel.Default)", () =>
                             {
                                 writer.WriteLine("defaultBuilder.Add(token);");
                             });
@@ -185,10 +185,10 @@ namespace Storm.SourceGenerator.Emit
 
             writer.WriteBlock($"namespace {context.ConsumerNamespace}", () =>
             {
-                bool first = true;
-                foreach (var rule in context.Grammar.Rules)
+                var first = true;
+                foreach(var rule in context.Grammar.Rules)
                 {
-                    if (!first)
+                    if(!first)
                     {
                         writer.WriteEmptyLine();
                     }
@@ -206,9 +206,9 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         private static void EmitRuleNodeTypes(CodeWriter writer, EmissionContext context, RuleIR rule)
         {
-            bool hasNamedAlternatives = rule.Alternatives.Any(a => a.AlternativeName != null);
+            var hasNamedAlternatives = rule.Alternatives.Any(a => a.AlternativeName != null);
 
-            if (hasNamedAlternatives)
+            if(hasNamedAlternatives)
             {
                 EmitAbstractNodeWithSubtypes(writer, context, rule);
             }
@@ -229,12 +229,12 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteBlock($"public sealed class {nodeTypeName} : SyntaxNode", () =>
             {
                 // Properties
-                foreach (var prop in properties)
+                foreach(var prop in properties)
                 {
                     writer.WriteLine($"public {prop.TypeName} {prop.Name} {{ get; set; }}{prop.DefaultValue}");
                 }
 
-                if (properties.Count > 0)
+                if(properties.Count > 0)
                 {
                     writer.WriteEmptyLine();
                 }
@@ -242,15 +242,15 @@ namespace Storm.SourceGenerator.Emit
                 // Children() override
                 writer.WriteBlock("public override IEnumerable<SyntaxNode> Children()", () =>
                 {
-                    bool hasChildren = false;
-                    foreach (var prop in properties)
+                    var hasChildren = false;
+                    foreach(var prop in properties)
                     {
-                        if (prop.IsNodeType && !prop.IsList)
+                        if(prop.IsNodeType && !prop.IsList)
                         {
                             hasChildren = true;
-                            if (prop.IsNullable)
+                            if(prop.IsNullable)
                             {
-                                writer.WriteBlock($"if ({prop.Name} != null)", () =>
+                                writer.WriteBlock($"if({prop.Name} != null)", () =>
                                 {
                                     writer.WriteLine($"yield return {prop.Name};");
                                 });
@@ -260,17 +260,17 @@ namespace Storm.SourceGenerator.Emit
                                 writer.WriteLine($"yield return {prop.Name};");
                             }
                         }
-                        else if (prop.IsNodeType && prop.IsList)
+                        else if(prop.IsNodeType && prop.IsList)
                         {
                             hasChildren = true;
-                            writer.WriteBlock($"foreach (var child in {prop.Name})", () =>
+                            writer.WriteBlock($"foreach(var child in {prop.Name})", () =>
                             {
                                 writer.WriteLine("yield return child;");
                             });
                         }
                     }
 
-                    if (!hasChildren)
+                    if(!hasChildren)
                     {
                         writer.WriteLine("yield break;");
                     }
@@ -291,7 +291,7 @@ namespace Storm.SourceGenerator.Emit
             });
 
             // Sealed subtypes for each named alternative
-            foreach (var alt in rule.Alternatives)
+            foreach(var alt in rule.Alternatives)
             {
                 writer.WriteEmptyLine();
 
@@ -302,12 +302,12 @@ namespace Storm.SourceGenerator.Emit
                 writer.WriteBlock($"public sealed class {subtypeName} : {baseNodeTypeName}", () =>
                 {
                     // Properties
-                    foreach (var prop in properties)
+                    foreach(var prop in properties)
                     {
                         writer.WriteLine($"public {prop.TypeName} {prop.Name} {{ get; set; }}{prop.DefaultValue}");
                     }
 
-                    if (properties.Count > 0)
+                    if(properties.Count > 0)
                     {
                         writer.WriteEmptyLine();
                     }
@@ -315,15 +315,15 @@ namespace Storm.SourceGenerator.Emit
                     // Children() override
                     writer.WriteBlock("public override IEnumerable<SyntaxNode> Children()", () =>
                     {
-                        bool hasChildren = false;
-                        foreach (var prop in properties)
+                        var hasChildren = false;
+                        foreach(var prop in properties)
                         {
-                            if (prop.IsNodeType && !prop.IsList)
+                            if(prop.IsNodeType && !prop.IsList)
                             {
                                 hasChildren = true;
-                                if (prop.IsNullable)
+                                if(prop.IsNullable)
                                 {
-                                    writer.WriteBlock($"if ({prop.Name} != null)", () =>
+                                    writer.WriteBlock($"if({prop.Name} != null)", () =>
                                     {
                                         writer.WriteLine($"yield return {prop.Name};");
                                     });
@@ -333,17 +333,17 @@ namespace Storm.SourceGenerator.Emit
                                     writer.WriteLine($"yield return {prop.Name};");
                                 }
                             }
-                            else if (prop.IsNodeType && prop.IsList)
+                            else if(prop.IsNodeType && prop.IsList)
                             {
                                 hasChildren = true;
-                                writer.WriteBlock($"foreach (var child in {prop.Name})", () =>
+                                writer.WriteBlock($"foreach(var child in {prop.Name})", () =>
                                 {
                                     writer.WriteLine("yield return child;");
                                 });
                             }
                         }
 
-                        if (!hasChildren)
+                        if(!hasChildren)
                         {
                             writer.WriteLine("yield break;");
                         }
@@ -361,7 +361,7 @@ namespace Storm.SourceGenerator.Emit
             var usedNames = new HashSet<string>();
 
             // First, add properties from field labels
-            foreach (var label in alt.FieldLabels)
+            foreach(var label in alt.FieldLabels)
             {
                 var propName = PascalCase(label.Label);
                 propName = EnsureUnique(propName, usedNames);
@@ -388,22 +388,22 @@ namespace Storm.SourceGenerator.Emit
             bool isTopLevel)
         {
             // Skip expressions that are already covered by field labels
-            if (labels.Any(l => ReferenceEquals(l.Expression, expr)))
+            if(labels.Any(l => ReferenceEquals(l.Expression, expr)))
             {
                 return;
             }
 
-            switch (expr)
+            switch(expr)
             {
                 case SequenceIR seq:
-                    foreach (var element in seq.Elements)
+                    foreach(var element in seq.Elements)
                     {
                         CollectUnlabeledProperties(element, labels, properties, usedNames, context, isTopLevel: false);
                     }
                     break;
 
                 case TokenRefIR tokenRef:
-                    if (!labels.Any(l => ReferenceEquals(l.Expression, expr)))
+                    if(!labels.Any(l => ReferenceEquals(l.Expression, expr)))
                     {
                         var propName = PascalCase(tokenRef.Token.Name);
                         propName = EnsureUnique(propName, usedNames);
@@ -412,7 +412,7 @@ namespace Storm.SourceGenerator.Emit
                     break;
 
                 case RuleRefIR ruleRef:
-                    if (!labels.Any(l => ReferenceEquals(l.Expression, expr)))
+                    if(!labels.Any(l => ReferenceEquals(l.Expression, expr)))
                     {
                         var propName = PascalCase(ruleRef.Rule.Name);
                         propName = EnsureUnique(propName, usedNames);
@@ -424,7 +424,7 @@ namespace Storm.SourceGenerator.Emit
                 case OptionalIR opt:
                     // The inner expression becomes nullable
                     var optProp = GetPropertyInfoForOptional(opt.Inner, usedNames, context);
-                    if (optProp != null && !labels.Any(l => ReferenceEquals(l.Expression, opt)))
+                    if(optProp != null && !labels.Any(l => ReferenceEquals(l.Expression, opt)))
                     {
                         properties.Add(optProp);
                     }
@@ -432,7 +432,7 @@ namespace Storm.SourceGenerator.Emit
 
                 case ZeroOrMoreIR zom:
                     var zomProp = GetPropertyInfoForList(zom.Inner, usedNames, context);
-                    if (zomProp != null && !labels.Any(l => ReferenceEquals(l.Expression, zom)))
+                    if(zomProp != null && !labels.Any(l => ReferenceEquals(l.Expression, zom)))
                     {
                         properties.Add(zomProp);
                     }
@@ -440,7 +440,7 @@ namespace Storm.SourceGenerator.Emit
 
                 case OneOrMoreIR oom:
                     var oomProp = GetPropertyInfoForList(oom.Inner, usedNames, context);
-                    if (oomProp != null && !labels.Any(l => ReferenceEquals(l.Expression, oom)))
+                    if(oomProp != null && !labels.Any(l => ReferenceEquals(l.Expression, oom)))
                     {
                         properties.Add(oomProp);
                     }
@@ -457,7 +457,7 @@ namespace Storm.SourceGenerator.Emit
 
         private static PropertyInfo GetPropertyInfo(ExpressionIR expr, string propName, EmissionContext context)
         {
-            switch (expr)
+            switch(expr)
             {
                 case TokenRefIR _:
                     return new PropertyInfo(propName, "Token", false, false, false, " = default;");
@@ -481,7 +481,7 @@ namespace Storm.SourceGenerator.Emit
 
         private static PropertyInfo? GetPropertyInfoForOptional(ExpressionIR inner, HashSet<string> usedNames, EmissionContext context)
         {
-            switch (inner)
+            switch(inner)
             {
                 case TokenRefIR tokenRef:
                 {
@@ -500,7 +500,7 @@ namespace Storm.SourceGenerator.Emit
 
         private static PropertyInfo GetPropertyInfoForOptionalInner(ExpressionIR inner, string propName, EmissionContext context)
         {
-            switch (inner)
+            switch(inner)
             {
                 case TokenRefIR _:
                     return new PropertyInfo(propName, "Token?", true, false, false, "");
@@ -513,7 +513,7 @@ namespace Storm.SourceGenerator.Emit
 
         private static PropertyInfo? GetPropertyInfoForList(ExpressionIR inner, HashSet<string> usedNames, EmissionContext context)
         {
-            switch (inner)
+            switch(inner)
             {
                 case TokenRefIR tokenRef:
                 {
@@ -533,7 +533,7 @@ namespace Storm.SourceGenerator.Emit
 
         private static PropertyInfo GetPropertyInfoForListInner(ExpressionIR inner, string propName, EmissionContext context)
         {
-            switch (inner)
+            switch(inner)
             {
                 case TokenRefIR _:
                     return new PropertyInfo(propName, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
@@ -549,8 +549,10 @@ namespace Storm.SourceGenerator.Emit
 
         private static string PascalCase(string name)
         {
-            if (string.IsNullOrEmpty(name))
+            if(string.IsNullOrEmpty(name))
+            {
                 return "Value";
+            }
 
             return char.ToUpperInvariant(name[0]) + name.Substring(1);
         }
@@ -558,8 +560,8 @@ namespace Storm.SourceGenerator.Emit
         private static string EnsureUnique(string name, HashSet<string> usedNames)
         {
             var candidate = name;
-            int suffix = 2;
-            while (!usedNames.Add(candidate))
+            var suffix = 2;
+            while(!usedNames.Add(candidate))
             {
                 candidate = name + suffix;
                 suffix++;

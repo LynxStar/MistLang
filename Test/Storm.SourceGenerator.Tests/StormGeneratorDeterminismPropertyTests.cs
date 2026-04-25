@@ -86,7 +86,7 @@ rule Start = Number;";
 
         Assert.Equal(result1.GeneratedTrees.Length, result2.GeneratedTrees.Length);
 
-        for (int i = 0; i < result1.GeneratedTrees.Length; i++)
+        for(var i = 0; i < result1.GeneratedTrees.Length; i++)
         {
             var text1 = result1.GeneratedTrees[i].GetText().ToString();
             var text2 = result2.GeneratedTrees[i].GetText().ToString();
@@ -111,7 +111,7 @@ rule Start = Number;";
         var generator = new StormIncrementalGenerator();
         var additionalText = new InMemoryAdditionalText(fileName, stormGrammar);
 
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
+        var driver = CSharpGeneratorDriver.Create(generator)
             .AddAdditionalTexts(ImmutableArray.Create<AdditionalText>(additionalText));
 
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
@@ -121,7 +121,7 @@ rule Start = Number;";
 
     private sealed class InMemoryAdditionalText : AdditionalText
     {
-        private readonly string _text;
+        private string _text;
 
         public override string Path { get; }
 

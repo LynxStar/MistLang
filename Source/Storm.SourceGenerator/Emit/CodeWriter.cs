@@ -10,7 +10,7 @@ namespace Storm.SourceGenerator.Emit
     /// </summary>
     public sealed class CodeWriter
     {
-        private readonly StringBuilder _sb = new StringBuilder();
+        private StringBuilder _sb = new StringBuilder();
         private int _indentLevel;
         private const string IndentUnit = "    "; // 4 spaces
 
@@ -27,7 +27,7 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         public void Dedent()
         {
-            if (_indentLevel > 0)
+            if(_indentLevel > 0)
             {
                 _indentLevel--;
             }
@@ -38,13 +38,13 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         public void WriteLine(string line)
         {
-            if (string.IsNullOrEmpty(line))
+            if(string.IsNullOrEmpty(line))
             {
                 _sb.AppendLine();
                 return;
             }
 
-            for (int i = 0; i < _indentLevel; i++)
+            for(var i = 0; i < _indentLevel; i++)
             {
                 _sb.Append(IndentUnit);
             }

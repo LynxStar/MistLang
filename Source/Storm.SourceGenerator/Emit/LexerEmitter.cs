@@ -46,7 +46,7 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteBlock("public enum TokenKind", () =>
             {
                 // Tokens in declaration order
-                foreach (var token in context.Grammar.Tokens.OrderBy(t => t.DeclarationIndex))
+                foreach(var token in context.Grammar.Tokens.OrderBy(t => t.DeclarationIndex))
                 {
                     writer.WriteLine($"{SanitizeIdentifier(token.Name)},");
                 }
@@ -103,16 +103,16 @@ namespace Storm.SourceGenerator.Emit
                 .OrderBy(t => t.DeclarationIndex)
                 .ToList();
 
-            if (hiddenTokens.Count == 0)
+            if(hiddenTokens.Count == 0)
             {
-                writer.WriteLine("private static readonly System.Collections.Generic.HashSet<int> HiddenKinds = new System.Collections.Generic.HashSet<int>();");
+                writer.WriteLine("private static System.Collections.Generic.HashSet<int> HiddenKinds = new System.Collections.Generic.HashSet<int>();");
                 return;
             }
 
-            writer.WriteLine("private static readonly System.Collections.Generic.HashSet<int> HiddenKinds = new System.Collections.Generic.HashSet<int>");
+            writer.WriteLine("private static System.Collections.Generic.HashSet<int> HiddenKinds = new System.Collections.Generic.HashSet<int>");
             writer.WriteLine("{");
             writer.Indent();
-            foreach (var token in hiddenTokens)
+            foreach(var token in hiddenTokens)
             {
                 writer.WriteLine($"(int)TokenKind.{SanitizeIdentifier(token.Name)},");
             }
@@ -138,14 +138,16 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         internal static string SanitizeIdentifier(string name)
         {
-            if (string.IsNullOrEmpty(name))
+            if(string.IsNullOrEmpty(name))
+            {
                 return "_";
+            }
 
             var sb = new System.Text.StringBuilder();
-            for (int i = 0; i < name.Length; i++)
+            for(var i = 0; i < name.Length; i++)
             {
-                char c = name[i];
-                if (char.IsLetterOrDigit(c) || c == '_')
+                var c = name[i];
+                if(char.IsLetterOrDigit(c) || c == '_')
                 {
                     sb.Append(c);
                 }
@@ -156,7 +158,7 @@ namespace Storm.SourceGenerator.Emit
             }
 
             // Ensure it doesn't start with a digit
-            if (sb.Length > 0 && char.IsDigit(sb[0]))
+            if(sb.Length > 0 && char.IsDigit(sb[0]))
             {
                 sb.Insert(0, '_');
             }

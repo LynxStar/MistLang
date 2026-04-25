@@ -20,16 +20,16 @@ public static class CliArgumentParser
     {
         var sourceFiles = new List<string>();
         var errors = new List<CliParseError>();
-        string backendId = "csharp";
-        string outputDirectory = "./out";
+        var backendId = "csharp";
+        var outputDirectory = "./out";
 
-        for (int i = 0; i < args.Length; i++)
+        for(var i = 0; i < args.Length; i++)
         {
             var arg = args[i];
 
-            if (arg == "--backend")
+            if(arg == "--backend")
             {
-                if (i + 1 >= args.Length)
+                if(i + 1 >= args.Length)
                 {
                     errors.Add(new CliParseError("Missing value for --backend flag."));
                 }
@@ -39,9 +39,9 @@ public static class CliArgumentParser
                     backendId = args[i];
                 }
             }
-            else if (arg == "--output")
+            else if(arg == "--output")
             {
-                if (i + 1 >= args.Length)
+                if(i + 1 >= args.Length)
                 {
                     errors.Add(new CliParseError("Missing value for --output flag."));
                 }
@@ -51,7 +51,7 @@ public static class CliArgumentParser
                     outputDirectory = args[i];
                 }
             }
-            else if (arg.StartsWith("--"))
+            else if(arg.StartsWith("--"))
             {
                 errors.Add(new CliParseError($"Unknown flag: {arg}"));
             }
@@ -61,7 +61,7 @@ public static class CliArgumentParser
             }
         }
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
         {
             return new CliParseResult(null, errors);
         }

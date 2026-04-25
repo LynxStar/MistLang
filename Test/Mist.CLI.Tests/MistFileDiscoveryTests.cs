@@ -24,8 +24,10 @@ public class MistFileDiscoveryTests
         }
         finally
         {
-            if (Directory.Exists(tempDir))
+            if(Directory.Exists(tempDir))
+            {
                 Directory.Delete(tempDir, recursive: true);
+            }
         }
     }
 
@@ -43,8 +45,10 @@ public class MistFileDiscoveryTests
         }
         finally
         {
-            if (Directory.Exists(tempDir))
+            if(Directory.Exists(tempDir))
+            {
                 Directory.Delete(tempDir, recursive: true);
+            }
         }
     }
 
@@ -66,8 +70,10 @@ public class MistFileDiscoveryTests
         }
         finally
         {
-            if (Directory.Exists(tempDir))
+            if(Directory.Exists(tempDir))
+            {
                 Directory.Delete(tempDir, recursive: true);
+            }
         }
     }
 }

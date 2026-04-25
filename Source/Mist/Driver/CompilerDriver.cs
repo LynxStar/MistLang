@@ -16,11 +16,11 @@ namespace Mist.Driver;
 /// </summary>
 public sealed class CompilerDriver : ICompilerDriver
 {
-    private readonly ILexer _lexer;
-    private readonly IParser _parser;
-    private readonly ISemanticModelBuilder _semanticModelBuilder;
-    private readonly ImmutableArray<IAnalyzer> _analyzers;
-    private readonly ImmutableDictionary<string, IBackend> _backends;
+    private ILexer _lexer;
+    private IParser _parser;
+    private ISemanticModelBuilder _semanticModelBuilder;
+    private ImmutableArray<IAnalyzer> _analyzers;
+    private ImmutableDictionary<string, IBackend> _backends;
 
     public CompilerDriver(
         ILexer lexer,
@@ -41,7 +41,7 @@ public sealed class CompilerDriver : ICompilerDriver
         var allDiagnostics = new DiagnosticBag();
 
         // Resolve backend
-        if (!_backends.TryGetValue(options.Backend.Value, out var backend))
+        if(!_backends.TryGetValue(options.Backend.Value, out var backend))
         {
             allDiagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_UNKNOWN_BACKEND"),
@@ -57,7 +57,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
         // Step 1: Load source files into CompilationUnits
         var units = ImmutableArray.CreateBuilder<CompilationUnit>();
-        foreach (var path in options.SourcePaths)
+        foreach(var path in options.SourcePaths)
         {
             try
             {
@@ -65,7 +65,7 @@ public sealed class CompilerDriver : ICompilerDriver
                 var sourceText = new Common.Text.SourceText(path, contents);
                 units.Add(new CompilationUnit(sourceText));
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 allDiagnostics.Add(new Diagnostic(
                     new DiagnosticId("MIST_FILE_ERROR"),
@@ -82,15 +82,17 @@ public sealed class CompilerDriver : ICompilerDriver
 
         // Step 2: Lex each compilation unit
         var tokenStreams = new Dictionary<CompilationUnit, TokenStream>();
-        foreach (var unit in compilation.Units)
+        foreach(var unit in compilation.Units)
         {
             var lexBag = new DiagnosticBag();
             var tokenStream = _lexer.Lex(unit.Source, lexBag);
 
-            foreach (var d in lexBag.ToImmutableArray())
+            foreach(var d in lexBag.ToImmutableArray())
+            {
                 allDiagnostics.Add(d);
+            }
 
-            if (!lexBag.HasErrors)
+            if(!lexBag.HasErrors)
             {
                 tokenStreams[unit] = tokenStream;
             }
@@ -99,18 +101,22 @@ public sealed class CompilerDriver : ICompilerDriver
 
         // Step 3: Parse each successfully-lexed unit
         var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
-        foreach (var (unit, tokenStream) in tokenStreams)
+        foreach(var (unit, tokenStream) in tokenStreams)
         {
             var parseBag = new DiagnosticBag();
             var parseResult = _parser.Parse(tokenStream, parseBag);
 
-            foreach (var d in parseBag.ToImmutableArray())
+            foreach(var d in parseBag.ToImmutableArray())
+            {
                 allDiagnostics.Add(d);
+            }
 
-            foreach (var d in parseResult.Diagnostics)
+            foreach(var d in parseResult.Diagnostics)
+            {
                 allDiagnostics.Add(d);
+            }
 
-            if (parseResult.Root is not null && !parseBag.HasErrors)
+            if(parseResult.Root is not null && !parseBag.HasErrors)
             {
                 asts.Add(parseResult.Root);
             }
@@ -124,7 +130,7 @@ public sealed class CompilerDriver : ICompilerDriver
         {
             semanticModel = _semanticModelBuilder.Build(compilation, asts.ToImmutable(), semanticBag);
         }
-        catch (Exception ex)
+        catch(Exception ex)
         {
             allDiagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_SEMANTIC_FAILURE"),
@@ -137,10 +143,12 @@ public sealed class CompilerDriver : ICompilerDriver
             semanticModel = null;
         }
 
-        foreach (var d in semanticBag.ToImmutableArray())
+        foreach(var d in semanticBag.ToImmutableArray())
+        {
             allDiagnostics.Add(d);
+        }
 
-        if (semanticModel is null)
+        if(semanticModel is null)
         {
             // Skip analyzers and backend if semantic model fails (R16.5)
             return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
@@ -154,10 +162,12 @@ public sealed class CompilerDriver : ICompilerDriver
         var runner = new AnalyzerRunner(filteredAnalyzers);
         var analyzerDiagnostics = runner.RunAll(semanticModel);
 
-        foreach (var d in analyzerDiagnostics)
+        foreach(var d in analyzerDiagnostics)
+        {
             allDiagnostics.Add(d);
+        }
 
-        if (analyzerDiagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+        if(analyzerDiagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
         {
             // Skip backend if analyzer errors (R13.6)
             return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
@@ -167,11 +177,15 @@ public sealed class CompilerDriver : ICompilerDriver
         var backendBag = new DiagnosticBag();
         var backendResult = backend.Emit(semanticModel, options.OutputDirectory, backendBag);
 
-        foreach (var d in backendBag.ToImmutableArray())
+        foreach(var d in backendBag.ToImmutableArray())
+        {
             allDiagnostics.Add(d);
+        }
 
-        foreach (var d in backendResult.Diagnostics)
+        foreach(var d in backendResult.Diagnostics)
+        {
             allDiagnostics.Add(d);
+        }
 
         return new CompilerResult(
             backendResult.Succeeded,

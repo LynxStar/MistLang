@@ -107,29 +107,34 @@ namespace Storm.SourceGenerator.Frontend
         /// <returns>A list of tokens, always ending with an <see cref="StormTokenKind.EndOfFile"/> token.</returns>
         public static List<StormToken> Tokenize(StormSourceText source, List<StormDiagnostic> diagnostics)
         {
-            if (source == null) throw new ArgumentNullException(nameof(source));
-            if (diagnostics == null) throw new ArgumentNullException(nameof(diagnostics));
-
+            if(source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+            if(diagnostics == null)
+            {
+                throw new ArgumentNullException(nameof(diagnostics));
+            }
             var tokens = new List<StormToken>();
             var text = source.Contents;
-            int pos = 0;
+            var pos = 0;
 
-            while (pos < text.Length)
+            while(pos < text.Length)
             {
-                char c = text[pos];
+                var c = text[pos];
 
                 // --- Skip whitespace ---
-                if (char.IsWhiteSpace(c))
+                if(char.IsWhiteSpace(c))
                 {
                     pos++;
                     continue;
                 }
 
                 // --- Skip line comments ---
-                if (c == '/' && pos + 1 < text.Length && text[pos + 1] == '/')
+                if(c == '/' && pos + 1 < text.Length && text[pos + 1] == '/')
                 {
                     pos += 2;
-                    while (pos < text.Length && text[pos] != '\n' && text[pos] != '\r')
+                    while(pos < text.Length && text[pos] != '\n' && text[pos] != '\r')
                     {
                         pos++;
                     }
@@ -140,13 +145,13 @@ namespace Storm.SourceGenerator.Frontend
                 var (line, column) = source.GetLineAndColumn(pos);
 
                 // --- String literal ---
-                if (c == '"')
+                if(c == '"')
                 {
-                    int start = pos;
+                    var start = pos;
                     pos++; // skip opening quote
-                    while (pos < text.Length && text[pos] != '"')
+                    while(pos < text.Length && text[pos] != '"')
                     {
-                        if (text[pos] == '\\' && pos + 1 < text.Length)
+                        if(text[pos] == '\\' && pos + 1 < text.Length)
                         {
                             pos += 2; // skip escaped character
                         }
@@ -156,7 +161,7 @@ namespace Storm.SourceGenerator.Frontend
                         }
                     }
 
-                    if (pos < text.Length)
+                    if(pos < text.Length)
                     {
                         pos++; // skip closing quote
                     }
@@ -171,32 +176,32 @@ namespace Storm.SourceGenerator.Frontend
                             column));
                     }
 
-                    string lexeme = text.Substring(start, pos - start);
+                    var lexeme = text.Substring(start, pos - start);
                     tokens.Add(new StormToken(StormTokenKind.StringLiteral, lexeme, start, line, column));
                     continue;
                 }
 
                 // --- Character class ---
-                if (c == '[')
+                if(c == '[')
                 {
-                    int start = pos;
+                    var start = pos;
                     pos++; // skip '['
 
                     // Handle negation
-                    if (pos < text.Length && text[pos] == '^')
+                    if(pos < text.Length && text[pos] == '^')
                     {
                         pos++;
                     }
 
                     // Handle ']' as first character in class (literal ']')
-                    if (pos < text.Length && text[pos] == ']')
+                    if(pos < text.Length && text[pos] == ']')
                     {
                         pos++;
                     }
 
-                    while (pos < text.Length && text[pos] != ']')
+                    while(pos < text.Length && text[pos] != ']')
                     {
-                        if (text[pos] == '\\' && pos + 1 < text.Length)
+                        if(text[pos] == '\\' && pos + 1 < text.Length)
                         {
                             pos += 2; // skip escaped character
                         }
@@ -206,7 +211,7 @@ namespace Storm.SourceGenerator.Frontend
                         }
                     }
 
-                    if (pos < text.Length)
+                    if(pos < text.Length)
                     {
                         pos++; // skip closing ']'
                     }
@@ -221,30 +226,30 @@ namespace Storm.SourceGenerator.Frontend
                             column));
                     }
 
-                    string lexeme = text.Substring(start, pos - start);
+                    var lexeme = text.Substring(start, pos - start);
                     tokens.Add(new StormToken(StormTokenKind.CharClass, lexeme, start, line, column));
                     continue;
                 }
 
                 // --- Identifiers and keywords ---
-                if (IsIdentStart(c))
+                if(IsIdentStart(c))
                 {
-                    int start = pos;
+                    var start = pos;
                     pos++;
-                    while (pos < text.Length && IsIdentPart(text[pos]))
+                    while(pos < text.Length && IsIdentPart(text[pos]))
                     {
                         pos++;
                     }
 
-                    string lexeme = text.Substring(start, pos - start);
-                    StormTokenKind kind = ClassifyKeyword(lexeme);
+                    var lexeme = text.Substring(start, pos - start);
+                    var kind = ClassifyKeyword(lexeme);
                     tokens.Add(new StormToken(kind, lexeme, start, line, column));
                     continue;
                 }
 
                 // --- Single-character operators ---
                 StormTokenKind? opKind = ClassifyOperator(c);
-                if (opKind != null)
+                if(opKind != null)
                 {
                     tokens.Add(new StormToken(opKind.Value, c.ToString(), pos, line, column));
                     pos++;
@@ -279,7 +284,7 @@ namespace Storm.SourceGenerator.Frontend
 
         private static StormTokenKind ClassifyKeyword(string lexeme)
         {
-            switch (lexeme)
+            switch(lexeme)
             {
                 case "rule": return StormTokenKind.RuleKeyword;
                 case "token": return StormTokenKind.TokenKeyword;
@@ -293,7 +298,7 @@ namespace Storm.SourceGenerator.Frontend
 
         private static StormTokenKind? ClassifyOperator(char c)
         {
-            switch (c)
+            switch(c)
             {
                 case '=': return StormTokenKind.Equals;
                 case '|': return StormTokenKind.Pipe;

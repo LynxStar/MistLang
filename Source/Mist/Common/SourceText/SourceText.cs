@@ -45,19 +45,21 @@ public sealed class SourceText
 
     private int[] GetLineStarts()
     {
-        if (_lineStarts is not null)
+        if(_lineStarts is not null)
+        {
             return _lineStarts;
+        }
 
         var starts = new List<int> { 0 };
-        for (int i = 0; i < Contents.Length; i++)
+        for(var i = 0; i < Contents.Length; i++)
         {
-            if (Contents[i] == '\n')
+            if(Contents[i] == '\n')
             {
                 starts.Add(i + 1);
             }
-            else if (Contents[i] == '\r')
+            else if(Contents[i] == '\r')
             {
-                if (i + 1 < Contents.Length && Contents[i + 1] == '\n')
+                if(i + 1 < Contents.Length && Contents[i + 1] == '\n')
                 {
                     starts.Add(i + 2);
                     i++; // skip the \n
@@ -76,18 +78,23 @@ public sealed class SourceText
     private static LinePosition OffsetToLinePosition(int[] lineStarts, int offset)
     {
         // Binary search for the line containing this offset.
-        int lo = 0, hi = lineStarts.Length - 1;
-        while (lo <= hi)
+        var lo = 0;
+        var hi = lineStarts.Length - 1;
+        while(lo <= hi)
         {
-            int mid = lo + (hi - lo) / 2;
-            if (lineStarts[mid] <= offset)
+            var mid = lo + (hi - lo) / 2;
+            if(lineStarts[mid] <= offset)
+            {
                 lo = mid + 1;
+            }
             else
+            {
                 hi = mid - 1;
+            }
         }
 
-        int line = hi; // 0-based line index
-        int column = offset - lineStarts[line];
+        var line = hi; // 0-based line index
+        var column = offset - lineStarts[line];
         return new LinePosition(line + 1, column + 1); // 1-based
     }
 }

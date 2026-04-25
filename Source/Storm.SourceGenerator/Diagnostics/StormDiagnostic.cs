@@ -27,7 +27,7 @@ public sealed record StormDiagnostic(
     int Line,
     int Column)
 {
-    private const string Category = "Storm.SourceGenerator";
+    private const string category = "Storm.SourceGenerator";
 
     /// <summary>
     /// Creates a <see cref="DiagnosticDescriptor"/> suitable for Roslyn reporting.
@@ -38,22 +38,22 @@ public sealed record StormDiagnostic(
             id: Id,
             title: Id,
             messageFormat: "{0}",
-            category: Category,
+            category: category,
             defaultSeverity: ToRoslynSeverity(Severity),
             isEnabledByDefault: true);
     }
 
     /// <summary>
-    /// Creates a Roslyn <see cref="Microsoft.CodeAnalysis.Diagnostic"/> with an optional source location.
+    /// Creates a Roslyn <see cref="Diagnostic"/> with an optional source location.
     /// When <see cref="FilePath"/> is non-null, the diagnostic includes a file-based location
     /// at the recorded line and column.
     /// </summary>
-    public Microsoft.CodeAnalysis.Diagnostic ToRoslynDiagnostic()
+    public Diagnostic ToRoslynDiagnostic()
     {
         var descriptor = ToDescriptor();
 
         Location location;
-        if (FilePath is not null)
+        if(FilePath is not null)
         {
             var linePosition = new Microsoft.CodeAnalysis.Text.LinePosition(
                 Math.Max(0, Line - 1),   // Roslyn LinePosition is 0-based
@@ -66,17 +66,19 @@ public sealed record StormDiagnostic(
             location = Location.None;
         }
 
-        return Microsoft.CodeAnalysis.Diagnostic.Create(descriptor, location, Message);
+        return Diagnostic.Create(descriptor, location, Message);
     }
 
     /// <summary>
-    /// Maps <see cref="StormDiagnosticSeverity"/> to Roslyn's <see cref="Microsoft.CodeAnalysis.DiagnosticSeverity"/>.
+    /// Maps <see cref="StormDiagnosticSeverity"/> to Roslyn's <see cref="DiagnosticSeverity"/>.
     /// </summary>
-    private static Microsoft.CodeAnalysis.DiagnosticSeverity ToRoslynSeverity(StormDiagnosticSeverity severity) =>
-        severity switch
+    private static DiagnosticSeverity ToRoslynSeverity(StormDiagnosticSeverity severity)
+    {
+        return severity switch
         {
-            StormDiagnosticSeverity.Warning => Microsoft.CodeAnalysis.DiagnosticSeverity.Warning,
-            StormDiagnosticSeverity.Error => Microsoft.CodeAnalysis.DiagnosticSeverity.Error,
-            _ => Microsoft.CodeAnalysis.DiagnosticSeverity.Error,
+            StormDiagnosticSeverity.Warning => DiagnosticSeverity.Warning,
+            StormDiagnosticSeverity.Error => DiagnosticSeverity.Error,
+            _ => DiagnosticSeverity.Error,
         };
+    }
 }

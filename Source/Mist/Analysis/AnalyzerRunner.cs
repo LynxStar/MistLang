@@ -11,7 +11,7 @@ namespace Mist.Analysis;
 /// </summary>
 public sealed class AnalyzerRunner
 {
-    private readonly ImmutableArray<IAnalyzer> _analyzers;
+    private ImmutableArray<IAnalyzer> _analyzers;
 
     public AnalyzerRunner(ImmutableArray<IAnalyzer> analyzers)
     {
@@ -22,13 +22,13 @@ public sealed class AnalyzerRunner
     {
         var bag = new DiagnosticBag();
 
-        foreach (var analyzer in _analyzers)
+        foreach(var analyzer in _analyzers)
         {
             try
             {
                 analyzer.Analyze(model, bag);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 bag.Add(new Diagnostic(
                     new DiagnosticId("MIST_ANALYZER_CRASH"),

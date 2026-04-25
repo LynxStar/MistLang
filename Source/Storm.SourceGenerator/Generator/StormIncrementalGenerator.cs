@@ -5,193 +5,186 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Emit;
-using Storm.SourceGenerator.Frontend;
 using Storm.SourceGenerator.IR;
 using Storm.SourceGenerator.Resolve;
 using Storm.SourceGenerator.Validate;
 
-namespace Storm.SourceGenerator.Generator
+namespace Storm.SourceGenerator.Generator;
+
+/// <summary>
+/// Roslyn incremental source generator that processes *.storm grammar files
+/// and emits C# source for the lexer, parser, AST node types, and runtime types.
+/// </summary>
+[Generator(LanguageNames.CSharp)]
+public sealed class StormIncrementalGenerator : IIncrementalGenerator
 {
-    /// <summary>
-    /// Roslyn incremental source generator that processes *.storm grammar files
-    /// and emits C# source for the lexer, parser, AST node types, and runtime types.
-    /// </summary>
-    [Microsoft.CodeAnalysis.Generator(LanguageNames.CSharp)]
-    public sealed class StormIncrementalGenerator : IIncrementalGenerator
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        public void Initialize(IncrementalGeneratorInitializationContext context)
+        // Register for additional files matching *.storm
+        var stormFiles = context.AdditionalTextsProvider
+            .Where(static file => file.Path.EndsWith(".storm", StringComparison.OrdinalIgnoreCase));
+
+        // Combine all storm files into a single collection
+        var collectedFiles = stormFiles.Collect();
+
+        // Register the source output
+        context.RegisterSourceOutput(collectedFiles, static (spc, stormTexts) => Execute(spc, stormTexts));
+    }
+
+    private static void Execute(
+        SourceProductionContext context,
+        System.Collections.Immutable.ImmutableArray<AdditionalText> stormTexts)
+    {
+        if(stormTexts.IsDefaultOrEmpty)
         {
-            // Register for additional files matching *.storm
-            var stormFiles = context.AdditionalTextsProvider
-                .Where(static file => file.Path.EndsWith(".storm", StringComparison.OrdinalIgnoreCase));
-
-            // Combine all storm files into a single collection
-            var collectedFiles = stormFiles.Collect();
-
-            // Register the source output
-            context.RegisterSourceOutput(collectedFiles, static (spc, stormTexts) =>
-            {
-                Execute(spc, stormTexts);
-            });
+            return;
         }
 
-        private static void Execute(
-            SourceProductionContext context,
-            System.Collections.Immutable.ImmutableArray<AdditionalText> stormTexts)
+        // Find the root storm file (the first one, or one that looks like a root)
+        var rootFile = stormTexts[0];
+        var rootPath = rootFile.Path;
+
+        // Build a file reader from the additional texts
+        var fileContents = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach(var text in stormTexts)
         {
-            if (stormTexts.IsDefaultOrEmpty)
+            var sourceText = text.GetText(context.CancellationToken);
+            if(sourceText != null)
             {
-                return;
+                var normalizedPath = StormImportResolver.CanonicalizePath(text.Path);
+                fileContents[normalizedPath] = sourceText.ToString();
             }
-
-            // Find the root storm file (the first one, or one that looks like a root)
-            var rootFile = stormTexts[0];
-            var rootPath = rootFile.Path;
-
-            // Build a file reader from the additional texts
-            var fileContents = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var text in stormTexts)
-            {
-                var sourceText = text.GetText(context.CancellationToken);
-                if (sourceText != null)
-                {
-                    var normalizedPath = StormImportResolver.CanonicalizePath(text.Path);
-                    fileContents[normalizedPath] = sourceText.ToString();
-                }
-            }
-
-            Func<string, string?> fileReader = path =>
-            {
-                var normalized = StormImportResolver.CanonicalizePath(path);
-                if (fileContents.TryGetValue(normalized, out var contents))
-                    return contents;
-                return null;
-            };
-
-            // Derive grammar name and consumer namespace from the root file name
-            var grammarName = Path.GetFileNameWithoutExtension(rootPath);
-            grammarName = PascalCase(grammarName);
-            var consumerNamespace = grammarName + ".Generated";
-
-            // Step 1: Parse and resolve imports
-            var resolver = new StormImportResolver(fileReader);
-            var resolution = resolver.Resolve(rootPath);
-
-            // Report parse/import diagnostics
-            foreach (var diag in resolution.Diagnostics)
-            {
-                context.ReportDiagnostic(diag.ToRoslynDiagnostic());
-            }
-
-            if (!resolution.Succeeded)
-            {
-                return;
-            }
-
-            // Step 2: Build effective grammar
-            var grammar = StormGrammar.Build(resolution);
-
-            foreach (var diag in grammar.Diagnostics)
-            {
-                context.ReportDiagnostic(diag.ToRoslynDiagnostic());
-            }
-
-            if (!grammar.Succeeded)
-            {
-                return;
-            }
-
-            // Step 3: Validate
-            var validationDiagnostics = RunValidation(grammar);
-            bool hasValidationErrors = false;
-
-            foreach (var diag in validationDiagnostics)
-            {
-                context.ReportDiagnostic(diag.ToRoslynDiagnostic());
-                if (diag.Severity == StormDiagnosticSeverity.Error)
-                {
-                    hasValidationErrors = true;
-                }
-            }
-
-            if (hasValidationErrors)
-            {
-                return;
-            }
-
-            // Step 4: Lower to IR
-            var loweringResult = GrammarIRLowering.Lower(grammar);
-
-            foreach (var diag in loweringResult.Diagnostics)
-            {
-                context.ReportDiagnostic(diag.ToRoslynDiagnostic());
-            }
-
-            if (!loweringResult.Succeeded || loweringResult.Grammar == null)
-            {
-                return;
-            }
-
-            // Step 5: Emit
-            var emissionContext = new EmissionContext(consumerNamespace, grammarName, loweringResult.Grammar);
-
-            // Emit runtime types
-            var runtimeSource = AstEmitter.EmitRuntimeTypes();
-            context.AddSource("Storm.Runtime.g.cs", runtimeSource);
-
-            // Emit AST node types
-            var astSource = AstEmitter.EmitAstNodes(emissionContext);
-            context.AddSource($"{grammarName}.Ast.g.cs", astSource);
-
-            // Emit lexer
-            var lexerSource = LexerEmitter.Emit(emissionContext);
-            context.AddSource($"{grammarName}.Lexer.g.cs", lexerSource);
-
-            // Emit parser
-            var parserSource = ParserEmitter.Emit(emissionContext);
-            context.AddSource($"{grammarName}.Parser.g.cs", parserSource);
         }
 
-        /// <summary>
-        /// Runs all validation passes on the effective grammar.
-        /// </summary>
-        private static List<StormDiagnostic> RunValidation(StormGrammar grammar)
+        string? fileReader(string path)
         {
-            var diagnostics = new List<StormDiagnostic>();
+            var normalized = StormImportResolver.CanonicalizePath(path);
+            return fileContents.TryGetValue(normalized, out var contents) ? contents : null;
+        }
 
-            // Pass 1: Name resolution
-            var nameResolutionDiags = NameResolutionPass.Run(grammar);
-            diagnostics.AddRange(nameResolutionDiags);
-            if (nameResolutionDiags.Any(d => d.Severity == StormDiagnosticSeverity.Error))
+        // Derive grammar name and consumer namespace from the root file name
+        var grammarName = Path.GetFileNameWithoutExtension(rootPath);
+        grammarName = PascalCase(grammarName);
+        var consumerNamespace = grammarName + ".Generated";
+
+        // Step 1: Parse and resolve imports
+        var resolver = new StormImportResolver(fileReader);
+        var resolution = resolver.Resolve(rootPath);
+
+        // Report parse/import diagnostics
+        foreach(var diag in resolution.Diagnostics)
+        {
+            context.ReportDiagnostic(diag.ToRoslynDiagnostic());
+        }
+
+        if(!resolution.Succeeded)
+        {
+            return;
+        }
+
+        // Step 2: Build effective grammar
+        var grammar = StormGrammar.Build(resolution);
+
+        foreach(var diag in grammar.Diagnostics)
+        {
+            context.ReportDiagnostic(diag.ToRoslynDiagnostic());
+        }
+
+        if(!grammar.Succeeded)
+        {
+            return;
+        }
+
+        // Step 3: Validate
+        var validationDiagnostics = RunValidation(grammar);
+        var hasValidationErrors = false;
+
+        foreach(var diag in validationDiagnostics)
+        {
+            context.ReportDiagnostic(diag.ToRoslynDiagnostic());
+            if(diag.Severity == StormDiagnosticSeverity.Error)
             {
-                return diagnostics; // Later passes depend on name resolution
+                hasValidationErrors = true;
             }
+        }
 
-            // Pass 2: Left-recursion check
-            var leftRecDiags = LeftRecursionPass.Run(grammar);
-            diagnostics.AddRange(leftRecDiags);
-            if (leftRecDiags.Any(d => d.Severity == StormDiagnosticSeverity.Error))
-            {
-                return diagnostics;
-            }
+        if(hasValidationErrors)
+        {
+            return;
+        }
 
-            // Pass 3: Reachability check
-            var reachDiags = ReachabilityPass.Run(grammar);
-            diagnostics.AddRange(reachDiags);
+        // Step 4: Lower to IR
+        var loweringResult = GrammarIRLowering.Lower(grammar);
 
-            // Pass 4: Ambiguity check
-            var ambigDiags = AmbiguityPass.Run(grammar);
-            diagnostics.AddRange(ambigDiags);
+        foreach(var diag in loweringResult.Diagnostics)
+        {
+            context.ReportDiagnostic(diag.ToRoslynDiagnostic());
+        }
 
+        if(!loweringResult.Succeeded || loweringResult.Grammar == null)
+        {
+            return;
+        }
+
+        // Step 5: Emit
+        var emissionContext = new EmissionContext(consumerNamespace, grammarName, loweringResult.Grammar);
+
+        // Emit runtime types
+        var runtimeSource = AstEmitter.EmitRuntimeTypes();
+        context.AddSource("Storm.Runtime.g.cs", runtimeSource);
+
+        // Emit AST node types
+        var astSource = AstEmitter.EmitAstNodes(emissionContext);
+        context.AddSource($"{grammarName}.Ast.g.cs", astSource);
+
+        // Emit lexer
+        var lexerSource = LexerEmitter.Emit(emissionContext);
+        context.AddSource($"{grammarName}.Lexer.g.cs", lexerSource);
+
+        // Emit parser
+        var parserSource = ParserEmitter.Emit(emissionContext);
+        context.AddSource($"{grammarName}.Parser.g.cs", parserSource);
+    }
+
+    /// <summary>
+    /// Runs all validation passes on the effective grammar.
+    /// </summary>
+    private static List<StormDiagnostic> RunValidation(StormGrammar grammar)
+    {
+        var diagnostics = new List<StormDiagnostic>();
+
+        // Pass 1: Name resolution
+        var nameResolutionDiags = NameResolutionPass.Run(grammar);
+        diagnostics.AddRange(nameResolutionDiags);
+        if(nameResolutionDiags.Any(d => d.Severity == StormDiagnosticSeverity.Error))
+        {
+            return diagnostics; // Later passes depend on name resolution
+        }
+
+        // Pass 2: Left-recursion check
+        var leftRecDiags = LeftRecursionPass.Run(grammar);
+        diagnostics.AddRange(leftRecDiags);
+        if(leftRecDiags.Any(d => d.Severity == StormDiagnosticSeverity.Error))
+        {
             return diagnostics;
         }
 
-        private static string PascalCase(string name)
-        {
-            if (string.IsNullOrEmpty(name))
-                return "Grammar";
+        // Pass 3: Reachability check
+        var reachDiags = ReachabilityPass.Run(grammar);
+        diagnostics.AddRange(reachDiags);
 
-            return char.ToUpperInvariant(name[0]) + name.Substring(1);
-        }
+        // Pass 4: Ambiguity check
+        var ambigDiags = AmbiguityPass.Run(grammar);
+        diagnostics.AddRange(ambigDiags);
+
+        return diagnostics;
+    }
+
+    private static string PascalCase(string name)
+    {
+        return string.IsNullOrEmpty(name) 
+            ? "Grammar" 
+            : char.ToUpperInvariant(name[0]) + name.Substring(1)
+            ;
     }
 }

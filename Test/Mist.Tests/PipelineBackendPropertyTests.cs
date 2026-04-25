@@ -213,7 +213,7 @@ public class PipelineBackendPropertyTests
             Assert.Equal(files1, files2);
 
             // Text-identical contents (comparing as text to avoid BOM/encoding differences)
-            foreach (var relPath in files1)
+            foreach(var relPath in files1)
             {
                 var content1 = File.ReadAllText(Path.Combine(tempDir1, relPath));
                 var content2 = File.ReadAllText(Path.Combine(tempDir2, relPath));
@@ -222,8 +222,14 @@ public class PipelineBackendPropertyTests
         }
         finally
         {
-            if (Directory.Exists(tempDir1)) Directory.Delete(tempDir1, recursive: true);
-            if (Directory.Exists(tempDir2)) Directory.Delete(tempDir2, recursive: true);
+            if(Directory.Exists(tempDir1))
+            {
+                Directory.Delete(tempDir1, recursive: true);
+            }
+            if(Directory.Exists(tempDir2))
+            {
+                Directory.Delete(tempDir2, recursive: true);
+            }
         }
     }
 

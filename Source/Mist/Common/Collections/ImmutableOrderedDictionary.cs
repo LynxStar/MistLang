@@ -10,8 +10,8 @@ namespace Mist.Common.Collections;
 public sealed class ImmutableOrderedDictionary<TKey, TValue> : IReadOnlyDictionary<TKey, TValue>
     where TKey : notnull
 {
-    private readonly ImmutableArray<KeyValuePair<TKey, TValue>> _entries;
-    private readonly ImmutableDictionary<TKey, TValue> _lookup;
+    private ImmutableArray<KeyValuePair<TKey, TValue>> _entries;
+    private ImmutableDictionary<TKey, TValue> _lookup;
 
     private ImmutableOrderedDictionary(
         ImmutableArray<KeyValuePair<TKey, TValue>> entries,
@@ -21,7 +21,7 @@ public sealed class ImmutableOrderedDictionary<TKey, TValue> : IReadOnlyDictiona
         _lookup = lookup;
     }
 
-    public static readonly ImmutableOrderedDictionary<TKey, TValue> Empty = new(
+    public static ImmutableOrderedDictionary<TKey, TValue> Empty { get; } = new(
         ImmutableArray<KeyValuePair<TKey, TValue>>.Empty,
         ImmutableDictionary<TKey, TValue>.Empty);
 
@@ -59,8 +59,8 @@ public sealed class ImmutableOrderedDictionary<TKey, TValue> : IReadOnlyDictiona
     /// </summary>
     public sealed class Builder
     {
-        private readonly List<KeyValuePair<TKey, TValue>> _entries = [];
-        private readonly Dictionary<TKey, TValue> _lookup = [];
+        private List<KeyValuePair<TKey, TValue>> _entries = [];
+        private Dictionary<TKey, TValue> _lookup = [];
 
         public void Add(TKey key, TValue value)
         {

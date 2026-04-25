@@ -23,13 +23,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Walk each AST to discover and register symbols.
         // Concrete symbol/type construction is deferred to the Mist-language spec.
         // For now, the builder produces an empty but valid semantic model.
-        foreach (var ast in asts)
+        foreach(var ast in asts)
         {
             try
             {
                 WalkNode(ast, globalScope, symbolTable);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 diagnostics.Add(new Diagnostic(
                     new DiagnosticId("MIST_SEMANTIC_ERROR"),
@@ -57,7 +57,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // TODO: Implement AST walking and symbol registration
         // once the Mist language spec defines concrete syntax.
         // For now, recursively visit children.
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
             WalkNode(child, currentScope, symbolTable);
         }

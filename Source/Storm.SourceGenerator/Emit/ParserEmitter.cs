@@ -42,10 +42,10 @@ namespace Storm.SourceGenerator.Emit
 
             writer.WriteBlock($"public static class {className}", () =>
             {
-                bool first = true;
-                foreach (var rule in context.Grammar.Rules)
+                var first = true;
+                foreach(var rule in context.Grammar.Rules)
                 {
-                    if (!first)
+                    if(!first)
                     {
                         writer.WriteEmptyLine();
                     }

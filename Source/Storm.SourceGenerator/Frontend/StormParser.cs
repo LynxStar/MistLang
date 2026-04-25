@@ -20,10 +20,18 @@ namespace Storm.SourceGenerator.Frontend
         /// <returns>A <see cref="StormFile"/> representing the parsed grammar file.</returns>
         public static StormFile Parse(List<StormToken> tokens, StormSourceText source, List<StormDiagnostic> diagnostics)
         {
-            if (tokens == null) throw new ArgumentNullException(nameof(tokens));
-            if (source == null) throw new ArgumentNullException(nameof(source));
-            if (diagnostics == null) throw new ArgumentNullException(nameof(diagnostics));
-
+            if(tokens == null)
+            {
+                throw new ArgumentNullException(nameof(tokens));
+            }
+            if(source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+            if(diagnostics == null)
+            {
+                throw new ArgumentNullException(nameof(diagnostics));
+            }
             var state = new ParserState(tokens, source, diagnostics);
             return state.ParseFile();
         }
@@ -33,9 +41,9 @@ namespace Storm.SourceGenerator.Frontend
         /// </summary>
         private sealed class ParserState
         {
-            private readonly List<StormToken> _tokens;
-            private readonly StormSourceText _source;
-            private readonly List<StormDiagnostic> _diagnostics;
+            private List<StormToken> _tokens;
+            private StormSourceText _source;
+            private List<StormDiagnostic> _diagnostics;
             private int _pos;
 
             public ParserState(List<StormToken> tokens, StormSourceText source, List<StormDiagnostic> diagnostics)
@@ -56,14 +64,14 @@ namespace Storm.SourceGenerator.Frontend
 
             private StormToken Peek(int offset = 0)
             {
-                int idx = _pos + offset;
+                var idx = _pos + offset;
                 return idx < _tokens.Count ? _tokens[idx] : _tokens[_tokens.Count - 1];
             }
 
             private StormToken Advance()
             {
                 var tok = Current;
-                if (_pos < _tokens.Count - 1) // don't advance past EOF
+                if(_pos < _tokens.Count - 1) // don't advance past EOF
                     _pos++;
                 return tok;
             }
@@ -72,7 +80,7 @@ namespace Storm.SourceGenerator.Frontend
 
             private bool Match(StormTokenKind kind)
             {
-                if (Current.Kind == kind)
+                if(Current.Kind == kind)
                 {
                     Advance();
                     return true;
@@ -82,8 +90,10 @@ namespace Storm.SourceGenerator.Frontend
 
             private StormToken Expect(StormTokenKind kind, string expected)
             {
-                if (Current.Kind == kind)
+                if(Current.Kind == kind)
+                {
                     return Advance();
+                }
 
                 Error($"Expected {expected}, got '{Current.Lexeme}'");
                 // Return a synthetic token so the caller can continue.
@@ -112,9 +122,9 @@ namespace Storm.SourceGenerator.Frontend
             /// </summary>
             private void SynchronizeToDeclaration()
             {
-                while (Current.Kind != StormTokenKind.EndOfFile)
+                while(Current.Kind != StormTokenKind.EndOfFile)
                 {
-                    switch (Current.Kind)
+                    switch(Current.Kind)
                     {
                         case StormTokenKind.RuleKeyword:
                         case StormTokenKind.TokenKeyword:
@@ -139,19 +149,23 @@ namespace Storm.SourceGenerator.Frontend
                 var declarations = new List<StormDeclaration>();
 
                 // Parse imports (must come before declarations).
-                while (Current.Kind == StormTokenKind.ImportKeyword)
+                while(Current.Kind == StormTokenKind.ImportKeyword)
                 {
                     var imp = ParseImport();
-                    if (imp != null)
+                    if(imp != null)
+                    {
                         imports.Add(imp);
+                    }
                 }
 
                 // Parse declarations until EOF.
-                while (Current.Kind != StormTokenKind.EndOfFile)
+                while(Current.Kind != StormTokenKind.EndOfFile)
                 {
                     var decl = ParseDeclaration();
-                    if (decl != null)
+                    if(decl != null)
+                    {
                         declarations.Add(decl);
+                    }
                 }
 
                 return new StormFile(imports, declarations);
@@ -166,11 +180,11 @@ namespace Storm.SourceGenerator.Frontend
                 // import "path" ;
                 // import "path" as Namespace ;
                 var importTok = Advance(); // consume 'import'
-                int offset = importTok.Offset;
-                int line = importTok.Line;
-                int column = importTok.Column;
+                var offset = importTok.Offset;
+                var line = importTok.Line;
+                var column = importTok.Column;
 
-                if (Current.Kind != StormTokenKind.StringLiteral)
+                if(Current.Kind != StormTokenKind.StringLiteral)
                 {
                     Error("Expected string literal after 'import'");
                     SynchronizeToDeclaration();
@@ -178,12 +192,12 @@ namespace Storm.SourceGenerator.Frontend
                 }
 
                 var pathTok = Advance();
-                string path = UnquoteString(pathTok.Lexeme);
+                var path = UnquoteString(pathTok.Lexeme);
 
                 string? alias = null;
-                if (Match(StormTokenKind.AsKeyword))
+                if(Match(StormTokenKind.AsKeyword))
                 {
-                    if (Current.Kind != StormTokenKind.Identifier)
+                    if(Current.Kind != StormTokenKind.Identifier)
                     {
                         Error("Expected namespace identifier after 'as'");
                         SynchronizeToDeclaration();
@@ -202,7 +216,7 @@ namespace Storm.SourceGenerator.Frontend
 
             private StormDeclaration? ParseDeclaration()
             {
-                switch (Current.Kind)
+                switch(Current.Kind)
                 {
                     case StormTokenKind.RuleKeyword:
                         return ParseRuleDecl();
@@ -290,11 +304,13 @@ namespace Storm.SourceGenerator.Frontend
             private StormExpression ParseAlternation()
             {
                 var first = ParseNamedAlternative();
-                if (!Check(StormTokenKind.Pipe))
+                if(!Check(StormTokenKind.Pipe))
+                {
                     return first;
+                }
 
                 var alternatives = new List<StormExpression> { first };
-                while (Match(StormTokenKind.Pipe))
+                while(Match(StormTokenKind.Pipe))
                 {
                     alternatives.Add(ParseNamedAlternative());
                 }
@@ -308,7 +324,7 @@ namespace Storm.SourceGenerator.Frontend
             {
                 var expr = ParseSequence();
 
-                if (Check(StormTokenKind.AsKeyword))
+                if(Check(StormTokenKind.AsKeyword))
                 {
                     Advance(); // consume 'as'
                     var nameTok = Expect(StormTokenKind.Identifier, "alternative name");
@@ -324,20 +340,22 @@ namespace Storm.SourceGenerator.Frontend
             private StormExpression ParseSequence()
             {
                 var elements = new List<StormExpression>();
-                while (IsExpressionStart())
+                while(IsExpressionStart())
                 {
                     elements.Add(ParseLabeled());
                 }
 
-                if (elements.Count == 0)
+                if(elements.Count == 0)
                 {
                     Error("Expected expression");
                     // Return a placeholder so the caller can continue.
                     return new StormReferenceExpr("<error>");
                 }
 
-                if (elements.Count == 1)
+                if(elements.Count == 1)
+                {
                     return elements[0];
+                }
 
                 return new StormSequenceExpr(elements);
             }
@@ -348,7 +366,7 @@ namespace Storm.SourceGenerator.Frontend
             private StormExpression ParseLabeled()
             {
                 // Look ahead: if we see Identifier followed by ':', it's a label.
-                if (Current.Kind == StormTokenKind.Identifier && Peek(1).Kind == StormTokenKind.Colon)
+                if(Current.Kind == StormTokenKind.Identifier && Peek(1).Kind == StormTokenKind.Colon)
                 {
                     var labelTok = Advance(); // consume identifier
                     Advance(); // consume ':'
@@ -366,17 +384,17 @@ namespace Storm.SourceGenerator.Frontend
             {
                 var expr = ParsePrimary();
 
-                while (true)
+                while(true)
                 {
-                    if (Match(StormTokenKind.Question))
+                    if(Match(StormTokenKind.Question))
                     {
                         expr = new StormOptionalExpr(expr);
                     }
-                    else if (Match(StormTokenKind.Star))
+                    else if(Match(StormTokenKind.Star))
                     {
                         expr = new StormZeroOrMoreExpr(expr);
                     }
-                    else if (Match(StormTokenKind.Plus))
+                    else if(Match(StormTokenKind.Plus))
                     {
                         expr = new StormOneOrMoreExpr(expr);
                     }
@@ -394,7 +412,7 @@ namespace Storm.SourceGenerator.Frontend
             /// </summary>
             private StormExpression ParsePrimary()
             {
-                switch (Current.Kind)
+                switch(Current.Kind)
                 {
                     case StormTokenKind.StringLiteral:
                     {
@@ -412,7 +430,7 @@ namespace Storm.SourceGenerator.Frontend
                     {
                         var nameTok = Advance();
                         // Check for qualified reference: Name.Name
-                        if (Check(StormTokenKind.Dot))
+                        if(Check(StormTokenKind.Dot))
                         {
                             Advance(); // consume '.'
                             var memberTok = Expect(StormTokenKind.Identifier, "qualified name");
@@ -448,7 +466,7 @@ namespace Storm.SourceGenerator.Frontend
             /// </summary>
             private bool IsExpressionStart()
             {
-                switch (Current.Kind)
+                switch(Current.Kind)
                 {
                     case StormTokenKind.StringLiteral:
                     case StormTokenKind.CharClass:
@@ -466,23 +484,27 @@ namespace Storm.SourceGenerator.Frontend
             /// </summary>
             private static string UnquoteString(string lexeme)
             {
-                if (lexeme.Length < 2 || lexeme[0] != '"')
+                if(lexeme.Length < 2 || lexeme[0] != '"')
+                {
                     return lexeme;
+                }
 
                 // Strip quotes
                 var inner = lexeme.Substring(1, lexeme.Length - 2);
 
                 // Process escape sequences
-                if (inner.IndexOf('\\') < 0)
+                if(inner.IndexOf('\\') < 0)
+                {
                     return inner;
+                }
 
                 var sb = new System.Text.StringBuilder(inner.Length);
-                for (int i = 0; i < inner.Length; i++)
+                for(var i = 0; i < inner.Length; i++)
                 {
-                    if (inner[i] == '\\' && i + 1 < inner.Length)
+                    if(inner[i] == '\\' && i + 1 < inner.Length)
                     {
-                        char next = inner[i + 1];
-                        switch (next)
+                        var next = inner[i + 1];
+                        switch(next)
                         {
                             case 'n': sb.Append('\n'); break;
                             case 'r': sb.Append('\r'); break;

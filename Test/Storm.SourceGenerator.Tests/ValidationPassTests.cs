@@ -22,8 +22,10 @@ namespace Storm.SourceGenerator.Tests
             return path =>
             {
                 var normalized = StormImportResolver.CanonicalizePath(path);
-                if (files.TryGetValue(normalized, out var contents))
+                if(files.TryGetValue(normalized, out var contents))
+                {
                     return contents;
+                }
                 return null;
             };
         }

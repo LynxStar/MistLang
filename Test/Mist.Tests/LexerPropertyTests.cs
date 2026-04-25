@@ -15,7 +15,7 @@ namespace Mist.Tests;
 /// </summary>
 public class LexerPropertyTests
 {
-    private static readonly ILexer Lexer = new MistLexer();
+    private static ILexer Lexer = new MistLexer();
 
     // ---------------------------------------------------------------
     //  26.1 — Lexer round-trip
@@ -41,8 +41,10 @@ public class LexerPropertyTests
         // With the skeletal lexer, AllTokens is empty so concatenated is "".
         // When the full lexer is implemented, this should equal input.Get.
         // For now, verify the invariant holds for the current implementation.
-        if (tokenStream.AllTokens.Length == 0)
+        if(tokenStream.AllTokens.Length == 0)
+        {
             return concatenated.Length == 0;
+        }
 
         return concatenated == input.Get;
     }
@@ -63,7 +65,7 @@ public class LexerPropertyTests
         var tokenStream = Lexer.Lex(source, bag);
         var tokens = tokenStream.AllTokens;
 
-        if (tokens.Length == 0)
+        if(tokens.Length == 0)
         {
             // Skeletal lexer: no tokens produced. When the full lexer is
             // implemented, this branch should only be hit for empty input.
@@ -74,14 +76,18 @@ public class LexerPropertyTests
         var sortedTokens = tokens.OrderBy(t => t.Span.Start).ToList();
 
         // First token should start at 0
-        if (sortedTokens[0].Span.Start != 0)
+        if(sortedTokens[0].Span.Start != 0)
+        {
             return false;
+        }
 
         // Each subsequent token should start where the previous one ended
-        for (int i = 1; i < sortedTokens.Count; i++)
+        for(var i = 1; i < sortedTokens.Count; i++)
         {
-            if (sortedTokens[i].Span.Start != sortedTokens[i - 1].Span.End)
+            if(sortedTokens[i].Span.Start != sortedTokens[i - 1].Span.End)
+            {
                 return false;
+            }
         }
 
         // Last token should end at the input length
@@ -107,16 +113,18 @@ public class LexerPropertyTests
         var stream2 = Lexer.Lex(source, bag2);
 
         // Same token count
-        if (stream1.AllTokens.Length != stream2.AllTokens.Length)
+        if(stream1.AllTokens.Length != stream2.AllTokens.Length)
+        {
             return false;
+        }
 
         // Same token kinds, spans, and lexemes
-        for (int i = 0; i < stream1.AllTokens.Length; i++)
+        for(var i = 0; i < stream1.AllTokens.Length; i++)
         {
             var t1 = stream1.AllTokens[i];
             var t2 = stream2.AllTokens[i];
 
-            if (t1.Kind != t2.Kind ||
+            if(t1.Kind != t2.Kind ||
                 t1.Span.Start != t2.Span.Start ||
                 t1.Span.Length != t2.Span.Length ||
                 t1.Channel != t2.Channel ||

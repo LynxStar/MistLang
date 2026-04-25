@@ -32,8 +32,7 @@ public class GeneratorPipelineTests
         // Create and run the driver
         var driver = CSharpGeneratorDriver.Create(generator)
             .AddAdditionalTexts(ImmutableArray.Create<AdditionalText>(additionalText));
-
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var diagnostics);
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out var _);
 
         return driver.GetRunResult();
     }
@@ -172,19 +171,19 @@ public class GeneratorPipelineTests
 
     private sealed class InMemoryAdditionalText : AdditionalText
     {
-        private string _text;
+        private string text;
 
         public override string Path { get; }
 
         public InMemoryAdditionalText(string path, string text)
         {
             Path = path;
-            _text = text;
+            this.text = text;
         }
 
-        public override SourceText? GetText(System.Threading.CancellationToken cancellationToken = default)
+        public override SourceText? GetText(CancellationToken cancellationToken = default)
         {
-            return SourceText.From(_text);
+            return SourceText.From(text);
         }
     }
 }

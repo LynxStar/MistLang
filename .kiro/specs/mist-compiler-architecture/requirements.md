@@ -10,6 +10,8 @@ Reusability of the Storm_Source_Generator across languages is an explicit archit
 
 This v1 specification is scoped for time-to-value: it captures the minimum architectural surface required to get a working end-to-end compiler from Mist source to an executable .NET assembly via the C# transpiler backend. A "Non-Goals" section at the end of this document enumerates deliberately deferred concerns that a later refactor pass is expected to address.
 
+For the same time-to-value reason, v1 collapses the compiler into a single `Mist` .NET project that contains every pipeline stage (Lexer consumption, Parser consumption, Semantic_Model_Builder, Analyzer framework and built-in analyzers, Backend framework, CSharp_Transpiler_Backend, and Compiler_Driver), with internal stage boundaries enforced by folder and namespace organization rather than by separate projects. The only hard project splits in v1 are the `Storm.SourceGenerator` project (required by Roslyn: source generators must ship as their own `netstandard2.0` assembly) and a thin `Mist.Cli` executable project that hosts the Compiler_CLI surface on top of `Mist`. Splitting the `Mist` project further into per-stage projects is an explicit non-goal for v1 and is deferred to a later refactor.
+
 ## Glossary
 
 - **Mist**: The programming language being designed, inspired by C#, Haskell, and TypeScript.
@@ -20,8 +22,10 @@ This v1 specification is scoped for time-to-value: it captures the minimum archi
 - **Storm_Fragment**: A Storm declaration introduced by the `fragment` keyword that defines a reusable sub-pattern for tokens. Fragments do not themselves produce tokens in the Token_Stream.
 - **Storm_Hidden_Token**: A Storm_Token declared with the `hidden` modifier. Hidden tokens are emitted into the Token_Stream but are skipped by the Parser while remaining available to downstream tooling.
 - **Source_Generator**: A C# source generator (as defined by the Roslyn source generator API) that runs at compile time and emits additional C# source code into a compilation.
-- **Storm_Source_Generator**: A language-agnostic Source_Generator that consumes one or more Storm_Grammar_Files and emits C# source for the Lexer, Parser, and AST node types of the language described by those grammar files. The Storm_Source_Generator contains no knowledge of Mist or any other specific language; it is reusable across any consumer that supplies a Storm grammar.
-- **Mist_Compiler_Project**: The .NET project (or set of .NET projects) that implements the Mist compiler. The Mist_Compiler_Project depends on the Storm_Source_Generator and supplies its own Storm_Grammar_File(s) describing Mist.
+- **Storm_Source_Generator**: A language-agnostic Source_Generator that consumes one or more Storm_Grammar_Files and emits C# source for the Lexer, Parser, and AST node types of the language described by those grammar files. The Storm_Source_Generator contains no knowledge of Mist or any other specific language; it is reusable across any consumer that supplies a Storm grammar. Shipped as the `Storm.SourceGenerator` .NET project targeting `netstandard2.0` as required by the Roslyn source generator API.
+- **Mist_Project**: The `Mist` .NET project, which contains the entire Mist compiler implementation in v1: the consumers of the generated Lexer, Parser, and AST types; the Semantic_Model_Builder; the Analyzer framework and all built-in Analyzers (including the Type_Checker); the Backend framework; the CSharp_Transpiler_Backend; and the Compiler_Driver. Internal stage boundaries are organized by folder and namespace rather than by separate projects. The Mist_Project depends on the Storm_Source_Generator and supplies its own Storm_Grammar_File(s) describing Mist.
+- **Mist_Cli_Project**: The `Mist.Cli` .NET executable project, a thin shell that references the Mist_Project and exposes the Compiler_CLI surface.
+- **Mist_Compiler_Project**: The combined deliverable of the Mist_Project and the Mist_Cli_Project. References to the "Mist_Compiler_Project" in this document refer collectively to these two projects unless a specific one is named. The Mist_Compiler_Project depends on the Storm_Source_Generator and supplies its own Storm_Grammar_File(s) describing Mist.
 - **Lexer**: The compiler component that converts a stream of Mist source characters into a stream of Tokens.
 - **Token**: A single lexical unit produced by the Lexer, carrying a kind, source text span, channel (default or hidden), and position information.
 - **Token_Stream**: An ordered sequence of Tokens produced by the Lexer from a single source input.
@@ -51,10 +55,12 @@ This v1 specification is scoped for time-to-value: it captures the minimum archi
 1. THE Mist_Compiler SHALL be implemented in C# targeting language version 14.
 2. THE Mist_Compiler SHALL target the .NET 10 runtime.
 3. THE Mist_Compiler SHALL follow idiomatic C# conventions for naming, nullability annotations, and async usage.
-4. THE Mist_Compiler SHALL be organized as a set of .NET projects with explicit boundaries between the Compiler_CLI, Compiler_Driver, pipeline stages, analyzers, and backends.
-5. THE Storm_Source_Generator SHALL reside in its own .NET project independent of the Mist_Compiler_Project.
-6. THE Mist_Compiler_Project SHALL consume the Storm_Source_Generator as an external dependency and supply its own Storm_Grammar_File(s) describing Mist.
-7. THE Storm_Source_Generator SHALL NOT contain any Mist-specific logic, types, identifiers, or knowledge.
+4. THE Mist_Compiler SHALL be organized as exactly three .NET projects: `Storm.SourceGenerator`, `Mist`, and `Mist.Cli`; additional .NET projects for automated tests are permitted and are not counted toward this three-project layout.
+5. THE `Storm.SourceGenerator` project SHALL reside in its own .NET project independent of the `Mist` and `Mist.Cli` projects.
+6. THE `Mist` project SHALL consume the `Storm.SourceGenerator` as an external dependency and supply its own Storm_Grammar_File(s) describing Mist.
+7. THE `Storm.SourceGenerator` project SHALL NOT contain any Mist-specific logic, types, identifiers, or knowledge.
+8. THE `Mist` project SHALL organize internal stage boundaries (Lexer consumption, Parser consumption, Semantic_Model_Builder, Analyzer framework and built-in analyzers, Backend framework, CSharp_Transpiler_Backend, Compiler_Driver) through folders and namespaces within the single project, rather than through separate .NET projects.
+9. THE `Mist.Cli` project SHALL be a thin executable shell that references the `Mist` project and exposes the Compiler_CLI surface, and SHALL NOT contain pipeline-stage logic.
 
 ### Requirement 2: Storm Grammar Consumption
 
@@ -283,14 +289,11 @@ This v1 specification is scoped for time-to-value: it captures the minimum archi
 
 #### Acceptance Criteria
 
-1. THE Lexer, Parser, Semantic_Model_Builder, Analyzer framework, and Backend framework SHALL each reside in a separate .NET project.
-2. THE Lexer project SHALL NOT depend on the Parser, Semantic_Model_Builder, Analyzer, or Backend projects.
-3. THE Parser project SHALL NOT depend on the Semantic_Model_Builder, Analyzer, or Backend projects.
-4. THE Semantic_Model_Builder project SHALL NOT depend on the Analyzer or Backend projects.
-5. THE Analyzer framework project SHALL NOT depend on any Backend project.
-6. Each pipeline stage SHALL expose its contract through public interfaces or abstract types separate from its implementation types.
-7. THE Storm_Source_Generator SHALL reside in a .NET project that has no source-code or project-reference dependency on any Mist_Compiler_Project project.
-8. THE Storm_Source_Generator SHALL be consumable by any .NET project that supplies a Storm_Grammar_File, independent of Mist.
+1. THE `Mist` project SHALL organize each pipeline stage (Lexer consumption, Parser consumption, Semantic_Model_Builder, Analyzer framework, Backend framework) under a distinct top-level folder and a correspondingly distinct namespace.
+2. Each pipeline stage SHALL expose its contract through public interfaces or abstract types declared in a dedicated contract namespace, separate from the namespace containing that stage's implementation types.
+3. Within the `Mist` project, downstream stages SHALL depend only on the public contract namespaces of upstream stages, and SHALL NOT take dependencies on implementation namespaces of upstream stages. This is a review-enforced convention for v1; it is not required to be verified by compile-time project-reference checks.
+4. THE `Storm.SourceGenerator` project SHALL have no source-code or project-reference dependency on the `Mist` project or the `Mist.Cli` project.
+5. THE `Storm.SourceGenerator` project SHALL be consumable by any .NET project that supplies a Storm_Grammar_File, independent of Mist.
 
 ### Requirement 20: Determinism and Reproducibility
 
@@ -331,3 +334,4 @@ The following concerns are intentionally out of scope for v1 of the Mist compile
 10. **Self-hosted Mist.** v1 is implemented in C#. Rewriting the Mist compiler in Mist is a long-term north star, not a v1 concern.
 11. **Concrete Mist syntax and semantics.** Deferred to a follow-up specification. This document pins down only the architectural contracts that downstream stages depend on.
 12. **Concrete Storm syntax fine-tuning.** This document captures Storm's declarations, expressions, semantics, imports, and validation rules at a contract level. A follow-up specification will pin down the exact concrete syntax (precedence of combinators, escape rules in string literals and character classes, exact lexical rules for Storm identifiers, etc.).
+13. **Splitting the Mist compiler into per-stage projects.** v1 keeps all pipeline stages inside a single `Mist` project with internal folder and namespace organization (see Requirements 1 and 19). Splitting stages into dedicated .NET projects — e.g., separate Lexer, Parser, Semantic_Model_Builder, Analyzer, and Backend projects — is deferred to a future refactor once scale or plugin distribution justifies the overhead.

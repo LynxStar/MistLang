@@ -229,7 +229,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "import \"a.storm\";\nimport \"b.storm\";\ntoken Main = \"main\";",
+                ["root/main.storm"] = "grammar Test;\nimport \"a.storm\";\nimport \"b.storm\";\ntoken Main = \"main\";",
                 ["root/a.storm"] = "token Dup = \"a\";",
                 ["root/b.storm"] = "token Dup = \"b\";",
             };
@@ -247,7 +247,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "import \"a.storm\";\ntoken Dup = \"main\";",
+                ["root/main.storm"] = "grammar Test;\nimport \"a.storm\";\ntoken Dup = \"main\";",
                 ["root/a.storm"] = "token Dup = \"a\";",
             };
 
@@ -264,7 +264,7 @@ namespace Storm.SourceGenerator.Tests
             // Namespaced imports don't conflict with unnamespaced declarations
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "import \"a.storm\" as NS;\ntoken Foo = \"main\";",
+                ["root/main.storm"] = "grammar Test;\nimport \"a.storm\" as NS;\ntoken Foo = \"main\";",
                 ["root/a.storm"] = "token Foo = \"a\";",
             };
 
@@ -285,7 +285,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "import \"tokens.storm\" as Tok;\nrule Start = Tok.Ident;",
+                ["root/main.storm"] = "grammar Test;\nimport \"tokens.storm\" as Tok;\nrule Start = Tok.Ident;",
                 ["root/tokens.storm"] = "token Ident = [a-z]+;",
             };
 
@@ -301,7 +301,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "import \"tokens.storm\";\nrule Start = Ident;",
+                ["root/main.storm"] = "grammar Test;\nimport \"tokens.storm\";\nrule Start = Ident;",
                 ["root/tokens.storm"] = "token Ident = [a-z]+;",
             };
 
@@ -318,7 +318,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "import \"common.storm\";\nimport \"extra.storm\" as Ex;\ntoken Main = \"main\";",
+                ["root/main.storm"] = "grammar Test;\nimport \"common.storm\";\nimport \"extra.storm\" as Ex;\ntoken Main = \"main\";",
                 ["root/common.storm"] = "token Common = \"common\";",
                 ["root/extra.storm"] = "token Extra = \"extra\";",
             };
@@ -341,7 +341,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "import \"unns.storm\";\nimport \"ns.storm\" as NS;\ntoken RootToken = \"root\";",
+                ["root/main.storm"] = "grammar Test;\nimport \"unns.storm\";\nimport \"ns.storm\" as NS;\ntoken RootToken = \"root\";",
                 ["root/unns.storm"] = "token UnnamespacedToken = \"unns\";",
                 ["root/ns.storm"] = "token NamespacedToken = \"ns\";",
             };
@@ -365,7 +365,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "import \"first.storm\";\nimport \"second.storm\";\ntoken Root = \"root\";",
+                ["root/main.storm"] = "grammar Test;\nimport \"first.storm\";\nimport \"second.storm\";\ntoken Root = \"root\";",
                 ["root/first.storm"] = "token First = \"first\";",
                 ["root/second.storm"] = "token Second = \"second\";",
             };
@@ -388,7 +388,7 @@ namespace Storm.SourceGenerator.Tests
             // DFS pre-order: main, a, b
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "import \"a.storm\";\ntoken Root = \"root\";",
+                ["root/main.storm"] = "grammar Test;\nimport \"a.storm\";\ntoken Root = \"root\";",
                 ["root/a.storm"] = "import \"b.storm\";\ntoken A = \"a\";",
                 ["root/b.storm"] = "token B = \"b\";",
             };
@@ -416,7 +416,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "token Foo = \"foo\";\nrule Bar = Foo;",
+                ["root/main.storm"] = "grammar Test;\ntoken Foo = \"foo\";\nrule Bar = Foo;",
             };
 
             var grammar = BuildGrammar(files, "root/main.storm");
@@ -431,7 +431,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "import \"lib.storm\" as Lib;\nrule Start = Lib.Tok;",
+                ["root/main.storm"] = "grammar Test;\nimport \"lib.storm\" as Lib;\nrule Start = Lib.Tok;",
                 ["root/lib.storm"] = "token Tok = \"tok\";",
             };
 
@@ -450,7 +450,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "",
+                ["root/main.storm"] = "grammar Test;\n",
             };
 
             var grammar = BuildGrammar(files, "root/main.storm");
@@ -464,7 +464,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/a.storm"] = "import \"b.storm\";\ntoken A = \"a\";",
+                ["root/a.storm"] = "grammar Test;\nimport \"b.storm\";\ntoken A = \"a\";",
                 ["root/b.storm"] = "import \"a.storm\";\ntoken B = \"b\";",
             };
 
@@ -475,6 +475,70 @@ namespace Storm.SourceGenerator.Tests
             Assert.Equal(2, names.Count);
             Assert.Equal("A", names[0]);
             Assert.Equal("B", names[1]);
+        }
+
+        // ---------------------------------------------------------------
+        //  Grammar declaration validation
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void Build_NoGrammarDeclaration_EmitsNoRootGrammarDiagnostic()
+        {
+            var files = new Dictionary<string, string>
+            {
+                ["root/main.storm"] = "token Foo = \"foo\";",
+            };
+
+            var grammar = BuildGrammar(files, "root/main.storm");
+
+            Assert.False(grammar.Succeeded);
+            Assert.Contains(grammar.Diagnostics, d =>
+                d.Id == Storm.SourceGenerator.Diagnostics.StormDiagnosticIds.STORM_NO_ROOT_GRAMMAR);
+        }
+
+        [Fact]
+        public void Build_MultipleGrammarDeclarations_EmitsMultipleRootGrammarsDiagnostic()
+        {
+            var files = new Dictionary<string, string>
+            {
+                ["root/main.storm"] = "grammar Test;\nimport \"other.storm\";\ntoken Foo = \"foo\";",
+                ["root/other.storm"] = "grammar Other;\ntoken Bar = \"bar\";",
+            };
+
+            var grammar = BuildGrammar(files, "root/main.storm");
+
+            Assert.False(grammar.Succeeded);
+            Assert.Contains(grammar.Diagnostics, d =>
+                d.Id == Storm.SourceGenerator.Diagnostics.StormDiagnosticIds.STORM_MULTIPLE_ROOT_GRAMMARS);
+        }
+
+        [Fact]
+        public void Build_GrammarDeclaration_StoresGrammarName()
+        {
+            var files = new Dictionary<string, string>
+            {
+                ["root/main.storm"] = "grammar MyLang;\ntoken Foo = \"foo\";",
+            };
+
+            var grammar = BuildGrammar(files, "root/main.storm");
+
+            Assert.True(grammar.Succeeded);
+            Assert.Equal("MyLang", grammar.GrammarName);
+        }
+
+        [Fact]
+        public void Build_GrammarDeclaration_OnlyInRoot_Succeeds()
+        {
+            var files = new Dictionary<string, string>
+            {
+                ["root/main.storm"] = "grammar Test;\nimport \"tokens.storm\";\nrule Start = Foo;",
+                ["root/tokens.storm"] = "token Foo = \"foo\";",
+            };
+
+            var grammar = BuildGrammar(files, "root/main.storm");
+
+            Assert.True(grammar.Succeeded);
+            Assert.Equal("Test", grammar.GrammarName);
         }
     }
 }

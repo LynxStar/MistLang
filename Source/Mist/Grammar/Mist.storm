@@ -1,3 +1,5 @@
+grammar Mist;
+
 // Mist language grammar — stub for v1 architectural skeleton.
 // This file is the root Storm grammar file for the Mist language.
 // Concrete syntax rules will be added in the Mist-language spec.

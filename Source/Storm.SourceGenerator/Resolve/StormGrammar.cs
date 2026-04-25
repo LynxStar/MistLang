@@ -36,6 +36,12 @@ public sealed class StormGrammar
     /// </summary>
     public bool Succeeded { get; }
 
+    /// <summary>
+    /// The grammar name from the <c>grammar</c> declaration in the root file,
+    /// or null if no grammar declaration was found.
+    /// </summary>
+    public string? GrammarName { get; }
+
     private Dictionary<string, StormDeclaration> declarationsByName;
 
     private StormGrammar(
@@ -43,13 +49,15 @@ public sealed class StormGrammar
         IReadOnlyDictionary<string, StormDeclaration> namespacedDeclarations,
         Dictionary<string, StormDeclaration> declarationsByName,
         IReadOnlyList<StormDiagnostic> diagnostics,
-        bool succeeded)
+        bool succeeded,
+        string? grammarName)
     {
         Declarations = declarations;
         NamespacedDeclarations = namespacedDeclarations;
         this.declarationsByName = declarationsByName;
         Diagnostics = diagnostics;
         Succeeded = succeeded;
+        GrammarName = grammarName;
     }
 
     /// <summary>
@@ -110,6 +118,49 @@ public sealed class StormGrammar
         var nameToSourceLocation = new Dictionary<string, (string FilePath, StormDeclaration Decl)>(StringComparer.Ordinal);
 
         var failed = false;
+
+        // Scan for grammar declarations across all files
+        string? grammarName = null;
+        string? grammarDeclFilePath = null;
+        Frontend.StormGrammarDecl? firstGrammarDecl = null;
+
+        foreach(var kv in resolution.OrderedFiles)
+        {
+            var file = kv.Value;
+            if(file.GrammarDeclaration != null)
+            {
+                if(grammarName != null)
+                {
+                    // Multiple grammar declarations
+                    diagnostics.Add(new StormDiagnostic(
+                        StormDiagnosticIds.STORM_MULTIPLE_ROOT_GRAMMARS,
+                        StormDiagnosticSeverity.Error,
+                        $"Multiple files declare a `grammar` directive: first in '{grammarDeclFilePath}' at {firstGrammarDecl!.Line}:{firstGrammarDecl.Column}, also in '{kv.Key}' at {file.GrammarDeclaration.Line}:{file.GrammarDeclaration.Column}",
+                        kv.Key,
+                        file.GrammarDeclaration.Line,
+                        file.GrammarDeclaration.Column));
+                    failed = true;
+                }
+                else
+                {
+                    grammarName = file.GrammarDeclaration.Name;
+                    grammarDeclFilePath = kv.Key;
+                    firstGrammarDecl = file.GrammarDeclaration;
+                }
+            }
+        }
+
+        if(grammarName == null)
+        {
+            diagnostics.Add(new StormDiagnostic(
+                StormDiagnosticIds.STORM_NO_ROOT_GRAMMAR,
+                StormDiagnosticSeverity.Error,
+                "No file declares a `grammar` directive",
+                resolution.RootPath,
+                1,
+                1));
+            failed = true;
+        }
 
         // Track which files contribute only via namespaced imports
         // We need to know which files are imported with a namespace alias
@@ -180,7 +231,8 @@ public sealed class StormGrammar
             namespacedDeclarations,
             declarationsByName,
             diagnostics,
-            !failed);
+            !failed,
+            grammarName);
     }
 
     /// <summary>

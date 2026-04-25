@@ -37,6 +37,7 @@ namespace Storm.SourceGenerator.Tests
         [InlineData("fragment", StormTokenKind.FragmentKeyword)]
         [InlineData("hidden", StormTokenKind.HiddenKeyword)]
         [InlineData("import", StormTokenKind.ImportKeyword)]
+        [InlineData("grammar", StormTokenKind.GrammarKeyword)]
         [InlineData("as", StormTokenKind.AsKeyword)]
         public void Tokenize_Keywords(string keyword, StormTokenKind expectedKind)
         {

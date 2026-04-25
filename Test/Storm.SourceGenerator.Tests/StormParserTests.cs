@@ -23,6 +23,54 @@ public class StormParserTests
     }
 
     // ---------------------------------------------------------------
+    //  Grammar declaration
+    // ---------------------------------------------------------------
+
+    [Fact]
+    public void Parse_GrammarDecl_Simple()
+    {
+        var file = Parse("grammar Mist;");
+        Assert.NotNull(file.GrammarDeclaration);
+        Assert.Equal("Mist", file.GrammarDeclaration!.Name);
+    }
+
+    [Fact]
+    public void Parse_GrammarDecl_BeforeImports()
+    {
+        var file = Parse("grammar Mist;\nimport \"tokens.storm\";", out var diags);
+        Assert.Empty(diags);
+        Assert.NotNull(file.GrammarDeclaration);
+        Assert.Equal("Mist", file.GrammarDeclaration!.Name);
+        _ = Assert.Single(file.Imports);
+    }
+
+    [Fact]
+    public void Parse_GrammarDecl_BeforeDeclarations()
+    {
+        var file = Parse("grammar Test;\ntoken Foo = \"foo\";", out var diags);
+        Assert.Empty(diags);
+        Assert.NotNull(file.GrammarDeclaration);
+        Assert.Equal("Test", file.GrammarDeclaration!.Name);
+        _ = Assert.Single(file.Declarations);
+    }
+
+    [Fact]
+    public void Parse_NoGrammarDecl_IsNull()
+    {
+        var file = Parse("token Foo = \"foo\";");
+        Assert.Null(file.GrammarDeclaration);
+    }
+
+    [Fact]
+    public void Parse_GrammarDecl_Position()
+    {
+        var file = Parse("grammar Mist;");
+        Assert.NotNull(file.GrammarDeclaration);
+        Assert.Equal(1, file.GrammarDeclaration!.Line);
+        Assert.Equal(1, file.GrammarDeclaration.Column);
+    }
+
+    // ---------------------------------------------------------------
     //  Import declarations
     // ---------------------------------------------------------------
 

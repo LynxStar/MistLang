@@ -30,4 +30,10 @@ public static class StormDiagnosticIds
 
     /// <summary>A grammar construct that the source generator cannot lower to C#.</summary>
     public static string STORM_UNSUPPORTED_CONSTRUCT { get; } = "STORM0008";
+
+    /// <summary>No file declares a <c>grammar</c> directive.</summary>
+    public static string STORM_NO_ROOT_GRAMMAR { get; } = "STORM0009";
+
+    /// <summary>Multiple files declare a <c>grammar</c> directive.</summary>
+    public static string STORM_MULTIPLE_ROOT_GRAMMARS { get; } = "STORM0010";
 }

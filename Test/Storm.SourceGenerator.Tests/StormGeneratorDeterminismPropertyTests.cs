@@ -20,7 +20,7 @@ public class StormGeneratorDeterminismPropertyTests
     [Fact]
     public void StormGeneratorDeterminism_RepeatedInvocationsProduceIdenticalOutput_SimpleGrammar()
     {
-        var grammar = "token Number = [0-9]+;\ntoken Ident = [a-zA-Z_][a-zA-Z0-9_]*;\nhidden token WS = [ \\t\\n]+;\nrule Start = Number;";
+        var grammar = "grammar Test;\ntoken Number = [0-9]+;\ntoken Ident = [a-zA-Z_][a-zA-Z0-9_]*;\nhidden token WS = [ \\t\\n]+;\nrule Start = Number;";
 
         AssertDeterministicOutput(grammar);
     }
@@ -28,7 +28,7 @@ public class StormGeneratorDeterminismPropertyTests
     [Fact]
     public void StormGeneratorDeterminism_RepeatedInvocationsProduceIdenticalOutput_MultipleRules()
     {
-        var grammar = @"
+        var grammar = @"grammar Test;
 token Number = [0-9]+;
 token Ident = [a-zA-Z_][a-zA-Z0-9_]*;
 hidden token WS = [ \t\n]+;
@@ -41,6 +41,7 @@ rule Start = Expr;";
     [Fact]
     public void StormGeneratorDeterminism_RepeatedInvocationsProduceIdenticalOutput_EmptyGrammar()
     {
+        // Empty grammar produces STORM_NO_ROOT_GRAMMAR diagnostic deterministically
         var grammar = "";
 
         AssertDeterministicOutput(grammar);
@@ -49,7 +50,7 @@ rule Start = Expr;";
     [Fact]
     public void StormGeneratorDeterminism_RepeatedInvocationsProduceIdenticalOutput_HiddenTokens()
     {
-        var grammar = @"
+        var grammar = @"grammar Test;
 token Number = [0-9]+;
 hidden token WS = [ \t]+;
 hidden token Newline = [\n\r]+;
@@ -62,7 +63,7 @@ rule Start = Number;";
     [Fact]
     public void StormGeneratorDeterminism_RepeatedInvocationsProduceIdenticalOutput_MultipleTokens()
     {
-        var grammar = @"
+        var grammar = @"grammar Test;
 token Plus = '+';
 token Minus = '-';
 token Star = '*';

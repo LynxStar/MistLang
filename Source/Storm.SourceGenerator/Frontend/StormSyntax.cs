@@ -7,12 +7,27 @@ namespace Storm.SourceGenerator.Frontend;
 // -----------------------------------------------------------------------
 
 /// <summary>
-/// Represents a complete Storm grammar file: a sequence of imports
-/// followed by a sequence of declarations.
+/// Represents a complete Storm grammar file: an optional grammar declaration,
+/// a sequence of imports, followed by a sequence of declarations.
 /// </summary>
 public sealed record StormFile(
+    StormGrammarDecl? GrammarDeclaration,
     IReadOnlyList<StormImport> Imports,
     IReadOnlyList<StormDeclaration> Declarations);
+
+// -----------------------------------------------------------------------
+//  Grammar declaration
+// -----------------------------------------------------------------------
+
+/// <summary>
+/// A <c>grammar Name;</c> declaration that identifies the root grammar file
+/// and provides the grammar name.
+/// </summary>
+public sealed record StormGrammarDecl(
+    string Name,
+    int Offset,
+    int Line,
+    int Column);
 
 // -----------------------------------------------------------------------
 //  Imports

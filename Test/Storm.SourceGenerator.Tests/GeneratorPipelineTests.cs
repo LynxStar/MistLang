@@ -44,7 +44,7 @@ public class GeneratorPipelineTests
     [Fact]
     public void Generator_SimpleGrammar_ProducesExpectedSourceFiles()
     {
-        var grammar = "token Number = [0-9]+;\nhidden token WS = [ \\t]+;\nrule Start = Number;";
+        var grammar = "grammar Test;\ntoken Number = [0-9]+;\nhidden token WS = [ \\t]+;\nrule Start = Number;";
 
         var result = RunGenerator(grammar);
 
@@ -57,7 +57,7 @@ public class GeneratorPipelineTests
     [Fact]
     public void Generator_SimpleGrammar_ProducesRuntimeTypes()
     {
-        var grammar = "token Number = [0-9]+;\nrule Start = Number;";
+        var grammar = "grammar Test;\ntoken Number = [0-9]+;\nrule Start = Number;";
 
         var result = RunGenerator(grammar);
 
@@ -74,7 +74,7 @@ public class GeneratorPipelineTests
     [Fact]
     public void Generator_SimpleGrammar_ProducesLexer()
     {
-        var grammar = "token Number = [0-9]+;\nrule Start = Number;";
+        var grammar = "grammar Test;\ntoken Number = [0-9]+;\nrule Start = Number;";
 
         var result = RunGenerator(grammar);
 
@@ -90,7 +90,7 @@ public class GeneratorPipelineTests
     [Fact]
     public void Generator_SimpleGrammar_ProducesParser()
     {
-        var grammar = "token Number = [0-9]+;\nrule Start = Number;";
+        var grammar = "grammar Test;\ntoken Number = [0-9]+;\nrule Start = Number;";
 
         var result = RunGenerator(grammar);
 
@@ -106,7 +106,7 @@ public class GeneratorPipelineTests
     [Fact]
     public void Generator_SimpleGrammar_ProducesAstNodes()
     {
-        var grammar = "token Number = [0-9]+;\nrule Start = Number;";
+        var grammar = "grammar Test;\ntoken Number = [0-9]+;\nrule Start = Number;";
 
         var result = RunGenerator(grammar);
 
@@ -122,7 +122,7 @@ public class GeneratorPipelineTests
     public void Generator_InvalidGrammar_ReportsDiagnostics()
     {
         // This grammar has a syntax error (missing semicolon)
-        var grammar = "token Number = [0-9]+\nrule Start = Number;";
+        var grammar = "grammar Test;\ntoken Number = [0-9]+\nrule Start = Number;";
 
         var result = RunGenerator(grammar);
 
@@ -138,7 +138,7 @@ public class GeneratorPipelineTests
     [Fact]
     public void Generator_DeterministicOutput_IdenticalAcrossRuns()
     {
-        var grammar = "token Number = [0-9]+;\ntoken Ident = [a-zA-Z]+;\nhidden token WS = [ \\t\\n]+;\nrule Expr = Number | Ident;\nrule Start = Expr;";
+        var grammar = "grammar Test;\ntoken Number = [0-9]+;\ntoken Ident = [a-zA-Z]+;\nhidden token WS = [ \\t\\n]+;\nrule Expr = Number | Ident;\nrule Start = Expr;";
 
         var result1 = RunGenerator(grammar);
         var result2 = RunGenerator(grammar);
@@ -154,15 +154,14 @@ public class GeneratorPipelineTests
     }
 
     [Fact]
-    public void Generator_EmptyGrammar_ProducesOutput()
+    public void Generator_EmptyGrammar_ReportsNoRootGrammarDiagnostic()
     {
         var grammar = "";
 
         var result = RunGenerator(grammar);
 
-        // Even an empty grammar should produce runtime types at minimum
-        // (or produce no errors)
-        Assert.Empty(result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+        // An empty grammar has no grammar declaration, so it should report STORM_NO_ROOT_GRAMMAR
+        Assert.Contains(result.Diagnostics, d => d.Id == "STORM0009");
     }
 
     // ---------------------------------------------------------------

@@ -20,6 +20,8 @@ namespace Storm.SourceGenerator.Frontend
         HiddenKeyword,
         /// <summary>The <c>import</c> keyword.</summary>
         ImportKeyword,
+        /// <summary>The <c>grammar</c> keyword.</summary>
+        GrammarKeyword,
         /// <summary>The <c>as</c> keyword.</summary>
         AsKeyword,
 
@@ -291,6 +293,7 @@ namespace Storm.SourceGenerator.Frontend
                 case "fragment": return StormTokenKind.FragmentKeyword;
                 case "hidden": return StormTokenKind.HiddenKeyword;
                 case "import": return StormTokenKind.ImportKeyword;
+                case "grammar": return StormTokenKind.GrammarKeyword;
                 case "as": return StormTokenKind.AsKeyword;
                 default: return StormTokenKind.Identifier;
             }

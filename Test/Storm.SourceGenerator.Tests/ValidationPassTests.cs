@@ -33,7 +33,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = source,
+                ["root/main.storm"] = "grammar Test;\n" + source,
             };
             var resolver = new StormImportResolver(InMemoryFileReader(files));
             var resolution = resolver.Resolve("root/main.storm");
@@ -88,7 +88,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "import \"tokens.storm\" as Tok;\nrule Start = Tok.Ident;",
+                ["root/main.storm"] = "grammar Test;\nimport \"tokens.storm\" as Tok;\nrule Start = Tok.Ident;",
                 ["root/tokens.storm"] = "token Ident = [a-z]+;",
             };
 

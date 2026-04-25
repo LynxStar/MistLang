@@ -131,6 +131,7 @@ namespace Storm.SourceGenerator.Frontend
                         case StormTokenKind.FragmentKeyword:
                         case StormTokenKind.HiddenKeyword:
                         case StormTokenKind.ImportKeyword:
+                        case StormTokenKind.GrammarKeyword:
                             return;
                         default:
                             Advance();
@@ -147,6 +148,13 @@ namespace Storm.SourceGenerator.Frontend
             {
                 var imports = new List<StormImport>();
                 var declarations = new List<StormDeclaration>();
+
+                // Parse optional grammar declaration (must come before imports).
+                StormGrammarDecl? grammarDecl = null;
+                if(Current.Kind == StormTokenKind.GrammarKeyword)
+                {
+                    grammarDecl = ParseGrammarDecl();
+                }
 
                 // Parse imports (must come before declarations).
                 while(Current.Kind == StormTokenKind.ImportKeyword)
@@ -168,7 +176,20 @@ namespace Storm.SourceGenerator.Frontend
                     }
                 }
 
-                return new StormFile(imports, declarations);
+                return new StormFile(grammarDecl, imports, declarations);
+            }
+
+            // ----------------------------------------------------------
+            //  Grammar declaration
+            // ----------------------------------------------------------
+
+            /// <summary>grammar Name ;</summary>
+            private StormGrammarDecl ParseGrammarDecl()
+            {
+                var kw = Advance(); // consume 'grammar'
+                var nameTok = Expect(StormTokenKind.Identifier, "grammar name");
+                Expect(StormTokenKind.Semicolon, "';'");
+                return new StormGrammarDecl(nameTok.Lexeme, kw.Offset, kw.Line, kw.Column);
             }
 
             // ----------------------------------------------------------

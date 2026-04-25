@@ -40,7 +40,7 @@ namespace Storm.SourceGenerator.Tests
             // Storm uses double-quoted string literals
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "fragment Digit = [0-9];\ntoken Number = Digit+;\nrule Start = Number;"
+                ["root/main.storm"] = "grammar Test;\nfragment Digit = [0-9];\ntoken Number = Digit+;\nrule Start = Number;"
             };
 
             var result = LowerGrammar(files, "root/main.storm");
@@ -66,7 +66,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "fragment Letter = [a-zA-Z];\nfragment LetterOrDigit = Letter | [0-9];\ntoken Identifier = Letter LetterOrDigit*;\nrule Start = Identifier;"
+                ["root/main.storm"] = "grammar Test;\nfragment Letter = [a-zA-Z];\nfragment LetterOrDigit = Letter | [0-9];\ntoken Identifier = Letter LetterOrDigit*;\nrule Start = Identifier;"
             };
 
             var result = LowerGrammar(files, "root/main.storm");
@@ -103,7 +103,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "fragment Digit = [0-9];\ntoken Number = Digit+;\nrule Start = Number;"
+                ["root/main.storm"] = "grammar Test;\nfragment Digit = [0-9];\ntoken Number = Digit+;\nrule Start = Number;"
             };
 
             var result = LowerGrammar(files, "root/main.storm");
@@ -127,7 +127,7 @@ namespace Storm.SourceGenerator.Tests
             // Use escaped double quotes for the anonymous string literal "+"
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "token Number = [0-9]+;\nrule Expr = Number \"+\" Number;"
+                ["root/main.storm"] = "grammar Test;\ntoken Number = [0-9]+;\nrule Expr = Number \"+\" Number;"
             };
 
             var result = LowerGrammar(files, "root/main.storm");
@@ -147,7 +147,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "token Number = [0-9]+;\nrule Expr = Number \"+\" Number;\nrule Stmt = Number \"+\" Number;"
+                ["root/main.storm"] = "grammar Test;\ntoken Number = [0-9]+;\nrule Expr = Number \"+\" Number;\nrule Stmt = Number \"+\" Number;"
             };
 
             var result = LowerGrammar(files, "root/main.storm");
@@ -165,7 +165,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "token Number = [0-9]+;\nrule Expr = Number \"+\" Number | Number \"-\" Number;"
+                ["root/main.storm"] = "grammar Test;\ntoken Number = [0-9]+;\nrule Expr = Number \"+\" Number | Number \"-\" Number;"
             };
 
             var result = LowerGrammar(files, "root/main.storm");
@@ -182,7 +182,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "token Number = [0-9]+;\nrule Expr = Number \"+\" Number;"
+                ["root/main.storm"] = "grammar Test;\ntoken Number = [0-9]+;\nrule Expr = Number \"+\" Number;"
             };
 
             var result = LowerGrammar(files, "root/main.storm");
@@ -220,7 +220,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "token Foo = \"foo\";\ntoken Bar = \"bar\";\nhidden token WS = [ \\t\\n]+;\nrule Start = Foo Bar;"
+                ["root/main.storm"] = "grammar Test;\ntoken Foo = \"foo\";\ntoken Bar = \"bar\";\nhidden token WS = [ \\t\\n]+;\nrule Start = Foo Bar;"
             };
 
             var result = LowerGrammar(files, "root/main.storm");
@@ -242,7 +242,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "token Number = [0-9]+;\ntoken Ident = [a-z]+;\nrule Expr = Number \"+\" Ident;"
+                ["root/main.storm"] = "grammar Test;\ntoken Number = [0-9]+;\ntoken Ident = [a-z]+;\nrule Expr = Number \"+\" Ident;"
             };
 
             var result = LowerGrammar(files, "root/main.storm");
@@ -264,7 +264,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "token Foo = \"foo\";\nhidden token WS = [ \\t]+;\nrule Start = Foo;"
+                ["root/main.storm"] = "grammar Test;\ntoken Foo = \"foo\";\nhidden token WS = [ \\t]+;\nrule Start = Foo;"
             };
 
             var result = LowerGrammar(files, "root/main.storm");
@@ -288,7 +288,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "token Number = [0-9]+;\nrule Start = Number;"
+                ["root/main.storm"] = "grammar Test;\ntoken Number = [0-9]+;\nrule Start = Number;"
             };
 
             var result = LowerGrammar(files, "root/main.storm");
@@ -308,7 +308,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "token Number = [0-9]+;\nrule Expr = Number;\nrule Start = Expr;"
+                ["root/main.storm"] = "grammar Test;\ntoken Number = [0-9]+;\nrule Expr = Number;\nrule Start = Expr;"
             };
 
             var result = LowerGrammar(files, "root/main.storm");
@@ -328,7 +328,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "token Number = [0-9]+;\ntoken Ident = [a-z]+;\nrule Expr = Number | Ident;\nrule Start = Expr;"
+                ["root/main.storm"] = "grammar Test;\ntoken Number = [0-9]+;\ntoken Ident = [a-z]+;\nrule Expr = Number | Ident;\nrule Start = Expr;"
             };
 
             var result = LowerGrammar(files, "root/main.storm");
@@ -361,7 +361,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "token Number = [0-9]+;\ntoken Ident = [a-z]+;\nrule Expr = Number as Literal | Ident as Variable;"
+                ["root/main.storm"] = "grammar Test;\ntoken Number = [0-9]+;\ntoken Ident = [a-z]+;\nrule Expr = Number as Literal | Ident as Variable;"
             };
 
             var result = LowerGrammar(files, "root/main.storm");
@@ -380,7 +380,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "token Number = [0-9]+;\nrule Expr = value:Number;"
+                ["root/main.storm"] = "grammar Test;\ntoken Number = [0-9]+;\nrule Expr = value:Number;"
             };
 
             var result = LowerGrammar(files, "root/main.storm");
@@ -406,7 +406,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = "fragment Digit = [0-9];\ntoken Number = Digit+;\ntoken Ident = [a-zA-Z]+;\nhidden token WS = [ \\t\\n]+;\nrule Expr = Number \"+\" Ident | Ident;\nrule Start = Expr;"
+                ["root/main.storm"] = "grammar Test;\nfragment Digit = [0-9];\ntoken Number = Digit+;\ntoken Ident = [a-zA-Z]+;\nhidden token WS = [ \\t\\n]+;\nrule Expr = Number \"+\" Ident | Ident;\nrule Start = Expr;"
             };
 
             var result = LowerGrammar(files, "root/main.storm");
@@ -425,7 +425,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = ""
+                ["root/main.storm"] = "grammar Test;\n"
             };
 
             var result = LowerGrammar(files, "root/main.storm");

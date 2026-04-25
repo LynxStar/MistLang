@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Storm.SourceGenerator.Diagnostics;
@@ -40,10 +39,6 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
             return;
         }
 
-        // Find the root storm file (the first one, or one that looks like a root)
-        var rootFile = stormTexts[0];
-        var rootPath = rootFile.Path;
-
         // Build a file reader from the additional texts
         var fileContents = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach(var text in stormTexts)
@@ -62,9 +57,71 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
             return fileContents.TryGetValue(normalized, out var contents) ? contents : null;
         }
 
-        // Derive grammar name and consumer namespace from the root file name
-        var grammarName = Path.GetFileNameWithoutExtension(rootPath);
-        grammarName = PascalCase(grammarName);
+        // Parse all storm files to find the one with a grammar declaration
+        var parsedFiles = new Dictionary<string, Frontend.StormFile>(StringComparer.OrdinalIgnoreCase);
+        var parseDiagnostics = new List<Diagnostics.StormDiagnostic>();
+
+        foreach(var kv in fileContents)
+        {
+            var source = new Frontend.StormSourceText(kv.Key, kv.Value);
+            var fileDiags = new List<Diagnostics.StormDiagnostic>();
+            var tokens = Frontend.StormLexer.Tokenize(source, fileDiags);
+            var stormFile = Frontend.StormParser.Parse(tokens, source, fileDiags);
+            parsedFiles[kv.Key] = stormFile;
+            parseDiagnostics.AddRange(fileDiags);
+        }
+
+        // Find the root file (the one with a grammar declaration)
+        string? rootPath = null;
+        string? grammarName = null;
+        Frontend.StormGrammarDecl? firstDecl = null;
+        string? firstDeclPath = null;
+        var hasMultipleRoots = false;
+
+        foreach(var kv in parsedFiles)
+        {
+            if(kv.Value.GrammarDeclaration != null)
+            {
+                if(rootPath != null)
+                {
+                    // Multiple grammar declarations — report and bail
+                    context.ReportDiagnostic(new Diagnostics.StormDiagnostic(
+                        Diagnostics.StormDiagnosticIds.STORM_MULTIPLE_ROOT_GRAMMARS,
+                        Diagnostics.StormDiagnosticSeverity.Error,
+                        $"Multiple files declare a `grammar` directive: first in '{firstDeclPath}' at {firstDecl!.Line}:{firstDecl.Column}, also in '{kv.Key}' at {kv.Value.GrammarDeclaration.Line}:{kv.Value.GrammarDeclaration.Column}",
+                        kv.Key,
+                        kv.Value.GrammarDeclaration.Line,
+                        kv.Value.GrammarDeclaration.Column).ToRoslynDiagnostic());
+                    hasMultipleRoots = true;
+                }
+                else
+                {
+                    rootPath = kv.Key;
+                    grammarName = kv.Value.GrammarDeclaration.Name;
+                    firstDecl = kv.Value.GrammarDeclaration;
+                    firstDeclPath = kv.Key;
+                }
+            }
+        }
+
+        if(hasMultipleRoots)
+        {
+            return;
+        }
+
+        if(rootPath == null || grammarName == null)
+        {
+            // No grammar declaration found
+            context.ReportDiagnostic(new Diagnostics.StormDiagnostic(
+                Diagnostics.StormDiagnosticIds.STORM_NO_ROOT_GRAMMAR,
+                Diagnostics.StormDiagnosticSeverity.Error,
+                "No file declares a `grammar` directive",
+                stormTexts[0].Path,
+                1,
+                1).ToRoslynDiagnostic());
+            return;
+        }
+
         var consumerNamespace = grammarName + ".Generated";
 
         // Step 1: Parse and resolve imports
@@ -178,13 +235,5 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
         diagnostics.AddRange(ambigDiags);
 
         return diagnostics;
-    }
-
-    private static string PascalCase(string name)
-    {
-        return string.IsNullOrEmpty(name)
-            ? "Grammar"
-            : char.ToUpperInvariant(name[0]) + name.Substring(1)
-            ;
     }
 }

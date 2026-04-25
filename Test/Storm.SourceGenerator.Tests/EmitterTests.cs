@@ -27,7 +27,7 @@ namespace Storm.SourceGenerator.Tests
         {
             var files = new Dictionary<string, string>
             {
-                ["root/main.storm"] = grammar
+                ["root/main.storm"] = "grammar " + grammarName + ";\n" + grammar
             };
 
             var resolver = new StormImportResolver(InMemoryFileReader(files));

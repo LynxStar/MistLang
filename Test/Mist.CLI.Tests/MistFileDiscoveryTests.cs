@@ -8,8 +8,8 @@ public class MistFileDiscoveryTests
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
         try
         {
-            Directory.CreateDirectory(tempDir);
-            Directory.CreateDirectory(Path.Combine(tempDir, "sub"));
+            _ = Directory.CreateDirectory(tempDir);
+            _ = Directory.CreateDirectory(Path.Combine(tempDir, "sub"));
 
             File.WriteAllText(Path.Combine(tempDir, "main.mist"), "// main");
             File.WriteAllText(Path.Combine(tempDir, "sub", "lib.mist"), "// lib");
@@ -37,7 +37,7 @@ public class MistFileDiscoveryTests
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
         try
         {
-            Directory.CreateDirectory(tempDir);
+            _ = Directory.CreateDirectory(tempDir);
 
             var files = Directory.EnumerateFiles(tempDir, "*.mist", SearchOption.AllDirectories).ToList();
 
@@ -58,14 +58,14 @@ public class MistFileDiscoveryTests
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
         try
         {
-            Directory.CreateDirectory(tempDir);
+            _ = Directory.CreateDirectory(tempDir);
             File.WriteAllText(Path.Combine(tempDir, "file.cs"), "// C#");
             File.WriteAllText(Path.Combine(tempDir, "file.txt"), "text");
             File.WriteAllText(Path.Combine(tempDir, "file.mist"), "// mist");
 
             var files = Directory.EnumerateFiles(tempDir, "*.mist", SearchOption.AllDirectories).ToList();
 
-            Assert.Single(files);
+            _ = Assert.Single(files);
             Assert.EndsWith(".mist", files[0]);
         }
         finally

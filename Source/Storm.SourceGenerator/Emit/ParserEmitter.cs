@@ -1,4 +1,3 @@
-using System.Linq;
 using Storm.SourceGenerator.IR;
 
 namespace Storm.SourceGenerator.Emit

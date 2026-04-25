@@ -233,8 +233,8 @@ public sealed class StormImportResolver
     {
         path = path.Replace('\\', '/');
         var lastSlash = path.LastIndexOf('/');
-        return lastSlash >= 0 
-            ? path.Substring(0, lastSlash) 
+        return lastSlash >= 0
+            ? path.Substring(0, lastSlash)
             : "."
             ;
     }
@@ -244,8 +244,8 @@ public sealed class StormImportResolver
     /// </summary>
     private static string CombinePath(string directory, string relativePath)
     {
-        return !string.IsNullOrEmpty(directory) && directory != "." 
-            ? directory + "/" + relativePath 
+        return !string.IsNullOrEmpty(directory) && directory != "."
+            ? directory + "/" + relativePath
             : relativePath
             ;
     }

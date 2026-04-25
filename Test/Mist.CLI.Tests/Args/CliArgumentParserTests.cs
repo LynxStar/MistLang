@@ -60,7 +60,7 @@ public class CliArgumentParserTests
         var result = CliArgumentParser.Parse(["--backend"]);
 
         Assert.Null(result.Arguments);
-        Assert.Single(result.Errors);
+        _ = Assert.Single(result.Errors);
         Assert.Contains("--backend", result.Errors[0].Message);
     }
 
@@ -70,7 +70,7 @@ public class CliArgumentParserTests
         var result = CliArgumentParser.Parse(["--output"]);
 
         Assert.Null(result.Arguments);
-        Assert.Single(result.Errors);
+        _ = Assert.Single(result.Errors);
         Assert.Contains("--output", result.Errors[0].Message);
     }
 
@@ -80,7 +80,7 @@ public class CliArgumentParserTests
         var result = CliArgumentParser.Parse(["--verbose"]);
 
         Assert.Null(result.Arguments);
-        Assert.Single(result.Errors);
+        _ = Assert.Single(result.Errors);
         Assert.Contains("--verbose", result.Errors[0].Message);
     }
 }

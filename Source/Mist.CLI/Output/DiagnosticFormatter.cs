@@ -17,16 +17,11 @@ public static class DiagnosticFormatter
             _ => "info",
         };
 
-        if(diagnostic.Location is { } location && diagnostic.CompilationUnitPath is not null)
-        {
-            return $"{diagnostic.CompilationUnitPath}({location.Start.Line},{location.Start.Column}): {severity} {diagnostic.Id.Value}: {diagnostic.Message}";
-        }
-
-        if(diagnostic.CompilationUnitPath is not null)
-        {
-            return $"{diagnostic.CompilationUnitPath}: {severity} {diagnostic.Id.Value}: {diagnostic.Message}";
-        }
-
-        return $"{severity} {diagnostic.Id.Value}: {diagnostic.Message}";
+        return diagnostic.Location is { } location && diagnostic.CompilationUnitPath is not null
+            ? $"{diagnostic.CompilationUnitPath}({location.Start.Line},{location.Start.Column}): {severity} {diagnostic.Id.Value}: {diagnostic.Message}"
+            : diagnostic.CompilationUnitPath is not null
+                ? $"{diagnostic.CompilationUnitPath}: {severity} {diagnostic.Id.Value}: {diagnostic.Message}"
+                : $"{severity} {diagnostic.Id.Value}: {diagnostic.Message}"
+                ;
     }
 }

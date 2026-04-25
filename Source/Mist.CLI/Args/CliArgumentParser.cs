@@ -61,13 +61,9 @@ public static class CliArgumentParser
             }
         }
 
-        if(errors.Count > 0)
-        {
-            return new CliParseResult(null, errors);
-        }
-
-        return new CliParseResult(
-            new CliArguments(sourceFiles, backendId, outputDirectory),
-            errors);
+        return errors.Count > 0
+            ? new CliParseResult(null, errors)
+            : new CliParseResult(new CliArguments(sourceFiles, backendId, outputDirectory), errors)
+            ;
     }
 }

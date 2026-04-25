@@ -108,7 +108,7 @@ csharp_prefer_braces = true:error
 csharp_prefer_simple_using_statement = true:error
 csharp_style_namespace_declarations = file_scoped:error
 csharp_style_prefer_method_group_conversion = true:error
-csharp_style_prefer_top_level_statements = true:error
+csharp_style_prefer_top_level_statements = false:error
 
 # Expression-level preferences
 csharp_prefer_simple_default_expression = true:error

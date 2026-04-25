@@ -1,8 +1,5 @@
-using System.Collections.Generic;
-using System.Linq;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Resolve;
-using Xunit;
 
 namespace Storm.SourceGenerator.Tests
 {

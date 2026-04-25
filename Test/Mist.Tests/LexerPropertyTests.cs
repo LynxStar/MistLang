@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Xunit;
 using Mist.Common.Diagnostics;

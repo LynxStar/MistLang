@@ -415,44 +415,44 @@ namespace Storm.SourceGenerator.Frontend
                 switch(Current.Kind)
                 {
                     case StormTokenKind.StringLiteral:
-                    {
-                        var tok = Advance();
-                        return new StormStringLiteralExpr(UnquoteString(tok.Lexeme));
-                    }
+                        {
+                            var tok = Advance();
+                            return new StormStringLiteralExpr(UnquoteString(tok.Lexeme));
+                        }
 
                     case StormTokenKind.CharClass:
-                    {
-                        var tok = Advance();
-                        return new StormCharClassExpr(tok.Lexeme);
-                    }
+                        {
+                            var tok = Advance();
+                            return new StormCharClassExpr(tok.Lexeme);
+                        }
 
                     case StormTokenKind.Identifier:
-                    {
-                        var nameTok = Advance();
-                        // Check for qualified reference: Name.Name
-                        if(Check(StormTokenKind.Dot))
                         {
-                            Advance(); // consume '.'
-                            var memberTok = Expect(StormTokenKind.Identifier, "qualified name");
-                            return new StormQualifiedReferenceExpr(nameTok.Lexeme, memberTok.Lexeme);
+                            var nameTok = Advance();
+                            // Check for qualified reference: Name.Name
+                            if(Check(StormTokenKind.Dot))
+                            {
+                                Advance(); // consume '.'
+                                var memberTok = Expect(StormTokenKind.Identifier, "qualified name");
+                                return new StormQualifiedReferenceExpr(nameTok.Lexeme, memberTok.Lexeme);
+                            }
+                            return new StormReferenceExpr(nameTok.Lexeme);
                         }
-                        return new StormReferenceExpr(nameTok.Lexeme);
-                    }
 
                     case StormTokenKind.LeftParen:
-                    {
-                        Advance(); // consume '('
-                        var inner = ParseExpression();
-                        Expect(StormTokenKind.RightParen, "')'");
-                        return new StormGroupExpr(inner);
-                    }
+                        {
+                            Advance(); // consume '('
+                            var inner = ParseExpression();
+                            Expect(StormTokenKind.RightParen, "')'");
+                            return new StormGroupExpr(inner);
+                        }
 
                     default:
-                    {
-                        Error($"Unexpected token '{Current.Lexeme}'");
-                        Advance(); // skip the bad token to avoid infinite loop
-                        return new StormReferenceExpr("<error>");
-                    }
+                        {
+                            Error($"Unexpected token '{Current.Lexeme}'");
+                            Advance(); // skip the bad token to avoid infinite loop
+                            return new StormReferenceExpr("<error>");
+                        }
                 }
             }
 

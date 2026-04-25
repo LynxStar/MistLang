@@ -182,8 +182,8 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
 
     private static string PascalCase(string name)
     {
-        return string.IsNullOrEmpty(name) 
-            ? "Grammar" 
+        return string.IsNullOrEmpty(name)
+            ? "Grammar"
             : char.ToUpperInvariant(name[0]) + name.Substring(1)
             ;
     }

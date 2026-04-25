@@ -1,8 +1,5 @@
-using System.Collections.Generic;
-using System.Linq;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Frontend;
-using Xunit;
 
 namespace Storm.SourceGenerator.Tests
 {
@@ -440,7 +437,7 @@ rule F = A | C;
         [Fact]
         public void Parse_EscapedStringLiteral()
         {
-            var file = Parse("token Quote = \"\\\"\";" , out var diags);
+            var file = Parse("token Quote = \"\\\"\";", out var diags);
             Assert.Empty(diags);
             var decl = Assert.IsType<StormTokenDecl>(file.Declarations[0]);
             var str = Assert.IsType<StormStringLiteralExpr>(decl.Body);

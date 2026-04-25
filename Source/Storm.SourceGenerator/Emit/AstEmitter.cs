@@ -484,15 +484,15 @@ namespace Storm.SourceGenerator.Emit
             switch(inner)
             {
                 case TokenRefIR tokenRef:
-                {
-                    var name = EnsureUnique(PascalCase(tokenRef.Token.Name), usedNames);
-                    return new PropertyInfo(name, "Token?", true, false, false, "");
-                }
+                    {
+                        var name = EnsureUnique(PascalCase(tokenRef.Token.Name), usedNames);
+                        return new PropertyInfo(name, "Token?", true, false, false, "");
+                    }
                 case RuleRefIR ruleRef:
-                {
-                    var name = EnsureUnique(PascalCase(ruleRef.Rule.Name), usedNames);
-                    return new PropertyInfo(name, ruleRef.Rule.Name + "Node?", true, true, false, "");
-                }
+                    {
+                        var name = EnsureUnique(PascalCase(ruleRef.Rule.Name), usedNames);
+                        return new PropertyInfo(name, ruleRef.Rule.Name + "Node?", true, true, false, "");
+                    }
                 default:
                     return null;
             }
@@ -516,16 +516,16 @@ namespace Storm.SourceGenerator.Emit
             switch(inner)
             {
                 case TokenRefIR tokenRef:
-                {
-                    var name = EnsureUnique(PascalCase(tokenRef.Token.Name) + "s", usedNames);
-                    return new PropertyInfo(name, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
-                }
+                    {
+                        var name = EnsureUnique(PascalCase(tokenRef.Token.Name) + "s", usedNames);
+                        return new PropertyInfo(name, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
+                    }
                 case RuleRefIR ruleRef:
-                {
-                    var name = EnsureUnique(PascalCase(ruleRef.Rule.Name) + "s", usedNames);
-                    var elementType = ruleRef.Rule.Name + "Node";
-                    return new PropertyInfo(name, $"ImmutableArray<{elementType}>", false, true, true, $" = ImmutableArray<{elementType}>.Empty;");
-                }
+                    {
+                        var name = EnsureUnique(PascalCase(ruleRef.Rule.Name) + "s", usedNames);
+                        var elementType = ruleRef.Rule.Name + "Node";
+                        return new PropertyInfo(name, $"ImmutableArray<{elementType}>", false, true, true, $" = ImmutableArray<{elementType}>.Empty;");
+                    }
                 default:
                     return null;
             }
@@ -538,10 +538,10 @@ namespace Storm.SourceGenerator.Emit
                 case TokenRefIR _:
                     return new PropertyInfo(propName, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
                 case RuleRefIR ruleRef:
-                {
-                    var elementType = ruleRef.Rule.Name + "Node";
-                    return new PropertyInfo(propName, $"ImmutableArray<{elementType}>", false, true, true, $" = ImmutableArray<{elementType}>.Empty;");
-                }
+                    {
+                        var elementType = ruleRef.Rule.Name + "Node";
+                        return new PropertyInfo(propName, $"ImmutableArray<{elementType}>", false, true, true, $" = ImmutableArray<{elementType}>.Empty;");
+                    }
                 default:
                     return new PropertyInfo(propName, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
             }

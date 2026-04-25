@@ -77,8 +77,8 @@ public static class ReachabilityPass
     /// </summary>
     internal static IReadOnlyList<StormExpression> GetTopLevelAlternatives(StormExpression body)
     {
-        return body is StormAlternationExpr altExpr 
-            ? altExpr.Alternatives 
+        return body is StormAlternationExpr altExpr
+            ? altExpr.Alternatives
             : [body]
             ;
     }

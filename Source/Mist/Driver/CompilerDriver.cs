@@ -16,11 +16,11 @@ namespace Mist.Driver;
 /// </summary>
 public sealed class CompilerDriver : ICompilerDriver
 {
-    private ILexer _lexer;
-    private IParser _parser;
-    private ISemanticModelBuilder _semanticModelBuilder;
-    private ImmutableArray<IAnalyzer> _analyzers;
-    private ImmutableDictionary<string, IBackend> _backends;
+    private ILexer lexer;
+    private IParser parser;
+    private ISemanticModelBuilder semanticModelBuilder;
+    private ImmutableArray<IAnalyzer> analyzers;
+    private ImmutableDictionary<string, IBackend> backends;
 
     public CompilerDriver(
         ILexer lexer,
@@ -29,11 +29,11 @@ public sealed class CompilerDriver : ICompilerDriver
         ImmutableArray<IAnalyzer> analyzers,
         ImmutableArray<IBackend> backends)
     {
-        _lexer = lexer;
-        _parser = parser;
-        _semanticModelBuilder = semanticModelBuilder;
-        _analyzers = analyzers;
-        _backends = backends.ToImmutableDictionary(b => b.Id.Value);
+        this.lexer = lexer;
+        this.parser = parser;
+        this.semanticModelBuilder = semanticModelBuilder;
+        this.analyzers = analyzers;
+        this.backends = backends.ToImmutableDictionary(b => b.Id.Value);
     }
 
     public CompilerResult Compile(CompilerOptions options)
@@ -41,7 +41,7 @@ public sealed class CompilerDriver : ICompilerDriver
         var allDiagnostics = new DiagnosticBag();
 
         // Resolve backend
-        if(!_backends.TryGetValue(options.Backend.Value, out var backend))
+        if(!backends.TryGetValue(options.Backend.Value, out var backend))
         {
             allDiagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_UNKNOWN_BACKEND"),
@@ -85,7 +85,7 @@ public sealed class CompilerDriver : ICompilerDriver
         foreach(var unit in compilation.Units)
         {
             var lexBag = new DiagnosticBag();
-            var tokenStream = _lexer.Lex(unit.Source, lexBag);
+            var tokenStream = lexer.Lex(unit.Source, lexBag);
 
             foreach(var d in lexBag.ToImmutableArray())
             {
@@ -104,7 +104,7 @@ public sealed class CompilerDriver : ICompilerDriver
         foreach(var (unit, tokenStream) in tokenStreams)
         {
             var parseBag = new DiagnosticBag();
-            var parseResult = _parser.Parse(tokenStream, parseBag);
+            var parseResult = parser.Parse(tokenStream, parseBag);
 
             foreach(var d in parseBag.ToImmutableArray())
             {
@@ -128,7 +128,7 @@ public sealed class CompilerDriver : ICompilerDriver
         ISemanticModel? semanticModel;
         try
         {
-            semanticModel = _semanticModelBuilder.Build(compilation, asts.ToImmutable(), semanticBag);
+            semanticModel = semanticModelBuilder.Build(compilation, asts.ToImmutable(), semanticBag);
         }
         catch(Exception ex)
         {
@@ -156,8 +156,8 @@ public sealed class CompilerDriver : ICompilerDriver
 
         // Step 5: Run analyzers
         var filteredAnalyzers = options.EnabledAnalyzerIds.IsEmpty
-            ? _analyzers
-            : _analyzers.Where(a => options.EnabledAnalyzerIds.Contains(a.AnalyzerId)).ToImmutableArray();
+            ? analyzers
+            : analyzers.Where(a => options.EnabledAnalyzerIds.Contains(a.AnalyzerId)).ToImmutableArray();
 
         var runner = new AnalyzerRunner(filteredAnalyzers);
         var analyzerDiagnostics = runner.RunAll(semanticModel);

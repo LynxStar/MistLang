@@ -88,8 +88,9 @@ For the same time-to-value reason, v1 collapses the compiler into a single `Mist
 6. THE Storm_Rule, Storm_Token, and Storm_Fragment expression syntax SHALL support the following combinators: sequence (juxtaposition), alternation (`|`), grouping (`(` `)`), optional (`?`), zero-or-more (`*`), and one-or-more (`+`).
 7. THE Storm_Token and Storm_Fragment expressions SHALL additionally support string literals, regular-expression-style character classes (including ranges such as `[a-zA-Z_]` and negated classes such as `[^"\\]`), and references to other Storm_Tokens and Storm_Fragments.
 8. THE Storm_Rule expressions SHALL additionally support references to Storm_Tokens, references to other Storm_Rules, and anonymous string literals; an anonymous string literal appearing within a Storm_Rule SHALL be treated as an implicit reference to a token matching exactly that literal text.
-9. THE Storm language SHALL support named alternatives within a Storm_Rule, where each top-level alternative of a rule MAY be labeled with a name that the Storm_Source_Generator uses to name the corresponding AST subtype.
-10. THE Storm language SHALL support `//` line comments.
+9. THE Storm language SHALL support named alternatives within a Storm_Rule using the `as <Name>` syntax at the end of an alternative, where each top-level alternative of a rule MAY be labeled with `as <Name>` that the Storm_Source_Generator uses to name the corresponding AST subtype.
+10. THE Storm language SHALL support field labels within a Storm_Rule using the `<name>:<element>` syntax, where the label names the corresponding property on the generated AST node type.
+11. THE Storm language SHALL support `//` line comments.
 
 ### Requirement 4: Storm Grammar Language — Tokens, Hidden Channel, and Fragment Semantics
 
@@ -276,12 +277,14 @@ For the same time-to-value reason, v1 collapses the compiler into a single `Mist
 
 #### Acceptance Criteria
 
-1. THE Compiler_CLI SHALL accept one or more Mist source file paths as input.
-2. THE Compiler_CLI SHALL accept an option specifying the Backend to invoke.
-3. THE Compiler_CLI SHALL accept an option specifying the output directory for Backend artifacts.
-4. WHEN compilation succeeds, THE Compiler_CLI SHALL exit with status code 0.
-5. IF any Diagnostic of Error severity is produced, THEN THE Compiler_CLI SHALL exit with a non-zero status code.
-6. THE Compiler_CLI SHALL print each Diagnostic to standard error in a human-readable format that includes severity, identifier, source location, and message.
+1. THE Compiler_CLI SHALL be invoked as the `mist` command.
+2. THE Compiler_CLI SHALL accept zero or more Mist source file paths as input.
+3. WHEN no source file paths are provided, THE Compiler_CLI SHALL recursively discover all files with the `.mist` extension in the current working directory and its subdirectories, and SHALL use those as input.
+4. THE Compiler_CLI SHALL accept an option specifying the Backend to invoke.
+5. THE Compiler_CLI SHALL accept an option specifying the output directory for Backend artifacts.
+6. WHEN compilation succeeds, THE Compiler_CLI SHALL exit with status code 0.
+7. IF any Diagnostic of Error severity is produced, THEN THE Compiler_CLI SHALL exit with a non-zero status code.
+8. THE Compiler_CLI SHALL print each Diagnostic to standard error in a human-readable format that includes severity, identifier, source location, and message.
 
 ### Requirement 19: Extensibility and Component Boundaries
 

@@ -1,0 +1,20 @@
+// Mist language grammar — stub for v1 architectural skeleton.
+// This file is the root Storm grammar file for the Mist language.
+// Concrete syntax rules will be added in the Mist-language spec.
+
+// Hidden tokens (skipped by parser, preserved in token stream)
+hidden token Whitespace = [ \t\r\n]+;
+hidden token LineComment = "//" [^\n]*;
+
+// Visible tokens
+token Identifier = [a-zA-Z_][a-zA-Z0-9_]*;
+token IntegerLiteral = [0-9]+;
+token Semicolon = ";";
+
+// Entry rule for a Mist compilation unit
+rule CompilationUnit = Statement*;
+
+rule Statement = Expression Semicolon;
+
+rule Expression = Identifier
+               | IntegerLiteral;

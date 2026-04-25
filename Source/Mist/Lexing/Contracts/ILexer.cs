@@ -7,5 +7,5 @@ namespace Mist.Lexing.Contracts;
 /// </summary>
 public interface ILexer
 {
-    TokenStream Lex(Common.SourceText.SourceText source, DiagnosticBag diagnostics);
+    TokenStream Lex(Common.Text.SourceText source, DiagnosticBag diagnostics);
 }

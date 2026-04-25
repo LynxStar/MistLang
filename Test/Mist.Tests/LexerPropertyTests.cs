@@ -27,7 +27,7 @@ public class LexerPropertyTests
     [Property(MaxTest = 100)]
     public bool LexerRoundTrip_ConcatenatedLexemesReproduceSource(NonNull<string> input)
     {
-        var source = new Mist.Common.SourceText.SourceText("test.mist", input.Get);
+        var source = new Mist.Common.Text.SourceText("test.mist", input.Get);
         var bag = new DiagnosticBag();
 
         var tokenStream = Lexer.Lex(source, bag);
@@ -42,7 +42,7 @@ public class LexerPropertyTests
         // When the full lexer is implemented, this should equal input.Get.
         // For now, verify the invariant holds for the current implementation.
         if (tokenStream.AllTokens.Length == 0)
-            return concatenated == "";
+            return concatenated.Length == 0;
 
         return concatenated == input.Get;
     }
@@ -57,7 +57,7 @@ public class LexerPropertyTests
     [Property(MaxTest = 100)]
     public bool LexerCompleteness_TokenSpansCoverInputExactly(NonNull<string> input)
     {
-        var source = new Mist.Common.SourceText.SourceText("test.mist", input.Get);
+        var source = new Mist.Common.Text.SourceText("test.mist", input.Get);
         var bag = new DiagnosticBag();
 
         var tokenStream = Lexer.Lex(source, bag);
@@ -98,7 +98,7 @@ public class LexerPropertyTests
     [Property(MaxTest = 100)]
     public bool LexerDeterminism_RepeatedCallsProduceIdenticalResults(NonNull<string> input)
     {
-        var source = new Mist.Common.SourceText.SourceText("test.mist", input.Get);
+        var source = new Mist.Common.Text.SourceText("test.mist", input.Get);
 
         var bag1 = new DiagnosticBag();
         var bag2 = new DiagnosticBag();

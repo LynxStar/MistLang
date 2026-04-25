@@ -1,4 +1,4 @@
-using Mist.Common.SourceText;
+using Mist.Common.Text;
 using Mist.Semantics.Contracts;
 
 namespace Mist.Semantics.Model;

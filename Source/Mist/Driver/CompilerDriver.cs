@@ -62,7 +62,7 @@ public sealed class CompilerDriver : ICompilerDriver
             try
             {
                 var contents = File.ReadAllText(path);
-                var sourceText = new Common.SourceText.SourceText(path, contents);
+                var sourceText = new Common.Text.SourceText(path, contents);
                 units.Add(new CompilationUnit(sourceText));
             }
             catch (Exception ex)
@@ -78,7 +78,7 @@ public sealed class CompilerDriver : ICompilerDriver
             }
         }
 
-        var compilation = new Compilation(units.ToImmutable());
+        var compilation = new MistCompilation(units.ToImmutable());
 
         // Step 2: Lex each compilation unit
         var tokenStreams = new Dictionary<CompilationUnit, TokenStream>();

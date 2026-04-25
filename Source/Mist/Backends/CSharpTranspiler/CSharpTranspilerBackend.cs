@@ -20,8 +20,7 @@ public sealed class CSharpTranspilerBackend : IBackend
         try
         {
             // Step 1: Emit C# source files
-            var emitter = new CSharpEmitter();
-            emitter.Emit(model, outputDirectory, bag);
+            CSharpEmitter.Emit(model, outputDirectory, bag);
 
             if (bag.HasErrors)
             {
@@ -32,8 +31,7 @@ public sealed class CSharpTranspilerBackend : IBackend
             }
 
             // Step 2: Compile the emitted C# project
-            var compilationDriver = new CSharpCompilationDriver();
-            var compileResult = compilationDriver.Compile(outputDirectory, bag);
+            var compileResult = CSharpCompilationDriver.Compile(outputDirectory, bag);
 
             return compileResult;
         }

@@ -9,7 +9,7 @@ namespace Mist.Semantics.Contracts;
 /// </summary>
 public interface ISemanticModel
 {
-    Compilation Compilation { get; }
+    MistCompilation Compilation { get; }
     IScope GlobalScope { get; }
     IReadOnlyList<CompilationUnit> Units { get; }
 

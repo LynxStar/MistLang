@@ -10,7 +10,7 @@ namespace Mist.Semantics.Contracts;
 public interface ISemanticModelBuilder
 {
     ISemanticModel Build(
-        Compilation compilation,
+        MistCompilation compilation,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         DiagnosticBag diagnostics);
 }

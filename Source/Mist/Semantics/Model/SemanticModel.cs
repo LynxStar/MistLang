@@ -13,7 +13,7 @@ public sealed class SemanticModel : ISemanticModel
     private readonly SymbolTable _symbolTable;
 
     internal SemanticModel(
-        Compilation compilation,
+        MistCompilation compilation,
         IReadOnlyList<CompilationUnit> units,
         Scope globalScope,
         SymbolTable symbolTable)
@@ -24,7 +24,7 @@ public sealed class SemanticModel : ISemanticModel
         _symbolTable = symbolTable;
     }
 
-    public Compilation Compilation { get; }
+    public MistCompilation Compilation { get; }
     public IScope GlobalScope { get; }
     public IReadOnlyList<CompilationUnit> Units { get; }
 

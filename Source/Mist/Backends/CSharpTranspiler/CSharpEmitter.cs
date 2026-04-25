@@ -9,7 +9,7 @@ namespace Mist.Backends.CSharpTranspiler;
 /// </summary>
 public sealed class CSharpEmitter
 {
-    public void Emit(ISemanticModel model, string outputDirectory, DiagnosticBag diagnostics)
+    public static void Emit(ISemanticModel model, string outputDirectory, DiagnosticBag diagnostics)
     {
         Directory.CreateDirectory(outputDirectory);
 

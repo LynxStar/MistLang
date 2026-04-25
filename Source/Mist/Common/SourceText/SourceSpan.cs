@@ -1,4 +1,4 @@
-namespace Mist.Common.SourceText;
+namespace Mist.Common.Text;
 
 /// <summary>
 /// A span of source text expressed as a start offset and length.

@@ -3,7 +3,7 @@ using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
-using Mist.Common.SourceText;
+using Mist.Common.Text;
 using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Lexing;
@@ -177,14 +177,13 @@ public class PipelineBackendPropertyTests
         // Build a semantic model
         var source = new SourceText("test.mist", "let x = 42;");
         var unit = new CompilationUnit(source);
-        var compilation = new Compilation(ImmutableArray.Create(unit));
+        var compilation = new MistCompilation(ImmutableArray.Create(unit));
         var builder = new SemanticModelBuilder();
         var bag = new DiagnosticBag();
         var model = builder.Build(compilation, ImmutableArray<Storm.Runtime.SyntaxNode>.Empty, bag);
 
         // Use the CSharpEmitter directly to test emission determinism
         // without invoking dotnet build (which would introduce external non-determinism).
-        var emitter = new CSharpEmitter();
 
         var tempDir1 = Path.Combine(Path.GetTempPath(), $"mist_det1_{Guid.NewGuid():N}");
         var tempDir2 = Path.Combine(Path.GetTempPath(), $"mist_det2_{Guid.NewGuid():N}");
@@ -193,11 +192,11 @@ public class PipelineBackendPropertyTests
         {
             // First emission
             var bag1 = new DiagnosticBag();
-            emitter.Emit(model, tempDir1, bag1);
+            CSharpEmitter.Emit(model, tempDir1, bag1);
 
             // Second emission
             var bag2 = new DiagnosticBag();
-            emitter.Emit(model, tempDir2, bag2);
+            CSharpEmitter.Emit(model, tempDir2, bag2);
 
             // Compare file sets
             var files1 = Directory.GetFiles(tempDir1, "*", SearchOption.AllDirectories)

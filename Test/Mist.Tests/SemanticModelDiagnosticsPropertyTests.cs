@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using System.Reflection;
 using Mist.Common.Diagnostics;
-using Mist.Common.SourceText;
+using Mist.Common.Text;
 using Mist.Driver.Contracts;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
@@ -43,7 +43,7 @@ public class SemanticModelDiagnosticsPropertyTests
         // Build a semantic model and verify the concrete return types
         var source = new SourceText("test.mist", "");
         var unit = new CompilationUnit(source);
-        var compilation = new Compilation(ImmutableArray.Create(unit));
+        var compilation = new MistCompilation(ImmutableArray.Create(unit));
         var builder = new SemanticModelBuilder();
         var bag = new DiagnosticBag();
 
@@ -186,7 +186,7 @@ public class SemanticModelDiagnosticsPropertyTests
         // Run the compiler pipeline with empty input and verify all diagnostics
         var source = new SourceText("test.mist", "");
         var unit = new CompilationUnit(source);
-        var compilation = new Compilation(ImmutableArray.Create(unit));
+        var compilation = new MistCompilation(ImmutableArray.Create(unit));
 
         // Lex
         var lexer = new Mist.Lexing.MistLexer();

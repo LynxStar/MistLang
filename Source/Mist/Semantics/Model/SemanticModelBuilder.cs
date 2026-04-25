@@ -13,7 +13,7 @@ namespace Mist.Semantics.Model;
 public sealed class SemanticModelBuilder : ISemanticModelBuilder
 {
     public ISemanticModel Build(
-        Compilation compilation,
+        MistCompilation compilation,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         DiagnosticBag diagnostics)
     {

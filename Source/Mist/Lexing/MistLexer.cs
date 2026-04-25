@@ -10,7 +10,7 @@ namespace Mist.Lexing;
 /// </summary>
 public sealed class MistLexer : ILexer
 {
-    public TokenStream Lex(Common.SourceText.SourceText source, DiagnosticBag diagnostics)
+    public TokenStream Lex(Common.Text.SourceText source, DiagnosticBag diagnostics)
     {
         // Bridge Mist's SourceText to Storm.Runtime.SourceText
         var stormSource = new Storm.Runtime.SourceText(source.Path, source.Contents);

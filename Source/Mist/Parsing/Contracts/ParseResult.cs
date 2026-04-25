@@ -8,7 +8,7 @@ namespace Mist.Parsing.Contracts;
 /// The result of parsing a single compilation unit.
 /// </summary>
 public sealed record ParseResult(
-    Common.SourceText.SourceText Source,
+    Common.Text.SourceText Source,
     TokenStream Tokens,
     Storm.Runtime.SyntaxNode? Root,
     ImmutableArray<Diagnostic> Diagnostics);

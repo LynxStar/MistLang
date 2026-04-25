@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 using Mist.Common.Diagnostics;
-using Mist.Common.SourceText;
+using Mist.Common.Text;
 
 namespace Mist.Backends.CSharpTranspiler.Diagnostics;
 
@@ -15,7 +15,7 @@ public sealed partial class RoslynDiagnosticMapper
     [GeneratedRegex(@"^(.+?)\((\d+),(\d+)\):\s+(warning|error)\s+(\w+):\s+(.+)$")]
     private static partial Regex DiagnosticLineRegex();
 
-    public Diagnostic? TryParse(string line)
+    public static Diagnostic? TryParse(string line)
     {
         var match = DiagnosticLineRegex().Match(line.Trim());
         if (!match.Success)

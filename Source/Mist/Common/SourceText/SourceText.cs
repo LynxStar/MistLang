@@ -1,4 +1,4 @@
-namespace Mist.Common.SourceText;
+namespace Mist.Common.Text;
 
 /// <summary>
 /// Represents the source text of a single compilation unit, with efficient

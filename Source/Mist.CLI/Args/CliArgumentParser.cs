@@ -1,19 +1,25 @@
 namespace Mist.CLI.Args;
 
 /// <summary>
+/// Error produced during CLI argument parsing.
+/// </summary>
+public sealed record CliParseError(string Message);
+
+/// <summary>
+/// Result of CLI argument parsing.
+/// </summary>
+public sealed record CliParseResult(CliArguments? Arguments, IReadOnlyList<CliParseError> Errors);
+
+/// <summary>
 /// Hand-rolled argument parser for the Mist CLI.
 /// Parses: <c>mist [source-files...] [--backend &lt;id&gt;] [--output &lt;dir&gt;]</c>
 /// </summary>
 public static class CliArgumentParser
 {
-    public sealed record ParseError(string Message);
-
-    public sealed record ParseResult(CliArguments? Arguments, IReadOnlyList<ParseError> Errors);
-
-    public static ParseResult Parse(string[] args)
+    public static CliParseResult Parse(string[] args)
     {
         var sourceFiles = new List<string>();
-        var errors = new List<ParseError>();
+        var errors = new List<CliParseError>();
         string backendId = "csharp";
         string outputDirectory = "./out";
 
@@ -25,7 +31,7 @@ public static class CliArgumentParser
             {
                 if (i + 1 >= args.Length)
                 {
-                    errors.Add(new ParseError("Missing value for --backend flag."));
+                    errors.Add(new CliParseError("Missing value for --backend flag."));
                 }
                 else
                 {
@@ -37,7 +43,7 @@ public static class CliArgumentParser
             {
                 if (i + 1 >= args.Length)
                 {
-                    errors.Add(new ParseError("Missing value for --output flag."));
+                    errors.Add(new CliParseError("Missing value for --output flag."));
                 }
                 else
                 {
@@ -47,7 +53,7 @@ public static class CliArgumentParser
             }
             else if (arg.StartsWith("--"))
             {
-                errors.Add(new ParseError($"Unknown flag: {arg}"));
+                errors.Add(new CliParseError($"Unknown flag: {arg}"));
             }
             else
             {
@@ -57,10 +63,10 @@ public static class CliArgumentParser
 
         if (errors.Count > 0)
         {
-            return new ParseResult(null, errors);
+            return new CliParseResult(null, errors);
         }
 
-        return new ParseResult(
+        return new CliParseResult(
             new CliArguments(sourceFiles, backendId, outputDirectory),
             errors);
     }

@@ -7,13 +7,13 @@ namespace Mist.Common.Collections;
 /// <summary>
 /// A deterministic, immutable ordered dictionary that preserves insertion order.
 /// </summary>
-public sealed class ImmutableOrderedMap<TKey, TValue> : IReadOnlyDictionary<TKey, TValue>
+public sealed class ImmutableOrderedDictionary<TKey, TValue> : IReadOnlyDictionary<TKey, TValue>
     where TKey : notnull
 {
     private readonly ImmutableArray<KeyValuePair<TKey, TValue>> _entries;
     private readonly ImmutableDictionary<TKey, TValue> _lookup;
 
-    private ImmutableOrderedMap(
+    private ImmutableOrderedDictionary(
         ImmutableArray<KeyValuePair<TKey, TValue>> entries,
         ImmutableDictionary<TKey, TValue> lookup)
     {
@@ -21,7 +21,7 @@ public sealed class ImmutableOrderedMap<TKey, TValue> : IReadOnlyDictionary<TKey
         _lookup = lookup;
     }
 
-    public static readonly ImmutableOrderedMap<TKey, TValue> Empty = new(
+    public static readonly ImmutableOrderedDictionary<TKey, TValue> Empty = new(
         ImmutableArray<KeyValuePair<TKey, TValue>>.Empty,
         ImmutableDictionary<TKey, TValue>.Empty);
 
@@ -47,15 +47,15 @@ public sealed class ImmutableOrderedMap<TKey, TValue> : IReadOnlyDictionary<TKey
     /// Returns a new map with the given key-value pair appended.
     /// Throws if the key already exists.
     /// </summary>
-    public ImmutableOrderedMap<TKey, TValue> Add(TKey key, TValue value)
+    public ImmutableOrderedDictionary<TKey, TValue> Add(TKey key, TValue value)
     {
-        return new ImmutableOrderedMap<TKey, TValue>(
+        return new ImmutableOrderedDictionary<TKey, TValue>(
             _entries.Add(new KeyValuePair<TKey, TValue>(key, value)),
             _lookup.Add(key, value));
     }
 
     /// <summary>
-    /// Builder for constructing an <see cref="ImmutableOrderedMap{TKey, TValue}"/> incrementally.
+    /// Builder for constructing an <see cref="ImmutableOrderedDictionary{TKey, TValue}"/> incrementally.
     /// </summary>
     public sealed class Builder
     {
@@ -70,9 +70,9 @@ public sealed class ImmutableOrderedMap<TKey, TValue> : IReadOnlyDictionary<TKey
 
         public bool ContainsKey(TKey key) => _lookup.ContainsKey(key);
 
-        public ImmutableOrderedMap<TKey, TValue> ToImmutable()
+        public ImmutableOrderedDictionary<TKey, TValue> ToImmutable()
         {
-            return new ImmutableOrderedMap<TKey, TValue>(
+            return new ImmutableOrderedDictionary<TKey, TValue>(
                 [.. _entries],
                 _lookup.ToImmutableDictionary());
         }

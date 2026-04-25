@@ -1,6 +1,6 @@
 using Mist.CLI.Output;
 using Mist.Common.Diagnostics;
-using Mist.Common.SourceText;
+using Mist.Common.Text;
 
 namespace Mist.CLI.Tests.Output;
 

@@ -13,7 +13,7 @@ namespace Mist.Backends.CSharpTranspiler;
 /// </summary>
 public sealed class CSharpCompilationDriver
 {
-    public BackendResult Compile(string projectDirectory, DiagnosticBag diagnostics)
+    public static BackendResult Compile(string projectDirectory, DiagnosticBag diagnostics)
     {
         var psi = new ProcessStartInfo
         {
@@ -48,11 +48,10 @@ public sealed class CSharpCompilationDriver
             process.WaitForExit();
 
             // Parse MSBuild diagnostic lines from output
-            var mapper = new RoslynDiagnosticMapper();
             var allOutput = stdout + "\n" + stderr;
             foreach (var line in allOutput.Split('\n'))
             {
-                var diagnostic = mapper.TryParse(line);
+                var diagnostic = RoslynDiagnosticMapper.TryParse(line);
                 if (diagnostic is not null)
                 {
                     diagnostics.Add(diagnostic);

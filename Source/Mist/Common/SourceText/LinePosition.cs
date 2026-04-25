@@ -1,4 +1,4 @@
-namespace Mist.Common.SourceText;
+namespace Mist.Common.Text;
 
 /// <summary>
 /// A 1-based line and column position within a source file.

@@ -1,18 +1,18 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text;
+using Storm.SourceGenerator.IR;
 
 namespace Storm.SourceGenerator.Emit
 {
     /// <summary>
-    /// Emits the TokenKind enum and a skeletal lexer class for the consumer grammar.
-    /// The generated lexer satisfies the API contract (static Lex method returning
-    /// a TokenStream) with a v1 skeletal implementation.
+    /// Emits the TokenKind enum and a maximal-munch lexer class for the consumer grammar.
+    /// The generated lexer uses per-token TryMatch methods and a main Lex loop that
+    /// picks the longest match with declaration-order tiebreaking.
     /// </summary>
     public static class LexerEmitter
     {
-        /// <summary>
-        /// Generates the complete lexer source file containing the TokenKind enum
-        /// and the lexer class.
-        /// </summary>
         public static string Emit(EmissionContext context)
         {
             var writer = new CodeWriter();
@@ -35,55 +35,35 @@ namespace Storm.SourceGenerator.Emit
             return writer.ToString();
         }
 
-        /// <summary>
-        /// Generates the TokenKind enum with one member per token in declaration order,
-        /// plus EndOfFile and Error.
-        /// </summary>
+        // ── TokenKind enum ───────────────────────────────────────────────
+
         private static void EmitTokenKindEnum(CodeWriter writer, EmissionContext context)
         {
             writer.WriteBlock("public enum TokenKind", () =>
             {
-                // Tokens in declaration order
-                foreach(var token in context.Grammar.Tokens.OrderBy(t => t.DeclarationIndex))
+                foreach (var token in context.Grammar.Tokens.OrderBy(t => t.DeclarationIndex))
                 {
                     writer.WriteLine($"{SanitizeIdentifier(token.Name)},");
                 }
-
-                // Synthetic members always at the end
                 writer.WriteLine("EndOfFile,");
                 writer.WriteLine("Error,");
             });
         }
 
-        /// <summary>
-        /// Generates the lexer class with a static Lex method.
-        /// For v1, the Lex method produces a single EndOfFile token — a compilable
-        /// skeleton that satisfies the API contract. The full DFA-based implementation
-        /// is deferred.
-        /// </summary>
+        // ── Lexer class ─────────────────────────────────────────────────
+
         private static void EmitLexerClass(CodeWriter writer, EmissionContext context)
         {
             var className = context.GrammarName + "Lexer";
+            var tokens = context.Grammar.Tokens.OrderBy(t => t.DeclarationIndex).ToList();
 
             writer.WriteBlock($"public static class {className}", () =>
             {
-                // Emit the set of hidden token kinds for channel marking
                 EmitHiddenTokenKinds(writer, context);
                 writer.WriteEmptyLine();
 
-                // Static Lex method
-                writer.WriteBlock("public static TokenStream Lex(SourceText source, DiagnosticBag diagnostics)", () =>
-                {
-                    writer.WriteLine("// v1 skeletal implementation: produces EndOfFile only.");
-                    writer.WriteLine("// The full DFA-based maximal-munch lexer will replace this.");
-                    writer.WriteLine("var tokens = ImmutableArray.CreateBuilder<Token>();");
-                    writer.WriteEmptyLine();
-                    writer.WriteLine("var eofSpan = new SourceSpan(source.Contents.Length, 0);");
-                    writer.WriteLine("tokens.Add(new Token((int)TokenKind.EndOfFile, eofSpan, new LinePosition(1, 1), new LinePosition(1, 1), TokenChannel.Default, \"\"));");
-                    writer.WriteEmptyLine();
-                    writer.WriteLine("return new TokenStream(source, tokens.ToImmutable());");
-                });
-
+                // Main Lex method
+                EmitLexMethod(writer, tokens);
                 writer.WriteEmptyLine();
 
                 // IsHidden helper
@@ -91,8 +71,378 @@ namespace Storm.SourceGenerator.Emit
                 {
                     writer.WriteLine("return HiddenKinds.Contains(tokenKind);");
                 });
+                writer.WriteEmptyLine();
+
+                // Per-token TryMatch methods
+                foreach (var token in tokens)
+                {
+                    EmitTryMatchMethod(writer, token);
+                    writer.WriteEmptyLine();
+                }
             });
         }
+
+        private static void EmitLexMethod(CodeWriter writer, List<TokenIR> tokens)
+        {
+            writer.WriteBlock("public static TokenStream Lex(SourceText source, DiagnosticBag diagnostics)", () =>
+            {
+                writer.WriteLine("var tokens = ImmutableArray.CreateBuilder<Token>();");
+                writer.WriteLine("var input = source.Contents;");
+                writer.WriteLine("var pos = 0;");
+                writer.WriteLine("var line = 1;");
+                writer.WriteLine("var col = 1;");
+                writer.WriteEmptyLine();
+                writer.WriteBlock("while (pos < input.Length)", () =>
+                {
+                    writer.WriteLine("var bestLength = 0;");
+                    writer.WriteLine("var bestKind = -1;");
+                    writer.WriteEmptyLine();
+
+                    // Try each token in declaration order
+                    foreach (var token in tokens)
+                    {
+                        var safeName = SanitizeIdentifier(token.Name);
+                        writer.WriteBlock("", () => { }); // just for spacing
+                        writer.WriteLine($"var len_{safeName} = TryMatch_{safeName}(input, pos);");
+                        // Maximal munch: strictly longer wins. On tie, first (lower decl index) wins.
+                        writer.WriteBlock($"if (len_{safeName} > bestLength)", () =>
+                        {
+                            writer.WriteLine($"bestLength = len_{safeName};");
+                            writer.WriteLine($"bestKind = (int)TokenKind.{safeName};");
+                        });
+                    }
+
+                    writer.WriteEmptyLine();
+                    writer.WriteBlock("if (bestKind >= 0 && bestLength > 0)", () =>
+                    {
+                        writer.WriteLine("var span = new SourceSpan(pos, bestLength);");
+                        writer.WriteLine("var lexeme = input.Substring(pos, bestLength);");
+                        writer.WriteLine("var startPos = new LinePosition(line, col);");
+                        // Advance line/col
+                        writer.WriteBlock("for (var i = pos; i < pos + bestLength; i++)", () =>
+                        {
+                            writer.WriteBlock("if (input[i] == '\\n')", () =>
+                            {
+                                writer.WriteLine("line++;");
+                                writer.WriteLine("col = 1;");
+                            });
+                            writer.WriteBlock("else", () =>
+                            {
+                                writer.WriteLine("col++;");
+                            });
+                        });
+                        writer.WriteLine("var endPos = new LinePosition(line, col);");
+                        writer.WriteLine("var channel = IsHidden(bestKind) ? TokenChannel.Hidden : TokenChannel.Default;");
+                        writer.WriteLine("tokens.Add(new Token(bestKind, span, startPos, endPos, channel, lexeme));");
+                        writer.WriteLine("pos += bestLength;");
+                    });
+                    writer.WriteBlock("else", () =>
+                    {
+                        writer.WriteLine("var ch = input[pos];");
+                        writer.WriteLine("var startPos = new LinePosition(line, col);");
+                        writer.WriteLine("if (ch == '\\n') { line++; col = 1; } else { col++; }");
+                        writer.WriteLine("var endPos = new LinePosition(line, col);");
+                        writer.WriteLine("diagnostics.Add($\"Unexpected character '{ch}' at line {startPos.Line}, column {startPos.Column}\");");
+                        writer.WriteLine("tokens.Add(new Token((int)TokenKind.Error, new SourceSpan(pos, 1), startPos, endPos, TokenChannel.Default, ch.ToString()));");
+                        writer.WriteLine("pos++;");
+                    });
+                });
+                writer.WriteEmptyLine();
+                writer.WriteLine("var eofPos = new LinePosition(line, col);");
+                writer.WriteLine("tokens.Add(new Token((int)TokenKind.EndOfFile, new SourceSpan(pos, 0), eofPos, eofPos, TokenChannel.Default, \"\"));");
+                writer.WriteLine("return new TokenStream(source, tokens.ToImmutable());");
+            });
+        }
+
+        // ── Per-token TryMatch method emission ──────────────────────────
+
+        private static void EmitTryMatchMethod(CodeWriter writer, TokenIR token)
+        {
+            var safeName = SanitizeIdentifier(token.Name);
+            writer.WriteBlock($"private static int TryMatch_{safeName}(string input, int pos)", () =>
+            {
+                // Generate matching code for the token's expression
+                var matchCode = GenerateMatchCode(token.Expression, "pos");
+                writer.WriteLine($"return {matchCode};");
+            });
+        }
+
+        private static int _varCounter;
+
+        private static string UniqueVar(string prefix)
+        {
+            return prefix + "_" + (_varCounter++);
+        }
+
+        /// <summary>
+        /// Generates a C# expression that returns the match length for the given
+        /// ExpressionIR starting at the variable named by <paramref name="posVar"/>.
+        /// Returns "0" if no match.
+        /// </summary>
+        private static string GenerateMatchCode(ExpressionIR expr, string posVar)
+        {
+            _varCounter = 0;
+            return GenerateMatchExpr(expr, posVar);
+        }
+
+        private static string GenerateMatchExpr(ExpressionIR expr, string posVar)
+        {
+            switch (expr)
+            {
+                case StringLiteralIR lit:
+                    return GenerateStringLiteralMatch(lit.Value, posVar);
+
+                case CharClassIR cc:
+                    return GenerateCharClassMatch(cc.Text, posVar);
+
+                case SequenceIR seq:
+                    return GenerateSequenceMatch(seq.Elements, posVar);
+
+                case AlternationIR alt:
+                    return GenerateAlternationMatch(alt.Alternatives, posVar);
+
+                case OptionalIR opt:
+                    return GenerateOptionalMatch(opt.Inner, posVar);
+
+                case ZeroOrMoreIR star:
+                    return GenerateZeroOrMoreMatch(star.Inner, posVar);
+
+                case OneOrMoreIR plus:
+                    return GenerateOneOrMoreMatch(plus.Inner, posVar);
+
+                case InlineFragmentIR frag:
+                    return GenerateMatchExpr(frag.Body, posVar);
+
+                case TokenRefIR tokenRef:
+                    return $"TryMatch_{SanitizeIdentifier(tokenRef.Token.Name)}(input, {posVar})";
+
+                default:
+                    return "0";
+            }
+        }
+
+        private static string GenerateStringLiteralMatch(string value, string posVar)
+        {
+            if (value.Length == 0) return "0";
+
+            var escaped = EscapeStringForCSharp(value);
+            var sb = new StringBuilder();
+            sb.Append($"({posVar} + {value.Length} <= input.Length");
+            for (int i = 0; i < value.Length; i++)
+            {
+                sb.Append($" && input[{posVar} + {i}] == '{EscapeCharForCSharp(value[i])}'");
+            }
+            sb.Append($" ? {value.Length} : 0)");
+            return sb.ToString();
+        }
+
+        private static string GenerateCharClassMatch(string text, string posVar)
+        {
+            // Parse the character class text like [a-zA-Z_] or [^"\\]
+            var parsed = ParseCharClass(text);
+            var condition = GenerateCharClassCondition($"input[{posVar}]", parsed);
+            return $"({posVar} < input.Length && {condition} ? 1 : 0)";
+        }
+
+        private static string GenerateSequenceMatch(IReadOnlyList<ExpressionIR> elements, string posVar)
+        {
+            var pVar = UniqueVar("p");
+            var nVar = UniqueVar("n");
+            var sb = new StringBuilder();
+            sb.Append("((Func<int>)(() => {");
+            sb.Append($" var {pVar} = {posVar}; int {nVar};");
+            foreach (var elem in elements)
+            {
+                var innerMatch = GenerateMatchExpr(elem, pVar);
+                sb.Append($" {nVar} = {innerMatch}; if ({nVar} == 0) return 0; {pVar} += {nVar};");
+            }
+            sb.Append($" return {pVar} - {posVar};");
+            sb.Append(" }))()");
+            return sb.ToString();
+        }
+
+        private static string GenerateAlternationMatch(IReadOnlyList<ExpressionIR> alternatives, string posVar)
+        {
+            var bestVar = UniqueVar("best");
+            var nVar = UniqueVar("n");
+            var sb = new StringBuilder();
+            sb.Append("((Func<int>)(() => {");
+            sb.Append($" var {bestVar} = 0; int {nVar};");
+            foreach (var alt in alternatives)
+            {
+                var innerMatch = GenerateMatchExpr(alt, posVar);
+                sb.Append($" {nVar} = {innerMatch}; if ({nVar} > {bestVar}) {bestVar} = {nVar};");
+            }
+            sb.Append($" return {bestVar};");
+            sb.Append(" }))()");
+            return sb.ToString();
+        }
+
+        private static string GenerateOptionalMatch(ExpressionIR inner, string posVar)
+        {
+            // Match inner or return 0 (optional always succeeds)
+            var innerMatch = GenerateMatchExpr(inner, posVar);
+            return $"Math.Max(0, {innerMatch})";
+        }
+
+        private static string GenerateZeroOrMoreMatch(ExpressionIR inner, string posVar)
+        {
+            var pVar = UniqueVar("p");
+            var totalVar = UniqueVar("total");
+            var nVar = UniqueVar("n");
+            var sb = new StringBuilder();
+            sb.Append("((Func<int>)(() => {");
+            sb.Append($" var {pVar} = {posVar}; var {totalVar} = 0;");
+            sb.Append(" while (true) {");
+            var innerMatch = GenerateMatchExpr(inner, pVar);
+            sb.Append($" var {nVar} = {innerMatch}; if ({nVar} == 0) break; {totalVar} += {nVar}; {pVar} += {nVar};");
+            sb.Append(" }");
+            sb.Append($" return {totalVar};");
+            sb.Append(" }))()");
+            return sb.ToString();
+        }
+
+        private static string GenerateOneOrMoreMatch(ExpressionIR inner, string posVar)
+        {
+            var pVar = UniqueVar("p");
+            var nVar = UniqueVar("n");
+            var totalVar = UniqueVar("total");
+            var loopNVar = UniqueVar("n");
+            var sb = new StringBuilder();
+            sb.Append("((Func<int>)(() => {");
+            sb.Append($" var {pVar} = {posVar};");
+            var firstMatch = GenerateMatchExpr(inner, pVar);
+            sb.Append($" var {nVar} = {firstMatch}; if ({nVar} == 0) return 0; {pVar} += {nVar}; var {totalVar} = {nVar};");
+            sb.Append(" while (true) {");
+            var loopMatch = GenerateMatchExpr(inner, pVar);
+            sb.Append($" var {loopNVar} = {loopMatch}; if ({loopNVar} == 0) break; {totalVar} += {loopNVar}; {pVar} += {loopNVar};");
+            sb.Append(" }");
+            sb.Append($" return {totalVar};");
+            sb.Append(" }))()");
+            return sb.ToString();
+        }
+
+        // ── CharClass parsing ───────────────────────────────────────────
+
+        private struct CharClassInfo
+        {
+            public bool Negated;
+            public List<CharRange> Ranges;
+        }
+
+        private struct CharRange
+        {
+            public char Start;
+            public char End;
+
+            public CharRange(char start, char end)
+            {
+                Start = start;
+                End = end;
+            }
+
+            public CharRange(char single)
+            {
+                Start = single;
+                End = single;
+            }
+        }
+
+        private static CharClassInfo ParseCharClass(string text)
+        {
+            var info = new CharClassInfo { Negated = false, Ranges = new List<CharRange>() };
+
+            // Strip outer [ ]
+            if (text.Length < 2 || text[0] != '[') return info;
+            var inner = text.Substring(1, text.Length - 2); // remove [ and ]
+
+            var i = 0;
+            if (inner.Length > 0 && inner[0] == '^')
+            {
+                info.Negated = true;
+                i = 1;
+            }
+
+            while (i < inner.Length)
+            {
+                var ch = ReadCharClassChar(inner, ref i);
+
+                // Check for range: ch-ch2
+                if (i < inner.Length && inner[i] == '-' && i + 1 < inner.Length)
+                {
+                    i++; // skip -
+                    var ch2 = ReadCharClassChar(inner, ref i);
+                    info.Ranges.Add(new CharRange(ch, ch2));
+                }
+                else
+                {
+                    info.Ranges.Add(new CharRange(ch));
+                }
+            }
+
+            return info;
+        }
+
+        private static char ReadCharClassChar(string text, ref int i)
+        {
+            if (i >= text.Length) return '\0';
+
+            if (text[i] == '\\' && i + 1 < text.Length)
+            {
+                i++; // skip backslash
+                var escaped = text[i];
+                i++;
+                switch (escaped)
+                {
+                    case 'n': return '\n';
+                    case 'r': return '\r';
+                    case 't': return '\t';
+                    case '0': return '\0';
+                    case '\\': return '\\';
+                    case '"': return '"';
+                    case '\'': return '\'';
+                    case ']': return ']';
+                    case '[': return '[';
+                    case '-': return '-';
+                    case '^': return '^';
+                    default: return escaped;
+                }
+            }
+
+            var c = text[i];
+            i++;
+            return c;
+        }
+
+        private static string GenerateCharClassCondition(string charExpr, CharClassInfo info)
+        {
+            if (info.Ranges.Count == 0)
+            {
+                return info.Negated ? "true" : "false";
+            }
+
+            var parts = new List<string>();
+            foreach (var range in info.Ranges)
+            {
+                if (range.Start == range.End)
+                {
+                    parts.Add($"{charExpr} == '{EscapeCharForCSharp(range.Start)}'");
+                }
+                else
+                {
+                    parts.Add($"({charExpr} >= '{EscapeCharForCSharp(range.Start)}' && {charExpr} <= '{EscapeCharForCSharp(range.End)}')");
+                }
+            }
+
+            var combined = string.Join(" || ", parts);
+            if (info.Negated)
+            {
+                return $"!({combined})";
+            }
+            return $"({combined})";
+        }
+
+        // ── Hidden token kinds ──────────────────────────────────────────
 
         private static void EmitHiddenTokenKinds(CodeWriter writer, EmissionContext context)
         {
@@ -101,7 +451,7 @@ namespace Storm.SourceGenerator.Emit
                 .OrderBy(t => t.DeclarationIndex)
                 .ToList();
 
-            if(hiddenTokens.Count == 0)
+            if (hiddenTokens.Count == 0)
             {
                 writer.WriteLine("private static System.Collections.Generic.HashSet<int> HiddenKinds = new System.Collections.Generic.HashSet<int>();");
                 return;
@@ -110,7 +460,7 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteLine("private static System.Collections.Generic.HashSet<int> HiddenKinds = new System.Collections.Generic.HashSet<int>");
             writer.WriteLine("{");
             writer.Indent();
-            foreach(var token in hiddenTokens)
+            foreach (var token in hiddenTokens)
             {
                 writer.WriteLine($"(int)TokenKind.{SanitizeIdentifier(token.Name)},");
             }
@@ -118,9 +468,8 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteLine("};");
         }
 
-        /// <summary>
-        /// Escapes a string value for embedding in a C# string literal.
-        /// </summary>
+        // ── Utility helpers ─────────────────────────────────────────────
+
         internal static string EscapeStringForCSharp(string value)
         {
             return value
@@ -131,35 +480,37 @@ namespace Storm.SourceGenerator.Emit
                 .Replace("\t", "\\t");
         }
 
-        /// <summary>
-        /// Sanitizes a name to be a valid C# identifier.
-        /// </summary>
+        private static string EscapeCharForCSharp(char c)
+        {
+            switch (c)
+            {
+                case '\\': return "\\\\";
+                case '\'': return "\\'";
+                case '\n': return "\\n";
+                case '\r': return "\\r";
+                case '\t': return "\\t";
+                case '\0': return "\\0";
+                case '"': return "\\\"";
+                default: return c.ToString();
+            }
+        }
+
         internal static string SanitizeIdentifier(string name)
         {
-            if(string.IsNullOrEmpty(name))
-            {
-                return "_";
-            }
+            if (string.IsNullOrEmpty(name)) return "_";
 
-            var sb = new System.Text.StringBuilder();
-            for(var i = 0; i < name.Length; i++)
+            var sb = new StringBuilder();
+            for (var i = 0; i < name.Length; i++)
             {
                 var c = name[i];
-                if(char.IsLetterOrDigit(c) || c == '_')
-                {
+                if (char.IsLetterOrDigit(c) || c == '_')
                     sb.Append(c);
-                }
                 else
-                {
                     sb.Append('_');
-                }
             }
 
-            // Ensure it doesn't start with a digit
-            if(sb.Length > 0 && char.IsDigit(sb[0]))
-            {
+            if (sb.Length > 0 && char.IsDigit(sb[0]))
                 sb.Insert(0, '_');
-            }
 
             return sb.Length == 0 ? "_" : sb.ToString();
         }

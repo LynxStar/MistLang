@@ -1,22 +1,237 @@
 grammar Mist;
+import "keywords.storm";
 
-// Mist language grammar — stub for v1 architectural skeleton.
-// This file is the root Storm grammar file for the Mist language.
-// Concrete syntax rules will be added in the Mist-language spec.
+// ─── Hidden Tokens ───────────────────────────────────────────────────────────
 
-// Hidden tokens (skipped by parser, preserved in token stream)
-hidden token Whitespace = [ \t\r\n]+;
-hidden token LineComment = "//" [^\n]*;
+hidden token WHITESPACE   = [ \t\r\n]+;
+hidden token LINE_COMMENT = "//" [^\n]*;
 
-// Visible tokens
-token Identifier = [a-zA-Z_][a-zA-Z0-9_]*;
-token IntegerLiteral = [0-9]+;
-token Semicolon = ";";
+// ─── Operators and Punctuation ───────────────────────────────────────────────
+// Multi-character operators are declared before their single-character
+// counterparts so that maximal-munch combined with declaration-order priority
+// selects the longer token.
 
-// Entry rule for a Mist compilation unit
-rule CompilationUnit = Statement*;
+token LOGICAL_AND           = "&&";
+token LOGICAL_OR            = "||";
+token EQUAL_EQUAL           = "==";
+token NOT_EQUAL             = "!=";
+token LESS_THAN_OR_EQUAL    = "<=";
+token GREATER_THAN_OR_EQUAL = ">=";
+token PLUS                  = "+";
+token MINUS                 = "-";
+token STAR                  = "*";
+token SLASH                 = "/";
+token MODULO                = "%";
+token EQUAL                 = "=";
+token LESS_THAN             = "<";
+token GREATER_THAN          = ">";
+token EXCLAMATION           = "!";
+token DOT                   = ".";
+token COMMA                 = ",";
+token SEMICOLON             = ";";
+token COLON                 = ":";
+token LEFT_PARENTHESIS      = "(";
+token RIGHT_PARENTHESIS     = ")";
+token LEFT_BRACE            = "{";
+token RIGHT_BRACE           = "}";
+token LEFT_BRACKET          = "[";
+token RIGHT_BRACKET         = "]";
 
-rule Statement = Expression Semicolon;
+// ─── Fragments ───────────────────────────────────────────────────────────────
 
-rule Expression = Identifier
-               | IntegerLiteral;
+fragment HEX_DIGIT        = [0-9a-fA-F];
+fragment INT_SUFFIX        = [lLuU] | "UL" | "ul" | "Ul" | "uL" | "Lu" | "lU" | "LU" | "lu";
+fragment FLOAT_SUFFIX      = [fFdDmM];
+fragment ESCAPE_SEQUENCE   = "\\\\" | "\\\"" | "\\n" | "\\r" | "\\t" | "\\0" | "\\'";
+
+// ─── Literal Tokens ─────────────────────────────────────────────────────────
+// HEX_LITERAL is declared before INTEGER_LITERAL so that 0xFF matches as hex
+// rather than as 0 followed by xFF.
+
+token HEX_LITERAL     = "0" [xX] HEX_DIGIT+ INT_SUFFIX?;
+token INTEGER_LITERAL  = [0-9]+ INT_SUFFIX?;
+token FLOAT_LITERAL    = [0-9]+ "." [0-9]+ FLOAT_SUFFIX?
+                       | [0-9]+ FLOAT_SUFFIX;
+
+token CHAR_LITERAL     = "'" (ESCAPE_SEQUENCE | [^'\\]) "'";
+token STRING_LITERAL   = "\"" (ESCAPE_SEQUENCE | [^"\\])* "\"";
+
+token INTERPOLATED_STRING_START = "$\"";
+token INTERPOLATED_STRING_TEXT  = ([^"\\{] | ESCAPE_SEQUENCE)+;
+token INTERPOLATED_STRING_END   = "\"";
+
+// ─── Identifier ──────────────────────────────────────────────────────────────
+// Declared after all keywords so keywords take priority (R1.11).
+
+token IDENTIFIER = [a-zA-Z_][a-zA-Z0-9_]*;
+
+// ─── Parser Rules — Top Level ────────────────────────────────────────────────
+
+rule CompilationUnit = usings:UsingDeclaration* namespace:NamespaceDeclaration? types:TypeDeclaration*;
+
+rule UsingDeclaration = USING name:QualifiedIdentifier SEMICOLON;
+
+rule QualifiedIdentifier = IDENTIFIER (DOT IDENTIFIER)*;
+
+rule NamespaceDeclaration
+    = NAMESPACE name:QualifiedIdentifier SEMICOLON body:TypeDeclaration*   as FileScopedNamespace
+    | NAMESPACE name:QualifiedIdentifier LEFT_BRACE body:TypeDeclaration* RIGHT_BRACE as BlockNamespace
+    ;
+
+rule TypeDeclaration
+    = classDeclaration:ClassDeclaration   as ClassType
+    | structDeclaration:StructDeclaration as StructType
+    ;
+
+// ─── Parser Rules — Type Declarations ────────────────────────────────────────
+
+rule ClassDeclaration  = modifiers:Modifier* CLASS  name:IDENTIFIER LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
+rule StructDeclaration = modifiers:Modifier* STRUCT name:IDENTIFIER LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
+
+rule Modifier
+    = PUBLIC  as PublicModifier
+    | PRIVATE as PrivateModifier
+    | STATIC  as StaticModifier
+    ;
+
+rule MemberDeclaration
+    = constructor:ConstructorDeclaration as ConstructorMember
+    | method:MethodDeclaration           as MethodMember
+    | field:FieldDeclaration             as FieldMember
+    ;
+
+// ─── Parser Rules — Members ─────────────────────────────────────────────────
+
+rule FieldDeclaration = modifiers:Modifier* type:TypeReference name:IDENTIFIER initializer:(EQUAL Expression)? SEMICOLON;
+
+rule ConstructorDeclaration = modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
+                              chain:ConstructorChain? body:Block;
+
+rule ConstructorChain = COLON THIS LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS;
+
+rule MethodDeclaration = modifiers:Modifier* returnType:TypeReference name:IDENTIFIER
+                         LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS body:Block;
+
+rule ParameterList = Parameter (COMMA Parameter)*;
+rule Parameter = type:TypeReference name:IDENTIFIER;
+
+rule ArgumentList = Expression (COMMA Expression)*;
+
+// ─── Parser Rules — Type References ─────────────────────────────────────────
+
+rule TypeReference
+    = primitiveType:PrimitiveType arrayRank:(LEFT_BRACKET RIGHT_BRACKET)?  as PrimitiveTypeRef
+    | VOID                                                                  as VoidTypeRef
+    | name:QualifiedIdentifier arrayRank:(LEFT_BRACKET RIGHT_BRACKET)?     as NamedTypeRef
+    ;
+
+rule PrimitiveType
+    = INT as IntType | UINT as UintType | LONG as LongType | ULONG as UlongType
+    | SHORT as ShortType | USHORT as UshortType | BYTE as ByteType | SBYTE as SbyteType
+    | FLOAT as FloatType | DOUBLE as DoubleType | DECIMAL as DecimalType
+    | BOOL as BoolType | CHAR as CharType | STRING as StringType
+    ;
+
+// ─── Parser Rules — Statements ──────────────────────────────────────────────
+
+rule Block = LEFT_BRACE statements:Statement* RIGHT_BRACE;
+
+rule Statement
+    = variableDeclaration:VariableDeclarationStatement   as VariableDeclarationStatement
+    | returnStatement:ReturnStatement                     as ReturnStatement
+    | ifStatement:IfStatement                             as IfStatement
+    | whileStatement:WhileStatement                       as WhileStatement
+    | forStatement:ForStatement                           as ForStatement
+    | foreachStatement:ForeachStatement                   as ForeachStatement
+    | breakStatement:BreakStatement                       as BreakStatement
+    | expressionStatement:ExpressionStatement             as ExpressionStatement
+    ;
+
+rule VariableDeclarationStatement
+    = type:TypeReference name:IDENTIFIER EQUAL initializer:Expression SEMICOLON  as TypedVariableDeclaration
+    | VAR name:IDENTIFIER EQUAL initializer:Expression SEMICOLON                 as InferredVariableDeclaration
+    ;
+
+rule ReturnStatement
+    = RETURN value:Expression? SEMICOLON
+    ;
+
+rule IfStatement
+    = IF LEFT_PARENTHESIS condition:Expression RIGHT_PARENTHESIS thenBranch:Block
+      elseBranch:ElseClause?
+    ;
+
+rule ElseClause
+    = ELSE elseIf:IfStatement   as ElseIf
+    | ELSE elseBlock:Block      as ElseBlock
+    ;
+
+rule WhileStatement = WHILE LEFT_PARENTHESIS condition:Expression RIGHT_PARENTHESIS body:Block;
+
+rule ForStatement = FOR LEFT_PARENTHESIS initializer:ForInitializer? SEMICOLON condition:Expression? SEMICOLON iterator:Expression? RIGHT_PARENTHESIS body:Block;
+
+rule ForInitializer
+    = variableDeclaration:TypeReference name:IDENTIFIER EQUAL initializer:Expression  as ForInitializerVariableDeclaration
+    | expression:Expression                                                            as ForInitializerExpression
+    ;
+
+rule ForeachStatement = FOREACH LEFT_PARENTHESIS type:TypeReference name:IDENTIFIER IN collection:Expression RIGHT_PARENTHESIS body:Block;
+
+rule BreakStatement = BREAK SEMICOLON;
+
+rule ExpressionStatement = expression:Expression SEMICOLON;
+
+// ─── Parser Rules — Expressions (Precedence Climbing) ───────────────────────
+// Operator precedence is encoded structurally via a chain of rules, from
+// lowest to highest binding:
+//   Assignment < LogicalOr < LogicalAnd < Equality < Relational
+//   < Additive < Multiplicative < Unary < Postfix < Primary
+
+rule Expression = Assignment;
+
+rule Assignment = target:LogicalOr (EQUAL value:Assignment)?;
+
+rule LogicalOr  = left:LogicalAnd (LOGICAL_OR right:LogicalAnd)*;
+rule LogicalAnd = left:Equality   (LOGICAL_AND right:Equality)*;
+rule Equality   = left:Relational (operator:(EQUAL_EQUAL | NOT_EQUAL) right:Relational)*;
+rule Relational = left:Additive   (operator:(LESS_THAN | GREATER_THAN | LESS_THAN_OR_EQUAL | GREATER_THAN_OR_EQUAL) right:Additive)*;
+rule Additive   = left:Multiplicative (operator:(PLUS | MINUS) right:Multiplicative)*;
+rule Multiplicative = left:Unary (operator:(STAR | SLASH | MODULO) right:Unary)*;
+
+rule Unary
+    = EXCLAMATION operand:Unary    as LogicalNot
+    | MINUS operand:Unary          as Negate
+    | primary:Postfix              as PostfixExpression
+    ;
+
+rule Postfix = target:Primary suffix:PostfixSuffix*;
+
+rule PostfixSuffix
+    = DOT name:IDENTIFIER LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as MethodCallSuffix
+    | DOT name:IDENTIFIER                                                         as MemberAccessSuffix
+    | LEFT_BRACKET index:Expression RIGHT_BRACKET                                 as IndexSuffix
+    | LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS                       as InvocationSuffix
+    ;
+
+rule Primary
+    = integerLiteral:INTEGER_LITERAL                                               as IntegerLiteralExpression
+    | hexLiteral:HEX_LITERAL                                                       as HexLiteralExpression
+    | floatLiteral:FLOAT_LITERAL                                                   as FloatLiteralExpression
+    | stringLiteral:STRING_LITERAL                                                 as StringLiteralExpression
+    | interpolatedString:InterpolatedString                                        as InterpolatedStringExpression
+    | charLiteral:CHAR_LITERAL                                                     as CharLiteralExpression
+    | TRUE                                                                         as TrueLiteralExpression
+    | FALSE                                                                        as FalseLiteralExpression
+    | THIS                                                                         as ThisExpression
+    | NEW type:TypeReference LEFT_BRACKET size:Expression RIGHT_BRACKET            as ArrayCreationExpression
+    | NEW type:QualifiedIdentifier LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as ObjectCreationExpression
+    | LEFT_PARENTHESIS inner:Expression RIGHT_PARENTHESIS                          as ParenthesizedExpression
+    | name:IDENTIFIER                                                              as IdentifierExpression
+    ;
+
+rule InterpolatedString = INTERPOLATED_STRING_START parts:InterpolatedPart* INTERPOLATED_STRING_END;
+
+rule InterpolatedPart
+    = text:INTERPOLATED_STRING_TEXT  as TextPart
+    | LEFT_BRACE expression:Expression RIGHT_BRACE      as ExpressionPart
+    ;

@@ -14,6 +14,11 @@ public interface ISemanticModel
     IReadOnlyList<CompilationUnit> Units { get; }
 
     /// <summary>
+    /// The AST roots corresponding to each compilation unit, in the same order as <see cref="Units"/>.
+    /// </summary>
+    ImmutableArray<Storm.Runtime.SyntaxNode> Asts { get; }
+
+    /// <summary>
     /// Returns the AST node that declares the given symbol.
     /// </summary>
     Storm.Runtime.SyntaxNode GetDeclaringNode(ISymbol symbol);

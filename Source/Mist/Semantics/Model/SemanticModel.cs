@@ -11,22 +11,28 @@ namespace Mist.Semantics.Model;
 public sealed class SemanticModel : ISemanticModel
 {
     private SymbolTable _symbolTable;
+    private Dictionary<Storm.Runtime.SyntaxNode, IType> _expressionTypes;
 
     internal SemanticModel(
         MistCompilation compilation,
         IReadOnlyList<CompilationUnit> units,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         Scope globalScope,
-        SymbolTable symbolTable)
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType>? expressionTypes = null)
     {
         Compilation = compilation;
         Units = units;
+        Asts = asts;
         GlobalScope = globalScope;
         _symbolTable = symbolTable;
+        _expressionTypes = expressionTypes ?? new Dictionary<Storm.Runtime.SyntaxNode, IType>();
     }
 
     public MistCompilation Compilation { get; }
     public IScope GlobalScope { get; }
     public IReadOnlyList<CompilationUnit> Units { get; }
+    public ImmutableArray<Storm.Runtime.SyntaxNode> Asts { get; }
 
     public ImmutableArray<ISymbol> AllSymbols => [.. _symbolTable.AllSymbols];
 
@@ -43,8 +49,13 @@ public sealed class SemanticModel : ISemanticModel
 
     public IType? GetTypeOf(Storm.Runtime.SyntaxNode node)
     {
-        // Type resolution is deferred to the Mist-language spec.
-        // For now, return the declared type of the symbol at this node, if any.
+        // First check the expression type map (populated by Pass 2).
+        if (_expressionTypes.TryGetValue(node, out var type))
+        {
+            return type;
+        }
+
+        // Fallback: return the declared type of the symbol at this node, if any.
         var symbol = GetDeclaredSymbol(node);
         return symbol?.DeclaredType;
     }

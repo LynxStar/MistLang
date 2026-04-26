@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <AdditionalFiles Include="Grammar\Mist.storm" />
+    <AdditionalFiles Include="Grammar\keywords.storm" />
   </ItemGroup>
 
 </Project>

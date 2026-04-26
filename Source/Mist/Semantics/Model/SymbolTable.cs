@@ -11,21 +11,26 @@ public sealed class Symbol : ISymbol
     public Symbol(
         string name,
         SymbolKind kind,
+        SymbolOrigin origin,
         IScope containingScope,
         IType? declaredType,
         SourceSpan? declarationSpan)
     {
         Name = name;
         Kind = kind;
+        Origin = origin;
         ContainingScope = containingScope;
         DeclaredType = declaredType;
-        DeclarationSpan = declarationSpan;
+
+        // Backend symbols have no source location in user code (R7.4).
+        DeclarationSpan = origin == SymbolOrigin.Backend ? null : declarationSpan;
     }
 
     public string Name { get; }
     public SymbolKind Kind { get; }
+    public SymbolOrigin Origin { get; }
     public IScope ContainingScope { get; }
-    public IType? DeclaredType { get; }
+    public IType? DeclaredType { get; internal set; }
     public SourceSpan? DeclarationSpan { get; }
 }
 

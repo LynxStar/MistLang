@@ -14,18 +14,47 @@ public sealed class MistParser : IParser
     public ParseResult Parse(TokenStream tokens, DiagnosticBag diagnostics)
     {
         // Bridge to Storm-generated parser.
-        // TODO: Call the Storm-generated parser once the Mist grammar is fully defined.
-        // For now, return a stub result with no AST root.
-        // var stormDiagnostics = new Storm.Runtime.DiagnosticBag();
-        // var stormTokenStream = new Storm.Runtime.TokenStream(
-        //     new Storm.Runtime.SourceText(tokens.Source.Path, tokens.Source.Contents),
-        //     tokens.AllTokens);
-        // var root = Mist.Generated.MistParser.ParseCompilationUnit(stormTokenStream, stormDiagnostics);
+        var stormDiagnostics = new Storm.Runtime.DiagnosticBag();
+        var stormTokenStream = new Storm.Runtime.TokenStream(
+            new Storm.Runtime.SourceText(tokens.Source.Path, tokens.Source.Contents),
+            tokens.AllTokens);
+
+        Storm.Runtime.SyntaxNode? root = null;
+        try
+        {
+            root = Mist.Generated.MistParser.ParseCompilationUnit(stormTokenStream, stormDiagnostics);
+        }
+        catch(NotImplementedException)
+        {
+            // The Storm-generated parser is skeletal — parse methods are not yet implemented.
+            // This is expected during early development. Return null root gracefully.
+            diagnostics.Add(new Diagnostic(
+                new DiagnosticId("MIST_PARSE_STUB"),
+                DiagnosticSeverity.Warning,
+                PipelineStage.Parsing,
+                "Parser is not yet implemented (Storm-generated parser is skeletal). Source file was lexed but not parsed.",
+                Location: null,
+                CompilationUnitPath: tokens.Source.Path,
+                AnalyzerName: null));
+        }
+
+        // Map Storm diagnostics to Mist diagnostics.
+        foreach(var msg in stormDiagnostics.Messages)
+        {
+            diagnostics.Add(new Diagnostic(
+                new DiagnosticId("MIST_PARSE_ERROR"),
+                DiagnosticSeverity.Error,
+                PipelineStage.Parsing,
+                msg,
+                Location: null,
+                CompilationUnitPath: tokens.Source.Path,
+                AnalyzerName: null));
+        }
 
         return new ParseResult(
             tokens.Source,
             tokens,
-            Root: null,
+            Root: root,
             Diagnostics: ImmutableArray<Diagnostic>.Empty);
     }
 }

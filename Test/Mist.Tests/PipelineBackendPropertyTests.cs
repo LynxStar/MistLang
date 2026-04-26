@@ -180,7 +180,7 @@ public class PipelineBackendPropertyTests
         var compilation = new MistCompilation(ImmutableArray.Create(unit));
         var builder = new SemanticModelBuilder();
         var bag = new DiagnosticBag();
-        var model = builder.Build(compilation, ImmutableArray<Storm.Runtime.SyntaxNode>.Empty, bag);
+        var model = builder.Build(compilation, ImmutableArray<Storm.Runtime.SyntaxNode>.Empty, null, bag);
 
         // Use the CSharpEmitter directly to test emission determinism
         // without invoking dotnet build (which would introduce external non-determinism).

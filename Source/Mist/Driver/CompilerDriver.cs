@@ -124,11 +124,12 @@ public sealed class CompilerDriver : ICompilerDriver
         }
 
         // Step 4: Build semantic model
+        var ambientTypeResolver = backend.GetAmbientTypeResolver();
         var semanticBag = new DiagnosticBag();
         ISemanticModel? semanticModel;
         try
         {
-            semanticModel = semanticModelBuilder.Build(compilation, asts.ToImmutable(), semanticBag);
+            semanticModel = semanticModelBuilder.Build(compilation, asts.ToImmutable(), ambientTypeResolver, semanticBag);
         }
         catch(Exception ex)
         {

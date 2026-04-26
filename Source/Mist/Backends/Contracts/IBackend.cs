@@ -10,5 +10,6 @@ namespace Mist.Backends.Contracts;
 public interface IBackend
 {
     BackendId Id { get; }
+    IAmbientTypeResolver? GetAmbientTypeResolver();
     BackendResult Emit(ISemanticModel model, string outputDirectory, DiagnosticBag diagnostics);
 }

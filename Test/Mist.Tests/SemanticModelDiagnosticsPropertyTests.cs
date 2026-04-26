@@ -47,7 +47,7 @@ public class SemanticModelDiagnosticsPropertyTests
         var builder = new SemanticModelBuilder();
         var bag = new DiagnosticBag();
 
-        var model = builder.Build(compilation, ImmutableArray<Storm.Runtime.SyntaxNode>.Empty, bag);
+        var model = builder.Build(compilation, ImmutableArray<Storm.Runtime.SyntaxNode>.Empty, null, bag);
 
         // Verify Units returns IReadOnlyList
         Assert.IsAssignableFrom<IReadOnlyList<CompilationUnit>>(model.Units);
@@ -207,7 +207,7 @@ public class SemanticModelDiagnosticsPropertyTests
         // Build semantic model
         var builder = new SemanticModelBuilder();
         var semBag = new DiagnosticBag();
-        var model = builder.Build(compilation, ImmutableArray<Storm.Runtime.SyntaxNode>.Empty, semBag);
+        var model = builder.Build(compilation, ImmutableArray<Storm.Runtime.SyntaxNode>.Empty, null, semBag);
 
         // Collect all diagnostics
         var allDiagnostics = lexBag.ToImmutableArray()

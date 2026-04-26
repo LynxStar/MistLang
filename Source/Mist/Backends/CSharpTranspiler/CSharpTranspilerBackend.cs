@@ -12,6 +12,8 @@ public sealed class CSharpTranspilerBackend : IBackend
 {
     public BackendId Id => new("csharp");
 
+    public IAmbientTypeResolver? GetAmbientTypeResolver() => new CSharpAmbientTypeResolver();
+
     public BackendResult Emit(ISemanticModel model, string outputDirectory, DiagnosticBag diagnostics)
     {
         var bag = new DiagnosticBag();

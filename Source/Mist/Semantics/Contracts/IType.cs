@@ -1,16 +1,13 @@
 namespace Mist.Semantics.Contracts;
 
 /// <summary>
-/// Kinds of types in the Mist type system.
-/// Concrete members deferred to the Mist-language spec.
+/// Classifies type constructors at the kind level (tier 3 in the value → type → kind
+/// hierarchy). Class denotes reference types; Struct denotes value types.
 /// </summary>
 public enum TypeKind
 {
-    Primitive,
-    Function,
-    Record,
-    Union,
-    Unknown,
+    Class,
+    Struct,
 }
 
 /// <summary>

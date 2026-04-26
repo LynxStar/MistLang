@@ -16,9 +16,8 @@ public sealed class MistLexer : ILexer
         var stormSource = new Storm.Runtime.SourceText(source.Path, source.Contents);
         var stormDiagnostics = new Storm.Runtime.DiagnosticBag();
 
-        // TODO: Call the Storm-generated lexer once the Mist grammar is fully defined.
-        // For now, produce an empty token stream as a stub.
-        // var stormTokenStream = Mist.Generated.MistLexer.Lex(stormSource, stormDiagnostics);
+        // Call the Storm-generated lexer.
+        var stormTokenStream = Mist.Generated.MistLexer.Lex(stormSource, stormDiagnostics);
 
         // Map any Storm diagnostics back to Mist diagnostics
         foreach(var msg in stormDiagnostics.Messages)
@@ -33,6 +32,6 @@ public sealed class MistLexer : ILexer
                 AnalyzerName: null));
         }
 
-        return new TokenStream(source, ImmutableArray<Storm.Runtime.Token>.Empty);
+        return new TokenStream(source, stormTokenStream.AllTokens);
     }
 }

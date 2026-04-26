@@ -32,17 +32,20 @@ public class LexerPropertyTests
         var tokenStream = Lexer.Lex(source, bag);
 
         // Concatenating all token lexemes (including hidden) should reproduce the source.
-        // NOTE: The v1 skeletal lexer returns an empty token stream, so the concatenation
-        // will be empty. This test structure is correct for when the full lexer is implemented.
         var concatenated = string.Concat(
             tokenStream.AllTokens.Select(t => t.Lexeme));
 
-        // With the skeletal lexer, AllTokens is empty so concatenated is "".
-        // When the full lexer is implemented, this should equal input.Get.
-        // For now, verify the invariant holds for the current implementation.
-        if(tokenStream.AllTokens.Length == 0)
+        // The v1 skeletal generated lexer produces only an EOF token with an empty lexeme.
+        // When the full lexer is implemented, concatenated should equal input.Get.
+        // For now, verify the invariant holds for the current implementation:
+        // - If only EOF token(s) exist, the lexer hasn't tokenized the input yet.
+        var hasOnlyEofOrEmpty = tokenStream.AllTokens.All(
+            t => t.Kind == (int)Mist.Generated.TokenKind.EndOfFile);
+
+        if(hasOnlyEofOrEmpty)
         {
-            return concatenated.Length == 0;
+            // Skeletal lexer: only EOF produced. This is expected.
+            return true;
         }
 
         return concatenated == input.Get;
@@ -66,8 +69,18 @@ public class LexerPropertyTests
 
         if(tokens.Length == 0)
         {
-            // Skeletal lexer: no tokens produced. When the full lexer is
-            // implemented, this branch should only be hit for empty input.
+            // No tokens produced — only valid for empty input.
+            return true;
+        }
+
+        // The v1 skeletal generated lexer produces only an EOF token.
+        // When the full lexer is implemented, all tokens should cover the input.
+        var hasOnlyEof = tokens.All(
+            t => t.Kind == (int)Mist.Generated.TokenKind.EndOfFile);
+
+        if(hasOnlyEof)
+        {
+            // Skeletal lexer: only EOF produced. This is expected.
             return true;
         }
 

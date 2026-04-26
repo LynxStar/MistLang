@@ -256,61 +256,80 @@ public sealed class StormGrammar
             return;
         }
 
-        // Add this file's declarations to the unnamespaced set (DFS pre-order)
-        foreach(var decl in file.Declarations)
+        // Process declarations and imports in source order (interleaved).
+        // Imports are processed at the point they appear, so that imported
+        // declarations get declaration indices between the surrounding
+        // declarations in the importing file. This ensures that
+        // `import "keywords.storm";` followed by `token IDENTIFIER = ...;`
+        // gives keywords lower declaration indices than IDENTIFIER.
+
+        var declIndex = 0;
+        var importIndex = 0;
+
+        // Merge declarations and imports by source line order.
+        // Declarations have Line/Column; imports have Line/Column too.
+        while (declIndex < file.Declarations.Count || importIndex < file.Imports.Count)
         {
-            if(nameToSourceLocation.TryGetValue(decl.Name, out var existing))
-            {
-                // Duplicate name in unnamespaced declarations (R6.5)
-                diagnostics.Add(new StormDiagnostic(
-                    StormDiagnosticIds.STORM_DUPLICATE_NAME,
-                    StormDiagnosticSeverity.Error,
-                    $"Duplicate declaration name '{decl.Name}': first declared in '{existing.FilePath}' at {existing.Decl.Line}:{existing.Decl.Column}, redeclared in '{filePath}' at {decl.Line}:{decl.Column}",
-                    filePath,
-                    decl.Line,
-                    decl.Column));
-                failed = true;
-            }
-            else
-            {
-                nameToSourceLocation[decl.Name] = (filePath, decl);
-                declarationsByName[decl.Name] = decl;
-                declarations.Add(decl);
-            }
-        }
+            var nextDeclLine = declIndex < file.Declarations.Count ? file.Declarations[declIndex].Line : int.MaxValue;
+            var nextImportLine = importIndex < file.Imports.Count ? file.Imports[importIndex].Line : int.MaxValue;
 
-        // Process imports in source order
-        foreach(var import in file.Imports)
-        {
-            var resolvedPath = ResolveImportPath(filePath, import.Path);
-
-            if(!resolution.FilesByPath.ContainsKey(resolvedPath))
+            if (nextDeclLine <= nextImportLine && declIndex < file.Declarations.Count)
             {
-                // File wasn't resolved — diagnostic already emitted by StormImportResolver
-                continue;
+                // Process this declaration
+                var decl = file.Declarations[declIndex];
+                declIndex++;
+
+                if(nameToSourceLocation.TryGetValue(decl.Name, out var existing))
+                {
+                    diagnostics.Add(new StormDiagnostic(
+                        StormDiagnosticIds.STORM_DUPLICATE_NAME,
+                        StormDiagnosticSeverity.Error,
+                        $"Duplicate declaration name '{decl.Name}': first declared in '{existing.FilePath}' at {existing.Decl.Line}:{existing.Decl.Column}, redeclared in '{filePath}' at {decl.Line}:{decl.Column}",
+                        filePath,
+                        decl.Line,
+                        decl.Column));
+                    failed = true;
+                }
+                else
+                {
+                    nameToSourceLocation[decl.Name] = (filePath, decl);
+                    declarationsByName[decl.Name] = decl;
+                    declarations.Add(decl);
+                }
             }
-
-            var importedFile = resolution.FilesByPath[resolvedPath];
-
-            if(import.Alias != null)
+            else if (importIndex < file.Imports.Count)
             {
-                // Namespaced import — collect for later processing
-                namespacedFiles.Add((import.Alias, resolvedPath, importedFile));
-            }
-            else
-            {
-                // Unnamespaced import — recursively merge declarations
-                CollectDeclarations(
-                    resolvedPath,
-                    importedFile,
-                    resolution,
-                    visitedForMerge,
-                    declarations,
-                    namespacedFiles,
-                    declarationsByName,
-                    nameToSourceLocation,
-                    diagnostics,
-                    ref failed);
+                // Process this import
+                var import = file.Imports[importIndex];
+                importIndex++;
+
+                var resolvedPath = ResolveImportPath(filePath, import.Path);
+
+                if(!resolution.FilesByPath.ContainsKey(resolvedPath))
+                {
+                    continue;
+                }
+
+                var importedFile = resolution.FilesByPath[resolvedPath];
+
+                if(import.Alias != null)
+                {
+                    namespacedFiles.Add((import.Alias, resolvedPath, importedFile));
+                }
+                else
+                {
+                    CollectDeclarations(
+                        resolvedPath,
+                        importedFile,
+                        resolution,
+                        visitedForMerge,
+                        declarations,
+                        namespacedFiles,
+                        declarationsByName,
+                        nameToSourceLocation,
+                        diagnostics,
+                        ref failed);
+                }
             }
         }
     }

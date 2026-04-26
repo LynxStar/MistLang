@@ -155,6 +155,29 @@ namespace Storm.SourceGenerator.Emit
 
         private static void EmitSingleAlt(CodeWriter writer, EmissionContext context, RuleAlternativeIR alt, string nodeName)
         {
+            // Add a lookahead check for rules that start with a required token.
+            // This prevents single-alt rules from always succeeding when the input
+            // doesn't match, which would cause infinite loops in list parsing.
+            var firstToken = FindFirstRequiredToken(alt, context);
+            if (firstToken != null)
+            {
+                var kind = "TokenKind." + LexerEmitter.SanitizeIdentifier(firstToken.Name);
+                writer.WriteBlock($"if (Peek() != (int){kind})", () =>
+                {
+                    writer.WriteLine("return null;");
+                });
+            }
+
+            writer.WriteLine("var sp = _pos;");
+            EmitAltBody(writer, context, alt, nodeName, "sp");
+        }
+
+        /// <summary>
+        /// Emits a single-alt parse that returns null if no tokens were consumed.
+        /// Used when the rule is called from a list context (ZeroOrMore/OneOrMore).
+        /// </summary>
+        private static void EmitSingleAltSafe(CodeWriter writer, EmissionContext context, RuleAlternativeIR alt, string nodeName)
+        {
             writer.WriteLine("var sp = _pos;");
             EmitAltBody(writer, context, alt, nodeName, "sp");
         }
@@ -189,38 +212,25 @@ namespace Storm.SourceGenerator.Emit
 
         private static void EmitAltBody(CodeWriter writer, EmissionContext context, RuleAlternativeIR alt, string typeName, string spVar)
         {
-            // Parse the expression and assign to node properties
             var expr = alt.Expression;
             var labels = alt.FieldLabels;
 
-            if (labels.Count > 0)
+            // Build a map from expression reference to label name
+            var labelMap = new Dictionary<ExpressionIR, string>();
+            foreach (var label in labels)
             {
-                // Use field labels
-                foreach (var label in labels)
-                {
-                    var propName = PascalCase(label.Label);
-                    EmitExprParse(writer, context, label.Expression, propName, false, null);
-                }
+                labelMap[label.Expression] = label.Label;
             }
-            else
-            {
-                // Parse the expression directly
-                EmitExprParseForNode(writer, context, expr);
-            }
+
+            // Parse the full expression, using label names for labeled elements
+            var assignedProps = new List<(string PropName, string LocalVar)>();
+            EmitFullExprParse(writer, context, expr, labelMap, assignedProps, false, null);
 
             // Construct node
             writer.WriteLine($"var node = new {typeName}();");
-            if (labels.Count > 0)
+            foreach (var (propName, localVar) in assignedProps)
             {
-                foreach (var label in labels)
-                {
-                    var propName = PascalCase(label.Label);
-                    writer.WriteLine($"node.{propName} = _{propName};");
-                }
-            }
-            else
-            {
-                EmitNodeAssignments(writer, context, expr);
+                writer.WriteLine($"node.{propName} = {localVar};");
             }
             writer.WriteLine($"node.Span = Span({spVar});");
             writer.WriteLine("return node;");
@@ -231,37 +241,112 @@ namespace Storm.SourceGenerator.Emit
             var expr = alt.Expression;
             var labels = alt.FieldLabels;
 
-            if (labels.Count > 0)
+            var labelMap = new Dictionary<ExpressionIR, string>();
+            foreach (var label in labels)
             {
-                foreach (var label in labels)
-                {
-                    var propName = PascalCase(label.Label);
-                    EmitExprParse(writer, context, label.Expression, propName, true, okVar);
-                }
+                labelMap[label.Expression] = label.Label;
             }
-            else
-            {
-                EmitExprParseForNodeWithCheck(writer, context, expr, okVar);
-            }
+
+            var assignedProps = new List<(string PropName, string LocalVar)>();
+            EmitFullExprParse(writer, context, expr, labelMap, assignedProps, true, okVar);
 
             writer.WriteBlock($"if ({okVar})", () =>
             {
                 writer.WriteLine($"var node = new {typeName}();");
-                if (labels.Count > 0)
+                foreach (var (propName, localVar) in assignedProps)
                 {
-                    foreach (var label in labels)
-                    {
-                        var propName = PascalCase(label.Label);
-                        writer.WriteLine($"node.{propName} = _{propName};");
-                    }
-                }
-                else
-                {
-                    EmitNodeAssignments(writer, context, expr);
+                    writer.WriteLine($"node.{propName} = {localVar};");
                 }
                 writer.WriteLine($"node.Span = Span({spVar});");
                 writer.WriteLine("return node;");
             });
+        }
+
+        /// <summary>
+        /// Parses a full expression, consuming all tokens (including anonymous ones).
+        /// Labeled elements are assigned to properties using the label name.
+        /// Anonymous tokens are consumed but not assigned.
+        /// </summary>
+        private static void EmitFullExprParse(
+            CodeWriter writer, EmissionContext context, ExpressionIR expr,
+            Dictionary<ExpressionIR, string> labelMap,
+            List<(string PropName, string LocalVar)> assignedProps,
+            bool withCheck, string okVar)
+        {
+            // Check if this expression has a label
+            if (labelMap.TryGetValue(expr, out var label))
+            {
+                var propName = PascalCase(label);
+                var localVar = "_" + propName;
+                EmitExprParse(writer, context, expr, propName, withCheck, okVar);
+                assignedProps.Add((propName, localVar));
+                return;
+            }
+
+            switch (expr)
+            {
+                case SequenceIR seq:
+                    foreach (var elem in seq.Elements)
+                    {
+                        EmitFullExprParse(writer, context, elem, labelMap, assignedProps, withCheck, okVar);
+                    }
+                    break;
+
+                case TokenRefIR tokenRef:
+                {
+                    // Anonymous token — consume but don't assign to a property
+                    var kind = "TokenKind." + LexerEmitter.SanitizeIdentifier(tokenRef.Token.Name);
+                    if (withCheck)
+                    {
+                        writer.WriteLine($"if ({okVar} && Peek() != (int){kind}) {okVar} = false;");
+                        writer.WriteLine($"if ({okVar}) Eat();");
+                    }
+                    else
+                    {
+                        writer.WriteLine($"Require((int){kind});");
+                    }
+                    break;
+                }
+
+                case RuleRefIR ruleRef:
+                {
+                    // Anonymous rule ref — parse but don't assign
+                    // This shouldn't normally happen (rule refs are usually labeled)
+                    var propName = PascalCase(ruleRef.Rule.Name);
+                    var localVar = "_" + propName;
+                    writer.WriteLine($"var {localVar} = Parse{ruleRef.Rule.Name}();");
+                    if (withCheck)
+                    {
+                        writer.WriteBlock($"if ({localVar} == null)", () => writer.WriteLine($"{okVar} = false;"));
+                    }
+                    assignedProps.Add((propName, localVar));
+                    break;
+                }
+
+                case StringLiteralIR lit:
+                {
+                    var token = FindTokenForLiteral(context, lit.Value);
+                    if (token != null)
+                    {
+                        var kind = "TokenKind." + LexerEmitter.SanitizeIdentifier(token.Name);
+                        if (withCheck)
+                        {
+                            writer.WriteLine($"if ({okVar} && Peek() != (int){kind}) {okVar} = false;");
+                            writer.WriteLine($"if ({okVar}) Eat();");
+                        }
+                        else
+                        {
+                            writer.WriteLine($"Require((int){kind});");
+                        }
+                    }
+                    break;
+                }
+
+                default:
+                    // For other expression types at the top level, treat as labeled
+                    // with an auto-generated name
+                    break;
+            }
         }
 
         // ── Expression parsing ──────────────────────────────────────────
@@ -275,8 +360,9 @@ namespace Storm.SourceGenerator.Emit
                     var kind = "TokenKind." + LexerEmitter.SanitizeIdentifier(tokenRef.Token.Name);
                     if (withCheck)
                     {
-                        writer.WriteLine($"var _{varName} = Match((int){kind});");
-                        writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
+                        writer.WriteLine($"var _{varName}_raw = Match((int){kind});");
+                        writer.WriteBlock($"if (_{varName}_raw == null)", () => writer.WriteLine($"{okVar} = false;"));
+                        writer.WriteLine($"var _{varName} = _{varName}_raw ?? Cur();");
                     }
                     else
                     {
@@ -340,8 +426,9 @@ namespace Storm.SourceGenerator.Emit
                         var kind = "TokenKind." + LexerEmitter.SanitizeIdentifier(token.Name);
                         if (withCheck)
                         {
-                            writer.WriteLine($"var _{varName} = Match((int){kind});");
-                            writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
+                            writer.WriteLine($"var _{varName}_raw = Match((int){kind});");
+                            writer.WriteBlock($"if (_{varName}_raw == null)", () => writer.WriteLine($"{okVar} = false;"));
+                            writer.WriteLine($"var _{varName} = _{varName}_raw ?? Cur();");
                         }
                         else
                         {
@@ -350,7 +437,7 @@ namespace Storm.SourceGenerator.Emit
                     }
                     else
                     {
-                        writer.WriteLine($"Token? _{varName} = null; // unresolved literal \"{LexerEmitter.EscapeStringForCSharp(lit.Value)}\"");
+                        writer.WriteLine($"var _{varName} = Cur(); // unresolved literal \"{LexerEmitter.EscapeStringForCSharp(lit.Value)}\"");
                     }
                     break;
                 }
@@ -381,11 +468,17 @@ namespace Storm.SourceGenerator.Emit
                     writer.WriteLine($"var _{varName} = Parse{ruleRef.Rule.Name}();");
                     break;
                 }
+                case SequenceIR seq:
+                {
+                    // Optional sequence — try to parse, backtrack on failure
+                    writer.WriteLine($"// Optional sequence");
+                    EmitSequenceExprParse(writer, context, seq, varName, false, null);
+                    break;
+                }
                 default:
                 {
-                    // Complex optional — try to parse, ignore failure
                     writer.WriteLine($"// Optional complex expression");
-                    writer.WriteLine($"object? _{varName} = null;");
+                    writer.WriteLine($"Token? _{varName} = null;");
                     break;
                 }
             }
@@ -401,8 +494,9 @@ namespace Storm.SourceGenerator.Emit
                     writer.WriteLine($"var _{varName}_b = ImmutableArray.CreateBuilder<{nodeType}>();");
                     writer.WriteBlock("while (true)", () =>
                     {
+                        writer.WriteLine("var _listSaved = _pos;");
                         writer.WriteLine($"var _item = Parse{ruleRef.Rule.Name}();");
-                        writer.WriteLine("if (_item == null) break;");
+                        writer.WriteLine("if (_item == null || _pos == _listSaved) break;");
                         writer.WriteLine($"_{varName}_b.Add(_item);");
                     });
                     writer.WriteLine($"var _{varName} = _{varName}_b.ToImmutable();");
@@ -482,28 +576,46 @@ namespace Storm.SourceGenerator.Emit
 
         private static void EmitAlternationExprParse(CodeWriter writer, EmissionContext context, AlternationIR altIR, string varName, bool withCheck, string okVar)
         {
-            // Try each alternative with backtracking
+            // Try each alternative — for token alternations, use Token type
             writer.WriteLine($"// Alternation for {varName}");
-            writer.WriteLine($"object? _{varName} = null;");
+            writer.WriteLine($"Token _{varName} = default;");
             writer.WriteLine("var _altSaved = _pos;");
+            writer.WriteLine("var _altFound = false;");
             foreach (var alt in altIR.Alternatives)
             {
                 if (alt is TokenRefIR tokenRef)
                 {
                     var kind = "TokenKind." + LexerEmitter.SanitizeIdentifier(tokenRef.Token.Name);
-                    writer.WriteBlock($"if (_{varName} == null && Peek() == (int){kind})", () =>
+                    writer.WriteBlock($"if (!_altFound && Peek() == (int){kind})", () =>
                     {
                         writer.WriteLine($"_{varName} = Eat();");
+                        writer.WriteLine("_altFound = true;");
                     });
+                }
+                else if (alt is StringLiteralIR lit)
+                {
+                    var token = FindTokenForLiteral(context, lit.Value);
+                    if (token != null)
+                    {
+                        var kind = "TokenKind." + LexerEmitter.SanitizeIdentifier(token.Name);
+                        writer.WriteBlock($"if (!_altFound && Peek() == (int){kind})", () =>
+                        {
+                            writer.WriteLine($"_{varName} = Eat();");
+                            writer.WriteLine("_altFound = true;");
+                        });
+                    }
                 }
                 else if (alt is RuleRefIR ruleRef)
                 {
-                    writer.WriteBlock($"if (_{varName} == null)", () =>
+                    writer.WriteBlock("if (!_altFound)", () =>
                     {
-                        writer.WriteLine($"_{varName} = Parse{ruleRef.Rule.Name}();");
-                        writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine("_pos = _altSaved;"));
+                        writer.WriteLine($"// rule ref in alternation — not directly assignable to Token");
                     });
                 }
+            }
+            if (withCheck)
+            {
+                writer.WriteBlock("if (!_altFound)", () => writer.WriteLine($"{okVar} = false;"));
             }
         }
 
@@ -511,20 +623,201 @@ namespace Storm.SourceGenerator.Emit
 
         private static void EmitExprParseForNode(CodeWriter writer, EmissionContext context, ExpressionIR expr)
         {
-            // When there are no field labels, we need to parse the expression
-            // and assign results to auto-named properties
-            // This is a simplified version that handles common patterns
+            // When there are no field labels, parse the expression elements
+            // and assign to auto-named properties matching the AST emitter's conventions
+            EmitExprParseUnlabeled(writer, context, expr, new HashSet<string>(), new List<string>());
         }
 
         private static void EmitExprParseForNodeWithCheck(CodeWriter writer, EmissionContext context, ExpressionIR expr, string okVar)
         {
-            // Same as above but with failure checking
+            EmitExprParseUnlabeled(writer, context, expr, new HashSet<string>(), new List<string>(), okVar);
+        }
+
+        private static void EmitExprParseUnlabeled(CodeWriter writer, EmissionContext context, ExpressionIR expr, HashSet<string> usedNames, List<string> parsedVars, string okVar = null)
+        {
+            switch (expr)
+            {
+                case SequenceIR seq:
+                    foreach (var elem in seq.Elements)
+                    {
+                        EmitExprParseUnlabeled(writer, context, elem, usedNames, parsedVars, okVar);
+                    }
+                    break;
+
+                case TokenRefIR tokenRef:
+                {
+                    var propName = PascalCase(tokenRef.Token.Name);
+                    propName = EnsureUnique(propName, usedNames);
+                    var kind = "TokenKind." + LexerEmitter.SanitizeIdentifier(tokenRef.Token.Name);
+                    if (okVar != null)
+                    {
+                        writer.WriteLine($"var _{propName}_raw = Match((int){kind});");
+                        writer.WriteBlock($"if (_{propName}_raw == null)", () => writer.WriteLine($"{okVar} = false;"));
+                        writer.WriteLine($"var _{propName} = _{propName}_raw ?? Cur();");
+                    }
+                    else
+                    {
+                        writer.WriteLine($"var _{propName} = Require((int){kind});");
+                    }
+                    parsedVars.Add(propName);
+                    break;
+                }
+
+                case RuleRefIR ruleRef:
+                {
+                    var propName = PascalCase(ruleRef.Rule.Name);
+                    propName = EnsureUnique(propName, usedNames);
+                    writer.WriteLine($"var _{propName} = Parse{ruleRef.Rule.Name}();");
+                    if (okVar != null)
+                    {
+                        writer.WriteBlock($"if (_{propName} == null)", () => writer.WriteLine($"{okVar} = false;"));
+                    }
+                    parsedVars.Add(propName);
+                    break;
+                }
+
+                case OptionalIR opt:
+                {
+                    var inner = opt.Inner;
+                    if (inner is TokenRefIR optToken)
+                    {
+                        var propName = PascalCase(optToken.Token.Name);
+                        propName = EnsureUnique(propName, usedNames);
+                        var kind = "TokenKind." + LexerEmitter.SanitizeIdentifier(optToken.Token.Name);
+                        writer.WriteLine($"var _{propName} = Match((int){kind});");
+                        parsedVars.Add(propName);
+                    }
+                    else if (inner is RuleRefIR optRule)
+                    {
+                        var propName = PascalCase(optRule.Rule.Name);
+                        propName = EnsureUnique(propName, usedNames);
+                        writer.WriteLine($"var _{propName} = Parse{optRule.Rule.Name}();");
+                        parsedVars.Add(propName);
+                    }
+                    else
+                    {
+                        // Complex optional — skip
+                    }
+                    break;
+                }
+
+                case ZeroOrMoreIR star:
+                {
+                    EmitUnlabeledList(writer, context, star.Inner, usedNames, parsedVars, false);
+                    break;
+                }
+
+                case OneOrMoreIR plus:
+                {
+                    EmitUnlabeledList(writer, context, plus.Inner, usedNames, parsedVars, true);
+                    break;
+                }
+
+                case StringLiteralIR lit:
+                {
+                    var token = FindTokenForLiteral(context, lit.Value);
+                    if (token != null)
+                    {
+                        var kind = "TokenKind." + LexerEmitter.SanitizeIdentifier(token.Name);
+                        writer.WriteLine($"Require((int){kind}); // consume '{LexerEmitter.EscapeStringForCSharp(lit.Value)}'");
+                    }
+                    break;
+                }
+
+                case InlineFragmentIR frag:
+                    EmitExprParseUnlabeled(writer, context, frag.Body, usedNames, parsedVars, okVar);
+                    break;
+
+                case AlternationIR _:
+                    // Alternations at expression level are handled by multi-alt
+                    break;
+            }
+        }
+
+        private static void EmitUnlabeledList(CodeWriter writer, EmissionContext context, ExpressionIR inner, HashSet<string> usedNames, List<string> parsedVars, bool requireOne)
+        {
+            if (inner is RuleRefIR ruleRef)
+            {
+                var propName = PascalCase(ruleRef.Rule.Name);
+                propName = EnsureUnique(propName, usedNames);
+                var nodeType = ruleRef.Rule.Name + "Node";
+                writer.WriteLine($"var _{propName}_b = ImmutableArray.CreateBuilder<{nodeType}>();");
+                writer.WriteBlock("while (true)", () =>
+                {
+                    writer.WriteLine("var _listSaved = _pos;");
+                    writer.WriteLine($"var _item = Parse{ruleRef.Rule.Name}();");
+                    writer.WriteLine("if (_item == null || _pos == _listSaved) break;");
+                    writer.WriteLine($"_{propName}_b.Add(_item);");
+                });
+                writer.WriteLine($"var _{propName} = _{propName}_b.ToImmutable();");
+                parsedVars.Add(propName);
+            }
+            else if (inner is TokenRefIR tokenRef)
+            {
+                var propName = PascalCase(tokenRef.Token.Name);
+                propName = EnsureUnique(propName, usedNames);
+                var kind = "TokenKind." + LexerEmitter.SanitizeIdentifier(tokenRef.Token.Name);
+                writer.WriteLine($"var _{propName}_b = ImmutableArray.CreateBuilder<Token>();");
+                writer.WriteBlock($"while (Peek() == (int){kind})", () =>
+                {
+                    writer.WriteLine($"_{propName}_b.Add(Eat());");
+                });
+                writer.WriteLine($"var _{propName} = _{propName}_b.ToImmutable();");
+                parsedVars.Add(propName);
+            }
         }
 
         private static void EmitNodeAssignments(CodeWriter writer, EmissionContext context, ExpressionIR expr)
         {
-            // Assign parsed values to node properties
-            // This is handled by the field label path in most cases
+            // Collect the property names that were parsed and assign them
+            var usedNames = new HashSet<string>();
+            var propNames = new List<string>();
+            CollectPropertyNames(expr, usedNames, propNames);
+            foreach (var propName in propNames)
+            {
+                writer.WriteLine($"node.{propName} = _{propName};");
+            }
+        }
+
+        private static void CollectPropertyNames(ExpressionIR expr, HashSet<string> usedNames, List<string> names)
+        {
+            switch (expr)
+            {
+                case SequenceIR seq:
+                    foreach (var elem in seq.Elements)
+                        CollectPropertyNames(elem, usedNames, names);
+                    break;
+                case TokenRefIR tokenRef:
+                    names.Add(EnsureUnique(PascalCase(tokenRef.Token.Name), usedNames));
+                    break;
+                case RuleRefIR ruleRef:
+                    names.Add(EnsureUnique(PascalCase(ruleRef.Rule.Name), usedNames));
+                    break;
+                case OptionalIR opt:
+                    if (opt.Inner is TokenRefIR optToken)
+                        names.Add(EnsureUnique(PascalCase(optToken.Token.Name), usedNames));
+                    else if (opt.Inner is RuleRefIR optRule)
+                        names.Add(EnsureUnique(PascalCase(optRule.Rule.Name), usedNames));
+                    break;
+                case ZeroOrMoreIR star:
+                    if (star.Inner is RuleRefIR starRule)
+                        names.Add(EnsureUnique(PascalCase(starRule.Rule.Name), usedNames));
+                    else if (star.Inner is TokenRefIR starToken)
+                        names.Add(EnsureUnique(PascalCase(starToken.Token.Name), usedNames));
+                    break;
+                case OneOrMoreIR plus:
+                    if (plus.Inner is RuleRefIR plusRule)
+                        names.Add(EnsureUnique(PascalCase(plusRule.Rule.Name), usedNames));
+                    else if (plus.Inner is TokenRefIR plusToken)
+                        names.Add(EnsureUnique(PascalCase(plusToken.Token.Name), usedNames));
+                    break;
+                case StringLiteralIR _:
+                    // String literals are consumed but don't produce properties
+                    break;
+                case InlineFragmentIR frag:
+                    CollectPropertyNames(frag.Body, usedNames, names);
+                    break;
+            }
         }
 
         // ── Helpers ─────────────────────────────────────────────────────
@@ -536,6 +829,59 @@ namespace Storm.SourceGenerator.Emit
                 if (token.Expression is StringLiteralIR lit && lit.Value == value)
                     return token;
             }
+            return null;
+        }
+
+        /// <summary>
+        /// Finds the first REQUIRED token that a rule alternative expects.
+        /// Skips optional and list elements. Returns null if the first required
+        /// element is a rule reference or if all elements are optional.
+        /// </summary>
+        private static TokenIR FindFirstRequiredToken(RuleAlternativeIR alt, EmissionContext context)
+        {
+            ExpressionIR firstExpr;
+
+            if (alt.FieldLabels.Count > 0)
+            {
+                // Find the first non-optional field label
+                foreach (var label in alt.FieldLabels)
+                {
+                    var expr = label.Expression;
+                    if (expr is OptionalIR || expr is ZeroOrMoreIR)
+                        continue;
+                    firstExpr = expr;
+                    goto found;
+                }
+                return null; // All labels are optional
+            }
+            else
+            {
+                firstExpr = alt.Expression;
+                if (firstExpr is SequenceIR seq && seq.Elements.Count > 0)
+                {
+                    // Find the first non-optional element
+                    foreach (var elem in seq.Elements)
+                    {
+                        if (elem is OptionalIR || elem is ZeroOrMoreIR)
+                            continue;
+                        firstExpr = elem;
+                        goto found;
+                    }
+                    return null;
+                }
+            }
+
+            found:
+            while (firstExpr is InlineFragmentIR frag)
+                firstExpr = frag.Body;
+            while (firstExpr is OneOrMoreIR plus)
+                firstExpr = plus.Inner;
+
+            if (firstExpr is TokenRefIR tokenRef)
+                return tokenRef.Token;
+            if (firstExpr is StringLiteralIR lit)
+                return FindTokenForLiteral(context, lit.Value);
+
             return null;
         }
 

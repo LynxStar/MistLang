@@ -84,6 +84,13 @@ namespace Storm.SourceGenerator.Emit
 
         private static void EmitLexMethod(CodeWriter writer, List<TokenIR> tokens)
         {
+            // Filter out interpolated string tokens — they need lexer mode support
+            // which is not implemented in v1. They'll be handled by the STRING_LITERAL
+            // token for now.
+            var mainTokens = tokens.Where(t =>
+                t.Name != "INTERPOLATED_STRING_START" &&
+                t.Name != "INTERPOLATED_STRING_TEXT" &&
+                t.Name != "INTERPOLATED_STRING_END").ToList();
             writer.WriteBlock("public static TokenStream Lex(SourceText source, DiagnosticBag diagnostics)", () =>
             {
                 writer.WriteLine("var tokens = ImmutableArray.CreateBuilder<Token>();");
@@ -99,7 +106,7 @@ namespace Storm.SourceGenerator.Emit
                     writer.WriteEmptyLine();
 
                     // Try each token in declaration order
-                    foreach (var token in tokens)
+                    foreach (var token in mainTokens)
                     {
                         var safeName = SanitizeIdentifier(token.Name);
                         writer.WriteBlock("", () => { }); // just for spacing
@@ -254,7 +261,17 @@ namespace Storm.SourceGenerator.Emit
             foreach (var elem in elements)
             {
                 var innerMatch = GenerateMatchExpr(elem, pVar);
-                sb.Append($" {nVar} = {innerMatch}; if ({nVar} == 0) return 0; {pVar} += {nVar};");
+                // Optional and ZeroOrMore elements always succeed (n >= 0).
+                // Only fail the sequence if a required element returns 0.
+                var isOptional = elem is OptionalIR || elem is ZeroOrMoreIR;
+                if (isOptional)
+                {
+                    sb.Append($" {nVar} = {innerMatch}; {pVar} += {nVar};");
+                }
+                else
+                {
+                    sb.Append($" {nVar} = {innerMatch}; if ({nVar} == 0) return 0; {pVar} += {nVar};");
+                }
             }
             sb.Append($" return {pVar} - {posVar};");
             sb.Append(" }))()");

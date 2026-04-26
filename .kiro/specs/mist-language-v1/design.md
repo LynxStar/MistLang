@@ -8,7 +8,7 @@ The design covers seven deliverables:
 
 1. **Complete Mist.storm grammar** — All tokens, parser rules, and operator precedence for the Mist v1 language, written in Storm syntax and placed at `Source/Mist/Grammar/Mist.storm`.
 2. **Semantic model implementation** — How `SemanticModelBuilder` walks the AST to build symbols, types, and scopes; the updated `SymbolKind` and `TypeKind` enums; how primitives, arrays, void, string, and Unknown are represented.
-3. **Ambient type system** — The `IAmbientTypeProvider` interface and how the C# backend injects .NET types into the semantic model before construction.
+3. **Ambient type system** — The unified `SymbolOrigin`-based approach where the `IAmbientTypeResolver` interface provides on-demand, lazy resolution of external type definitions. The `SemanticModelBuilder` queries the resolver during name resolution and registers materialized types as regular symbols tagged with `SymbolOrigin.Backend`.
 4. **Type checker implementation** — How `TypeCheckerAnalyzer` verifies each type rule from R8–R10.
 5. **C# transpiler emission** — How `CSharpEmitter` walks the semantic model to produce valid C# source files.
 6. **Pretty printer** — How `MistPrettyPrinter` formats an AST back to valid Mist source text.
@@ -25,7 +25,7 @@ graph LR
     A[Mist Source .mist] --> B[Storm-Generated Lexer]
     B --> C[Storm-Generated Parser]
     C --> D[SemanticModelBuilder]
-    E[IAmbientTypeProvider] --> D
+    E[IAmbientTypeResolver] -.->|on-demand queries| D
     D --> F[TypeCheckerAnalyzer]
     D --> G[CSharpEmitter]
     G --> H[dotnet build]
@@ -37,7 +37,10 @@ graph LR
 Key architectural decisions:
 
 - **The Storm grammar is the single source of truth** for all tokens and parser rules. The Storm source generator produces the lexer, parser, and AST node types. No hand-written lexer or parser code exists in the Mist project.
-- **Ambient types are injected before semantic model construction.** The `CSharpTranspilerBackend` provides an `IAmbientTypeProvider` that the `CompilerDriver` passes to the `SemanticModelBuilder`. This keeps the semantic model backend-agnostic while allowing the backend to define what external types are available.
+- **All symbols use the same types regardless of origin.** There are no separate "ambient" record types (`AmbientMethod`, `AmbientField`, etc.). Every symbol in the semantic model — whether it came from user Mist source, the backend runtime, or (in the future) an external library — is represented with the same `ISymbol`, `IType`, `IScope` types. A `SymbolOrigin` enum on each symbol tracks provenance.
+- **The backend provides a lazy query interface, not a bulk list.** The `IAmbientTypeResolver` is queried on-demand during name resolution. When user code references an external type, the `SemanticModelBuilder` calls `ResolveType()` to materialize it, then registers it in the scope hierarchy with `SymbolOrigin.Backend`. Types that user code never references are never materialized. The resolver caches results so subsequent queries for the same type return the same instance.
+- **SymbolOrigin drives emission filtering.** The `CSharpEmitter` checks each symbol's `SymbolOrigin`. Symbols with `SymbolOrigin.UserCode` are transpiled to C# source. Symbols with `SymbolOrigin.Backend` are skipped (they already exist in the .NET runtime) but their namespaces still generate `using` directives.
+- **The type checker treats all symbols uniformly.** Name resolution, type checking, and access modifier enforcement apply the same rules regardless of `SymbolOrigin`. No special-casing for "ambient" vs "user" types.
 - **The type system uses exactly two TypeKind members: `Class` and `Struct`.** All primitives are `Struct`, `string` is `Class`, arrays are `Class`, `void` is `Struct`, and `Unknown` is a sentinel with no kind.
 - **The pretty printer operates on the AST, not the semantic model.** It is a pure syntactic transformation used for round-trip testing.
 
@@ -97,7 +100,7 @@ token STRING  = "string";
 
 ```storm
 grammar Mist;
-import "keywords.storm";
+import "keywords";
 ```
 
 ##### Hidden Tokens
@@ -185,8 +188,8 @@ rule NamespaceDeclaration
     ;
 
 rule TypeDeclaration
-    = classDecl:ClassDeclaration   as ClassType
-    | structDecl:StructDeclaration as StructType
+    = classDeclaration:ClassDeclaration   as ClassType
+    | structDeclaration:StructDeclaration as StructType
     ;
 ```
 
@@ -214,13 +217,13 @@ rule MemberDeclaration
 ```storm
 rule FieldDeclaration = modifiers:Modifier* type:TypeReference name:IDENTIFIER initializer:(EQUAL Expression)? SEMICOLON;
 
-rule ConstructorDeclaration = modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS params:ParameterList? RIGHT_PARENTHESIS
+rule ConstructorDeclaration = modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
                               chain:ConstructorChain? body:Block;
 
-rule ConstructorChain = COLON THIS LEFT_PARENTHESIS args:ArgumentList? RIGHT_PARENTHESIS;
+rule ConstructorChain = COLON THIS LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS;
 
 rule MethodDeclaration = modifiers:Modifier* returnType:TypeReference name:IDENTIFIER
-                         LEFT_PARENTHESIS params:ParameterList? RIGHT_PARENTHESIS body:Block;
+                         LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS body:Block;
 
 rule ParameterList = Parameter (COMMA Parameter)*;
 rule Parameter = type:TypeReference name:IDENTIFIER;
@@ -251,19 +254,19 @@ rule PrimitiveType
 rule Block = LEFT_BRACE statements:Statement* RIGHT_BRACE;
 
 rule Statement
-    = varDecl:VariableDeclarationStatement           as VariableDeclarationStatement
-    | returnStmt:ReturnStatement                     as ReturnStatement
-    | ifStmt:IfStatement                             as IfStatement
-    | whileStmt:WhileStatement                       as WhileStatement
-    | forStmt:ForStatement                           as ForStatement
-    | foreachStmt:ForeachStatement                   as ForeachStatement
-    | breakStmt:BreakStatement                       as BreakStatement
-    | exprStmt:ExpressionStatement                   as ExpressionStatement
+    = variableDeclaration:VariableDeclarationStatement   as VariableDeclarationStatement
+    | returnStatement:ReturnStatement                     as ReturnStatement
+    | ifStatement:IfStatement                             as IfStatement
+    | whileStatement:WhileStatement                       as WhileStatement
+    | forStatement:ForStatement                           as ForStatement
+    | foreachStatement:ForeachStatement                   as ForeachStatement
+    | breakStatement:BreakStatement                       as BreakStatement
+    | expressionStatement:ExpressionStatement             as ExpressionStatement
     ;
 
 rule VariableDeclarationStatement
-    = type:TypeReference name:IDENTIFIER EQUAL init:Expression SEMICOLON  as TypedVariableDeclaration
-    | VAR name:IDENTIFIER EQUAL init:Expression SEMICOLON                 as InferredVariableDeclaration
+    = type:TypeReference name:IDENTIFIER EQUAL initializer:Expression SEMICOLON  as TypedVariableDeclaration
+    | VAR name:IDENTIFIER EQUAL initializer:Expression SEMICOLON                 as InferredVariableDeclaration
     ;
 
 rule ReturnStatement
@@ -282,18 +285,18 @@ rule ElseClause
 
 rule WhileStatement = WHILE LEFT_PARENTHESIS condition:Expression RIGHT_PARENTHESIS body:Block;
 
-rule ForStatement = FOR LEFT_PARENTHESIS init:ForInit? SEMICOLON condition:Expression? SEMICOLON iter:Expression? RIGHT_PARENTHESIS body:Block;
+rule ForStatement = FOR LEFT_PARENTHESIS initializer:ForInitializer? SEMICOLON condition:Expression? SEMICOLON iterator:Expression? RIGHT_PARENTHESIS body:Block;
 
-rule ForInit
-    = varDecl:TypeReference name:IDENTIFIER EQUAL init:Expression  as ForInitVariableDeclaration
-    | expr:Expression                                               as ForInitExpression
+rule ForInitializer
+    = variableDeclaration:TypeReference name:IDENTIFIER EQUAL initializer:Expression  as ForInitializerVariableDeclaration
+    | expression:Expression                                                            as ForInitializerExpression
     ;
 
 rule ForeachStatement = FOREACH LEFT_PARENTHESIS type:TypeReference name:IDENTIFIER IN collection:Expression RIGHT_PARENTHESIS body:Block;
 
 rule BreakStatement = BREAK SEMICOLON;
 
-rule ExpressionStatement = expr:Expression SEMICOLON;
+rule ExpressionStatement = expression:Expression SEMICOLON;
 ```
 
 ##### Parser Rules — Expressions (Precedence Climbing)
@@ -307,47 +310,47 @@ rule Assignment = target:LogicalOr (EQUAL value:Assignment)?;
 
 rule LogicalOr  = left:LogicalAnd (LOGICAL_OR right:LogicalAnd)*;
 rule LogicalAnd = left:Equality   (LOGICAL_AND right:Equality)*;
-rule Equality   = left:Relational (op:(EQUAL_EQUAL | NOT_EQUAL) right:Relational)*;
-rule Relational = left:Additive   (op:(LESS_THAN | GREATER_THAN | LESS_THAN_OR_EQUAL | GREATER_THAN_OR_EQUAL) right:Additive)*;
-rule Additive   = left:Multiplicative (op:(PLUS | MINUS) right:Multiplicative)*;
-rule Multiplicative = left:Unary (op:(STAR | SLASH | MODULO) right:Unary)*;
+rule Equality   = left:Relational (operator:(EQUAL_EQUAL | NOT_EQUAL) right:Relational)*;
+rule Relational = left:Additive   (operator:(LESS_THAN | GREATER_THAN | LESS_THAN_OR_EQUAL | GREATER_THAN_OR_EQUAL) right:Additive)*;
+rule Additive   = left:Multiplicative (operator:(PLUS | MINUS) right:Multiplicative)*;
+rule Multiplicative = left:Unary (operator:(STAR | SLASH | MODULO) right:Unary)*;
 
 rule Unary
     = EXCLAMATION operand:Unary    as LogicalNot
     | MINUS operand:Unary          as Negate
-    | primary:Postfix              as PostfixExpr
+    | primary:Postfix              as PostfixExpression
     ;
 
 rule Postfix = target:Primary suffix:PostfixSuffix*;
 
 rule PostfixSuffix
-    = DOT name:IDENTIFIER LEFT_PARENTHESIS args:ArgumentList? RIGHT_PARENTHESIS  as MethodCallSuffix
+    = DOT name:IDENTIFIER LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as MethodCallSuffix
     | DOT name:IDENTIFIER                                                         as MemberAccessSuffix
     | LEFT_BRACKET index:Expression RIGHT_BRACKET                                 as IndexSuffix
-    | LEFT_PARENTHESIS args:ArgumentList? RIGHT_PARENTHESIS                       as InvocationSuffix
+    | LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS                       as InvocationSuffix
     ;
 
 rule Primary
-    = intLit:INTEGER_LITERAL                                               as IntLiteralExpr
-    | hexLit:HEX_LITERAL                                                   as HexLiteralExpr
-    | floatLit:FLOAT_LITERAL                                               as FloatLiteralExpr
-    | stringLit:STRING_LITERAL                                             as StringLiteralExpr
-    | interpString:InterpolatedString                                      as InterpolatedStringExpr
-    | charLit:CHAR_LITERAL                                                 as CharLiteralExpr
-    | TRUE                                                                 as TrueLiteralExpr
-    | FALSE                                                                as FalseLiteralExpr
-    | THIS                                                                 as ThisExpr
-    | NEW type:TypeReference LEFT_BRACKET size:Expression RIGHT_BRACKET    as ArrayCreationExpr
-    | NEW type:QualifiedIdentifier LEFT_PARENTHESIS args:ArgumentList? RIGHT_PARENTHESIS as ObjectCreationExpr
-    | LEFT_PARENTHESIS inner:Expression RIGHT_PARENTHESIS                  as ParenExpr
-    | name:IDENTIFIER                                                      as IdentifierExpr
+    = integerLiteral:INTEGER_LITERAL                                               as IntegerLiteralExpression
+    | hexLiteral:HEX_LITERAL                                                       as HexLiteralExpression
+    | floatLiteral:FLOAT_LITERAL                                                   as FloatLiteralExpression
+    | stringLiteral:STRING_LITERAL                                                 as StringLiteralExpression
+    | interpolatedString:InterpolatedString                                        as InterpolatedStringExpression
+    | charLiteral:CHAR_LITERAL                                                     as CharLiteralExpression
+    | TRUE                                                                         as TrueLiteralExpression
+    | FALSE                                                                        as FalseLiteralExpression
+    | THIS                                                                         as ThisExpression
+    | NEW type:TypeReference LEFT_BRACKET size:Expression RIGHT_BRACKET            as ArrayCreationExpression
+    | NEW type:QualifiedIdentifier LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as ObjectCreationExpression
+    | LEFT_PARENTHESIS inner:Expression RIGHT_PARENTHESIS                          as ParenthesizedExpression
+    | name:IDENTIFIER                                                              as IdentifierExpression
     ;
 
 rule InterpolatedString = INTERPOLATED_STRING_START parts:InterpolatedPart* INTERPOLATED_STRING_END;
 
 rule InterpolatedPart
     = text:INTERPOLATED_STRING_TEXT  as TextPart
-    | LEFT_BRACE expr:Expression RIGHT_BRACE      as ExpressionPart
+    | LEFT_BRACE expression:Expression RIGHT_BRACE      as ExpressionPart
     ;
 ```
 
@@ -372,15 +375,52 @@ The Storm source generator produces one C# type per `rule`. The following table 
 | `TypeReference` | `TypeReferenceNode` (abstract) | `PrimitiveTypeRefNode`, `VoidTypeRefNode`, `NamedTypeRefNode` |
 | `Statement` | `StatementNode` (abstract) | `VariableDeclarationStatementNode`, `ReturnStatementNode`, `IfStatementNode`, `WhileStatementNode`, `ForStatementNode`, `ForeachStatementNode`, `BreakStatementNode`, `ExpressionStatementNode` |
 | `VariableDeclarationStatement` | `VariableDeclarationStatementNode` (abstract) | `TypedVariableDeclarationNode`, `InferredVariableDeclarationNode` |
-| `ForInit` | `ForInitNode` (abstract) | `ForInitVariableDeclarationNode`, `ForInitExpressionNode` |
-| `Expression` → `Primary` | `PrimaryNode` (abstract) | `IntLiteralExprNode`, `StringLiteralExprNode`, `IdentifierExprNode`, etc. |
-| `Unary` | `UnaryNode` (abstract) | `LogicalNotNode`, `NegateNode`, `PostfixExprNode` |
+| `ForInitializer` | `ForInitializerNode` (abstract) | `ForInitializerVariableDeclarationNode`, `ForInitializerExpressionNode` |
+| `Expression` → `Primary` | `PrimaryNode` (abstract) | `IntegerLiteralExpressionNode`, `StringLiteralExpressionNode`, `IdentifierExpressionNode`, etc. |
+| `Unary` | `UnaryNode` (abstract) | `LogicalNotNode`, `NegateNode`, `PostfixExpressionNode` |
 | `PostfixSuffix` | `PostfixSuffixNode` (abstract) | `MethodCallSuffixNode`, `MemberAccessSuffixNode`, `IndexSuffixNode`, `InvocationSuffixNode` |
 
 
 ### Semantic Model — Updated Enums and Types
 
-The architecture spec left `SymbolKind` and `TypeKind` as stubs. This design replaces them with concrete members.
+The architecture spec left `SymbolKind` and `TypeKind` as stubs. This design replaces them with concrete members and introduces `SymbolOrigin` to track where each symbol came from.
+
+#### SymbolOrigin (new enum in `ISymbol.cs`)
+
+```csharp
+/// <summary>
+/// Tracks the provenance of a symbol — where it was defined.
+/// All symbols in the semantic model use the same ISymbol/IType representations
+/// regardless of origin; this enum is the only distinction.
+/// </summary>
+public enum SymbolOrigin
+{
+    /// <summary>Defined in Mist source files written by the user.</summary>
+    UserCode,
+
+    /// <summary>Provided by the backend runtime (e.g., .NET BCL types for the C# backend).</summary>
+    Backend,
+
+    // Future: Library — provided by an external Mist package/library.
+    // Not a v1 goal, but the enum is designed to accommodate it.
+}
+```
+
+The `ISymbol` interface is extended with an `Origin` property:
+
+```csharp
+public interface ISymbol
+{
+    string Name { get; }
+    SymbolKind Kind { get; }
+    SymbolOrigin Origin { get; }
+    IScope ContainingScope { get; }
+    IType? DeclaredType { get; }
+    SourceSpan? DeclarationSpan { get; }
+}
+```
+
+Symbols with `SymbolOrigin.Backend` have `DeclarationSpan` set to `null` (they have no source location in user code). Symbols with `SymbolOrigin.UserCode` always have a non-null `DeclarationSpan`.
 
 #### SymbolKind (replaces existing stub in `ISymbol.cs`)
 
@@ -421,29 +461,30 @@ namespace Mist.Semantics.Model.Types;
 
 /// <summary>
 /// A well-known primitive type (int, bool, char, etc.). All primitives are Struct.
+/// The semantic model knows only about Mist types — backend-specific mappings
+/// (e.g., to C# keywords) live in the respective backend.
 /// </summary>
 public sealed class PrimitiveType : IType
 {
     public string DisplayName { get; }
     public TypeKind Kind => TypeKind.Struct;  // R5.11: all C# primitives are value types
-    public string CSharpKeyword { get; }      // e.g. "int", "bool" — used by emitter
 
     // Well-known singleton instances:
-    public static readonly PrimitiveType Int = new("int", "int");
-    public static readonly PrimitiveType Uint = new("uint", "uint");
-    public static readonly PrimitiveType Long = new("long", "long");
-    public static readonly PrimitiveType Ulong = new("ulong", "ulong");
-    public static readonly PrimitiveType Short = new("short", "short");
-    public static readonly PrimitiveType Ushort = new("ushort", "ushort");
-    public static readonly PrimitiveType Byte = new("byte", "byte");
-    public static readonly PrimitiveType Sbyte = new("sbyte", "sbyte");
-    public static readonly PrimitiveType Float = new("float", "float");
-    public static readonly PrimitiveType Double = new("double", "double");
-    public static readonly PrimitiveType Decimal = new("decimal", "decimal");
-    public static readonly PrimitiveType Bool = new("bool", "bool");
-    public static readonly PrimitiveType Char = new("char", "char");
+    public static readonly PrimitiveType Int = new("int");
+    public static readonly PrimitiveType Uint = new("uint");
+    public static readonly PrimitiveType Long = new("long");
+    public static readonly PrimitiveType Ulong = new("ulong");
+    public static readonly PrimitiveType Short = new("short");
+    public static readonly PrimitiveType Ushort = new("ushort");
+    public static readonly PrimitiveType Byte = new("byte");
+    public static readonly PrimitiveType Sbyte = new("sbyte");
+    public static readonly PrimitiveType Float = new("float");
+    public static readonly PrimitiveType Double = new("double");
+    public static readonly PrimitiveType Decimal = new("decimal");
+    public static readonly PrimitiveType Bool = new("bool");
+    public static readonly PrimitiveType Char = new("char");
 
-    private PrimitiveType(string displayName, string csharpKeyword) { ... }
+    private PrimitiveType(string displayName) { DisplayName = displayName; }
 }
 
 /// <summary>
@@ -524,54 +565,47 @@ public sealed class UnknownType : IType
 
 **Design decision — UnknownType and IType.Kind:** The `IType` interface declares `TypeKind Kind { get; }`, but `UnknownType` has no kind (R5.15). Rather than adding a nullable `TypeKind?` to the interface (which would force null checks everywhere), `UnknownType.Kind` throws. All code that accesses `Kind` must first check `type is not UnknownType`. The type checker ensures `UnknownType` never reaches the backend.
 
-### Ambient Type Provider Interface
+### Ambient Type Resolver Interface
 
-The ambient type system is the mechanism by which the backend provides type definitions to the semantic model (R7.1–R7.5). The interface lives in `Mist.Semantics.Contracts`:
+The ambient type system is the mechanism by which the backend provides type definitions to the semantic model (R7.1–R7.5). Rather than eagerly loading all external types upfront, the resolver uses a lazy query-based approach: the `SemanticModelBuilder` queries the resolver on-demand during name resolution, and types are materialized only when user code actually references them. The interface lives in `Mist.Semantics.Contracts`:
 
 ```csharp
 namespace Mist.Semantics.Contracts;
 
 /// <summary>
-/// Describes a method signature on an ambient type.
+/// Provides on-demand resolution of types from external sources (backend runtime,
+/// future libraries). The semantic model builder queries this during name resolution
+/// instead of eagerly loading all external types upfront.
 /// </summary>
-public sealed record AmbientMethod(
-    string Name,
-    IType ReturnType,
-    ImmutableArray<AmbientParameter> Parameters,
-    bool IsStatic);
-
-/// <summary>
-/// Describes a parameter on an ambient method.
-/// </summary>
-public sealed record AmbientParameter(string Name, IType Type);
-
-/// <summary>
-/// Describes a field on an ambient type.
-/// </summary>
-public sealed record AmbientField(string Name, IType Type, bool IsStatic);
-
-/// <summary>
-/// Describes a type provided by the backend's runtime environment.
-/// </summary>
-public sealed record AmbientTypeDefinition(
-    string FullyQualifiedName,       // e.g. "System.Console"
-    string SimpleName,               // e.g. "Console"
-    string Namespace,                // e.g. "System"
-    TypeKind Kind,
-    ImmutableArray<AmbientMethod> Methods,
-    ImmutableArray<AmbientField> Fields);
-
-/// <summary>
-/// Provides ambient type definitions from the backend's runtime environment.
-/// The semantic model builder calls this before constructing the model.
-/// </summary>
-public interface IAmbientTypeProvider
+public interface IAmbientTypeResolver
 {
-    ImmutableArray<AmbientTypeDefinition> GetAmbientTypes();
+    /// <summary>Does this namespace exist in the external type world?</summary>
+    bool HasNamespace(string namespaceName);
+
+    /// <summary>
+    /// Resolve a type by namespace and simple name. Returns null if not found.
+    /// The returned IType and its member ISymbols are tagged with SymbolOrigin.Backend
+    /// and are cached — subsequent calls for the same type return the same instance.
+    /// </summary>
+    IType? ResolveType(string namespaceName, string typeName);
+
+    /// <summary>
+    /// Get the members (methods, fields, constructors) of a previously resolved type.
+    /// All returned symbols have SymbolOrigin.Backend.
+    /// </summary>
+    ImmutableArray<ISymbol> GetMembers(IType type);
+
+    /// <summary>
+    /// List all type names available in a namespace. Used during name resolution
+    /// when searching imported namespaces for an unqualified type name.
+    /// </summary>
+    ImmutableArray<string> GetTypeNamesInNamespace(string namespaceName);
 }
 ```
 
-The `ISemanticModelBuilder` interface is extended to accept an optional `IAmbientTypeProvider`:
+**Design rationale — lazy resolution over eager bulk-load:** The previous design used an `IAmbientTypeProvider` that returned an `ImmutableArray<AmbientTypeRegistration>` containing all external types at once. The `SemanticModelBuilder` registered every ambient type in a dedicated pass before processing user code. This approach had two drawbacks: (1) it materialized types that user code never references, and (2) it required a separate `AmbientTypeRegistration` data class to bundle type and member information. The lazy resolver eliminates both issues. Types are built only when user code references them, and the resolver returns the same `ISymbol`/`IType` objects used everywhere else — no intermediate registration type needed. The caching guarantee ensures that repeated queries for the same type return the same instance, maintaining reference equality throughout the semantic model. This also sets up cleanly for a future `SymbolOrigin.Library` when external packages are supported — library resolvers would follow the same query pattern.
+
+The `ISemanticModelBuilder` interface accepts an optional `IAmbientTypeResolver`:
 
 ```csharp
 public interface ISemanticModelBuilder
@@ -579,131 +613,242 @@ public interface ISemanticModelBuilder
     ISemanticModel Build(
         MistCompilation compilation,
         ImmutableArray<SyntaxNode> asts,
-        IAmbientTypeProvider? ambientTypeProvider,
+        IAmbientTypeResolver? ambientTypeResolver,
         DiagnosticBag diagnostics);
 }
 ```
 
-The `CompilerDriver` obtains the `IAmbientTypeProvider` from the selected backend before calling `Build`. The `IBackend` interface is extended:
+The `CompilerDriver` obtains the `IAmbientTypeResolver` from the selected backend before calling `Build`. The `IBackend` interface is extended:
 
 ```csharp
 public interface IBackend
 {
     BackendId Id { get; }
-    IAmbientTypeProvider? GetAmbientTypeProvider();
+    IAmbientTypeResolver? GetAmbientTypeResolver();
     BackendResult Emit(ISemanticModel model, string outputDirectory, DiagnosticBag diagnostics);
 }
 ```
 
 ### C# Backend Ambient Types
 
-The `CSharpTranspilerBackend` implements `IAmbientTypeProvider` to provide .NET types (R7.3):
+The `CSharpTranspilerBackend` implements `IAmbientTypeResolver` to provide .NET types (R7.3). The resolver keeps the same hardcoded type data as before but restructures it behind the lazy query interface. It uses internal dictionaries keyed by namespace and type name, and builds `IType`/`ISymbol` objects lazily with caching:
 
 ```csharp
 namespace Mist.Backends.CSharpTranspiler;
 
-public sealed class CSharpAmbientTypeProvider : IAmbientTypeProvider
+public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
 {
-    public ImmutableArray<AmbientTypeDefinition> GetAmbientTypes()
+    // Internal registry of known types, keyed by (namespace, simpleName)
+    // Types and their members are built lazily and cached
+    private readonly Dictionary<string, HashSet<string>> _namespaceTypes = new();
+    private readonly Dictionary<(string Namespace, string TypeName), Func<(IType, ImmutableArray<ISymbol>)>> _typeFactories = new();
+    private readonly Dictionary<(string Namespace, string TypeName), (IType Type, ImmutableArray<ISymbol> Members)> _cache = new();
+
+    public CSharpAmbientTypeResolver()
     {
-        return
-        [
-            // System.Console — static class with WriteLine, ReadLine, Write, etc.
-            new AmbientTypeDefinition(
-                FullyQualifiedName: "System.Console",
-                SimpleName: "Console",
-                Namespace: "System",
-                Kind: TypeKind.Class,
-                Methods:
-                [
-                    new AmbientMethod("WriteLine", VoidType.Instance,
-                        [], IsStatic: true),
-                    new AmbientMethod("WriteLine", VoidType.Instance,
-                        [new AmbientParameter("value", StringType.Instance)], IsStatic: true),
-                    new AmbientMethod("WriteLine", VoidType.Instance,
-                        [new AmbientParameter("value", PrimitiveType.Int)], IsStatic: true),
-                    new AmbientMethod("ReadLine", StringType.Instance,
-                        [], IsStatic: true),
-                    new AmbientMethod("Write", VoidType.Instance,
-                        [new AmbientParameter("value", StringType.Instance)], IsStatic: true),
-                ],
-                Fields: []),
+        // Register known .NET types
+        RegisterType("System", "Console", BuildConsole);
+        RegisterType("System", "String", BuildString);
+        RegisterType("System", "Math", BuildMath);
+        RegisterType("System", "Array", BuildArray);
+        RegisterType("System", "Convert", BuildConvert);
+    }
 
-            // System.String — instance methods
-            new AmbientTypeDefinition(
-                FullyQualifiedName: "System.String",
-                SimpleName: "String",
-                Namespace: "System",
-                Kind: TypeKind.Class,
-                Methods:
-                [
-                    new AmbientMethod("Length", PrimitiveType.Int, [], IsStatic: false),
-                    new AmbientMethod("Substring", StringType.Instance,
-                        [new AmbientParameter("startIndex", PrimitiveType.Int)], IsStatic: false),
-                    new AmbientMethod("Contains", PrimitiveType.Bool,
-                        [new AmbientParameter("value", StringType.Instance)], IsStatic: false),
-                ],
-                Fields: []),
+    public bool HasNamespace(string namespaceName) => _namespaceTypes.ContainsKey(namespaceName);
 
-            // System.Math — static methods
-            new AmbientTypeDefinition(
-                FullyQualifiedName: "System.Math",
-                SimpleName: "Math",
-                Namespace: "System",
-                Kind: TypeKind.Class,
-                Methods:
-                [
-                    new AmbientMethod("Abs", PrimitiveType.Int,
-                        [new AmbientParameter("value", PrimitiveType.Int)], IsStatic: true),
-                    new AmbientMethod("Max", PrimitiveType.Int,
-                        [new AmbientParameter("val1", PrimitiveType.Int),
-                         new AmbientParameter("val2", PrimitiveType.Int)], IsStatic: true),
-                    new AmbientMethod("Min", PrimitiveType.Int,
-                        [new AmbientParameter("val1", PrimitiveType.Int),
-                         new AmbientParameter("val2", PrimitiveType.Int)], IsStatic: true),
-                ],
-                Fields: []),
+    public IType? ResolveType(string namespaceName, string typeName)
+    {
+        if (_cache.TryGetValue((namespaceName, typeName), out var cached))
+            return cached.Type;
 
-            // System.Array — base type for arrays
-            new AmbientTypeDefinition(
-                FullyQualifiedName: "System.Array",
-                SimpleName: "Array",
-                Namespace: "System",
-                Kind: TypeKind.Class,
-                Methods:
-                [
-                    new AmbientMethod("Length", PrimitiveType.Int, [], IsStatic: false),
-                ],
-                Fields: []),
+        if (!_typeFactories.TryGetValue((namespaceName, typeName), out var factory))
+            return null;
 
-            // System.Convert — static conversion methods
-            new AmbientTypeDefinition(
-                FullyQualifiedName: "System.Convert",
-                SimpleName: "Convert",
-                Namespace: "System",
-                Kind: TypeKind.Class,
-                Methods:
-                [
-                    new AmbientMethod("ToInt32", PrimitiveType.Int,
-                        [new AmbientParameter("value", StringType.Instance)], IsStatic: true),
-                    new AmbientMethod("ToString", StringType.Instance,
-                        [new AmbientParameter("value", PrimitiveType.Int)], IsStatic: true),
-                ],
-                Fields: []),
-        ];
+        var (type, members) = factory();
+        _cache[(namespaceName, typeName)] = (type, members);
+        return type;
+    }
+
+    public ImmutableArray<ISymbol> GetMembers(IType type)
+    {
+        // Find the cached entry for this type
+        foreach (var entry in _cache.Values)
+        {
+            if (ReferenceEquals(entry.Type, type))
+                return entry.Members;
+        }
+        return [];
+    }
+
+    public ImmutableArray<string> GetTypeNamesInNamespace(string namespaceName)
+    {
+        if (_namespaceTypes.TryGetValue(namespaceName, out var types))
+            return [.. types];
+        return [];
+    }
+
+    private void RegisterType(string ns, string name, Func<(IType, ImmutableArray<ISymbol>)> factory)
+    {
+        if (!_namespaceTypes.ContainsKey(ns))
+            _namespaceTypes[ns] = [];
+        _namespaceTypes[ns].Add(name);
+        _typeFactories[(ns, name)] = factory;
+    }
+
+    /// <summary>
+    /// Helper: creates a method symbol with SymbolOrigin.Backend.
+    /// </summary>
+    private static ISymbol BuildMethodSymbol(
+        string name, IType returnType, ImmutableArray<ISymbol> parameters,
+        bool isStatic, IScope containingScope)
+    {
+        // Returns a Symbol with:
+        //   Kind = SymbolKind.Method
+        //   Origin = SymbolOrigin.Backend
+        //   DeclaredType = returnType
+        //   DeclarationSpan = null (no source location)
+        //   ContainingScope = containingScope
+        // Parameters are registered as SymbolKind.Parameter with SymbolOrigin.Backend
+        ...
+    }
+
+    private static (IType, ImmutableArray<ISymbol>) BuildConsole()
+    {
+        // System.Console — static class with WriteLine, ReadLine, Write
+        var consoleScope = new Scope(parent: null);
+        var consoleType = new ClassType("Console", consoleScope, "System");
+
+        var members = ImmutableArray.CreateBuilder<ISymbol>();
+
+        // void WriteLine() — static
+        members.Add(BuildMethodSymbol("WriteLine", VoidType.Instance,
+            [], isStatic: true, consoleScope));
+
+        // void WriteLine(string value) — static
+        members.Add(BuildMethodSymbol("WriteLine", VoidType.Instance,
+            [BuildParameterSymbol("value", StringType.Instance)],
+            isStatic: true, consoleScope));
+
+        // void WriteLine(int value) — static
+        members.Add(BuildMethodSymbol("WriteLine", VoidType.Instance,
+            [BuildParameterSymbol("value", PrimitiveType.Int)],
+            isStatic: true, consoleScope));
+
+        // string ReadLine() — static
+        members.Add(BuildMethodSymbol("ReadLine", StringType.Instance,
+            [], isStatic: true, consoleScope));
+
+        // void Write(string value) — static
+        members.Add(BuildMethodSymbol("Write", VoidType.Instance,
+            [BuildParameterSymbol("value", StringType.Instance)],
+            isStatic: true, consoleScope));
+
+        return (consoleType, members.ToImmutable());
+    }
+
+    private static (IType, ImmutableArray<ISymbol>) BuildString()
+    {
+        // System.String — instance methods
+        var stringScope = new Scope(parent: null);
+        var stringType = new ClassType("String", stringScope, "System");
+
+        var members = ImmutableArray.CreateBuilder<ISymbol>();
+
+        // int Length — instance (modeled as a method for v1 simplicity)
+        members.Add(BuildMethodSymbol("Length", PrimitiveType.Int,
+            [], isStatic: false, stringScope));
+
+        // string Substring(int startIndex) — instance
+        members.Add(BuildMethodSymbol("Substring", StringType.Instance,
+            [BuildParameterSymbol("startIndex", PrimitiveType.Int)],
+            isStatic: false, stringScope));
+
+        // bool Contains(string value) — instance
+        members.Add(BuildMethodSymbol("Contains", PrimitiveType.Bool,
+            [BuildParameterSymbol("value", StringType.Instance)],
+            isStatic: false, stringScope));
+
+        return (stringType, members.ToImmutable());
+    }
+
+    private static (IType, ImmutableArray<ISymbol>) BuildMath()
+    {
+        // System.Math — static methods
+        var mathScope = new Scope(parent: null);
+        var mathType = new ClassType("Math", mathScope, "System");
+
+        var members = ImmutableArray.CreateBuilder<ISymbol>();
+
+        members.Add(BuildMethodSymbol("Abs", PrimitiveType.Int,
+            [BuildParameterSymbol("value", PrimitiveType.Int)],
+            isStatic: true, mathScope));
+
+        members.Add(BuildMethodSymbol("Max", PrimitiveType.Int,
+            [BuildParameterSymbol("val1", PrimitiveType.Int),
+             BuildParameterSymbol("val2", PrimitiveType.Int)],
+            isStatic: true, mathScope));
+
+        members.Add(BuildMethodSymbol("Min", PrimitiveType.Int,
+            [BuildParameterSymbol("val1", PrimitiveType.Int),
+             BuildParameterSymbol("val2", PrimitiveType.Int)],
+            isStatic: true, mathScope));
+
+        return (mathType, members.ToImmutable());
+    }
+
+    private static (IType, ImmutableArray<ISymbol>) BuildArray()
+    {
+        // System.Array — base type for arrays
+        var arrayScope = new Scope(parent: null);
+        var arrayType = new ClassType("Array", arrayScope, "System");
+
+        var members = ImmutableArray.CreateBuilder<ISymbol>();
+
+        members.Add(BuildMethodSymbol("Length", PrimitiveType.Int,
+            [], isStatic: false, arrayScope));
+
+        return (arrayType, members.ToImmutable());
+    }
+
+    private static (IType, ImmutableArray<ISymbol>) BuildConvert()
+    {
+        // System.Convert — static conversion methods
+        var convertScope = new Scope(parent: null);
+        var convertType = new ClassType("Convert", convertScope, "System");
+
+        var members = ImmutableArray.CreateBuilder<ISymbol>();
+
+        members.Add(BuildMethodSymbol("ToInt32", PrimitiveType.Int,
+            [BuildParameterSymbol("value", StringType.Instance)],
+            isStatic: true, convertScope));
+
+        members.Add(BuildMethodSymbol("ToString", StringType.Instance,
+            [BuildParameterSymbol("value", PrimitiveType.Int)],
+            isStatic: true, convertScope));
+
+        return (convertType, members.ToImmutable());
     }
 }
 ```
 
+Each builder method (e.g., `BuildConsole`, `BuildString`) contains the same hardcoded type definitions as before — they build real `ISymbol`/`IType` objects with `SymbolOrigin.Backend`. The difference is they are only called when user code actually references the type. The factory functions are registered in the constructor, but the `IType` and `ISymbol` objects are not created until `ResolveType()` is called. Once created, they are cached so that subsequent calls return the same instance.
+
 ### Semantic Model Builder — AST Walking
 
-The `SemanticModelBuilder.Build` method performs these passes:
+The `SemanticModelBuilder.Build` method stores the `IAmbientTypeResolver` as a field and performs two passes:
 
-**Pass 1 — Register ambient types.** If an `IAmbientTypeProvider` is supplied, iterate its `AmbientTypeDefinition` list. For each definition, create a namespace symbol (if not already present), create a type symbol with the appropriate `TypeKind`, and register its methods and fields as member symbols in the type's scope. Register all ambient types in the global scope so user code can reference them (R7.2).
+**Pass 1 — Register user-defined types.** Walk each AST top-down. For each `ClassDeclarationNode` or `StructDeclarationNode`, create a type symbol with `SymbolOrigin.UserCode` and register it in the enclosing namespace scope (or global scope if no namespace). For each `FieldDeclarationNode`, `ConstructorDeclarationNode`, and `MethodDeclarationNode`, create member symbols with `SymbolOrigin.UserCode` in the type's scope.
 
-**Pass 2 — Register user-defined types.** Walk each AST top-down. For each `ClassDeclarationNode` or `StructDeclarationNode`, create a type symbol and register it in the enclosing namespace scope (or global scope if no namespace). For each `FieldDeclarationNode`, `ConstructorDeclarationNode`, and `MethodDeclarationNode`, create member symbols in the type's scope.
+**Pass 2 — Resolve types and build expression types.** Walk each AST again. For each `TypeReference` node, resolve it to an `IType` by looking up the name in the scope chain. During name resolution, when an identifier or type cannot be found in user-defined scopes, the builder queries the ambient type resolver:
 
-**Pass 3 — Resolve types and build expression types.** Walk each AST again. For each `TypeReference` node, resolve it to an `IType` by looking up the name in the scope chain. For each expression, compute and record its type. For `var` declarations, infer the type from the initializer expression (R8.9).
+1. For `using` declarations: call `ambientTypeResolver.HasNamespace(name)` to verify the namespace exists in the external type world.
+2. For type references: call `ambientTypeResolver.ResolveType(namespace, typeName)` to materialize the type on demand.
+3. For member access: call `ambientTypeResolver.GetMembers(type)` to get the type's methods, fields, and constructors.
+4. For unqualified type names: call `ambientTypeResolver.GetTypeNamesInNamespace(ns)` for each imported namespace to search for the type.
+
+Once a type is resolved from the ambient resolver, it gets registered in the semantic model's scope hierarchy with `SymbolOrigin.Backend` so that subsequent references find it via the normal scope-chain walk without re-querying the resolver. This means the resolver is only called once per unique type reference — after that, the type lives in the scope chain like any user-defined type.
+
+For each expression, compute and record its type. For `var` declarations, infer the type from the initializer expression (R8.9).
 
 **Scope hierarchy** (R6.1):
 
@@ -719,7 +864,7 @@ Name resolution (R6.3): search current scope, then walk up to parent scopes. `us
 
 ### Type Checker Implementation
 
-The `TypeCheckerAnalyzer` walks the semantic model and verifies all type rules. It is organized as a set of check methods:
+The `TypeCheckerAnalyzer` walks the semantic model and verifies all type rules. It only traverses user code symbols — it does not traverse into the internals of Backend-origin types to verify their correctness. Backend-origin types are assumed valid and sound. When user code interacts with a Backend-origin type (e.g., calling a method, accessing a field), the type checker verifies the interaction (argument types, return type usage, access modifiers) but does not verify the Backend type's internal consistency. The type checker is organized as a set of check methods:
 
 ```csharp
 public sealed class TypeCheckerAnalyzer : IAnalyzer
@@ -779,7 +924,66 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
 ### C# Transpiler — Code Emission
 
-The `CSharpEmitter` walks the semantic model to produce C# source files (R11). The emitter is organized as a recursive visitor:
+The `CSharpEmitter` walks the semantic model to produce C# source files (R11). The emitter is organized as a recursive visitor. It uses `SymbolOrigin` to decide what to emit: only symbols with `SymbolOrigin.UserCode` are transpiled to C# source. Symbols with `SymbolOrigin.Backend` are skipped (they already exist in the .NET runtime) but their namespaces still generate `using` directives.
+
+#### Mist-to-C# Type Mapping
+
+The semantic model is backend-agnostic — `PrimitiveType` only knows its Mist `DisplayName` (e.g., `"int"`, `"bool"`). The C# backend owns the mapping from Mist primitive types to C# keyword strings. Since Mist v1 mirrors C# syntax 1:1, the mapping is trivial (identity), but the separation keeps the semantic model clean for future backends that may map differently.
+
+```csharp
+namespace Mist.Backends.CSharpTranspiler;
+
+/// <summary>
+/// Maps Mist semantic model types to their C# source-code representations.
+/// For v1 the mapping is 1:1, but this class isolates the backend-specific
+/// knowledge so the semantic model stays backend-agnostic.
+/// </summary>
+internal static class CSharpTypeMap
+{
+    private static readonly Dictionary<PrimitiveType, string> PrimitiveKeywords = new()
+    {
+        [PrimitiveType.Int]     = "int",
+        [PrimitiveType.Uint]    = "uint",
+        [PrimitiveType.Long]    = "long",
+        [PrimitiveType.Ulong]   = "ulong",
+        [PrimitiveType.Short]   = "short",
+        [PrimitiveType.Ushort]  = "ushort",
+        [PrimitiveType.Byte]    = "byte",
+        [PrimitiveType.Sbyte]   = "sbyte",
+        [PrimitiveType.Float]   = "float",
+        [PrimitiveType.Double]  = "double",
+        [PrimitiveType.Decimal] = "decimal",
+        [PrimitiveType.Bool]    = "bool",
+        [PrimitiveType.Char]    = "char",
+    };
+
+    /// <summary>
+    /// Returns the C# keyword for a Mist primitive type.
+    /// </summary>
+    public static string GetKeyword(PrimitiveType type) =>
+        PrimitiveKeywords.TryGetValue(type, out var keyword)
+            ? keyword
+            : throw new ArgumentException($"Unknown primitive type: {type.DisplayName}");
+
+    /// <summary>
+    /// Returns the C# source representation of any Mist IType.
+    /// </summary>
+    public static string GetTypeName(IType type) => type switch
+    {
+        PrimitiveType p => GetKeyword(p),
+        StringType     => "string",
+        VoidType       => "void",
+        ArrayType a    => $"{GetTypeName(a.ElementType)}[]",
+        ClassType c    => c.DisplayName,
+        StructType s   => s.DisplayName,
+        _ => throw new ArgumentException($"Cannot map type to C#: {type.DisplayName}"),
+    };
+}
+```
+
+The `CSharpSourceWriter` (used internally by the emitter) calls `CSharpTypeMap.GetTypeName(type)` whenever it needs to emit a type reference, rather than reading a property from the semantic model type directly.
+
+#### Emitter Entry Point
 
 ```csharp
 public sealed class CSharpEmitter
@@ -789,7 +993,14 @@ public sealed class CSharpEmitter
         Directory.CreateDirectory(outputDirectory);
         EmitCsproj(outputDirectory);
 
-        // Group symbols by compilation unit
+        // Collect namespaces from Backend-origin symbols for using directives
+        var backendNamespaces = model.AllSymbols
+            .Where(s => s.Origin == SymbolOrigin.Backend && s.Kind == SymbolKind.Namespace)
+            .Select(s => s.Name)
+            .Distinct()
+            .OrderBy(n => n, StringComparer.Ordinal);
+
+        // Emit only UserCode-origin symbols — Backend symbols already exist in .NET
         foreach (var unit in model.Units)
         {
             var csFileName = Path.ChangeExtension(
@@ -797,16 +1008,24 @@ public sealed class CSharpEmitter
             var csPath = Path.Combine(outputDirectory, csFileName);
 
             using var writer = new StreamWriter(csPath);
-            var emitter = new CSharpSourceWriter(writer, model);
+            var emitter = new CSharpSourceWriter(writer, model, backendNamespaces);
             emitter.EmitCompilationUnit(unit);
         }
     }
 }
 ```
 
+**SymbolOrigin-based emission rules:**
+- The emitter iterates `model.Units` (which correspond to user source files) and emits C# for each.
+- When emitting type declarations, the emitter skips any symbol where `Origin == SymbolOrigin.Backend`. These types already exist in the .NET runtime.
+- When collecting `using` directives, the emitter includes namespaces from `SymbolOrigin.Backend` symbols that are referenced by user code (R11.2, R7.5). For example, if user code calls `Console.WriteLine`, the emitter adds `using System;`.
+- The emitter does not need to know *which* types are "ambient" — it simply checks `Origin`. This makes the emitter agnostic to the specific backend types and extensible for future `SymbolOrigin.Library` support.
+- The lazy resolution approach means only ambient types that user code actually references will have been materialized in the semantic model. The emitter naturally only sees these referenced types when collecting `using` directives — unreferenced ambient types are absent from the model entirely.
+
 **Emission rules:**
+- Only symbols with `SymbolOrigin.UserCode` are emitted as C# source (Backend symbols are skipped)
 - One `.cs` file per Mist source file (R11.1)
-- `using` directives at the top for all referenced namespaces and ambient type namespaces (R11.2)
+- `using` directives at the top for all referenced namespaces, including namespaces from `SymbolOrigin.Backend` types (R11.2, R7.5)
 - Namespace declarations mirror Mist source (R11.3)
 - Class/struct declarations with modifiers, fields, constructors, methods (R11.4)
 - Method bodies with all statements and expressions (R11.5)
@@ -820,7 +1039,7 @@ public sealed class CSharpEmitter
 
 The emitter produces C# that is syntactically 1:1 with the Mist source, since Mist mirrors C# syntax. The main transformations are:
 1. Adding `using` directives for ambient type namespaces
-2. Translating Mist type references to C# type references (which are identical for v1)
+2. Translating Mist type references to C# type references via `CSharpTypeMap` (which are identical for v1, but the indirection keeps the semantic model backend-agnostic)
 
 ### Pretty Printer
 
@@ -870,7 +1089,9 @@ The pretty printer:
 
 ### Sample Application
 
-The sample application lives at `samples/HelloMist/Program.mist` and exercises every language feature (R13):
+The sample application lives at `samples/HelloMist/` and is split across three files — `Point.mist`, `Color.mist`, and `Program.mist` — to exercise multi-file compilation. This verifies that the compiler correctly handles multiple compilation units sharing the same namespace, which exercises the full pipeline (lexing, parsing, semantic model construction, type checking, and C# emission) across file boundaries. Each file declares the same `using` and `namespace` directives, and the compiler must merge them into a single semantic model before type checking and emission.
+
+#### `samples/HelloMist/Point.mist`
 
 ```mist
 using System;
@@ -907,6 +1128,14 @@ public class Point
         return $"Point({x}, {y})";
     }
 }
+```
+
+#### `samples/HelloMist/Color.mist`
+
+```mist
+using System;
+
+namespace HelloMist;
 
 public struct Color
 {
@@ -926,6 +1155,14 @@ public struct Color
         return $"#{r}{g}{b}";
     }
 }
+```
+
+#### `samples/HelloMist/Program.mist`
+
+```mist
+using System;
+
+namespace HelloMist;
 
 public class Program
 {
@@ -1059,7 +1296,7 @@ public class Program
 }
 ```
 
-This sample exercises: `namespace` (R13.2), `using` (R13.2), `class` (R13.2), `struct` (R13.2), `public`/`private`/`static` (R13.3), constructors with chaining (R13.4), methods with parameters and return values (R13.5), `if`/`else`/`while`/`for`/`foreach`/`return` (R13.6), all arithmetic/comparison/logical operators (R13.7), `var` and explicit types (R13.8), arrays (R13.9), `new` (R13.10), all literal types (R13.11), `Console.WriteLine` (R13.12), and a valid entry point (R13.13).
+This sample exercises: `namespace` (R13.2), `using` (R13.2), `class` (R13.2), `struct` (R13.2), `public`/`private`/`static` (R13.3), constructors with chaining (R13.4), methods with parameters and return values (R13.5), `if`/`else`/`while`/`for`/`foreach`/`return` (R13.6), all arithmetic/comparison/logical operators (R13.7), `var` and explicit types (R13.8), arrays (R13.9), `new` (R13.10), all literal types (R13.11), `Console.WriteLine` (R13.12), and a valid entry point (R13.13). The multi-file structure additionally exercises the compiler's ability to process multiple compilation units that share a namespace, verifying that cross-file type references (e.g., `Program.mist` instantiating `Point` and `Color` defined in separate files) resolve correctly through the semantic model.
 
 ## Data Models
 
@@ -1067,26 +1304,37 @@ This sample exercises: `namespace` (R13.2), `using` (R13.2), `class` (R13.2), `s
 
 ```mermaid
 graph TD
-    A[AST Nodes] --> B[SemanticModelBuilder]
-    C[IAmbientTypeProvider] --> B
+    A[AST Nodes] -->|SymbolOrigin.UserCode| B[SemanticModelBuilder]
+    C[IAmbientTypeResolver] -.->|on-demand queries during Pass 2| B
     B --> D[SymbolTable]
     B --> E[Scope Hierarchy]
     D --> F[ISemanticModel]
     E --> F
     F --> G[TypeCheckerAnalyzer]
     F --> H[CSharpEmitter]
+    H -->|Filter: UserCode only| I[C# Source Files]
+    H -->|Collect: Backend namespaces| J[using Directives]
+
+    subgraph "Lazy Resolution (Pass 2)"
+        B -->|1. Type not in scope?| C
+        C -->|2. ResolveType / GetMembers| B
+        B -->|3. Register with SymbolOrigin.Backend| D
+    end
 ```
+
+All symbols in the `SymbolTable` use the same `ISymbol`/`IType` types. The `SymbolOrigin` tag is the only distinction between user-defined and backend-provided symbols. The type checker treats them uniformly. The emitter uses `SymbolOrigin` to decide what to emit vs what to reference via `using` directives. Backend-origin types are only materialized in the `SymbolTable` when user code actually references them — unreferenced ambient types are never created.
 
 ### Type Resolution Lookup Order
 
-When resolving a type name (e.g., `Point`, `int`, `Console`):
+When resolving a type name (e.g., `Point`, `int`, `Console`), the lookup integrates the lazy ambient type resolver:
 
 1. Check well-known primitive types (`int`, `bool`, etc.)
 2. Check `string` and `void` special types
-3. Search current scope → parent scopes (R6.3)
-4. Search imported namespaces from `using` declarations (R6.2)
-5. Search ambient types registered in global scope (R7.2)
-6. If not found → emit diagnostic, return `UnknownType` (R6.4)
+3. Search current scope → parent scopes (R6.3) — this finds both `UserCode` symbols and previously-materialized `Backend` symbols
+4. Search imported namespaces from `using` declarations (R6.2) — for each imported namespace, check user-defined types first, then query `ambientTypeResolver.GetTypeNamesInNamespace()` and `ambientTypeResolver.ResolveType()` if not found
+5. If not found → emit diagnostic, return `UnknownType` (R6.4)
+
+Once a type is resolved from the ambient resolver (step 4), it is registered in the semantic model's scope hierarchy with `SymbolOrigin.Backend` so that subsequent references find it via the normal scope walk (step 3) without re-querying. This means the first reference to an ambient type triggers a resolver call, but all subsequent references are resolved through the standard scope chain.
 
 ### Expression Type Computation
 
@@ -1120,7 +1368,7 @@ Each expression node in the AST gets an associated `IType` in the semantic model
 
 *A property is a characteristic or behavior that should hold true across all valid executions of a system — essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
-The following properties are derived from the acceptance criteria prework analysis. Redundant properties have been consolidated: many individual grammar/parser criteria (R2–R4) are subsumed by the round-trip property; individual symbol-kind criteria (R5.3–R5.10) are combined into one declaration mapping property; and individual type-checker criteria (R8.1–R8.14) are grouped into well-typed/ill-typed properties.
+The following properties are derived from the acceptance criteria prework analysis. Redundant properties have been consolidated: many individual grammar/parser criteria (R2–R4) are subsumed by the round-trip property; individual symbol-kind criteria (R5.3–R5.10) are combined into one declaration mapping property; and individual type-checker criteria (R8.1–R8.14) are grouped into well-typed/ill-typed properties. A new property (Property 13) validates the `SymbolOrigin`-based emission filtering.
 
 ### Property 1: Lexer round-trip (token concatenation reproduces source)
 
@@ -1188,13 +1436,19 @@ The following properties are derived from the acceptance criteria prework analys
 
 **Validates: Requirements 10.1, 10.2, 10.3**
 
-### Property 12: Ambient types are resolvable in user code
+### Property 12: Ambient types are resolved on-demand in user code
 
-*For any* Mist program that references an ambient type (e.g., `Console`, `Math`) via a `using` declaration for the ambient type's namespace, the semantic model SHALL resolve the type reference to the ambient type definition, and the type checker SHALL produce no "undefined name" diagnostic for that reference.
+*For any* Mist program that references a backend-origin type (e.g., `Console`, `Math`) via a `using` declaration for the type's namespace, the semantic model SHALL resolve the type reference by querying the `IAmbientTypeResolver` on demand, register the resolved type with `SymbolOrigin.Backend`, and the type checker SHALL produce no "undefined name" diagnostic for that reference. The resolved symbol SHALL have the same `IType` representation as any user-defined symbol of the same kind. Ambient types that are not referenced by user code SHALL NOT be materialized in the semantic model.
 
 **Validates: Requirements 7.1, 7.2, 7.4**
 
-### Property 13: C# emitter file-count invariant
+### Property 13: C# emitter emits only UserCode symbols
+
+*For any* Mist compilation that passes type checking, the C# emitter SHALL emit C# source declarations only for symbols with `SymbolOrigin.UserCode`. No symbol with `SymbolOrigin.Backend` SHALL appear as a type, method, or field declaration in the emitted C# source. Backend-origin namespaces referenced by user code SHALL appear only as `using` directives.
+
+**Validates: Requirements 7.5, 11.1, 11.2**
+
+### Property 14: C# emitter file-count invariant
 
 *For any* Mist compilation with N source files that passes type checking, the C# emitter SHALL produce exactly N `.cs` files plus one `.csproj` file in the output directory.
 
@@ -1259,7 +1513,7 @@ All type checker diagnostics use `PipelineStage.Analysis` and `AnalyzerName: "Ty
 
 The testing strategy uses both unit tests and property-based tests:
 
-- **Property-based tests** verify universal properties (Properties 1–13 above) across many generated inputs using a PBT library.
+- **Property-based tests** verify universal properties (Properties 1–14 above) across many generated inputs using a PBT library.
 - **Unit tests** verify specific examples, edge cases, integration points, and error conditions.
 
 ### Property-Based Testing Configuration
@@ -1285,6 +1539,8 @@ Test/
 │   │   ├── SymbolKindPropertyTests.cs        // Property 4
 │   │   ├── NameResolutionPropertyTests.cs    // Properties 7, 8
 │   │   ├── AmbientTypePropertyTests.cs       // Property 12
+│   │   ├── AmbientTypeResolverTests.cs       // Unit: HasNamespace, ResolveType, GetMembers, GetTypeNamesInNamespace, caching
+│   │   ├── SymbolOriginTests.cs              // Unit: verify Backend vs UserCode tagging
 │   │   └── ScopeHierarchyTests.cs            // Unit: specific scope scenarios
 │   ├── Analysis/
 │   │   ├── TypeCheckerPropertyTests.cs       // Properties 5, 6
@@ -1292,7 +1548,8 @@ Test/
 │   │   ├── EntryPointPropertyTests.cs        // Property 11
 │   │   └── TypeCheckerEdgeCaseTests.cs       // Unit: var without init, specific errors
 │   ├── Backend/
-│   │   ├── EmitterFileCountPropertyTests.cs  // Property 13
+│   │   ├── EmitterOriginFilterPropertyTests.cs // Property 13
+│   │   ├── EmitterFileCountPropertyTests.cs  // Property 14
 │   │   ├── EmitterOutputTests.cs             // Unit: specific emission patterns
 │   │   └── CsprojEmissionTests.cs            // Unit: .csproj content
 │   ├── Integration/
@@ -1313,11 +1570,19 @@ Unit tests complement property tests by covering:
 3. **Edge cases** — empty programs, programs with only comments, `var` without initializer (R8.10)
 4. **Specific error messages** — verify diagnostic messages match expected patterns
 5. **Integration tests** — compile the sample application end-to-end (R13.14)
-6. **Ambient type provider** — verify the C# backend provides the expected ambient types (R7.3)
-7. **`.csproj` emission** — verify correct settings (R11.10)
+6. **Ambient type resolver** — verify the C# backend's `CSharpAmbientTypeResolver` correctly implements the lazy query interface:
+   - `HasNamespace` returns `true` for known namespaces (`System`) and `false` for unknown ones
+   - `ResolveType` returns the correct `IType` for known types and `null` for unknown types
+   - `GetMembers` returns the expected member symbols for a resolved type
+   - `GetTypeNamesInNamespace` returns the expected type names for a known namespace
+   - Caching: calling `ResolveType` twice for the same type returns the same instance (reference equality)
+   - Unreferenced types are NOT materialized: after resolving only `Console`, the cache should not contain `Math`, `Convert`, etc.
+7. **SymbolOrigin tagging** — verify user-defined symbols get `SymbolOrigin.UserCode` and backend symbols get `SymbolOrigin.Backend`; verify `DeclarationSpan` is null for backend symbols
+8. **`.csproj` emission** — verify correct settings (R11.10)
 
 ### Integration Tests
 
-- Compile the sample application at `samples/HelloMist/Program.mist` through the full pipeline
+- Compile the sample application at `samples/HelloMist/` (all `.mist` files) through the full pipeline
 - Verify the produced .NET executable runs without errors (R13.14)
+- Verify that multi-file compilation correctly resolves cross-file type references within the same namespace
 - Verify diagnostic output format matches MSBuild format for CI tool compatibility

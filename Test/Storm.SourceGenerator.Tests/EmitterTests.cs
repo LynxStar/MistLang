@@ -277,8 +277,8 @@ namespace Storm.SourceGenerator.Tests
             var output = ParserEmitter.Emit(ctx);
 
             Assert.Contains("public static class TestParser", output);
-            // No parse methods for empty grammar
-            Assert.DoesNotContain("Parse", output.Substring(output.IndexOf("class TestParser") + 20));
+            // No public parse methods for empty grammar (helper methods are still emitted)
+            Assert.DoesNotContain("public static", output.Substring(output.IndexOf("class TestParser") + 20));
         }
 
         // ---------------------------------------------------------------

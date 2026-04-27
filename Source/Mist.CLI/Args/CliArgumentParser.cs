@@ -22,6 +22,7 @@ public static class CliArgumentParser
         var errors = new List<CliParseError>();
         var backendId = "csharp";
         var outputDirectory = "./out";
+        var mode = CompilerMode.Compile;
 
         for(var i = 0; i < args.Length; i++)
         {
@@ -51,6 +52,27 @@ public static class CliArgumentParser
                     outputDirectory = args[i];
                 }
             }
+            else if(arg == "--mode")
+            {
+                if(i + 1 >= args.Length)
+                {
+                    errors.Add(new CliParseError("Missing value for --mode flag."));
+                }
+                else
+                {
+                    i++;
+                    mode = args[i].ToLowerInvariant() switch
+                    {
+                        "compile" => CompilerMode.Compile,
+                        "lex" => CompilerMode.Lex,
+                        _ => CompilerMode.Compile,
+                    };
+                    if(args[i].ToLowerInvariant() is not ("compile" or "lex"))
+                    {
+                        errors.Add(new CliParseError($"Unknown mode: '{args[i]}'. Valid modes: compile, lex"));
+                    }
+                }
+            }
             else if(arg.StartsWith("--"))
             {
                 errors.Add(new CliParseError($"Unknown flag: {arg}"));
@@ -63,7 +85,7 @@ public static class CliArgumentParser
 
         return errors.Count > 0
             ? new CliParseResult(null, errors)
-            : new CliParseResult(new CliArguments(sourceFiles, backendId, outputDirectory), errors)
+            : new CliParseResult(new CliArguments(sourceFiles, backendId, outputDirectory, mode), errors)
             ;
     }
 }

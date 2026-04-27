@@ -200,3 +200,6 @@ FakesAssemblies/
 
 # Rider
 .idea
+
+#Mist CLI
+out

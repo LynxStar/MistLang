@@ -342,21 +342,17 @@ internal sealed class CSharpSourceWriter
     {
         if (paramList is null) return "";
 
-        var parameters = new List<string>();
-
-        // First parameter.
-        parameters.Add(EmitParameter(paramList.Parameter));
-
-        // Additional parameters from children.
-        foreach (var child in paramList.Children())
+        // The Storm generator only stores the first parameter as a named property;
+        // additional comma-separated parameters are parsed but discarded from the AST.
+        // Use the source span to faithfully reproduce the full parameter list.
+        var span = paramList.Span;
+        if (span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
         {
-            if (child is ParameterNode param && !ReferenceEquals(param, paramList.Parameter))
-            {
-                parameters.Add(EmitParameter(param));
-            }
+            return _sourceText.Contents.Substring(span.Start, span.Length);
         }
 
-        return string.Join(", ", parameters);
+        // Fallback: emit the single parameter we do have.
+        return EmitParameter(paramList.Parameter);
     }
 
     private string EmitParameter(ParameterNode param)
@@ -370,21 +366,17 @@ internal sealed class CSharpSourceWriter
     {
         if (argList is null) return "";
 
-        var arguments = new List<string>();
-
-        // First argument.
-        arguments.Add(EmitExpression(argList.Expression));
-
-        // Additional arguments from children.
-        foreach (var child in argList.Children())
+        // The Storm generator only stores the first expression as a named property;
+        // additional comma-separated arguments are parsed but discarded from the AST.
+        // Use the source span to faithfully reproduce the full argument list.
+        var span = argList.Span;
+        if (span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
         {
-            if (child is ExpressionNode expr && !ReferenceEquals(expr, argList.Expression))
-            {
-                arguments.Add(EmitExpression(expr));
-            }
+            return _sourceText.Contents.Substring(span.Start, span.Length);
         }
 
-        return string.Join(", ", arguments);
+        // Fallback: emit the single argument we do have.
+        return EmitExpression(argList.Expression);
     }
 
     private string EmitTypeReference(TypeReferenceNode typeRef)

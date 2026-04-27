@@ -103,19 +103,28 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (compilationUnit.Namespace is not null)
         {
             namespaceName = ExtractNamespaceName(compilationUnit.Namespace, sourceText);
-            var namespaceScope = new Scope(parent: globalScope);
 
-            var namespaceSpan = ToMistSourceSpan(compilationUnit.Namespace.Span);
-            var namespaceSymbol = new Symbol(
-                namespaceName,
-                SymbolKind.Namespace,
-                SymbolOrigin.UserCode,
-                globalScope,
-                declaredType: null,
-                namespaceSpan);
+            // Reuse an existing namespace scope if this namespace was already
+            // registered by a previous compilation unit (multiple files can
+            // contribute types to the same namespace).
+            Scope? namespaceScope = FindExistingNamespaceScope(globalScope, symbolTable, namespaceName);
 
-            globalScope.AddMember(namespaceSymbol);
-            symbolTable.Register(namespaceSymbol, compilationUnit.Namespace);
+            if (namespaceScope is null)
+            {
+                namespaceScope = new Scope(parent: globalScope);
+
+                var namespaceSpan = ToMistSourceSpan(compilationUnit.Namespace.Span);
+                var namespaceSymbol = new Symbol(
+                    namespaceName,
+                    SymbolKind.Namespace,
+                    SymbolOrigin.UserCode,
+                    globalScope,
+                    declaredType: null,
+                    namespaceSpan);
+
+                globalScope.AddMember(namespaceSymbol);
+                symbolTable.Register(namespaceSymbol, compilationUnit.Namespace);
+            }
 
             typeContainerScope = namespaceScope;
 
@@ -371,6 +380,51 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Fallback: create a new scope (shouldn't happen in practice).
         return new Scope(parent: globalScope);
+    }
+
+    /// <summary>
+    /// Finds an existing namespace scope by looking at type symbols already registered
+    /// under the given namespace name. Used in Pass 1 to reuse the same scope when
+    /// multiple files contribute to the same namespace.
+    /// </summary>
+    private static Scope? FindExistingNamespaceScope(
+        Scope globalScope,
+        SymbolTable symbolTable,
+        string namespaceName)
+    {
+        // Look through all symbols in the global scope for types whose
+        // ContainingScope is a child of globalScope (i.e. a namespace scope).
+        // We identify the right one by checking if any type in that scope
+        // belongs to the target namespace.
+        foreach (var member in globalScope.Members)
+        {
+            if (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct)
+            {
+                // Top-level types (no namespace) — skip.
+                continue;
+            }
+        }
+
+        // Walk all registered symbols to find a type in this namespace.
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct)
+                && symbol.ContainingScope is Scope parentScope
+                && parentScope.Parent == globalScope)
+            {
+                // This type is in a namespace scope. Check if it matches.
+                if (symbol.DeclaredType is ClassType ct && ct.ContainingNamespace == namespaceName)
+                {
+                    return parentScope;
+                }
+                if (symbol.DeclaredType is StructType st && st.ContainingNamespace == namespaceName)
+                {
+                    return parentScope;
+                }
+            }
+        }
+
+        return null;
     }
 
     private static void ResolveTypeDeclaration(

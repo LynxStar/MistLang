@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
@@ -26,37 +27,48 @@ internal class Program
                 Console.Error.WriteLine($"error: {error.Message}");
             }
 
-            Console.Error.WriteLine("Usage: mist [source-files...] [--mode <compile|lex>] [--backend <id>] [--output <dir>]");
+            Console.Error.WriteLine("Usage: mist <build|run> [project-folder] [--backend <id>] [--output <dir>] [--bin <dir>] [--mode <compile|lex>]");
             return 1;
         }
 
         var cliArgs = parseResult.Arguments!;
 
-        // Resolve source files: expand directories to .mist files recursively,
-        // and discover from cwd if no arguments provided.
-        var sourceFiles = new List<string>();
-        if(cliArgs.SourceFiles.Count == 0)
+        switch(cliArgs.Command)
         {
-            sourceFiles.AddRange(discoverMistFiles(Directory.GetCurrentDirectory()));
+            case CliCommand.Build:
+                return RunBuildPipeline(cliArgs);
+
+            case CliCommand.Run:
+                return RunRunCommand(cliArgs);
+
+            default:
+                Console.Error.WriteLine($"error: Unknown command '{cliArgs.Command}'.");
+                return 1;
         }
-        else
-        {
-            foreach(var path in cliArgs.SourceFiles)
-            {
-                if(Directory.Exists(path))
-                {
-                    sourceFiles.AddRange(discoverMistFiles(path));
-                }
-                else
-                {
-                    sourceFiles.Add(path);
-                }
-            }
-        }
+    }
+
+    private static int RunBuildPipeline(CliArguments cliArgs)
+    {
+        // Discover all .mist source files from the project folder, sorted ordinally.
+        var sourceFiles = Directory.EnumerateFiles(cliArgs.ProjectFolder, "*.mist", SearchOption.AllDirectories)
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
 
         if(sourceFiles.Count == 0)
         {
             Console.Error.WriteLine("error: No .mist source files found.");
+            return 1;
+        }
+
+        // Clean output and bin directories before build.
+        try
+        {
+            CleanDirectory(cliArgs.OutputDirectory);
+            CleanDirectory(cliArgs.BinDirectory);
+        }
+        catch(IOException ex)
+        {
+            Console.Error.WriteLine($"error: Failed to clean build directories: {ex.Message}");
             return 1;
         }
 
@@ -65,12 +77,6 @@ internal class Program
             CompilerMode.Lex => RunLexMode(sourceFiles, cliArgs.OutputDirectory),
             _ => RunCompileMode(sourceFiles, cliArgs),
         };
-
-        static IEnumerable<string> discoverMistFiles(string directory)
-        {
-            return Directory.EnumerateFiles(directory, "*.mist", SearchOption.AllDirectories)
-                .OrderBy(f => f, StringComparer.Ordinal);
-        }
     }
 
     private static int RunLexMode(List<string> sourceFiles, string outputDirectory)
@@ -170,11 +176,27 @@ internal class Program
 
     private static int RunCompileMode(List<string> sourceFiles, CliArguments cliArgs)
     {
+        var result = CompileProject(sourceFiles, cliArgs);
+
+        // Format diagnostics to stderr
+        foreach(var diagnostic in result.Diagnostics)
+        {
+            Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
+        }
+
+        // Exit code
+        return result.Succeeded ? 0 : 1;
+    }
+
+    private static CompilerResult CompileProject(List<string> sourceFiles, CliArguments cliArgs)
+    {
         // Map CLI arguments to CompilerOptions
         var options = new CompilerOptions(
+            ProjectFolder: Path.GetFullPath(cliArgs.ProjectFolder),
             SourcePaths: [.. sourceFiles],
             Backend: new BackendId(cliArgs.BackendId),
             OutputDirectory: cliArgs.OutputDirectory,
+            BinDirectory: cliArgs.BinDirectory,
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         // Construct the compiler pipeline
@@ -187,16 +209,100 @@ internal class Program
         var driver = new CompilerDriver(lexer, parser, semanticModelBuilder, analyzers, backends);
 
         // Run compilation
-        var result = driver.Compile(options);
+        return driver.Compile(options);
+    }
 
-        // Format diagnostics to stderr
+    private static int RunRunCommand(CliArguments cliArgs)
+    {
+        // Discover all .mist source files from the project folder, sorted ordinally.
+        var sourceFiles = Directory.EnumerateFiles(cliArgs.ProjectFolder, "*.mist", SearchOption.AllDirectories)
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
+
+        if(sourceFiles.Count == 0)
+        {
+            Console.Error.WriteLine("error: No .mist source files found.");
+            return 1;
+        }
+
+        // Clean output and bin directories before build.
+        try
+        {
+            CleanDirectory(cliArgs.OutputDirectory);
+            CleanDirectory(cliArgs.BinDirectory);
+        }
+        catch(IOException ex)
+        {
+            Console.Error.WriteLine($"error: Failed to clean build directories: {ex.Message}");
+            return 1;
+        }
+
+        // Compile the project
+        var result = CompileProject(sourceFiles, cliArgs);
+
+        // On build failure, print diagnostics and return non-zero
+        if(!result.Succeeded)
+        {
+            foreach(var diagnostic in result.Diagnostics)
+            {
+                Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
+            }
+            return 1;
+        }
+
+        // Print any non-error diagnostics (warnings, etc.)
         foreach(var diagnostic in result.Diagnostics)
         {
             Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
         }
 
-        // Exit code
-        return result.Succeeded ? 0 : 1;
+        // Check for artifact path
+        if(result.PrimaryOutputArtifactPath is null)
+        {
+            Console.Error.WriteLine("error: Build succeeded but no executable artifact was produced.");
+            return 1;
+        }
+
+        return RunArtifact(result.PrimaryOutputArtifactPath);
+    }
+
+    private static int RunArtifact(string artifactPath)
+    {
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = artifactPath,
+                UseShellExecute = false,
+            };
+
+            var process = Process.Start(startInfo);
+            if(process is null)
+            {
+                Console.Error.WriteLine("error: Failed to start 'dotnet' process.");
+                return 1;
+            }
+
+            process.WaitForExit();
+            return process.ExitCode;
+        }
+        catch(Exception ex)
+        {
+            Console.Error.WriteLine($"error: Failed to launch 'dotnet': {ex.Message}");
+            return 1;
+        }
+    }
+
+    /// <summary>
+    /// Deletes all files and subdirectories within a directory. No-op if the directory does not exist.
+    /// </summary>
+    private static void CleanDirectory(string path)
+    {
+        if(!Directory.Exists(path)) return;
+        var di = new DirectoryInfo(path);
+        foreach(var file in di.GetFiles()) file.Delete();
+        foreach(var dir in di.GetDirectories()) dir.Delete(true);
     }
 
     private static string Escape(char c) => c switch

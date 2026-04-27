@@ -7,7 +7,9 @@ namespace Mist.Driver.Contracts;
 /// Options controlling a compilation run.
 /// </summary>
 public sealed record CompilerOptions(
+    string ProjectFolder,
     ImmutableArray<string> SourcePaths,
     BackendId Backend,
     string OutputDirectory,
+    string BinDirectory,
     ImmutableArray<string> EnabledAnalyzerIds);

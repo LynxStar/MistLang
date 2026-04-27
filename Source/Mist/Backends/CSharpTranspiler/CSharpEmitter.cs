@@ -51,6 +51,7 @@ public sealed class CSharpEmitter
                 <ImplicitUsings>enable</ImplicitUsings>
                 <Nullable>enable</Nullable>
                 <Deterministic>true</Deterministic>
+                <EnableNETAnalyzers>false</EnableNETAnalyzers>
               </PropertyGroup>
             </Project>
             """;

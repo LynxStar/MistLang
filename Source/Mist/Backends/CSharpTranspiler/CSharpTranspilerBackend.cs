@@ -14,7 +14,7 @@ public sealed class CSharpTranspilerBackend : IBackend
 
     public IAmbientTypeResolver? GetAmbientTypeResolver() => new CSharpAmbientTypeResolver();
 
-    public BackendResult Emit(ISemanticModel model, string outputDirectory, DiagnosticBag diagnostics)
+    public BackendResult Emit(ISemanticModel model, string outputDirectory, string binDirectory, DiagnosticBag diagnostics)
     {
         var bag = new DiagnosticBag();
 
@@ -32,7 +32,7 @@ public sealed class CSharpTranspilerBackend : IBackend
             }
 
             // Step 2: Compile the emitted C# project
-            var compileResult = CSharpCompilationDriver.Compile(outputDirectory, bag);
+            var compileResult = CSharpCompilationDriver.Compile(outputDirectory, binDirectory, bag);
 
             return compileResult;
         }

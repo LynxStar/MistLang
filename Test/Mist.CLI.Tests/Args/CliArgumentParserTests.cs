@@ -5,24 +5,35 @@ namespace Mist.CLI.Tests.Args;
 public class CliArgumentParserTests
 {
     [Fact]
-    public void Parse_NoArgs_ReturnsDefaults()
+    public void Parse_NoArgs_ReturnsDefaultsWithCwd()
     {
         var result = CliArgumentParser.Parse([]);
 
         Assert.NotNull(result.Arguments);
-        Assert.Empty(result.Arguments!.SourceFiles);
+        Assert.Equal(Directory.GetCurrentDirectory(), result.Arguments!.ProjectFolder);
         Assert.Equal("csharp", result.Arguments.BackendId);
-        Assert.Equal("./out", result.Arguments.OutputDirectory);
+        Assert.Equal(Path.Combine(Directory.GetCurrentDirectory(), "out"), result.Arguments.OutputDirectory);
+        Assert.Equal(Path.Combine(Directory.GetCurrentDirectory(), "bin"), result.Arguments.BinDirectory);
         Assert.Empty(result.Errors);
     }
 
     [Fact]
-    public void Parse_SourceFiles_AreParsed()
+    public void Parse_SingleDirectory_SetsProjectFolder()
     {
-        var result = CliArgumentParser.Parse(["file1.mist", "file2.mist"]);
+        var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var result = CliArgumentParser.Parse([tempDir]);
 
-        Assert.NotNull(result.Arguments);
-        Assert.Equal(["file1.mist", "file2.mist"], result.Arguments!.SourceFiles);
+            Assert.NotNull(result.Arguments);
+            Assert.Equal(tempDir, result.Arguments!.ProjectFolder);
+            Assert.Empty(result.Errors);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
     }
 
     [Fact]
@@ -44,14 +55,33 @@ public class CliArgumentParserTests
     }
 
     [Fact]
-    public void Parse_AllFlags_WithSourceFiles()
+    public void Parse_BinFlag_IsParsed()
     {
-        var result = CliArgumentParser.Parse(["main.mist", "--backend", "csharp", "--output", "./dist"]);
+        var result = CliArgumentParser.Parse(["--bin", "/tmp/bin"]);
 
         Assert.NotNull(result.Arguments);
-        Assert.Equal(["main.mist"], result.Arguments!.SourceFiles);
-        Assert.Equal("csharp", result.Arguments.BackendId);
-        Assert.Equal("./dist", result.Arguments.OutputDirectory);
+        Assert.Equal("/tmp/bin", result.Arguments!.BinDirectory);
+    }
+
+    [Fact]
+    public void Parse_AllFlags_WithProjectFolder()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var result = CliArgumentParser.Parse([tempDir, "--backend", "csharp", "--output", "./dist", "--bin", "./artifacts"]);
+
+            Assert.NotNull(result.Arguments);
+            Assert.Equal(tempDir, result.Arguments!.ProjectFolder);
+            Assert.Equal("csharp", result.Arguments.BackendId);
+            Assert.Equal("./dist", result.Arguments.OutputDirectory);
+            Assert.Equal("./artifacts", result.Arguments.BinDirectory);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
     }
 
     [Fact]
@@ -75,6 +105,16 @@ public class CliArgumentParserTests
     }
 
     [Fact]
+    public void Parse_MissingBinValue_ReportsError()
+    {
+        var result = CliArgumentParser.Parse(["--bin"]);
+
+        Assert.Null(result.Arguments);
+        _ = Assert.Single(result.Errors);
+        Assert.Contains("--bin", result.Errors[0].Message);
+    }
+
+    [Fact]
     public void Parse_UnknownFlag_ReportsError()
     {
         var result = CliArgumentParser.Parse(["--verbose"]);
@@ -82,5 +122,51 @@ public class CliArgumentParserTests
         Assert.Null(result.Arguments);
         _ = Assert.Single(result.Errors);
         Assert.Contains("--verbose", result.Errors[0].Message);
+    }
+
+    [Fact]
+    public void Parse_FilePath_ReportsError()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var result = CliArgumentParser.Parse([tempFile]);
+
+            Assert.Null(result.Arguments);
+            _ = Assert.Single(result.Errors);
+            Assert.Contains("file paths are no longer accepted", result.Errors[0].Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void Parse_MultiplePositionalArgs_ReportsError()
+    {
+        var result = CliArgumentParser.Parse(["dir1", "dir2"]);
+
+        Assert.Null(result.Arguments);
+        Assert.Contains(result.Errors, e => e.Message.Contains("single project folder", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Parse_DefaultDirectories_DerivedFromProjectFolder()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var result = CliArgumentParser.Parse([tempDir]);
+
+            Assert.NotNull(result.Arguments);
+            Assert.Equal(Path.Combine(tempDir, "out"), result.Arguments!.OutputDirectory);
+            Assert.Equal(Path.Combine(tempDir, "bin"), result.Arguments.BinDirectory);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
     }
 }

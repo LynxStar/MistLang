@@ -12,12 +12,19 @@ namespace Mist.Backends.CSharpTranspiler;
 /// </summary>
 public sealed class CSharpCompilationDriver
 {
-    public static BackendResult Compile(string projectDirectory, DiagnosticBag diagnostics)
+    public static BackendResult Compile(string projectDirectory, string binDirectory, DiagnosticBag diagnostics)
     {
+        var absoluteBinDir = Path.GetFullPath(binDirectory);
+
+        if (!Directory.Exists(absoluteBinDir))
+        {
+            Directory.CreateDirectory(absoluteBinDir);
+        }
+
         var psi = new ProcessStartInfo
         {
             FileName = "dotnet",
-            Arguments = "build",
+            Arguments = $"build --output \"{absoluteBinDir}\"",
             WorkingDirectory = projectDirectory,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -46,12 +53,16 @@ public sealed class CSharpCompilationDriver
             var stderr = process.StandardError.ReadToEnd();
             process.WaitForExit();
 
-            // Parse MSBuild diagnostic lines from output
+            // Parse MSBuild diagnostic lines from output, keeping only
+            // diagnostics whose file path is within the emitted project directory.
+            var normalizedProjectDir = Path.GetFullPath(projectDirectory) + Path.DirectorySeparatorChar;
             var allOutput = stdout + "\n" + stderr;
             foreach(var line in allOutput.Split('\n'))
             {
                 var diagnostic = RoslynDiagnosticMapper.TryParse(line);
-                if(diagnostic is not null)
+                if(diagnostic is not null
+                    && diagnostic.CompilationUnitPath is not null
+                    && Path.GetFullPath(diagnostic.CompilationUnitPath).StartsWith(normalizedProjectDir, StringComparison.OrdinalIgnoreCase))
                 {
                     diagnostics.Add(diagnostic);
                 }
@@ -59,7 +70,7 @@ public sealed class CSharpCompilationDriver
 
             var succeeded = process.ExitCode == 0;
             string? artifactPath = succeeded
-                ? Path.Combine(projectDirectory, "bin", "Debug", "net10.0", "MistOutput.dll")
+                ? Path.Combine(absoluteBinDir, "MistOutput.dll")
                 : null;
 
             return new BackendResult(succeeded, artifactPath, diagnostics.ToImmutableArray());

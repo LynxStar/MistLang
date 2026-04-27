@@ -54,9 +54,11 @@ public sealed class EndToEndCompilationTests : IDisposable
     private CompilerOptions MakeOptions(params string[] sourcePaths)
     {
         return new CompilerOptions(
+            ProjectFolder: _outputDir,
             SourcePaths: sourcePaths.ToImmutableArray(),
             Backend: new BackendId("csharp"),
             OutputDirectory: _outputDir,
+            BinDirectory: Path.Combine(_outputDir, "bin"),
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
     }
 
@@ -233,9 +235,11 @@ public sealed class EndToEndCompilationTests : IDisposable
     public void FullPipeline_WithInvalidBackend_ProducesUnknownBackendDiagnostic()
     {
         var options = new CompilerOptions(
+            ProjectFolder: _outputDir,
             SourcePaths: ImmutableArray.Create("dummy.mist"),
             Backend: new BackendId("nonexistent-backend"),
             OutputDirectory: _outputDir,
+            BinDirectory: Path.Combine(_outputDir, "bin"),
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         var driver = CreateRealDriver();
@@ -870,7 +874,8 @@ public sealed class EndToEndCompilationTests : IDisposable
         // Use the full backend (emit + dotnet build)
         var backend = new CSharpTranspilerBackend();
         var backendDiagnostics = new DiagnosticBag();
-        var result = backend.Emit(model, _outputDir, backendDiagnostics);
+        var binDir = Path.Combine(_outputDir, "bin");
+        var result = backend.Emit(model, _outputDir, binDir, backendDiagnostics);
 
         // The emitted C# should compile successfully
         Assert.True(result.Succeeded, $"dotnet build failed. Diagnostics: {string.Join("; ", result.Diagnostics.Select(d => d.Message))}");
@@ -925,7 +930,8 @@ public sealed class EndToEndCompilationTests : IDisposable
         // Emit and compile
         var backend = new CSharpTranspilerBackend();
         var backendDiagnostics = new DiagnosticBag();
-        var result = backend.Emit(model, _outputDir, backendDiagnostics);
+        var binDir = Path.Combine(_outputDir, "bin");
+        var result = backend.Emit(model, _outputDir, binDir, backendDiagnostics);
 
         Assert.True(result.Succeeded, "Build must succeed before running");
         Assert.NotNull(result.PrimaryArtifactPath);

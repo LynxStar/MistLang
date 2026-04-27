@@ -285,9 +285,11 @@ public sealed class PipelineDebugTests : IDisposable
             ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
         var options = new CompilerOptions(
+            ProjectFolder: _outputDir,
             SourcePaths: sourceFiles.ToImmutableArray(),
             Backend: new BackendId("csharp"),
             OutputDirectory: _outputDir,
+            BinDirectory: Path.Combine(_outputDir, "bin"),
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         var result = driver.Compile(options);

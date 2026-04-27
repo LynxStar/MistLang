@@ -12,16 +12,17 @@ public sealed record CliParseResult(CliArguments? Arguments, IReadOnlyList<CliPa
 
 /// <summary>
 /// Hand-rolled argument parser for the Mist CLI.
-/// Parses: <c>mist [source-files...] [--backend &lt;id&gt;] [--output &lt;dir&gt;]</c>
+/// Parses: <c>mist [project-folder] [--backend &lt;id&gt;] [--output &lt;dir&gt;] [--bin &lt;dir&gt;] [--mode &lt;compile|lex&gt;]</c>
 /// </summary>
 public static class CliArgumentParser
 {
     public static CliParseResult Parse(string[] args)
     {
-        var sourceFiles = new List<string>();
+        var positionalArgs = new List<string>();
         var errors = new List<CliParseError>();
         var backendId = "csharp";
-        var outputDirectory = "./out";
+        var outputDirectory = "";
+        var binDirectory = "";
         var mode = CompilerMode.Compile;
 
         for(var i = 0; i < args.Length; i++)
@@ -52,6 +53,18 @@ public static class CliArgumentParser
                     outputDirectory = args[i];
                 }
             }
+            else if(arg == "--bin")
+            {
+                if(i + 1 >= args.Length)
+                {
+                    errors.Add(new CliParseError("Missing value for --bin flag."));
+                }
+                else
+                {
+                    i++;
+                    binDirectory = args[i];
+                }
+            }
             else if(arg == "--mode")
             {
                 if(i + 1 >= args.Length)
@@ -79,13 +92,77 @@ public static class CliArgumentParser
             }
             else
             {
-                sourceFiles.Add(arg);
+                positionalArgs.Add(arg);
             }
         }
 
-        return errors.Count > 0
-            ? new CliParseResult(null, errors)
-            : new CliParseResult(new CliArguments(sourceFiles, backendId, outputDirectory, mode), errors)
-            ;
+        // Detect command verb from the first positional argument
+        var command = CliCommand.Build;
+
+        if(positionalArgs.Count > 0 && positionalArgs[0] == "build")
+        {
+            command = CliCommand.Build;
+            positionalArgs.RemoveAt(0);
+        }
+        else if(positionalArgs.Count > 0 && positionalArgs[0] == "run")
+        {
+            command = CliCommand.Run;
+            positionalArgs.RemoveAt(0);
+        }
+
+        // Validate run + lex mode combination
+        if(command == CliCommand.Run && mode == CompilerMode.Lex)
+        {
+            errors.Add(new CliParseError("The 'run' command is not compatible with '--mode lex'."));
+        }
+
+        // Validate positional arguments
+        string? projectFolder = null;
+
+        if(positionalArgs.Count > 1)
+        {
+            errors.Add(new CliParseError("Only a single project folder is accepted."));
+        }
+        else if(positionalArgs.Count == 1)
+        {
+            var arg = positionalArgs[0];
+
+            if(File.Exists(arg))
+            {
+                errors.Add(new CliParseError("Individual file paths are no longer accepted. Provide a project folder instead."));
+            }
+            else if(!Directory.Exists(arg))
+            {
+                errors.Add(new CliParseError($"Directory does not exist: '{arg}'."));
+            }
+            else
+            {
+                projectFolder = arg;
+            }
+        }
+        else
+        {
+            projectFolder = Directory.GetCurrentDirectory();
+        }
+
+        if(errors.Count > 0)
+        {
+            return new CliParseResult(null, errors);
+        }
+
+        // Resolve default directories
+        if(string.IsNullOrEmpty(outputDirectory))
+        {
+            outputDirectory = Path.Combine(projectFolder!, "out");
+        }
+
+        if(string.IsNullOrEmpty(binDirectory))
+        {
+            binDirectory = Path.Combine(projectFolder!, "bin");
+        }
+
+        return new CliParseResult(
+            new CliArguments(projectFolder!, Command: command, backendId, outputDirectory, binDirectory, mode),
+            errors);
     }
 }

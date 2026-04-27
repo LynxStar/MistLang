@@ -1,12 +1,25 @@
 namespace Mist.CLI.Args;
 
 /// <summary>
+/// The top-level CLI command verb.
+/// </summary>
+public enum CliCommand
+{
+    /// <summary>Compile the project (default).</summary>
+    Build,
+    /// <summary>Compile the project and execute the resulting artifact.</summary>
+    Run,
+}
+
+/// <summary>
 /// Parsed command-line arguments for the Mist compiler CLI.
 /// </summary>
 public sealed record CliArguments(
-    IReadOnlyList<string> SourceFiles,
+    string ProjectFolder,
+    CliCommand Command = CliCommand.Build,
     string BackendId = "csharp",
-    string OutputDirectory = "./out",
+    string OutputDirectory = "",
+    string BinDirectory = "",
     CompilerMode Mode = CompilerMode.Compile);
 
 /// <summary>

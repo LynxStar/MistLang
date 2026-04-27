@@ -53,10 +53,12 @@ public class PipelineBackendPropertyTests
             File.WriteAllText(sourcePath, "some source code");
 
             var options = new CompilerOptions(
-                ImmutableArray.Create(sourcePath),
-                new BackendId("csharp"),
-                Path.Combine(tempDir, "out"),
-                ImmutableArray<string>.Empty);
+                ProjectFolder: tempDir,
+                SourcePaths: ImmutableArray.Create(sourcePath),
+                Backend: new BackendId("csharp"),
+                OutputDirectory: Path.Combine(tempDir, "out"),
+                BinDirectory: Path.Combine(tempDir, "bin"),
+                EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
             var result = driver.Compile(options);
 
@@ -98,10 +100,12 @@ public class PipelineBackendPropertyTests
             File.WriteAllText(sourcePath, "let x = 42;");
 
             var options = new CompilerOptions(
-                ImmutableArray.Create(sourcePath),
-                new BackendId("csharp"),
-                Path.Combine(tempDir, "out"),
-                ImmutableArray<string>.Empty);
+                ProjectFolder: tempDir,
+                SourcePaths: ImmutableArray.Create(sourcePath),
+                Backend: new BackendId("csharp"),
+                OutputDirectory: Path.Combine(tempDir, "out"),
+                BinDirectory: Path.Combine(tempDir, "bin"),
+                EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
             var result = driver.Compile(options);
 
@@ -145,10 +149,12 @@ public class PipelineBackendPropertyTests
             File.WriteAllText(sourcePath, "let x = 42;");
 
             var options = new CompilerOptions(
-                ImmutableArray.Create(sourcePath),
-                new BackendId("csharp"),
-                Path.Combine(tempDir, "out"),
-                ImmutableArray<string>.Empty);
+                ProjectFolder: tempDir,
+                SourcePaths: ImmutableArray.Create(sourcePath),
+                Backend: new BackendId("csharp"),
+                OutputDirectory: Path.Combine(tempDir, "out"),
+                BinDirectory: Path.Combine(tempDir, "bin"),
+                EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
             var result = driver.Compile(options);
 

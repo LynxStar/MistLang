@@ -176,7 +176,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
         // Step 6: Emit via backend
         var backendBag = new DiagnosticBag();
-        var backendResult = backend.Emit(semanticModel, options.OutputDirectory, backendBag);
+        var backendResult = backend.Emit(semanticModel, options.OutputDirectory, options.BinDirectory, backendBag);
 
         foreach(var d in backendBag.ToImmutableArray())
         {

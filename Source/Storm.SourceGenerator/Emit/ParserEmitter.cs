@@ -1,23 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using Storm.SourceGenerator.IR;
 
 namespace Storm.SourceGenerator.Emit
 {
     /// <summary>
-    /// Emits a static recursive-descent parser class with LL(*) prediction.
-    /// For each rule alternation:
-    ///   1. Compute FIRST sets — if disjoint, emit a token-kind switch (LL(1)).
-    ///   2. If FIRST sets overlap, compute bounded lookahead up to depth k — emit lookahead chain.
-    ///   3. If bounded lookahead is insufficient, emit backtracking predicates (PEG ordered-choice).
+    /// Emits a static recursive-descent parser class using PEG ordered-choice
+    /// backtracking for multi-alternative rules and direct parsing for
+    /// single-alternative rules.
     /// Generates hidden-token attachment (leading/trailing trivia model).
     /// Halts on first error, returning null root.
     /// </summary>
     public static class ParserEmitter
     {
-        private const int DefaultMaxLookahead = 4;
 
         public static string Emit(EmissionContext context)
         {
@@ -77,7 +73,6 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteLine("private static int _pos;");
             writer.WriteLine("private static bool _hasError;");
             writer.WriteLine("private static DiagnosticBag? _diagnostics;");
-            writer.WriteLine("private static Dictionary<(int, string), (bool, int)>? _memo;");
         }
 
         // ── Helpers ─────────────────────────────────────────────────────
@@ -92,7 +87,6 @@ namespace Storm.SourceGenerator.Emit
                 writer.WriteLine("_pos = 0;");
                 writer.WriteLine("_hasError = false;");
                 writer.WriteLine("_diagnostics = diag;");
-                writer.WriteLine("_memo = new Dictionary<(int, string), (bool, int)>();");
             });
             writer.WriteEmptyLine();
 
@@ -163,38 +157,6 @@ namespace Storm.SourceGenerator.Emit
                 writer.WriteLine("var s = _tokens[startPos].Span;");
                 writer.WriteLine("var e = _pos > 0 && _pos - 1 < _tokens.Length ? _tokens[_pos - 1].Span : s;");
                 writer.WriteLine("return new SourceSpan(s.Start, Math.Max(0, e.End - s.Start));");
-            });
-            writer.WriteEmptyLine();
-
-            // TryParse — backtracking predicate with memoization
-            writer.WriteBlock("private static bool TryParse(string key, Func<bool> parser)", () =>
-            {
-                writer.WriteBlock("if (_memo!.TryGetValue((_pos, key), out var cached))", () =>
-                {
-                    writer.WriteBlock("if (cached.Item1)", () =>
-                    {
-                        writer.WriteLine("_pos = cached.Item2;");
-                    });
-                    writer.WriteLine("return cached.Item1;");
-                });
-                writer.WriteLine("var saved = _pos;");
-                writer.WriteLine("var savedError = _hasError;");
-                writer.WriteLine("_hasError = false;");
-                writer.WriteLine("var result = parser();");
-                writer.WriteBlock("if (result && !_hasError)", () =>
-                {
-                    writer.WriteLine("_memo[(_pos, key)] = (true, _pos);");
-                    writer.WriteLine("// restore: caller will re-parse on commit");
-                    writer.WriteLine("var endPos = _pos;");
-                    writer.WriteLine("_pos = saved;");
-                    writer.WriteLine("_hasError = savedError;");
-                    writer.WriteLine("_memo[(saved, key)] = (true, endPos);");
-                    writer.WriteLine("return true;");
-                });
-                writer.WriteLine("_memo[(saved, key)] = (false, saved);");
-                writer.WriteLine("_pos = saved;");
-                writer.WriteLine("_hasError = savedError;");
-                writer.WriteLine("return false;");
             });
             writer.WriteEmptyLine();
 
@@ -334,134 +296,17 @@ namespace Storm.SourceGenerator.Emit
 
         private static void EmitSingleAlt(CodeWriter writer, EmissionContext context, RuleAlternativeIR alt, string nodeName)
         {
-            // Compute the full FIRST set for this alternative to generate
-            // a correct lookahead check. This handles rules that start with
-            // optional elements (e.g., modifiers:Modifier* CLASS name:IDENTIFIER ...)
-            // where the first token could be any modifier OR the CLASS keyword.
-            var firstSet = ComputeFirstSet(alt.Expression, context);
-            if (firstSet.Count > 0)
-            {
-                var conditions = new List<string>();
-                foreach (var tokenName in firstSet)
-                {
-                    conditions.Add($"Peek() == (int){TokenKindRef(tokenName)}");
-                }
-                var condition = string.Join(" || ", conditions);
-                writer.WriteBlock($"if (!({condition}))", () =>
-                {
-                    writer.WriteLine("return null;");
-                });
-            }
-
             writer.WriteLine("var sp = _pos;");
-            EmitAltBody(writer, context, alt, nodeName, "sp");
+            writer.WriteLine("var ok = true;");
+            EmitAltBodyWithCheck(writer, context, alt, nodeName, "sp", "ok");
+            writer.WriteLine("return null;");
         }
 
         // ── Multi-alternative with LL(*) prediction ─────────────────────
 
         private static void EmitMultiAlt(CodeWriter writer, EmissionContext context, RuleIR rule, string nodeName, bool hasNamedAlts)
         {
-            // Compute FIRST sets for each alternative
-            var altFirstSets = new List<HashSet<string>>();
-            foreach (var alt in rule.Alternatives)
-            {
-                altFirstSets.Add(ComputeFirstSet(alt.Expression, context));
-            }
-
-            var strategy = DetermineStrategy(altFirstSets);
-
-            switch (strategy)
-            {
-                case PredictionStrategy.LL1Switch:
-                    EmitLL1Switch(writer, context, rule, nodeName, hasNamedAlts, altFirstSets);
-                    break;
-                case PredictionStrategy.BoundedLookahead:
-                    EmitBoundedLookahead(writer, context, rule, nodeName, hasNamedAlts, altFirstSets);
-                    break;
-                case PredictionStrategy.Backtracking:
-                    EmitBacktracking(writer, context, rule, nodeName, hasNamedAlts);
-                    break;
-            }
-        }
-
-        // ── LL(1) switch ────────────────────────────────────────────────
-
-        private static void EmitLL1Switch(CodeWriter writer, EmissionContext context, RuleIR rule, string nodeName, bool hasNamedAlts, List<HashSet<string>> altFirstSets)
-        {
-            writer.WriteBlock("switch (Peek())", () =>
-            {
-                for (int i = 0; i < rule.Alternatives.Count; i++)
-                {
-                    var alt = rule.Alternatives[i];
-                    var altName = alt.AlternativeName ?? "Default";
-                    var typeName = hasNamedAlts ? (altName + rule.Name + "Node") : nodeName;
-
-                    foreach (var tokenName in altFirstSets[i].OrderBy(n => n))
-                    {
-                        writer.WriteLine($"case (int){TokenKindRef(tokenName)}:");
-                    }
-                    writer.WriteBlock("", () =>
-                    {
-                        writer.WriteLine("var sp = _pos;");
-                        EmitAltBody(writer, context, alt, typeName, "sp");
-                    });
-                }
-
-                writer.WriteBlock("default:", () =>
-                {
-                    writer.WriteLine("return null;");
-                });
-            });
-        }
-
-        // ── Bounded lookahead ───────────────────────────────────────────
-
-        private static void EmitBoundedLookahead(CodeWriter writer, EmissionContext context, RuleIR rule, string nodeName, bool hasNamedAlts, List<HashSet<string>> altFirstSets)
-        {
-            // Try to distinguish alternatives using lookahead up to depth k
-            // For each alternative, compute a lookahead sequence signature
-            // If we can distinguish within k tokens, emit nested if-else chains
-            // Otherwise fall back to backtracking
-
-            // First, try LL(1) for the disjoint portions
-            // Then use deeper lookahead for overlapping ones
-            var overlapping = FindOverlappingAlts(altFirstSets);
-
-            if (overlapping.Count == 0)
-            {
-                // All disjoint — use LL(1)
-                EmitLL1Switch(writer, context, rule, nodeName, hasNamedAlts, altFirstSets);
-                return;
-            }
-
-            // Emit lookahead chain: check deeper tokens to distinguish
-            writer.WriteLine("// Bounded lookahead prediction");
-            for (int i = 0; i < rule.Alternatives.Count; i++)
-            {
-                var alt = rule.Alternatives[i];
-                var altName = alt.AlternativeName ?? "Default";
-                var typeName = hasNamedAlts ? (altName + rule.Name + "Node") : nodeName;
-
-                var lookaheadCondition = BuildLookaheadCondition(alt.Expression, context, 0);
-                var prefix = i == 0 ? "if" : "else if";
-
-                writer.WriteBlock($"{prefix} ({lookaheadCondition})", () =>
-                {
-                    writer.WriteLine("var sp = _pos;");
-                    EmitAltBody(writer, context, alt, typeName, "sp");
-                });
-            }
-            writer.WriteBlock("else", () =>
-            {
-                writer.WriteLine("return null;");
-            });
-        }
-
-        // ── Backtracking (LL(*) fallback) ───────────────────────────────
-
-        private static void EmitBacktracking(CodeWriter writer, EmissionContext context, RuleIR rule, string nodeName, bool hasNamedAlts)
-        {
-            writer.WriteLine("// LL(*) backtracking with memoization");
+            // PEG ordered-choice: try each alternative in declaration order
             writer.WriteLine("var saved = _pos;");
             writer.WriteLine("var savedError = _hasError;");
             writer.WriteLine("var savedDiagCount = _diagnostics?.Count ?? 0;");
@@ -473,9 +318,9 @@ namespace Storm.SourceGenerator.Emit
                 var typeName = hasNamedAlts ? ((alt.AlternativeName ?? "Default") + rule.Name + "Node") : nodeName;
 
                 writer.WriteEmptyLine();
-                writer.WriteLine($"// Try alternative: {altName}");
+                writer.WriteLine($"// Alternative: {altName}");
                 writer.WriteLine("_pos = saved;");
-                writer.WriteLine("_hasError = savedError;");
+                writer.WriteLine("_hasError = false;");
                 writer.WriteLine("_diagnostics?.TruncateTo(savedDiagCount);");
                 writer.WriteLine("{");
                 writer.Indent();
@@ -595,14 +440,11 @@ namespace Storm.SourceGenerator.Emit
                     if (withCheck)
                     {
                         writer.WriteLine($"var {localVar} = {okVar} ? _Parse{ruleRef.Rule.Name}() : null;");
+                        writer.WriteBlock($"if ({localVar} == null)", () => writer.WriteLine($"{okVar} = false;"));
                     }
                     else
                     {
                         writer.WriteLine($"var {localVar} = _Parse{ruleRef.Rule.Name}();");
-                    }
-                    if (withCheck)
-                    {
-                        writer.WriteBlock($"if ({localVar} == null)", () => writer.WriteLine($"{okVar} = false;"));
                     }
                     assignedProps.Add((propName, localVar));
                     break;
@@ -643,36 +485,35 @@ namespace Storm.SourceGenerator.Emit
                         assignedProps.Add((propName, localVar));
                     }
 
-                    // Compute the FIRST set of the inner expression to decide whether to enter.
-                    var firstSet = ComputeFirstSet(opt.Inner, context);
-                    if (firstSet.Count > 0)
+                    // Position-save/restore approach: try the inner parse, restore on failure
+                    writer.WriteLine("var _optSaved = _pos;");
+                    writer.WriteLine("var _optSavedError = _hasError;");
+                    writer.WriteLine("var _optSavedDiagCount = _diagnostics?.Count ?? 0;");
+                    var innerAssignedProps = new List<(string PropName, string LocalVar)>();
+                    if (withCheck)
                     {
-                        var conditions = firstSet.OrderBy(n => n)
-                            .Select(n => $"Peek() == (int){TokenKindRef(n)}");
-                        var condition = string.Join(" || ", conditions);
-                        // Use a separate assignedProps list for the inner parse to avoid
-                        // re-adding the pre-declared variables.
-                        var innerAssignedProps = new List<(string PropName, string LocalVar)>();
-                        if (withCheck)
+                        writer.WriteBlock($"if ({okVar})", () =>
                         {
-                            writer.WriteBlock($"if ({okVar} && ({condition}))", () =>
+                            writer.WriteLine("var _optOk = true;");
+                            EmitFullExprParseAssignOnly(writer, context, opt.Inner, labelMap, innerAssignedProps, true, "_optOk");
+                            writer.WriteBlock("if (!_optOk || _hasError)", () =>
                             {
-                                EmitFullExprParseAssignOnly(writer, context, opt.Inner, labelMap, innerAssignedProps, withCheck, okVar);
+                                writer.WriteLine("_pos = _optSaved;");
+                                writer.WriteLine("_hasError = _optSavedError;");
+                                writer.WriteLine("_diagnostics?.TruncateTo(_optSavedDiagCount);");
                             });
-                        }
-                        else
-                        {
-                            writer.WriteBlock($"if ({condition})", () =>
-                            {
-                                EmitFullExprParseAssignOnly(writer, context, opt.Inner, labelMap, innerAssignedProps, false, null);
-                            });
-                        }
+                        });
                     }
                     else
                     {
-                        // Cannot determine FIRST set; just recurse (best effort)
-                        var innerAssignedProps = new List<(string PropName, string LocalVar)>();
-                        EmitFullExprParseAssignOnly(writer, context, opt.Inner, labelMap, innerAssignedProps, withCheck, okVar);
+                        writer.WriteLine("var _optOk = true;");
+                        EmitFullExprParseAssignOnly(writer, context, opt.Inner, labelMap, innerAssignedProps, true, "_optOk");
+                        writer.WriteBlock("if (!_optOk || _hasError)", () =>
+                        {
+                            writer.WriteLine("_pos = _optSaved;");
+                            writer.WriteLine("_hasError = _optSavedError;");
+                            writer.WriteLine("_diagnostics?.TruncateTo(_optSavedDiagCount);");
+                        });
                     }
                     break;
                 }
@@ -694,18 +535,23 @@ namespace Storm.SourceGenerator.Emit
                         assignedProps.Add((propName, localVar));
                     }
 
-                    var firstSet = ComputeFirstSet(star.Inner, context);
-                    if (firstSet.Count > 0)
+                    // Position-progress loop with ok flag: keep parsing while making progress
+                    writer.WriteBlock("while (!_hasError)", () =>
                     {
-                        var conditions = firstSet.OrderBy(n => n)
-                            .Select(n => $"Peek() == (int){TokenKindRef(n)}");
-                        var condition = string.Join(" || ", conditions);
-                        writer.WriteBlock($"while (!_hasError && ({condition}))", () =>
+                        writer.WriteLine("var _starSaved = _pos;");
+                        writer.WriteLine("var _starSavedError = _hasError;");
+                        writer.WriteLine("var _starSavedDiagCount = _diagnostics?.Count ?? 0;");
+                        writer.WriteLine("var _starOk = true;");
+                        var innerAssignedProps = new List<(string PropName, string LocalVar)>();
+                        EmitFullExprParseAssignOnly(writer, context, star.Inner, labelMap, innerAssignedProps, true, "_starOk");
+                        writer.WriteBlock("if (!_starOk || _hasError || _pos == _starSaved)", () =>
                         {
-                            var innerAssignedProps = new List<(string PropName, string LocalVar)>();
-                            EmitFullExprParseAssignOnly(writer, context, star.Inner, labelMap, innerAssignedProps, withCheck, okVar);
+                            writer.WriteLine("_hasError = _starSavedError;");
+                            writer.WriteLine("_pos = _starSaved;");
+                            writer.WriteLine("_diagnostics?.TruncateTo(_starSavedDiagCount);");
+                            writer.WriteLine("break;");
                         });
-                    }
+                    });
                     break;
                 }
 
@@ -893,8 +739,11 @@ namespace Storm.SourceGenerator.Emit
                 {
                     if (withCheck)
                     {
-                        writer.WriteLine($"_{varName} = {okVar} ? _Parse{ruleRef.Rule.Name}() : null;");
-                        writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
+                        writer.WriteBlock($"if ({okVar})", () =>
+                        {
+                            writer.WriteLine($"_{varName} = _Parse{ruleRef.Rule.Name}();");
+                            writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
+                        });
                     }
                     else
                     {
@@ -1068,6 +917,12 @@ namespace Storm.SourceGenerator.Emit
                 }
                 case RuleRefIR ruleRef:
                 {
+                    // Save state before attempting the optional rule parse.
+                    // If the rule fails (sets _hasError), restore state so the
+                    // optional element is treated as absent rather than an error.
+                    writer.WriteLine($"var _optRuleSaved_{varName} = _pos;");
+                    writer.WriteLine($"var _optRuleSavedError_{varName} = _hasError;");
+                    writer.WriteLine($"var _optRuleSavedDiagCount_{varName} = _diagnostics?.Count ?? 0;");
                     if (withCheck)
                     {
                         writer.WriteLine($"var _{varName} = {okVar} ? _Parse{ruleRef.Rule.Name}() : null;");
@@ -1076,6 +931,12 @@ namespace Storm.SourceGenerator.Emit
                     {
                         writer.WriteLine($"var _{varName} = _Parse{ruleRef.Rule.Name}();");
                     }
+                    writer.WriteBlock($"if (_{varName} == null)", () =>
+                    {
+                        writer.WriteLine($"_pos = _optRuleSaved_{varName};");
+                        writer.WriteLine($"_hasError = _optRuleSavedError_{varName};");
+                        writer.WriteLine($"_diagnostics?.TruncateTo(_optRuleSavedDiagCount_{varName});");
+                    });
                     break;
                 }
                 case SequenceIR seq:
@@ -1347,281 +1208,6 @@ namespace Storm.SourceGenerator.Emit
             }
         }
 
-        // ── FIRST set computation ────────────────────────────────────────
-
-        private enum PredictionStrategy
-        {
-            LL1Switch,
-            BoundedLookahead,
-            Backtracking
-        }
-
-        /// <summary>
-        /// Computes the FIRST set of an expression — the set of token names
-        /// that can appear as the first token when parsing this expression.
-        /// </summary>
-        private static HashSet<string> ComputeFirstSet(ExpressionIR expr, EmissionContext context)
-        {
-            var result = new HashSet<string>();
-            ComputeFirstSetInner(expr, context, result, new HashSet<string>());
-            return result;
-        }
-
-        private static void ComputeFirstSetInner(ExpressionIR expr, EmissionContext context, HashSet<string> result, HashSet<string> visited)
-        {
-            switch (expr)
-            {
-                case TokenRefIR tokenRef:
-                    result.Add(tokenRef.Token.Name);
-                    break;
-
-                case RuleRefIR ruleRef:
-                    // Avoid infinite recursion
-                    if (visited.Add(ruleRef.Rule.Name))
-                    {
-                        foreach (var alt in ruleRef.Rule.Alternatives)
-                        {
-                            ComputeFirstSetInner(alt.Expression, context, result, visited);
-                        }
-                    }
-                    break;
-
-                case SequenceIR seq:
-                    // Walk sequence elements: if an element is nullable, include
-                    // the FIRST set of the next element too
-                    foreach (var elem in seq.Elements)
-                    {
-                        ComputeFirstSetInner(elem, context, result, visited);
-                        if (!IsNullable(elem))
-                            break;
-                    }
-                    break;
-
-                case AlternationIR alt:
-                    foreach (var a in alt.Alternatives)
-                    {
-                        ComputeFirstSetInner(a, context, result, visited);
-                    }
-                    break;
-
-                case OptionalIR opt:
-                    ComputeFirstSetInner(opt.Inner, context, result, visited);
-                    break;
-
-                case ZeroOrMoreIR star:
-                    ComputeFirstSetInner(star.Inner, context, result, visited);
-                    break;
-
-                case OneOrMoreIR plus:
-                    ComputeFirstSetInner(plus.Inner, context, result, visited);
-                    break;
-
-                case StringLiteralIR lit:
-                    var token = FindTokenForLiteral(context, lit.Value);
-                    if (token != null)
-                    {
-                        result.Add(token.Name);
-                    }
-                    break;
-
-                case InlineFragmentIR frag:
-                    ComputeFirstSetInner(frag.Body, context, result, visited);
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Returns true if the expression can match zero tokens (is nullable).
-        /// </summary>
-        private static bool IsNullable(ExpressionIR expr)
-        {
-            switch (expr)
-            {
-                case OptionalIR _:
-                case ZeroOrMoreIR _:
-                    return true;
-                case SequenceIR seq:
-                    return seq.Elements.All(IsNullable);
-                case AlternationIR alt:
-                    return alt.Alternatives.Any(IsNullable);
-                default:
-                    return false;
-            }
-        }
-
-        /// <summary>
-        /// Determines the prediction strategy for a set of alternatives based on their FIRST sets.
-        /// Prefers LL(1) > bounded lookahead > backtracking.
-        /// </summary>
-        private static PredictionStrategy DetermineStrategy(List<HashSet<string>> altFirstSets)
-        {
-            // If any alternative has an empty FIRST set, fall back to backtracking
-            if (altFirstSets.Any(s => s.Count == 0))
-            {
-                return PredictionStrategy.Backtracking;
-            }
-
-            // Check if all FIRST sets are disjoint → LL(1)
-            if (AreDisjoint(altFirstSets))
-            {
-                return PredictionStrategy.LL1Switch;
-            }
-
-            // FIRST sets overlap — use backtracking for correct behavior.
-            // Bounded lookahead with if/else-if chains cannot correctly
-            // handle overlapping FIRST sets because it commits to the
-            // first matching branch without backtracking.
-            return PredictionStrategy.Backtracking;
-        }
-
-        private static bool AreDisjoint(List<HashSet<string>> sets)
-        {
-            var seen = new HashSet<string>();
-            foreach (var set in sets)
-            {
-                foreach (var item in set)
-                {
-                    if (!seen.Add(item))
-                    {
-                        return false;
-                    }
-                }
-            }
-            return true;
-        }
-
-        private static List<int> FindOverlappingAlts(List<HashSet<string>> sets)
-        {
-            var result = new List<int>();
-            for (int i = 0; i < sets.Count; i++)
-            {
-                for (int j = i + 1; j < sets.Count; j++)
-                {
-                    if (sets[i].Overlaps(sets[j]))
-                    {
-                        if (!result.Contains(i)) result.Add(i);
-                        if (!result.Contains(j)) result.Add(j);
-                    }
-                }
-            }
-            return result;
-        }
-
-        /// <summary>
-        /// Builds a lookahead condition expression for bounded lookahead prediction.
-        /// Examines the expression structure to generate Peek(0), Peek(1), etc. checks.
-        /// </summary>
-        private static string BuildLookaheadCondition(ExpressionIR expr, EmissionContext context, int depth)
-        {
-            if (depth >= DefaultMaxLookahead)
-            {
-                return "true"; // exceeded lookahead depth, accept
-            }
-
-            switch (expr)
-            {
-                case TokenRefIR tokenRef:
-                    return $"Peek({depth}) == (int){TokenKindRef(tokenRef.Token.Name)}";
-
-                case SequenceIR seq:
-                {
-                    var conditions = new List<string>();
-                    var d = depth;
-                    foreach (var elem in seq.Elements)
-                    {
-                        if (d >= DefaultMaxLookahead) break;
-                        if (elem is TokenRefIR tr)
-                        {
-                            conditions.Add($"Peek({d}) == (int){TokenKindRef(tr.Token.Name)}");
-                            d++;
-                        }
-                        else if (elem is StringLiteralIR sl)
-                        {
-                            var t = FindTokenForLiteral(context, sl.Value);
-                            if (t != null)
-                            {
-                                conditions.Add($"Peek({d}) == (int){TokenKindRef(t.Name)}");
-                                d++;
-                            }
-                        }
-                        else if (elem is RuleRefIR rr)
-                        {
-                            // For rule refs, check the FIRST set of the rule
-                            var firstSet = ComputeFirstSet(elem, context);
-                            if (firstSet.Count == 1)
-                            {
-                                conditions.Add($"Peek({d}) == (int){TokenKindRef(firstSet.First())}");
-                                d++;
-                            }
-                            else if (firstSet.Count > 0)
-                            {
-                                var checks = firstSet.OrderBy(n => n)
-                                    .Select(n => $"Peek({d}) == (int){TokenKindRef(n)}");
-                                conditions.Add($"({string.Join(" || ", checks)})");
-                                d++;
-                            }
-                            break; // Can't look past a rule ref easily
-                        }
-                        else
-                        {
-                            break; // Complex expression, stop lookahead
-                        }
-                    }
-                    return conditions.Count > 0 ? string.Join(" && ", conditions) : "true";
-                }
-
-                case StringLiteralIR lit:
-                {
-                    var token = FindTokenForLiteral(context, lit.Value);
-                    if (token != null)
-                    {
-                        return $"Peek({depth}) == (int){TokenKindRef(token.Name)}";
-                    }
-                    return "true";
-                }
-
-                case AlternationIR alt:
-                {
-                    var checks = alt.Alternatives
-                        .Select(a => BuildLookaheadCondition(a, context, depth))
-                        .Where(c => c != "true");
-                    var joined = string.Join(" || ", checks);
-                    return string.IsNullOrEmpty(joined) ? "true" : $"({joined})";
-                }
-
-                case OptionalIR opt:
-                    return BuildLookaheadCondition(opt.Inner, context, depth);
-
-                case OneOrMoreIR plus:
-                    return BuildLookaheadCondition(plus.Inner, context, depth);
-
-                case ZeroOrMoreIR star:
-                    return BuildLookaheadCondition(star.Inner, context, depth);
-
-                case RuleRefIR ruleRef:
-                {
-                    var firstSet = ComputeFirstSet(expr, context);
-                    if (firstSet.Count == 1)
-                    {
-                        return $"Peek({depth}) == (int){TokenKindRef(firstSet.First())}";
-                    }
-                    else if (firstSet.Count > 0)
-                    {
-                        var checks = firstSet.OrderBy(n => n)
-                            .Select(n => $"Peek({depth}) == (int){TokenKindRef(n)}");
-                        return $"({string.Join(" || ", checks)})";
-                    }
-                    return "true";
-                }
-
-                case InlineFragmentIR frag:
-                    return BuildLookaheadCondition(frag.Body, context, depth);
-
-                default:
-                    return "true";
-            }
-        }
-
         // ── Helpers ─────────────────────────────────────────────────────
 
         private static TokenIR? FindTokenForLiteral(EmissionContext context, string value)
@@ -1631,50 +1217,6 @@ namespace Storm.SourceGenerator.Emit
                 if (token.Expression is StringLiteralIR lit && lit.Value == value)
                     return token;
             }
-            return null;
-        }
-
-        /// <summary>
-        /// Finds the first REQUIRED token that a rule alternative expects.
-        /// Uses the full expression (which includes both labeled and unlabeled elements)
-        /// to correctly handle rules like: modifiers:Modifier* CLASS name:IDENTIFIER ...
-        /// where unlabeled tokens (CLASS) appear between optional and required labeled elements.
-        /// </summary>
-        private static TokenIR? FindFirstRequiredToken(RuleAlternativeIR alt, EmissionContext context)
-        {
-            ExpressionIR firstExpr;
-
-            // Always use the full expression to find the first required token,
-            // since FieldLabels only contains labeled elements and may skip
-            // unlabeled tokens that appear earlier in the sequence.
-            firstExpr = alt.Expression;
-            if (firstExpr is SequenceIR seq && seq.Elements.Count > 0)
-            {
-                foreach (var elem in seq.Elements)
-                {
-                    if (elem is OptionalIR || elem is ZeroOrMoreIR)
-                        continue;
-                    firstExpr = elem;
-                    goto found;
-                }
-                return null;
-            }
-            else if (firstExpr is OptionalIR || firstExpr is ZeroOrMoreIR)
-            {
-                return null;
-            }
-
-            found:
-            while (firstExpr is InlineFragmentIR frag)
-                firstExpr = frag.Body;
-            while (firstExpr is OneOrMoreIR plus)
-                firstExpr = plus.Inner;
-
-            if (firstExpr is TokenRefIR tokenRef)
-                return tokenRef.Token;
-            if (firstExpr is StringLiteralIR lit2)
-                return FindTokenForLiteral(context, lit2.Value);
-
             return null;
         }
 

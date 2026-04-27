@@ -115,7 +115,7 @@ public static class AstEmitter
                 writer.WriteEmptyLine();
                 writer.WriteBlock("public void TruncateTo(int count)", () =>
                 {
-                    writer.WriteBlock("if (count < _messages.Count)", () =>
+                    writer.WriteBlock("if (count >= 0 && count < _messages.Count)", () =>
                         writer.WriteLine("_messages.RemoveRange(count, _messages.Count - count);"));
                 });
             });

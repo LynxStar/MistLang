@@ -279,6 +279,78 @@ namespace Storm.SourceGenerator.Tests
             Assert.Contains("public static class TestParser", output);
             // No public parse methods for empty grammar (helper methods are still emitted)
             Assert.DoesNotContain("public static", output.Substring(output.IndexOf("class TestParser") + 20));
+            // No _memo in the emitted parser state
+            Assert.DoesNotContain("_memo", output);
+        }
+
+        [Fact]
+        public void ParserEmitter_MultiAlt_EmitsPegOrderedChoicePattern()
+        {
+            var ctx = CreateContext(
+                "token Number = [0-9]+;\ntoken Ident = [a-z]+;\nrule Expr = Number as Lit | Ident as Var;");
+
+            var output = ParserEmitter.Emit(ctx);
+
+            // State save preamble
+            Assert.Contains("var saved = _pos;", output);
+            Assert.Contains("var savedError = _hasError;", output);
+            Assert.Contains("var savedDiagCount = _diagnostics?.Count ?? 0;", output);
+
+            // Per-alternative state resets
+            Assert.Contains("_pos = saved;", output);
+            Assert.Contains("_hasError = false;", output);
+            Assert.Contains("_diagnostics?.TruncateTo(savedDiagCount);", output);
+
+            // Epilogue restores _hasError to savedError (not false)
+            Assert.Contains("_hasError = savedError;", output);
+        }
+
+        [Fact]
+        public void ParserEmitter_SingleAlt_EmitsDirectParseWithoutBacktracking()
+        {
+            var ctx = CreateContext(
+                "token Number = [0-9]+;\nrule Stmt = Number;");
+
+            var output = ParserEmitter.Emit(ctx);
+
+            // Extract the internal _ParseStmt method to check its body specifically
+            var methodStart = output.IndexOf("private static StmtNode? _ParseStmt()");
+            Assert.True(methodStart >= 0, "Expected _ParseStmt method in output");
+            var methodBody = output.Substring(methodStart);
+
+            // Single-alt should NOT have backtracking state save/restore
+            Assert.DoesNotContain("var saved = _pos", methodBody);
+            Assert.DoesNotContain("_hasError = false", methodBody);
+            Assert.DoesNotContain("TruncateTo", methodBody);
+        }
+
+        [Fact]
+        public void ParserEmitter_NoLegacyArtifacts_InEmittedCode()
+        {
+            var ctx = CreateContext(
+                "token Number = [0-9]+;\ntoken Ident = [a-z]+;\nrule Expr = Number as Lit | Ident as Var;\nrule Stmt = Number;");
+
+            var output = ParserEmitter.Emit(ctx);
+
+            // No LL(1) switch for alt selection
+            Assert.DoesNotContain("switch (Peek())", output);
+            // No deeper lookahead for alt selection
+            Assert.DoesNotContain("Peek(1)", output);
+            // No TryParse memoization
+            Assert.DoesNotContain("TryParse", output);
+            // No _memo dictionary
+            Assert.DoesNotContain("_memo", output);
+        }
+
+        [Fact]
+        public void ParserEmitter_NoMemoInParserState()
+        {
+            var ctx = CreateContext(
+                "token Number = [0-9]+;\nrule Start = Number;");
+
+            var output = ParserEmitter.Emit(ctx);
+
+            Assert.DoesNotContain("_memo", output);
         }
 
         // ---------------------------------------------------------------

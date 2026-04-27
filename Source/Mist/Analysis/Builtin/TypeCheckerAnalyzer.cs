@@ -1151,7 +1151,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (target is not IdentifierExpressionPrimaryNode identifier)
             return false;
 
-        // If the identifier resolves to a type (ClassType or StructType), it's a type name access.
+        var name = identifier.Name.Lexeme;
+
+        // Check if any symbol with this name is a variable, parameter, or field.
+        // If so, the identifier refers to an instance, not a type name.
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Name == name)
+            {
+                if (symbol.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter or SymbolKind.Field)
+                {
+                    return false;
+                }
+                if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct)
+                {
+                    return true;
+                }
+            }
+        }
+
+        // Fallback: check the expression type for ambient types (e.g. Console)
+        // that may not have a symbol in the user-defined symbol table.
         var resolvedType = model.GetTypeOf(target);
         return resolvedType is ClassType or StructType;
     }

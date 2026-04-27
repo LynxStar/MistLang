@@ -110,7 +110,14 @@ public static class AstEmitter
                 writer.WriteBlock("public void Add(string message)", () => writer.WriteLine("_messages.Add(message);"));
                 writer.WriteEmptyLine();
                 writer.WriteLine("public bool HasErrors => _messages.Count > 0;");
+                writer.WriteLine("public int Count => _messages.Count;");
                 writer.WriteLine("public System.Collections.Generic.IReadOnlyList<string> Messages => _messages;");
+                writer.WriteEmptyLine();
+                writer.WriteBlock("public void TruncateTo(int count)", () =>
+                {
+                    writer.WriteBlock("if (count < _messages.Count)", () =>
+                        writer.WriteLine("_messages.RemoveRange(count, _messages.Count - count);"));
+                });
             });
             writer.WriteEmptyLine();
 

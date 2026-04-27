@@ -197,3 +197,6 @@ FakesAssemblies/
 *.opt
 /Rule.Client.UI/View/Previewer.xaml*
 *.cod
+
+# Rider
+.idea

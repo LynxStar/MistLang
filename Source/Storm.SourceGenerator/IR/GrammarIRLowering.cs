@@ -155,17 +155,26 @@ public static class GrammarIRLowering
         }
 
         // ---------------------------------------------------------------
-        // 5. Lower rule expressions with all references resolved
+        // 5. Lower rule expressions with all references resolved.
+        //    IMPORTANT: We populate the existing shell objects in-place
+        //    (by adding to their mutable List<RuleAlternativeIR>) so that
+        //    RuleRefIR nodes created during lowering — which capture a
+        //    reference to the shell — see the final alternatives.
+        //    Creating new RuleIR objects would leave stale references
+        //    with empty alternative lists, breaking FIRST-set computation.
         // ---------------------------------------------------------------
         var ruleIRs = new List<RuleIR>();
 
         foreach(var (name, decl) in ruleOrder)
         {
             var alternatives = LowerRuleAlternatives(decl.Body, tokensByName, ruleShells, syntheticTokens, diagnostics);
-            // Replace the shell's alternatives list
-            var ruleIR = new RuleIR(name, alternatives);
-            ruleShells[name] = ruleIR;
-            ruleIRs.Add(ruleIR);
+            var shell = ruleShells[name];
+            // The shell was created with a mutable List<RuleAlternativeIR>;
+            // cast back and populate it so all existing RuleRefIR pointers
+            // see the real alternatives.
+            var mutableAlts = (List<RuleAlternativeIR>)shell.Alternatives;
+            mutableAlts.AddRange(alternatives);
+            ruleIRs.Add(shell);
         }
 
         if(diagnostics.Any(d => d.Severity == StormDiagnosticSeverity.Error))

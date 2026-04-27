@@ -308,7 +308,7 @@ This plan implements the complete Mist v1 language as specified in the design do
     - _Requirements: 13.1–13.14_
 
 - [x] 15. Wire everything together and run end-to-end integration
-  - [x] 15.1 Verify the full pipeline compiles the sample application
+  - [-] 15.1 Verify the full pipeline compiles the sample application
     - Run the `mist` CLI on the `samples/HelloMist/` directory
     - Verify the compiler produces a working .NET executable
     - Verify the executable runs without errors

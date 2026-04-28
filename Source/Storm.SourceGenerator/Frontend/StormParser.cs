@@ -132,6 +132,8 @@ namespace Storm.SourceGenerator.Frontend
                         case StormTokenKind.HiddenKeyword:
                         case StormTokenKind.ImportKeyword:
                         case StormTokenKind.GrammarKeyword:
+                        case StormTokenKind.ModeKeyword:
+                        case StormTokenKind.RightBrace:
                             return;
                         default:
                             Advance();
@@ -247,6 +249,8 @@ namespace Storm.SourceGenerator.Frontend
                         return ParseFragmentDecl();
                     case StormTokenKind.HiddenKeyword:
                         return ParseHiddenTokenDecl();
+                    case StormTokenKind.ModeKeyword:
+                        return ParseModeDecl();
                     default:
                         Error($"Expected declaration (rule, token, fragment, or hidden), got '{Current.Lexeme}'");
                         SynchronizeToDeclaration();
@@ -265,15 +269,16 @@ namespace Storm.SourceGenerator.Frontend
                 return new StormRuleDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column);
             }
 
-            /// <summary>token Name = expression ;</summary>
+            /// <summary>token Name = expression ( => push Identifier | => pop )? ;</summary>
             private StormTokenDecl ParseTokenDecl()
             {
                 var kw = Advance(); // consume 'token'
                 var nameTok = Expect(StormTokenKind.Identifier, "token name");
                 Expect(StormTokenKind.Equals, "'='");
                 var body = ParseExpression();
+                var action = ParseActionClause();
                 Expect(StormTokenKind.Semicolon, "';'");
-                return new StormTokenDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column);
+                return new StormTokenDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column, action);
             }
 
             /// <summary>fragment Name = expression ;</summary>
@@ -287,7 +292,7 @@ namespace Storm.SourceGenerator.Frontend
                 return new StormFragmentDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column);
             }
 
-            /// <summary>hidden token Name = expression ;</summary>
+            /// <summary>hidden token Name = expression ( => push Identifier | => pop )? ;</summary>
             private StormHiddenTokenDecl ParseHiddenTokenDecl()
             {
                 var kw = Advance(); // consume 'hidden'
@@ -295,8 +300,104 @@ namespace Storm.SourceGenerator.Frontend
                 var nameTok = Expect(StormTokenKind.Identifier, "token name");
                 Expect(StormTokenKind.Equals, "'='");
                 var body = ParseExpression();
+                var action = ParseActionClause();
                 Expect(StormTokenKind.Semicolon, "';'");
-                return new StormHiddenTokenDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column);
+                return new StormHiddenTokenDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column, action);
+            }
+
+            // ----------------------------------------------------------
+            //  Mode declarations
+            // ----------------------------------------------------------
+
+            /// <summary>mode Identifier { Declaration* }</summary>
+            private StormModeDecl ParseModeDecl()
+            {
+                var kw = Advance(); // consume 'mode'
+
+                // Accept either an Identifier or the 'default' keyword as the mode name.
+                string modeName;
+                if(Current.Kind == StormTokenKind.Identifier || Current.Kind == StormTokenKind.DefaultKeyword)
+                {
+                    modeName = Advance().Lexeme;
+                }
+                else
+                {
+                    Error($"Expected mode name after 'mode', got '{Current.Lexeme}'");
+                    modeName = "<error>";
+                }
+
+                if(Current.Kind != StormTokenKind.LeftBrace)
+                {
+                    Error("Expected '{' after mode name");
+                    SynchronizeToDeclaration();
+                    return new StormModeDecl(modeName, new List<StormDeclaration>(), kw.Offset, kw.Line, kw.Column);
+                }
+                Advance(); // consume '{'
+
+                var declarations = new List<StormDeclaration>();
+                while(Current.Kind != StormTokenKind.RightBrace && Current.Kind != StormTokenKind.EndOfFile)
+                {
+                    var decl = ParseDeclaration();
+                    if(decl != null)
+                    {
+                        declarations.Add(decl);
+                    }
+                }
+
+                if(Current.Kind == StormTokenKind.RightBrace)
+                {
+                    Advance(); // consume '}'
+                }
+                else
+                {
+                    Error("Unterminated mode block");
+                }
+
+                return new StormModeDecl(modeName, declarations, kw.Offset, kw.Line, kw.Column);
+            }
+
+            // ----------------------------------------------------------
+            //  Action clauses
+            // ----------------------------------------------------------
+
+            /// <summary>
+            /// Parses an optional action clause: => push Identifier | => pop
+            /// Returns null if no action clause is present.
+            /// </summary>
+            private StormModeAction? ParseActionClause()
+            {
+                if(Current.Kind != StormTokenKind.FatArrow)
+                {
+                    return null;
+                }
+
+                Advance(); // consume '=>'
+
+                if(Current.Kind == StormTokenKind.PushKeyword)
+                {
+                    Advance(); // consume 'push'
+
+                    // Accept Identifier or 'default' keyword as the mode name.
+                    if(Current.Kind == StormTokenKind.Identifier || Current.Kind == StormTokenKind.DefaultKeyword)
+                    {
+                        var modeNameTok = Advance();
+                        return new StormPushAction(modeNameTok.Lexeme);
+                    }
+
+                    Error("Expected mode name after 'push'");
+                    return new StormPushAction("<error>");
+                }
+
+                if(Current.Kind == StormTokenKind.PopKeyword)
+                {
+                    Advance(); // consume 'pop'
+                    return new StormPopAction();
+                }
+
+                Error($"Expected 'push' or 'pop' after '=>', got '{Current.Lexeme}'");
+                // Synchronize to the next semicolon or declaration keyword.
+                SynchronizeToDeclaration();
+                return null;
             }
 
             // ----------------------------------------------------------

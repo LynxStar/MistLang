@@ -352,10 +352,10 @@ namespace Storm.SourceGenerator.Tests
 
             var names = grammar.Declarations.Select(d => d.Name).ToList();
 
-            // Root declarations first
-            Assert.Equal("RootToken", names[0]);
-            // Then unnamespaced import declarations
-            Assert.Equal("UnnamespacedToken", names[1]);
+            // Unnamespaced import declarations first (imports processed before own declarations)
+            Assert.Equal("UnnamespacedToken", names[0]);
+            // Then root declarations
+            Assert.Equal("RootToken", names[1]);
             // Then namespaced declarations last
             Assert.Equal("NamespacedToken", names[2]);
         }
@@ -376,16 +376,18 @@ namespace Storm.SourceGenerator.Tests
 
             var names = grammar.Declarations.Select(d => d.Name).ToList();
 
-            Assert.Equal("Root", names[0]);
-            Assert.Equal("First", names[1]);
-            Assert.Equal("Second", names[2]);
+            // Imports processed first in import-appearance order
+            Assert.Equal("First", names[0]);
+            Assert.Equal("Second", names[1]);
+            // Then root declarations
+            Assert.Equal("Root", names[2]);
         }
 
         [Fact]
         public void Build_DeclarationOrder_DFSPreOrder_NestedImports()
         {
             // main imports a, a imports b
-            // DFS pre-order: main, a, b
+            // Imports first: b (imported by a), then a, then main's own
             var files = new Dictionary<string, string>
             {
                 ["root/main.storm"] = "grammar Test;\nimport \"a.storm\";\ntoken Root = \"root\";",
@@ -399,12 +401,12 @@ namespace Storm.SourceGenerator.Tests
 
             var names = grammar.Declarations.Select(d => d.Name).ToList();
 
-            // Root first (DFS pre-order: root's own declarations first)
-            Assert.Equal("Root", names[0]);
-            // Then A (from first unnamespaced import, DFS pre-order)
+            // B first (imported by A, which is imported by main — deepest import first)
+            Assert.Equal("B", names[0]);
+            // Then A (imported by main, after its own imports)
             Assert.Equal("A", names[1]);
-            // Then B (imported by A)
-            Assert.Equal("B", names[2]);
+            // Then Root (main's own declarations last)
+            Assert.Equal("Root", names[2]);
         }
 
         // ---------------------------------------------------------------
@@ -473,8 +475,11 @@ namespace Storm.SourceGenerator.Tests
             Assert.True(grammar.Succeeded);
             var names = grammar.Declarations.Select(d => d.Name).ToList();
             Assert.Equal(2, names.Count);
-            Assert.Equal("A", names[0]);
-            Assert.Equal("B", names[1]);
+            // B comes first (imported by a, processed before a's own declarations)
+            // a.storm imports b.storm first, so B is processed first
+            // Then A (a.storm's own declaration)
+            Assert.Equal("B", names[0]);
+            Assert.Equal("A", names[1]);
         }
 
         // ---------------------------------------------------------------

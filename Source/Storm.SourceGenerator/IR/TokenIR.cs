@@ -37,12 +37,25 @@ public sealed class TokenIR
     /// </summary>
     public bool IsSynthetic { get; }
 
-    public TokenIR(string name, ExpressionIR expression, bool isHidden, int declarationIndex, bool isSynthetic = false)
+    /// <summary>
+    /// The mode this token belongs to. Defaults to <c>"default"</c>.
+    /// </summary>
+    public string Mode { get; }
+
+    /// <summary>
+    /// The mode action (push/pop/none) for this token.
+    /// Defaults to <see cref="NoModeActionIR"/>.
+    /// </summary>
+    public ModeActionIR ModeAction { get; }
+
+    public TokenIR(string name, ExpressionIR expression, bool isHidden, int declarationIndex, bool isSynthetic = false, string mode = "default", ModeActionIR? modeAction = null)
     {
         Name = name;
         Expression = expression;
         IsHidden = isHidden;
         DeclarationIndex = declarationIndex;
         IsSynthetic = isSynthetic;
+        Mode = mode;
+        ModeAction = modeAction ?? new NoModeActionIR();
     }
 }

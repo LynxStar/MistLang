@@ -36,4 +36,19 @@ public static class StormDiagnosticIds
 
     /// <summary>Multiple files declare a <c>grammar</c> directive.</summary>
     public static string STORM_MULTIPLE_ROOT_GRAMMARS { get; } = "STORM0010";
+
+    /// <summary>Two mode declarations share the same name.</summary>
+    public static string STORM_DUPLICATE_MODE { get; } = "STORM0011";
+
+    /// <summary>A parser rule declaration appears inside a mode block, which is not permitted.</summary>
+    public static string STORM_RULE_IN_MODE { get; } = "STORM0012";
+
+    /// <summary>A push action references a mode name that is not declared in the grammar.</summary>
+    public static string STORM_UNDEFINED_MODE { get; } = "STORM0013";
+
+    /// <summary>A pop action on a default-mode token has no effect because there is no parent mode to return to.</summary>
+    public static string STORM_POP_FROM_DEFAULT { get; } = "STORM0014";
+
+    /// <summary>A mode declaration uses the reserved name <c>default</c>, which represents the implicit top-level mode.</summary>
+    public static string STORM_RESERVED_MODE_NAME { get; } = "STORM0015";
 }

@@ -7,6 +7,8 @@
     { "include": "#strings" },
     { "include": "#regex-literals" },
     { "include": "#character-classes" },
+    { "include": "#mode-blocks" },
+    { "include": "#action-clauses" },
     { "include": "#definition-names" },
     { "include": "#alternative-labels" },
     { "include": "#labeled-fields" },
@@ -47,6 +49,32 @@
       "name": "constant.other.character-class.storm",
       "match": "\\[([^\\]]*)\\]"
     },
+    "mode-blocks": {
+      "match": "\\b(mode)\\s+(\\w+)",
+      "captures": {
+        "1": { "name": "storage.type.storm" },
+        "2": { "name": "entity.name.tag.storm" }
+      }
+    },
+    "action-clauses": {
+      "patterns": [
+        {
+          "match": "(=>)\\s+(push)\\s+(\\w+)",
+          "captures": {
+            "1": { "name": "keyword.operator.storm" },
+            "2": { "name": "keyword.control.storm" },
+            "3": { "name": "entity.name.tag.storm" }
+          }
+        },
+        {
+          "match": "(=>)\\s+(pop)",
+          "captures": {
+            "1": { "name": "keyword.operator.storm" },
+            "2": { "name": "keyword.control.storm" }
+          }
+        }
+      ]
+    },
     "definition-names": {
       "match": "\\b(token|rule|fragment)\\s+(\\w+)",
       "captures": {
@@ -77,12 +105,20 @@
         {
           "name": "keyword.control.import.storm",
           "match": "\\bimport\\b"
+        },
+        {
+          "name": "keyword.control.storm",
+          "match": "\\b(push|pop)\\b"
+        },
+        {
+          "name": "entity.name.tag.storm",
+          "match": "\\bdefault\\b"
         }
       ]
     },
     "storage-types": {
       "name": "storage.type.storm",
-      "match": "\\b(token|hidden|fragment|rule)\\b"
+      "match": "\\b(token|hidden|fragment|rule|mode)\\b"
     },
     "as-keyword": {
       "name": "keyword.operator.storm",
@@ -105,8 +141,20 @@
       ]
     },
     "punctuation": {
-      "name": "punctuation.terminator.storm",
-      "match": ";"
+      "patterns": [
+        {
+          "name": "punctuation.terminator.storm",
+          "match": ";"
+        },
+        {
+          "name": "punctuation.section.block.begin.storm",
+          "match": "\\{"
+        },
+        {
+          "name": "punctuation.section.block.end.storm",
+          "match": "\\}"
+        }
+      ]
     }
   }
 }

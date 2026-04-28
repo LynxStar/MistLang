@@ -218,7 +218,15 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
             return diagnostics; // Later passes depend on name resolution
         }
 
-        // Pass 2: Left-recursion check
+        // Pass 2: Mode validation
+        var modeValidationDiags = ModeValidationPass.Run(grammar);
+        diagnostics.AddRange(modeValidationDiags);
+        if(modeValidationDiags.Any(d => d.Severity == StormDiagnosticSeverity.Error))
+        {
+            return diagnostics;
+        }
+
+        // Pass 3: Left-recursion check
         var leftRecDiags = LeftRecursionPass.Run(grammar);
         diagnostics.AddRange(leftRecDiags);
         if(leftRecDiags.Any(d => d.Severity == StormDiagnosticSeverity.Error))
@@ -226,11 +234,11 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
             return diagnostics;
         }
 
-        // Pass 3: Reachability check
+        // Pass 4: Reachability check
         var reachDiags = ReachabilityPass.Run(grammar);
         diagnostics.AddRange(reachDiags);
 
-        // Pass 4: Ambiguity check
+        // Pass 5: Ambiguity check
         var ambigDiags = AmbiguityPass.Run(grammar);
         diagnostics.AddRange(ambigDiags);
 

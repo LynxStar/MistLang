@@ -73,7 +73,8 @@ public sealed record StormTokenDecl(
     StormExpression Body,
     int Offset,
     int Line,
-    int Column)
+    int Column,
+    StormModeAction? Action = null)
     : StormDeclaration(Name, Body, Offset, Line, Column);
 
 /// <summary>A <c>fragment Name = ...;</c> declaration.</summary>
@@ -91,8 +92,41 @@ public sealed record StormHiddenTokenDecl(
     StormExpression Body,
     int Offset,
     int Line,
-    int Column)
+    int Column,
+    StormModeAction? Action = null)
     : StormDeclaration(Name, Body, Offset, Line, Column);
+
+// -----------------------------------------------------------------------
+//  Mode actions
+// -----------------------------------------------------------------------
+
+/// <summary>
+/// Base type for mode transition actions on token declarations (<c>=> push</c> / <c>=> pop</c>).
+/// </summary>
+public abstract record StormModeAction;
+
+/// <summary>A push action: <c>=> push ModeName</c></summary>
+public sealed record StormPushAction(string ModeName) : StormModeAction;
+
+/// <summary>A pop action: <c>=> pop</c></summary>
+public sealed record StormPopAction() : StormModeAction;
+
+// -----------------------------------------------------------------------
+//  Mode declarations
+// -----------------------------------------------------------------------
+
+/// <summary>
+/// A mode block declaration: <c>mode ModeName { declarations }</c>.
+/// The <see cref="StormDeclaration.Body"/> is set to a placeholder
+/// <see cref="StormReferenceExpr"/> since mode declarations don't have a body expression.
+/// </summary>
+public sealed record StormModeDecl(
+    string Name,
+    IReadOnlyList<StormDeclaration> Declarations,
+    int Offset,
+    int Line,
+    int Column)
+    : StormDeclaration(Name, new StormReferenceExpr(Name), Offset, Line, Column);
 
 // -----------------------------------------------------------------------
 //  Expressions

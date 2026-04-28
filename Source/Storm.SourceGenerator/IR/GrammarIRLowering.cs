@@ -51,14 +51,33 @@ public static class GrammarIRLowering
         var diagnostics = new List<StormDiagnostic>();
 
         // ---------------------------------------------------------------
-        // 1. Collect fragments for inlining
+        // 0. Scan for StormModeDecl nodes to build mode name list and
+        //    a mapping from declaration name → enclosing mode name.
         // ---------------------------------------------------------------
-        var fragmentsByName = new Dictionary<string, StormDeclaration>(StringComparer.Ordinal);
+        var modeNames = new List<string>(grammar.ModeNames);
+        var declNameToMode = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach(var decl in grammar.Declarations)
+        {
+            if(decl is StormModeDecl modeDecl)
+            {
+                foreach(var innerDecl in modeDecl.Declarations)
+                {
+                    declNameToMode[innerDecl.Name] = modeDecl.Name;
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // 1. Collect fragments for inlining (mode-scoped)
+        // ---------------------------------------------------------------
+        var fragmentsByName = new Dictionary<(string Mode, string Name), StormDeclaration>();
         foreach(var decl in grammar.Declarations)
         {
             if(decl is StormFragmentDecl)
             {
-                fragmentsByName[decl.Name] = decl;
+                var mode = declNameToMode.TryGetValue(decl.Name, out var m) ? m : "default";
+                fragmentsByName[(mode, decl.Name)] = decl;
             }
         }
 
@@ -67,7 +86,7 @@ public static class GrammarIRLowering
         {
             if(kvp.Value is StormFragmentDecl)
             {
-                fragmentsByName[kvp.Key] = kvp.Value;
+                fragmentsByName[("default", kvp.Key)] = kvp.Value;
             }
         }
 
@@ -83,8 +102,10 @@ public static class GrammarIRLowering
             if(decl is StormTokenDecl or StormHiddenTokenDecl)
             {
                 var isHidden = decl is StormHiddenTokenDecl;
-                var inlinedExpr = InlineFragments(decl.Body, fragmentsByName, new HashSet<string>(StringComparer.Ordinal), diagnostics);
-                var tokenIR = new TokenIR(decl.Name, inlinedExpr, isHidden, tokenIndex);
+                var mode = declNameToMode.TryGetValue(decl.Name, out var m) ? m : "default";
+                var modeAction = ConvertModeAction(decl);
+                var inlinedExpr = InlineFragments(decl.Body, fragmentsByName, mode, new HashSet<string>(StringComparer.Ordinal), diagnostics);
+                var tokenIR = new TokenIR(decl.Name, inlinedExpr, isHidden, tokenIndex, mode: mode, modeAction: modeAction);
                 tokenIRs.Add(tokenIR);
                 tokensByName[decl.Name] = tokenIR;
                 tokenIndex++;
@@ -99,8 +120,9 @@ public static class GrammarIRLowering
                 if(!tokensByName.ContainsKey(kvp.Key))
                 {
                     var isHidden = kvp.Value is StormHiddenTokenDecl;
-                    var inlinedExpr = InlineFragments(kvp.Value.Body, fragmentsByName, new HashSet<string>(StringComparer.Ordinal), diagnostics);
-                    var tokenIR = new TokenIR(kvp.Key, inlinedExpr, isHidden, tokenIndex);
+                    var modeAction = ConvertModeAction(kvp.Value);
+                    var inlinedExpr = InlineFragments(kvp.Value.Body, fragmentsByName, "default", new HashSet<string>(StringComparer.Ordinal), diagnostics);
+                    var tokenIR = new TokenIR(kvp.Key, inlinedExpr, isHidden, tokenIndex, mode: "default", modeAction: modeAction);
                     tokenIRs.Add(tokenIR);
                     tokensByName[kvp.Key] = tokenIR;
                     tokenIndex++;
@@ -182,7 +204,7 @@ public static class GrammarIRLowering
             return new LoweringResult(null, diagnostics);
         }
 
-        var grammarIR = new GrammarIR(tokenIRs, ruleIRs);
+        var grammarIR = new GrammarIR(tokenIRs, ruleIRs, modeNames);
         return new LoweringResult(grammarIR, diagnostics);
     }
 
@@ -192,17 +214,20 @@ public static class GrammarIRLowering
 
     /// <summary>
     /// Recursively inlines fragment references in a token expression.
+    /// Fragments are resolved first within the current mode, then falling
+    /// back to the default mode.
     /// </summary>
     private static ExpressionIR InlineFragments(
         StormExpression expr,
-        Dictionary<string, StormDeclaration> fragmentsByName,
+        Dictionary<(string Mode, string Name), StormDeclaration> fragmentsByName,
+        string currentMode,
         HashSet<string> inliningStack,
         List<StormDiagnostic> diagnostics)
     {
         switch(expr)
         {
             case StormReferenceExpr refExpr:
-                if(fragmentsByName.TryGetValue(refExpr.Name, out var fragment))
+                if(TryResolveFragment(fragmentsByName, currentMode, refExpr.Name, out var fragment))
                 {
                     if(!inliningStack.Add(refExpr.Name))
                     {
@@ -214,7 +239,7 @@ public static class GrammarIRLowering
                         return new StringLiteralIR(""); // placeholder
                     }
 
-                    var inlined = InlineFragments(fragment.Body, fragmentsByName, inliningStack, diagnostics);
+                    var inlined = InlineFragments(fragment.Body, fragmentsByName, currentMode, inliningStack, diagnostics);
                     _ = inliningStack.Remove(refExpr.Name);
                     return new InlineFragmentIR(refExpr.Name, inlined);
                 }
@@ -225,7 +250,7 @@ public static class GrammarIRLowering
 
             case StormQualifiedReferenceExpr qualRef:
                 var qualName = qualRef.Qualifier + "." + qualRef.Name;
-                if(fragmentsByName.TryGetValue(qualName, out var qualFragment))
+                if(TryResolveFragment(fragmentsByName, currentMode, qualName, out var qualFragment))
                 {
                     if(!inliningStack.Add(qualName))
                     {
@@ -237,7 +262,7 @@ public static class GrammarIRLowering
                         return new StringLiteralIR("");
                     }
 
-                    var inlined = InlineFragments(qualFragment.Body, fragmentsByName, inliningStack, diagnostics);
+                    var inlined = InlineFragments(qualFragment.Body, fragmentsByName, currentMode, inliningStack, diagnostics);
                     _ = inliningStack.Remove(qualName);
                     return new InlineFragmentIR(qualName, inlined);
                 }
@@ -248,7 +273,7 @@ public static class GrammarIRLowering
                 var seqElements = new List<ExpressionIR>();
                 foreach(var element in seqExpr.Elements)
                 {
-                    seqElements.Add(InlineFragments(element, fragmentsByName, inliningStack, diagnostics));
+                    seqElements.Add(InlineFragments(element, fragmentsByName, currentMode, inliningStack, diagnostics));
                 }
 
                 return new SequenceIR(seqElements);
@@ -257,22 +282,22 @@ public static class GrammarIRLowering
                 var altElements = new List<ExpressionIR>();
                 foreach(var alt in altExpr.Alternatives)
                 {
-                    altElements.Add(InlineFragments(alt, fragmentsByName, inliningStack, diagnostics));
+                    altElements.Add(InlineFragments(alt, fragmentsByName, currentMode, inliningStack, diagnostics));
                 }
 
                 return new AlternationIR(altElements);
 
             case StormOptionalExpr optExpr:
-                return new OptionalIR(InlineFragments(optExpr.Inner, fragmentsByName, inliningStack, diagnostics));
+                return new OptionalIR(InlineFragments(optExpr.Inner, fragmentsByName, currentMode, inliningStack, diagnostics));
 
             case StormZeroOrMoreExpr zomExpr:
-                return new ZeroOrMoreIR(InlineFragments(zomExpr.Inner, fragmentsByName, inliningStack, diagnostics));
+                return new ZeroOrMoreIR(InlineFragments(zomExpr.Inner, fragmentsByName, currentMode, inliningStack, diagnostics));
 
             case StormOneOrMoreExpr oomExpr:
-                return new OneOrMoreIR(InlineFragments(oomExpr.Inner, fragmentsByName, inliningStack, diagnostics));
+                return new OneOrMoreIR(InlineFragments(oomExpr.Inner, fragmentsByName, currentMode, inliningStack, diagnostics));
 
             case StormGroupExpr groupExpr:
-                return InlineFragments(groupExpr.Inner, fragmentsByName, inliningStack, diagnostics);
+                return InlineFragments(groupExpr.Inner, fragmentsByName, currentMode, inliningStack, diagnostics);
 
             case StormStringLiteralExpr strExpr:
                 return new StringLiteralIR(strExpr.Value);
@@ -285,11 +310,11 @@ public static class GrammarIRLowering
 
             case StormLabeledExpr labeledExpr:
                 // Labels don't appear in token expressions normally, but handle gracefully
-                return InlineFragments(labeledExpr.Element, fragmentsByName, inliningStack, diagnostics);
+                return InlineFragments(labeledExpr.Element, fragmentsByName, currentMode, inliningStack, diagnostics);
 
             case StormNamedAlternative namedAlt:
                 // Named alternatives don't appear in token expressions, but handle gracefully
-                return InlineFragments(namedAlt.Expression, fragmentsByName, inliningStack, diagnostics);
+                return InlineFragments(namedAlt.Expression, fragmentsByName, currentMode, inliningStack, diagnostics);
 
             default:
                 diagnostics.Add(new StormDiagnostic(
@@ -299,6 +324,52 @@ public static class GrammarIRLowering
                     null, 0, 0));
                 return new StringLiteralIR("");
         }
+    }
+
+    /// <summary>
+    /// Resolves a fragment by name, first looking in the current mode,
+    /// then falling back to the default mode.
+    /// </summary>
+    private static bool TryResolveFragment(
+        Dictionary<(string Mode, string Name), StormDeclaration> fragmentsByName,
+        string currentMode,
+        string fragmentName,
+        out StormDeclaration fragment)
+    {
+        // Try current mode first
+        if(fragmentsByName.TryGetValue((currentMode, fragmentName), out fragment!))
+        {
+            return true;
+        }
+
+        // Fall back to default mode if not already in default
+        if(currentMode != "default" && fragmentsByName.TryGetValue(("default", fragmentName), out fragment!))
+        {
+            return true;
+        }
+
+        fragment = null!;
+        return false;
+    }
+
+    /// <summary>
+    /// Converts a <see cref="StormModeAction"/> from the AST to a <see cref="ModeActionIR"/>.
+    /// </summary>
+    private static ModeActionIR ConvertModeAction(StormDeclaration decl)
+    {
+        StormModeAction? action = decl switch
+        {
+            StormTokenDecl tokenDecl => tokenDecl.Action,
+            StormHiddenTokenDecl hiddenDecl => hiddenDecl.Action,
+            _ => null
+        };
+
+        return action switch
+        {
+            StormPushAction pushAction => new PushModeIR(pushAction.ModeName),
+            StormPopAction => new PopModeIR(),
+            _ => new NoModeActionIR()
+        };
     }
 
     // ---------------------------------------------------------------

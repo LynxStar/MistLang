@@ -22,9 +22,15 @@ public sealed class GrammarIR
     /// </summary>
     public IReadOnlyList<RuleIR> Rules { get; }
 
-    public GrammarIR(IReadOnlyList<TokenIR> tokens, IReadOnlyList<RuleIR> rules)
+    /// <summary>
+    /// All declared mode names, always including <c>"default"</c>.
+    /// </summary>
+    public IReadOnlyList<string> Modes { get; }
+
+    public GrammarIR(IReadOnlyList<TokenIR> tokens, IReadOnlyList<RuleIR> rules, IReadOnlyList<string>? modes = null)
     {
         Tokens = tokens;
         Rules = rules;
+        Modes = modes ?? new List<string> { "default" };
     }
 }

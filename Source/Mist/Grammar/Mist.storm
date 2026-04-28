@@ -32,8 +32,8 @@ token SEMICOLON             = ";";
 token COLON                 = ":";
 token LEFT_PARENTHESIS      = "(";
 token RIGHT_PARENTHESIS     = ")";
-token LEFT_BRACE            = "{";
-token RIGHT_BRACE           = "}";
+token LEFT_BRACE            = "{" => push default;
+token RIGHT_BRACE           = "}" => pop;
 token LEFT_BRACKET          = "[";
 token RIGHT_BRACKET         = "]";
 
@@ -56,9 +56,19 @@ token FLOAT_LITERAL    = `[0-9]+` "." `[0-9]+` FLOAT_SUFFIX?
 token CHAR_LITERAL     = "'" (ESCAPE_SEQUENCE | `[^'\\]`) "'";
 token STRING_LITERAL   = "\"" (ESCAPE_SEQUENCE | `[^"\\]`)* "\"";
 
-token INTERPOLATED_STRING_START = "$\"";
-token INTERPOLATED_STRING_TEXT  = (`[^"\\{]` | ESCAPE_SEQUENCE)+;
-token INTERPOLATED_STRING_END   = "\"";
+token INTERPOLATED_STRING_START = "$\"" => push Interpolation;
+
+// ─── Interpolation Mode ─────────────────────────────────────────────────────
+// Tokens active only inside interpolated strings ($"...{expr}...").
+// INTERPOLATION_OPEN pushes back to default mode for the embedded expression;
+// the regular RIGHT_BRACE (=> pop) in default mode returns here.
+
+mode Interpolation {
+    token INTERPOLATED_STRING_TEXT = (`[^"\\{]` | INTERP_ESCAPE_SEQUENCE)+;
+    token INTERPOLATION_OPEN      = "{" => push default;
+    token INTERPOLATED_STRING_END = "\"" => pop;
+    fragment INTERP_ESCAPE_SEQUENCE = "\\\\" | "\\\"" | "\\n" | "\\r" | "\\t" | "\\0" | "\\'";
+}
 
 // ─── Identifier ──────────────────────────────────────────────────────────────
 // Declared after all keywords so keywords take priority (R1.11).
@@ -234,5 +244,5 @@ rule InterpolatedString = INTERPOLATED_STRING_START parts:InterpolatedPart* INTE
 
 rule InterpolatedPart
     = text:INTERPOLATED_STRING_TEXT  as TextPart
-    | LEFT_BRACE expression:Expression RIGHT_BRACE      as ExpressionPart
+    | INTERPOLATION_OPEN expression:Expression RIGHT_BRACE      as ExpressionPart
     ;

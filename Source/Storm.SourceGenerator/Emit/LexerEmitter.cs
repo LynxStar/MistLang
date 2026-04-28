@@ -127,8 +127,16 @@ namespace Storm.SourceGenerator.Emit
                 EmitHiddenTokenKinds(writer, context);
                 writer.WriteEmptyLine();
 
+                // Emit mode constants and per-mode token groupings
+                EmitModeConstants(writer, context);
+                writer.WriteEmptyLine();
+                EmitTokenModes(writer, context, tokens);
+                writer.WriteEmptyLine();
+                EmitModeTokens(writer, context, tokens);
+                writer.WriteEmptyLine();
+
                 // Main Lex method
-                EmitLexMethod(writer, tokens);
+                EmitLexMethod(writer, context, tokens);
                 writer.WriteEmptyLine();
 
                 // IsHidden helper
@@ -136,6 +144,10 @@ namespace Storm.SourceGenerator.Emit
                 {
                     writer.WriteLine("return HiddenKinds.Contains(tokenKind);");
                 });
+                writer.WriteEmptyLine();
+
+                // GetTokenMode helper
+                EmitGetTokenModeMethod(writer);
                 writer.WriteEmptyLine();
 
                 // Per-token TryMatch methods
@@ -147,15 +159,88 @@ namespace Storm.SourceGenerator.Emit
             });
         }
 
-        private static void EmitLexMethod(CodeWriter writer, List<TokenIR> tokens)
+        // ── Mode constants and mappings ─────────────────────────────────
+
+        /// <summary>
+        /// Emits mode constants: <c>private const int Mode_default = 0;</c>, etc.
+        /// </summary>
+        private static void EmitModeConstants(CodeWriter writer, EmissionContext context)
         {
-            // Filter out interpolated string tokens — they need lexer mode support
-            // which is not implemented in v1. They'll be handled by the STRING_LITERAL
-            // token for now.
-            var mainTokens = tokens.Where(t =>
-                t.Name != "INTERPOLATED_STRING_START" &&
-                t.Name != "INTERPOLATED_STRING_TEXT" &&
-                t.Name != "INTERPOLATED_STRING_END").ToList();
+            var modes = context.Grammar.Modes;
+            for (int i = 0; i < modes.Count; i++)
+            {
+                var modeName = SanitizeIdentifier(modes[i]);
+                writer.WriteLine($"private const int Mode_{modeName} = {i};");
+            }
+        }
+
+        /// <summary>
+        /// Emits the <c>TokenModes</c> array mapping each <c>TokenKind</c> ordinal to its mode index.
+        /// </summary>
+        private static void EmitTokenModes(CodeWriter writer, EmissionContext context, List<TokenIR> tokens)
+        {
+            var modes = context.Grammar.Modes;
+            var modeIndexMap = new Dictionary<string, int>();
+            for (int i = 0; i < modes.Count; i++)
+                modeIndexMap[modes[i]] = i;
+
+            var entries = new List<string>();
+            foreach (var token in tokens)
+            {
+                var modeIndex = modeIndexMap.TryGetValue(token.Mode, out var idx) ? idx : 0;
+                entries.Add(modeIndex.ToString());
+            }
+
+            writer.WriteLine($"private static readonly int[] TokenModes = new int[] {{ {string.Join(", ", entries)} }};");
+        }
+
+        /// <summary>
+        /// Emits the <c>ModeTokens</c> jagged array mapping each mode index to the token indices active in that mode.
+        /// </summary>
+        private static void EmitModeTokens(CodeWriter writer, EmissionContext context, List<TokenIR> tokens)
+        {
+            var modes = context.Grammar.Modes;
+            var modeIndexMap = new Dictionary<string, int>();
+            for (int i = 0; i < modes.Count; i++)
+                modeIndexMap[modes[i]] = i;
+
+            // Group token indices by mode
+            var tokensByMode = new List<List<int>>();
+            for (int i = 0; i < modes.Count; i++)
+                tokensByMode.Add(new List<int>());
+
+            for (int i = 0; i < tokens.Count; i++)
+            {
+                var modeIndex = modeIndexMap.TryGetValue(tokens[i].Mode, out var idx) ? idx : 0;
+                tokensByMode[modeIndex].Add(i);
+            }
+
+            writer.WriteLine("private static readonly int[][] ModeTokens = new int[][]");
+            writer.WriteLine("{");
+            writer.Indent();
+            for (int i = 0; i < modes.Count; i++)
+            {
+                var indices = string.Join(", ", tokensByMode[i]);
+                writer.WriteLine($"new int[] {{ {indices} }},");
+            }
+            writer.Dedent();
+            writer.WriteLine("};");
+        }
+
+        // ── GetTokenMode method ─────────────────────────────────────────
+
+        /// <summary>
+        /// Emits the <c>GetTokenMode</c> method that maps a token kind to its mode index.
+        /// </summary>
+        private static void EmitGetTokenModeMethod(CodeWriter writer)
+        {
+            writer.WriteLine("public static int GetTokenMode(int tokenKind) => TokenModes[tokenKind];");
+        }
+
+        // ── Lex method (mode-aware) ─────────────────────────────────────
+
+        private static void EmitLexMethod(CodeWriter writer, EmissionContext context, List<TokenIR> tokens)
+        {
             writer.WriteBlock("public static TokenStream Lex(SourceText source, DiagnosticBag diagnostics)", () =>
             {
                 writer.WriteLine("var tokens = ImmutableArray.CreateBuilder<Token>();");
@@ -163,26 +248,44 @@ namespace Storm.SourceGenerator.Emit
                 writer.WriteLine("var pos = 0;");
                 writer.WriteLine("var line = 1;");
                 writer.WriteLine("var col = 1;");
+                writer.WriteLine("var modeStack = new System.Collections.Generic.Stack<int>();");
+                writer.WriteLine("modeStack.Push(Mode_default);");
                 writer.WriteEmptyLine();
                 writer.WriteBlock("while (pos < input.Length)", () =>
                 {
                     writer.WriteLine("var bestLength = 0;");
                     writer.WriteLine("var bestKind = -1;");
+                    writer.WriteLine("var bestTokenIndex = -1;");
+                    writer.WriteLine("var currentMode = modeStack.Peek();");
+                    writer.WriteLine("var activeTokens = ModeTokens[currentMode];");
                     writer.WriteEmptyLine();
 
-                    // Try each token in declaration order
-                    foreach (var token in mainTokens)
+                    // Try each token in the current mode's active token list
+                    writer.WriteBlock("for (var ti = 0; ti < activeTokens.Length; ti++)", () =>
                     {
-                        var safeName = SanitizeIdentifier(token.Name);
-                        writer.WriteBlock("", () => { }); // just for spacing
-                        writer.WriteLine($"var len_{safeName} = TryMatch_{safeName}(input, pos);");
-                        // Maximal munch: strictly longer wins. On tie, first (lower decl index) wins.
-                        writer.WriteBlock($"if (len_{safeName} > bestLength)", () =>
+                        writer.WriteLine("var tokenIndex = activeTokens[ti];");
+                        writer.WriteLine("var len = 0;");
+                        writer.WriteEmptyLine();
+
+                        // Emit a switch over token indices to call the right TryMatch method
+                        writer.WriteBlock("switch (tokenIndex)", () =>
                         {
-                            writer.WriteLine($"bestLength = len_{safeName};");
-                            writer.WriteLine($"bestKind = (int)TokenKind.{safeName};");
+                            for (int i = 0; i < tokens.Count; i++)
+                            {
+                                var safeName = SanitizeIdentifier(tokens[i].Name);
+                                writer.WriteLine($"case {i}: len = TryMatch_{safeName}(input, pos); break;");
+                            }
                         });
-                    }
+                        writer.WriteEmptyLine();
+
+                        // Maximal munch: strictly longer wins. On tie, first (lower decl index) wins.
+                        writer.WriteBlock("if (len > bestLength)", () =>
+                        {
+                            writer.WriteLine("bestLength = len;");
+                            writer.WriteLine("bestKind = tokenIndex;");
+                            writer.WriteLine("bestTokenIndex = tokenIndex;");
+                        });
+                    });
 
                     writer.WriteEmptyLine();
                     writer.WriteBlock("if (bestKind >= 0 && bestLength > 0)", () =>
@@ -207,6 +310,10 @@ namespace Storm.SourceGenerator.Emit
                         writer.WriteLine("var channel = IsHidden(bestKind) ? TokenChannel.Hidden : TokenChannel.Default;");
                         writer.WriteLine("tokens.Add(new Token(bestKind, span, startPos, endPos, channel, lexeme));");
                         writer.WriteLine("pos += bestLength;");
+                        writer.WriteEmptyLine();
+
+                        // Apply mode push/pop actions after emitting the token
+                        EmitModeActions(writer, tokens);
                     });
                     writer.WriteBlock("else", () =>
                     {
@@ -226,6 +333,34 @@ namespace Storm.SourceGenerator.Emit
             });
         }
 
+        /// <summary>
+        /// Emits the switch statement that applies push/pop mode actions after a token is matched.
+        /// Only emits cases for tokens that have a non-trivial mode action.
+        /// </summary>
+        private static void EmitModeActions(CodeWriter writer, List<TokenIR> tokens)
+        {
+            // Check if any tokens have mode actions
+            var hasActions = tokens.Any(t => t.ModeAction is PushModeIR || t.ModeAction is PopModeIR);
+            if (!hasActions) return;
+
+            writer.WriteBlock("switch (bestTokenIndex)", () =>
+            {
+                for (int i = 0; i < tokens.Count; i++)
+                {
+                    var token = tokens[i];
+                    if (token.ModeAction is PushModeIR push)
+                    {
+                        var targetMode = SanitizeIdentifier(push.ModeName);
+                        writer.WriteLine($"case {i}: modeStack.Push(Mode_{targetMode}); break;");
+                    }
+                    else if (token.ModeAction is PopModeIR)
+                    {
+                        writer.WriteLine($"case {i}: if (modeStack.Count > 1) modeStack.Pop(); break;");
+                    }
+                }
+            });
+        }
+
         // ── Per-token TryMatch method emission ──────────────────────────
 
         private static void EmitTryMatchMethod(CodeWriter writer, TokenIR token)
@@ -239,6 +374,7 @@ namespace Storm.SourceGenerator.Emit
             });
         }
 
+        [ThreadStatic]
         private static int _varCounter;
 
         private static string UniqueVar(string prefix)

@@ -15,8 +15,10 @@ public sealed class StormGrammar
 {
     /// <summary>
     /// All declarations in effective order:
-    /// root first, then unnamespaced imports in import-appearance order,
-    /// then namespaced-only declarations last (R6.8).
+    /// unnamespaced imports first (in import-appearance order),
+    /// then root declarations, then namespaced-only declarations last (R6.8).
+    /// This ensures imported keyword tokens precede IDENTIFIER for
+    /// first-match-wins tiebreaking.
     /// </summary>
     public IReadOnlyList<StormDeclaration> Declarations { get; }
 
@@ -42,6 +44,12 @@ public sealed class StormGrammar
     /// </summary>
     public string? GrammarName { get; }
 
+    /// <summary>
+    /// All declared mode names, always including <c>"default"</c>.
+    /// Extracted from <see cref="StormModeDecl"/> nodes in the declarations list.
+    /// </summary>
+    public IReadOnlyList<string> ModeNames { get; }
+
     private Dictionary<string, StormDeclaration> declarationsByName;
 
     private StormGrammar(
@@ -50,7 +58,8 @@ public sealed class StormGrammar
         Dictionary<string, StormDeclaration> declarationsByName,
         IReadOnlyList<StormDiagnostic> diagnostics,
         bool succeeded,
-        string? grammarName)
+        string? grammarName,
+        IReadOnlyList<string> modeNames)
     {
         Declarations = declarations;
         NamespacedDeclarations = namespacedDeclarations;
@@ -58,6 +67,7 @@ public sealed class StormGrammar
         Diagnostics = diagnostics;
         Succeeded = succeeded;
         GrammarName = grammarName;
+        ModeNames = modeNames;
     }
 
     /// <summary>
@@ -226,13 +236,24 @@ public sealed class StormGrammar
         // Append namespaced declarations to the effective order (R6.8)
         declarations.AddRange(namespacedDeclsForOrder);
 
+        // Build mode names list: always include "default", plus any StormModeDecl names
+        var modeNames = new List<string> { "default" };
+        foreach (var decl in declarations)
+        {
+            if (decl is StormModeDecl modeDecl && modeDecl.Name != "default")
+            {
+                modeNames.Add(modeDecl.Name);
+            }
+        }
+
         return new StormGrammar(
             declarations,
             namespacedDeclarations,
             declarationsByName,
             diagnostics,
             !failed,
-            grammarName);
+            grammarName,
+            modeNames);
     }
 
     /// <summary>
@@ -256,29 +277,93 @@ public sealed class StormGrammar
             return;
         }
 
-        // Process declarations and imports in source order (interleaved).
-        // Imports are processed at the point they appear, so that imported
-        // declarations get declaration indices between the surrounding
-        // declarations in the importing file. This ensures that
-        // `import "keywords.storm";` followed by `token IDENTIFIER = ...;`
-        // gives keywords lower declaration indices than IDENTIFIER.
-
-        var declIndex = 0;
-        var importIndex = 0;
-
-        // Merge declarations and imports by source line order.
-        // Declarations have Line/Column; imports have Line/Column too.
-        while (declIndex < file.Declarations.Count || importIndex < file.Imports.Count)
+        // Process unnamespaced imports first (they appear before declarations
+        // in the source), then the file's own declarations. This ensures that
+        // imported keyword tokens precede IDENTIFIER in declaration order,
+        // giving keywords priority via first-match-wins tiebreaking (R6.8).
+        foreach(var import in file.Imports)
         {
-            var nextDeclLine = declIndex < file.Declarations.Count ? file.Declarations[declIndex].Line : int.MaxValue;
-            var nextImportLine = importIndex < file.Imports.Count ? file.Imports[importIndex].Line : int.MaxValue;
+            var resolvedPath = ResolveImportPath(filePath, import.Path);
 
-            if (nextDeclLine <= nextImportLine && declIndex < file.Declarations.Count)
+            if(!resolution.FilesByPath.ContainsKey(resolvedPath))
             {
-                // Process this declaration
-                var decl = file.Declarations[declIndex];
-                declIndex++;
+                // File wasn't resolved — diagnostic already emitted by StormImportResolver
+                continue;
+            }
 
+            var importedFile = resolution.FilesByPath[resolvedPath];
+
+            if(import.Alias != null)
+            {
+                // Namespaced import — collect for later processing
+                namespacedFiles.Add((import.Alias, resolvedPath, importedFile));
+            }
+            else
+            {
+                // Unnamespaced import — recursively merge declarations
+                CollectDeclarations(
+                    resolvedPath,
+                    importedFile,
+                    resolution,
+                    visitedForMerge,
+                    declarations,
+                    namespacedFiles,
+                    declarationsByName,
+                    nameToSourceLocation,
+                    diagnostics,
+                    ref failed);
+            }
+        }
+
+        // Now process this file's own declarations.
+        foreach(var decl in file.Declarations)
+        {
+            // Handle mode declarations: add the mode itself and each inner declaration
+            if (decl is StormModeDecl modeDecl)
+            {
+                // Add the mode declaration itself (for mode name tracking)
+                if(nameToSourceLocation.TryGetValue(modeDecl.Name, out var existingMode))
+                {
+                    diagnostics.Add(new StormDiagnostic(
+                        StormDiagnosticIds.STORM_DUPLICATE_NAME,
+                        StormDiagnosticSeverity.Error,
+                        $"Duplicate declaration name '{modeDecl.Name}': first declared in '{existingMode.FilePath}' at {existingMode.Decl.Line}:{existingMode.Decl.Column}, redeclared in '{filePath}' at {modeDecl.Line}:{modeDecl.Column}",
+                        filePath,
+                        modeDecl.Line,
+                        modeDecl.Column));
+                    failed = true;
+                }
+                else
+                {
+                    nameToSourceLocation[modeDecl.Name] = (filePath, modeDecl);
+                    declarationsByName[modeDecl.Name] = modeDecl;
+                    declarations.Add(modeDecl);
+                }
+
+                // Add each inner declaration with its source position preserved
+                foreach (var innerDecl in modeDecl.Declarations)
+                {
+                    if(nameToSourceLocation.TryGetValue(innerDecl.Name, out var existingInner))
+                    {
+                        diagnostics.Add(new StormDiagnostic(
+                            StormDiagnosticIds.STORM_DUPLICATE_NAME,
+                            StormDiagnosticSeverity.Error,
+                            $"Duplicate declaration name '{innerDecl.Name}': first declared in '{existingInner.FilePath}' at {existingInner.Decl.Line}:{existingInner.Decl.Column}, redeclared in '{filePath}' at {innerDecl.Line}:{innerDecl.Column}",
+                            filePath,
+                            innerDecl.Line,
+                            innerDecl.Column));
+                        failed = true;
+                    }
+                    else
+                    {
+                        nameToSourceLocation[innerDecl.Name] = (filePath, innerDecl);
+                        declarationsByName[innerDecl.Name] = innerDecl;
+                        declarations.Add(innerDecl);
+                    }
+                }
+            }
+            else
+            {
                 if(nameToSourceLocation.TryGetValue(decl.Name, out var existing))
                 {
                     diagnostics.Add(new StormDiagnostic(
@@ -295,40 +380,6 @@ public sealed class StormGrammar
                     nameToSourceLocation[decl.Name] = (filePath, decl);
                     declarationsByName[decl.Name] = decl;
                     declarations.Add(decl);
-                }
-            }
-            else if (importIndex < file.Imports.Count)
-            {
-                // Process this import
-                var import = file.Imports[importIndex];
-                importIndex++;
-
-                var resolvedPath = ResolveImportPath(filePath, import.Path);
-
-                if(!resolution.FilesByPath.ContainsKey(resolvedPath))
-                {
-                    continue;
-                }
-
-                var importedFile = resolution.FilesByPath[resolvedPath];
-
-                if(import.Alias != null)
-                {
-                    namespacedFiles.Add((import.Alias, resolvedPath, importedFile));
-                }
-                else
-                {
-                    CollectDeclarations(
-                        resolvedPath,
-                        importedFile,
-                        resolution,
-                        visitedForMerge,
-                        declarations,
-                        namespacedFiles,
-                        declarationsByName,
-                        nameToSourceLocation,
-                        diagnostics,
-                        ref failed);
                 }
             }
         }

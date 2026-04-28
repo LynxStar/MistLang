@@ -24,6 +24,14 @@ namespace Storm.SourceGenerator.Frontend
         GrammarKeyword,
         /// <summary>The <c>as</c> keyword.</summary>
         AsKeyword,
+        /// <summary>The <c>mode</c> keyword.</summary>
+        ModeKeyword,
+        /// <summary>The <c>default</c> keyword.</summary>
+        DefaultKeyword,
+        /// <summary>The <c>push</c> keyword.</summary>
+        PushKeyword,
+        /// <summary>The <c>pop</c> keyword.</summary>
+        PopKeyword,
 
         // --- Literals and identifiers ---
         /// <summary>An identifier: [a-zA-Z_][a-zA-Z0-9_]*</summary>
@@ -56,6 +64,12 @@ namespace Storm.SourceGenerator.Frontend
         Colon,
         /// <summary><c>.</c></summary>
         Dot,
+        /// <summary><c>=&gt;</c></summary>
+        FatArrow,
+        /// <summary><c>{</c></summary>
+        LeftBrace,
+        /// <summary><c>}</c></summary>
+        RightBrace,
 
         // --- Special ---
         /// <summary>End of input.</summary>
@@ -288,6 +302,14 @@ namespace Storm.SourceGenerator.Frontend
                     continue;
                 }
 
+                // --- Two-character operators ---
+                if(c == '=' && pos + 1 < text.Length && text[pos + 1] == '>')
+                {
+                    tokens.Add(new StormToken(StormTokenKind.FatArrow, "=>", pos, line, column));
+                    pos += 2;
+                    continue;
+                }
+
                 // --- Single-character operators ---
                 StormTokenKind? opKind = ClassifyOperator(c);
                 if(opKind != null)
@@ -334,6 +356,10 @@ namespace Storm.SourceGenerator.Frontend
                 case "import": return StormTokenKind.ImportKeyword;
                 case "grammar": return StormTokenKind.GrammarKeyword;
                 case "as": return StormTokenKind.AsKeyword;
+                case "mode": return StormTokenKind.ModeKeyword;
+                case "default": return StormTokenKind.DefaultKeyword;
+                case "push": return StormTokenKind.PushKeyword;
+                case "pop": return StormTokenKind.PopKeyword;
                 default: return StormTokenKind.Identifier;
             }
         }
@@ -352,6 +378,8 @@ namespace Storm.SourceGenerator.Frontend
                 case '+': return StormTokenKind.Plus;
                 case ':': return StormTokenKind.Colon;
                 case '.': return StormTokenKind.Dot;
+                case '{': return StormTokenKind.LeftBrace;
+                case '}': return StormTokenKind.RightBrace;
                 default: return null;
             }
         }

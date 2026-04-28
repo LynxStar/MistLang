@@ -198,11 +198,11 @@ public class PipelineBackendPropertyTests
         {
             // First emission
             var bag1 = new DiagnosticBag();
-            CSharpEmitter.Emit(model, tempDir1, bag1);
+            CSharpEmitter.Emit(model, tempDir1, "TestProject", bag1);
 
             // Second emission
             var bag2 = new DiagnosticBag();
-            CSharpEmitter.Emit(model, tempDir2, bag2);
+            CSharpEmitter.Emit(model, tempDir2, "TestProject", bag2);
 
             // Compare file sets
             var files1 = Directory.GetFiles(tempDir1, "*", SearchOption.AllDirectories)

@@ -1,0 +1,100 @@
+{
+  "name": "Storm",
+  "scopeName": "source.storm",
+  "fileTypes": [".storm"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#character-classes" },
+    { "include": "#definition-names" },
+    { "include": "#alternative-labels" },
+    { "include": "#labeled-fields" },
+    { "include": "#keywords" },
+    { "include": "#storage-types" },
+    { "include": "#as-keyword" },
+    { "include": "#operators" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.double-slash.storm",
+      "match": "//.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.storm",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.storm",
+          "match": "\\\\(\\\\|n|\"|r|t|0|')"
+        }
+      ]
+    },
+    "character-classes": {
+      "name": "constant.other.character-class.storm",
+      "match": "\\[([^\\]]*)\\]"
+    },
+    "definition-names": {
+      "match": "\\b(token|rule|fragment)\\s+(\\w+)",
+      "captures": {
+        "1": { "name": "storage.type.storm" },
+        "2": { "name": "entity.name.function.storm" }
+      }
+    },
+    "alternative-labels": {
+      "match": "\\b(as)\\s+(\\w+)",
+      "captures": {
+        "1": { "name": "keyword.operator.storm" },
+        "2": { "name": "entity.name.tag.storm" }
+      }
+    },
+    "labeled-fields": {
+      "match": "\\b(\\w+)(:)",
+      "captures": {
+        "1": { "name": "variable.parameter.storm" },
+        "2": { "name": "punctuation.separator.storm" }
+      }
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.storm",
+          "match": "\\bgrammar\\b"
+        },
+        {
+          "name": "keyword.control.import.storm",
+          "match": "\\bimport\\b"
+        }
+      ]
+    },
+    "storage-types": {
+      "name": "storage.type.storm",
+      "match": "\\b(token|hidden|fragment|rule)\\b"
+    },
+    "as-keyword": {
+      "name": "keyword.operator.storm",
+      "match": "\\bas\\b"
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.quantifier.storm",
+          "match": "[\\*\\+\\?]"
+        },
+        {
+          "name": "keyword.operator.storm",
+          "match": "\\|"
+        },
+        {
+          "name": "keyword.operator.assignment.storm",
+          "match": "="
+        }
+      ]
+    },
+    "punctuation": {
+      "name": "punctuation.terminator.storm",
+      "match": ";"
+    }
+  }
+}

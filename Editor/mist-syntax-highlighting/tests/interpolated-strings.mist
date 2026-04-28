@@ -1,0 +1,44 @@
+// SYNTAX TEST "source.mist"
+
+// ===== Simple interpolated string =====
+
+$"Hello {name}"
+// <- punctuation.definition.string.begin.mist
+//^^^^^ string.interpolated.mist
+//      ^ punctuation.definition.interpolation.begin.mist
+//           ^ punctuation.definition.interpolation.end.mist
+//            ^ punctuation.definition.string.end.mist
+
+// ===== Interpolated string with expression =====
+
+$"Result: {x + 1}"
+// <- punctuation.definition.string.begin.mist
+//        ^ punctuation.definition.interpolation.begin.mist
+//         ^ source.mist
+//           ^ keyword.operator.arithmetic.mist
+//             ^ constant.numeric.integer.mist
+//              ^ punctuation.definition.interpolation.end.mist
+//               ^ punctuation.definition.string.end.mist
+
+// ===== Escape sequences in interpolated strings =====
+
+$"Line 1\nLine 2"
+// <- punctuation.definition.string.begin.mist
+//      ^^ constant.character.escape.mist
+//              ^ punctuation.definition.string.end.mist
+
+// ===== Empty interpolated string =====
+
+$""
+// <- punctuation.definition.string.begin.mist
+//^ punctuation.definition.string.end.mist
+
+// ===== Interpolated string with method call =====
+
+$"{obj.ToString()}"
+// <- punctuation.definition.string.begin.mist
+//^ punctuation.definition.interpolation.begin.mist
+// ^^^ source.mist
+//    ^ punctuation.accessor.mist
+//               ^ punctuation.definition.interpolation.end.mist
+//                ^ punctuation.definition.string.end.mist

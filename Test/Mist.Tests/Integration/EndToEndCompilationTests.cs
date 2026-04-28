@@ -307,7 +307,7 @@ public sealed class EndToEndCompilationTests : IDisposable
 
         // Emit C#
         var emitDiagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, emitDiagnostics);
+        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitDiagnostics);
 
         // Verify output files exist
         var csFiles = Directory.GetFiles(_outputDir, "*.cs");
@@ -404,7 +404,7 @@ public sealed class EndToEndCompilationTests : IDisposable
 
         // Emit C#
         var emitDiagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, emitDiagnostics);
+        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitDiagnostics);
 
         var csFiles = Directory.GetFiles(_outputDir, "*.cs");
         Assert.NotEmpty(csFiles);
@@ -490,7 +490,7 @@ public sealed class EndToEndCompilationTests : IDisposable
         var model = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), null, diagnostics);
 
         var emitDiagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, emitDiagnostics);
+        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitDiagnostics);
 
         var csFiles = Directory.GetFiles(_outputDir, "*.cs");
         Assert.NotEmpty(csFiles);
@@ -561,7 +561,7 @@ public sealed class EndToEndCompilationTests : IDisposable
 
         // Emit C# and verify using directive is present
         var emitDiagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, emitDiagnostics);
+        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitDiagnostics);
 
         var csFiles = Directory.GetFiles(_outputDir, "*.cs");
         Assert.NotEmpty(csFiles);
@@ -742,7 +742,7 @@ public sealed class EndToEndCompilationTests : IDisposable
 
         // Emit C# — should produce files for both compilation units
         var emitDiagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, emitDiagnostics);
+        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitDiagnostics);
 
         var csFiles = Directory.GetFiles(_outputDir, "*.cs");
         Assert.True(csFiles.Length >= 2, $"Expected at least 2 .cs files, got {csFiles.Length}");
@@ -875,7 +875,7 @@ public sealed class EndToEndCompilationTests : IDisposable
         var backend = new CSharpTranspilerBackend();
         var backendDiagnostics = new DiagnosticBag();
         var binDir = Path.Combine(_outputDir, "bin");
-        var result = backend.Emit(model, _outputDir, binDir, backendDiagnostics);
+        var result = backend.Emit(model, _outputDir, binDir, "TestProject", backendDiagnostics);
 
         // The emitted C# should compile successfully
         Assert.True(result.Succeeded, $"dotnet build failed. Diagnostics: {string.Join("; ", result.Diagnostics.Select(d => d.Message))}");
@@ -931,7 +931,7 @@ public sealed class EndToEndCompilationTests : IDisposable
         var backend = new CSharpTranspilerBackend();
         var backendDiagnostics = new DiagnosticBag();
         var binDir = Path.Combine(_outputDir, "bin");
-        var result = backend.Emit(model, _outputDir, binDir, backendDiagnostics);
+        var result = backend.Emit(model, _outputDir, binDir, "TestProject", backendDiagnostics);
 
         Assert.True(result.Succeeded, "Build must succeed before running");
         Assert.NotNull(result.PrimaryArtifactPath);

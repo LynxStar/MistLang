@@ -173,7 +173,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
     private string EmitAndGetCsContent(ISemanticModel model)
     {
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, diagnostics);
+        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
 
         var csFile = Directory.GetFiles(_outputDir, "*.cs").FirstOrDefault();
         return csFile is not null ? File.ReadAllText(csFile) : "";

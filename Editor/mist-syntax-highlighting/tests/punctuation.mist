@@ -1,0 +1,17 @@
+// SYNTAX TEST "source.mist"
+
+// ===== Dot / member access (punctuation.accessor.mist) =====
+
+  obj.field
+//   ^ punctuation.accessor.mist
+
+// ===== Comma (punctuation.separator.comma.mist) =====
+
+  a, b, c
+// ^ punctuation.separator.comma.mist
+//    ^ punctuation.separator.comma.mist
+
+// ===== Semicolon (punctuation.terminator.statement.mist) =====
+
+  x = 1;
+//     ^ punctuation.terminator.statement.mist

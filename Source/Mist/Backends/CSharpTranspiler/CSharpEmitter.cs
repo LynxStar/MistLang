@@ -14,10 +14,10 @@ namespace Mist.Backends.CSharpTranspiler;
 /// </summary>
 public sealed class CSharpEmitter
 {
-    public static void Emit(ISemanticModel model, string outputDirectory, DiagnosticBag diagnostics)
+    public static void Emit(ISemanticModel model, string outputDirectory, string projectName, DiagnosticBag diagnostics)
     {
         Directory.CreateDirectory(outputDirectory);
-        EmitCsproj(outputDirectory);
+        EmitCsproj(outputDirectory, projectName);
 
         // Collect namespaces from Backend-origin symbols for using directives.
         var backendNamespaces = CollectBackendNamespaces(model);
@@ -40,9 +40,9 @@ public sealed class CSharpEmitter
         }
     }
 
-    private static void EmitCsproj(string outputDirectory)
+    private static void EmitCsproj(string outputDirectory, string projectName)
     {
-        var csprojPath = Path.Combine(outputDirectory, "MistOutput.csproj");
+        var csprojPath = Path.Combine(outputDirectory, $"{projectName}.csproj");
         var csprojContent = """
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>

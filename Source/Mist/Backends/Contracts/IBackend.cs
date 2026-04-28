@@ -11,5 +11,5 @@ public interface IBackend
 {
     BackendId Id { get; }
     IAmbientTypeResolver? GetAmbientTypeResolver();
-    BackendResult Emit(ISemanticModel model, string outputDirectory, string binDirectory, DiagnosticBag diagnostics);
+    BackendResult Emit(ISemanticModel model, string outputDirectory, string binDirectory, string projectName, DiagnosticBag diagnostics);
 }

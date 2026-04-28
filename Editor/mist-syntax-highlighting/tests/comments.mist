@@ -1,0 +1,21 @@
+// SYNTAX TEST "source.mist"
+
+// ===== Standalone comment line =====
+
+// this is a comment
+// <- comment.line.double-slash.mist
+
+// ===== Comment after code on same line =====
+
+int x = 5; // inline comment
+//         ^^ comment.line.double-slash.mist
+
+return 0; // another trailing comment
+//        ^^ comment.line.double-slash.mist
+
+// ===== Comment containing keywords (should still be comment scope) =====
+
+// if else while for return class struct
+// <- comment.line.double-slash.mist
+// ^^  comment.line.double-slash.mist
+//    ^^^^ comment.line.double-slash.mist

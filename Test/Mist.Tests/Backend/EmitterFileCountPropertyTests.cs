@@ -195,7 +195,7 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 
         var (model, fileCount) = BuildMultiFileModel(scenario.FileCount);
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, diagnostics);
+        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
 
         var csFiles = Directory.GetFiles(_outputDir, "*.cs");
         var csprojFiles = Directory.GetFiles(_outputDir, "*.csproj");
@@ -214,7 +214,7 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 
         var (model, fileCount) = BuildMultiFileModel(scenario.FileCount);
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, diagnostics);
+        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
 
         var csFileNames = Directory.GetFiles(_outputDir, "*.cs")
             .Select(Path.GetFileName)
@@ -239,20 +239,20 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
     }
 
     /// <summary>
-    /// Property 14c: The .csproj file is always named MistOutput.csproj.
+    /// Property 14c: The .csproj file is named after the project.
     /// </summary>
     [Property(Arbitrary = new[] { typeof(EmitterFileCountPropertyTests) }, MaxTest = 50)]
-    public bool Emitter_CsprojFileIsNamedMistOutput(FileCountScenario scenario)
+    public bool Emitter_CsprojFileIsNamedAfterProject(FileCountScenario scenario)
     {
         CleanOutputDir();
 
         var (model, _) = BuildMultiFileModel(scenario.FileCount);
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, diagnostics);
+        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
 
         var csprojFiles = Directory.GetFiles(_outputDir, "*.csproj");
         return csprojFiles.Length == 1 &&
-               Path.GetFileName(csprojFiles[0]) == "MistOutput.csproj";
+               Path.GetFileName(csprojFiles[0]) == "TestProject.csproj";
     }
 
     // ─── Targeted unit-style tests ───────────────────────────────────────
@@ -264,7 +264,7 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 
         var (model, _) = BuildMultiFileModel(1);
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, diagnostics);
+        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
 
         Assert.Single(Directory.GetFiles(_outputDir, "*.cs"));
         Assert.Single(Directory.GetFiles(_outputDir, "*.csproj"));
@@ -277,7 +277,7 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 
         var (model, _) = BuildMultiFileModel(3);
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, diagnostics);
+        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
 
         Assert.Equal(3, Directory.GetFiles(_outputDir, "*.cs").Length);
         Assert.Single(Directory.GetFiles(_outputDir, "*.csproj"));
@@ -290,7 +290,7 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 
         var (model, _) = BuildMultiFileModel(5);
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, diagnostics);
+        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
 
         Assert.Equal(5, Directory.GetFiles(_outputDir, "*.cs").Length);
         Assert.Single(Directory.GetFiles(_outputDir, "*.csproj"));

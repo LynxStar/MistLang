@@ -1,0 +1,25 @@
+// SYNTAX TEST "source.mist"
+
+// ===== Class declaration =====
+
+class Foo {
+// <- keyword.declaration.mist
+//    ^^^ entity.name.type.class.mist
+}
+
+// ===== Struct declaration =====
+
+struct Bar {
+// <- keyword.declaration.mist
+//     ^^^ entity.name.type.struct.mist
+}
+
+// ===== Method declarations =====
+
+void DoSomething() {
+//   ^^^^^^^^^^^ entity.name.function.mist
+}
+
+int Calculate() {
+//  ^^^^^^^^^ entity.name.function.mist
+}

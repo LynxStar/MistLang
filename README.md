@@ -48,3 +48,33 @@ mist build --mode lex
 ```bash
 dotnet run --project Source/Mist.CLI -- build ./my-project
 ```
+
+## Editor Support
+
+### Storm
+
+The project includes a TextMate grammar extension that provides syntax highlighting for `.storm` files in Kiro and VS Code. It highlights keywords (`grammar`, `import`, `token`, `rule`, `fragment`, `hidden`, `as`), token and rule definition names, comments, string literals and escape sequences, character classes, operators, labels, and punctuation.
+
+Install the extension by creating a symlink into the Kiro extensions directory:
+
+```bash
+ln -s "$(pwd)/Editor/storm-syntax-highlighting" ~/.kiro/extensions/storm-syntax-highlighting
+```
+
+Using a symlink means any changes you make to the grammar source are reflected immediately — no need to reinstall the extension.
+
+After installing, reload or restart Kiro for the extension to take effect.
+
+### Mist
+
+A companion TextMate grammar extension provides syntax highlighting for `.mist` files in Kiro and VS Code. It highlights keywords, types, literals, interpolated strings, comments, operators, declaration names, and punctuation.
+
+Install the extension by creating a symlink into the Kiro extensions directory:
+
+```bash
+ln -s "$(pwd)/Editor/mist-syntax-highlighting" ~/.kiro/extensions/mist-syntax-highlighting
+```
+
+Using a symlink means any changes you make to the grammar are reflected immediately — no need to reinstall the extension.
+
+After installing, reload or restart Kiro for the extension to take effect.

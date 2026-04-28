@@ -1,0 +1,65 @@
+// SYNTAX TEST "source.mist"
+
+// ===== Integer literals (constant.numeric.integer.mist) =====
+
+42
+// <- constant.numeric.integer.mist
+
+100L
+// <- constant.numeric.integer.mist
+
+255u
+// <- constant.numeric.integer.mist
+
+1000UL
+// <- constant.numeric.integer.mist
+
+// ===== Hex literals (constant.numeric.hex.mist) =====
+
+0xFF
+// <- constant.numeric.hex.mist
+
+0X1A2B
+// <- constant.numeric.hex.mist
+
+// ===== Float literals (constant.numeric.float.mist) =====
+
+3.14
+// <- constant.numeric.float.mist
+
+2.5f
+// <- constant.numeric.float.mist
+
+1.0D
+// <- constant.numeric.float.mist
+
+100m
+// <- constant.numeric.float.mist
+
+// ===== String literals (string.quoted.double.mist) =====
+
+"hello"
+// <- string.quoted.double.mist
+
+"escape: \n \t \\"
+// <- string.quoted.double.mist
+//       ^^ constant.character.escape.mist
+//          ^^ constant.character.escape.mist
+//             ^^ constant.character.escape.mist
+
+// ===== Char literals (string.quoted.single.mist) =====
+
+'a'
+// <- string.quoted.single.mist
+
+   '\n'
+// ^ string.quoted.single.mist
+//  ^^ constant.character.escape.mist
+
+// ===== Boolean literals (constant.language.boolean.mist) =====
+
+true
+// <- constant.language.boolean.mist
+
+false
+// <- constant.language.boolean.mist

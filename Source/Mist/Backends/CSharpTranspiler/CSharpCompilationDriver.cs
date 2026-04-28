@@ -12,7 +12,7 @@ namespace Mist.Backends.CSharpTranspiler;
 /// </summary>
 public sealed class CSharpCompilationDriver
 {
-    public static BackendResult Compile(string projectDirectory, string binDirectory, DiagnosticBag diagnostics)
+    public static BackendResult Compile(string projectDirectory, string binDirectory, string projectName, DiagnosticBag diagnostics)
     {
         var absoluteBinDir = Path.GetFullPath(binDirectory);
 
@@ -70,7 +70,7 @@ public sealed class CSharpCompilationDriver
 
             var succeeded = process.ExitCode == 0;
             string? artifactPath = succeeded
-                ? Path.Combine(absoluteBinDir, "MistOutput.dll")
+                ? Path.Combine(absoluteBinDir, $"{projectName}.dll")
                 : null;
 
             return new BackendResult(succeeded, artifactPath, diagnostics.ToImmutableArray());

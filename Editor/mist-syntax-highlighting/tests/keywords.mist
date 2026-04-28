@@ -1,0 +1,92 @@
+// SYNTAX TEST "source.mist"
+
+// ===== Control-flow keywords (keyword.control.mist) =====
+
+if (true) {
+// <- keyword.control.mist
+}
+
+else {
+// <- keyword.control.mist
+}
+
+while (x > 0) {
+// <- keyword.control.mist
+}
+
+for (int i = 0; i < 10; i++) {
+// <- keyword.control.mist
+}
+
+foreach (var item in items) {
+// <- keyword.control.mist
+//                ^^ keyword.control.mist
+}
+
+in
+// <- keyword.control.mist
+
+break;
+// <- keyword.control.mist
+
+return 0;
+// <- keyword.control.mist
+
+// ===== Declaration keywords (keyword.declaration.mist) =====
+
+namespace Foo {
+// <- keyword.declaration.mist
+}
+
+using System;
+// <- keyword.declaration.mist
+
+class MyClass {
+// <- keyword.declaration.mist
+}
+
+struct MyStruct {
+// <- keyword.declaration.mist
+}
+
+// ===== Modifier keywords (storage.modifier.mist) =====
+
+public class Visible {
+// <- storage.modifier.mist
+}
+
+private int secret;
+// <- storage.modifier.mist
+
+static int count;
+// <- storage.modifier.mist
+
+// ===== Other keywords (keyword.other.mist) =====
+
+new MyClass();
+// <- keyword.other.mist
+
+var x = 10;
+// <- keyword.other.mist
+
+this.value = 5;
+// <- keyword.other.mist
+
+// ===== Word boundary tests =====
+// These identifiers contain keywords as substrings but must NOT match as keywords.
+
+interface
+// <- source.mist -keyword -storage.type
+
+format
+// <- source.mist -keyword
+
+breaking
+// <- source.mist -keyword
+
+returning
+// <- source.mist -keyword
+
+foreachable
+// <- source.mist -keyword
+

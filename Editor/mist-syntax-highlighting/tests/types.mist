@@ -1,0 +1,62 @@
+// SYNTAX TEST "source.mist"
+
+// ===== Primitive types (storage.type.primitive.mist) =====
+
+int x;
+// <- storage.type.primitive.mist
+
+uint y;
+// <- storage.type.primitive.mist
+
+long z;
+// <- storage.type.primitive.mist
+
+ulong a;
+// <- storage.type.primitive.mist
+
+short b;
+// <- storage.type.primitive.mist
+
+ushort c;
+// <- storage.type.primitive.mist
+
+byte d;
+// <- storage.type.primitive.mist
+
+sbyte e;
+// <- storage.type.primitive.mist
+
+float f;
+// <- storage.type.primitive.mist
+
+double g;
+// <- storage.type.primitive.mist
+
+decimal h;
+// <- storage.type.primitive.mist
+
+bool i;
+// <- storage.type.primitive.mist
+
+char j;
+// <- storage.type.primitive.mist
+
+string k;
+// <- storage.type.primitive.mist
+
+// ===== Void type (storage.type.void.mist) =====
+
+void
+// <- storage.type.void.mist
+
+// ===== Word boundary tests =====
+// These identifiers contain type keywords as substrings but must NOT match.
+
+integer
+// <- source.mist -storage.type
+
+boolean
+// <- source.mist -storage.type
+
+stringify
+// <- source.mist -storage.type

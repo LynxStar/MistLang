@@ -120,7 +120,7 @@ public sealed class EmitterOutputTests : IDisposable
     private string EmitAndGetCsContent(ISemanticModel model)
     {
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, diagnostics);
+        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
 
         var csFile = Directory.GetFiles(_outputDir, "*.cs").FirstOrDefault();
         return csFile is not null ? File.ReadAllText(csFile) : "";
@@ -564,9 +564,9 @@ public sealed class EmitterOutputTests : IDisposable
 
         var model = BuildModel(ast, source);
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, diagnostics);
+        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
 
-        var csprojPath = Path.Combine(_outputDir, "MistOutput.csproj");
+        var csprojPath = Path.Combine(_outputDir, "TestProject.csproj");
         Assert.True(File.Exists(csprojPath));
 
         var csprojContent = File.ReadAllText(csprojPath);

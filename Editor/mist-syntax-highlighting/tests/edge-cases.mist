@@ -1,0 +1,61 @@
+// SYNTAX TEST "source.mist"
+
+// ===== Keyword substrings in identifiers (Req 3.5) =====
+// Identifiers that contain keywords as substrings must NOT match as keywords.
+
+interface
+// <- source.mist -keyword -storage.type
+
+format
+// <- source.mist -keyword
+
+classname
+// <- source.mist -keyword
+
+structural
+// <- source.mist -keyword
+
+newValue
+// <- source.mist -keyword
+
+// ===== Type substrings in identifiers (Req 4.3) =====
+// Identifiers that contain type keywords as substrings must NOT match as types.
+
+integer
+// <- source.mist -storage.type
+
+boolean
+// <- source.mist -storage.type
+
+floating
+// <- source.mist -storage.type
+
+// ===== Operator ambiguities (Req 8.1, 8.4) =====
+// Multi-char operators must match as a single token, not as two separate operators.
+
+  == !=
+//^^ keyword.operator.comparison.mist
+//   ^^ keyword.operator.comparison.mist
+
+  =
+//^ keyword.operator.assignment.mist
+
+// ===== Comment vs division (Req 7.1, 8.3) =====
+// `//` must be a comment, not two division operators.
+
+// this is a comment not two divisions
+// <- comment.line.double-slash.mist
+
+  5 / 2
+//  ^ keyword.operator.arithmetic.mist
+
+// ===== Regular string vs interpolated string (Req 5.4, 6.1) =====
+// `"hello"` is a regular string; `$"hello"` is interpolated.
+
+"hello"
+// <- string.quoted.double.mist
+
+$"hello"
+// <- punctuation.definition.string.begin.mist
+//^^^^^ string.interpolated.mist
+//     ^ punctuation.definition.string.end.mist

@@ -1,0 +1,65 @@
+// SYNTAX TEST "source.mist"
+
+// ===== Comparison operators (keyword.operator.comparison.mist) =====
+
+==
+// <- keyword.operator.comparison.mist
+
+!=
+// <- keyword.operator.comparison.mist
+
+<
+// <- keyword.operator.comparison.mist
+
+>
+// <- keyword.operator.comparison.mist
+
+<=
+// <- keyword.operator.comparison.mist
+
+>=
+// <- keyword.operator.comparison.mist
+
+// ===== Logical operators (keyword.operator.logical.mist) =====
+
+&&
+// <- keyword.operator.logical.mist
+
+||
+// <- keyword.operator.logical.mist
+
+!
+// <- keyword.operator.logical.mist
+
+// ===== Arithmetic operators (keyword.operator.arithmetic.mist) =====
+
++
+// <- keyword.operator.arithmetic.mist
+
+-
+// <- keyword.operator.arithmetic.mist
+
+*
+// <- keyword.operator.arithmetic.mist
+
+/
+// <- keyword.operator.arithmetic.mist
+
+%
+// <- keyword.operator.arithmetic.mist
+
+// ===== Assignment operator (keyword.operator.assignment.mist) =====
+
+=
+// <- keyword.operator.assignment.mist
+
+// ===== Multi-char vs single-char precedence =====
+// == should match as comparison, NOT as two = assignments
+
+  == !=
+//^^ keyword.operator.comparison.mist
+//   ^^ keyword.operator.comparison.mist
+
+  <= >=
+//^^ keyword.operator.comparison.mist
+//   ^^ keyword.operator.comparison.mist

@@ -435,5 +435,56 @@ namespace Storm.SourceGenerator.Tests
             Assert.Empty(result.Grammar!.Tokens);
             Assert.Empty(result.Grammar.Rules);
         }
+
+        // ---------------------------------------------------------------
+        //  Regex literal IR lowering
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void Lower_TokenWithRegexLiteralBody_ProducesRegexLiteralIR()
+        {
+            var files = new Dictionary<string, string>
+            {
+                ["root/main.storm"] = "grammar Test;\ntoken Number = `[0-9]+`;\nrule Start = Number;"
+            };
+
+            var result = LowerGrammar(files, "root/main.storm");
+
+            Assert.True(result.Succeeded);
+            Assert.NotNull(result.Grammar);
+
+            var numberToken = result.Grammar!.Tokens.FirstOrDefault(t => t.Name == "Number");
+            Assert.NotNull(numberToken);
+
+            var regexLiteral = Assert.IsType<RegexLiteralIR>(numberToken!.Expression);
+            Assert.Equal("[0-9]+", regexLiteral.Pattern);
+        }
+
+        [Fact]
+        public void Lower_RuleReferencingTokenWithRegexLiteral_CorrectIRStructure()
+        {
+            var files = new Dictionary<string, string>
+            {
+                ["root/main.storm"] = "grammar Test;\ntoken Ident = `[a-zA-Z_][a-zA-Z0-9_]*`;\nrule Start = Ident;"
+            };
+
+            var result = LowerGrammar(files, "root/main.storm");
+
+            Assert.True(result.Succeeded);
+            Assert.NotNull(result.Grammar);
+
+            // The token should have a RegexLiteralIR expression
+            var identToken = result.Grammar!.Tokens.FirstOrDefault(t => t.Name == "Ident");
+            Assert.NotNull(identToken);
+            var regexLiteral = Assert.IsType<RegexLiteralIR>(identToken!.Expression);
+            Assert.Equal("[a-zA-Z_][a-zA-Z0-9_]*", regexLiteral.Pattern);
+
+            // The rule should reference the token via TokenRefIR
+            var startRule = result.Grammar.Rules.FirstOrDefault(r => r.Name == "Start");
+            Assert.NotNull(startRule);
+            Assert.Single(startRule!.Alternatives);
+            var tokenRef = Assert.IsType<TokenRefIR>(startRule.Alternatives[0].Expression);
+            Assert.Same(identToken, tokenRef.Token);
+        }
     }
 }

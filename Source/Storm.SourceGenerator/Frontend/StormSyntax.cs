@@ -163,6 +163,13 @@ public sealed record StormCharClassExpr(
     : StormExpression;
 
 /// <summary>
+/// A backtick-delimited regex literal: <c>`[a-zA-Z]+`</c>
+/// </summary>
+public sealed record StormRegexLiteralExpr(
+    string Pattern)
+    : StormExpression;
+
+/// <summary>
 /// A simple (unqualified) reference to a rule, token, or fragment: <c>Identifier</c>
 /// </summary>
 public sealed record StormReferenceExpr(

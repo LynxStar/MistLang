@@ -5,6 +5,7 @@
   "patterns": [
     { "include": "#comments" },
     { "include": "#strings" },
+    { "include": "#regex-literals" },
     { "include": "#character-classes" },
     { "include": "#definition-names" },
     { "include": "#alternative-labels" },
@@ -28,6 +29,17 @@
         {
           "name": "constant.character.escape.storm",
           "match": "\\\\(\\\\|n|\"|r|t|0|')"
+        }
+      ]
+    },
+    "regex-literals": {
+      "name": "string.regexp.storm",
+      "begin": "`",
+      "end": "`",
+      "patterns": [
+        {
+          "name": "constant.character.escape.storm",
+          "match": "\\\\."
         }
       ]
     },

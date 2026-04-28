@@ -491,4 +491,45 @@ rule F = A | C;
         var str = Assert.IsType<StormStringLiteralExpr>(decl.Body);
         Assert.Equal("\"", str.Value);
     }
+
+    // ---------------------------------------------------------------
+    //  Regex literals in expressions
+    // ---------------------------------------------------------------
+
+    [Fact]
+    public void Parse_RegexLiteral_InTokenBody()
+    {
+        var file = Parse("token Ident = `[a-zA-Z_]+`;", out var diags);
+        Assert.Empty(diags);
+        _ = Assert.Single(file.Declarations);
+        var decl = Assert.IsType<StormTokenDecl>(file.Declarations[0]);
+        var body = Assert.IsType<StormRegexLiteralExpr>(decl.Body);
+        Assert.Equal("[a-zA-Z_]+", body.Pattern);
+    }
+
+    [Fact]
+    public void Parse_RegexLiteral_InFragmentBody()
+    {
+        var file = Parse("fragment HexDigit = `[0-9a-fA-F]`;", out var diags);
+        Assert.Empty(diags);
+        _ = Assert.Single(file.Declarations);
+        var decl = Assert.IsType<StormFragmentDecl>(file.Declarations[0]);
+        var body = Assert.IsType<StormRegexLiteralExpr>(decl.Body);
+        Assert.Equal("[0-9a-fA-F]", body.Pattern);
+    }
+
+    [Fact]
+    public void Parse_RegexLiteral_AsFirstElementInSequence()
+    {
+        var file = Parse("token Ident = `[a-zA-Z_]` `[a-zA-Z0-9_]*`;", out var diags);
+        Assert.Empty(diags);
+        _ = Assert.Single(file.Declarations);
+        var decl = Assert.IsType<StormTokenDecl>(file.Declarations[0]);
+        var seq = Assert.IsType<StormSequenceExpr>(decl.Body);
+        Assert.Equal(2, seq.Elements.Count);
+        var first = Assert.IsType<StormRegexLiteralExpr>(seq.Elements[0]);
+        Assert.Equal("[a-zA-Z_]", first.Pattern);
+        var second = Assert.IsType<StormRegexLiteralExpr>(seq.Elements[1]);
+        Assert.Equal("[a-zA-Z0-9_]*", second.Pattern);
+    }
 }

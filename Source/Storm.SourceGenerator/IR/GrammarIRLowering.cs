@@ -280,6 +280,9 @@ public static class GrammarIRLowering
             case StormCharClassExpr ccExpr:
                 return new CharClassIR(ccExpr.Text);
 
+            case StormRegexLiteralExpr regexExpr:
+                return new RegexLiteralIR(regexExpr.Pattern);
+
             case StormLabeledExpr labeledExpr:
                 // Labels don't appear in token expressions normally, but handle gracefully
                 return InlineFragments(labeledExpr.Element, fragmentsByName, inliningStack, diagnostics);
@@ -606,6 +609,9 @@ public static class GrammarIRLowering
             case StormCharClassExpr ccExpr:
                 // Char classes shouldn't appear in rule expressions, but handle gracefully
                 return new CharClassIR(ccExpr.Text);
+
+            case StormRegexLiteralExpr regexExpr:
+                return new RegexLiteralIR(regexExpr.Pattern);
 
             default:
                 diagnostics.Add(new StormDiagnostic(

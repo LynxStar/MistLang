@@ -148,3 +148,16 @@ public sealed class InlineFragmentIR : ExpressionIR
         Body = body;
     }
 }
+
+/// <summary>
+/// A regex literal pattern: <c>`[a-zA-Z]+`</c>
+/// </summary>
+public sealed class RegexLiteralIR : ExpressionIR
+{
+    public string Pattern { get; }
+
+    public RegexLiteralIR(string pattern)
+    {
+        Pattern = pattern;
+    }
+}

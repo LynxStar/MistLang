@@ -32,6 +32,8 @@ namespace Storm.SourceGenerator.Frontend
         StringLiteral,
         /// <summary>A character class: <c>[...]</c></summary>
         CharClass,
+        /// <summary>A backtick-delimited regex literal.</summary>
+        RegexLiteral,
 
         // --- Operators / punctuation ---
         /// <summary><c>=</c></summary>
@@ -230,6 +232,43 @@ namespace Storm.SourceGenerator.Frontend
 
                     var lexeme = text.Substring(start, pos - start);
                     tokens.Add(new StormToken(StormTokenKind.CharClass, lexeme, start, line, column));
+                    continue;
+                }
+
+                // --- Regex literal ---
+                if(c == '`')
+                {
+                    var start = pos;
+                    pos++; // skip opening backtick
+                    while(pos < text.Length && text[pos] != '`')
+                    {
+                        if(text[pos] == '\\' && pos + 1 < text.Length)
+                        {
+                            pos += 2; // skip escaped character (including \`)
+                        }
+                        else
+                        {
+                            pos++;
+                        }
+                    }
+
+                    if(pos < text.Length)
+                    {
+                        pos++; // skip closing backtick
+                    }
+                    else
+                    {
+                        diagnostics.Add(new StormDiagnostic(
+                            StormDiagnosticIds.STORM_SYNTAX_ERROR,
+                            StormDiagnosticSeverity.Error,
+                            "Unterminated regex literal",
+                            source.FilePath,
+                            line,
+                            column));
+                    }
+
+                    var regexLexeme = text.Substring(start, pos - start);
+                    tokens.Add(new StormToken(StormTokenKind.RegexLiteral, regexLexeme, start, line, column));
                     continue;
                 }
 

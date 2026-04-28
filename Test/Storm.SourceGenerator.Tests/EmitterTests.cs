@@ -215,6 +215,60 @@ namespace Storm.SourceGenerator.Tests
         }
 
         // ---------------------------------------------------------------
+        //  Regex literal emission tests (Task 5.4)
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void LexerEmitter_RegexLiteral_EmitsRegexUsingDirective()
+        {
+            var ctx = CreateContext(
+                "token Ident = `[a-zA-Z_]+`;\nrule Start = Ident;");
+
+            var output = LexerEmitter.Emit(ctx);
+
+            Assert.Contains("using System.Text.RegularExpressions;", output);
+        }
+
+        [Fact]
+        public void LexerEmitter_NoRegexLiteral_OmitsRegexUsingDirective()
+        {
+            var ctx = CreateContext(
+                "token Number = [0-9]+;\nrule Start = Number;");
+
+            var output = LexerEmitter.Emit(ctx);
+
+            Assert.DoesNotContain("using System.Text.RegularExpressions;", output);
+        }
+
+        [Fact]
+        public void LexerEmitter_RegexLiteral_EmitsCompiledAnchoredRegex()
+        {
+            var ctx = CreateContext(
+                "token Ident = `[a-zA-Z_]+`;\nrule Start = Ident;");
+
+            var output = LexerEmitter.Emit(ctx);
+
+            // Should contain a static Regex field with Compiled option and anchored pattern
+            Assert.Contains("RegexOptions.Compiled", output);
+            Assert.Contains(@"@""^(?:[a-zA-Z_]+)""", output);
+            Assert.Contains("private static readonly Regex _regex_", output);
+        }
+
+        [Fact]
+        public void LexerEmitter_RegexLiteral_EmitsMatchLengthOrZero()
+        {
+            var ctx = CreateContext(
+                "token Ident = `[a-zA-Z_]+`;\nrule Start = Ident;");
+
+            var output = LexerEmitter.Emit(ctx);
+
+            // The generated match code should return match length or 0
+            Assert.Contains(".Match(input.Substring(", output);
+            Assert.Contains(".Success", output);
+            Assert.Contains(".Length : 0", output);
+        }
+
+        // ---------------------------------------------------------------
         //  ParserEmitter tests (Task 11)
         // ---------------------------------------------------------------
 

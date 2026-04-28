@@ -447,6 +447,13 @@ namespace Storm.SourceGenerator.Frontend
                             return new StormCharClassExpr(tok.Lexeme);
                         }
 
+                    case StormTokenKind.RegexLiteral:
+                        {
+                            var tok = Advance();
+                            var pattern = tok.Lexeme.Substring(1, tok.Lexeme.Length - 2);
+                            return new StormRegexLiteralExpr(pattern);
+                        }
+
                     case StormTokenKind.Identifier:
                         {
                             var nameTok = Advance();
@@ -491,6 +498,7 @@ namespace Storm.SourceGenerator.Frontend
                 {
                     case StormTokenKind.StringLiteral:
                     case StormTokenKind.CharClass:
+                    case StormTokenKind.RegexLiteral:
                     case StormTokenKind.Identifier:
                     case StormTokenKind.LeftParen:
                         return true;

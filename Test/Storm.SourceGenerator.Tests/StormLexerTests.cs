@@ -248,6 +248,46 @@ namespace Storm.SourceGenerator.Tests
         }
 
         // ---------------------------------------------------------------
+        //  Regex literals
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void Tokenize_RegexLiteral_Simple()
+        {
+            var tokens = ContentTokens("`abc`");
+            Assert.Single(tokens);
+            Assert.Equal(StormTokenKind.RegexLiteral, tokens[0].Kind);
+            Assert.Equal("`abc`", tokens[0].Lexeme);
+        }
+
+        [Fact]
+        public void Tokenize_RegexLiteral_EscapedBacktick()
+        {
+            var tokens = ContentTokens(@"`a\`b`");
+            Assert.Single(tokens);
+            Assert.Equal(StormTokenKind.RegexLiteral, tokens[0].Kind);
+            Assert.Equal(@"`a\`b`", tokens[0].Lexeme);
+        }
+
+        [Fact]
+        public void Tokenize_RegexLiteral_Unterminated()
+        {
+            var tokens = Tokenize("`abc", out var diags);
+            Assert.Contains(tokens, t => t.Kind == StormTokenKind.RegexLiteral);
+            Assert.Single(diags);
+            Assert.Contains("Unterminated regex literal", diags[0].Message);
+        }
+
+        [Fact]
+        public void Tokenize_RegexLiteral_Empty()
+        {
+            var tokens = ContentTokens("``");
+            Assert.Single(tokens);
+            Assert.Equal(StormTokenKind.RegexLiteral, tokens[0].Kind);
+            Assert.Equal("``", tokens[0].Lexeme);
+        }
+
+        // ---------------------------------------------------------------
         //  Full declaration tokenization
         // ---------------------------------------------------------------
 

@@ -11,11 +11,13 @@ public sealed class ClassType : IType
     public TypeKind Kind => TypeKind.Class;
     public IScope MemberScope { get; }
     public string? ContainingNamespace { get; }
+    public ClassType? BaseType { get; internal set; }
 
     public ClassType(string displayName, IScope memberScope, string? containingNamespace)
     {
         DisplayName = displayName;
         MemberScope = memberScope;
         ContainingNamespace = containingNamespace;
+        BaseType = null;
     }
 }

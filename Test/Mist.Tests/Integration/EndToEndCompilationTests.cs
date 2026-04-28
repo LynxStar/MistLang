@@ -955,6 +955,93 @@ public sealed class EndToEndCompilationTests : IDisposable
         Assert.Equal(0, process.ExitCode);
     }
 
+    [Fact]
+    public void InheritanceSample_CompilesAndRunsCorrectly()
+    {
+        // Compile the samples/Inheritance/ directory through the full Mist pipeline
+        var repoRoot = FindRepoRoot();
+        var sampleDir = Path.Combine(repoRoot, "samples", "Inheritance");
+        Assert.True(Directory.Exists(sampleDir), $"Inheritance sample directory not found at {sampleDir}");
+
+        // Discover all .mist source files
+        var sourceFiles = Directory.EnumerateFiles(sampleDir, "*.mist", SearchOption.AllDirectories)
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
+        Assert.True(sourceFiles.Count >= 4, $"Expected at least 4 .mist files, found {sourceFiles.Count}");
+
+        // Compile using the real driver
+        var driver = CreateRealDriver();
+        var binDir = Path.Combine(_outputDir, "bin");
+        var options = new CompilerOptions(
+            ProjectFolder: sampleDir,
+            SourcePaths: sourceFiles.ToImmutableArray(),
+            Backend: new BackendId("csharp"),
+            OutputDirectory: _outputDir,
+            BinDirectory: binDir,
+            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+
+        var result = driver.Compile(options);
+
+        // The compilation should succeed (emitted C# compiles via Roslyn)
+        Assert.True(result.Succeeded, $"Inheritance sample compilation failed. Diagnostics:\n{string.Join("\n", result.Diagnostics.Select(d => $"  {d.Severity} {d.Id.Value}: {d.Message}"))}");
+        Assert.NotNull(result.PrimaryOutputArtifactPath);
+        Assert.True(File.Exists(result.PrimaryOutputArtifactPath), $"Expected artifact at {result.PrimaryOutputArtifactPath}");
+
+        // Verify emitted C# files contain correct inheritance structure
+        var emittedDogCs = Path.Combine(_outputDir, "Dog.cs");
+        var emittedGuideDogCs = Path.Combine(_outputDir, "GuideDog.cs");
+        var emittedAnimalCs = Path.Combine(_outputDir, "Animal.cs");
+
+        Assert.True(File.Exists(emittedDogCs), "Dog.cs should be emitted");
+        Assert.True(File.Exists(emittedGuideDogCs), "GuideDog.cs should be emitted");
+        Assert.True(File.Exists(emittedAnimalCs), "Animal.cs should be emitted");
+
+        var dogCsContent = File.ReadAllText(emittedDogCs);
+        var guideDogCsContent = File.ReadAllText(emittedGuideDogCs);
+        var animalCsContent = File.ReadAllText(emittedAnimalCs);
+
+        Assert.Contains("class Dog : Animal", dogCsContent);
+        Assert.Contains("class GuideDog : Dog", guideDogCsContent);
+        Assert.Contains("class Animal", animalCsContent);
+        Assert.DoesNotContain("class Animal :", animalCsContent); // Animal has no base class
+
+        // Verify base constructor chaining is emitted
+        Assert.Contains(": base(", dogCsContent);
+        Assert.Contains(": base(", guideDogCsContent);
+
+        // Run the produced executable and verify output
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "dotnet",
+            Arguments = result.PrimaryOutputArtifactPath,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        using var process = System.Diagnostics.Process.Start(psi);
+        Assert.NotNull(process);
+
+        var stdout = process.StandardOutput.ReadToEnd();
+        process.WaitForExit(15000);
+        Assert.True(process.HasExited, "Process did not exit within timeout");
+        Assert.Equal(0, process.ExitCode);
+
+        // Verify key output lines demonstrating inheritance features
+        Assert.Contains("=== Single-level inheritance ===", stdout);
+        Assert.Contains("Rex is a German Shepherd, age 5", stdout);
+        Assert.Contains("=== Multi-tier inheritance (3 levels) ===", stdout);
+        Assert.Contains("Buddy is a Labrador guide dog, age 3, handler: Alice", stdout);
+        Assert.Contains("=== Subtype assignability ===", stdout);
+        Assert.Contains("Animal info: Rex (age 5)", stdout);
+        Assert.Contains("Animal info: Buddy (age 3)", stdout);
+        Assert.Contains("=== Base constructor chaining ===", stdout);
+        Assert.Contains("Dog via base chain: Max (age 1)", stdout);
+        Assert.Contains("GuideDog via base chain: Luna (age 2)", stdout);
+        Assert.Contains("Done!", stdout);
+    }
+
     // ─── Utility: find the repository root ───────────────────────────────
 
     private static string FindRepoRoot()

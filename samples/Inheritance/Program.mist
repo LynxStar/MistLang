@@ -1,0 +1,49 @@
+using System;
+
+namespace Inheritance;
+
+public class Program
+{
+    private static void PrintAnimalInfo(Animal animal)
+    {
+        Console.WriteLine($"  Animal info: {animal.Describe()}");
+    }
+
+    public static void Main(string[] args)
+    {
+        // --- Single-level inheritance: Dog extends Animal ---
+        Console.WriteLine("=== Single-level inheritance ===");
+        var dog = new Dog("Rex", 5, "German Shepherd");
+        Console.WriteLine(dog.DescribeDog());
+        Console.WriteLine($"  Name: {dog.GetName()}");
+        Console.WriteLine($"  Age: {dog.GetAge()}");
+        Console.WriteLine($"  Breed: {dog.GetBreed()}");
+
+        // --- Multi-tier inheritance: GuideDog extends Dog extends Animal ---
+        Console.WriteLine("=== Multi-tier inheritance (3 levels) ===");
+        var guide = new GuideDog("Buddy", 3, "Labrador", "Alice");
+        Console.WriteLine(guide.DescribeGuideDog());
+        Console.WriteLine($"  Name: {guide.GetName()}");
+        Console.WriteLine($"  Age: {guide.GetAge()}");
+        Console.WriteLine($"  Breed: {guide.GetBreed()}");
+        Console.WriteLine($"  Handler: {guide.GetHandler()}");
+
+        // --- Subtype assignability: derived passed to base parameter ---
+        Console.WriteLine("=== Subtype assignability ===");
+        Console.WriteLine("Passing Dog to method accepting Animal:");
+        PrintAnimalInfo(dog);
+        Console.WriteLine("Passing GuideDog to method accepting Animal:");
+        PrintAnimalInfo(guide);
+
+        // --- Base constructor chaining ---
+        Console.WriteLine("=== Base constructor chaining ===");
+        var animal = new Animal("Cat", 8);
+        Console.WriteLine($"Base Animal: {animal.Describe()}");
+        var pup = new Dog("Max", 1, "Beagle");
+        Console.WriteLine($"Dog via base chain: {pup.Describe()}");
+        var service = new GuideDog("Luna", 2, "Golden Retriever", "Bob");
+        Console.WriteLine($"GuideDog via base chain: {service.Describe()}");
+
+        Console.WriteLine("Done!");
+    }
+}

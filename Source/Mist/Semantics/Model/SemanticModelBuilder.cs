@@ -48,6 +48,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
+        // Pass 1b: Resolve base types for class inheritance.
+        // This runs after all types are registered so that forward references
+        // to base classes are supported.
+        Pass1_ResolveBaseTypes(asts, globalScope, symbolTable, compilation, diagnostics);
+
+        // Pass 1c: Detect circular inheritance chains.
+        // After all base types are resolved, walk each class's BaseType chain
+        // to detect cycles (including self-inheritance). Cycles are broken by
+        // setting BaseType = null on the class that closes the cycle.
+        Pass1_DetectCycles(symbolTable, asts, compilation, diagnostics);
+
+        // Pass 1d: Check for member redeclarations in derived classes.
+        // After base types are resolved and cycles are broken, walk each
+        // class's ancestor chain to ensure no member name is redeclared.
+        Pass1_CheckMemberRedeclarations(symbolTable, asts, compilation, diagnostics);
+
+        // Pass 1e: Check that base class constructor requirements are satisfied.
+        // If a base class has explicit constructors that require parameters,
+        // the derived class must provide a constructor with `: base(args)`.
+        Pass1_CheckBaseConstructorSatisfied(symbolTable, asts, compilation, diagnostics);
+
         // Pass 2: Resolve types and build expression types.
         var expressionTypes = new Dictionary<Storm.Runtime.SyntaxNode, IType>();
         for (var i = 0; i < asts.Length; i++)
@@ -251,6 +272,422 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var methodSymbol = new Symbol(methodName, SymbolKind.Method, SymbolOrigin.UserCode, typeScope, declaredType: null, methodSpan);
         typeScope.AddMember(methodSymbol);
         symbolTable.Register(methodSymbol, methodDecl);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Pass 1b — Resolve base types for class inheritance
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// After all types are registered in Pass 1, resolve base type references
+    /// for classes with inheritance clauses. This runs as a separate step so
+    /// that forward references to base classes are supported.
+    /// </summary>
+    private static void Pass1_ResolveBaseTypes(
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        Scope globalScope,
+        SymbolTable symbolTable,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // Walk all registered symbols to find class types and their AST nodes.
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind != SymbolKind.Class || symbol.DeclaredType is not ClassType classType)
+            {
+                continue;
+            }
+
+            var declaringNode = symbolTable.GetDeclaringNode(symbol);
+            if (declaringNode is not ClassDeclarationNode classDecl)
+            {
+                continue;
+            }
+
+            // Check if this class has an inheritance clause.
+            if (classDecl.BaseClass is null)
+            {
+                continue;
+            }
+
+            var baseClassName = classDecl.BaseClassName.Lexeme;
+            var parentScope = symbol.ContainingScope;
+
+            // Look up the base class name in the parent scope.
+            var resolvedSymbol = parentScope.Lookup(baseClassName);
+
+            if (resolvedSymbol is null)
+            {
+                // Determine the source file path for the diagnostic.
+                string? compilationUnitPath = FindCompilationUnitPath(classDecl, asts, compilation);
+
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_UNDEFINED_BASE_TYPE"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.SemanticModelConstruction,
+                    $"The base type '{baseClassName}' could not be found.",
+                    Location: null,
+                    CompilationUnitPath: compilationUnitPath,
+                    AnalyzerName: null));
+            }
+            else if (resolvedSymbol.DeclaredType is StructType)
+            {
+                string? compilationUnitPath = FindCompilationUnitPath(classDecl, asts, compilation);
+
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_CANNOT_INHERIT_STRUCT"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.SemanticModelConstruction,
+                    $"Class '{classType.DisplayName}' cannot inherit from struct '{baseClassName}'.",
+                    Location: null,
+                    CompilationUnitPath: compilationUnitPath,
+                    AnalyzerName: null));
+            }
+            else if (resolvedSymbol.DeclaredType is ClassType resolvedClassType)
+            {
+                classType.BaseType = resolvedClassType;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Finds the compilation unit path for a class declaration node by walking
+    /// the ASTs to find which compilation unit contains the node.
+    /// </summary>
+    private static string? FindCompilationUnitPath(
+        ClassDeclarationNode classDecl,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation)
+    {
+        for (var i = 0; i < asts.Length; i++)
+        {
+            if (asts[i] is CompilationUnitNode cu && ContainsClassDeclaration(cu, classDecl))
+            {
+                return i < compilation.Units.Length ? compilation.Units[i].Source?.Path : null;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Checks whether a compilation unit contains the given class declaration.
+    /// </summary>
+    private static bool ContainsClassDeclaration(CompilationUnitNode cu, ClassDeclarationNode classDecl)
+    {
+        foreach (var typeDecl in cu.Types)
+        {
+            if (typeDecl is ClassTypeTypeDeclarationNode ct && ReferenceEquals(ct.ClassDeclaration, classDecl))
+            {
+                return true;
+            }
+        }
+
+        if (cu.Namespace is not null)
+        {
+            var namespaceTypes = GetNamespaceBodyTypes(cu.Namespace);
+            foreach (var typeDecl in namespaceTypes)
+            {
+                if (typeDecl is ClassTypeTypeDeclarationNode ct && ReferenceEquals(ct.ClassDeclaration, classDecl))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Pass 1c — Detect circular inheritance chains
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// After all base types are resolved, walk each class's BaseType chain to
+    /// detect cycles (including self-inheritance). When a cycle is found, emit
+    /// a <c>MIST_CIRCULAR_INHERITANCE</c> diagnostic and set <c>BaseType = null</c>
+    /// on the class that closes the cycle to break it.
+    /// </summary>
+    private static void Pass1_DetectCycles(
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // Track classes that have already been verified as cycle-free so we
+        // don't re-walk them.
+        var verified = new HashSet<ClassType>();
+
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind != SymbolKind.Class || symbol.DeclaredType is not ClassType classType)
+            {
+                continue;
+            }
+
+            if (classType.BaseType is null || verified.Contains(classType))
+            {
+                continue;
+            }
+
+            // Walk the BaseType chain from this class, tracking visited classes.
+            var visited = new HashSet<ClassType>();
+            var chain = new List<ClassType>();
+            var current = classType;
+
+            while (current is not null)
+            {
+                if (!visited.Add(current))
+                {
+                    // Cycle detected — current was already visited.
+                    // Build the chain string for the diagnostic message.
+                    var cycleStart = chain.IndexOf(current);
+                    var cycleMembers = chain.Skip(cycleStart).Select(c => c.DisplayName).ToList();
+                    cycleMembers.Add(current.DisplayName);
+                    var chainStr = string.Join(" -> ", cycleMembers);
+
+                    // Find the class declaration node that closes the cycle
+                    // (the last class in the chain before we revisited current).
+                    var closingClass = chain[^1];
+                    string? compilationUnitPath = FindCompilationUnitPathForClass(closingClass, symbolTable, asts, compilation);
+
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_CIRCULAR_INHERITANCE"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        $"Circular inheritance detected: '{chainStr}'.",
+                        Location: null,
+                        CompilationUnitPath: compilationUnitPath,
+                        AnalyzerName: null));
+
+                    // Break the cycle by nulling the BaseType on the closing class.
+                    closingClass.BaseType = null;
+                    break;
+                }
+
+                chain.Add(current);
+                current = current.BaseType;
+            }
+
+            // All classes in this chain that didn't form a cycle are verified.
+            foreach (var c in chain)
+            {
+                if (c.BaseType is not null || c == classType)
+                {
+                    verified.Add(c);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Finds the compilation unit path for a class type by looking up its
+    /// declaring node in the symbol table.
+    /// </summary>
+    private static string? FindCompilationUnitPathForClass(
+        ClassType classType,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.DeclaredType == classType)
+            {
+                var declaringNode = symbolTable.GetDeclaringNode(symbol);
+                if (declaringNode is ClassDeclarationNode classDecl)
+                {
+                    return FindCompilationUnitPath(classDecl, asts, compilation);
+                }
+            }
+        }
+        return null;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Pass 1d — Check for member redeclarations in derived classes
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// After base types are resolved and cycles are broken, walk each class's
+    /// ancestor chain to enforce the additive-only constraint: a derived class
+    /// cannot redeclare a field or method that already exists in any ancestor.
+    /// </summary>
+    private static void Pass1_CheckMemberRedeclarations(
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind != SymbolKind.Class || symbol.DeclaredType is not ClassType classType)
+            {
+                continue;
+            }
+
+            if (classType.BaseType is null)
+            {
+                continue;
+            }
+
+            // Collect the names of members declared directly on this class.
+            foreach (var member in classType.MemberScope.Members)
+            {
+                // Only check fields and methods (not constructors, parameters, etc.)
+                if (member.Kind != SymbolKind.Field && member.Kind != SymbolKind.Method)
+                {
+                    continue;
+                }
+
+                // Walk the ancestor chain looking for a member with the same name.
+                var ancestor = classType.BaseType;
+                while (ancestor is not null)
+                {
+                    foreach (var ancestorMember in ancestor.MemberScope.Members)
+                    {
+                        if ((ancestorMember.Kind == SymbolKind.Field || ancestorMember.Kind == SymbolKind.Method)
+                            && ancestorMember.Name == member.Name)
+                        {
+                            string? compilationUnitPath = FindCompilationUnitPathForClass(
+                                classType, symbolTable, asts, compilation);
+
+                            diagnostics.Add(new Diagnostic(
+                                new DiagnosticId("MIST_MEMBER_REDECLARATION"),
+                                DiagnosticSeverity.Error,
+                                PipelineStage.SemanticModelConstruction,
+                                $"'{classType.DisplayName}' cannot redeclare member '{member.Name}' already defined in '{ancestor.DisplayName}'.",
+                                Location: null,
+                                CompilationUnitPath: compilationUnitPath,
+                                AnalyzerName: null));
+
+                            // Stop walking ancestors for this member once we find the first conflict.
+                            goto nextMember;
+                        }
+                    }
+
+                    ancestor = ancestor.BaseType;
+                }
+
+                nextMember:;
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Pass 1e — Check base constructor requirements are satisfied
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// After base types are resolved and cycles are broken, check that each
+    /// derived class satisfies its base class's constructor requirements.
+    /// If the base class has explicit constructors that all require parameters,
+    /// the derived class must have at least one constructor with a
+    /// <c>: base(args)</c> chain. If the derived class has no explicit
+    /// constructors at all, or has constructors without <c>: base(...)</c>,
+    /// and the base class has no parameterless constructor, emit
+    /// <c>MIST_BASE_CTOR_UNSATISFIED</c>.
+    /// </summary>
+    private static void Pass1_CheckBaseConstructorSatisfied(
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind != SymbolKind.Class || symbol.DeclaredType is not ClassType classType)
+            {
+                continue;
+            }
+
+            if (classType.BaseType is null)
+            {
+                continue;
+            }
+
+            var baseType = classType.BaseType;
+
+            // Find explicit constructors on the base class.
+            var baseConstructors = baseType.MemberScope.Members
+                .Where(m => m.Kind == SymbolKind.Constructor)
+                .ToList();
+
+            // If the base class has no explicit constructors, it has an implicit
+            // parameterless constructor — no issue.
+            if (baseConstructors.Count == 0)
+            {
+                continue;
+            }
+
+            // Check if the base class has at least one parameterless constructor.
+            var baseHasParameterlessCtor = baseConstructors.Any(ctor =>
+            {
+                var ctorNode = symbolTable.GetDeclaringNode(ctor);
+                return ctorNode is ConstructorDeclarationNode ctorDecl && ctorDecl.Parameters is null;
+            });
+
+            // If the base class has a parameterless constructor, derived classes
+            // can implicitly call it — no issue.
+            if (baseHasParameterlessCtor)
+            {
+                continue;
+            }
+
+            // The base class requires constructor arguments. Check if the derived
+            // class satisfies this requirement.
+            var derivedConstructors = classType.MemberScope.Members
+                .Where(m => m.Kind == SymbolKind.Constructor)
+                .ToList();
+
+            if (derivedConstructors.Count == 0)
+            {
+                // Derived class has no explicit constructors and the base class
+                // requires arguments — emit diagnostic.
+                string? compilationUnitPath = FindCompilationUnitPathForClass(
+                    classType, symbolTable, asts, compilation);
+
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_BASE_CTOR_UNSATISFIED"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.SemanticModelConstruction,
+                    $"Base class '{baseType.DisplayName}' requires constructor arguments that are not provided.",
+                    Location: null,
+                    CompilationUnitPath: compilationUnitPath,
+                    AnalyzerName: null));
+                continue;
+            }
+
+            // Check each derived constructor: at least one must have a `: base(...)` chain,
+            // and any constructor without `: base(...)` is an error since the base class
+            // has no parameterless constructor.
+            foreach (var derivedCtor in derivedConstructors)
+            {
+                var ctorNode = symbolTable.GetDeclaringNode(derivedCtor);
+                if (ctorNode is not ConstructorDeclarationNode ctorDecl)
+                {
+                    continue;
+                }
+
+                var hasBaseChain = ctorDecl.Chain is BaseChainConstructorChainNode;
+
+                if (!hasBaseChain)
+                {
+                    // This constructor does not chain to the base class, but the
+                    // base class requires arguments — emit diagnostic.
+                    string? compilationUnitPath = FindCompilationUnitPathForClass(
+                        classType, symbolTable, asts, compilation);
+
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_BASE_CTOR_UNSATISFIED"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        $"Base class '{baseType.DisplayName}' requires constructor arguments that are not provided.",
+                        Location: null,
+                        CompilationUnitPath: compilationUnitPath,
+                        AnalyzerName: null));
+                }
+            }
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -553,9 +990,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // Resolve constructor chain arguments if present.
-        if (ctorDecl.Chain is not null && ctorDecl.Chain.Arguments is not null)
+        if (ctorDecl.Chain is ThisChainConstructorChainNode thisChain && thisChain.Arguments is not null)
         {
-            ResolveArgumentList(ctorDecl.Chain.Arguments, methodScope, fileScope, enclosingType, /* isStatic */ false, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            ResolveArgumentList(thisChain.Arguments, methodScope, fileScope, enclosingType, /* isStatic */ false, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        }
+        else if (ctorDecl.Chain is BaseChainConstructorChainNode baseChain && baseChain.Arguments is not null)
+        {
+            ResolveArgumentList(baseChain.Arguments, methodScope, fileScope, enclosingType, /* isStatic */ false, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
         }
 
         // Resolve the body.
@@ -1688,26 +2129,43 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
-        // Search the type's member scope.
-        if (memberScope is not null)
+        // Search the type's member scope, walking the BaseType chain for class types.
+        if (targetType is ClassType classTarget)
         {
-            var member = memberScope.Lookup(memberName);
-            if (member is not null)
+            ClassType? current = classTarget;
+            while (current is not null)
             {
-                return member.DeclaredType ?? UnknownType.Instance;
-            }
-
-            // If the type has ambient members, try the ambient resolver.
-            if (ambientTypeResolver is not null && targetType is ClassType ct2)
-            {
-                var members = ambientTypeResolver.GetMembers(targetType);
-                foreach (var m in members)
+                // Search only the direct members of this class's scope.
+                foreach (var m in current.MemberScope.Members)
                 {
                     if (m.Name == memberName)
                     {
                         return m.DeclaredType ?? UnknownType.Instance;
                     }
                 }
+
+                // If the type has ambient members, try the ambient resolver.
+                if (ambientTypeResolver is not null)
+                {
+                    var ambientMembers = ambientTypeResolver.GetMembers(current);
+                    foreach (var m in ambientMembers)
+                    {
+                        if (m.Name == memberName)
+                        {
+                            return m.DeclaredType ?? UnknownType.Instance;
+                        }
+                    }
+                }
+
+                current = current.BaseType;
+            }
+        }
+        else if (memberScope is not null)
+        {
+            var member = memberScope.Lookup(memberName);
+            if (member is not null)
+            {
+                return member.DeclaredType ?? UnknownType.Instance;
             }
         }
 

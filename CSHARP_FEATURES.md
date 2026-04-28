@@ -125,7 +125,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 |---|---|---|
 | Instance constructors | ✅ | |
 | Constructor chaining (`: this(...)`) | ✅ | |
-| Base constructor calls (`: base(...)`) | 🔲 | Requires inheritance |
+| Base constructor calls (`: base(...)`) | ✅ | |
 | Static constructors | 🔲 | |
 | Primary constructors | 🔲 | C# 12 |
 | Parameterless struct constructors | 🔲 | C# 10 |
@@ -357,7 +357,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 
 | Feature | Status | Notes |
 |---|---|---|
-| Class inheritance (`: BaseClass`) | 🔲 | |
+| Class inheritance (`: BaseClass`) | ✅ | |
 | Interface implementation (`: IFoo`) | 🔲 | |
 | Multiple interface implementation | 🔲 | |
 | `virtual` methods | 🔲 | |
@@ -522,7 +522,7 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 | Members — Fields | 3 | 3 | 1 |
 | Members — Properties | 0 | 7 | 0 |
 | Members — Methods | 5 | 12 | 0 |
-| Members — Constructors | 2 | 3 | 0 |
+| Members — Constructors | 3 | 2 | 0 |
 | Members — Other | 0 | 5 | 0 |
 | Access Modifiers | 3 | 11 | 2 |
 | Statements — Declarations | 2 | 6 | 0 |
@@ -538,7 +538,7 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 | Expressions — Member Access | 4 | 3 | 0 |
 | Expressions — Object Creation | 2 | 5 | 0 |
 | Expressions — Other | 2 | 14 | 2 |
-| Inheritance | 0 | 11 | 0 |
+| Inheritance | 1 | 10 | 0 |
 | Pattern Matching | 0 | 8 | 0 |
 | Generics | 0 | 6 | 0 |
 | Async | 0 | 5 | 1 |

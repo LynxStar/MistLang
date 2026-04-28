@@ -210,7 +210,13 @@ internal sealed class CSharpSourceWriter
 
         var modifiers = EmitModifiers(classDecl.Modifiers);
         var name = classDecl.Name.Lexeme;
-        AppendLine($"{modifiers}class {name}");
+        var baseClause = "";
+        if (classDecl.BaseClass is not null)
+        {
+            var baseName = classDecl.BaseClassName.Lexeme;
+            baseClause = $" : {baseName}";
+        }
+        AppendLine($"{modifiers}class {name}{baseClause}");
         AppendLine("{");
         _indentLevel++;
 
@@ -318,9 +324,13 @@ internal sealed class CSharpSourceWriter
         var parameters = EmitParameterList(ctorDecl.Parameters);
 
         var chain = "";
-        if (ctorDecl.Chain is not null)
+        if (ctorDecl.Chain is ThisChainConstructorChainNode thisChain)
         {
-            chain = " : this(" + EmitArgumentList(ctorDecl.Chain.Arguments) + ")";
+            chain = " : this(" + EmitArgumentList(thisChain.Arguments) + ")";
+        }
+        else if (ctorDecl.Chain is BaseChainConstructorChainNode baseChain)
+        {
+            chain = " : base(" + EmitArgumentList(baseChain.Arguments) + ")";
         }
 
         AppendLine($"{modifiers}{name}({parameters}){chain}");

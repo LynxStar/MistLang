@@ -630,7 +630,7 @@ public class PrettyPrinterPropertyTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
             Name = MakeToken("Foo"),
             Parameters = null,
-            Chain = new ConstructorChainNode
+            Chain = new ThisChainConstructorChainNode
             {
                 Arguments = new ArgumentListNode
                 {

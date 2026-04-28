@@ -44,6 +44,7 @@ internal static class CSharpTypeMap
         StringType => "string",
         VoidType => "void",
         ArrayType a => $"{GetTypeName(a.ElementType)}[]",
+        TypeType => "System.Type",
         ClassType c => c.DisplayName,
         StructType s => s.DisplayName,
         _ => throw new ArgumentException($"Cannot map type to C#: {type.DisplayName}"),

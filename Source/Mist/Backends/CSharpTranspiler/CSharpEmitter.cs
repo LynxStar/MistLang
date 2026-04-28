@@ -787,6 +787,8 @@ internal sealed class CSharpSourceWriter
                 return $"({EmitExpression(paren.Inner)})";
             case IdentifierExpressionPrimaryNode ident:
                 return ident.Name.Lexeme;
+            case TypeLiteralExpressionPrimaryNode typeLiteral:
+                return $"typeof({EmitTypeReference(typeLiteral.TypeRef)})";
             default:
                 return "";
         }

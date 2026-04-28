@@ -334,9 +334,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Verify RHS type is assignable to declared type (MIST_TC_0001).
                 var declaredType = model.GetTypeOf(typed.Type);
                 var initType = model.GetTypeOf(typed.Initializer);
+
+                // When the TypeReference node isn't in the expression type map
+                // (source-parsed programs), fall back to the variable symbol's
+                // declared type so we can still detect type mismatches
+                // (e.g., TypeType assigned to a non-Type variable).
+                declaredType ??= model.GetDeclaredSymbol(typed)?.DeclaredType;
+
                 if (declaredType is not null && initType is not null)
                 {
-                    CheckAssignability(initType, declaredType, typed.Initializer, diagnostics);
+                    // Allow numeric-to-numeric assignments in variable declarations
+                    // to support constant narrowing (e.g., byte x = 0; where 0 is int).
+                    // Non-numeric type mismatches (e.g., Type → int) are still checked.
+                    if (!(IsNumeric(initType) && IsNumeric(declaredType)))
+                    {
+                        CheckAssignability(initType, declaredType, typed.Initializer, diagnostics);
+                    }
                 }
                 break;
             }
@@ -807,6 +820,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         CheckExpression(exprPart.Expression, model, diagnostics);
                     }
                 }
+                break;
+
+            case TypeLiteralExpressionPrimaryNode:
+                // Type literals are always valid primary expressions.
+                // Type checking is handled by assignability checks at usage sites.
                 break;
 
             // Literals and identifiers don't need type checking.

@@ -227,6 +227,7 @@ rule Primary
     | NEW type:QualifiedIdentifier LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as ObjectCreationExpression
     | LEFT_PARENTHESIS inner:Expression RIGHT_PARENTHESIS                          as ParenthesizedExpression
     | name:IDENTIFIER                                                              as IdentifierExpression
+    | typeRef:TypeReference                                                        as TypeLiteralExpression
     ;
 
 rule InterpolatedString = INTERPOLATED_STRING_START parts:InterpolatedPart* INTERPOLATED_STRING_END;

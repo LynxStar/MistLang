@@ -1564,6 +1564,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             }
 
+            case TypeLiteralExpressionPrimaryNode typeLiteral:
+            {
+                // Resolve the TypeReference to get the referenced type (for validation).
+                var referencedType = ResolveTypeReference(
+                    typeLiteral.TypeRef, fileScope, ambientTypeResolver,
+                    symbolTable, sourceText, diagnostics);
+                // The expression type of a type literal is always TypeType.
+                result = TypeType.Instance;
+                break;
+            }
+
             default:
                 result = UnknownType.Instance;
                 break;

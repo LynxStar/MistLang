@@ -751,6 +751,8 @@ public sealed class MistPrettyPrinter
                 return $"({EmitExpression(paren.Inner)})";
             case IdentifierExpressionPrimaryNode ident:
                 return ident.Name.Lexeme;
+            case TypeLiteralExpressionPrimaryNode typeLiteral:
+                return EmitTypeReference(typeLiteral.TypeRef);
             default:
                 return "";
         }

@@ -8,6 +8,7 @@ public enum TypeKind
 {
     Class,
     Struct,
+    Interface,
 }
 
 /// <summary>

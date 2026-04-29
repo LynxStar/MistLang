@@ -120,6 +120,9 @@ public sealed class MistPrettyPrinter
             case StructTypeTypeDeclarationNode structType:
                 EmitStructDeclaration(structType.StructDeclaration);
                 break;
+            case InterfaceTypeTypeDeclarationNode interfaceType:
+                EmitInterfaceDeclaration(interfaceType.InterfaceDeclaration);
+                break;
         }
     }
 
@@ -128,7 +131,7 @@ public sealed class MistPrettyPrinter
         var modifiers = EmitModifiers(classDecl.Modifiers);
         var name = classDecl.Name.Lexeme;
         var baseClause = "";
-        if (classDecl.BaseClass is not null)
+        if (classDecl.BaseClause is not null)
         {
             var baseName = classDecl.BaseClassName.Lexeme;
             baseClause = $" : {baseName}";
@@ -146,13 +149,48 @@ public sealed class MistPrettyPrinter
     {
         var modifiers = EmitModifiers(structDecl.Modifiers);
         var name = structDecl.Name.Lexeme;
-        AppendLine($"{modifiers}struct {name} {{");
+        var interfaceClause = "";
+        if (structDecl.InterfaceList is not null)
+        {
+            var interfaceName = structDecl.InterfaceName.Lexeme;
+            interfaceClause = $" : {interfaceName}";
+        }
+        AppendLine($"{modifiers}struct {name}{interfaceClause} {{");
         _indentLevel++;
 
         EmitMembers(structDecl.Members);
 
         _indentLevel--;
         AppendLine("}");
+    }
+
+    private void EmitInterfaceDeclaration(InterfaceDeclarationNode interfaceDecl)
+    {
+        var name = interfaceDecl.Name.Lexeme;
+        var interfaceClause = "";
+        if (interfaceDecl.InterfaceList is not null)
+        {
+            var parentName = interfaceDecl.InterfaceName.Lexeme;
+            interfaceClause = $" : {parentName}";
+        }
+        AppendLine($"interface {name}{interfaceClause} {{");
+        _indentLevel++;
+
+        for (var i = 0; i < interfaceDecl.Methods.Length; i++)
+        {
+            EmitInterfaceMethodDeclaration(interfaceDecl.Methods[i]);
+        }
+
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    private void EmitInterfaceMethodDeclaration(InterfaceMethodDeclarationNode methodDecl)
+    {
+        var returnType = EmitTypeReference(methodDecl.ReturnType);
+        var name = methodDecl.Name.Lexeme;
+        var parameters = EmitParameterList(methodDecl.Parameters);
+        AppendLine($"{returnType} {name}({parameters});");
     }
 
     private void EmitMembers(ImmutableArray<MemberDeclarationNode> members)

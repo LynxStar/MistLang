@@ -47,6 +47,7 @@ internal static class CSharpTypeMap
         TypeType => "System.Type",
         ClassType c => c.DisplayName,
         StructType s => s.DisplayName,
+        InterfaceType i => i.DisplayName,
         _ => throw new ArgumentException($"Cannot map type to C#: {type.DisplayName}"),
     };
 }

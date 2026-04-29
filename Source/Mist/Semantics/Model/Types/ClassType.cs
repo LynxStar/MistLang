@@ -12,6 +12,7 @@ public sealed class ClassType : IType
     public IScope MemberScope { get; }
     public string? ContainingNamespace { get; }
     public ClassType? BaseType { get; internal set; }
+    public IReadOnlyList<InterfaceType> Interfaces { get; internal set; } = Array.Empty<InterfaceType>();
 
     public ClassType(string displayName, IScope memberScope, string? containingNamespace)
     {

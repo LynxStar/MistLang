@@ -138,7 +138,7 @@ public class InheritanceRoundTripPropertyTests
 
         if (baseClassName is not null)
         {
-            classDecl.BaseClass = Tok(":");
+            classDecl.BaseClause = Tok(":");
             classDecl.BaseClassName = Tok(baseClassName);
         }
 
@@ -384,7 +384,7 @@ public class InheritanceRoundTripPropertyTests
         var description = string.Join(", ",
             classDecls.Select(c =>
             {
-                var basePart = c.BaseClass is not null ? $" : {c.BaseClassName.Lexeme}" : "";
+                var basePart = c.BaseClause is not null ? $" : {c.BaseClassName.Lexeme}" : "";
                 return $"{c.Name.Lexeme}{basePart}";
             }));
 

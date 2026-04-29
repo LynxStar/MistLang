@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.Common.Text;
 using Mist.Lexing.Contracts;
 
 namespace Mist.Lexing;
@@ -20,15 +21,21 @@ public sealed class MistLexer : ILexer
         var stormTokenStream = Mist.Generated.MistLexer.Lex(stormSource, stormDiagnostics);
 
         // Map Storm diagnostics to Mist diagnostics
-        foreach (var msg in stormDiagnostics.Messages)
+        foreach (var entry in stormDiagnostics.Entries)
         {
+            var location = (entry.Line > 0 && entry.Column > 0)
+                ? new LinePositionSpan(
+                    new LinePosition(entry.Line, entry.Column),
+                    new LinePosition(entry.Line, entry.Column))
+                : (LinePositionSpan?)null;
+
             diagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_LEX_ERROR"),
                 DiagnosticSeverity.Error,
                 PipelineStage.Lexing,
-                msg,
-                Location: null,
-                CompilationUnitPath: source.Path,
+                entry.Message,
+                Location: location,
+                CompilationUnitPath: entry.FilePath ?? source.Path,
                 AnalyzerName: null));
         }
 

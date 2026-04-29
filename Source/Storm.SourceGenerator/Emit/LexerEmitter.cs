@@ -493,7 +493,7 @@ namespace Storm.SourceGenerator.Emit
                         writer.WriteLine("var startPos = new LinePosition(line, col);");
                         writer.WriteLine("if (ch == '\\n') { line++; col = 1; } else { col++; }");
                         writer.WriteLine("var endPos = new LinePosition(line, col);");
-                        writer.WriteLine("diagnostics.Add($\"Unexpected character '{ch}' at line {startPos.Line}, column {startPos.Column}\");");
+                        writer.WriteLine("diagnostics.Add($\"Unexpected character '{ch}'\", source.Path, startPos.Line, startPos.Column);");
                         writer.WriteLine("tokens.Add(new Token((int)TokenKind.Error, new SourceSpan(pos, 1), startPos, endPos, TokenChannel.Default, ch.ToString()));");
                         writer.WriteLine("pos++;");
                     });

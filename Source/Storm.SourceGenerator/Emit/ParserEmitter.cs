@@ -73,6 +73,7 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteLine("[ThreadStatic] private static int _pos;");
             writer.WriteLine("[ThreadStatic] private static bool _hasError;");
             writer.WriteLine("[ThreadStatic] private static DiagnosticBag? _diagnostics;");
+            writer.WriteLine("[ThreadStatic] private static string? _sourcePath;");
         }
 
         // ── Helpers ─────────────────────────────────────────────────────
@@ -87,6 +88,7 @@ namespace Storm.SourceGenerator.Emit
                 writer.WriteLine("_pos = 0;");
                 writer.WriteLine("_hasError = false;");
                 writer.WriteLine("_diagnostics = diag;");
+                writer.WriteLine("_sourcePath = ts.Source.Path;");
             });
             writer.WriteEmptyLine();
 
@@ -131,7 +133,7 @@ namespace Storm.SourceGenerator.Emit
                 {
                     writer.WriteLine("var cur = Cur();");
                     writer.WriteLine("_hasError = true;");
-                    writer.WriteLine("_diagnostics?.Add($\"Expected token kind {kind} but found '{cur.Lexeme}' at line {cur.Start.Line}, column {cur.Start.Column}\");");
+                    writer.WriteLine("_diagnostics?.Add($\"Expected token kind {kind} but found '{cur.Lexeme}'\", _sourcePath, cur.Start.Line, cur.Start.Column);");
                     writer.WriteLine("return cur;");
                 });
                 writer.WriteLine("return t.Value;");
@@ -145,7 +147,7 @@ namespace Storm.SourceGenerator.Emit
                 {
                     writer.WriteLine("_hasError = true;");
                     writer.WriteLine("var cur = Cur();");
-                    writer.WriteLine("_diagnostics?.Add($\"{message} at line {cur.Start.Line}, column {cur.Start.Column}\");");
+                    writer.WriteLine("_diagnostics?.Add($\"{message}\", _sourcePath, cur.Start.Line, cur.Start.Column);");
                 });
             });
             writer.WriteEmptyLine();

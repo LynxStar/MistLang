@@ -5,7 +5,6 @@ using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.CLI.Args;
-using Mist.CLI.Output;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;

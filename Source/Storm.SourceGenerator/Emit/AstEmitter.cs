@@ -25,6 +25,7 @@ public static class AstEmitter
         writer.WriteLine("using System;");
         writer.WriteLine("using System.Collections.Generic;");
         writer.WriteLine("using System.Collections.Immutable;");
+        writer.WriteLine("using System.Linq;");
         writer.WriteEmptyLine();
 
         writer.WriteBlock("namespace Storm.Runtime", () =>
@@ -102,21 +103,44 @@ public static class AstEmitter
             });
             writer.WriteEmptyLine();
 
-            // DiagnosticBag (simple collection for generated code)
+            // DiagnosticEntry (structured diagnostic entry for generated code)
+            writer.WriteBlock("public readonly struct DiagnosticEntry", () =>
+            {
+                writer.WriteLine("public string Message { get; }");
+                writer.WriteLine("public string? FilePath { get; }");
+                writer.WriteLine("public int Line { get; }");
+                writer.WriteLine("public int Column { get; }");
+                writer.WriteEmptyLine();
+                writer.WriteBlock("public DiagnosticEntry(string message, string? filePath, int line, int column)", () =>
+                {
+                    writer.WriteLine("Message = message;");
+                    writer.WriteLine("FilePath = filePath;");
+                    writer.WriteLine("Line = line;");
+                    writer.WriteLine("Column = column;");
+                });
+            });
+            writer.WriteEmptyLine();
+
+            // DiagnosticBag (structured collection for generated code)
             writer.WriteBlock("public class DiagnosticBag", () =>
             {
-                writer.WriteLine("private readonly System.Collections.Generic.List<string> _messages = new System.Collections.Generic.List<string>();");
+                writer.WriteLine("private readonly System.Collections.Generic.List<DiagnosticEntry> _entries = new System.Collections.Generic.List<DiagnosticEntry>();");
                 writer.WriteEmptyLine();
-                writer.WriteBlock("public void Add(string message)", () => writer.WriteLine("_messages.Add(message);"));
+                writer.WriteBlock("public void Add(string message, string? filePath, int line, int column)", () =>
+                    writer.WriteLine("_entries.Add(new DiagnosticEntry(message, filePath, line, column));"));
                 writer.WriteEmptyLine();
-                writer.WriteLine("public bool HasErrors => _messages.Count > 0;");
-                writer.WriteLine("public int Count => _messages.Count;");
-                writer.WriteLine("public System.Collections.Generic.IReadOnlyList<string> Messages => _messages;");
+                writer.WriteBlock("public void Add(string message)", () =>
+                    writer.WriteLine("_entries.Add(new DiagnosticEntry(message, null, 0, 0));"));
+                writer.WriteEmptyLine();
+                writer.WriteLine("public bool HasErrors => _entries.Count > 0;");
+                writer.WriteLine("public int Count => _entries.Count;");
+                writer.WriteLine("public System.Collections.Generic.IReadOnlyList<DiagnosticEntry> Entries => _entries;");
+                writer.WriteLine("public System.Collections.Generic.IReadOnlyList<string> Messages => _entries.Select(e => e.Message).ToList();");
                 writer.WriteEmptyLine();
                 writer.WriteBlock("public void TruncateTo(int count)", () =>
                 {
-                    writer.WriteBlock("if (count >= 0 && count < _messages.Count)", () =>
-                        writer.WriteLine("_messages.RemoveRange(count, _messages.Count - count);"));
+                    writer.WriteBlock("if (count >= 0 && count < _entries.Count)", () =>
+                        writer.WriteLine("_entries.RemoveRange(count, _entries.Count - count);"));
                 });
             });
             writer.WriteEmptyLine();

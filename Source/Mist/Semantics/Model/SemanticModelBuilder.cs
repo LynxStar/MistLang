@@ -1959,16 +1959,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Resolve the optional initializer expression.
         // The grammar defines: initializer:(EQUAL Expression)?
-        // Walk children to find the ExpressionNode, matching the pattern used
-        // by CSharpEmitter and MistPrettyPrinter (FindFieldInitializerExpression).
-        foreach (var child in fieldDecl.Children())
+        // With the bugfix, the Initializer property is now ExpressionNode? directly.
+        if (fieldDecl.Initializer is ExpressionNode initExpr)
         {
-            if (child is ExpressionNode initExpr)
-            {
-                var isStatic = fieldDecl.Modifiers.Any(m => m is StaticModifierModifierNode);
-                ResolveExpression(initExpr, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-                break;
-            }
+            var isStatic = fieldDecl.Modifiers.Any(m => m is StaticModifierModifierNode);
+            ResolveExpression(initExpr, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
         }
     }
 

@@ -550,7 +550,16 @@ namespace Storm.SourceGenerator.Emit
                         var nodeType = starRuleRef.Rule.Name + "Node";
                         var propName = PascalCase(starRuleRef.Rule.Name) + "s";
                         builderVar = "_" + propName + "Builder";
-                        parsedItemVar = "_parsed" + PascalCase(starRuleRef.Rule.Name);
+                        // If the RuleRefIR has a label, the parsed result is assigned to the
+                        // labeled variable (e.g., _Right) rather than _parsed{RuleName}.
+                        if (labelMap.TryGetValue(starRuleRef, out var ruleRefLabel))
+                        {
+                            parsedItemVar = "_" + PascalCase(ruleRefLabel);
+                        }
+                        else
+                        {
+                            parsedItemVar = "_parsed" + PascalCase(starRuleRef.Rule.Name);
+                        }
                         writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
                     }
 

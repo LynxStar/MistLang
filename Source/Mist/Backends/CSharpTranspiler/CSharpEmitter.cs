@@ -325,39 +325,16 @@ internal sealed class CSharpSourceWriter
         var type = EmitTypeReference(fieldDecl.Type);
         var name = fieldDecl.Name.Lexeme;
 
-        if (fieldDecl.Initializer.HasValue)
+        if (fieldDecl.Initializer != null)
         {
             // The field has an initializer expression.
-            // The grammar defines initializer as (EQUAL Expression)? which means
-            // the Storm generator stores the EQUAL token. We need to find the
-            // expression from the AST children.
-            var initExpr = FindFieldInitializerExpression(fieldDecl);
-            if (initExpr is not null)
-            {
-                AppendLine($"{modifiers}{type} {name} = {EmitExpression(initExpr)};");
-            }
-            else
-            {
-                AppendLine($"{modifiers}{type} {name};");
-            }
+            // With the bugfix, the Initializer property is now ExpressionNode? directly.
+            AppendLine($"{modifiers}{type} {name} = {EmitExpression(fieldDecl.Initializer)};");
         }
         else
         {
             AppendLine($"{modifiers}{type} {name};");
         }
-    }
-
-    private static ExpressionNode? FindFieldInitializerExpression(FieldDeclarationNode fieldDecl)
-    {
-        // Walk children to find the ExpressionNode.
-        foreach (var child in fieldDecl.Children())
-        {
-            if (child is ExpressionNode expr)
-            {
-                return expr;
-            }
-        }
-        return null;
     }
 
     private void EmitConstructorDeclaration(ConstructorDeclarationNode ctorDecl)

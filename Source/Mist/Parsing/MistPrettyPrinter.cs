@@ -229,27 +229,14 @@ public sealed class MistPrettyPrinter
         var type = EmitTypeReference(fieldDecl.Type);
         var name = fieldDecl.Name.Lexeme;
 
-        var initExpr = FindFieldInitializerExpression(fieldDecl);
-        if (initExpr is not null)
+        if (fieldDecl.Initializer is not null)
         {
-            AppendLine($"{modifiers}{type} {name} = {EmitExpression(initExpr)};");
+            AppendLine($"{modifiers}{type} {name} = {EmitExpression(fieldDecl.Initializer)};");
         }
         else
         {
             AppendLine($"{modifiers}{type} {name};");
         }
-    }
-
-    private static ExpressionNode? FindFieldInitializerExpression(FieldDeclarationNode fieldDecl)
-    {
-        foreach (var child in fieldDecl.Children())
-        {
-            if (child is ExpressionNode expr)
-            {
-                return expr;
-            }
-        }
-        return null;
     }
 
     private void EmitConstructorDeclaration(ConstructorDeclarationNode ctorDecl)

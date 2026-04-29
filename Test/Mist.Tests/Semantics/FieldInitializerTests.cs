@@ -110,7 +110,7 @@ public class FieldInitializerTests
         {
             Name = MakeToken(fieldName),
             Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveType },
-            Initializer = MakeToken("="),  // The EQUAL token — signals initializer is present
+            Initializer = MakeIntLiteralExpression("0"),  // The initializer expression
             Modifiers = modifiers.Length > 0
                 ? ImmutableArray.Create(modifiers)
                 : ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()),

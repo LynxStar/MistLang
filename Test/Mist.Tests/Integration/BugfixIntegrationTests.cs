@@ -202,12 +202,12 @@ public sealed class BugfixIntegrationTests : IDisposable
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        // Field with initializer token (Bug 2)
+        // Field with initializer expression (Bug 2)
         var fieldWithInit = new FieldDeclarationNode
         {
             Name = MakeToken("dimension"),
             Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
-            Initializer = MakeToken("="),
+            Initializer = MakeIntLiteralExpression("0"),
             Modifiers = ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()),
         };
 
@@ -425,7 +425,7 @@ public sealed class BugfixIntegrationTests : IDisposable
         {
             Name = MakeToken("count"),
             Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
-            Initializer = MakeToken("="),
+            Initializer = MakeIntLiteralExpression("0"),
             Modifiers = ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()),
         };
 

@@ -152,7 +152,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0018",
                     "Program contains multiple entry points",
-                    node));
+                    node,
+                    model));
             }
         }
     }
@@ -349,7 +350,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // Non-numeric type mismatches (e.g., Type → int) are still checked.
                     if (!(IsNumeric(initType) && IsNumeric(declaredType)))
                     {
-                        CheckAssignability(initType, declaredType, typed.Initializer, diagnostics);
+                        CheckAssignability(initType, declaredType, typed.Initializer, diagnostics, model);
                     }
                 }
                 break;
@@ -369,7 +370,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0009",
                         "'var' declaration requires an initializer",
-                        inferred));
+                        inferred,
+                        model));
                 }
                 break;
             }
@@ -403,7 +405,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0008",
                         $"Cannot return '{valueType.DisplayName}' from method with return type 'void'",
-                        returnStmt));
+                        returnStmt,
+                        model));
                 }
             }
             else if (valueType is not null)
@@ -413,7 +416,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0008",
                         $"Cannot return '{valueType.DisplayName}' from method with return type '{methodReturnType.DisplayName}'",
-                        returnStmt));
+                        returnStmt,
+                        model));
                 }
             }
         }
@@ -425,7 +429,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0008",
                     $"Cannot return '' from method with return type '{methodReturnType.DisplayName}'",
-                    returnStmt));
+                    returnStmt,
+                    model));
             }
         }
     }
@@ -468,7 +473,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var initType = model.GetTypeOf(varInit.Initializer);
             if (declaredType is not null && initType is not null)
             {
-                CheckAssignability(initType, declaredType, varInit.Initializer, diagnostics);
+                CheckAssignability(initType, declaredType, varInit.Initializer, diagnostics, model);
             }
         }
         else if (forStmt.Initializer is ForInitializerExpressionForInitializerNode exprInit)
@@ -509,7 +514,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0007",
                 $"Condition must be of type 'bool', but found '{condType.DisplayName}'",
-                condition));
+                condition,
+                model));
         }
     }
 
@@ -536,7 +542,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if (lhsType is not null && rhsType is not null)
             {
-                CheckAssignability(rhsType, lhsType, assignment, diagnostics);
+                CheckAssignability(rhsType, lhsType, assignment, diagnostics, model);
             }
         }
     }
@@ -560,7 +566,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0006",
                         "Operator '||' requires operands of type 'bool'",
-                        node));
+                        node,
+                        model));
                 }
             }
         }
@@ -585,7 +592,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0006",
                         "Operator '&&' requires operands of type 'bool'",
-                        node));
+                        node,
+                        model));
                 }
             }
         }
@@ -611,7 +619,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0005",
                         $"Operator '{op}' cannot be applied to operands of type '{lhsType.DisplayName}' and '{rhsType.DisplayName}'",
-                        node));
+                        node,
+                        model));
                 }
             }
         }
@@ -637,7 +646,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0004",
                         $"Operator '{op}' cannot be applied to operands of type '{lhsType.DisplayName}' and '{rhsType.DisplayName}'",
-                        node));
+                        node,
+                        model));
                 }
             }
         }
@@ -675,7 +685,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0003",
                         $"Operator '{op}' cannot be applied to operands of type '{lhsType.DisplayName}' and '{rhsType.DisplayName}'",
-                        node));
+                        node,
+                        model));
                 }
             }
         }
@@ -701,7 +712,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0003",
                         $"Operator '{op}' cannot be applied to operands of type '{lhsType.DisplayName}' and '{rhsType.DisplayName}'",
-                        node));
+                        node,
+                        model));
                 }
             }
         }
@@ -722,7 +734,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_TC_0006",
                             "Operator '!' requires operands of type 'bool'",
-                            logicalNot));
+                            logicalNot,
+                            model));
                     }
                 }
                 break;
@@ -738,7 +751,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_TC_0003",
                             $"Operator '-' cannot be applied to operands of type '{operandType.DisplayName}' and '{operandType.DisplayName}'",
-                            negate));
+                            negate,
+                            model));
                     }
                 }
                 break;
@@ -951,7 +965,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0002",
                         $"Argument type '{argType.DisplayName}' is not assignable to parameter type '{paramType.DisplayName}'",
-                        argExprs[i]));
+                        argExprs[i],
+                        model));
                 }
             }
         }
@@ -977,7 +992,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0012",
                     $"Array size must be of type 'int', but found '{sizeType.DisplayName}'",
-                    arrayCreation.Size));
+                    arrayCreation.Size,
+                    model));
             }
         }
     }
@@ -999,7 +1015,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0010",
                     $"Array index must be of type 'int', but found '{indexType.DisplayName}'",
-                    indexSuffix.Index));
+                    indexSuffix.Index,
+                    model));
             }
         }
 
@@ -1057,7 +1074,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0011",
                     $"Type '{createdType.DisplayName}' does not contain a constructor matching the given arguments",
-                    objectCreation));
+                    objectCreation,
+                    model));
             }
             return;
         }
@@ -1069,7 +1087,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0011",
                 $"Type '{createdType.DisplayName}' does not contain a constructor matching the given arguments",
-                objectCreation));
+                objectCreation,
+                model));
         }
     }
 
@@ -1098,13 +1117,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Find the enclosing type.
-        var enclosingType = FindEnclosingType(ctorSymbol);
+        var enclosingType = FindDeclaringType(ctorSymbol);
         if (enclosingType is null || IsUnknown(enclosingType))
             return;
 
-        IScope? memberScope = enclosingType switch
+        // For `: base(...)` chains, resolve the base type and search its constructors.
+        // For `: this(...)` chains, search the declaring type's own constructors.
+        IType targetType = enclosingType;
+        if (chain is BaseChainConstructorChainNode && enclosingType is ClassType ct && ct.BaseType is not null)
         {
-            ClassType ct => ct.MemberScope,
+            targetType = ct.BaseType;
+        }
+
+        IScope? memberScope = targetType switch
+        {
+            ClassType classType => classType.MemberScope,
             StructType st => st.MemberScope,
             _ => null,
         };
@@ -1114,18 +1141,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         var argTypes = CollectArgumentTypes(arguments, model);
 
-        // Find other constructors on the same type (excluding the current one).
-        var otherConstructors = memberScope.Members
-            .Where(m => m.Kind == SymbolKind.Constructor && !ReferenceEquals(m, ctorSymbol))
-            .ToList();
+        // For `: this(...)`, exclude the current constructor from the search.
+        // For `: base(...)`, search all constructors on the base type.
+        var candidateConstructors = chain is BaseChainConstructorChainNode
+            ? memberScope.Members.Where(m => m.Kind == SymbolKind.Constructor).ToList()
+            : memberScope.Members.Where(m => m.Kind == SymbolKind.Constructor && !ReferenceEquals(m, ctorSymbol)).ToList();
 
-        var hasMatch = otherConstructors.Any(ctor => ConstructorMatches(ctor, argTypes, model));
+        var hasMatch = candidateConstructors.Any(ctor => ConstructorMatches(ctor, argTypes, model));
         if (!hasMatch)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0013",
-                $"No constructor on '{enclosingType.DisplayName}' matches the chained arguments",
-                chain));
+                $"No constructor on '{targetType.DisplayName}' matches the chained arguments",
+                chain,
+                model));
         }
     }
 
@@ -1250,7 +1279,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0014",
                     $"'{memberName}' is inaccessible due to its protection level",
-                    accessNode));
+                    accessNode,
+                    model));
                 return; // Don't emit additional diagnostics for the same access.
             }
         }
@@ -1261,7 +1291,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0015",
                 $"Static member '{memberName}' cannot be accessed via an instance",
-                accessNode));
+                accessNode,
+                model));
             return;
         }
 
@@ -1271,7 +1302,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0016",
                 $"Instance member '{memberName}' cannot be accessed via a type name",
-                accessNode));
+                accessNode,
+                model));
         }
     }
 
@@ -1404,14 +1436,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Checks if <paramref name="source"/> is assignable to <paramref name="target"/>.
     /// Emits MIST_TC_0001 if not.
     /// </summary>
-    private static void CheckAssignability(IType source, IType target, SyntaxNode node, DiagnosticBag diagnostics)
+    private static void CheckAssignability(IType source, IType target, SyntaxNode node, DiagnosticBag diagnostics, ISemanticModel model)
     {
         if (!IsAssignable(source, target))
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0001",
                 $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}'",
-                node));
+                node,
+                model));
         }
     }
 
@@ -1666,37 +1699,42 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Finds the enclosing type for a symbol by walking up the scope chain.
-    /// </summary>
-    private static IType? FindEnclosingType(ISymbol symbol)
-    {
-        var scope = symbol.ContainingScope;
-        while (scope is not null)
-        {
-            foreach (var member in scope.Members)
-            {
-                if (member.Kind is SymbolKind.Class or SymbolKind.Struct)
-                    return member.DeclaredType;
-            }
-            scope = scope.Parent;
-        }
-        return null;
-    }
-
-    /// <summary>
     /// Creates a diagnostic for the type checker.
+    /// Uses the semantic model to resolve the source file path and convert
+    /// offsets to proper 1-based line/column positions.
     /// </summary>
-    private static Diagnostic MakeDiagnostic(string id, string message, SyntaxNode node)
+    private static Diagnostic MakeDiagnostic(string id, string message, SyntaxNode node, ISemanticModel model)
     {
         Common.Text.LinePositionSpan? location = null;
+        string? compilationUnitPath = null;
 
-        // Try to extract location from the node's span.
         var span = node.Span;
         if (span.Length > 0)
         {
-            location = new Common.Text.LinePositionSpan(
-                new Common.Text.LinePosition(0, span.Start),
-                new Common.Text.LinePosition(0, span.End));
+            // Find which AST root contains this node by checking span containment.
+            var asts = model.Asts;
+            var units = model.Units;
+            var astIndex = -1;
+
+            for (var i = 0; i < asts.Length; i++)
+            {
+                var astSpan = asts[i].Span;
+                if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
+                {
+                    astIndex = i;
+                    break;
+                }
+            }
+
+            if (astIndex >= 0 && astIndex < units.Count)
+            {
+                var source = units[astIndex].Source;
+                compilationUnitPath = source.Path;
+
+                // Convert the Storm span to a Mist SourceSpan for proper line/column conversion.
+                var sourceSpan = new Common.Text.SourceSpan(span.Start, span.Length);
+                location = source.ToLinePositionSpan(sourceSpan);
+            }
         }
 
         return new Diagnostic(
@@ -1705,7 +1743,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             PipelineStage.Analysis,
             message,
             Location: location,
-            CompilationUnitPath: null,
+            CompilationUnitPath: compilationUnitPath,
             AnalyzerName: "TypeChecker");
     }
 }

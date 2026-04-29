@@ -535,6 +535,25 @@ namespace Storm.SourceGenerator.Emit
                         assignedProps.Add((propName, localVar));
                     }
 
+                    // Detect if the inner SequenceIR contains a RuleRefIR that needs
+                    // accumulation into a list builder.
+                    RuleRefIR? starRuleRef = null;
+                    if (star.Inner is SequenceIR starSeq)
+                    {
+                        starRuleRef = starSeq.Elements.OfType<RuleRefIR>().FirstOrDefault();
+                    }
+
+                    string? builderVar = null;
+                    string? parsedItemVar = null;
+                    if (starRuleRef != null)
+                    {
+                        var nodeType = starRuleRef.Rule.Name + "Node";
+                        var propName = PascalCase(starRuleRef.Rule.Name) + "s";
+                        builderVar = "_" + propName + "Builder";
+                        parsedItemVar = "_parsed" + PascalCase(starRuleRef.Rule.Name);
+                        writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
+                    }
+
                     // Position-progress loop with ok flag: keep parsing while making progress
                     writer.WriteBlock("while (!_hasError)", () =>
                     {
@@ -551,7 +570,25 @@ namespace Storm.SourceGenerator.Emit
                             writer.WriteLine("_diagnostics?.TruncateTo(_starSavedDiagCount);");
                             writer.WriteLine("break;");
                         });
+
+                        // Accumulate the parsed rule-ref node into the builder
+                        if (builderVar != null && parsedItemVar != null)
+                        {
+                            writer.WriteBlock($"if ({parsedItemVar} != null)", () =>
+                            {
+                                writer.WriteLine($"{builderVar}.Add({parsedItemVar});");
+                            });
+                        }
                     });
+
+                    // Finalize the builder and add to assignedProps
+                    if (builderVar != null && starRuleRef != null)
+                    {
+                        var propName = PascalCase(starRuleRef.Rule.Name) + "s";
+                        var finalVar = "_" + propName;
+                        writer.WriteLine($"var {finalVar} = {builderVar}.ToImmutable();");
+                        assignedProps.Add((propName, finalVar));
+                    }
                     break;
                 }
 
@@ -696,14 +733,24 @@ namespace Storm.SourceGenerator.Emit
 
                 case RuleRefIR ruleRef:
                 {
-                    // Unlabeled rule reference — parse and discard result
+                    // Unlabeled rule reference — parse and assign to a local variable
+                    // so the ZeroOrMoreIR handler can accumulate it into a builder.
+                    var parsedVar = "_parsed" + PascalCase(ruleRef.Rule.Name);
                     if (withCheck)
                     {
-                        writer.WriteLine($"if ({okVar}) {{ var _discard = _Parse{ruleRef.Rule.Name}(); if (_discard == null) {okVar} = false; }}");
+                        writer.WriteLine($"{ruleRef.Rule.Name}Node? {parsedVar} = null;");
+                        writer.WriteBlock($"if ({okVar})", () =>
+                        {
+                            writer.WriteLine($"{parsedVar} = _Parse{ruleRef.Rule.Name}();");
+                            writer.WriteBlock($"if ({parsedVar} == null)", () =>
+                            {
+                                writer.WriteLine($"{okVar} = false;");
+                            });
+                        });
                     }
                     else
                     {
-                        writer.WriteLine($"_Parse{ruleRef.Rule.Name}();");
+                        writer.WriteLine($"var {parsedVar} = _Parse{ruleRef.Rule.Name}();");
                     }
                     break;
                 }
@@ -965,22 +1012,40 @@ namespace Storm.SourceGenerator.Emit
                         }
                     }
 
+                    // Check if the sequence contains a RuleRefIR — if so, the labeled
+                    // variable should be typed as the rule-ref's node type, not Token?.
+                    // We use a separate tracking variable for the token match.
+                    var seqRuleRef = seq.Elements.OfType<RuleRefIR>().FirstOrDefault();
+                    var trackingVar = varName;
+                    if (seqRuleRef != null)
+                    {
+                        // Declare the labeled variable with the correct node type
+                        var nodeType = seqRuleRef.Rule.Name + "Node";
+                        writer.WriteLine($"{nodeType}? _{varName} = null;");
+                        // Use a separate tracking variable for the token sequence match
+                        trackingVar = "seq_" + varName;
+                    }
+
                     // Determine the first token kind in the sequence for the guard check
                     var seqFirstToken = GetFirstTokenInExpr(seq, context);
                     if (seqFirstToken != null)
                     {
                         var guardKind = TokenKindRef(seqFirstToken);
-                        writer.WriteLine($"Token? _{varName} = null;");
+                        writer.WriteLine($"Token? _{trackingVar} = null;");
                         if (withCheck)
                         {
                             writer.WriteBlock($"if ({okVar} && Peek() == (int){guardKind})", () =>
                             {
                                 writer.WriteLine($"var _optSaved_{varName} = _pos;");
-                                EmitAtomicSequenceBody(writer, context, seq, varName, labelMap);
+                                EmitAtomicSequenceBody(writer, context, seq, trackingVar, varName, labelMap);
                                 // If the sequence didn't fully match, restore position
-                                writer.WriteBlock($"if (_{varName} == null)", () =>
+                                writer.WriteBlock($"if (_{trackingVar} == null)", () =>
                                 {
                                     writer.WriteLine($"_pos = _optSaved_{varName};");
+                                    if (seqRuleRef != null)
+                                    {
+                                        writer.WriteLine($"_{varName} = null;");
+                                    }
                                 });
                             });
                         }
@@ -989,10 +1054,14 @@ namespace Storm.SourceGenerator.Emit
                             writer.WriteBlock($"if (Peek() == (int){guardKind})", () =>
                             {
                                 writer.WriteLine($"var _optSaved_{varName} = _pos;");
-                                EmitAtomicSequenceBody(writer, context, seq, varName, labelMap);
-                                writer.WriteBlock($"if (_{varName} == null)", () =>
+                                EmitAtomicSequenceBody(writer, context, seq, trackingVar, varName, labelMap);
+                                writer.WriteBlock($"if (_{trackingVar} == null)", () =>
                                 {
                                     writer.WriteLine($"_pos = _optSaved_{varName};");
+                                    if (seqRuleRef != null)
+                                    {
+                                        writer.WriteLine($"_{varName} = null;");
+                                    }
                                 });
                             });
                         }
@@ -1000,12 +1069,16 @@ namespace Storm.SourceGenerator.Emit
                     else
                     {
                         // Fallback: can't determine guard token, use position save/restore
-                        writer.WriteLine($"Token? _{varName} = null;");
+                        writer.WriteLine($"Token? _{trackingVar} = null;");
                         writer.WriteLine($"var _optSaved_{varName} = _pos;");
-                        EmitAtomicSequenceBody(writer, context, seq, varName, labelMap);
-                        writer.WriteBlock($"if (_{varName} == null)", () =>
+                        EmitAtomicSequenceBody(writer, context, seq, trackingVar, varName, labelMap);
+                        writer.WriteBlock($"if (_{trackingVar} == null)", () =>
                         {
                             writer.WriteLine($"_pos = _optSaved_{varName};");
+                            if (seqRuleRef != null)
+                            {
+                                writer.WriteLine($"_{varName} = null;");
+                            }
                         });
                     }
                     break;
@@ -1115,13 +1188,15 @@ namespace Storm.SourceGenerator.Emit
 
         /// <summary>
         /// Emits the body of an atomic optional sequence. Tries to match all tokens
-        /// in the sequence. If all match, assigns the first token to the variable.
-        /// If any subsequent token doesn't match, sets the variable to null so the
+        /// in the sequence. If all match, assigns the first token to the tracking variable.
+        /// If any subsequent token doesn't match, sets the tracking variable to null so the
         /// caller can restore position.
         /// When a labelMap is provided, named elements within the sequence are
         /// captured into their corresponding pre-declared variables.
+        /// The resultVarName parameter specifies the variable to assign rule-ref results to
+        /// (may differ from trackingVarName when the sequence contains a RuleRefIR).
         /// </summary>
-        private static void EmitAtomicSequenceBody(CodeWriter writer, EmissionContext context, SequenceIR seq, string varName, Dictionary<ExpressionIR, string>? labelMap = null)
+        private static void EmitAtomicSequenceBody(CodeWriter writer, EmissionContext context, SequenceIR seq, string trackingVarName, string resultVarName, Dictionary<ExpressionIR, string>? labelMap = null)
         {
             var isFirst = true;
             var allTokens = new List<string>();
@@ -1151,33 +1226,70 @@ namespace Storm.SourceGenerator.Emit
                 {
                     if (isFirst)
                     {
-                        // First token: try to match and assign
-                        writer.WriteLine($"_{varName} = Match((int){kindStr});");
+                        // First token: try to match and assign to tracking variable
+                        writer.WriteLine($"_{trackingVarName} = Match((int){kindStr});");
                         isFirst = false;
                     }
                     else
                     {
                         // Subsequent tokens: must also match for the sequence to be valid
-                        writer.WriteBlock($"if (_{varName} != null && Peek() != (int){kindStr})", () =>
+                        writer.WriteBlock($"if (_{trackingVarName} != null && Peek() != (int){kindStr})", () =>
                         {
-                            writer.WriteLine($"_{varName} = null; // sequence incomplete, will restore position");
+                            writer.WriteLine($"_{trackingVarName} = null; // sequence incomplete, will restore position");
                         });
                         if (elemLabel != null)
                         {
                             // Named element: capture the token into the labeled variable
                             var propName = PascalCase(elemLabel);
-                            writer.WriteBlock($"if (_{varName} != null)", () =>
+                            writer.WriteBlock($"if (_{trackingVarName} != null)", () =>
                             {
                                 writer.WriteLine($"_{propName} = Eat(); // capture {kindStr}");
                             });
                         }
                         else
                         {
-                            writer.WriteBlock($"if (_{varName} != null)", () =>
+                            writer.WriteBlock($"if (_{trackingVarName} != null)", () =>
                             {
                                 writer.WriteLine($"Eat(); // consume {kindStr}");
                             });
                         }
+                    }
+                }
+                else if (elem is RuleRefIR ruleRef)
+                {
+                    // Rule reference inside an atomic optional sequence:
+                    // parse the rule and, if it fails, mark the sequence as incomplete.
+                    var parseCall = $"_Parse{ruleRef.Rule.Name}()";
+
+                    if (elemLabel != null)
+                    {
+                        // Labeled rule-ref: assign the parsed result to the pre-declared labeled variable
+                        var propName = PascalCase(elemLabel);
+                        writer.WriteBlock($"if (_{trackingVarName} != null)", () =>
+                        {
+                            writer.WriteLine($"_{propName} = {parseCall};");
+                            writer.WriteBlock($"if (_{propName} == null)", () =>
+                            {
+                                writer.WriteLine($"_{trackingVarName} = null; // sequence incomplete, will restore position");
+                            });
+                        });
+                    }
+                    else
+                    {
+                        // Unlabeled rule-ref: parse and assign to the result variable
+                        writer.WriteBlock($"if (_{trackingVarName} != null)", () =>
+                        {
+                            writer.WriteLine($"_{resultVarName} = {parseCall};");
+                            writer.WriteBlock($"if (_{resultVarName} == null)", () =>
+                            {
+                                writer.WriteLine($"_{trackingVarName} = null; // sequence incomplete, will restore position");
+                            });
+                        });
+                    }
+
+                    if (isFirst)
+                    {
+                        isFirst = false;
                     }
                 }
             }

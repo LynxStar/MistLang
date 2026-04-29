@@ -470,6 +470,22 @@ public static class AstEmitter
                     var name = EnsureUnique(PascalCase(ruleRef.Rule.Name), usedNames);
                     return new PropertyInfo(name, ruleRef.Rule.Name + "Node?", true, true, false, "");
                 }
+            case SequenceIR seq:
+                {
+                    var seqRuleRef = seq.Elements.OfType<RuleRefIR>().FirstOrDefault();
+                    if (seqRuleRef != null)
+                    {
+                        var name = EnsureUnique(PascalCase(seqRuleRef.Rule.Name), usedNames);
+                        return new PropertyInfo(name, seqRuleRef.Rule.Name + "Node?", true, true, false, "");
+                    }
+                    var seqTokenRef = seq.Elements.OfType<TokenRefIR>().LastOrDefault();
+                    if (seqTokenRef != null)
+                    {
+                        var name = EnsureUnique(PascalCase(seqTokenRef.Token.Name), usedNames);
+                        return new PropertyInfo(name, "Token?", true, false, false, "");
+                    }
+                    return null;
+                }
             default:
                 return null;
         }
@@ -481,8 +497,17 @@ public static class AstEmitter
         {
             TokenRefIR => new PropertyInfo(propName, "Token?", true, false, false, ""),
             RuleRefIR ruleRef => new PropertyInfo(propName, ruleRef.Rule.Name + "Node?", true, true, false, ""),
+            SequenceIR seq => GetPropertyInfoForOptionalSequence(seq, propName),
             _ => new PropertyInfo(propName, "Token?", true, false, false, ""),
         };
+    }
+
+    private static PropertyInfo GetPropertyInfoForOptionalSequence(SequenceIR seq, string propName)
+    {
+        var seqRuleRef = seq.Elements.OfType<RuleRefIR>().FirstOrDefault();
+        if (seqRuleRef != null)
+            return new PropertyInfo(propName, seqRuleRef.Rule.Name + "Node?", true, true, false, "");
+        return new PropertyInfo(propName, "Token?", true, false, false, "");
     }
 
     private static PropertyInfo? GetPropertyInfoForList(ExpressionIR inner, HashSet<string> usedNames)
@@ -500,6 +525,23 @@ public static class AstEmitter
                     var elementType = ruleRef.Rule.Name + "Node";
                     return new PropertyInfo(name, $"ImmutableArray<{elementType}>", false, true, true, $" = ImmutableArray<{elementType}>.Empty;");
                 }
+            case SequenceIR seq:
+                {
+                    var seqRuleRef = seq.Elements.OfType<RuleRefIR>().FirstOrDefault();
+                    if (seqRuleRef != null)
+                    {
+                        var name = EnsureUnique(PascalCase(seqRuleRef.Rule.Name) + "s", usedNames);
+                        var elementType = seqRuleRef.Rule.Name + "Node";
+                        return new PropertyInfo(name, $"ImmutableArray<{elementType}>", false, true, true, $" = ImmutableArray<{elementType}>.Empty;");
+                    }
+                    var seqTokenRef = seq.Elements.OfType<TokenRefIR>().LastOrDefault();
+                    if (seqTokenRef != null)
+                    {
+                        var name = EnsureUnique(PascalCase(seqTokenRef.Token.Name) + "s", usedNames);
+                        return new PropertyInfo(name, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
+                    }
+                    return null;
+                }
             default:
                 return null;
         }
@@ -515,6 +557,16 @@ public static class AstEmitter
                 {
                     var elementType = ruleRef.Rule.Name + "Node";
                     return new PropertyInfo(propName, $"ImmutableArray<{elementType}>", false, true, true, $" = ImmutableArray<{elementType}>.Empty;");
+                }
+            case SequenceIR seq:
+                {
+                    var seqRuleRef = seq.Elements.OfType<RuleRefIR>().FirstOrDefault();
+                    if (seqRuleRef != null)
+                    {
+                        var elementType = seqRuleRef.Rule.Name + "Node";
+                        return new PropertyInfo(propName, $"ImmutableArray<{elementType}>", false, true, true, $" = ImmutableArray<{elementType}>.Empty;");
+                    }
+                    return new PropertyInfo(propName, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
                 }
             default:
                 return new PropertyInfo(propName, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");

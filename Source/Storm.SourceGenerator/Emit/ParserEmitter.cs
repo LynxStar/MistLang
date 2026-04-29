@@ -404,7 +404,7 @@ namespace Storm.SourceGenerator.Emit
             {
                 var propName = PascalCase(label);
                 var localVar = "_" + propName;
-                EmitExprParse(writer, context, expr, propName, withCheck, okVar);
+                EmitExprParse(writer, context, expr, propName, withCheck, okVar, labelMap, assignedProps);
                 assignedProps.Add((propName, localVar));
                 return;
             }
@@ -795,7 +795,7 @@ namespace Storm.SourceGenerator.Emit
 
         // ── Expression parsing ──────────────────────────────────────────
 
-        private static void EmitExprParse(CodeWriter writer, EmissionContext context, ExpressionIR expr, string varName, bool withCheck, string? okVar)
+        private static void EmitExprParse(CodeWriter writer, EmissionContext context, ExpressionIR expr, string varName, bool withCheck, string? okVar, Dictionary<ExpressionIR, string>? labelMap = null, List<(string PropName, string LocalVar)>? assignedProps = null)
         {
             switch (expr)
             {
@@ -831,7 +831,7 @@ namespace Storm.SourceGenerator.Emit
 
                 case OptionalIR opt:
                 {
-                    EmitOptionalExprParse(writer, context, opt.Inner, varName, withCheck, okVar);
+                    EmitOptionalExprParse(writer, context, opt.Inner, varName, withCheck, okVar, labelMap, assignedProps);
                     break;
                 }
 
@@ -888,7 +888,7 @@ namespace Storm.SourceGenerator.Emit
                 }
 
                 case InlineFragmentIR frag:
-                    EmitExprParse(writer, context, frag.Body, varName, withCheck, okVar);
+                    EmitExprParse(writer, context, frag.Body, varName, withCheck, okVar, labelMap, assignedProps);
                     break;
 
                 default:
@@ -898,7 +898,7 @@ namespace Storm.SourceGenerator.Emit
             }
         }
 
-        private static void EmitOptionalExprParse(CodeWriter writer, EmissionContext context, ExpressionIR inner, string varName, bool withCheck = false, string? okVar = null)
+        private static void EmitOptionalExprParse(CodeWriter writer, EmissionContext context, ExpressionIR inner, string varName, bool withCheck = false, string? okVar = null, Dictionary<ExpressionIR, string>? labelMap = null, List<(string PropName, string LocalVar)>? assignedProps = null)
         {
             switch (inner)
             {
@@ -946,6 +946,25 @@ namespace Storm.SourceGenerator.Emit
                     // and restore on partial match failure.
                     writer.WriteLine($"// Optional sequence (atomic)");
 
+                    // Pre-declare variables for any inner labeled expressions so they
+                    // are accessible in the outer scope for node property assignment.
+                    if (labelMap != null && assignedProps != null)
+                    {
+                        var innerLabeled = new List<(string Label, ExpressionIR Expr)>();
+                        CollectLabeledExprs(seq, labelMap, innerLabeled);
+                        foreach (var (lbl, lexpr) in innerLabeled)
+                        {
+                            var propName = PascalCase(lbl);
+                            var localVar = "_" + propName;
+                            // Use non-nullable Token with default initializer to match
+                            // the AST node property type (Token, not Token?).
+                            var typeName = GetExprTypeName(lexpr, nullable: false);
+                            var defaultVal = GetExprDefaultValue(lexpr, nullable: false);
+                            writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
+                            assignedProps.Add((propName, localVar));
+                        }
+                    }
+
                     // Determine the first token kind in the sequence for the guard check
                     var seqFirstToken = GetFirstTokenInExpr(seq, context);
                     if (seqFirstToken != null)
@@ -957,7 +976,7 @@ namespace Storm.SourceGenerator.Emit
                             writer.WriteBlock($"if ({okVar} && Peek() == (int){guardKind})", () =>
                             {
                                 writer.WriteLine($"var _optSaved_{varName} = _pos;");
-                                EmitAtomicSequenceBody(writer, context, seq, varName);
+                                EmitAtomicSequenceBody(writer, context, seq, varName, labelMap);
                                 // If the sequence didn't fully match, restore position
                                 writer.WriteBlock($"if (_{varName} == null)", () =>
                                 {
@@ -970,7 +989,7 @@ namespace Storm.SourceGenerator.Emit
                             writer.WriteBlock($"if (Peek() == (int){guardKind})", () =>
                             {
                                 writer.WriteLine($"var _optSaved_{varName} = _pos;");
-                                EmitAtomicSequenceBody(writer, context, seq, varName);
+                                EmitAtomicSequenceBody(writer, context, seq, varName, labelMap);
                                 writer.WriteBlock($"if (_{varName} == null)", () =>
                                 {
                                     writer.WriteLine($"_pos = _optSaved_{varName};");
@@ -983,7 +1002,7 @@ namespace Storm.SourceGenerator.Emit
                         // Fallback: can't determine guard token, use position save/restore
                         writer.WriteLine($"Token? _{varName} = null;");
                         writer.WriteLine($"var _optSaved_{varName} = _pos;");
-                        EmitAtomicSequenceBody(writer, context, seq, varName);
+                        EmitAtomicSequenceBody(writer, context, seq, varName, labelMap);
                         writer.WriteBlock($"if (_{varName} == null)", () =>
                         {
                             writer.WriteLine($"_pos = _optSaved_{varName};");
@@ -1099,14 +1118,23 @@ namespace Storm.SourceGenerator.Emit
         /// in the sequence. If all match, assigns the first token to the variable.
         /// If any subsequent token doesn't match, sets the variable to null so the
         /// caller can restore position.
+        /// When a labelMap is provided, named elements within the sequence are
+        /// captured into their corresponding pre-declared variables.
         /// </summary>
-        private static void EmitAtomicSequenceBody(CodeWriter writer, EmissionContext context, SequenceIR seq, string varName)
+        private static void EmitAtomicSequenceBody(CodeWriter writer, EmissionContext context, SequenceIR seq, string varName, Dictionary<ExpressionIR, string>? labelMap = null)
         {
             var isFirst = true;
             var allTokens = new List<string>();
 
             foreach (var elem in seq.Elements)
             {
+                // Check if this element has a label in the label map
+                string? elemLabel = null;
+                if (labelMap != null)
+                {
+                    labelMap.TryGetValue(elem, out elemLabel);
+                }
+
                 string? kindStr = null;
                 if (elem is TokenRefIR tokenRef)
                 {
@@ -1134,10 +1162,22 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteLine($"_{varName} = null; // sequence incomplete, will restore position");
                         });
-                        writer.WriteBlock($"if (_{varName} != null)", () =>
+                        if (elemLabel != null)
                         {
-                            writer.WriteLine($"Eat(); // consume {kindStr}");
-                        });
+                            // Named element: capture the token into the labeled variable
+                            var propName = PascalCase(elemLabel);
+                            writer.WriteBlock($"if (_{varName} != null)", () =>
+                            {
+                                writer.WriteLine($"_{propName} = Eat(); // capture {kindStr}");
+                            });
+                        }
+                        else
+                        {
+                            writer.WriteBlock($"if (_{varName} != null)", () =>
+                            {
+                                writer.WriteLine($"Eat(); // consume {kindStr}");
+                            });
+                        }
                     }
                 }
             }

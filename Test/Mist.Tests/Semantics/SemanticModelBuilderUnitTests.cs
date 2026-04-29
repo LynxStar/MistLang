@@ -1068,4 +1068,181 @@ public class SemanticModelBuilderUnitTests
         Assert.All(consoleMembers, m => Assert.Equal(SymbolOrigin.Backend, m.Origin));
         Assert.All(consoleMembers, m => Assert.Null(m.DeclarationSpan));
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 8. Additive-only constraint — member redeclaration diagnostics
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Helper to create a ClassDeclarationNode with an optional base class and members.
+    /// </summary>
+    private static ClassDeclarationNode MakeClassDeclWithMembers(
+        string name,
+        string? baseClassName,
+        ImmutableArray<MemberDeclarationNode> members)
+    {
+        var classDecl = new ClassDeclarationNode
+        {
+            Name = MakeToken(name),
+            Members = members,
+        };
+
+        if (baseClassName is not null)
+        {
+            classDecl.BaseClass = MakeToken(":");
+            classDecl.BaseClassName = MakeToken(baseClassName);
+        }
+
+        return classDecl;
+    }
+
+    private static MemberDeclarationNode MakeFieldMember(string name)
+    {
+        return new FieldMemberMemberDeclarationNode
+        {
+            Field = new FieldDeclarationNode
+            {
+                Name = MakeToken(name),
+                Type = new PrimitiveTypeRefTypeReferenceNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                },
+            },
+        };
+    }
+
+    private static MemberDeclarationNode MakeMethodMember(string name)
+    {
+        return new MethodMemberMemberDeclarationNode
+        {
+            Method = new MethodDeclarationNode
+            {
+                Name = MakeToken(name),
+                ReturnType = new VoidTypeRefTypeReferenceNode(),
+                Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            },
+        };
+    }
+
+    [Fact]
+    public void MemberRedeclaration_FieldInDerived_SameAsFieldInBase_ProducesDiagnostic()
+    {
+        // class Base { int x; }
+        // class Derived : Base { int x; }
+        var baseDecl = MakeClassDeclWithMembers("Base", null,
+            ImmutableArray.Create(MakeFieldMember("x")));
+        var derivedDecl = MakeClassDeclWithMembers("Derived", "Base",
+            ImmutableArray.Create(MakeFieldMember("x")));
+
+        var ast = new CompilationUnitNode
+        {
+            Types = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = baseDecl },
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedDecl }),
+        };
+
+        var (_, diagnostics) = BuildModelWithDiagnostics(ast);
+
+        Assert.Contains(diagnostics, d =>
+            d.Id.Value == "MIST_MEMBER_REDECLARATION"
+            && d.Message.Contains("Derived")
+            && d.Message.Contains("x")
+            && d.Message.Contains("Base"));
+    }
+
+    [Fact]
+    public void MemberRedeclaration_MethodInDerived_SameAsMethodInBase_ProducesDiagnostic()
+    {
+        // class Base { void DoWork() { } }
+        // class Derived : Base { void DoWork() { } }
+        var baseDecl = MakeClassDeclWithMembers("Base", null,
+            ImmutableArray.Create(MakeMethodMember("DoWork")));
+        var derivedDecl = MakeClassDeclWithMembers("Derived", "Base",
+            ImmutableArray.Create(MakeMethodMember("DoWork")));
+
+        var ast = new CompilationUnitNode
+        {
+            Types = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = baseDecl },
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedDecl }),
+        };
+
+        var (_, diagnostics) = BuildModelWithDiagnostics(ast);
+
+        Assert.Contains(diagnostics, d =>
+            d.Id.Value == "MIST_MEMBER_REDECLARATION"
+            && d.Message.Contains("Derived")
+            && d.Message.Contains("DoWork")
+            && d.Message.Contains("Base"));
+    }
+
+    [Fact]
+    public void MemberRedeclaration_FieldInDerived_SameAsFieldInGrandparent_ProducesDiagnostic()
+    {
+        // class A { int val; }
+        // class B : A { }
+        // class C : B { int val; }
+        var aDecl = MakeClassDeclWithMembers("A", null,
+            ImmutableArray.Create(MakeFieldMember("val")));
+        var bDecl = MakeClassDeclWithMembers("B", "A",
+            ImmutableArray<MemberDeclarationNode>.Empty);
+        var cDecl = MakeClassDeclWithMembers("C", "B",
+            ImmutableArray.Create(MakeFieldMember("val")));
+
+        var ast = new CompilationUnitNode
+        {
+            Types = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = aDecl },
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = bDecl },
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = cDecl }),
+        };
+
+        var (_, diagnostics) = BuildModelWithDiagnostics(ast);
+
+        Assert.Contains(diagnostics, d =>
+            d.Id.Value == "MIST_MEMBER_REDECLARATION"
+            && d.Message.Contains("C")
+            && d.Message.Contains("val")
+            && d.Message.Contains("A"));
+    }
+
+    [Fact]
+    public void MemberRedeclaration_NoConflict_NoDiagnostic()
+    {
+        // class Base { int x; }
+        // class Derived : Base { int y; }
+        var baseDecl = MakeClassDeclWithMembers("Base", null,
+            ImmutableArray.Create(MakeFieldMember("x")));
+        var derivedDecl = MakeClassDeclWithMembers("Derived", "Base",
+            ImmutableArray.Create(MakeFieldMember("y")));
+
+        var ast = new CompilationUnitNode
+        {
+            Types = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = baseDecl },
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedDecl }),
+        };
+
+        var (_, diagnostics) = BuildModelWithDiagnostics(ast);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_MEMBER_REDECLARATION");
+    }
+
+    [Fact]
+    public void MemberRedeclaration_ClassWithNoBase_NoDiagnostic()
+    {
+        // class Standalone { int x; void M() { } }
+        var decl = MakeClassDeclWithMembers("Standalone", null,
+            ImmutableArray.Create(MakeFieldMember("x"), MakeMethodMember("M")));
+
+        var ast = new CompilationUnitNode
+        {
+            Types = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = decl }),
+        };
+
+        var (_, diagnostics) = BuildModelWithDiagnostics(ast);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_MEMBER_REDECLARATION");
+    }
 }

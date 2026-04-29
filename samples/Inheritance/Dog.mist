@@ -1,0 +1,23 @@
+using System;
+
+namespace Inheritance;
+
+public class Dog : Animal
+{
+    private string breed;
+
+    public Dog(string name, int age, string breed) : base(name, age)
+    {
+        this.breed = breed;
+    }
+
+    public string GetBreed()
+    {
+        return breed;
+    }
+
+    public string DescribeDog()
+    {
+        return $"{GetName()} is a {breed}, age {GetAge()}";
+    }
+}

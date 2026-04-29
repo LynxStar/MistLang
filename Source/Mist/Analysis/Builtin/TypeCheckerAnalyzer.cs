@@ -1082,10 +1082,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        // Check argument expressions.
-        if (chain.Arguments is not null)
+        // Extract arguments from the appropriate chain variant.
+        var arguments = chain switch
         {
-            CheckArgumentListExpressions(chain.Arguments, model, diagnostics);
+            ThisChainConstructorChainNode thisChain => thisChain.Arguments,
+            BaseChainConstructorChainNode baseChain => baseChain.Arguments,
+            _ => null,
+        };
+
+        // Check argument expressions.
+        if (arguments is not null)
+        {
+            CheckArgumentListExpressions(arguments, model, diagnostics);
         }
 
         // Find the enclosing type.
@@ -1103,7 +1111,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (memberScope is null)
             return;
 
-        var argTypes = CollectArgumentTypes(chain.Arguments, model);
+        var argTypes = CollectArgumentTypes(arguments, model);
 
         // Find other constructors on the same type (excluding the current one).
         var otherConstructors = memberScope.Members
@@ -1412,6 +1420,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// - Same type (identity)
     /// - Both numeric with implicit widening conversion
     /// - Either is UnknownType (error suppression)
+    /// - Subtype assignability: derived class assignable to any ancestor class
     /// </summary>
     private static bool IsAssignable(IType source, IType target)
     {
@@ -1430,6 +1439,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Numeric widening.
         if (IsNumeric(source) && IsNumeric(target))
             return HasImplicitNumericConversion(source, target);
+
+        // Subtype assignability — walk the inheritance chain.
+        // A derived class is assignable to any of its ancestor classes.
+        if (source is ClassType sourceClass && target is ClassType)
+        {
+            var current = sourceClass.BaseType;
+            while (current is not null)
+            {
+                if (ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
+                    return true;
+                current = current.BaseType;
+            }
+        }
 
         return false;
     }

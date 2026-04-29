@@ -645,7 +645,7 @@ public sealed class EmitterOutputTests : IDisposable
         {
             Expression = MakeIntLiteralExpression("0"),
         };
-        var chain = new ConstructorChainNode
+        var chain = new ThisChainConstructorChainNode
         {
             Arguments = chainArgs,
         };

@@ -21,6 +21,7 @@ token VAR       = "var";
 token TRUE      = "true";
 token FALSE     = "false";
 token THIS      = "this";
+token BASE      = "base";
 
 // Primitive type keywords
 token INT     = "int";

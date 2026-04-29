@@ -95,7 +95,7 @@ rule TypeDeclaration
 
 // ─── Parser Rules — Type Declarations ────────────────────────────────────────
 
-rule ClassDeclaration  = modifiers:Modifier* CLASS  name:IDENTIFIER LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
+rule ClassDeclaration  = modifiers:Modifier* CLASS  name:IDENTIFIER baseClass:(COLON baseClassName:IDENTIFIER)? LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 rule StructDeclaration = modifiers:Modifier* STRUCT name:IDENTIFIER LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
 rule Modifier
@@ -117,7 +117,10 @@ rule FieldDeclaration = modifiers:Modifier* type:TypeReference name:IDENTIFIER i
 rule ConstructorDeclaration = modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
                               chain:ConstructorChain? body:Block;
 
-rule ConstructorChain = COLON THIS LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS;
+rule ConstructorChain
+    = COLON THIS LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as ThisChain
+    | COLON BASE LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as BaseChain
+    ;
 
 rule MethodDeclaration = modifiers:Modifier* returnType:TypeReference name:IDENTIFIER
                          LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS body:Block;

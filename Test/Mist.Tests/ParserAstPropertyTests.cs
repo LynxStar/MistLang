@@ -24,16 +24,14 @@ public class ParserAstPropertyTests
     [Fact]
     public void ParserSpanCoverage_RootSpanCoversEntireTokenRange()
     {
-        // Test with a set of representative inputs.
-        // The skeletal parser returns Root=null, so we verify the property
-        // structure: when Root is non-null, its span should cover the token range.
+        // Test with a set of representative valid Mist inputs.
         var inputs = new[]
         {
             "",
-            "hello",
-            "let x = 42;",
-            "fn main() { return 0; }",
-            "// comment\nlet y = true;",
+            "class Foo { }",
+            "namespace MyApp; class Foo { }",
+            "using System; namespace MyApp; public class Program { public static void Main() { } }",
+            "// comment\nclass Bar { int x; }",
         };
 
         foreach(var input in inputs)
@@ -47,9 +45,7 @@ public class ParserAstPropertyTests
 
             if(parseResult.Root is null)
             {
-                // Skeletal parser: Root is null. This is expected for v1.
-                // When the full parser is implemented, this test will exercise
-                // the span coverage property.
+                // Parser returned null root (parse error). Skip.
                 continue;
             }
 
@@ -80,13 +76,13 @@ public class ParserAstPropertyTests
     [Fact]
     public void AstChildrenConsistency_ChildrenStableAndSpansContained()
     {
-        // Test with representative inputs.
+        // Test with representative valid Mist inputs.
         var inputs = new[]
         {
             "",
-            "hello world",
-            "let x = 42;",
-            "fn main() { return 0; }",
+            "class Foo { }",
+            "namespace MyApp; class Foo { }",
+            "using System; namespace MyApp; public class Program { public static void Main() { } }",
         };
 
         foreach(var input in inputs)

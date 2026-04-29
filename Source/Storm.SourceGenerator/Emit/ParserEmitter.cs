@@ -68,11 +68,11 @@ namespace Storm.SourceGenerator.Emit
 
         private static void EmitParserState(CodeWriter writer, EmissionContext context)
         {
-            writer.WriteLine("private static ImmutableArray<Token> _tokens;");
-            writer.WriteLine("private static ImmutableArray<Token> _allTokens;");
-            writer.WriteLine("private static int _pos;");
-            writer.WriteLine("private static bool _hasError;");
-            writer.WriteLine("private static DiagnosticBag? _diagnostics;");
+            writer.WriteLine("[ThreadStatic] private static ImmutableArray<Token> _tokens;");
+            writer.WriteLine("[ThreadStatic] private static ImmutableArray<Token> _allTokens;");
+            writer.WriteLine("[ThreadStatic] private static int _pos;");
+            writer.WriteLine("[ThreadStatic] private static bool _hasError;");
+            writer.WriteLine("[ThreadStatic] private static DiagnosticBag? _diagnostics;");
         }
 
         // ── Helpers ─────────────────────────────────────────────────────

@@ -1089,7 +1089,7 @@ public class SemanticModelBuilderUnitTests
 
         if (baseClassName is not null)
         {
-            classDecl.BaseClass = MakeToken(":");
+            classDecl.BaseClause = MakeToken(":");
             classDecl.BaseClassName = MakeToken(baseClassName);
         }
 

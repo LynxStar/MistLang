@@ -89,14 +89,22 @@ rule NamespaceDeclaration
     ;
 
 rule TypeDeclaration
-    = classDeclaration:ClassDeclaration   as ClassType
-    | structDeclaration:StructDeclaration as StructType
+    = classDeclaration:ClassDeclaration           as ClassType
+    | structDeclaration:StructDeclaration         as StructType
+    | interfaceDeclaration:InterfaceDeclaration   as InterfaceType
     ;
 
 // ─── Parser Rules — Type Declarations ────────────────────────────────────────
 
-rule ClassDeclaration  = modifiers:Modifier* CLASS  name:IDENTIFIER baseClass:(COLON baseClassName:IDENTIFIER)? LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
-rule StructDeclaration = modifiers:Modifier* STRUCT name:IDENTIFIER LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
+rule ClassDeclaration  = modifiers:Modifier* CLASS  name:IDENTIFIER baseClause:(COLON baseClassName:IDENTIFIER (COMMA IDENTIFIER)*)? LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
+rule StructDeclaration = modifiers:Modifier* STRUCT name:IDENTIFIER interfaceList:(COLON interfaceName:IDENTIFIER (COMMA IDENTIFIER)*)? LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
+
+rule InterfaceDeclaration = INTERFACE name:IDENTIFIER
+    interfaceList:(COLON interfaceName:IDENTIFIER (COMMA IDENTIFIER)*)?
+    LEFT_BRACE methods:InterfaceMethodDeclaration* RIGHT_BRACE;
+
+rule InterfaceMethodDeclaration = returnType:TypeReference name:IDENTIFIER
+    LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS SEMICOLON;
 
 rule Modifier
     = PUBLIC  as PublicModifier

@@ -180,12 +180,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Finds the declaring type (ClassType or StructType) that contains the given
+    /// Finds the declaring type (ClassType, StructType, or InterfaceType) that contains the given
     /// method or constructor symbol by walking up the scope chain.
     /// </summary>
     private static IType? FindDeclaringType(ISymbol memberSymbol)
     {
-        // The member's ContainingScope is the type scope. Look for a Class/Struct
+        // The member's ContainingScope is the type scope. Look for a Class/Struct/Interface
         // symbol in the parent scope that owns this type scope.
         var typeScope = memberSymbol.ContainingScope;
         var parentScope = typeScope?.Parent;
@@ -194,14 +194,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         foreach (var member in parentScope.Members)
         {
-            if (member.Kind is SymbolKind.Class or SymbolKind.Struct
-                && member.DeclaredType is ClassType or StructType)
+            if (member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                && member.DeclaredType is ClassType or StructType or InterfaceType)
             {
                 // Check if this type's MemberScope is the same as the member's ContainingScope.
                 var memberScope = member.DeclaredType switch
                 {
                     ClassType ct => ct.MemberScope,
                     StructType st => st.MemberScope,
+                    InterfaceType it => it.MemberScope,
                     _ => null,
                 };
                 if (ReferenceEquals(memberScope, typeScope))
@@ -1440,6 +1441,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (IsNumeric(source) && IsNumeric(target))
             return HasImplicitNumericConversion(source, target);
 
+        // Interface assignability:
+        // A class/struct implementing an interface (directly or transitively) is assignable to that interface.
+        // An interface is assignable to any interface it inherits from (directly or transitively).
+        if (target is InterfaceType targetInterface)
+        {
+            if (ImplementsInterface(source, targetInterface))
+                return true;
+        }
+
         // Subtype assignability — walk the inheritance chain.
         // A derived class is assignable to any of its ancestor classes.
         if (source is ClassType sourceClass && target is ClassType)
@@ -1450,6 +1460,71 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 if (ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
                     return true;
                 current = current.BaseType;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether <paramref name="source"/> implements <paramref name="targetInterface"/>
+    /// directly or transitively.
+    /// </summary>
+    private static bool ImplementsInterface(IType source, InterfaceType targetInterface)
+    {
+        switch (source)
+        {
+            case ClassType classType:
+                // Check the class's own interfaces (recursively through interface inheritance).
+                if (InterfaceListContains(classType.Interfaces, targetInterface))
+                    return true;
+                // Walk the base type chain and check each ancestor's interfaces.
+                var current = classType.BaseType;
+                while (current is not null)
+                {
+                    if (InterfaceListContains(current.Interfaces, targetInterface))
+                        return true;
+                    current = current.BaseType;
+                }
+                return false;
+
+            case StructType structType:
+                // Check the struct's interfaces (recursively through interface inheritance).
+                return InterfaceListContains(structType.Interfaces, targetInterface);
+
+            case InterfaceType sourceInterface:
+                // An interface is assignable to itself or any interface it inherits from.
+                if (ReferenceEquals(sourceInterface, targetInterface)
+                    || sourceInterface.DisplayName == targetInterface.DisplayName)
+                    return true;
+                return InterfaceListContains(sourceInterface.Interfaces, targetInterface);
+
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// Recursively checks whether <paramref name="target"/> is present in the given
+    /// interface list or in any of the interfaces' own inherited interface lists.
+    /// Uses a visited set to handle diamond inheritance and prevent infinite loops.
+    /// </summary>
+    private static bool InterfaceListContains(
+        IReadOnlyList<InterfaceType> interfaces,
+        InterfaceType target,
+        HashSet<InterfaceType>? visited = null)
+    {
+        foreach (var iface in interfaces)
+        {
+            if (ReferenceEquals(iface, target) || iface.DisplayName == target.DisplayName)
+                return true;
+
+            // Recursively check inherited interfaces, guarding against cycles.
+            visited ??= new HashSet<InterfaceType>(ReferenceEqualityComparer.Instance);
+            if (visited.Add(iface))
+            {
+                if (InterfaceListContains(iface.Interfaces, target, visited))
+                    return true;
             }
         }
 

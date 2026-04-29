@@ -74,6 +74,10 @@ public sealed class CSharpEmitter
                 {
                     namespaces.Add(st.ContainingNamespace);
                 }
+                else if (symbol.DeclaredType is InterfaceType it && it.ContainingNamespace is not null)
+                {
+                    namespaces.Add(it.ContainingNamespace);
+                }
                 else if (symbol.Kind == SymbolKind.Namespace)
                 {
                     namespaces.Add(symbol.Name);
@@ -196,6 +200,9 @@ internal sealed class CSharpSourceWriter
             case StructTypeTypeDeclarationNode structType:
                 EmitStructDeclaration(structType.StructDeclaration);
                 break;
+            case InterfaceTypeTypeDeclarationNode interfaceType:
+                EmitInterfaceDeclaration(interfaceType.InterfaceDeclaration);
+                break;
         }
     }
 
@@ -211,7 +218,7 @@ internal sealed class CSharpSourceWriter
         var modifiers = EmitModifiers(classDecl.Modifiers);
         var name = classDecl.Name.Lexeme;
         var baseClause = "";
-        if (classDecl.BaseClass is not null)
+        if (classDecl.BaseClause is not null)
         {
             var baseName = classDecl.BaseClassName.Lexeme;
             baseClause = $" : {baseName}";
@@ -233,6 +240,36 @@ internal sealed class CSharpSourceWriter
         AppendLine("}");
     }
 
+    private void EmitInterfaceDeclaration(InterfaceDeclarationNode interfaceDecl)
+    {
+        var name = interfaceDecl.Name.Lexeme;
+        var interfaceList = "";
+        if (interfaceDecl.InterfaceList is not null)
+        {
+            var parentName = interfaceDecl.InterfaceName.Lexeme;
+            interfaceList = $" : {parentName}";
+        }
+        AppendLine($"interface {name}{interfaceList}");
+        AppendLine("{");
+        _indentLevel++;
+
+        foreach (var method in interfaceDecl.Methods)
+        {
+            EmitInterfaceMethodDeclaration(method);
+        }
+
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    private void EmitInterfaceMethodDeclaration(InterfaceMethodDeclarationNode methodDecl)
+    {
+        var returnType = EmitTypeReference(methodDecl.ReturnType);
+        var name = methodDecl.Name.Lexeme;
+        var parameters = EmitParameterList(methodDecl.Parameters);
+        AppendLine($"{returnType} {name}({parameters});");
+    }
+
     private void EmitStructDeclaration(StructDeclarationNode structDecl)
     {
         var symbol = _model.GetDeclaredSymbol(structDecl);
@@ -243,7 +280,13 @@ internal sealed class CSharpSourceWriter
 
         var modifiers = EmitModifiers(structDecl.Modifiers);
         var name = structDecl.Name.Lexeme;
-        AppendLine($"{modifiers}struct {name}");
+        var interfaceList = "";
+        if (structDecl.InterfaceList is not null)
+        {
+            var interfaceName = structDecl.InterfaceName.Lexeme;
+            interfaceList = $" : {interfaceName}";
+        }
+        AppendLine($"{modifiers}struct {name}{interfaceList}");
         AppendLine("{");
         _indentLevel++;
 

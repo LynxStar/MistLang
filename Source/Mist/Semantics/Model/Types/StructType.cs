@@ -11,6 +11,7 @@ public sealed class StructType : IType
     public TypeKind Kind => TypeKind.Struct;
     public IScope MemberScope { get; }
     public string? ContainingNamespace { get; }
+    public IReadOnlyList<InterfaceType> Interfaces { get; internal set; } = Array.Empty<InterfaceType>();
 
     public StructType(string displayName, IScope memberScope, string? containingNamespace)
     {

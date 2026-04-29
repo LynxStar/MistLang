@@ -27,6 +27,7 @@ public enum SymbolKind
     Namespace,
     Class,
     Struct,
+    Interface,
     Field,
     Constructor,
     Method,

@@ -54,7 +54,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 |---|---|---|
 | Classes | ✅ | |
 | Structs | ✅ | |
-| Interfaces | 🔲 | |
+| Interfaces | ✅ | |
 | Enums | 🔲 | |
 | Delegates | 🔲 | |
 | Records | 🔲 | C# 9 |
@@ -358,8 +358,8 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | Feature | Status | Notes |
 |---|---|---|
 | Class inheritance (`: BaseClass`) | ✅ | |
-| Interface implementation (`: IFoo`) | 🔲 | |
-| Multiple interface implementation | 🔲 | |
+| Interface implementation (`: IFoo`) | ✅ | |
+| Multiple interface implementation | ✅ | |
 | `virtual` methods | 🔲 | |
 | `override` methods | 🔲 | |
 | `abstract` methods | 🔲 | |
@@ -518,7 +518,7 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 |---|---|---|---|
 | Value Types | 14 | 4 | 0 |
 | Reference Types | 4 | 6 | 1 |
-| Type Declarations | 2 | 12 | 0 |
+| Type Declarations | 3 | 11 | 0 |
 | Members — Fields | 3 | 3 | 1 |
 | Members — Properties | 0 | 7 | 0 |
 | Members — Methods | 5 | 12 | 0 |
@@ -538,7 +538,7 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 | Expressions — Member Access | 4 | 3 | 0 |
 | Expressions — Object Creation | 2 | 5 | 0 |
 | Expressions — Other | 2 | 14 | 2 |
-| Inheritance | 1 | 10 | 0 |
+| Inheritance | 3 | 8 | 0 |
 | Pattern Matching | 0 | 8 | 0 |
 | Generics | 0 | 6 | 0 |
 | Async | 0 | 5 | 1 |

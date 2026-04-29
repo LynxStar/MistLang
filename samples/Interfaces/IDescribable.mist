@@ -1,0 +1,8 @@
+using System;
+
+namespace Interfaces;
+
+interface IDescribable
+{
+    string Describe();
+}

@@ -53,18 +53,36 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // to base classes are supported.
         Pass1_ResolveBaseTypes(asts, globalScope, symbolTable, compilation, diagnostics);
 
-        // Pass 1c: Detect circular inheritance chains.
+        // Pass 1b (cont.): Resolve interface lists on classes, structs, and interfaces.
+        // After base types are resolved, resolve interface names on all types.
+        // For classes, the first name in the base clause may be a base class
+        // (already resolved above) or an interface; this pass handles the
+        // interface case and any additional interface names.
+        Pass1_ResolveInterfaceLists(symbolTable, asts, compilation, diagnostics);
+
+        // Pass 1c: Detect circular interface inheritance chains.
+        // After interface lists are resolved, walk each interface's Interfaces
+        // chain to detect cycles (including self-inheritance). Cycles are
+        // broken by removing the back-edge from the Interfaces list.
+        Pass1_DetectInterfaceCycles(symbolTable, asts, compilation, diagnostics);
+
+        // Pass 1c (cont.): Detect circular class inheritance chains.
         // After all base types are resolved, walk each class's BaseType chain
         // to detect cycles (including self-inheritance). Cycles are broken by
         // setting BaseType = null on the class that closes the cycle.
         Pass1_DetectCycles(symbolTable, asts, compilation, diagnostics);
 
-        // Pass 1d: Check for member redeclarations in derived classes.
+        // Pass 1d: Validate interface satisfaction.
+        // After cycles are broken, check that each class and struct
+        // implementing interfaces provides all required methods.
+        Pass1_ValidateInterfaceSatisfaction(symbolTable, asts, compilation, diagnostics);
+
+        // Pass 1e: Check for member redeclarations in derived classes.
         // After base types are resolved and cycles are broken, walk each
         // class's ancestor chain to ensure no member name is redeclared.
         Pass1_CheckMemberRedeclarations(symbolTable, asts, compilation, diagnostics);
 
-        // Pass 1e: Check that base class constructor requirements are satisfied.
+        // Pass 1f: Check that base class constructor requirements are satisfied.
         // If a base class has explicit constructors that require parameters,
         // the derived class must provide a constructor with `: base(args)`.
         Pass1_CheckBaseConstructorSatisfied(symbolTable, asts, compilation, diagnostics);
@@ -178,6 +196,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case StructTypeTypeDeclarationNode structTypeNode:
                 RegisterStructDeclaration(structTypeNode.StructDeclaration, parentScope, symbolTable, namespaceName, diagnostics);
                 break;
+            case InterfaceTypeTypeDeclarationNode interfaceTypeNode:
+                RegisterInterfaceDeclaration(
+                    interfaceTypeNode.InterfaceDeclaration,
+                    parentScope, symbolTable, namespaceName, diagnostics);
+                break;
         }
     }
 
@@ -225,6 +248,41 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             RegisterMemberDeclaration(memberDecl, typeScope, symbolTable, diagnostics);
         }
+    }
+
+    private static void RegisterInterfaceDeclaration(
+        InterfaceDeclarationNode interfaceDecl,
+        Scope parentScope,
+        SymbolTable symbolTable,
+        string? namespaceName,
+        DiagnosticBag diagnostics)
+    {
+        var interfaceName = interfaceDecl.Name.Lexeme;
+        var typeScope = new Scope(parent: parentScope);
+        var interfaceType = new InterfaceType(interfaceName, typeScope, namespaceName);
+
+        var interfaceSpan = ToMistSourceSpan(interfaceDecl.Name.Span);
+        var interfaceSymbol = new Symbol(interfaceName, SymbolKind.Interface, SymbolOrigin.UserCode, parentScope, interfaceType, interfaceSpan);
+
+        parentScope.AddMember(interfaceSymbol);
+        symbolTable.Register(interfaceSymbol, interfaceDecl);
+
+        foreach (var methodDecl in interfaceDecl.Methods)
+        {
+            RegisterInterfaceMethodDeclaration(methodDecl, typeScope, symbolTable);
+        }
+    }
+
+    private static void RegisterInterfaceMethodDeclaration(
+        InterfaceMethodDeclarationNode methodDecl,
+        Scope typeScope,
+        SymbolTable symbolTable)
+    {
+        var methodName = methodDecl.Name.Lexeme;
+        var methodSpan = ToMistSourceSpan(methodDecl.Name.Span);
+        var methodSymbol = new Symbol(methodName, SymbolKind.Method, SymbolOrigin.UserCode, typeScope, declaredType: null, methodSpan);
+        typeScope.AddMember(methodSymbol);
+        symbolTable.Register(methodSymbol, methodDecl);
     }
 
     private static void RegisterMemberDeclaration(
@@ -305,7 +363,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             // Check if this class has an inheritance clause.
-            if (classDecl.BaseClass is null)
+            if (classDecl.BaseClause is null)
             {
                 continue;
             }
@@ -398,7 +456,471 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Pass 1c — Detect circular inheritance chains
+    // Pass 1b (cont.) — Resolve interface lists on all types
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// After all types are registered and base types are resolved, resolve
+    /// interface lists on classes, structs, and interfaces.
+    ///
+    /// For classes: the first name in the base clause (<c>BaseClassName</c>)
+    /// may be a base class (already resolved by <see cref="Pass1_ResolveBaseTypes"/>)
+    /// or an interface. If it resolves to an <see cref="InterfaceType"/>, it is
+    /// treated as an interface (no base class). The class's <c>Interfaces</c>
+    /// property is set accordingly.
+    ///
+    /// For structs: the first name in the interface list (<c>InterfaceName</c>)
+    /// is resolved to an <see cref="InterfaceType"/> and stored on
+    /// <c>StructType.Interfaces</c>.
+    ///
+    /// For interfaces: the first name in the interface list (<c>InterfaceName</c>)
+    /// is resolved to an <see cref="InterfaceType"/> and stored on
+    /// <c>InterfaceType.Interfaces</c>.
+    ///
+    /// Emits <c>MIST_UNDEFINED_INTERFACE</c> when an interface name is not found,
+    /// and <c>MIST_NOT_AN_INTERFACE</c> when a name resolves to a class or struct.
+    /// </summary>
+    private static void Pass1_ResolveInterfaceLists(
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            switch (symbol.Kind)
+            {
+                case SymbolKind.Class when symbol.DeclaredType is ClassType classType:
+                    ResolveClassInterfaceList(symbol, classType, symbolTable, asts, compilation, diagnostics);
+                    break;
+
+                case SymbolKind.Struct when symbol.DeclaredType is StructType structType:
+                    ResolveStructInterfaceList(symbol, structType, symbolTable, asts, compilation, diagnostics);
+                    break;
+
+                case SymbolKind.Interface when symbol.DeclaredType is InterfaceType interfaceType:
+                    ResolveInterfaceInterfaceList(symbol, interfaceType, symbolTable, asts, compilation, diagnostics);
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Resolves the interface list for a class declaration.
+    /// The first name in the base clause (<c>BaseClassName</c>) may be a base class
+    /// or an interface. If Pass1_ResolveBaseTypes already set <c>BaseType</c>, the
+    /// first name is a base class and is skipped here. If <c>BaseType</c> is null
+    /// and the base clause is present, the first name is checked as an interface.
+    /// </summary>
+    private static void ResolveClassInterfaceList(
+        ISymbol classSymbol,
+        ClassType classType,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        var declaringNode = symbolTable.GetDeclaringNode(classSymbol);
+        if (declaringNode is not ClassDeclarationNode classDecl)
+            return;
+
+        // No base clause means no base class and no interfaces.
+        if (classDecl.BaseClause is null)
+            return;
+
+        var firstName = classDecl.BaseClassName.Lexeme;
+        if (string.IsNullOrEmpty(firstName))
+            return;
+
+        // If Pass1_ResolveBaseTypes already resolved a base class, the first
+        // name was consumed as the base class. Nothing more to do for interfaces
+        // from the first name (additional names from COMMA IDENTIFIER* are not
+        // captured by the current Storm generator).
+        if (classType.BaseType is not null)
+            return;
+
+        // The first name was NOT resolved as a base class. Check if it's an interface.
+        var parentScope = classSymbol.ContainingScope;
+        var resolvedSymbol = parentScope.Lookup(firstName);
+
+        if (resolvedSymbol is null)
+        {
+            // The name was already reported as MIST_UNDEFINED_BASE_TYPE by
+            // Pass1_ResolveBaseTypes. Emit MIST_UNDEFINED_INTERFACE as well
+            // since it could have been intended as an interface.
+            // Actually, Pass1_ResolveBaseTypes already emitted an error for
+            // undefined names. We should not double-report. However, the
+            // design says to emit MIST_UNDEFINED_INTERFACE. Let's check if
+            // the name was already reported — if resolvedSymbol is null, it
+            // was already reported by Pass1_ResolveBaseTypes. Skip here.
+            return;
+        }
+
+        if (resolvedSymbol.DeclaredType is InterfaceType resolvedInterface)
+        {
+            classType.Interfaces = new List<InterfaceType> { resolvedInterface };
+        }
+        else if (resolvedSymbol.DeclaredType is StructType)
+        {
+            // Already reported as MIST_CANNOT_INHERIT_STRUCT by Pass1_ResolveBaseTypes.
+            // No additional diagnostic needed.
+        }
+        // If it resolved to a ClassType but BaseType is null, that means
+        // Pass1_ResolveBaseTypes didn't set it (shouldn't happen in normal flow).
+        // No action needed.
+    }
+
+    /// <summary>
+    /// Resolves the interface list for a struct declaration.
+    /// </summary>
+    private static void ResolveStructInterfaceList(
+        ISymbol structSymbol,
+        StructType structType,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        var declaringNode = symbolTable.GetDeclaringNode(structSymbol);
+        if (declaringNode is not StructDeclarationNode structDecl)
+            return;
+
+        if (structDecl.InterfaceList is null)
+            return;
+
+        var interfaceName = structDecl.InterfaceName.Lexeme;
+        if (string.IsNullOrEmpty(interfaceName))
+            return;
+
+        var parentScope = structSymbol.ContainingScope;
+        var resolvedInterfaces = ResolveInterfaceNames(
+            new[] { interfaceName },
+            parentScope,
+            structType.DisplayName,
+            symbolTable, asts, compilation, diagnostics,
+            findPathForSymbol: structSymbol);
+
+        if (resolvedInterfaces.Count > 0)
+        {
+            structType.Interfaces = resolvedInterfaces;
+        }
+    }
+
+    /// <summary>
+    /// Resolves the interface list for an interface declaration.
+    /// </summary>
+    private static void ResolveInterfaceInterfaceList(
+        ISymbol interfaceSymbol,
+        InterfaceType interfaceType,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        var declaringNode = symbolTable.GetDeclaringNode(interfaceSymbol);
+        if (declaringNode is not InterfaceDeclarationNode interfaceDecl)
+            return;
+
+        if (interfaceDecl.InterfaceList is null)
+            return;
+
+        var interfaceName = interfaceDecl.InterfaceName.Lexeme;
+        if (string.IsNullOrEmpty(interfaceName))
+            return;
+
+        var parentScope = interfaceSymbol.ContainingScope;
+        var resolvedInterfaces = ResolveInterfaceNames(
+            new[] { interfaceName },
+            parentScope,
+            interfaceType.DisplayName,
+            symbolTable, asts, compilation, diagnostics,
+            findPathForSymbol: interfaceSymbol);
+
+        if (resolvedInterfaces.Count > 0)
+        {
+            interfaceType.Interfaces = resolvedInterfaces;
+        }
+    }
+
+    /// <summary>
+    /// Resolves a set of interface names to <see cref="InterfaceType"/> instances.
+    /// Emits diagnostics for undefined names and non-interface types.
+    /// </summary>
+    private static List<InterfaceType> ResolveInterfaceNames(
+        IEnumerable<string> interfaceNames,
+        IScope parentScope,
+        string declaringTypeName,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics,
+        ISymbol findPathForSymbol)
+    {
+        var resolved = new List<InterfaceType>();
+
+        foreach (var name in interfaceNames)
+        {
+            var resolvedSymbol = parentScope.Lookup(name);
+
+            if (resolvedSymbol is null)
+            {
+                string? compilationUnitPath = FindCompilationUnitPathForSymbol(
+                    findPathForSymbol, symbolTable, asts, compilation);
+
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_UNDEFINED_INTERFACE"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.SemanticModelConstruction,
+                    $"The interface type '{name}' could not be found.",
+                    Location: null,
+                    CompilationUnitPath: compilationUnitPath,
+                    AnalyzerName: null));
+                continue;
+            }
+
+            if (resolvedSymbol.DeclaredType is InterfaceType resolvedInterface)
+            {
+                resolved.Add(resolvedInterface);
+            }
+            else
+            {
+                string? compilationUnitPath = FindCompilationUnitPathForSymbol(
+                    findPathForSymbol, symbolTable, asts, compilation);
+
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_NOT_AN_INTERFACE"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.SemanticModelConstruction,
+                    $"'{name}' is not an interface; only interfaces can appear in an interface list.",
+                    Location: null,
+                    CompilationUnitPath: compilationUnitPath,
+                    AnalyzerName: null));
+            }
+        }
+
+        return resolved;
+    }
+
+    /// <summary>
+    /// Finds the compilation unit path for any symbol by looking up its declaring
+    /// node in the symbol table and walking the ASTs.
+    /// </summary>
+    private static string? FindCompilationUnitPathForSymbol(
+        ISymbol symbol,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation)
+    {
+        var declaringNode = symbolTable.GetDeclaringNode(symbol);
+        if (declaringNode is null)
+            return null;
+
+        for (var i = 0; i < asts.Length; i++)
+        {
+            if (asts[i] is CompilationUnitNode cu && ContainsTypeDeclarationNode(cu, declaringNode))
+            {
+                return i < compilation.Units.Length ? compilation.Units[i].Source?.Path : null;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks whether a compilation unit contains the given declaring node
+    /// (class, struct, or interface declaration).
+    /// </summary>
+    private static bool ContainsTypeDeclarationNode(CompilationUnitNode cu, Storm.Runtime.SyntaxNode declaringNode)
+    {
+        foreach (var typeDecl in cu.Types)
+        {
+            if (MatchesTypeDeclaration(typeDecl, declaringNode))
+                return true;
+        }
+
+        if (cu.Namespace is not null)
+        {
+            var namespaceTypes = GetNamespaceBodyTypes(cu.Namespace);
+            foreach (var typeDecl in namespaceTypes)
+            {
+                if (MatchesTypeDeclaration(typeDecl, declaringNode))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether a type declaration node wraps the given declaring node.
+    /// </summary>
+    private static bool MatchesTypeDeclaration(TypeDeclarationNode typeDecl, Storm.Runtime.SyntaxNode declaringNode)
+    {
+        return typeDecl switch
+        {
+            ClassTypeTypeDeclarationNode ct => ReferenceEquals(ct.ClassDeclaration, declaringNode),
+            StructTypeTypeDeclarationNode st => ReferenceEquals(st.StructDeclaration, declaringNode),
+            InterfaceTypeTypeDeclarationNode it => ReferenceEquals(it.InterfaceDeclaration, declaringNode),
+            _ => false,
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Pass 1c — Detect circular interface inheritance chains
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// After interface lists are resolved, walk each interface's Interfaces
+    /// chain to detect cycles (including self-inheritance). When a cycle is
+    /// found, emit a <c>MIST_CIRCULAR_INTERFACE_INHERITANCE</c> diagnostic
+    /// and break the cycle by removing the back-edge from the Interfaces list.
+    /// </summary>
+    private static void Pass1_DetectInterfaceCycles(
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // Track interfaces that have already been verified as cycle-free so
+        // we don't re-walk them.
+        var verified = new HashSet<InterfaceType>();
+
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind != SymbolKind.Interface || symbol.DeclaredType is not InterfaceType interfaceType)
+            {
+                continue;
+            }
+
+            if (interfaceType.Interfaces.Count == 0 || verified.Contains(interfaceType))
+            {
+                continue;
+            }
+
+            // Walk the Interfaces chain from this interface, tracking visited
+            // interfaces using a stack-based DFS.
+            DetectInterfaceCyclesDfs(
+                interfaceType, verified, symbolTable, asts, compilation, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Performs a DFS walk of the interface inheritance graph starting from
+    /// <paramref name="root"/>. If a cycle is detected, emits a diagnostic
+    /// and removes the back-edge from the parent's Interfaces list.
+    /// </summary>
+    private static void DetectInterfaceCyclesDfs(
+        InterfaceType root,
+        HashSet<InterfaceType> verified,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // path tracks the current DFS path for cycle reporting.
+        var path = new List<InterfaceType>();
+        // pathSet provides O(1) lookup for cycle detection.
+        var pathSet = new HashSet<InterfaceType>();
+
+        DetectInterfaceCyclesDfsVisit(
+            root, parent: null, path, pathSet, verified,
+            symbolTable, asts, compilation, diagnostics);
+    }
+
+    /// <summary>
+    /// Recursive DFS visitor for interface cycle detection.
+    /// </summary>
+    private static void DetectInterfaceCyclesDfsVisit(
+        InterfaceType current,
+        InterfaceType? parent,
+        List<InterfaceType> path,
+        HashSet<InterfaceType> pathSet,
+        HashSet<InterfaceType> verified,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        if (verified.Contains(current))
+        {
+            return;
+        }
+
+        if (!pathSet.Add(current))
+        {
+            // Cycle detected — current was already on the path.
+            // Build the chain string for the diagnostic message.
+            var cycleStart = path.IndexOf(current);
+            var cycleMembers = path.Skip(cycleStart).Select(i => i.DisplayName).ToList();
+            cycleMembers.Add(current.DisplayName);
+            var chainStr = string.Join(" -> ", cycleMembers);
+
+            // Find the interface that has the back-edge (the parent that
+            // references current in its Interfaces list).
+            var closingInterface = path[^1];
+
+            // Find the symbol for the closing interface to get the compilation unit path.
+            string? compilationUnitPath = FindCompilationUnitPathForInterfaceType(
+                closingInterface, symbolTable, asts, compilation);
+
+            diagnostics.Add(new Diagnostic(
+                new DiagnosticId("MIST_CIRCULAR_INTERFACE_INHERITANCE"),
+                DiagnosticSeverity.Error,
+                PipelineStage.SemanticModelConstruction,
+                $"Circular interface inheritance detected: '{chainStr}'.",
+                Location: null,
+                CompilationUnitPath: compilationUnitPath,
+                AnalyzerName: null));
+
+            // Break the cycle by removing the back-edge from the closing
+            // interface's Interfaces list.
+            var updatedInterfaces = closingInterface.Interfaces
+                .Where(i => !ReferenceEquals(i, current))
+                .ToList();
+            closingInterface.Interfaces = updatedInterfaces;
+
+            return;
+        }
+
+        path.Add(current);
+
+        // Visit each interface in the current interface's Interfaces list.
+        // Take a snapshot of the list since it may be modified during cycle breaking.
+        var interfaces = current.Interfaces.ToList();
+        foreach (var child in interfaces)
+        {
+            DetectInterfaceCyclesDfsVisit(
+                child, current, path, pathSet, verified,
+                symbolTable, asts, compilation, diagnostics);
+        }
+
+        path.RemoveAt(path.Count - 1);
+        pathSet.Remove(current);
+        verified.Add(current);
+    }
+
+    /// <summary>
+    /// Finds the compilation unit path for an interface type by looking up its
+    /// declaring node in the symbol table.
+    /// </summary>
+    private static string? FindCompilationUnitPathForInterfaceType(
+        InterfaceType interfaceType,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.DeclaredType == interfaceType)
+            {
+                return FindCompilationUnitPathForSymbol(symbol, symbolTable, asts, compilation);
+            }
+        }
+        return null;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Pass 1c (cont.) — Detect circular class inheritance chains
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
@@ -504,7 +1026,442 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Pass 1d — Check for member redeclarations in derived classes
+    // Pass 1d — Validate interface satisfaction
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// After cycles are broken, check that each class and struct implementing
+    /// interfaces provides all required methods. Walks the interface hierarchy
+    /// transitively (using a visited set for diamond inheritance) to collect
+    /// required methods, then searches the implementing type's member scope
+    /// (and base type chain for classes) for matching methods.
+    /// </summary>
+    private static void Pass1_ValidateInterfaceSatisfaction(
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            switch (symbol.Kind)
+            {
+                case SymbolKind.Class when symbol.DeclaredType is ClassType classType:
+                    if (classType.Interfaces.Count > 0)
+                    {
+                        ValidateInterfaceSatisfaction(
+                            classType.DisplayName, classType.Interfaces, classType.MemberScope,
+                            classType, symbolTable, asts, compilation, diagnostics);
+                    }
+                    break;
+
+                case SymbolKind.Struct when symbol.DeclaredType is StructType structType:
+                    if (structType.Interfaces.Count > 0)
+                    {
+                        ValidateInterfaceSatisfaction(
+                            structType.DisplayName, structType.Interfaces, structType.MemberScope,
+                            null, symbolTable, asts, compilation, diagnostics);
+                    }
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates that the implementing type provides all methods required by
+    /// its interfaces (including transitively inherited interfaces).
+    /// </summary>
+    /// <param name="typeName">Display name of the implementing type.</param>
+    /// <param name="interfaces">Direct interfaces of the implementing type.</param>
+    /// <param name="memberScope">Member scope of the implementing type.</param>
+    /// <param name="classType">If the implementing type is a class, its ClassType (for base chain walking). Null for structs.</param>
+    /// <param name="symbolTable">The symbol table.</param>
+    /// <param name="asts">The ASTs.</param>
+    /// <param name="compilation">The compilation.</param>
+    /// <param name="diagnostics">Diagnostic bag.</param>
+    private static void ValidateInterfaceSatisfaction(
+        string typeName,
+        IReadOnlyList<InterfaceType> interfaces,
+        IScope memberScope,
+        ClassType? classType,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // Collect all required methods transitively from the interface hierarchy.
+        // Each entry is (interfaceType, methodSymbol) so we can report which
+        // interface requires the method.
+        var requiredMethods = new List<(InterfaceType Interface, ISymbol Method)>();
+        var visitedInterfaces = new HashSet<InterfaceType>();
+        CollectRequiredMethods(interfaces, requiredMethods, visitedInterfaces);
+
+        // For each required method, search for a matching implementation.
+        foreach (var (requiredInterface, requiredMethod) in requiredMethods)
+        {
+            var requiredNode = symbolTable.GetDeclaringNode(requiredMethod);
+            if (requiredNode is not InterfaceMethodDeclarationNode requiredMethodDecl)
+                continue;
+
+            // Search the implementing type's member scope for a method with the same name.
+            var matchResult = FindMatchingMethod(
+                requiredMethod.Name, requiredMethodDecl,
+                memberScope, classType, symbolTable);
+
+            switch (matchResult)
+            {
+                case MethodMatchResult.MatchedResult:
+                    // Method found with matching signature — satisfied.
+                    break;
+
+                case MethodMatchResult.MissingResult:
+                    // No method with this name found anywhere in the type or its base chain.
+                    string? missingPath = FindCompilationUnitPathForType(
+                        typeName, symbolTable, asts, compilation);
+
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_MISSING_INTERFACE_METHOD"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        $"'{typeName}' does not implement interface method '{requiredInterface.DisplayName}.{requiredMethod.Name}'.",
+                        Location: null,
+                        CompilationUnitPath: missingPath,
+                        AnalyzerName: null));
+                    break;
+
+                case MethodMatchResult.SignatureMismatch mismatch:
+                    // Method name matches but signature differs.
+                    string? mismatchPath = FindCompilationUnitPathForType(
+                        typeName, symbolTable, asts, compilation);
+
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_INTERFACE_METHOD_SIGNATURE_MISMATCH"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        $"'{typeName}.{requiredMethod.Name}' does not match the signature required by interface '{requiredInterface.DisplayName}': expected '{mismatch.ExpectedSig}', found '{mismatch.ActualSig}'.",
+                        Location: null,
+                        CompilationUnitPath: mismatchPath,
+                        AnalyzerName: null));
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Recursively collects all required methods from the interface hierarchy,
+    /// using a visited set to handle diamond inheritance.
+    /// </summary>
+    private static void CollectRequiredMethods(
+        IReadOnlyList<InterfaceType> interfaces,
+        List<(InterfaceType Interface, ISymbol Method)> requiredMethods,
+        HashSet<InterfaceType> visited)
+    {
+        foreach (var iface in interfaces)
+        {
+            if (!visited.Add(iface))
+                continue;
+
+            // Add all method members from this interface.
+            foreach (var member in iface.MemberScope.Members)
+            {
+                if (member.Kind == SymbolKind.Method)
+                {
+                    requiredMethods.Add((iface, member));
+                }
+            }
+
+            // Recurse into parent interfaces.
+            if (iface.Interfaces.Count > 0)
+            {
+                CollectRequiredMethods(iface.Interfaces, requiredMethods, visited);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Result of searching for a matching method implementation.
+    /// </summary>
+    private abstract record MethodMatchResult
+    {
+        public static readonly MethodMatchResult Matched = new MatchedResult();
+        public static readonly MethodMatchResult Missing = new MissingResult();
+
+        public static MethodMatchResult Mismatch(string expectedSig, string actualSig)
+            => new SignatureMismatch(expectedSig, actualSig);
+
+        public sealed record MatchedResult : MethodMatchResult;
+        public sealed record MissingResult : MethodMatchResult;
+        public sealed record SignatureMismatch(string ExpectedSig, string ActualSig) : MethodMatchResult;
+    }
+
+    /// <summary>
+    /// Searches the implementing type's member scope (and base type chain for
+    /// classes) for a method matching the required interface method.
+    /// </summary>
+    private static MethodMatchResult FindMatchingMethod(
+        string methodName,
+        InterfaceMethodDeclarationNode requiredMethodDecl,
+        IScope memberScope,
+        ClassType? classType,
+        SymbolTable symbolTable)
+    {
+        // Search the direct member scope first.
+        var result = SearchScopeForMethod(methodName, requiredMethodDecl, memberScope, symbolTable);
+        if (result is not MethodMatchResult.MissingResult)
+            return result;
+
+        // For classes, walk the base type chain.
+        if (classType is not null)
+        {
+            var ancestor = classType.BaseType;
+            while (ancestor is not null)
+            {
+                result = SearchScopeForMethod(methodName, requiredMethodDecl, ancestor.MemberScope, symbolTable);
+                if (result is not MethodMatchResult.MissingResult)
+                    return result;
+
+                ancestor = ancestor.BaseType;
+            }
+        }
+
+        return MethodMatchResult.Missing;
+    }
+
+    /// <summary>
+    /// Searches a single scope for a method with the given name and checks
+    /// whether its signature matches the required interface method.
+    /// </summary>
+    private static MethodMatchResult SearchScopeForMethod(
+        string methodName,
+        InterfaceMethodDeclarationNode requiredMethodDecl,
+        IScope scope,
+        SymbolTable symbolTable)
+    {
+        foreach (var member in scope.Members)
+        {
+            if (member.Kind != SymbolKind.Method || member.Name != methodName)
+                continue;
+
+            // Found a method with the same name. Check signature.
+            var memberNode = symbolTable.GetDeclaringNode(member);
+            if (memberNode is not MethodDeclarationNode implMethodDecl)
+                continue;
+
+            if (SignaturesMatch(requiredMethodDecl, implMethodDecl))
+                return MethodMatchResult.Matched;
+
+            // Name matches but signature differs.
+            var expectedSig = FormatInterfaceMethodSignature(requiredMethodDecl);
+            var actualSig = FormatMethodSignature(implMethodDecl);
+            return MethodMatchResult.Mismatch(expectedSig, actualSig);
+        }
+
+        return MethodMatchResult.Missing;
+    }
+
+    /// <summary>
+    /// Checks whether an implementing method's signature matches the required
+    /// interface method's signature (return type and parameter types).
+    /// </summary>
+    private static bool SignaturesMatch(
+        InterfaceMethodDeclarationNode required,
+        MethodDeclarationNode actual)
+    {
+        // Compare return types.
+        if (!TypeReferencesMatch(required.ReturnType, actual.ReturnType))
+            return false;
+
+        // Compare parameter types.
+        var requiredParams = ExtractParameterTypes(required.Parameters);
+        var actualParams = ExtractParameterTypes(actual.Parameters);
+
+        if (requiredParams.Count != actualParams.Count)
+            return false;
+
+        for (var i = 0; i < requiredParams.Count; i++)
+        {
+            if (!TypeReferencesMatch(requiredParams[i], actualParams[i]))
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Extracts the list of parameter type references from a parameter list node.
+    /// </summary>
+    private static List<TypeReferenceNode> ExtractParameterTypes(ParameterListNode? paramList)
+    {
+        var types = new List<TypeReferenceNode>();
+        if (paramList is null)
+            return types;
+
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode param)
+            {
+                types.Add(param.Type);
+            }
+        }
+
+        return types;
+    }
+
+    /// <summary>
+    /// Compares two TypeReferenceNode instances for structural equality.
+    /// </summary>
+    private static bool TypeReferencesMatch(TypeReferenceNode a, TypeReferenceNode b)
+    {
+        return (a, b) switch
+        {
+            (VoidTypeRefTypeReferenceNode, VoidTypeRefTypeReferenceNode) => true,
+
+            (PrimitiveTypeRefTypeReferenceNode pa, PrimitiveTypeRefTypeReferenceNode pb) =>
+                PrimitiveTypesMatch(pa.PrimitiveType, pb.PrimitiveType)
+                && pa.ArrayRank.HasValue == pb.ArrayRank.HasValue,
+
+            (NamedTypeRefTypeReferenceNode na, NamedTypeRefTypeReferenceNode nb) =>
+                na.Name.IDENTIFIER.Lexeme == nb.Name.IDENTIFIER.Lexeme
+                && na.ArrayRank.HasValue == nb.ArrayRank.HasValue,
+
+            // A named type ref could match a primitive type ref if someone
+            // uses the type name form (e.g., "string" as named vs primitive).
+            // In practice the parser produces consistent node types, so
+            // cross-kind comparisons are mismatches.
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Compares two PrimitiveTypeNode instances for equality by variant type.
+    /// </summary>
+    private static bool PrimitiveTypesMatch(PrimitiveTypeNode a, PrimitiveTypeNode b)
+    {
+        return (a, b) switch
+        {
+            (IntTypePrimitiveTypeNode, IntTypePrimitiveTypeNode) => true,
+            (UintTypePrimitiveTypeNode, UintTypePrimitiveTypeNode) => true,
+            (LongTypePrimitiveTypeNode, LongTypePrimitiveTypeNode) => true,
+            (UlongTypePrimitiveTypeNode, UlongTypePrimitiveTypeNode) => true,
+            (ShortTypePrimitiveTypeNode, ShortTypePrimitiveTypeNode) => true,
+            (UshortTypePrimitiveTypeNode, UshortTypePrimitiveTypeNode) => true,
+            (ByteTypePrimitiveTypeNode, ByteTypePrimitiveTypeNode) => true,
+            (SbyteTypePrimitiveTypeNode, SbyteTypePrimitiveTypeNode) => true,
+            (FloatTypePrimitiveTypeNode, FloatTypePrimitiveTypeNode) => true,
+            (DoubleTypePrimitiveTypeNode, DoubleTypePrimitiveTypeNode) => true,
+            (DecimalTypePrimitiveTypeNode, DecimalTypePrimitiveTypeNode) => true,
+            (BoolTypePrimitiveTypeNode, BoolTypePrimitiveTypeNode) => true,
+            (CharTypePrimitiveTypeNode, CharTypePrimitiveTypeNode) => true,
+            (StringTypePrimitiveTypeNode, StringTypePrimitiveTypeNode) => true,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Formats an interface method signature as a string for diagnostic messages.
+    /// Format: "returnType(paramType1, paramType2, ...)"
+    /// </summary>
+    private static string FormatInterfaceMethodSignature(InterfaceMethodDeclarationNode methodDecl)
+    {
+        var returnType = FormatTypeReference(methodDecl.ReturnType);
+        var paramTypes = FormatParameterTypes(methodDecl.Parameters);
+        return $"{returnType}({paramTypes})";
+    }
+
+    /// <summary>
+    /// Formats a method signature as a string for diagnostic messages.
+    /// Format: "returnType(paramType1, paramType2, ...)"
+    /// </summary>
+    private static string FormatMethodSignature(MethodDeclarationNode methodDecl)
+    {
+        var returnType = FormatTypeReference(methodDecl.ReturnType);
+        var paramTypes = FormatParameterTypes(methodDecl.Parameters);
+        return $"{returnType}({paramTypes})";
+    }
+
+    /// <summary>
+    /// Formats a parameter list as a comma-separated string of type names.
+    /// </summary>
+    private static string FormatParameterTypes(ParameterListNode? paramList)
+    {
+        if (paramList is null)
+            return "";
+
+        var types = new List<string>();
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode param)
+            {
+                types.Add(FormatTypeReference(param.Type));
+            }
+        }
+
+        return string.Join(", ", types);
+    }
+
+    /// <summary>
+    /// Formats a TypeReferenceNode as a human-readable string.
+    /// </summary>
+    private static string FormatTypeReference(TypeReferenceNode typeRef)
+    {
+        return typeRef switch
+        {
+            VoidTypeRefTypeReferenceNode => "void",
+            PrimitiveTypeRefTypeReferenceNode p =>
+                FormatPrimitiveType(p.PrimitiveType) + (p.ArrayRank.HasValue ? "[]" : ""),
+            NamedTypeRefTypeReferenceNode n =>
+                n.Name.IDENTIFIER.Lexeme + (n.ArrayRank.HasValue ? "[]" : ""),
+            _ => "unknown",
+        };
+    }
+
+    /// <summary>
+    /// Formats a PrimitiveTypeNode as a keyword string.
+    /// </summary>
+    private static string FormatPrimitiveType(PrimitiveTypeNode node)
+    {
+        return node switch
+        {
+            IntTypePrimitiveTypeNode => "int",
+            UintTypePrimitiveTypeNode => "uint",
+            LongTypePrimitiveTypeNode => "long",
+            UlongTypePrimitiveTypeNode => "ulong",
+            ShortTypePrimitiveTypeNode => "short",
+            UshortTypePrimitiveTypeNode => "ushort",
+            ByteTypePrimitiveTypeNode => "byte",
+            SbyteTypePrimitiveTypeNode => "sbyte",
+            FloatTypePrimitiveTypeNode => "float",
+            DoubleTypePrimitiveTypeNode => "double",
+            DecimalTypePrimitiveTypeNode => "decimal",
+            BoolTypePrimitiveTypeNode => "bool",
+            CharTypePrimitiveTypeNode => "char",
+            StringTypePrimitiveTypeNode => "string",
+            _ => "unknown",
+        };
+    }
+
+    /// <summary>
+    /// Finds the compilation unit path for a type by its display name.
+    /// </summary>
+    private static string? FindCompilationUnitPathForType(
+        string typeName,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface)
+                && symbol.Name == typeName)
+            {
+                return FindCompilationUnitPathForSymbol(symbol, symbolTable, asts, compilation);
+            }
+        }
+        return null;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Pass 1e — Check for member redeclarations in derived classes
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
@@ -574,7 +1531,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Pass 1e — Check base constructor requirements are satisfied
+    // Pass 1f — Check base constructor requirements are satisfied
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
@@ -805,6 +1762,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 ClassTypeTypeDeclarationNode ct => ct.ClassDeclaration,
                 StructTypeTypeDeclarationNode st => st.StructDeclaration,
+                InterfaceTypeTypeDeclarationNode it => it.InterfaceDeclaration,
                 _ => firstTypeDecl
             };
 
@@ -835,7 +1793,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // belongs to the target namespace.
         foreach (var member in globalScope.Members)
         {
-            if (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct)
+            if (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface)
             {
                 // Top-level types (no namespace) — skip.
                 continue;
@@ -845,7 +1803,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Walk all registered symbols to find a type in this namespace.
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface)
                 && symbol.ContainingScope is Scope parentScope
                 && parentScope.Parent == globalScope)
             {
@@ -855,6 +1813,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     return parentScope;
                 }
                 if (symbol.DeclaredType is StructType st && st.ContainingNamespace == namespaceName)
+                {
+                    return parentScope;
+                }
+                if (symbol.DeclaredType is InterfaceType it && it.ContainingNamespace == namespaceName)
                 {
                     return parentScope;
                 }
@@ -880,6 +1842,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             case StructTypeTypeDeclarationNode structTypeNode:
                 ResolveStructDeclaration(structTypeNode.StructDeclaration, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case InterfaceTypeTypeDeclarationNode interfaceTypeNode:
+                ResolveInterfaceDeclaration(interfaceTypeNode.InterfaceDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 break;
         }
     }
@@ -921,6 +1886,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach (var memberDecl in structDecl.Members)
         {
             ResolveMemberDeclaration(memberDecl, typeScope, fileScope, structType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        }
+    }
+
+    private static void ResolveInterfaceDeclaration(
+        InterfaceDeclarationNode interfaceDecl,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var interfaceSymbol = symbolTable.GetDeclaredSymbol(interfaceDecl);
+        if (interfaceSymbol?.DeclaredType is not InterfaceType) return;
+
+        // Resolve return types and parameter types for each interface method.
+        foreach (var methodDecl in interfaceDecl.Methods)
+        {
+            var returnType = ResolveTypeReference(methodDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
+            if (methodSymbol is not null)
+            {
+                methodSymbol.DeclaredType = returnType;
+            }
         }
     }
 
@@ -1400,7 +2388,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // 2. Search current scope → parent scopes.
         var symbol = fileScope.Lookup(typeName);
-        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct))
+        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface))
         {
             return symbol.DeclaredType ?? UnknownType.Instance;
         }
@@ -1500,13 +2488,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Check if already registered in the scope.
         var existing = fileScope.Lookup(typeName);
-        if (existing is not null && (existing.Kind == SymbolKind.Class || existing.Kind == SymbolKind.Struct))
+        if (existing is not null && (existing.Kind == SymbolKind.Class || existing.Kind == SymbolKind.Struct || existing.Kind == SymbolKind.Interface))
         {
             return; // Already registered.
         }
 
         // Create a type symbol with SymbolOrigin.Backend.
-        var kind = type is ClassType ? SymbolKind.Class : SymbolKind.Struct;
+        var kind = type is ClassType ? SymbolKind.Class : type is InterfaceType ? SymbolKind.Interface : SymbolKind.Struct;
         var typeSymbol = new Symbol(typeName, kind, SymbolOrigin.Backend, fileScope, type, declarationSpan: null);
         fileScope.AddMember(typeSymbol);
 
@@ -2092,7 +3080,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Check scope chain for type symbols.
         var symbol = fileScope.Lookup(name);
-        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct))
+        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface))
         {
             return symbol.DeclaredType;
         }

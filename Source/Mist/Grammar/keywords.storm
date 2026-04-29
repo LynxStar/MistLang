@@ -4,6 +4,7 @@ token NAMESPACE = "namespace";
 token USING     = "using";
 token CLASS     = "class";
 token STRUCT    = "struct";
+token INTERFACE = "interface";
 token PUBLIC    = "public";
 token PRIVATE   = "private";
 token STATIC    = "static";

@@ -501,7 +501,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         switch (memberDecl)
         {
             case FieldMemberMemberDeclarationNode fieldMember:
-                ResolveFieldDeclaration(fieldMember.Field, typeScope, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                ResolveFieldDeclaration(fieldMember.Field, typeScope, fileScope, enclosingType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
             case ConstructorMemberMemberDeclarationNode ctorMember:
                 ResolveConstructorDeclaration(ctorMember.Constructor, typeScope, fileScope, enclosingType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -516,6 +516,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         FieldDeclarationNode fieldDecl,
         Scope typeScope,
         Scope fileScope,
+        IType enclosingType,
         SymbolTable symbolTable,
         Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
         IAmbientTypeResolver? ambientTypeResolver,
@@ -529,6 +530,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (fieldSymbol is not null)
         {
             fieldSymbol.DeclaredType = fieldType;
+        }
+
+        // Resolve the optional initializer expression.
+        // The grammar defines: initializer:(EQUAL Expression)?
+        // Walk children to find the ExpressionNode, matching the pattern used
+        // by CSharpEmitter and MistPrettyPrinter (FindFieldInitializerExpression).
+        foreach (var child in fieldDecl.Children())
+        {
+            if (child is ExpressionNode initExpr)
+            {
+                var isStatic = fieldDecl.Modifiers.Any(m => m is StaticModifierModifierNode);
+                ResolveExpression(initExpr, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            }
         }
     }
 
@@ -606,18 +621,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // The ParameterListNode has a single Parameter property (first parameter)
-        // and the grammar uses (COMMA Parameter)* for additional parameters.
-        // The Storm generator flattens this into a single Parameter property.
-        // We need to walk the children to find all ParameterNode instances.
-        RegisterSingleParameter(paramList.Parameter, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-
-        // Walk children to find additional parameters (from the repetition).
+        // The grammar rule is: ParameterList = Parameter (COMMA Parameter)*
+        // Iterate all ParameterNode children uniformly to register every parameter.
         foreach (var child in paramList.Children())
         {
-            if (child is ParameterNode additionalParam && !ReferenceEquals(additionalParam, paramList.Parameter))
+            if (child is ParameterNode param)
             {
-                RegisterSingleParameter(additionalParam, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                RegisterSingleParameter(param, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
             }
         }
     }

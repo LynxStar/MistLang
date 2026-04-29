@@ -1,0 +1,49 @@
+// Counter — Demonstrates static fields, static methods,
+// instance fields, field initializers, and mixed access modifiers.
+
+using System;
+
+namespace AllFeatures;
+
+public class Counter
+{
+    // Static field (initialized in constructor)
+    private static int totalCreated;
+
+    // Instance fields
+    private string name;
+    private int value;
+
+    public Counter(string name)
+    {
+        this.name = name;
+        this.value = 0;
+        totalCreated = totalCreated + 1;
+    }
+
+    // Static method accessing static field
+    public static int GetTotalCreated()
+    {
+        return totalCreated;
+    }
+
+    public void Increment()
+    {
+        this.value = this.value + 1;
+    }
+
+    public int GetValue()
+    {
+        return this.value;
+    }
+
+    public string GetName()
+    {
+        return this.name;
+    }
+
+    public string Describe()
+    {
+        return $"Counter '{name}' = {value}";
+    }
+}

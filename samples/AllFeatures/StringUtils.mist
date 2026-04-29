@@ -1,0 +1,39 @@
+// StringUtils — Demonstrates a static utility class with
+// string methods, boolean logic, and static-only members.
+
+using System;
+
+namespace AllFeatures;
+
+public class StringUtils
+{
+    // Demonstrates: static method, string.Contains, logical OR, if/else
+    public static bool IsGreeting(string input)
+    {
+        if (input.Contains("Hello") || input.Contains("Hi"))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    // Demonstrates: static method, string.Substring, string concatenation
+    public static string Bracket(string input)
+    {
+        return "[" + input + "]";
+    }
+
+    // Demonstrates: static method, Convert.ToInt32, Convert.ToString, Math
+    public static string DoubleNumeric(string numStr)
+    {
+        int value = Convert.ToInt32(numStr);
+        int doubled = value * 2;
+        return Convert.ToString(doubled);
+    }
+
+    // Demonstrates: static method, string.Length() (exercises Bug 3 fix)
+    public static int GetLength(string input)
+    {
+        return input.Length();
+    }
+}

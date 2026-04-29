@@ -1,0 +1,251 @@
+// AllFeatures — Comprehensive sample exercising every implemented Mist feature.
+
+using System;
+
+namespace AllFeatures;
+
+public class Program
+{
+    // Static helper: recursion, if/else, return, comparison, arithmetic
+    private static int Fibonacci(int n)
+    {
+        if (n <= 0)
+        {
+            return 0;
+        }
+        if (n == 1)
+        {
+            return 1;
+        }
+        return Fibonacci(n - 1) + Fibonacci(n - 2);
+    }
+
+    // Static helper: array param, foreach, return from loop
+    private static int FindFirst(int[] values, int target)
+    {
+        int index = 0;
+        foreach (int v in values)
+        {
+            if (v == target)
+            {
+                return index;
+            }
+            index = index + 1;
+        }
+        return -1;
+    }
+
+    // Static helper: while, modulo, division, unary negation
+    private static int DigitSum(int n)
+    {
+        int sum = 0;
+        if (n < 0)
+        {
+            n = -n;
+        }
+        while (n > 0)
+        {
+            sum = sum + n % 10;
+            n = n / 10;
+        }
+        return sum;
+    }
+
+    // Entry point
+    public static void Main(string[] args)
+    {
+        Console.WriteLine("=== AllFeatures Mist Sample ===");
+
+        // 1. All primitive types and literals
+        int i = 42;
+        uint ui = 100u;
+        long l = 100L;
+        ulong ul = 999UL;
+        short s = 16;
+        ushort us = 32;
+        byte b = 255;
+        sbyte sb = -128;
+        float f = 2.5f;
+        double d = 3.14;
+        decimal m = 99.99m;
+        bool flag = true;
+        char ch = 'Z';
+        int hex = 0xFF;
+        Console.WriteLine($"int={i} uint={ui} long={l} ulong={ul}");
+        Console.WriteLine($"short={s} ushort={us} byte={b} sbyte={sb}");
+        Console.WriteLine($"float={f} double={d} decimal={m}");
+        Console.WriteLine($"bool={flag} char={ch} hex={hex}");
+
+        // 2. String literals, escape sequences, interpolated strings
+        string greeting = "Hello, Mist!";
+        string escaped = "Line1\nLine2\tTabbed";
+        string interp = $"The answer is {i}";
+        string interpExpr = $"Hex doubled: {hex * 2}";
+        Console.WriteLine(greeting);
+        Console.WriteLine(interp);
+        Console.WriteLine(interpExpr);
+
+        // 3. var (type inference)
+        var inferred = 123;
+        var inferredStr = "inferred";
+        var inferredBool = false;
+        Console.WriteLine($"var: {inferred} {inferredStr} {inferredBool}");
+
+        // 4. Arithmetic operators
+        int a = 17;
+        int bv = 5;
+        Console.WriteLine($"{a}+{bv}={a + bv} {a}-{bv}={a - bv} {a}*{bv}={a * bv}");
+        Console.WriteLine($"{a}/{bv}={a / bv} {a}%{bv}={a % bv} neg={-a}");
+
+        // 5. Comparison operators
+        Console.WriteLine($"=={a == bv} !={a != bv} <{a < bv} >{a > bv}");
+        Console.WriteLine($"<={a <= bv} >={a >= bv}");
+
+        // 6. Logical operators
+        bool t = true;
+        bool fv = false;
+        Console.WriteLine($"&&={t && fv} ||={t || fv} !={!t}");
+
+        // 7. Parenthesized expressions
+        int parenResult = (a + bv) * (a - bv);
+        Console.WriteLine($"({a}+{bv})*({a}-{bv})={parenResult}");
+
+        // 8. if / else if / else
+        int score = 85;
+        if (score >= 90)
+        {
+            Console.WriteLine("Grade A");
+        }
+        else if (score >= 80)
+        {
+            Console.WriteLine("Grade B");
+        }
+        else
+        {
+            Console.WriteLine("Grade F");
+        }
+
+        // 9. while loop
+        int countdown = 5;
+        while (countdown > 0)
+        {
+            Console.Write($"{countdown} ");
+            countdown = countdown - 1;
+        }
+        Console.WriteLine("Liftoff!");
+
+        // 10. for loop
+        int forSum = 0;
+        for (int j = 1; j <= 10; j = j + 1)
+        {
+            forSum = forSum + j;
+        }
+        Console.WriteLine($"Sum 1..10 = {forSum}");
+
+        // 11. Array creation, indexing, foreach
+        int[] nums = new int[6];
+        for (int j = 0; j < 6; j = j + 1)
+        {
+            nums[j] = (j + 1) * (j + 1);
+        }
+        Console.Write("Squares: ");
+        foreach (int n in nums)
+        {
+            Console.Write($"{n} ");
+        }
+        Console.WriteLine("");
+
+        // 12. break
+        for (int j = 0; j < 100; j = j + 1)
+        {
+            if (j == 5)
+            {
+                Console.WriteLine($"Break at j={j}");
+                break;
+            }
+        }
+
+        // 13. Classes, constructors, constructor chaining, this, instance methods
+        var p1 = new Point(3, 4);
+        var p2 = new Point();
+        Console.WriteLine($"p1={p1.Describe()} p2={p2.Describe()}");
+        Console.WriteLine($"dist={p1.DistanceFromOrigin()}");
+        var p3 = p1.Translate(10, 20);
+        Console.WriteLine($"translated={p3.Describe()}");
+
+        // 14. Structs, public fields, struct methods
+        var red = new Color(255, 0, 0);
+        var green = new Color(0, 255, 0);
+        Console.WriteLine($"red={red.Describe()} green={green.Describe()}");
+        Console.WriteLine($"brightness={red.Brightness()}");
+        var mixed = red.Mix(green);
+        Console.WriteLine($"mixed={mixed.Describe()}");
+
+        // 15. Static fields and static methods
+        var c1 = new Counter("Alpha");
+        var c2 = new Counter("Beta");
+        Console.WriteLine($"total={Counter.GetTotalCreated()}");
+        c1.Increment();
+        c1.Increment();
+        c2.Increment();
+        Console.WriteLine(c1.Describe());
+        Console.WriteLine(c2.Describe());
+
+        // 16. String operations (ambient System.String)
+        string phrase = "Hello Mist World";
+        Console.WriteLine($"contains={phrase.Contains("Mist")}");
+        Console.WriteLine($"sub={phrase.Substring(6)}");
+
+        // 17. Math operations (ambient System.Math)
+        Console.WriteLine($"abs={Math.Abs(-42)} max={Math.Max(10, 25)} min={Math.Min(10, 25)}");
+
+        // 18. Convert operations (ambient System.Convert)
+        int parsed = Convert.ToInt32("42");
+        Console.WriteLine($"parsed={parsed} back={Convert.ToString(parsed)}");
+
+        // 19. Recursion (Fibonacci)
+        Console.Write("Fib: ");
+        for (int j = 0; j < 10; j = j + 1)
+        {
+            Console.Write($"{Fibonacci(j)} ");
+        }
+        Console.WriteLine("");
+
+        // 20. Array search
+        int[] haystack = new int[5];
+        haystack[0] = 10;
+        haystack[1] = 20;
+        haystack[2] = 30;
+        haystack[3] = 40;
+        haystack[4] = 50;
+        Console.WriteLine($"FindFirst(30)={FindFirst(haystack, 30)}");
+        Console.WriteLine($"FindFirst(99)={FindFirst(haystack, 99)}");
+
+        // 21. Digit sum
+        Console.WriteLine($"DigitSum(12345)={DigitSum(12345)}");
+
+        // 22. String concatenation
+        string strA = "Mist";
+        string strB = "Lang";
+        string combined = strA + " " + strB;
+        Console.WriteLine($"concat={combined}");
+
+        // 23. Nested control flow
+        for (int row = 1; row <= 3; row = row + 1)
+        {
+            for (int col = 1; col <= 3; col = col + 1)
+            {
+                Console.Write($"{row * col} ");
+            }
+            Console.WriteLine("");
+        }
+
+        // 24. Static utility class (multi-file)
+        Console.WriteLine($"isGreeting={StringUtils.IsGreeting("Hello world")}");
+        Console.WriteLine($"bracket={StringUtils.Bracket("Mist")}");
+        Console.WriteLine($"doubled={StringUtils.DoubleNumeric("21")}");
+        Console.WriteLine($"length={StringUtils.GetLength("Hello")}");
+
+        Console.WriteLine("=== Done! ===");
+    }
+}

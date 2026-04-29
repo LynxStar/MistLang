@@ -1,0 +1,53 @@
+// Point — Demonstrates classes, constructors, constructor chaining,
+// private fields, public methods, this keyword, Math ambient type.
+
+using System;
+
+namespace AllFeatures;
+
+public class Point
+{
+    private int x;
+    private int y;
+
+    // Primary constructor
+    public Point(int x, int y)
+    {
+        this.x = x;
+        this.y = y;
+    }
+
+    // Default constructor with chaining (: this(...))
+    public Point() : this(0, 0)
+    {
+    }
+
+    public int GetX()
+    {
+        return this.x;
+    }
+
+    public int GetY()
+    {
+        return this.y;
+    }
+
+    // Demonstrates object creation inside an instance method
+    public Point Translate(int dx, int dy)
+    {
+        return new Point(this.x + dx, this.y + dy);
+    }
+
+    // Demonstrates Math.Abs (ambient type), arithmetic, return
+    public int DistanceFromOrigin()
+    {
+        // Manhattan distance (avoids needing sqrt which isn't in ambient types)
+        return Math.Abs(this.x) + Math.Abs(this.y);
+    }
+
+    // Demonstrates interpolated string with member access
+    public string Describe()
+    {
+        return $"Point({x}, {y})";
+    }
+}

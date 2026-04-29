@@ -1,0 +1,56 @@
+// Color — Demonstrates structs, public fields, constructors,
+// instance methods, arithmetic, comparison, and if/else.
+
+using System;
+
+namespace AllFeatures;
+
+public struct Color
+{
+    public int r;
+    public int g;
+    public int b;
+
+    public Color(int r, int g, int b)
+    {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+    }
+
+    // Demonstrates arithmetic inside a struct method
+    public int Brightness()
+    {
+        return (this.r + this.g + this.b) / 3;
+    }
+
+    // Demonstrates creating a new struct from instance method
+    public Color Mix(Color other)
+    {
+        int mr = (this.r + other.r) / 2;
+        int mg = (this.g + other.g) / 2;
+        int mb = (this.b + other.b) / 2;
+        return new Color(mr, mg, mb);
+    }
+
+    // Demonstrates comparison operators and if/else inside struct
+    public string Describe()
+    {
+        if (this.r > this.g && this.r > this.b)
+        {
+            return $"Color({r}, {g}, {b}) [reddish]";
+        }
+        else if (this.g > this.r && this.g > this.b)
+        {
+            return $"Color({r}, {g}, {b}) [greenish]";
+        }
+        else if (this.b > this.r && this.b > this.g)
+        {
+            return $"Color({r}, {g}, {b}) [bluish]";
+        }
+        else
+        {
+            return $"Color({r}, {g}, {b}) [neutral]";
+        }
+    }
+}

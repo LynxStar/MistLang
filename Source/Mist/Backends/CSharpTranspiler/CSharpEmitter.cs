@@ -719,6 +719,15 @@ internal sealed class CSharpSourceWriter
         return result;
     }
 
+    /// <summary>
+    /// Members of ambient types that are properties in C# and should be emitted
+    /// without parentheses, even though Mist models them as method calls.
+    /// </summary>
+    private static readonly HashSet<string> CSharpPropertyMembers = new(StringComparer.Ordinal)
+    {
+        "Length", // string.Length, Array.Length
+    };
+
     private string EmitPostfixSuffix(string target, PostfixSuffixNode suffix)
     {
         switch (suffix)
@@ -726,6 +735,15 @@ internal sealed class CSharpSourceWriter
             case MethodCallSuffixPostfixSuffixNode methodCall:
             {
                 var name = methodCall.Name.Lexeme;
+
+                // In Mist, property-like members (e.g., string.Length) use method call
+                // syntax: input.Length(). In C#, these are properties and must be emitted
+                // without parentheses: input.Length.
+                if (methodCall.Arguments is null && CSharpPropertyMembers.Contains(name))
+                {
+                    return $"{target}.{name}";
+                }
+
                 var args = EmitArgumentList(methodCall.Arguments);
                 return $"{target}.{name}({args})";
             }

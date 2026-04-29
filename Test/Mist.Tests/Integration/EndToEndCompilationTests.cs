@@ -170,14 +170,14 @@ public sealed class EndToEndCompilationTests : IDisposable
 
         var result = driver.Compile(options);
 
-        // The result should be a valid CompilerResult with diagnostics
+        // The result should be a valid CompilerResult
         Assert.IsType<CompilerResult>(result);
-        // Diagnostics should be populated (at minimum MIST_PARSE_STUB warnings from skeletal parser)
-        Assert.True(result.Diagnostics.Length > 0, "Expected at least one diagnostic from the skeletal parser");
+        // The parser is now fully functional, so the pipeline should complete
+        Assert.False(result.Diagnostics.IsDefault);
     }
 
     [Fact]
-    public void FullPipeline_WithSampleFiles_ProducesParseStubDiagnostics()
+    public void FullPipeline_WithSampleFiles_ProducesNoParseStubDiagnostics()
     {
         var sampleDir = Path.Combine(FindRepoRoot(), "samples", "HelloMist");
         var sourceFiles = Directory.GetFiles(sampleDir, "*.mist");
@@ -187,20 +187,19 @@ public sealed class EndToEndCompilationTests : IDisposable
 
         var result = driver.Compile(options);
 
-        // The skeletal parser should produce MIST_PARSE_STUB warnings
+        // The parser is now fully functional — no MIST_PARSE_STUB warnings should be produced
         var parseStubDiagnostics = result.Diagnostics
             .Where(d => d.Id.Value == "MIST_PARSE_STUB")
             .ToList();
 
-        Assert.True(parseStubDiagnostics.Count > 0,
-            "Expected MIST_PARSE_STUB diagnostics from the skeletal parser");
+        Assert.Empty(parseStubDiagnostics);
 
-        // Each source file should produce a parse stub warning
-        foreach (var diag in parseStubDiagnostics)
-        {
-            Assert.Equal(DiagnosticSeverity.Warning, diag.Severity);
-            Assert.Equal(PipelineStage.Parsing, diag.Stage);
-        }
+        // Verify no parse errors either
+        var parseErrors = result.Diagnostics
+            .Where(d => d.Id.Value == "MIST_PARSE_ERROR")
+            .ToList();
+
+        Assert.Empty(parseErrors);
     }
 
     [Fact]

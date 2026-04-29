@@ -51,6 +51,12 @@ public class Program
         return sum;
     }
 
+    // Static helper: interface-typed parameter, interface member dispatch
+    private static string DescribeShape(IShape shape)
+    {
+        return $"{shape.Describe()} has area {shape.Area()}";
+    }
+
     // Entry point
     public static void Main(string[] args)
     {
@@ -245,6 +251,29 @@ public class Program
         Console.WriteLine($"bracket={StringUtils.Bracket("Mist")}");
         Console.WriteLine($"doubled={StringUtils.DoubleNumeric("21")}");
         Console.WriteLine($"length={StringUtils.GetLength("Hello")}");
+
+        // 25. Interfaces: declaration, implementation, polymorphic dispatch
+        var circle = new Circle(5);
+        var rect = new Rectangle(3, 4);
+        Console.WriteLine($"circle={circle.Describe()} area={circle.Area()}");
+        Console.WriteLine($"rect={rect.Describe()} area={rect.Area()}");
+
+        // Interface-typed variables
+        IShape shape1 = circle;
+        Console.WriteLine($"shape1={shape1.Describe()} area={shape1.Area()}");
+        IShape shape2 = rect;
+        Console.WriteLine($"shape2={shape2.Describe()} area={shape2.Area()}");
+
+        // IResizable-typed variable (child interface)
+        IResizable resizable = rect;
+        Console.WriteLine($"resizable area={resizable.ResizedArea(2)}");
+
+        // Inherited interface member dispatch: call IShape.Describe through IResizable reference
+        Console.WriteLine($"resizable desc={resizable.Describe()}");
+
+        // Static helper accepting IShape parameter
+        Console.WriteLine($"helper circle: {DescribeShape(circle)}");
+        Console.WriteLine($"helper rect: {DescribeShape(rect)}");
 
         Console.WriteLine("=== Done! ===");
     }

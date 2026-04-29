@@ -1041,6 +1041,119 @@ public sealed class EndToEndCompilationTests : IDisposable
         Assert.Contains("Done!", stdout);
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // Section 4: AllFeatures interface dispatch integration tests
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void AllFeatures_CompilesWithZeroErrorDiagnostics()
+    {
+        // Compile the samples/AllFeatures/ directory through the full Mist pipeline
+        var repoRoot = FindRepoRoot();
+        var sampleDir = Path.Combine(repoRoot, "samples", "AllFeatures");
+        Assert.True(Directory.Exists(sampleDir), $"AllFeatures sample directory not found at {sampleDir}");
+
+        // Discover all .mist source files
+        var sourceFiles = Directory.EnumerateFiles(sampleDir, "*.mist", SearchOption.AllDirectories)
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
+        Assert.True(sourceFiles.Count >= 7, $"Expected at least 7 .mist files (including IShape, Circle, Rectangle), found {sourceFiles.Count}");
+
+        // Compile using the real driver
+        var driver = CreateRealDriver();
+        var binDir = Path.Combine(_outputDir, "bin");
+        var options = new CompilerOptions(
+            ProjectFolder: sampleDir,
+            SourcePaths: sourceFiles.ToImmutableArray(),
+            Backend: new BackendId("csharp"),
+            OutputDirectory: _outputDir,
+            BinDirectory: binDir,
+            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+
+        var result = driver.Compile(options);
+
+        // The compilation should succeed with zero error diagnostics
+        var errorDiagnostics = result.Diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToList();
+
+        Assert.True(errorDiagnostics.Count == 0,
+            $"AllFeatures compilation produced {errorDiagnostics.Count} error(s):\n{string.Join("\n", errorDiagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"))}");
+        Assert.True(result.Succeeded,
+            $"AllFeatures compilation failed. Diagnostics:\n{string.Join("\n", result.Diagnostics.Select(d => $"  {d.Severity} {d.Id.Value}: {d.Message}"))}");
+        Assert.NotNull(result.PrimaryOutputArtifactPath);
+        Assert.True(File.Exists(result.PrimaryOutputArtifactPath),
+            $"Expected artifact at {result.PrimaryOutputArtifactPath}");
+    }
+
+    [Fact]
+    public void AllFeatures_InterfaceDispatch_ProducesExpectedOutput()
+    {
+        // Compile the samples/AllFeatures/ directory and run the output
+        var repoRoot = FindRepoRoot();
+        var sampleDir = Path.Combine(repoRoot, "samples", "AllFeatures");
+        Assert.True(Directory.Exists(sampleDir), $"AllFeatures sample directory not found at {sampleDir}");
+
+        var sourceFiles = Directory.EnumerateFiles(sampleDir, "*.mist", SearchOption.AllDirectories)
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
+
+        var driver = CreateRealDriver();
+        var binDir = Path.Combine(_outputDir, "bin");
+        var options = new CompilerOptions(
+            ProjectFolder: sampleDir,
+            SourcePaths: sourceFiles.ToImmutableArray(),
+            Backend: new BackendId("csharp"),
+            OutputDirectory: _outputDir,
+            BinDirectory: binDir,
+            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+
+        var result = driver.Compile(options);
+
+        Assert.True(result.Succeeded,
+            $"AllFeatures compilation failed. Diagnostics:\n{string.Join("\n", result.Diagnostics.Select(d => $"  {d.Severity} {d.Id.Value}: {d.Message}"))}");
+        Assert.NotNull(result.PrimaryOutputArtifactPath);
+
+        // Run the produced executable
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "dotnet",
+            Arguments = result.PrimaryOutputArtifactPath,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        using var process = System.Diagnostics.Process.Start(psi);
+        Assert.NotNull(process);
+
+        var stdout = process.StandardOutput.ReadToEnd();
+        process.WaitForExit(30000);
+        Assert.True(process.HasExited, "Process did not exit within timeout");
+        Assert.Equal(0, process.ExitCode);
+
+        // Verify interface dispatch output lines from section 25 of Program.mist
+
+        // Concrete type method calls
+        Assert.Contains("circle=Circle(radius=5) area=25", stdout);
+        Assert.Contains("rect=Rectangle(width=3, height=4) area=12", stdout);
+
+        // Interface-typed variable dispatch (IShape)
+        Assert.Contains("shape1=Circle(radius=5) area=25", stdout);
+        Assert.Contains("shape2=Rectangle(width=3, height=4) area=12", stdout);
+
+        // Child interface dispatch (IResizable)
+        Assert.Contains("resizable area=", stdout);
+
+        // Inherited interface member dispatch: IShape.Describe called through IResizable reference
+        Assert.Contains("resizable desc=Rectangle(width=3, height=4)", stdout);
+
+        // Interface-typed parameter dispatch via static helper
+        Assert.Contains("helper circle:", stdout);
+        Assert.Contains("helper rect:", stdout);
+    }
+
     // ─── Utility: find the repository root ───────────────────────────────
 
     private static string FindRepoRoot()

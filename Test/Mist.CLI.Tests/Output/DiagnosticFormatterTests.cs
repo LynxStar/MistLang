@@ -1,4 +1,3 @@
-using Mist.CLI.Output;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 

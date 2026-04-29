@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
+using Mist.Common.Text;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
 
@@ -39,15 +40,21 @@ public sealed class MistParser : IParser
         }
 
         // Map Storm diagnostics to Mist diagnostics.
-        foreach(var msg in stormDiagnostics.Messages)
+        foreach (var entry in stormDiagnostics.Entries)
         {
+            var location = (entry.Line > 0 && entry.Column > 0)
+                ? new LinePositionSpan(
+                    new LinePosition(entry.Line, entry.Column),
+                    new LinePosition(entry.Line, entry.Column))
+                : (LinePositionSpan?)null;
+
             diagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_PARSE_ERROR"),
                 DiagnosticSeverity.Error,
                 PipelineStage.Parsing,
-                msg,
-                Location: null,
-                CompilationUnitPath: tokens.Source.Path,
+                entry.Message,
+                Location: location,
+                CompilationUnitPath: entry.FilePath ?? tokens.Source.Path,
                 AnalyzerName: null));
         }
 

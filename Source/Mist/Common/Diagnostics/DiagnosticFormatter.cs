@@ -1,6 +1,4 @@
-using Mist.Common.Diagnostics;
-
-namespace Mist.CLI.Output;
+namespace Mist.Common.Diagnostics;
 
 /// <summary>
 /// Formats diagnostics in MSBuild-compatible format for stderr output.

@@ -376,30 +376,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             if (resolvedSymbol is null)
             {
-                // Determine the source file path for the diagnostic.
-                string? compilationUnitPath = FindCompilationUnitPath(classDecl, asts, compilation);
+                // Determine the source text for the diagnostic.
+                var sourceText = FindSourceTextForClassDecl(classDecl, asts, compilation);
 
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_UNDEFINED_BASE_TYPE"),
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    "MIST_UNDEFINED_BASE_TYPE",
                     DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
                     $"The base type '{baseClassName}' could not be found.",
-                    Location: null,
-                    CompilationUnitPath: compilationUnitPath,
-                    AnalyzerName: null));
+                    classDecl,
+                    sourceText));
             }
             else if (resolvedSymbol.DeclaredType is StructType)
             {
-                string? compilationUnitPath = FindCompilationUnitPath(classDecl, asts, compilation);
+                var sourceText = FindSourceTextForClassDecl(classDecl, asts, compilation);
 
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_CANNOT_INHERIT_STRUCT"),
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    "MIST_CANNOT_INHERIT_STRUCT",
                     DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
                     $"Class '{classType.DisplayName}' cannot inherit from struct '{baseClassName}'.",
-                    Location: null,
-                    CompilationUnitPath: compilationUnitPath,
-                    AnalyzerName: null));
+                    classDecl,
+                    sourceText));
             }
             else if (resolvedSymbol.DeclaredType is ClassType resolvedClassType)
             {
@@ -422,6 +418,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (asts[i] is CompilationUnitNode cu && ContainsClassDeclaration(cu, classDecl))
             {
                 return i < compilation.Units.Length ? compilation.Units[i].Source?.Path : null;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the <see cref="SourceText"/> for a class declaration node by walking
+    /// the ASTs to find which compilation unit contains the node.
+    /// </summary>
+    private static SourceText? FindSourceTextForClassDecl(
+        ClassDeclarationNode classDecl,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation)
+    {
+        for (var i = 0; i < asts.Length; i++)
+        {
+            if (asts[i] is CompilationUnitNode cu && ContainsClassDeclaration(cu, classDecl))
+            {
+                return i < compilation.Units.Length ? compilation.Units[i].Source : null;
             }
         }
         return null;
@@ -664,17 +679,33 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             if (resolvedSymbol is null)
             {
-                string? compilationUnitPath = FindCompilationUnitPathForSymbol(
+                var sourceText = FindSourceTextForSymbol(
                     findPathForSymbol, symbolTable, asts, compilation);
+                var declaringNode = symbolTable.GetDeclaringNode(findPathForSymbol);
 
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_UNDEFINED_INTERFACE"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
-                    $"The interface type '{name}' could not be found.",
-                    Location: null,
-                    CompilationUnitPath: compilationUnitPath,
-                    AnalyzerName: null));
+                if (declaringNode is not null)
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        "MIST_UNDEFINED_INTERFACE",
+                        DiagnosticSeverity.Error,
+                        $"The interface type '{name}' could not be found.",
+                        declaringNode,
+                        sourceText));
+                }
+                else
+                {
+                    string? compilationUnitPath = FindCompilationUnitPathForSymbol(
+                        findPathForSymbol, symbolTable, asts, compilation);
+
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_UNDEFINED_INTERFACE"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        $"The interface type '{name}' could not be found.",
+                        Location: null,
+                        CompilationUnitPath: compilationUnitPath,
+                        AnalyzerName: null));
+                }
                 continue;
             }
 
@@ -684,17 +715,33 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             else
             {
-                string? compilationUnitPath = FindCompilationUnitPathForSymbol(
+                var sourceText = FindSourceTextForSymbol(
                     findPathForSymbol, symbolTable, asts, compilation);
+                var declaringNode = symbolTable.GetDeclaringNode(findPathForSymbol);
 
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_NOT_AN_INTERFACE"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
-                    $"'{name}' is not an interface; only interfaces can appear in an interface list.",
-                    Location: null,
-                    CompilationUnitPath: compilationUnitPath,
-                    AnalyzerName: null));
+                if (declaringNode is not null)
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        "MIST_NOT_AN_INTERFACE",
+                        DiagnosticSeverity.Error,
+                        $"'{name}' is not an interface; only interfaces can appear in an interface list.",
+                        declaringNode,
+                        sourceText));
+                }
+                else
+                {
+                    string? compilationUnitPath = FindCompilationUnitPathForSymbol(
+                        findPathForSymbol, symbolTable, asts, compilation);
+
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_NOT_AN_INTERFACE"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        $"'{name}' is not an interface; only interfaces can appear in an interface list.",
+                        Location: null,
+                        CompilationUnitPath: compilationUnitPath,
+                        AnalyzerName: null));
+                }
             }
         }
 
@@ -720,6 +767,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (asts[i] is CompilationUnitNode cu && ContainsTypeDeclarationNode(cu, declaringNode))
             {
                 return i < compilation.Units.Length ? compilation.Units[i].Source?.Path : null;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the <see cref="SourceText"/> for any symbol by looking up its declaring
+    /// node in the symbol table and walking the ASTs.
+    /// </summary>
+    private static SourceText? FindSourceTextForSymbol(
+        ISymbol symbol,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation)
+    {
+        var declaringNode = symbolTable.GetDeclaringNode(symbol);
+        if (declaringNode is null)
+            return null;
+
+        for (var i = 0; i < asts.Length; i++)
+        {
+            if (asts[i] is CompilationUnitNode cu && ContainsTypeDeclarationNode(cu, declaringNode))
+            {
+                return i < compilation.Units.Length ? compilation.Units[i].Source : null;
             }
         }
 
@@ -859,18 +931,42 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // references current in its Interfaces list).
             var closingInterface = path[^1];
 
-            // Find the symbol for the closing interface to get the compilation unit path.
-            string? compilationUnitPath = FindCompilationUnitPathForInterfaceType(
+            // Find the symbol and source text for the closing interface.
+            var sourceText = FindSourceTextForInterfaceType(
                 closingInterface, symbolTable, asts, compilation);
+            Storm.Runtime.SyntaxNode? closingNode = null;
+            foreach (var sym in symbolTable.AllSymbols)
+            {
+                if (sym.DeclaredType == closingInterface)
+                {
+                    closingNode = symbolTable.GetDeclaringNode(sym);
+                    break;
+                }
+            }
 
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_CIRCULAR_INTERFACE_INHERITANCE"),
-                DiagnosticSeverity.Error,
-                PipelineStage.SemanticModelConstruction,
-                $"Circular interface inheritance detected: '{chainStr}'.",
-                Location: null,
-                CompilationUnitPath: compilationUnitPath,
-                AnalyzerName: null));
+            if (closingNode is not null)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    "MIST_CIRCULAR_INTERFACE_INHERITANCE",
+                    DiagnosticSeverity.Error,
+                    $"Circular interface inheritance detected: '{chainStr}'.",
+                    closingNode,
+                    sourceText));
+            }
+            else
+            {
+                string? compilationUnitPath = FindCompilationUnitPathForInterfaceType(
+                    closingInterface, symbolTable, asts, compilation);
+
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_CIRCULAR_INTERFACE_INHERITANCE"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.SemanticModelConstruction,
+                    $"Circular interface inheritance detected: '{chainStr}'.",
+                    Location: null,
+                    CompilationUnitPath: compilationUnitPath,
+                    AnalyzerName: null));
+            }
 
             // Break the cycle by removing the back-edge from the closing
             // interface's Interfaces list.
@@ -914,6 +1010,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (symbol.DeclaredType == interfaceType)
             {
                 return FindCompilationUnitPathForSymbol(symbol, symbolTable, asts, compilation);
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the <see cref="SourceText"/> for an interface type by looking up its
+    /// declaring node in the symbol table.
+    /// </summary>
+    private static SourceText? FindSourceTextForInterfaceType(
+        InterfaceType interfaceType,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.DeclaredType == interfaceType)
+            {
+                return FindSourceTextForSymbol(symbol, symbolTable, asts, compilation);
             }
         }
         return null;
@@ -970,16 +1086,39 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Find the class declaration node that closes the cycle
                     // (the last class in the chain before we revisited current).
                     var closingClass = chain[^1];
-                    string? compilationUnitPath = FindCompilationUnitPathForClass(closingClass, symbolTable, asts, compilation);
+                    var closingSourceText = FindSourceTextForClassType(closingClass, symbolTable, asts, compilation);
+                    Storm.Runtime.SyntaxNode? closingNode = null;
+                    foreach (var sym in symbolTable.AllSymbols)
+                    {
+                        if (sym.DeclaredType == closingClass)
+                        {
+                            closingNode = symbolTable.GetDeclaringNode(sym);
+                            break;
+                        }
+                    }
 
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_CIRCULAR_INHERITANCE"),
-                        DiagnosticSeverity.Error,
-                        PipelineStage.SemanticModelConstruction,
-                        $"Circular inheritance detected: '{chainStr}'.",
-                        Location: null,
-                        CompilationUnitPath: compilationUnitPath,
-                        AnalyzerName: null));
+                    if (closingNode is not null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            "MIST_CIRCULAR_INHERITANCE",
+                            DiagnosticSeverity.Error,
+                            $"Circular inheritance detected: '{chainStr}'.",
+                            closingNode,
+                            closingSourceText));
+                    }
+                    else
+                    {
+                        string? compilationUnitPath = FindCompilationUnitPathForClass(closingClass, symbolTable, asts, compilation);
+
+                        diagnostics.Add(new Diagnostic(
+                            new DiagnosticId("MIST_CIRCULAR_INHERITANCE"),
+                            DiagnosticSeverity.Error,
+                            PipelineStage.SemanticModelConstruction,
+                            $"Circular inheritance detected: '{chainStr}'.",
+                            Location: null,
+                            CompilationUnitPath: compilationUnitPath,
+                            AnalyzerName: null));
+                    }
 
                     // Break the cycle by nulling the BaseType on the closing class.
                     closingClass.BaseType = null;
@@ -1019,6 +1158,30 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (declaringNode is ClassDeclarationNode classDecl)
                 {
                     return FindCompilationUnitPath(classDecl, asts, compilation);
+                }
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the <see cref="SourceText"/> for a class type by looking up its
+    /// declaring node in the symbol table.
+    /// </summary>
+    private static SourceText? FindSourceTextForClassType(
+        ClassType classType,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.DeclaredType == classType)
+            {
+                var declaringNode = symbolTable.GetDeclaringNode(symbol);
+                if (declaringNode is ClassDeclarationNode classDecl)
+                {
+                    return FindSourceTextForClassDecl(classDecl, asts, compilation);
                 }
             }
         }
@@ -1116,32 +1279,64 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 case MethodMatchResult.MissingResult:
                     // No method with this name found anywhere in the type or its base chain.
-                    string? missingPath = FindCompilationUnitPathForType(
+                    var missingSourceText = FindSourceTextForType(
                         typeName, symbolTable, asts, compilation);
+                    var missingNode = FindDeclaringNodeForType(typeName, symbolTable);
 
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_MISSING_INTERFACE_METHOD"),
-                        DiagnosticSeverity.Error,
-                        PipelineStage.SemanticModelConstruction,
-                        $"'{typeName}' does not implement interface method '{requiredInterface.DisplayName}.{requiredMethod.Name}'.",
-                        Location: null,
-                        CompilationUnitPath: missingPath,
-                        AnalyzerName: null));
+                    if (missingNode is not null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            "MIST_MISSING_INTERFACE_METHOD",
+                            DiagnosticSeverity.Error,
+                            $"'{typeName}' does not implement interface method '{requiredInterface.DisplayName}.{requiredMethod.Name}'.",
+                            missingNode,
+                            missingSourceText));
+                    }
+                    else
+                    {
+                        string? missingPath = FindCompilationUnitPathForType(
+                            typeName, symbolTable, asts, compilation);
+
+                        diagnostics.Add(new Diagnostic(
+                            new DiagnosticId("MIST_MISSING_INTERFACE_METHOD"),
+                            DiagnosticSeverity.Error,
+                            PipelineStage.SemanticModelConstruction,
+                            $"'{typeName}' does not implement interface method '{requiredInterface.DisplayName}.{requiredMethod.Name}'.",
+                            Location: null,
+                            CompilationUnitPath: missingPath,
+                            AnalyzerName: null));
+                    }
                     break;
 
                 case MethodMatchResult.SignatureMismatch mismatch:
                     // Method name matches but signature differs.
-                    string? mismatchPath = FindCompilationUnitPathForType(
+                    var mismatchSourceText = FindSourceTextForType(
                         typeName, symbolTable, asts, compilation);
+                    var mismatchNode = FindDeclaringNodeForType(typeName, symbolTable);
 
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_INTERFACE_METHOD_SIGNATURE_MISMATCH"),
-                        DiagnosticSeverity.Error,
-                        PipelineStage.SemanticModelConstruction,
-                        $"'{typeName}.{requiredMethod.Name}' does not match the signature required by interface '{requiredInterface.DisplayName}': expected '{mismatch.ExpectedSig}', found '{mismatch.ActualSig}'.",
-                        Location: null,
-                        CompilationUnitPath: mismatchPath,
-                        AnalyzerName: null));
+                    if (mismatchNode is not null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            "MIST_INTERFACE_METHOD_SIGNATURE_MISMATCH",
+                            DiagnosticSeverity.Error,
+                            $"'{typeName}.{requiredMethod.Name}' does not match the signature required by interface '{requiredInterface.DisplayName}': expected '{mismatch.ExpectedSig}', found '{mismatch.ActualSig}'.",
+                            mismatchNode,
+                            mismatchSourceText));
+                    }
+                    else
+                    {
+                        string? mismatchPath = FindCompilationUnitPathForType(
+                            typeName, symbolTable, asts, compilation);
+
+                        diagnostics.Add(new Diagnostic(
+                            new DiagnosticId("MIST_INTERFACE_METHOD_SIGNATURE_MISMATCH"),
+                            DiagnosticSeverity.Error,
+                            PipelineStage.SemanticModelConstruction,
+                            $"'{typeName}.{requiredMethod.Name}' does not match the signature required by interface '{requiredInterface.DisplayName}': expected '{mismatch.ExpectedSig}', found '{mismatch.ActualSig}'.",
+                            Location: null,
+                            CompilationUnitPath: mismatchPath,
+                            AnalyzerName: null));
+                    }
                     break;
             }
         }
@@ -1460,6 +1655,44 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         return null;
     }
 
+    /// <summary>
+    /// Finds the <see cref="SourceText"/> for a type by its display name.
+    /// </summary>
+    private static SourceText? FindSourceTextForType(
+        string typeName,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface)
+                && symbol.Name == typeName)
+            {
+                return FindSourceTextForSymbol(symbol, symbolTable, asts, compilation);
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the declaring <see cref="Storm.Runtime.SyntaxNode"/> for a type by its display name.
+    /// </summary>
+    private static Storm.Runtime.SyntaxNode? FindDeclaringNodeForType(
+        string typeName,
+        SymbolTable symbolTable)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface)
+                && symbol.Name == typeName)
+            {
+                return symbolTable.GetDeclaringNode(symbol);
+            }
+        }
+        return null;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // Pass 1e — Check for member redeclarations in derived classes
     // ═══════════════════════════════════════════════════════════════════════
@@ -1505,17 +1738,33 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         if ((ancestorMember.Kind == SymbolKind.Field || ancestorMember.Kind == SymbolKind.Method)
                             && ancestorMember.Name == member.Name)
                         {
-                            string? compilationUnitPath = FindCompilationUnitPathForClass(
+                            var memberNode = symbolTable.GetDeclaringNode(member);
+                            var redeclSourceText = FindSourceTextForClassType(
                                 classType, symbolTable, asts, compilation);
 
-                            diagnostics.Add(new Diagnostic(
-                                new DiagnosticId("MIST_MEMBER_REDECLARATION"),
-                                DiagnosticSeverity.Error,
-                                PipelineStage.SemanticModelConstruction,
-                                $"'{classType.DisplayName}' cannot redeclare member '{member.Name}' already defined in '{ancestor.DisplayName}'.",
-                                Location: null,
-                                CompilationUnitPath: compilationUnitPath,
-                                AnalyzerName: null));
+                            if (memberNode is not null)
+                            {
+                                diagnostics.Add(MakeDiagnosticWithLocation(
+                                    "MIST_MEMBER_REDECLARATION",
+                                    DiagnosticSeverity.Error,
+                                    $"'{classType.DisplayName}' cannot redeclare member '{member.Name}' already defined in '{ancestor.DisplayName}'.",
+                                    memberNode,
+                                    redeclSourceText));
+                            }
+                            else
+                            {
+                                string? compilationUnitPath = FindCompilationUnitPathForClass(
+                                    classType, symbolTable, asts, compilation);
+
+                                diagnostics.Add(new Diagnostic(
+                                    new DiagnosticId("MIST_MEMBER_REDECLARATION"),
+                                    DiagnosticSeverity.Error,
+                                    PipelineStage.SemanticModelConstruction,
+                                    $"'{classType.DisplayName}' cannot redeclare member '{member.Name}' already defined in '{ancestor.DisplayName}'.",
+                                    Location: null,
+                                    CompilationUnitPath: compilationUnitPath,
+                                    AnalyzerName: null));
+                            }
 
                             // Stop walking ancestors for this member once we find the first conflict.
                             goto nextMember;
@@ -1600,17 +1849,41 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 // Derived class has no explicit constructors and the base class
                 // requires arguments — emit diagnostic.
-                string? compilationUnitPath = FindCompilationUnitPathForClass(
+                var classSourceText = FindSourceTextForClassType(
                     classType, symbolTable, asts, compilation);
+                Storm.Runtime.SyntaxNode? classNode = null;
+                foreach (var sym in symbolTable.AllSymbols)
+                {
+                    if (sym.DeclaredType == classType)
+                    {
+                        classNode = symbolTable.GetDeclaringNode(sym);
+                        break;
+                    }
+                }
 
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_BASE_CTOR_UNSATISFIED"),
-                    DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
-                    $"Base class '{baseType.DisplayName}' requires constructor arguments that are not provided.",
-                    Location: null,
-                    CompilationUnitPath: compilationUnitPath,
-                    AnalyzerName: null));
+                if (classNode is not null)
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        "MIST_BASE_CTOR_UNSATISFIED",
+                        DiagnosticSeverity.Error,
+                        $"Base class '{baseType.DisplayName}' requires constructor arguments that are not provided.",
+                        classNode,
+                        classSourceText));
+                }
+                else
+                {
+                    string? compilationUnitPath = FindCompilationUnitPathForClass(
+                        classType, symbolTable, asts, compilation);
+
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_BASE_CTOR_UNSATISFIED"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        $"Base class '{baseType.DisplayName}' requires constructor arguments that are not provided.",
+                        Location: null,
+                        CompilationUnitPath: compilationUnitPath,
+                        AnalyzerName: null));
+                }
                 continue;
             }
 
@@ -1631,17 +1904,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     // This constructor does not chain to the base class, but the
                     // base class requires arguments — emit diagnostic.
-                    string? compilationUnitPath = FindCompilationUnitPathForClass(
+                    var ctorSourceText = FindSourceTextForClassType(
                         classType, symbolTable, asts, compilation);
 
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_BASE_CTOR_UNSATISFIED"),
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        "MIST_BASE_CTOR_UNSATISFIED",
                         DiagnosticSeverity.Error,
-                        PipelineStage.SemanticModelConstruction,
                         $"Base class '{baseType.DisplayName}' requires constructor arguments that are not provided.",
-                        Location: null,
-                        CompilationUnitPath: compilationUnitPath,
-                        AnalyzerName: null));
+                        ctorDecl,
+                        ctorSourceText));
                 }
             }
         }
@@ -1716,14 +1987,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             else
             {
-                diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_UNDEFINED_NAMESPACE"),
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    "MIST_UNDEFINED_NAMESPACE",
                     DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
                     $"The namespace '{usingName}' could not be found.",
-                    Location: null,
-                    CompilationUnitPath: sourceText?.Path,
-                    AnalyzerName: null));
+                    usingDecl,
+                    sourceText));
             }
         }
 
@@ -2073,14 +2342,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var existing = methodScope.Lookup(paramName);
         if (existing is not null && existing.ContainingScope == methodScope)
         {
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_DUPLICATE_DECLARATION"),
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                "MIST_DUPLICATE_DECLARATION",
                 DiagnosticSeverity.Error,
-                PipelineStage.SemanticModelConstruction,
                 $"A parameter named '{paramName}' is already declared in this scope.",
-                Location: null,
-                CompilationUnitPath: sourceText?.Path,
-                AnalyzerName: null));
+                param,
+                sourceText));
             return;
         }
 
@@ -2925,14 +3192,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case ThisExpressionPrimaryNode:
                 if (isStatic)
                 {
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_INVALID_THIS"),
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        "MIST_INVALID_THIS",
                         DiagnosticSeverity.Error,
-                        PipelineStage.SemanticModelConstruction,
                         "'this' cannot be used in a static context.",
-                        Location: null,
-                        CompilationUnitPath: sourceText?.Path,
-                        AnalyzerName: null));
+                        node,
+                        sourceText));
                     result = UnknownType.Instance;
                 }
                 else
@@ -3007,27 +3272,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
                         else
                         {
-                            diagnostics.Add(new Diagnostic(
-                                new DiagnosticId("MIST_UNDEFINED_IDENTIFIER"),
+                            diagnostics.Add(MakeDiagnosticWithLocation(
+                                "MIST_UNDEFINED_IDENTIFIER",
                                 DiagnosticSeverity.Error,
-                                PipelineStage.SemanticModelConstruction,
                                 $"The name '{name}' does not exist in the current context.",
-                                Location: null,
-                                CompilationUnitPath: sourceText?.Path,
-                                AnalyzerName: null));
+                                identifier,
+                                sourceText));
                             result = UnknownType.Instance;
                         }
                     }
                     else
                     {
-                        diagnostics.Add(new Diagnostic(
-                            new DiagnosticId("MIST_UNDEFINED_IDENTIFIER"),
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            "MIST_UNDEFINED_IDENTIFIER",
                             DiagnosticSeverity.Error,
-                            PipelineStage.SemanticModelConstruction,
                             $"The name '{name}' does not exist in the current context.",
-                            Location: null,
-                            CompilationUnitPath: sourceText?.Path,
-                            AnalyzerName: null));
+                            identifier,
+                            sourceText));
                         result = UnknownType.Instance;
                     }
                 }
@@ -3387,6 +3648,32 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
             _ => ImmutableArray<TypeDeclarationNode>.Empty
         };
+    }
+
+    private static Diagnostic MakeDiagnosticWithLocation(
+        string id,
+        DiagnosticSeverity severity,
+        string message,
+        Storm.Runtime.SyntaxNode node,
+        SourceText? sourceText)
+    {
+        LinePositionSpan? location = null;
+        string? compilationUnitPath = sourceText?.Path;
+
+        if (sourceText is not null && node.Span.Length > 0)
+        {
+            var mistSpan = new SourceSpan(node.Span.Start, node.Span.Length);
+            location = sourceText.ToLinePositionSpan(mistSpan);
+        }
+
+        return new Diagnostic(
+            new DiagnosticId(id),
+            severity,
+            PipelineStage.SemanticModelConstruction,
+            message,
+            Location: location,
+            CompilationUnitPath: compilationUnitPath,
+            AnalyzerName: null);
     }
 
     private static Common.Text.SourceSpan ToMistSourceSpan(Storm.Runtime.SourceSpan span)

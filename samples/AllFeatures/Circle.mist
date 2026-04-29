@@ -1,0 +1,25 @@
+// Circle — Demonstrates a class implementing an interface.
+
+using System;
+
+namespace AllFeatures;
+
+public class Circle : IShape
+{
+    private int _radius;
+
+    public Circle(int radius)
+    {
+        this._radius = radius;
+    }
+
+    public string Describe()
+    {
+        return $"Circle(radius={_radius})";
+    }
+
+    public int Area()
+    {
+        return _radius * _radius;
+    }
+}

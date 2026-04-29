@@ -218,8 +218,30 @@ internal sealed class CSharpSourceWriter
         var modifiers = EmitModifiers(classDecl.Modifiers);
         var name = classDecl.Name.Lexeme;
         var baseClause = "";
-        if (classDecl.BaseClause is not null)
+        if (symbol?.DeclaredType is ClassType classType)
         {
+            var parts = new List<string>();
+
+            // Base class (if any)
+            if (classType.BaseType is not null)
+            {
+                parts.Add(classType.BaseType.DisplayName);
+            }
+
+            // Interfaces
+            foreach (var iface in classType.Interfaces)
+            {
+                parts.Add(iface.DisplayName);
+            }
+
+            if (parts.Count > 0)
+            {
+                baseClause = $" : {string.Join(", ", parts)}";
+            }
+        }
+        else if (classDecl.BaseClause is not null)
+        {
+            // Fallback to AST if semantic model lookup fails
             var baseName = classDecl.BaseClassName.Lexeme;
             baseClause = $" : {baseName}";
         }
@@ -281,8 +303,14 @@ internal sealed class CSharpSourceWriter
         var modifiers = EmitModifiers(structDecl.Modifiers);
         var name = structDecl.Name.Lexeme;
         var interfaceList = "";
-        if (structDecl.InterfaceList is not null)
+        if (symbol?.DeclaredType is StructType structType && structType.Interfaces.Count > 0)
         {
+            var names = structType.Interfaces.Select(i => i.DisplayName);
+            interfaceList = $" : {string.Join(", ", names)}";
+        }
+        else if (structDecl.InterfaceList is not null)
+        {
+            // Fallback to AST if semantic model lookup fails
             var interfaceName = structDecl.InterfaceName.Lexeme;
             interfaceList = $" : {interfaceName}";
         }

@@ -1,0 +1,16 @@
+// IShape — Demonstrates interface declarations and interface inheritance.
+
+using System;
+
+namespace AllFeatures;
+
+interface IShape
+{
+    string Describe();
+    int Area();
+}
+
+interface IResizable : IShape
+{
+    int ResizedArea(int factor);
+}

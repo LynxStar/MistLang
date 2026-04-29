@@ -3123,6 +3123,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
+            InterfaceType it => it.MemberScope,
             ArrayType => null, // Arrays use special handling.
             StringType => null, // String uses ambient type resolution.
             _ => null,
@@ -3200,6 +3201,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 return member.DeclaredType ?? UnknownType.Instance;
             }
+
+            // For interface types, walk inherited interfaces transitively.
+            if (targetType is InterfaceType interfaceTarget)
+            {
+                var result = LookupInheritedInterfaceMember(interfaceTarget, memberName);
+                if (result is not null)
+                {
+                    return result;
+                }
+            }
         }
 
         diagnostics.Add(new Diagnostic(
@@ -3212,6 +3223,46 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             AnalyzerName: null));
 
         return UnknownType.Instance;
+    }
+
+    /// <summary>
+    /// Walks the inherited interfaces of an <see cref="InterfaceType"/> transitively
+    /// to find a member by name. Uses a visited set to handle diamond inheritance
+    /// and prevent infinite loops.
+    /// </summary>
+    /// <returns>The member's declared type if found; <c>null</c> otherwise.</returns>
+    private static IType? LookupInheritedInterfaceMember(
+        InterfaceType interfaceType,
+        string memberName)
+    {
+        var visited = new HashSet<InterfaceType>(ReferenceEqualityComparer.Instance);
+        return LookupInheritedInterfaceMemberCore(interfaceType.Interfaces, memberName, visited);
+    }
+
+    private static IType? LookupInheritedInterfaceMemberCore(
+        IReadOnlyList<InterfaceType> interfaces,
+        string memberName,
+        HashSet<InterfaceType> visited)
+    {
+        foreach (var iface in interfaces)
+        {
+            if (!visited.Add(iface))
+                continue;
+
+            var member = iface.MemberScope.Lookup(memberName);
+            if (member is not null)
+            {
+                return member.DeclaredType ?? UnknownType.Instance;
+            }
+
+            var inherited = LookupInheritedInterfaceMemberCore(iface.Interfaces, memberName, visited);
+            if (inherited is not null)
+            {
+                return inherited;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

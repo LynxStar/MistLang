@@ -1985,6 +1985,46 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         result = typeAsSymbol;
                     }
+                    // In a non-static instance context, bare identifiers may refer
+                    // to inherited members from the base class chain. Walk the
+                    // BaseType chain to find the member, mirroring what
+                    // LookupMemberType does for explicit this.member access.
+                    else if (!isStatic && enclosingType is ClassType enclosingClass)
+                    {
+                        IType? inheritedMemberType = null;
+                        var ancestor = enclosingClass.BaseType;
+                        while (ancestor is not null)
+                        {
+                            foreach (var m in ancestor.MemberScope.Members)
+                            {
+                                if (m.Name == name)
+                                {
+                                    inheritedMemberType = m.DeclaredType ?? UnknownType.Instance;
+                                    break;
+                                }
+                            }
+                            if (inheritedMemberType is not null)
+                                break;
+                            ancestor = ancestor.BaseType;
+                        }
+
+                        if (inheritedMemberType is not null)
+                        {
+                            result = inheritedMemberType;
+                        }
+                        else
+                        {
+                            diagnostics.Add(new Diagnostic(
+                                new DiagnosticId("MIST_UNDEFINED_IDENTIFIER"),
+                                DiagnosticSeverity.Error,
+                                PipelineStage.SemanticModelConstruction,
+                                $"The name '{name}' does not exist in the current context.",
+                                Location: null,
+                                CompilationUnitPath: sourceText?.Path,
+                                AnalyzerName: null));
+                            result = UnknownType.Instance;
+                        }
+                    }
                     else
                     {
                         diagnostics.Add(new Diagnostic(

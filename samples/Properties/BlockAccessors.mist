@@ -1,0 +1,40 @@
+// BlockAccessors — Demonstrates block-body get/set with custom logic.
+
+using System;
+
+namespace Properties;
+
+public class BlockAccessors
+{
+    private int _temperature;
+
+    public BlockAccessors(int initial)
+    {
+        this._temperature = initial;
+    }
+
+    // Block-body get and set with validation
+    public int Temperature
+    {
+        get
+        {
+            return _temperature;
+        }
+        set
+        {
+            if (value < -273)
+            {
+                _temperature = -273;
+            }
+            else
+            {
+                _temperature = value;
+            }
+        }
+    }
+
+    public string Describe()
+    {
+        return $"BlockAccessors(Temperature={Temperature})";
+    }
+}

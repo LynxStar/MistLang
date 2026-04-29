@@ -65,7 +65,7 @@ public class InterfaceCycleDetectionPropertyTests
         var decl = new InterfaceDeclarationNode
         {
             Name = MakeToken(name),
-            Methods = ImmutableArray<InterfaceMethodDeclarationNode>.Empty,
+            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
         };
 
         if (parentInterfaceName is not null)

@@ -1,0 +1,27 @@
+// StaticProps — Demonstrates static properties.
+
+using System;
+
+namespace Properties;
+
+public class StaticProps
+{
+    // Static auto-property with initializer
+    public static int InstanceCount { get; set; } = 0;
+
+    // Static computed property
+    public static bool HasInstances => StaticProps.InstanceCount > 0;
+
+    private string _name;
+
+    public StaticProps(string name)
+    {
+        this._name = name;
+        StaticProps.InstanceCount = StaticProps.InstanceCount + 1;
+    }
+
+    public string Describe()
+    {
+        return $"StaticProps(name={_name}, total={StaticProps.InstanceCount})";
+    }
+}

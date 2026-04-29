@@ -1,0 +1,43 @@
+// MixedAccessors — Demonstrates mixed accessor forms.
+
+using System;
+
+namespace Properties;
+
+public class MixedAccessors
+{
+    private string _status;
+
+    public MixedAccessors(string status)
+    {
+        this._status = status;
+    }
+
+    // Auto get with block-body set
+    public int Score
+    {
+        get;
+        set
+        {
+            if (value >= 0)
+            {
+                field = value;
+            }
+        }
+    }
+
+    // Expression-bodied get with auto set
+    public string Status
+    {
+        get => _status;
+        set
+        {
+            _status = value;
+        }
+    }
+
+    public string Describe()
+    {
+        return $"MixedAccessors(Score={Score}, Status={Status})";
+    }
+}

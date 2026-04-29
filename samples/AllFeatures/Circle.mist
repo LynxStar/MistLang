@@ -1,4 +1,4 @@
-// Circle — Demonstrates a class implementing an interface.
+// Circle — Demonstrates a class implementing an interface with auto-properties and computed properties.
 
 using System;
 
@@ -6,20 +6,28 @@ namespace AllFeatures;
 
 public class Circle : IShape
 {
-    private int _radius;
+    // Auto-property implementing interface property
+    public string Name { get; }
+
+    // Auto-property for radius
+    public int Radius { get; set; }
+
+    // Computed property — derives value from Radius
+    public int Diameter => Radius * 2;
 
     public Circle(int radius)
     {
-        this._radius = radius;
+        this.Name = "Circle";
+        this.Radius = radius;
     }
 
     public string Describe()
     {
-        return $"Circle(radius={_radius})";
+        return $"Circle(radius={Radius})";
     }
 
     public int Area()
     {
-        return _radius * _radius;
+        return Radius * Radius;
     }
 }

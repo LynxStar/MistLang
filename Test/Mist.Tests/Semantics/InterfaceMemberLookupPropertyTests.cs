@@ -76,10 +76,13 @@ public class InterfaceMemberLookupPropertyTests
         ImmutableArray<InterfaceMethodDeclarationNode> methods,
         string? parentInterfaceName = null)
     {
+        var members = methods.Select(m =>
+            (InterfaceMemberDeclarationNode)new InterfaceMethodMemberInterfaceMemberDeclarationNode { Method = m })
+            .ToImmutableArray();
         var decl = new InterfaceDeclarationNode
         {
             Name = MakeToken(name),
-            Methods = methods,
+            Members = members,
         };
 
         if (parentInterfaceName is not null)

@@ -275,9 +275,17 @@ internal sealed class CSharpSourceWriter
         AppendLine("{");
         _indentLevel++;
 
-        foreach (var method in interfaceDecl.Methods)
+        foreach (var member in interfaceDecl.Members)
         {
-            EmitInterfaceMethodDeclaration(method);
+            switch (member)
+            {
+                case InterfaceMethodMemberInterfaceMemberDeclarationNode methodMember:
+                    EmitInterfaceMethodDeclaration(methodMember.Method);
+                    break;
+                case InterfacePropertyMemberInterfaceMemberDeclarationNode propertyMember:
+                    EmitInterfacePropertyDeclaration(propertyMember.Property);
+                    break;
+            }
         }
 
         _indentLevel--;
@@ -290,6 +298,28 @@ internal sealed class CSharpSourceWriter
         var name = methodDecl.Name.Lexeme;
         var parameters = EmitParameterList(methodDecl.Parameters);
         AppendLine($"{returnType} {name}({parameters});");
+    }
+
+    private void EmitInterfacePropertyDeclaration(InterfacePropertyDeclarationNode propertyDecl)
+    {
+        var type = EmitTypeReference(propertyDecl.Type);
+        var name = propertyDecl.Name.Lexeme;
+
+        var accessors = new List<string>();
+        foreach (var accessor in propertyDecl.Accessors)
+        {
+            switch (accessor)
+            {
+                case InterfaceGetAccessorInterfaceAccessorDeclarationNode:
+                    accessors.Add("get;");
+                    break;
+                case InterfaceSetAccessorInterfaceAccessorDeclarationNode:
+                    accessors.Add("set;");
+                    break;
+            }
+        }
+
+        AppendLine($"{type} {name} {{ {string.Join(" ", accessors)} }}");
     }
 
     private void EmitStructDeclaration(StructDeclarationNode structDecl)
@@ -344,6 +374,12 @@ internal sealed class CSharpSourceWriter
             case MethodMemberMemberDeclarationNode methodMember:
                 EmitMethodDeclaration(methodMember.Method);
                 break;
+            case PropertyMemberMemberDeclarationNode propertyMember:
+                EmitPropertyDeclaration(propertyMember.Property);
+                break;
+            case IndexerMemberMemberDeclarationNode indexerMember:
+                EmitIndexerDeclaration(indexerMember.Indexer);
+                break;
         }
     }
 
@@ -394,6 +430,327 @@ internal sealed class CSharpSourceWriter
 
         AppendLine($"{modifiers}{returnType} {name}({parameters})");
         EmitBlock(methodDecl.Body);
+    }
+
+    // ─── Property Emission ───────────────────────────────────────────────
+
+    private void EmitPropertyDeclaration(PropertyDeclarationNode propertyDecl)
+    {
+        switch (propertyDecl)
+        {
+            case BlockPropertyPropertyDeclarationNode blockProp:
+                EmitBlockPropertyDeclaration(blockProp);
+                break;
+            case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
+                EmitExpressionBodiedPropertyDeclaration(exprProp);
+                break;
+        }
+    }
+
+    private void EmitBlockPropertyDeclaration(BlockPropertyPropertyDeclarationNode blockProp)
+    {
+        var modifiers = EmitModifiers(blockProp.Modifiers);
+        var type = EmitTypeReference(blockProp.Type);
+        var name = blockProp.Name.Lexeme;
+
+        // Check if any accessor uses the 'field' keyword — if so, emit a backing field first.
+        var backingFieldName = $"_{name}_k__BackingField";
+        var usesField = AccessorsUseFieldKeyword(blockProp.Accessors);
+        if (usesField)
+        {
+            AppendLine($"private {type} {backingFieldName};");
+        }
+
+        // Build accessor list.
+        var accessorParts = new List<string>();
+        foreach (var accessor in blockProp.Accessors)
+        {
+            accessorParts.Add(EmitAccessorDeclaration(accessor, usesField ? backingFieldName : null));
+        }
+
+        var accessorBody = string.Join(" ", accessorParts);
+
+        // Emit initializer if present.
+        if (blockProp.Initializer is not null)
+        {
+            var init = EmitExpression(blockProp.Initializer);
+            AppendLine($"{modifiers}{type} {name} {{ {accessorBody} }} = {init};");
+        }
+        else
+        {
+            AppendLine($"{modifiers}{type} {name} {{ {accessorBody} }}");
+        }
+    }
+
+    private void EmitExpressionBodiedPropertyDeclaration(ExpressionBodiedPropertyPropertyDeclarationNode exprProp)
+    {
+        var modifiers = EmitModifiers(exprProp.Modifiers);
+        var type = EmitTypeReference(exprProp.Type);
+        var name = exprProp.Name.Lexeme;
+        var body = EmitExpression(exprProp.Body);
+
+        AppendLine($"{modifiers}{type} {name} => {body};");
+    }
+
+    private string EmitAccessorDeclaration(AccessorDeclarationNode accessor, string? backingFieldName)
+    {
+        switch (accessor)
+        {
+            // ── Get accessors ──
+            case AutoGetAccessorAccessorDeclarationNode autoGet:
+            {
+                var mod = EmitAccessorModifier(autoGet.AccessorModifier);
+                return $"{mod}get;";
+            }
+            case BlockGetAccessorAccessorDeclarationNode blockGet:
+            {
+                var mod = EmitAccessorModifier(blockGet.AccessorModifier);
+                var body = EmitAccessorBlock(blockGet.Body, backingFieldName);
+                return $"{mod}get {body}";
+            }
+            case ExpressionGetAccessorAccessorDeclarationNode exprGet:
+            {
+                var mod = EmitAccessorModifier(exprGet.AccessorModifier);
+                var expr = EmitAccessorExpression(exprGet.Expression, backingFieldName);
+                return $"{mod}get => {expr};";
+            }
+
+            // ── Set accessors ──
+            case AutoSetAccessorAccessorDeclarationNode autoSet:
+            {
+                var mod = EmitAccessorModifier(autoSet.AccessorModifier);
+                return $"{mod}set;";
+            }
+            case BlockSetAccessorAccessorDeclarationNode blockSet:
+            {
+                var mod = EmitAccessorModifier(blockSet.AccessorModifier);
+                var body = EmitAccessorBlock(blockSet.Body, backingFieldName);
+                return $"{mod}set {body}";
+            }
+            case ExpressionSetAccessorAccessorDeclarationNode exprSet:
+            {
+                var mod = EmitAccessorModifier(exprSet.AccessorModifier);
+                var expr = EmitAccessorExpression(exprSet.Expression, backingFieldName);
+                return $"{mod}set => {expr};";
+            }
+
+            // ── Init accessors ──
+            case AutoInitAccessorAccessorDeclarationNode autoInit:
+            {
+                var mod = EmitAccessorModifier(autoInit.AccessorModifier);
+                return $"{mod}init;";
+            }
+            case BlockInitAccessorAccessorDeclarationNode blockInit:
+            {
+                var mod = EmitAccessorModifier(blockInit.AccessorModifier);
+                var body = EmitAccessorBlock(blockInit.Body, backingFieldName);
+                return $"{mod}init {body}";
+            }
+            case ExpressionInitAccessorAccessorDeclarationNode exprInit:
+            {
+                var mod = EmitAccessorModifier(exprInit.AccessorModifier);
+                var expr = EmitAccessorExpression(exprInit.Expression, backingFieldName);
+                return $"{mod}init => {expr};";
+            }
+
+            default:
+                return "";
+        }
+    }
+
+    private static string EmitAccessorModifier(ModifierNode? modifier)
+    {
+        if (modifier is null) return "";
+
+        return modifier switch
+        {
+            PublicModifierModifierNode => "public ",
+            PrivateModifierModifierNode => "private ",
+            StaticModifierModifierNode => "static ",
+            _ => "",
+        };
+    }
+
+    /// <summary>
+    /// Emits a block body for an accessor, replacing 'field' keyword references with the backing field name.
+    /// </summary>
+    private string EmitAccessorBlock(BlockNode block, string? backingFieldName)
+    {
+        var sb = new StringBuilder();
+        sb.Append("{ ");
+
+        foreach (var stmt in block.Statements)
+        {
+            sb.Append(EmitStatementInline(stmt, backingFieldName));
+            sb.Append(' ');
+        }
+
+        sb.Append('}');
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Emits an expression for an accessor, replacing 'field' keyword references with the backing field name.
+    /// </summary>
+    private string EmitAccessorExpression(ExpressionNode expr, string? backingFieldName)
+    {
+        if (backingFieldName is not null)
+        {
+            return ReplaceFieldKeyword(EmitExpression(expr), backingFieldName);
+        }
+        return EmitExpression(expr);
+    }
+
+    /// <summary>
+    /// Emits a statement as inline text (for accessor block bodies).
+    /// </summary>
+    private string EmitStatementInline(StatementNode stmt, string? backingFieldName)
+    {
+        var text = EmitStatementToString(stmt);
+        if (backingFieldName is not null)
+        {
+            text = ReplaceFieldKeyword(text, backingFieldName);
+        }
+        return text;
+    }
+
+    /// <summary>
+    /// Emits a statement to a string (without appending to the main builder).
+    /// </summary>
+    private string EmitStatementToString(StatementNode stmt)
+    {
+        switch (stmt)
+        {
+            case ReturnStatementStatementNode returnStmt:
+            {
+                if (returnStmt.ReturnStatement.Value is not null)
+                {
+                    return $"return {EmitExpression(returnStmt.ReturnStatement.Value)};";
+                }
+                return "return;";
+            }
+            case ExpressionStatementStatementNode exprStmt:
+                return $"{EmitExpression(exprStmt.ExpressionStatement.Expression)};";
+            case VariableDeclarationStatementStatementNode varDeclStmt:
+            {
+                switch (varDeclStmt.VariableDeclaration)
+                {
+                    case TypedVariableDeclarationVariableDeclarationStatementNode typed:
+                    {
+                        var type = EmitTypeReference(typed.Type);
+                        var name = typed.Name.Lexeme;
+                        var init = EmitExpression(typed.Initializer);
+                        return $"{type} {name} = {init};";
+                    }
+                    case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
+                    {
+                        var name = inferred.Name.Lexeme;
+                        var init = EmitExpression(inferred.Initializer);
+                        return $"var {name} = {init};";
+                    }
+                }
+                return "";
+            }
+            case IfStatementStatementNode ifStmt:
+            {
+                var condition = EmitExpression(ifStmt.IfStatement.Condition);
+                var sb = new StringBuilder();
+                sb.Append($"if ({condition}) {{ ");
+                foreach (var s in ifStmt.IfStatement.ThenBranch.Statements)
+                {
+                    sb.Append(EmitStatementToString(s));
+                    sb.Append(' ');
+                }
+                sb.Append('}');
+                return sb.ToString();
+            }
+            case BreakStatementStatementNode:
+                return "break;";
+            default:
+                return "";
+        }
+    }
+
+    /// <summary>
+    /// Replaces occurrences of the 'field' keyword identifier with the backing field name.
+    /// The 'field' keyword in Mist source is emitted as the literal text "field" by EmitPrimary.
+    /// We replace it with the backing field name using word-boundary matching.
+    /// </summary>
+    private static string ReplaceFieldKeyword(string text, string backingFieldName)
+    {
+        return System.Text.RegularExpressions.Regex.Replace(text, @"\bfield\b", backingFieldName);
+    }
+
+    /// <summary>
+    /// Checks whether any accessor in the list uses the 'field' keyword.
+    /// </summary>
+    private static bool AccessorsUseFieldKeyword(ImmutableArray<AccessorDeclarationNode> accessors)
+    {
+        foreach (var accessor in accessors)
+        {
+            switch (accessor)
+            {
+                case BlockGetAccessorAccessorDeclarationNode blockGet:
+                    if (ContainsFieldKeywordInBlock(blockGet.Body)) return true;
+                    break;
+                case ExpressionGetAccessorAccessorDeclarationNode exprGet:
+                    if (ContainsFieldKeywordInNode(exprGet.Expression)) return true;
+                    break;
+                case BlockSetAccessorAccessorDeclarationNode blockSet:
+                    if (ContainsFieldKeywordInBlock(blockSet.Body)) return true;
+                    break;
+                case ExpressionSetAccessorAccessorDeclarationNode exprSet:
+                    if (ContainsFieldKeywordInNode(exprSet.Expression)) return true;
+                    break;
+                case BlockInitAccessorAccessorDeclarationNode blockInit:
+                    if (ContainsFieldKeywordInBlock(blockInit.Body)) return true;
+                    break;
+                case ExpressionInitAccessorAccessorDeclarationNode exprInit:
+                    if (ContainsFieldKeywordInNode(exprInit.Expression)) return true;
+                    break;
+            }
+        }
+        return false;
+    }
+
+    private static bool ContainsFieldKeywordInBlock(BlockNode block)
+    {
+        return ContainsFieldKeywordInNode(block);
+    }
+
+    private static bool ContainsFieldKeywordInNode(Storm.Runtime.SyntaxNode node)
+    {
+        if (node is FieldKeywordExpressionPrimaryNode)
+            return true;
+
+        foreach (var child in node.Children())
+        {
+            if (child is Storm.Runtime.SyntaxNode childNode && ContainsFieldKeywordInNode(childNode))
+                return true;
+        }
+        return false;
+    }
+
+    // ─── Indexer Emission ────────────────────────────────────────────────
+
+    private void EmitIndexerDeclaration(IndexerDeclarationNode indexerDecl)
+    {
+        if (indexerDecl is not BlockIndexerIndexerDeclarationNode blockIndexer)
+            return;
+
+        var modifiers = EmitModifiers(blockIndexer.Modifiers);
+        var type = EmitTypeReference(blockIndexer.Type);
+        var parameters = EmitParameterList(blockIndexer.Parameters);
+
+        // Build accessor list.
+        var accessorParts = new List<string>();
+        foreach (var accessor in blockIndexer.Accessors)
+        {
+            accessorParts.Add(EmitAccessorDeclaration(accessor, null));
+        }
+
+        var accessorBody = string.Join(" ", accessorParts);
+        AppendLine($"{modifiers}{type} this[{parameters}] {{ {accessorBody} }}");
     }
 
     private string EmitParameterList(ParameterListNode? paramList)
@@ -802,11 +1159,24 @@ internal sealed class CSharpSourceWriter
                     return $"{target}.{name}";
                 }
 
+                // Check if this method call actually resolves to a property symbol —
+                // if so, emit as property access (no parentheses).
+                if (methodCall.Arguments is null)
+                {
+                    var resolvedSymbol = TryResolveToPropertySymbol(suffix);
+                    if (resolvedSymbol is not null)
+                    {
+                        return $"{target}.{name}";
+                    }
+                }
+
                 var args = EmitArgumentList(methodCall.Arguments);
                 return $"{target}.{name}({args})";
             }
             case MemberAccessSuffixPostfixSuffixNode memberAccess:
             {
+                // MemberAccessSuffix always emits as property access (no parentheses).
+                // This is the correct form for both field access and property access in C#.
                 var name = memberAccess.Name.Lexeme;
                 return $"{target}.{name}";
             }
@@ -823,6 +1193,22 @@ internal sealed class CSharpSourceWriter
             default:
                 return target;
         }
+    }
+
+    /// <summary>
+    /// Attempts to resolve a postfix suffix node to a property symbol via the semantic model.
+    /// Returns the symbol if it is a property, null otherwise.
+    /// </summary>
+    private ISymbol? TryResolveToPropertySymbol(PostfixSuffixNode suffix)
+    {
+        // The semantic model stores type information keyed by AST node.
+        // We check if the resolved type's source symbol is a property.
+        var declaredSymbol = _model.GetDeclaredSymbol(suffix);
+        if (declaredSymbol is not null && declaredSymbol.Kind == SymbolKind.Property)
+        {
+            return declaredSymbol;
+        }
+        return null;
     }
 
     private string EmitPrimary(PrimaryNode primary)
@@ -863,6 +1249,8 @@ internal sealed class CSharpSourceWriter
                 return $"({EmitExpression(paren.Inner)})";
             case IdentifierExpressionPrimaryNode ident:
                 return ident.Name.Lexeme;
+            case FieldKeywordExpressionPrimaryNode:
+                return "field";
             case TypeLiteralExpressionPrimaryNode typeLiteral:
                 return $"typeof({EmitTypeReference(typeLiteral.TypeRef)})";
             default:

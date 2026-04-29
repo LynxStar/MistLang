@@ -32,6 +32,11 @@ public sealed class Symbol : ISymbol
     public IScope ContainingScope { get; }
     public IType? DeclaredType { get; internal set; }
     public SourceSpan? DeclarationSpan { get; }
+
+    /// <summary>
+    /// Property-specific metadata. Non-null only for Property and Indexer symbols.
+    /// </summary>
+    public PropertyInfo? PropertyMetadata { get; internal set; }
 }
 
 /// <summary>

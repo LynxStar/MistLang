@@ -24,6 +24,12 @@ token FALSE     = "false";
 token THIS      = "this";
 token BASE      = "base";
 
+// Property-related keywords
+token GET   = "get";
+token SET   = "set";
+token INIT  = "init";
+token FIELD = "field";
+
 // Primitive type keywords
 token INT     = "int";
 token UINT    = "uint";

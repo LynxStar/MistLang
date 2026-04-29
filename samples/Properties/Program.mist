@@ -1,0 +1,104 @@
+// Properties — Comprehensive sample exercising every property feature in Mist.
+
+using System;
+
+namespace Properties;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Console.WriteLine("=== Properties Mist Sample ===");
+
+        // 1. Auto-properties
+        Console.WriteLine("--- Auto-Properties ---");
+        var auto = new AutoProps("Alice", "A001");
+        Console.WriteLine(auto.Describe());
+        auto.Name = "Bob";
+        auto.Count = 5;
+        auto.Label = "updated";
+        Console.WriteLine(auto.Describe());
+
+        // 2. Block-body accessors
+        Console.WriteLine("--- Block Accessors ---");
+        var block = new BlockAccessors(20);
+        Console.WriteLine(block.Describe());
+        block.Temperature = 100;
+        Console.WriteLine($"  After set 100: {block.Temperature}");
+        block.Temperature = -999;
+        Console.WriteLine($"  After set -999 (clamped): {block.Temperature}");
+
+        // 3. Expression-bodied properties and accessors
+        Console.WriteLine("--- Expression-Bodied ---");
+        var expr = new ExpressionBodied(5, 3);
+        Console.WriteLine(expr.Describe());
+        expr.Height = 10;
+        Console.WriteLine($"  After Height=10: Area={expr.Area}");
+
+        // 4. Field keyword
+        Console.WriteLine("--- Field Keyword ---");
+        var fk = new FieldKeyword("Charlie");
+        Console.WriteLine(fk.Describe());
+        fk.Name = "Dana";
+        fk.Age = 25;
+        Console.WriteLine(fk.Describe());
+        fk.Age = -5;
+        Console.WriteLine($"  After invalid age: {fk.Age}");
+
+        // 5. Mixed accessors
+        Console.WriteLine("--- Mixed Accessors ---");
+        var mixed = new MixedAccessors("active");
+        mixed.Score = 42;
+        Console.WriteLine(mixed.Describe());
+        mixed.Score = -10;
+        Console.WriteLine($"  After invalid score: {mixed.Score}");
+
+        // 6. Accessor modifiers
+        Console.WriteLine("--- Accessor Modifiers ---");
+        var am = new AccessorModifiers("Eve");
+        Console.WriteLine(am.Describe());
+        am.UpdateName("Frank");
+        am.IncrementValue();
+        Console.WriteLine(am.Describe());
+
+        // 7. Init accessors
+        Console.WriteLine("--- Init Accessors ---");
+        var initDemo = new InitAccessors("Grace", 2024);
+        Console.WriteLine(initDemo.Describe());
+
+        // 8. Static properties
+        Console.WriteLine("--- Static Properties ---");
+        Console.WriteLine($"  HasInstances before: {StaticProps.HasInstances}");
+        var sp1 = new StaticProps("One");
+        var sp2 = new StaticProps("Two");
+        Console.WriteLine(sp1.Describe());
+        Console.WriteLine($"  HasInstances after: {StaticProps.HasInstances}");
+        Console.WriteLine($"  InstanceCount: {StaticProps.InstanceCount}");
+
+        // 9. Computed properties
+        Console.WriteLine("--- Computed Properties ---");
+        var comp = new ComputedProps(4, 6);
+        Console.WriteLine(comp.Describe());
+        var square = new ComputedProps(5, 5);
+        Console.WriteLine(square.Describe());
+
+        // 10. Interface properties
+        Console.WriteLine("--- Interface Properties ---");
+        var item = new LabeledItem("Widget", 99);
+        Console.WriteLine(item.Describe());
+        IEditable editable = item;
+        editable.Value = 200;
+        Console.WriteLine($"  After edit: Label={editable.Label}, Value={editable.Value}");
+
+        // 11. Indexers
+        Console.WriteLine("--- Indexers ---");
+        var idx = new IndexerDemo(3);
+        idx[0] = 10;
+        idx[1] = 20;
+        idx[2] = 30;
+        Console.WriteLine($"  idx[0]={idx[0]} idx[1]={idx[1]} idx[2]={idx[2]}");
+        Console.WriteLine(idx.Describe());
+
+        Console.WriteLine("=== Done! ===");
+    }
+}

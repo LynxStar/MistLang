@@ -87,7 +87,7 @@
         },
         {
           "name": "keyword.other.mist",
-          "match": "\\b(new|var|this)\\b"
+          "match": "\\b(new|var|this|get|set|init|field)\\b"
         }
       ]
     },
@@ -156,6 +156,13 @@
           "captures": {
             "1": { "name": "entity.name.function.mist" }
           }
+        },
+        {
+          "comment": "Property declaration: type followed by identifier followed by { or =>",
+          "match": "\\b(?:void|int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|[A-Z]\\w*)(?:\\[\\])?\\s+([a-zA-Z_]\\w*)\\s*(?=\\{|=>)",
+          "captures": {
+            "1": { "name": "entity.name.variable.property.mist" }
+          }
         }
       ]
     },
@@ -172,6 +179,10 @@
         {
           "name": "keyword.operator.arithmetic.mist",
           "match": "[+\\-*/%]"
+        },
+        {
+          "name": "keyword.operator.arrow.mist",
+          "match": "=>"
         },
         {
           "name": "keyword.operator.assignment.mist",

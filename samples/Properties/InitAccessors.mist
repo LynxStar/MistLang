@@ -1,0 +1,35 @@
+// InitAccessors — Demonstrates init; and init { ... } forms.
+
+using System;
+
+namespace Properties;
+
+public class InitAccessors
+{
+    // Auto init-only property
+    public string Name { get; init; }
+
+    // Init with block body for validation
+    public int Year
+    {
+        get;
+        init
+        {
+            if (value > 0)
+            {
+                field = value;
+            }
+        }
+    }
+
+    public InitAccessors(string name, int year)
+    {
+        this.Name = name;
+        this.Year = year;
+    }
+
+    public string Describe()
+    {
+        return $"InitAccessors(Name={Name}, Year={Year})";
+    }
+}

@@ -1,0 +1,31 @@
+// AutoProps — Demonstrates auto-properties with get; set; and initializers.
+
+using System;
+
+namespace Properties;
+
+public class AutoProps
+{
+    // Basic auto-property with get and set
+    public string Name { get; set; }
+
+    // Auto-property with initializer
+    public int Count { get; set; } = 0;
+
+    // Read-only auto-property (get only)
+    public string Id { get; }
+
+    // Auto-property with default string value
+    public string Label { get; set; } = "default";
+
+    public AutoProps(string name, string id)
+    {
+        this.Name = name;
+        this.Id = id;
+    }
+
+    public string Describe()
+    {
+        return $"AutoProps(Name={Name}, Id={Id}, Count={Count}, Label={Label})";
+    }
+}

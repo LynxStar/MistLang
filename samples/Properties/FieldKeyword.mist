@@ -1,0 +1,47 @@
+// FieldKeyword — Demonstrates the field keyword in accessor bodies.
+
+using System;
+
+namespace Properties;
+
+public class FieldKeyword
+{
+    public FieldKeyword(string name)
+    {
+        this.Name = name;
+    }
+
+    // Using field keyword in get and set accessors
+    public string Name
+    {
+        get
+        {
+            return field;
+        }
+        set
+        {
+            field = value;
+        }
+    }
+
+    // Using field keyword with validation logic
+    public int Age
+    {
+        get
+        {
+            return field;
+        }
+        set
+        {
+            if (value >= 0)
+            {
+                field = value;
+            }
+        }
+    }
+
+    public string Describe()
+    {
+        return $"FieldKeyword(Name={Name}, Age={Age})";
+    }
+}

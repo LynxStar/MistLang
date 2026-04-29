@@ -17,6 +17,7 @@ token EQUAL_EQUAL           = "==";
 token NOT_EQUAL             = "!=";
 token LESS_THAN_OR_EQUAL    = "<=";
 token GREATER_THAN_OR_EQUAL = ">=";
+token FAT_ARROW             = "=>";
 token PLUS                  = "+";
 token MINUS                 = "-";
 token STAR                  = "*";
@@ -101,10 +102,25 @@ rule StructDeclaration = modifiers:Modifier* STRUCT name:IDENTIFIER interfaceLis
 
 rule InterfaceDeclaration = INTERFACE name:IDENTIFIER
     interfaceList:(COLON interfaceName:IDENTIFIER (COMMA IDENTIFIER)*)?
-    LEFT_BRACE methods:InterfaceMethodDeclaration* RIGHT_BRACE;
+    LEFT_BRACE members:InterfaceMemberDeclaration* RIGHT_BRACE;
+
+rule InterfaceMemberDeclaration
+    = method:InterfaceMethodDeclaration     as InterfaceMethodMember
+    | property:InterfacePropertyDeclaration as InterfacePropertyMember
+    ;
 
 rule InterfaceMethodDeclaration = returnType:TypeReference name:IDENTIFIER
     LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS SEMICOLON;
+
+rule InterfacePropertyDeclaration
+    = type:TypeReference name:IDENTIFIER
+      LEFT_BRACE accessors:InterfaceAccessorDeclaration+ RIGHT_BRACE
+    ;
+
+rule InterfaceAccessorDeclaration
+    = GET SEMICOLON   as InterfaceGetAccessor
+    | SET SEMICOLON   as InterfaceSetAccessor
+    ;
 
 rule Modifier
     = PUBLIC  as PublicModifier
@@ -115,12 +131,40 @@ rule Modifier
 rule MemberDeclaration
     = constructor:ConstructorDeclaration as ConstructorMember
     | method:MethodDeclaration           as MethodMember
+    | property:PropertyDeclaration       as PropertyMember
+    | indexer:IndexerDeclaration         as IndexerMember
     | field:FieldDeclaration             as FieldMember
     ;
 
 // ─── Parser Rules — Members ─────────────────────────────────────────────────
 
 rule FieldDeclaration = modifiers:Modifier* type:TypeReference name:IDENTIFIER initializer:(EQUAL Expression)? SEMICOLON;
+
+rule PropertyDeclaration
+    = modifiers:Modifier* type:TypeReference name:IDENTIFIER
+      LEFT_BRACE accessors:AccessorDeclaration+ RIGHT_BRACE
+      initializer:(EQUAL Expression SEMICOLON)?                    as BlockProperty
+    | modifiers:Modifier* type:TypeReference name:IDENTIFIER
+      FAT_ARROW body:Expression SEMICOLON                          as ExpressionBodiedProperty
+    ;
+
+rule AccessorDeclaration
+    = accessorModifier:Modifier? GET SEMICOLON                                    as AutoGetAccessor
+    | accessorModifier:Modifier? GET body:Block                                   as BlockGetAccessor
+    | accessorModifier:Modifier? GET FAT_ARROW expression:Expression SEMICOLON    as ExpressionGetAccessor
+    | accessorModifier:Modifier? SET SEMICOLON                                    as AutoSetAccessor
+    | accessorModifier:Modifier? SET body:Block                                   as BlockSetAccessor
+    | accessorModifier:Modifier? SET FAT_ARROW expression:Expression SEMICOLON    as ExpressionSetAccessor
+    | accessorModifier:Modifier? INIT SEMICOLON                                   as AutoInitAccessor
+    | accessorModifier:Modifier? INIT body:Block                                  as BlockInitAccessor
+    | accessorModifier:Modifier? INIT FAT_ARROW expression:Expression SEMICOLON   as ExpressionInitAccessor
+    ;
+
+rule IndexerDeclaration
+    = modifiers:Modifier* type:TypeReference THIS
+      LEFT_BRACKET parameters:ParameterList RIGHT_BRACKET
+      LEFT_BRACE accessors:AccessorDeclaration+ RIGHT_BRACE       as BlockIndexer
+    ;
 
 rule ConstructorDeclaration = modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
                               chain:ConstructorChain? body:Block;
@@ -244,6 +288,7 @@ rule Primary
     | TRUE                                                                         as TrueLiteralExpression
     | FALSE                                                                        as FalseLiteralExpression
     | THIS                                                                         as ThisExpression
+    | FIELD                                                                        as FieldKeywordExpression
     | NEW type:TypeReference LEFT_BRACKET size:Expression RIGHT_BRACKET            as ArrayCreationExpression
     | NEW type:QualifiedIdentifier LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as ObjectCreationExpression
     | LEFT_PARENTHESIS inner:Expression RIGHT_PARENTHESIS                          as ParenthesizedExpression

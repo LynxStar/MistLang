@@ -1,0 +1,293 @@
+# Implementation Plan: Properties
+
+## Overview
+
+This plan implements property support across the full Mist compiler pipeline: grammar → lexer → parser → semantic model → type checker → C# emitter → pretty printer → syntax highlighting → samples. Tasks follow the compiler pipeline order so each stage builds on the previous one. The implementation language is C# (matching the existing codebase), with Storm grammar files for parser rules.
+
+## Tasks
+
+- [ ] 1. Grammar and Lexer: Add property keywords, tokens, and parser rules
+  - [x] 1.1 Add `get`, `set`, `init`, `field` keyword tokens to `Source/Mist/Grammar/keywords.storm`
+    - Add `token GET = "get";`, `token SET = "set";`, `token INIT = "init";`, `token FIELD = "field";` after the existing keyword tokens
+    - _Requirements: 1.1, 1.2_
+  - [x] 1.2 Add `=>` fat arrow token to `Source/Mist/Grammar/Mist.storm`
+    - Add `token FAT_ARROW = "=>";` in the operators section, after `GREATER_THAN_OR_EQUAL` and before `PLUS`, so `=>` is matched before `=` by maximal-munch
+    - _Requirements: 1.3_
+  - [x] 1.3 Add `AccessorDeclaration` rule to `Source/Mist/Grammar/Mist.storm`
+    - Define the rule with 9 alternatives: AutoGet, BlockGet, ExpressionGet, AutoSet, BlockSet, ExpressionSet, AutoInit, BlockInit, ExpressionInit — each with optional accessor modifier
+    - _Requirements: 2.1, 2.2, 2.3, 3.1, 3.2, 4.1, 4.2, 5.1, 7.2, 7.3_
+  - [x] 1.4 Add `PropertyDeclaration` rule to `Source/Mist/Grammar/Mist.storm`
+    - Define `BlockProperty` alternative (modifiers, type, name, accessor list, optional initializer) and `ExpressionBodiedProperty` alternative (modifiers, type, name, `=>` expression)
+    - _Requirements: 2.1, 2.4, 7.1, 8.1_
+  - [x] 1.5 Add `IndexerDeclaration` rule to `Source/Mist/Grammar/Mist.storm`
+    - Define `BlockIndexer` alternative with modifiers, type, `THIS`, bracketed parameter list, and accessor list
+    - _Requirements: 11.1, 11.2_
+  - [x] 1.6 Add `InterfacePropertyDeclaration` and `InterfaceAccessorDeclaration` rules to `Source/Mist/Grammar/Mist.storm`
+    - Define `InterfacePropertyDeclaration` with type, name, and `InterfaceAccessorDeclaration+` list
+    - Define `InterfaceAccessorDeclaration` with `InterfaceGetAccessor` and `InterfaceSetAccessor` alternatives (semicolon-only, no bodies)
+    - _Requirements: 10.1, 10.2_
+  - [x] 1.7 Update `MemberDeclaration` rule to include `PropertyMember` and `IndexerMember` alternatives
+    - Add `property:PropertyDeclaration as PropertyMember` and `indexer:IndexerDeclaration as IndexerMember` before `FieldMember` so property/indexer syntax is tried before field syntax
+    - _Requirements: 2.1, 11.1_
+  - [x] 1.8 Update `InterfaceDeclaration` rule to use `InterfaceMemberDeclaration`
+    - Replace `methods:InterfaceMethodDeclaration*` with `members:InterfaceMemberDeclaration*`
+    - Add `InterfaceMemberDeclaration` rule with `InterfaceMethodMember` and `InterfacePropertyMember` alternatives
+    - _Requirements: 10.1_
+  - [x] 1.9 Add `FieldKeywordExpression` alternative to the `Primary` rule
+    - Add `| FIELD as FieldKeywordExpression` to the `Primary` rule, similar to how `THIS` is handled
+    - _Requirements: 6.1_
+
+- [x] 2. Checkpoint — Verify grammar compiles
+  - Rebuild the solution to ensure the Storm source generator produces the new AST node types from the updated grammar. Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 3. Semantic Model: Extend symbol kinds, property metadata, and registration
+  - [x] 3.1 Add `Property` and `Indexer` to `SymbolKind` enum in `Source/Mist/Semantics/Contracts/ISymbol.cs`
+    - Add `Property` and `Indexer` enum values after `LocalVariable`
+    - _Requirements: 12.1, 11.3_
+  - [x] 3.2 Create `PropertyInfo`, `AccessorInfo`, `AccessorKind`, and `AccessorBodyKind` types
+    - Create these types in `Source/Mist/Semantics/Contracts/` (or alongside `ISymbol.cs`)
+    - `PropertyInfo` stores: HasGet, HasSet, HasInit, IsComputed, IsStatic, IsExpressionBodied, GetAccessor, SetAccessor, InitAccessor, BackingField
+    - `AccessorInfo` stores: Kind (Get/Set/Init), BodyKind (Auto/Block/Expression), Modifier
+    - _Requirements: 12.3, 12.5, 9.1_
+  - [x] 3.3 Add `PropertyMetadata` property to the `Symbol` class in `Source/Mist/Semantics/Model/`
+    - Add `public PropertyInfo? PropertyMetadata { get; internal set; }` to the `Symbol` class
+    - _Requirements: 12.1, 12.3_
+  - [x] 3.4 Extend `RegisterMemberDeclaration` in `Source/Mist/Semantics/Model/SemanticModelBuilder.cs` to handle `PropertyMemberMemberDeclarationNode`
+    - Register a `Symbol` with `SymbolKind.Property`, walk accessor list to build `PropertyInfo`
+    - Classify computed properties (get-only with body, no set/init)
+    - Generate backing field symbol (`_<Name>_k__BackingField`) for non-computed properties that have auto-accessors or use `field` keyword
+    - Handle static modifier
+    - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 9.1, 9.2, 8.2_
+  - [x] 3.5 Extend `RegisterMemberDeclaration` to handle `IndexerMemberMemberDeclarationNode`
+    - Register a `Symbol` with `SymbolKind.Indexer`, store parameter types and accessor info via `PropertyInfo`
+    - _Requirements: 11.3_
+  - [x] 3.6 Extend `RegisterInterfaceDeclaration` to handle `InterfacePropertyMember` declarations
+    - Update the interface registration to iterate `InterfaceMemberDeclaration` nodes instead of only `InterfaceMethodDeclaration` nodes
+    - Register interface property symbols with `SymbolKind.Property` on the interface type scope
+    - _Requirements: 10.3_
+  - [x] 3.7 Extend `Pass1_ValidateInterfaceSatisfaction` to check property accessor satisfaction
+    - When an interface declares a property with get/set, verify the implementing type has a matching property with the required accessors
+    - _Requirements: 10.4, 10.5_
+  - [x] 3.8 Extend `Pass2_ResolveTypes` to resolve property type references, `field` keyword, and `value` implicit parameter
+    - Resolve property declared types
+    - Resolve `FieldKeywordExpression` nodes to the backing field symbol
+    - Inject implicit `value` parameter of the property's declared type into set/init accessor body scopes
+    - Resolve expression types in expression-bodied properties and accessors
+    - _Requirements: 12.2, 6.2, 13.4_
+
+- [x] 4. Checkpoint — Verify semantic model builds correctly
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 5. Type Checker: Add property-related diagnostics
+  - [x] 5.1 Add property accessor body checking to `TypeCheckerAnalyzer` in `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`
+    - Extend the `Analyze` method to walk `SymbolKind.Property` and `SymbolKind.Indexer` symbols
+    - Check block and expression accessor bodies for type correctness
+    - Inject implicit `value` parameter for set/init accessor body checking
+    - _Requirements: 13.1, 13.2, 13.3, 13.6, 13.7_
+  - [x] 5.2 Add MIST_TC_0019 (no accessible get) and MIST_TC_0020 (no accessible set/init) diagnostics
+    - When a property is accessed for reading, verify a `get` accessor is accessible from the call site
+    - When a property is assigned, verify a `set` or `init` accessor is accessible from the call site
+    - _Requirements: 13.1, 13.2_
+  - [x] 5.3 Add MIST_TC_0021 (property type mismatch) diagnostic
+    - Verify assigned value type is compatible with the property's declared type
+    - _Requirements: 13.3_
+  - [x] 5.4 Add MIST_TC_0022 (accessor modifier restrictiveness) diagnostic
+    - Verify accessor modifier is strictly more restrictive than the property's access level
+    - _Requirements: 5.2, 5.3_
+  - [x] 5.5 Add MIST_TC_0023 (`field` outside accessor) and MIST_TC_0024 (`field` in computed property) diagnostics
+    - Report error when `field` keyword is used outside a property accessor body
+    - Report error when `field` keyword is used in a computed property (no backing field)
+    - _Requirements: 6.3, 9.3_
+  - [x] 5.6 Add MIST_TC_0025 (`init` outside constructor/initializer) diagnostic
+    - Report error when an init-only property is assigned outside a constructor or object initializer context
+    - _Requirements: 13.5_
+  - [x] 5.7 Add MIST_TC_0026 (`this` in static accessor) and MIST_TC_0027 (static property via instance) diagnostics
+    - Report error when `this` is referenced in a static property accessor
+    - Report error when a static property is accessed through an instance reference
+    - _Requirements: 8.3, 8.4_
+  - [x] 5.8 Add MIST_TC_0028 (expression body type mismatch) diagnostic
+    - Verify expression body type is compatible with the property's declared type for expression-bodied get accessors and expression-bodied properties
+    - _Requirements: 13.6_
+  - [x] 5.9 Add MIST_TC_0029 (duplicate indexer) diagnostic
+    - Report error when a type declares more than one indexer with the same parameter types
+    - _Requirements: 11.6_
+  - [x] 5.10 Add MIST_TC_0030 (missing interface property) diagnostic
+    - Report error when an implementing type is missing a required interface property accessor
+    - _Requirements: 10.5_
+
+- [x] 6. Checkpoint — Verify type checker diagnostics
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 7. C# Emitter: Emit all property forms
+  - [x] 7.1 Add `EmitPropertyDeclaration` and `EmitAccessorDeclaration` methods to `CSharpSourceWriter` in `Source/Mist/Backends/CSharpTranspiler/CSharpEmitter.cs`
+    - Handle auto-properties (`get; set;`), block-body accessors, expression-bodied accessors (`get => expr;`), expression-bodied properties (`Type Name => expr;`)
+    - Emit accessor modifiers (e.g., `private set;`)
+    - Emit property initializers (`= defaultValue;`)
+    - Emit `static` modifier on static properties
+    - _Requirements: 14.1, 14.2, 14.4, 14.5, 14.7, 14.8, 14.9_
+  - [x] 7.2 Handle `field` keyword replacement in emitted C# output
+    - For properties using the `field` keyword, emit a private backing field declaration before the property
+    - Replace all `field` references in accessor bodies with the generated backing field name (`_<Name>_k__BackingField`)
+    - _Requirements: 14.6_
+  - [x] 7.3 Add `EmitInitAccessor` support
+    - Emit `init` accessors as C# `init` accessors (auto, block, and expression forms)
+    - _Requirements: 14.3_
+  - [x] 7.4 Add `EmitIndexerDeclaration` method
+    - Emit indexer declarations as C# `this[ParamType param]` syntax with accessor bodies
+    - _Requirements: 14.11_
+  - [x] 7.5 Add `EmitInterfacePropertyDeclaration` method
+    - Emit interface property declarations as C# interface property signatures with `get;` and/or `set;`
+    - _Requirements: 14.10_
+  - [x] 7.6 Update `EmitMemberDeclaration` to handle `PropertyMemberMemberDeclarationNode` and `IndexerMemberMemberDeclarationNode`
+    - Add cases for the new member declaration node types in the switch statement
+    - _Requirements: 14.1, 14.11_
+  - [x] 7.7 Update `EmitInterfaceDeclaration` to iterate `InterfaceMemberDeclaration` nodes
+    - Update the interface emission to handle both method and property members
+    - _Requirements: 14.10_
+  - [x] 7.8 Update `EmitPostfixSuffix` for property access emission
+    - When a `MemberAccessSuffix` resolves to a property symbol (via semantic model), emit as property access (no parentheses)
+    - _Requirements: 14.1_
+
+- [ ] 8. Pretty Printer: Format all property forms
+  - [x] 8.1 Add `EmitPropertyDeclaration` and `EmitAccessorDeclaration` methods to `MistPrettyPrinter` in `Source/Mist/Parsing/MistPrettyPrinter.cs`
+    - Handle all property forms: auto-properties, block-body, expression-bodied properties, expression-bodied accessors, mixed forms, static, with initializers
+    - Emit accessor modifiers (e.g., `private set;`)
+    - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5_
+  - [x] 8.2 Add `EmitIndexerDeclaration` method to `MistPrettyPrinter`
+    - Format indexer declarations with `this[ParamType param]` syntax and accessor list
+    - _Requirements: 15.7_
+  - [x] 8.3 Add `EmitInterfaceMemberDeclaration` and `EmitInterfacePropertyDeclaration` methods to `MistPrettyPrinter`
+    - Update `EmitInterfaceDeclaration` to iterate `InterfaceMemberDeclaration` nodes
+    - Format interface property declarations with accessor signatures
+    - _Requirements: 15.6_
+  - [x] 8.4 Update `EmitMemberDeclaration` to handle `PropertyMemberMemberDeclarationNode` and `IndexerMemberMemberDeclarationNode`
+    - Add cases for the new member declaration node types
+    - _Requirements: 15.1, 15.7_
+  - [x] 8.5 Add `FieldKeywordExpression` handling to `EmitPrimary`
+    - Emit `field` keyword in expression context
+    - _Requirements: 15.2_
+
+- [ ] 9. Syntax Highlighting: Update TextMate grammar
+  - [x] 9.1 Add `get`, `set`, `init`, `field` to keyword patterns in `Editor/mist-syntax-highlighting/syntaxes/mist.tmLanguage.json`
+    - Update the `keyword.other.mist` pattern to include `get|set|init|field` alongside `new|var|this`
+    - _Requirements: 16.1, 16.2, 16.4, 16.5_
+  - [x] 9.2 Add `=>` fat arrow operator pattern to the operators section
+    - Add a `keyword.operator.arrow.mist` pattern matching `=>`, placed before the assignment operator pattern so `=>` is matched first
+    - _Requirements: 16.3_
+  - [x] 9.3 Add property declaration name highlighting pattern to the declaration-names section
+    - Add a pattern matching `Type Name` followed by `{` or `=>` to highlight property names with `entity.name.variable.property.mist` scope
+    - _Requirements: 16.1_
+
+- [x] 10. Checkpoint — Verify all compiler pipeline stages work together
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 11. Sample Applications: Create Properties sample and update AllFeatures
+  - [x] 11.1 Create `samples/Properties/Program.mist` entry point
+    - Create the `samples/Properties/` directory with a `Program.mist` that demonstrates all property features and uses `namespace Properties;`
+    - _Requirements: 17.1, 17.13_
+  - [x] 11.2 Create `samples/Properties/AutoProps.mist` demonstrating auto-properties
+    - Show `get; set;` auto-properties with and without initializers
+    - _Requirements: 17.2_
+  - [x] 11.3 Create `samples/Properties/BlockAccessors.mist` demonstrating block-body accessors
+    - Show get/set with block bodies containing custom logic
+    - _Requirements: 17.3_
+  - [x] 11.4 Create `samples/Properties/ExpressionBodied.mist` demonstrating expression-bodied properties and accessors
+    - Show `Type Name => expr;` and `get => expr;` forms
+    - _Requirements: 17.4_
+  - [x] 11.5 Create `samples/Properties/FieldKeyword.mist` demonstrating `field` keyword usage
+    - Show `field` keyword in get and set accessor bodies
+    - _Requirements: 17.5_
+  - [x] 11.6 Create `samples/Properties/MixedAccessors.mist` demonstrating mixed accessor forms
+    - Show auto-accessor combined with block-body or expression-body accessor
+    - _Requirements: 17.6_
+  - [x] 11.7 Create `samples/Properties/AccessorModifiers.mist` demonstrating accessor modifiers
+    - Show `private set;` and similar patterns
+    - _Requirements: 17.7_
+  - [x] 11.8 Create `samples/Properties/InitAccessors.mist` demonstrating init accessors
+    - Show `init;` and `init { ... }` accessor forms
+    - _Requirements: 17.8_
+  - [x] 11.9 Create `samples/Properties/StaticProps.mist` demonstrating static properties
+    - Show static auto-properties and static computed properties
+    - _Requirements: 17.9_
+  - [x] 11.10 Create `samples/Properties/ComputedProps.mist` demonstrating computed properties
+    - Show get-only properties with body (no backing field)
+    - _Requirements: 17.10_
+  - [x] 11.11 Create `samples/Properties/IPropertyDemo.mist` demonstrating interface property declarations
+    - Show interface with property signatures and a class implementing them
+    - _Requirements: 17.11_
+  - [x] 11.12 Create `samples/Properties/IndexerDemo.mist` demonstrating indexer declarations
+    - Show `this[ParamType param]` indexer with get and set accessors
+    - _Requirements: 17.12_
+  - [x] 11.13 Update `samples/AllFeatures/IShape.mist` to include interface property declarations
+    - Add property signatures (e.g., `string Name { get; }`) to the `IShape` or a new interface
+    - _Requirements: 18.4_
+  - [x] 11.14 Update `samples/AllFeatures/Circle.mist` (or add a new class) to use auto-properties and computed properties
+    - Replace or supplement existing fields with auto-properties
+    - Add a computed property that derives a value from existing fields/properties
+    - _Requirements: 18.2, 18.3_
+  - [x] 11.15 Update `samples/AllFeatures/Program.mist` to demonstrate property access
+    - Add property read/write demonstrations alongside existing feature demonstrations
+    - Ensure all previously demonstrated features still work
+    - _Requirements: 18.1, 18.5, 18.6_
+
+- [x] 12. Checkpoint — Compile and run sample applications
+  - Compile `samples/Properties/` and `samples/AllFeatures/` end-to-end. Verify correct output. Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 13. Property-Based Tests
+  - [x] 13.1 Write PBT generator for random valid Mist property source text
+    - Create `Test/Mist.Tests/Generators/MistPropertyGenerator.cs`
+    - Generate random property declarations with varying: type names, property names, modifier combinations, accessor combinations (get/set/init; auto/block/expression), initializer expressions, indexer parameters
+    - **Property 1: Parse–Print–Parse Round Trip**
+    - **Validates: Requirements 15.8, 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 4.1, 4.2, 5.1, 7.1, 7.2, 7.3, 7.4, 8.1, 10.1, 11.1, 11.2, 15.1–15.7**
+  - [x] 13.2 Write PBT for parse–print–parse round trip (Property 1)
+    - Create `Test/Mist.Tests/Parsing/PropertyRoundTripPropertyTests.cs`
+    - For any valid Mist source with property declarations, parse → pretty-print → parse produces structurally equivalent AST
+    - **Property 1: Parse–Print–Parse Round Trip**
+    - **Validates: Requirements 15.8**
+  - [x] 13.3 Write PBT for semantic model property registration completeness (Property 2)
+    - Create `Test/Mist.Tests/Semantics/PropertyRegistrationPropertyTests.cs`
+    - For any valid property declaration, verify symbol kind is Property, resolved type matches, PropertyInfo reflects accessor combination, IsStatic matches, backing field present iff not computed
+    - **Property 2: Semantic Model Property Registration Completeness**
+    - **Validates: Requirements 12.1, 12.2, 12.3, 12.4, 12.5, 8.2, 9.1, 9.2, 10.3, 11.3**
+  - [x] 13.4 Write PBT for accessor modifier restrictiveness validation (Property 3)
+    - Create `Test/Mist.Tests/Analysis/AccessorModifierPropertyTests.cs`
+    - For any property with accessor modifier, type checker accepts iff modifier is strictly more restrictive than property access level
+    - **Property 3: Accessor Modifier Restrictiveness Validation**
+    - **Validates: Requirements 5.2, 5.3**
+  - [x] 13.5 Write PBT for property access type safety (Property 4)
+    - Create `Test/Mist.Tests/Analysis/PropertyAccessTypePropertyTests.cs`
+    - For any property access, type checker accepts iff: reads have visible get, writes have visible set/init with compatible type, init writes are in constructor context
+    - **Property 4: Property Access Type Safety**
+    - **Validates: Requirements 13.1, 13.2, 13.3, 13.5, 10.4, 10.5, 11.4, 11.5**
+  - [x] 13.6 Write PBT for value parameter type resolution (Property 5)
+    - Create `Test/Mist.Tests/Semantics/ValueParameterPropertyTests.cs`
+    - For any set/init accessor body referencing `value`, type checker resolves `value` to the enclosing property's declared type
+    - **Property 5: Value Parameter Type Resolution**
+    - **Validates: Requirements 13.4, 3.2, 7.3**
+  - [x] 13.7 Write PBT for field keyword contextual resolution (Property 6)
+    - Create `Test/Mist.Tests/Semantics/FieldKeywordPropertyTests.cs`
+    - For any `field` keyword inside a non-computed property accessor, semantic model resolves to backing field; outside accessor or in computed property, type checker reports error
+    - **Property 6: Field Keyword Contextual Resolution**
+    - **Validates: Requirements 6.1, 6.2, 6.3, 9.3**
+  - [x] 13.8 Write PBT for C# emission validity (Property 7)
+    - Create `Test/Mist.Tests/Backend/PropertyEmissionPropertyTests.cs`
+    - For any valid Mist source with properties, C# emitter produces syntactically valid C# preserving semantic meaning
+    - **Property 7: C# Emission Validity**
+    - **Validates: Requirements 14.1–14.11**
+  - [x] 13.9 Write PBT for computed property classification correctness (Property 8)
+    - Create `Test/Mist.Tests/Semantics/ComputedPropertyPropertyTests.cs`
+    - For any property, semantic model classifies as computed iff exactly one get accessor with body and no set/init; computed properties have no backing field
+    - **Property 8: Computed Property Classification Correctness**
+    - **Validates: Requirements 9.1, 9.2**
+
+- [x] 14. Final checkpoint — Ensure all tests pass
+  - Run the full test suite (`dotnet test`). Ensure all tests pass, ask the user if questions arise.
+
+## Notes
+
+- Tasks marked with `*` are optional and can be skipped for faster MVP
+- Each task references specific requirements for traceability
+- Checkpoints ensure incremental validation after each pipeline stage
+- Property tests validate universal correctness properties from the design document
+- The grammar changes (Task 1) must be completed first as the Storm source generator produces AST node types that all subsequent stages depend on
+- The `MemberDeclaration` rule ordering is critical: `PropertyMember` and `IndexerMember` must appear before `FieldMember` to avoid ambiguous parsing

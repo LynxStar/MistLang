@@ -75,10 +75,13 @@ public class InterfaceSignatureMismatchPropertyTests
         string name,
         ImmutableArray<InterfaceMethodDeclarationNode> methods)
     {
+        var members = methods.Select(m =>
+            (InterfaceMemberDeclarationNode)new InterfaceMethodMemberInterfaceMemberDeclarationNode { Method = m })
+            .ToImmutableArray();
         return new InterfaceDeclarationNode
         {
             Name = MakeToken(name),
-            Methods = methods,
+            Members = members,
         };
     }
 

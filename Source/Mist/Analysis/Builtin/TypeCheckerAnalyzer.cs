@@ -31,9 +31,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     // ── Current enclosing type during analysis (set per method/constructor) ──
     private IType? _currentEnclosingType;
 
+    // ── Whether we are currently inside a constructor body (for init-only checks) ──
+    private bool _insideConstructor;
+
+    // ── Whether we are currently inside a property accessor body (for field keyword checks) ──
+    private bool _insidePropertyAccessor;
+
     public void Analyze(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        // Walk each method and constructor body to check type rules.
+        // Walk each method, constructor, property, and indexer body to check type rules.
         foreach (var symbol in model.AllSymbols)
         {
             if (symbol.Origin == SymbolOrigin.Backend)
@@ -50,11 +56,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 case SymbolKind.Field:
                     CheckFieldDeclaration(symbol, model, diagnostics);
                     break;
+                case SymbolKind.Property:
+                    CheckPropertyDeclaration(symbol, model, diagnostics);
+                    break;
+                case SymbolKind.Indexer:
+                    CheckIndexerDeclaration(symbol, model, diagnostics);
+                    break;
             }
         }
 
         // Entry point validation — once per compilation (R10.1, R10.2, R10.3).
         CheckEntryPoint(model, diagnostics);
+
+        // Task 5.9: Check for duplicate indexers across all types (MIST_TC_0029).
+        // (Individual indexer checks are done per-symbol above.)
+
+        // Task 5.10: Check for missing interface property implementations (MIST_TC_0030).
+        CheckMissingInterfaceProperties(model, diagnostics);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -229,6 +247,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         var returnType = methodSymbol.DeclaredType ?? UnknownType.Instance;
         _currentEnclosingType = FindDeclaringType(methodSymbol);
+        _insideConstructor = false;
+        _insidePropertyAccessor = false;
         CheckBlock(methodDecl.Body, returnType, model, diagnostics);
     }
 
@@ -242,6 +262,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
 
         _currentEnclosingType = FindDeclaringType(ctorSymbol);
+        _insideConstructor = true;
+        _insidePropertyAccessor = false;
 
         // Check constructor chaining (: this(args))
         if (ctorDecl.Chain is not null)
@@ -250,6 +272,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         CheckBlock(ctorDecl.Body, VoidType.Instance, model, diagnostics);
+        _insideConstructor = false;
     }
 
     private static void CheckFieldDeclaration(ISymbol fieldSymbol, ISemanticModel model, DiagnosticBag diagnostics)
@@ -272,6 +295,701 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // expression type map for the current grammar structure, we skip
         // field initializer type checking here. The C# backend will catch
         // any remaining issues.
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Property and indexer declaration checking (Tasks 5.1–5.10)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Checks a property declaration for type correctness.
+    /// Walks accessor bodies, checks modifier restrictiveness, field keyword usage,
+    /// expression body type compatibility, and static access patterns.
+    /// </summary>
+    private void CheckPropertyDeclaration(ISymbol propertySymbol, ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        SyntaxNode declaringNode;
+        try { declaringNode = model.GetDeclaringNode(propertySymbol); }
+        catch { return; }
+
+        _currentEnclosingType = FindDeclaringType(propertySymbol);
+        _insideConstructor = false;
+        _insidePropertyAccessor = false; // Will be set to true inside CheckAccessorBody
+
+        var propInfo = GetPropertyMetadata(propertySymbol);
+        var propType = propertySymbol.DeclaredType ?? UnknownType.Instance;
+
+        switch (declaringNode)
+        {
+            case BlockPropertyPropertyDeclarationNode blockProp:
+            {
+                var propModifiers = ExtractPropertyModifiers(blockProp.Modifiers);
+
+                // Task 5.4: Check accessor modifier restrictiveness (MIST_TC_0022).
+                CheckAccessorModifierRestrictiveness(blockProp.Accessors, propModifiers, model, diagnostics);
+
+                // Task 5.1: Walk accessor bodies for type correctness.
+                foreach (var accessor in blockProp.Accessors)
+                {
+                    CheckAccessorBody(accessor, propType, propInfo, propModifiers.IsStatic, model, diagnostics);
+                }
+
+                // Task 5.5: Check field keyword usage in accessor bodies (MIST_TC_0023, MIST_TC_0024).
+                CheckFieldKeywordUsageInAccessors(blockProp.Accessors, propInfo, model, diagnostics);
+
+                // Task 5.7: Check this in static accessor (MIST_TC_0026).
+                if (propModifiers.IsStatic)
+                {
+                    CheckThisInStaticAccessors(blockProp.Accessors, model, diagnostics);
+                }
+                break;
+            }
+            case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
+            {
+                var propModifiers = ExtractPropertyModifiers(exprProp.Modifiers);
+
+                // Task 5.8: Check expression body type compatibility (MIST_TC_0028).
+                CheckExpression(exprProp.Body, model, diagnostics);
+                var bodyType = model.GetTypeOf(exprProp.Body);
+                if (bodyType is not null && !IsUnknown(bodyType) && !IsUnknown(propType))
+                {
+                    if (!IsAssignable(bodyType, propType))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0028",
+                            $"Expression body type '{bodyType.DisplayName}' is not compatible with property type '{propType.DisplayName}'",
+                            exprProp.Body,
+                            model));
+                    }
+                }
+
+                // Task 5.7: Check this in static expression-bodied property (MIST_TC_0026).
+                if (propModifiers.IsStatic)
+                {
+                    CheckThisInExpression(exprProp.Body, model, diagnostics);
+                }
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks an indexer declaration for type correctness.
+    /// Also checks for duplicate indexers with the same parameter types (MIST_TC_0029).
+    /// </summary>
+    private void CheckIndexerDeclaration(ISymbol indexerSymbol, ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        SyntaxNode declaringNode;
+        try { declaringNode = model.GetDeclaringNode(indexerSymbol); }
+        catch { return; }
+
+        if (declaringNode is not BlockIndexerIndexerDeclarationNode blockIndexer)
+            return;
+
+        _currentEnclosingType = FindDeclaringType(indexerSymbol);
+        _insideConstructor = false;
+        _insidePropertyAccessor = false; // Will be set to true inside CheckAccessorBody
+
+        var propInfo = GetPropertyMetadata(indexerSymbol);
+        var indexerType = indexerSymbol.DeclaredType ?? UnknownType.Instance;
+        var indexerModifiers = ExtractPropertyModifiers(blockIndexer.Modifiers);
+
+        // Task 5.4: Check accessor modifier restrictiveness (MIST_TC_0022).
+        CheckAccessorModifierRestrictiveness(blockIndexer.Accessors, indexerModifiers, model, diagnostics);
+
+        // Task 5.1: Walk accessor bodies for type correctness.
+        foreach (var accessor in blockIndexer.Accessors)
+        {
+            CheckAccessorBody(accessor, indexerType, propInfo, indexerModifiers.IsStatic, model, diagnostics);
+        }
+
+        // Task 5.9: Check for duplicate indexers (MIST_TC_0029).
+        CheckDuplicateIndexer(indexerSymbol, blockIndexer, model, diagnostics);
+    }
+
+    /// <summary>
+    /// Checks a single accessor body for type correctness.
+    /// For block bodies, checks statements. For expression bodies, checks expression type.
+    /// For set/init accessors, the implicit 'value' parameter is already injected by the semantic model.
+    /// </summary>
+    private void CheckAccessorBody(
+        AccessorDeclarationNode accessor,
+        IType propType,
+        PropertyInfo? propInfo,
+        bool isStatic,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var previousInsidePropertyAccessor = _insidePropertyAccessor;
+        _insidePropertyAccessor = true;
+
+        try
+        {
+            switch (accessor)
+            {
+                // Block get accessor — check body statements, return type is the property type.
+                case BlockGetAccessorAccessorDeclarationNode blockGet:
+                    CheckBlock(blockGet.Body, propType, model, diagnostics);
+                    break;
+
+                // Expression get accessor — check expression type matches property type (MIST_TC_0028).
+                case ExpressionGetAccessorAccessorDeclarationNode exprGet:
+                    CheckExpression(exprGet.Expression, model, diagnostics);
+                    CheckExpressionAccessorType(exprGet.Expression, propType, model, diagnostics);
+                    break;
+
+                // Block set accessor — check body statements (return type is void).
+                case BlockSetAccessorAccessorDeclarationNode blockSet:
+                    CheckBlock(blockSet.Body, VoidType.Instance, model, diagnostics);
+                    break;
+
+                // Expression set accessor — check expression.
+                case ExpressionSetAccessorAccessorDeclarationNode exprSet:
+                    CheckExpression(exprSet.Expression, model, diagnostics);
+                    break;
+
+                // Block init accessor — check body statements (return type is void).
+                case BlockInitAccessorAccessorDeclarationNode blockInit:
+                    CheckBlock(blockInit.Body, VoidType.Instance, model, diagnostics);
+                    break;
+
+                // Expression init accessor — check expression.
+                case ExpressionInitAccessorAccessorDeclarationNode exprInit:
+                    CheckExpression(exprInit.Expression, model, diagnostics);
+                    break;
+
+                // Auto accessors (get;, set;, init;) — no body to check.
+                default:
+                    break;
+            }
+        }
+        finally
+        {
+            _insidePropertyAccessor = previousInsidePropertyAccessor;
+        }
+    }
+
+    /// <summary>
+    /// Checks that an expression accessor's type is compatible with the property type (MIST_TC_0028).
+    /// </summary>
+    private static void CheckExpressionAccessorType(
+        ExpressionNode expression,
+        IType propType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var exprType = model.GetTypeOf(expression);
+        if (exprType is null || IsUnknown(exprType) || IsUnknown(propType))
+            return;
+
+        if (!IsAssignable(exprType, propType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0028",
+                $"Expression body type '{exprType.DisplayName}' is not compatible with property type '{propType.DisplayName}'",
+                expression,
+                model));
+        }
+    }
+
+    /// <summary>
+    /// Checks accessor modifier restrictiveness (MIST_TC_0022).
+    /// An accessor modifier must be strictly more restrictive than the property's access level.
+    /// </summary>
+    private static void CheckAccessorModifierRestrictiveness(
+        IReadOnlyList<AccessorDeclarationNode> accessors,
+        MemberModifiers propModifiers,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var accessor in accessors)
+        {
+            var accessorModifier = GetAccessorModifier(accessor);
+            if (accessorModifier is null)
+                continue; // No explicit accessor modifier — OK.
+
+            var propLevel = GetAccessLevel(propModifiers);
+            var accessorLevel = GetModifierAccessLevel(accessorModifier);
+
+            // The accessor modifier must be strictly more restrictive than the property.
+            if (!IsMoreRestrictive(accessorLevel, propLevel))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0022",
+                    "Accessor modifier must be more restrictive than the property's access level",
+                    accessorModifier,
+                    model));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks for field keyword usage outside accessor bodies (MIST_TC_0023)
+    /// and in computed properties (MIST_TC_0024).
+    /// </summary>
+    private static void CheckFieldKeywordUsageInAccessors(
+        IReadOnlyList<AccessorDeclarationNode> accessors,
+        PropertyInfo? propInfo,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        if (propInfo is null)
+            return;
+
+        foreach (var accessor in accessors)
+        {
+            var fieldNodes = CollectFieldKeywordNodes(accessor);
+            foreach (var fieldNode in fieldNodes)
+            {
+                // MIST_TC_0024: field keyword in computed property (no backing field).
+                if (propInfo.IsComputed)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0024",
+                        "'field' keyword cannot be used in a computed property (no backing field)",
+                        fieldNode,
+                        model));
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks for 'this' references in static property accessors (MIST_TC_0026).
+    /// </summary>
+    private static void CheckThisInStaticAccessors(
+        IReadOnlyList<AccessorDeclarationNode> accessors,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var accessor in accessors)
+        {
+            var thisNodes = CollectThisKeywordNodes(accessor);
+            foreach (var thisNode in thisNodes)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0026",
+                    "'this' cannot be referenced in a static property accessor",
+                    thisNode,
+                    model));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks for 'this' references in a static expression-bodied property (MIST_TC_0026).
+    /// </summary>
+    private static void CheckThisInExpression(
+        ExpressionNode expression,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var thisNodes = new List<SyntaxNode>();
+        CollectThisKeywordNodesFromTree(expression, thisNodes);
+        foreach (var thisNode in thisNodes)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0026",
+                "'this' cannot be referenced in a static property accessor",
+                thisNode,
+                model));
+        }
+    }
+
+    /// <summary>
+    /// Checks for duplicate indexers with the same parameter types (MIST_TC_0029).
+    /// </summary>
+    private static void CheckDuplicateIndexer(
+        ISymbol indexerSymbol,
+        BlockIndexerIndexerDeclarationNode blockIndexer,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var declaringType = FindDeclaringType(indexerSymbol);
+        if (declaringType is null)
+            return;
+
+        IScope? memberScope = declaringType switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            _ => null,
+        };
+
+        if (memberScope is null)
+            return;
+
+        // Collect parameter types for this indexer.
+        var thisParamTypes = CollectIndexerParameterTypes(blockIndexer, model);
+
+        // Check all other indexers in the same type.
+        foreach (var member in memberScope.Members)
+        {
+            if (member.Kind != SymbolKind.Indexer || ReferenceEquals(member, indexerSymbol))
+                continue;
+
+            SyntaxNode otherNode;
+            try { otherNode = model.GetDeclaringNode(member); }
+            catch { continue; }
+
+            if (otherNode is not BlockIndexerIndexerDeclarationNode otherIndexer)
+                continue;
+
+            var otherParamTypes = CollectIndexerParameterTypes(otherIndexer, model);
+
+            if (ParameterTypesMatch(thisParamTypes, otherParamTypes))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0029",
+                    "Duplicate indexer declaration with the same parameter types",
+                    blockIndexer,
+                    model));
+                break; // Only report once per indexer.
+            }
+        }
+    }
+
+    /// <summary>
+    /// Collects parameter types from an indexer declaration.
+    /// </summary>
+    private static List<string> CollectIndexerParameterTypes(
+        BlockIndexerIndexerDeclarationNode indexer,
+        ISemanticModel model)
+    {
+        var types = new List<string>();
+        if (indexer.Parameters is null)
+            return types;
+
+        foreach (var child in indexer.Parameters.Children())
+        {
+            if (child is ParameterNode param)
+            {
+                var paramSymbol = model.GetDeclaredSymbol(param);
+                if (paramSymbol?.DeclaredType is not null)
+                    types.Add(paramSymbol.DeclaredType.DisplayName);
+                else
+                    types.Add("?");
+            }
+        }
+
+        return types;
+    }
+
+    /// <summary>
+    /// Checks if two parameter type lists match.
+    /// </summary>
+    private static bool ParameterTypesMatch(List<string> a, List<string> b)
+    {
+        if (a.Count != b.Count)
+            return false;
+
+        for (var i = 0; i < a.Count; i++)
+        {
+            if (a[i] != b[i])
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Gets the accessor modifier node from an accessor declaration, if present.
+    /// </summary>
+    private static ModifierNode? GetAccessorModifier(AccessorDeclarationNode accessor)
+    {
+        return accessor switch
+        {
+            AutoGetAccessorAccessorDeclarationNode a => a.AccessorModifier,
+            BlockGetAccessorAccessorDeclarationNode a => a.AccessorModifier,
+            ExpressionGetAccessorAccessorDeclarationNode a => a.AccessorModifier,
+            AutoSetAccessorAccessorDeclarationNode a => a.AccessorModifier,
+            BlockSetAccessorAccessorDeclarationNode a => a.AccessorModifier,
+            ExpressionSetAccessorAccessorDeclarationNode a => a.AccessorModifier,
+            AutoInitAccessorAccessorDeclarationNode a => a.AccessorModifier,
+            BlockInitAccessorAccessorDeclarationNode a => a.AccessorModifier,
+            ExpressionInitAccessorAccessorDeclarationNode a => a.AccessorModifier,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Access level ordering for restrictiveness comparison.
+    /// Lower value = more restrictive.
+    /// </summary>
+    private enum AccessLevel
+    {
+        Private = 0,
+        // Protected = 1, // Not yet supported in Mist
+        // Internal = 2,  // Not yet supported in Mist
+        Public = 3,
+    }
+
+    /// <summary>
+    /// Gets the access level from property modifiers.
+    /// Default (no modifier) is private.
+    /// </summary>
+    private static AccessLevel GetAccessLevel(MemberModifiers modifiers)
+    {
+        if (modifiers.IsPublic) return AccessLevel.Public;
+        return AccessLevel.Private; // Default is private.
+    }
+
+    /// <summary>
+    /// Gets the access level from a modifier AST node.
+    /// </summary>
+    private static AccessLevel GetModifierAccessLevel(ModifierNode modifier)
+    {
+        return modifier switch
+        {
+            PublicModifierModifierNode => AccessLevel.Public,
+            PrivateModifierModifierNode => AccessLevel.Private,
+            _ => AccessLevel.Private,
+        };
+    }
+
+    /// <summary>
+    /// Returns true if <paramref name="accessor"/> is strictly more restrictive than <paramref name="property"/>.
+    /// </summary>
+    private static bool IsMoreRestrictive(AccessLevel accessor, AccessLevel property)
+    {
+        return (int)accessor < (int)property;
+    }
+
+    /// <summary>
+    /// Extracts modifier flags from a property's modifier list.
+    /// </summary>
+    private static MemberModifiers ExtractPropertyModifiers(IReadOnlyList<ModifierNode> modifiers)
+    {
+        var isPublic = false;
+        var isPrivate = false;
+        var isStatic = false;
+
+        foreach (var mod in modifiers)
+        {
+            switch (mod)
+            {
+                case PublicModifierModifierNode:
+                    isPublic = true;
+                    break;
+                case PrivateModifierModifierNode:
+                    isPrivate = true;
+                    break;
+                case StaticModifierModifierNode:
+                    isStatic = true;
+                    break;
+            }
+        }
+
+        return new MemberModifiers(isPublic, isPrivate, isStatic);
+    }
+
+    /// <summary>
+    /// Gets PropertyInfo from a symbol (handles both Symbol and ISymbol).
+    /// </summary>
+    private static PropertyInfo? GetPropertyMetadata(ISymbol symbol)
+    {
+        if (symbol is Mist.Semantics.Model.Symbol concreteSymbol)
+            return concreteSymbol.PropertyMetadata;
+        return null;
+    }
+
+    /// <summary>
+    /// Collects all FieldKeywordExpressionPrimaryNode nodes from an accessor's body.
+    /// </summary>
+    private static List<SyntaxNode> CollectFieldKeywordNodes(AccessorDeclarationNode accessor)
+    {
+        var nodes = new List<SyntaxNode>();
+        CollectFieldKeywordNodesFromTree(accessor, nodes);
+        return nodes;
+    }
+
+    private static void CollectFieldKeywordNodesFromTree(SyntaxNode node, List<SyntaxNode> results)
+    {
+        if (node is FieldKeywordExpressionPrimaryNode)
+        {
+            results.Add(node);
+            return;
+        }
+
+        foreach (var child in node.Children())
+        {
+            if (child is not null)
+                CollectFieldKeywordNodesFromTree(child, results);
+        }
+    }
+
+    /// <summary>
+    /// Collects all ThisExpressionPrimaryNode nodes from an accessor's body.
+    /// </summary>
+    private static List<SyntaxNode> CollectThisKeywordNodes(AccessorDeclarationNode accessor)
+    {
+        var nodes = new List<SyntaxNode>();
+        CollectThisKeywordNodesFromTree(accessor, nodes);
+        return nodes;
+    }
+
+    private static void CollectThisKeywordNodesFromTree(SyntaxNode node, List<SyntaxNode> results)
+    {
+        if (node is ThisExpressionPrimaryNode)
+        {
+            results.Add(node);
+            return;
+        }
+
+        foreach (var child in node.Children())
+        {
+            if (child is not null)
+                CollectThisKeywordNodesFromTree(child, results);
+        }
+    }
+
+    /// <summary>
+    /// Checks that all types implementing interfaces provide required property accessors (MIST_TC_0030).
+    /// This complements the semantic model builder's Pass1d validation with type-checker-level diagnostics.
+    /// </summary>
+    private static void CheckMissingInterfaceProperties(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Origin == SymbolOrigin.Backend)
+                continue;
+
+            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+                continue;
+
+            var type = symbol.DeclaredType;
+            IReadOnlyList<InterfaceType>? interfaces = type switch
+            {
+                ClassType ct => ct.Interfaces,
+                StructType st => st.Interfaces,
+                _ => null,
+            };
+
+            if (interfaces is null || interfaces.Count == 0)
+                continue;
+
+            IScope? memberScope = type switch
+            {
+                ClassType ct => ct.MemberScope,
+                StructType st => st.MemberScope,
+                _ => null,
+            };
+
+            if (memberScope is null)
+                continue;
+
+            // Check each interface's property requirements.
+            var visited = new HashSet<InterfaceType>(ReferenceEqualityComparer.Instance);
+            CheckInterfacePropertyRequirements(symbol, interfaces, memberScope, type as ClassType, model, diagnostics, visited);
+        }
+    }
+
+    private static void CheckInterfacePropertyRequirements(
+        ISymbol typeSymbol,
+        IReadOnlyList<InterfaceType> interfaces,
+        IScope memberScope,
+        ClassType? classType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics,
+        HashSet<InterfaceType> visited)
+    {
+        foreach (var iface in interfaces)
+        {
+            if (!visited.Add(iface))
+                continue;
+
+            foreach (var ifaceMember in iface.MemberScope.Members)
+            {
+                if (ifaceMember.Kind != SymbolKind.Property)
+                    continue;
+
+                var requiredPropInfo = GetPropertyMetadata(ifaceMember);
+                if (requiredPropInfo is null)
+                    continue;
+
+                // Search for matching property in the implementing type.
+                var implProperty = FindPropertyInTypeHierarchy(ifaceMember.Name, memberScope, classType);
+
+                if (implProperty is null)
+                {
+                    // Get the declaring node for location info.
+                    SyntaxNode? typeNode;
+                    try { typeNode = model.GetDeclaringNode(typeSymbol); }
+                    catch { typeNode = null; }
+
+                    if (typeNode is not null)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0030",
+                            $"'{typeSymbol.Name}' does not implement interface property '{iface.DisplayName}.{ifaceMember.Name}'",
+                            typeNode,
+                            model));
+                    }
+                    continue;
+                }
+
+                var implPropInfo = GetPropertyMetadata(implProperty);
+                if (implPropInfo is null)
+                    continue;
+
+                // Check accessor satisfaction.
+                SyntaxNode? implNode;
+                try { implNode = model.GetDeclaringNode(implProperty); }
+                catch { implNode = null; }
+
+                if (requiredPropInfo.HasGet && !implPropInfo.HasGet && implNode is not null)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0030",
+                        $"'{typeSymbol.Name}.{ifaceMember.Name}' does not implement 'get' accessor required by interface '{iface.DisplayName}'",
+                        implNode,
+                        model));
+                }
+
+                if (requiredPropInfo.HasSet && !implPropInfo.HasSet && !implPropInfo.HasInit && implNode is not null)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0030",
+                        $"'{typeSymbol.Name}.{ifaceMember.Name}' does not implement 'set' accessor required by interface '{iface.DisplayName}'",
+                        implNode,
+                        model));
+                }
+            }
+
+            // Recurse into parent interfaces.
+            if (iface.Interfaces.Count > 0)
+            {
+                CheckInterfacePropertyRequirements(typeSymbol, iface.Interfaces, memberScope, classType, model, diagnostics, visited);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Searches for a property by name in a type's member scope and base type chain.
+    /// </summary>
+    private static ISymbol? FindPropertyInTypeHierarchy(string propertyName, IScope memberScope, ClassType? classType)
+    {
+        foreach (var member in memberScope.Members)
+        {
+            if (member.Kind == SymbolKind.Property && member.Name == propertyName)
+                return member;
+        }
+
+        if (classType is not null)
+        {
+            var ancestor = classType.BaseType;
+            while (ancestor is not null)
+            {
+                foreach (var member in ancestor.MemberScope.Members)
+                {
+                    if (member.Kind == SymbolKind.Property && member.Name == propertyName)
+                        return member;
+                }
+                ancestor = ancestor.BaseType;
+            }
+        }
+
+        return null;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -544,7 +1262,105 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 CheckAssignability(rhsType, lhsType, assignment, diagnostics, model);
             }
+
+            // Property-specific assignment checks (MIST_TC_0020, MIST_TC_0021, MIST_TC_0025).
+            var targetPropertySymbol = TryResolvePropertyFromAssignmentTarget(assignment.Target, model);
+            if (targetPropertySymbol is not null)
+            {
+                var propInfo = GetPropertyMetadata(targetPropertySymbol);
+                if (propInfo is not null)
+                {
+                    // MIST_TC_0020: No accessible set/init accessor.
+                    if (!propInfo.HasSet && !propInfo.HasInit)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0020",
+                            $"Property '{targetPropertySymbol.Name}' has no accessible 'set' or 'init' accessor",
+                            assignment,
+                            model));
+                    }
+                    // MIST_TC_0025: init-only property assigned outside constructor context.
+                    else if (propInfo.HasInit && !propInfo.HasSet && !_insideConstructor)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0025",
+                            $"Init-only property '{targetPropertySymbol.Name}' can only be assigned in a constructor or object initializer",
+                            assignment,
+                            model));
+                    }
+
+                    // MIST_TC_0021: Property type mismatch.
+                    var propType = targetPropertySymbol.DeclaredType;
+                    if (propType is not null && rhsType is not null && !IsUnknown(propType) && !IsUnknown(rhsType))
+                    {
+                        if (!IsAssignable(rhsType, propType))
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                "MIST_TC_0021",
+                                $"Cannot assign '{rhsType.DisplayName}' to property of type '{propType.DisplayName}'",
+                                assignment,
+                                model));
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    /// <summary>
+    /// Attempts to resolve the property symbol from the LHS of an assignment.
+    /// Returns the property symbol if the target is a member access resolving to a property, null otherwise.
+    /// </summary>
+    private static ISymbol? TryResolvePropertyFromAssignmentTarget(LogicalOrNode target, ISemanticModel model)
+    {
+        // Walk down the expression tree to find the innermost postfix expression.
+        // An assignment target like `obj.Prop` is: PostfixExpression(target=obj, suffix=[MemberAccessSuffix(Prop)])
+        // We need to check if the last suffix resolves to a property symbol.
+
+        // Navigate through the expression tree: LogicalOr -> LogicalAnd -> Equality -> Relational -> Additive -> Multiplicative -> Unary -> Postfix
+        var logicalAnd = target.Left;
+        if (target.Right is not null) return null;
+
+        var equality = logicalAnd.Left;
+        if (logicalAnd.Right is not null) return null;
+
+        var relational = equality.Left;
+        if (equality.Right is not null) return null;
+
+        var additive = relational.Left;
+        if (relational.Right is not null) return null;
+
+        var multiplicative = additive.Left;
+        if (additive.Right is not null) return null;
+
+        var unary = multiplicative.Left;
+        if (multiplicative.Right is not null) return null;
+
+        if (unary is not PostfixExpressionUnaryNode postfixExpr)
+            return null;
+
+        var postfix = postfixExpr.Primary;
+
+        // Check if the last suffix is a MemberAccessSuffix that resolves to a property.
+        if (postfix.Suffix.Length > 0)
+        {
+            var lastSuffix = postfix.Suffix[^1];
+            if (lastSuffix is MemberAccessSuffixPostfixSuffixNode memberAccess)
+            {
+                var symbol = model.GetDeclaredSymbol(memberAccess);
+                if (symbol is not null && symbol.Kind == SymbolKind.Property)
+                    return symbol;
+            }
+        }
+        else
+        {
+            // Simple identifier — check if it resolves to a property.
+            var symbol = model.GetDeclaredSymbol(postfix.Target);
+            if (symbol is not null && symbol.Kind == SymbolKind.Property)
+                return symbol;
+        }
+
+        return null;
     }
 
     private void CheckLogicalOrNode(LogicalOrNode node, ISemanticModel model, DiagnosticBag diagnostics)
@@ -803,11 +1619,48 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 case MemberAccessSuffixPostfixSuffixNode memberAccess:
                     CheckMemberAccessModifiers(memberAccess.Name.Lexeme, currentType, targetIsTypeName, memberAccess, model, diagnostics);
+                    // MIST_TC_0019: Check property has accessible get accessor when read.
+                    CheckPropertyReadAccess(memberAccess, currentType, model, diagnostics);
                     currentType = model.GetTypeOf(suffix);
                     // After accessing a field, subsequent accesses are on the field's value (an instance).
                     targetIsTypeName = false;
                     break;
             }
+        }
+    }
+
+    /// <summary>
+    /// Checks that a property being read has an accessible get accessor (MIST_TC_0019).
+    /// </summary>
+    private static void CheckPropertyReadAccess(
+        MemberAccessSuffixPostfixSuffixNode memberAccess,
+        IType? targetType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        if (targetType is null || IsUnknown(targetType))
+            return;
+
+        var memberName = memberAccess.Name.Lexeme;
+        var memberSymbol = FindMemberSymbol(targetType, memberName, model);
+        if (memberSymbol is null || memberSymbol.Kind != SymbolKind.Property)
+            return;
+
+        // Skip backend symbols — they are assumed to have proper accessors.
+        if (memberSymbol.Origin == SymbolOrigin.Backend)
+            return;
+
+        var propInfo = GetPropertyMetadata(memberSymbol);
+        if (propInfo is null)
+            return;
+
+        if (!propInfo.HasGet)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0019",
+                $"Property '{memberName}' has no accessible 'get' accessor",
+                memberAccess,
+                model));
         }
     }
 
@@ -840,6 +1693,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             case TypeLiteralExpressionPrimaryNode:
                 // Type literals are always valid primary expressions.
                 // Type checking is handled by assignability checks at usage sites.
+                break;
+
+            case FieldKeywordExpressionPrimaryNode fieldKeyword:
+                // MIST_TC_0023: 'field' keyword used outside property accessor body.
+                // If we reach here during method/constructor body checking, it means
+                // 'field' is used outside a property accessor context.
+                // Note: When checking property accessor bodies, the semantic model
+                // resolves 'field' to the backing field symbol, so this check only
+                // fires when 'field' appears in a non-property context.
+                if (!_insidePropertyAccessor)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0023",
+                        "'field' keyword can only be used inside a property accessor body",
+                        fieldKeyword,
+                        model));
+                }
                 break;
 
             // Literals and identifiers don't need type checking.
@@ -1305,6 +2175,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 accessNode,
                 model));
         }
+
+        // ── Property-specific access checks ──────────────────────────────
+
+        if (memberSymbol.Kind == SymbolKind.Property)
+        {
+            var propInfo = GetPropertyMetadata(memberSymbol);
+            if (propInfo is not null)
+            {
+                // MIST_TC_0027: Static property accessed through instance reference.
+                if (modifiers.IsStatic && !targetIsTypeName)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0027",
+                        $"Static property '{memberName}' cannot be accessed through an instance reference",
+                        accessNode,
+                        model));
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -1396,6 +2285,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             FieldDeclarationNode field => field.Modifiers,
             MethodDeclarationNode method => method.Modifiers,
             ConstructorDeclarationNode ctor => ctor.Modifiers,
+            BlockPropertyPropertyDeclarationNode blockProp => blockProp.Modifiers,
+            ExpressionBodiedPropertyPropertyDeclarationNode exprProp => exprProp.Modifiers,
+            BlockIndexerIndexerDeclarationNode blockIndexer => blockIndexer.Modifiers,
             _ => null,
         };
 

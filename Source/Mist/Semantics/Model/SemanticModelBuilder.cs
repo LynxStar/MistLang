@@ -267,9 +267,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         parentScope.AddMember(interfaceSymbol);
         symbolTable.Register(interfaceSymbol, interfaceDecl);
 
-        foreach (var methodDecl in interfaceDecl.Methods)
+        foreach (var member in interfaceDecl.Members)
         {
-            RegisterInterfaceMethodDeclaration(methodDecl, typeScope, symbolTable);
+            switch (member)
+            {
+                case InterfaceMethodMemberInterfaceMemberDeclarationNode methodMember:
+                    RegisterInterfaceMethodDeclaration(methodMember.Method, typeScope, symbolTable);
+                    break;
+                case InterfacePropertyMemberInterfaceMemberDeclarationNode propertyMember:
+                    RegisterInterfacePropertyDeclaration(propertyMember.Property, typeScope, symbolTable);
+                    break;
+            }
         }
     }
 
@@ -283,6 +291,58 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var methodSymbol = new Symbol(methodName, SymbolKind.Method, SymbolOrigin.UserCode, typeScope, declaredType: null, methodSpan);
         typeScope.AddMember(methodSymbol);
         symbolTable.Register(methodSymbol, methodDecl);
+    }
+
+    /// <summary>
+    /// Registers an interface property declaration as a <see cref="SymbolKind.Property"/> symbol
+    /// on the interface type scope.
+    /// </summary>
+    private static void RegisterInterfacePropertyDeclaration(
+        InterfacePropertyDeclarationNode propertyDecl,
+        Scope typeScope,
+        SymbolTable symbolTable)
+    {
+        var propName = propertyDecl.Name.Lexeme;
+        var propSpan = ToMistSourceSpan(propertyDecl.Name.Span);
+
+        var hasGet = false;
+        var hasSet = false;
+        AccessorInfo? getAccessor = null;
+        AccessorInfo? setAccessor = null;
+
+        foreach (var accessor in propertyDecl.Accessors)
+        {
+            switch (accessor)
+            {
+                case InterfaceGetAccessorInterfaceAccessorDeclarationNode:
+                    hasGet = true;
+                    getAccessor = new AccessorInfo { Kind = AccessorKind.Get, BodyKind = AccessorBodyKind.Auto, Modifier = null };
+                    break;
+                case InterfaceSetAccessorInterfaceAccessorDeclarationNode:
+                    hasSet = true;
+                    setAccessor = new AccessorInfo { Kind = AccessorKind.Set, BodyKind = AccessorBodyKind.Auto, Modifier = null };
+                    break;
+            }
+        }
+
+        var propertyInfo = new PropertyInfo
+        {
+            HasGet = hasGet,
+            HasSet = hasSet,
+            HasInit = false,
+            IsComputed = false,
+            IsStatic = false,
+            IsExpressionBodied = false,
+            GetAccessor = getAccessor,
+            SetAccessor = setAccessor,
+            InitAccessor = null,
+            BackingField = null,
+        };
+
+        var propSymbol = new Symbol(propName, SymbolKind.Property, SymbolOrigin.UserCode, typeScope, declaredType: null, propSpan);
+        propSymbol.PropertyMetadata = propertyInfo;
+        typeScope.AddMember(propSymbol);
+        symbolTable.Register(propSymbol, propertyDecl);
     }
 
     private static void RegisterMemberDeclaration(
@@ -301,6 +361,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             case MethodMemberMemberDeclarationNode methodMember:
                 RegisterMethodDeclaration(methodMember.Method, typeScope, symbolTable);
+                break;
+            case PropertyMemberMemberDeclarationNode propertyMember:
+                RegisterPropertyDeclaration(propertyMember.Property, typeScope, symbolTable);
+                break;
+            case IndexerMemberMemberDeclarationNode indexerMember:
+                RegisterIndexerDeclaration(indexerMember.Indexer, typeScope, symbolTable);
                 break;
         }
     }
@@ -330,6 +396,258 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var methodSymbol = new Symbol(methodName, SymbolKind.Method, SymbolOrigin.UserCode, typeScope, declaredType: null, methodSpan);
         typeScope.AddMember(methodSymbol);
         symbolTable.Register(methodSymbol, methodDecl);
+    }
+
+    /// <summary>
+    /// Registers a property declaration as a <see cref="SymbolKind.Property"/> symbol.
+    /// Walks the accessor list to build <see cref="PropertyInfo"/>, classifies
+    /// computed properties, and generates a backing field when needed.
+    /// </summary>
+    private static void RegisterPropertyDeclaration(PropertyDeclarationNode propertyDecl, Scope typeScope, SymbolTable symbolTable)
+    {
+        switch (propertyDecl)
+        {
+            case BlockPropertyPropertyDeclarationNode blockProp:
+                RegisterBlockProperty(blockProp, typeScope, symbolTable);
+                break;
+            case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
+                RegisterExpressionBodiedProperty(exprProp, typeScope, symbolTable);
+                break;
+        }
+    }
+
+    private static void RegisterBlockProperty(BlockPropertyPropertyDeclarationNode blockProp, Scope typeScope, SymbolTable symbolTable)
+    {
+        var propName = blockProp.Name.Lexeme;
+        var propSpan = ToMistSourceSpan(blockProp.Name.Span);
+        var isStatic = blockProp.Modifiers.Any(m => m is StaticModifierModifierNode);
+
+        // Walk accessor list to build PropertyInfo.
+        AccessorInfo? getAccessor = null;
+        AccessorInfo? setAccessor = null;
+        AccessorInfo? initAccessor = null;
+        var hasAutoAccessor = false;
+        var usesFieldKeyword = false;
+
+        foreach (var accessor in blockProp.Accessors)
+        {
+            switch (accessor)
+            {
+                case AutoGetAccessorAccessorDeclarationNode autoGet:
+                    getAccessor = new AccessorInfo { Kind = AccessorKind.Get, BodyKind = AccessorBodyKind.Auto, Modifier = autoGet.AccessorModifier };
+                    hasAutoAccessor = true;
+                    break;
+                case BlockGetAccessorAccessorDeclarationNode blockGet:
+                    getAccessor = new AccessorInfo { Kind = AccessorKind.Get, BodyKind = AccessorBodyKind.Block, Modifier = blockGet.AccessorModifier };
+                    if (ContainsFieldKeyword(blockGet.Body)) usesFieldKeyword = true;
+                    break;
+                case ExpressionGetAccessorAccessorDeclarationNode exprGet:
+                    getAccessor = new AccessorInfo { Kind = AccessorKind.Get, BodyKind = AccessorBodyKind.Expression, Modifier = exprGet.AccessorModifier };
+                    if (ContainsFieldKeywordInExpression(exprGet.Expression)) usesFieldKeyword = true;
+                    break;
+                case AutoSetAccessorAccessorDeclarationNode autoSet:
+                    setAccessor = new AccessorInfo { Kind = AccessorKind.Set, BodyKind = AccessorBodyKind.Auto, Modifier = autoSet.AccessorModifier };
+                    hasAutoAccessor = true;
+                    break;
+                case BlockSetAccessorAccessorDeclarationNode blockSet:
+                    setAccessor = new AccessorInfo { Kind = AccessorKind.Set, BodyKind = AccessorBodyKind.Block, Modifier = blockSet.AccessorModifier };
+                    if (ContainsFieldKeyword(blockSet.Body)) usesFieldKeyword = true;
+                    break;
+                case ExpressionSetAccessorAccessorDeclarationNode exprSet:
+                    setAccessor = new AccessorInfo { Kind = AccessorKind.Set, BodyKind = AccessorBodyKind.Expression, Modifier = exprSet.AccessorModifier };
+                    if (ContainsFieldKeywordInExpression(exprSet.Expression)) usesFieldKeyword = true;
+                    break;
+                case AutoInitAccessorAccessorDeclarationNode autoInit:
+                    initAccessor = new AccessorInfo { Kind = AccessorKind.Init, BodyKind = AccessorBodyKind.Auto, Modifier = autoInit.AccessorModifier };
+                    hasAutoAccessor = true;
+                    break;
+                case BlockInitAccessorAccessorDeclarationNode blockInit:
+                    initAccessor = new AccessorInfo { Kind = AccessorKind.Init, BodyKind = AccessorBodyKind.Block, Modifier = blockInit.AccessorModifier };
+                    if (ContainsFieldKeyword(blockInit.Body)) usesFieldKeyword = true;
+                    break;
+                case ExpressionInitAccessorAccessorDeclarationNode exprInit:
+                    initAccessor = new AccessorInfo { Kind = AccessorKind.Init, BodyKind = AccessorBodyKind.Expression, Modifier = exprInit.AccessorModifier };
+                    if (ContainsFieldKeywordInExpression(exprInit.Expression)) usesFieldKeyword = true;
+                    break;
+            }
+        }
+
+        var hasGet = getAccessor is not null;
+        var hasSet = setAccessor is not null;
+        var hasInit = initAccessor is not null;
+
+        // Computed property classification:
+        // IsComputed = HasGet && !HasSet && !HasInit && GetAccessor.BodyKind != Auto
+        var isComputed = hasGet && !hasSet && !hasInit && getAccessor!.BodyKind != AccessorBodyKind.Auto;
+
+        // Backing field generation:
+        // NeedsBackingField = !IsComputed && (HasAutoAccessor || UsesFieldKeyword)
+        Symbol? backingFieldSymbol = null;
+        if (!isComputed && (hasAutoAccessor || usesFieldKeyword))
+        {
+            var backingFieldName = $"_{propName}_k__BackingField";
+            var backingFieldSpan = propSpan; // Use property span for the backing field.
+            backingFieldSymbol = new Symbol(backingFieldName, SymbolKind.Field, SymbolOrigin.UserCode, typeScope, declaredType: null, backingFieldSpan);
+            typeScope.AddMember(backingFieldSymbol);
+            symbolTable.Register(backingFieldSymbol, blockProp);
+        }
+
+        var propertyInfo = new PropertyInfo
+        {
+            HasGet = hasGet,
+            HasSet = hasSet,
+            HasInit = hasInit,
+            IsComputed = isComputed,
+            IsStatic = isStatic,
+            IsExpressionBodied = false,
+            GetAccessor = getAccessor,
+            SetAccessor = setAccessor,
+            InitAccessor = initAccessor,
+            BackingField = backingFieldSymbol,
+        };
+
+        var propSymbol = new Symbol(propName, SymbolKind.Property, SymbolOrigin.UserCode, typeScope, declaredType: null, propSpan);
+        propSymbol.PropertyMetadata = propertyInfo;
+        typeScope.AddMember(propSymbol);
+        symbolTable.Register(propSymbol, blockProp);
+    }
+
+    private static void RegisterExpressionBodiedProperty(ExpressionBodiedPropertyPropertyDeclarationNode exprProp, Scope typeScope, SymbolTable symbolTable)
+    {
+        var propName = exprProp.Name.Lexeme;
+        var propSpan = ToMistSourceSpan(exprProp.Name.Span);
+        var isStatic = exprProp.Modifiers.Any(m => m is StaticModifierModifierNode);
+
+        // Expression-bodied properties are always computed (get-only with expression body).
+        var getAccessor = new AccessorInfo { Kind = AccessorKind.Get, BodyKind = AccessorBodyKind.Expression, Modifier = null };
+
+        var propertyInfo = new PropertyInfo
+        {
+            HasGet = true,
+            HasSet = false,
+            HasInit = false,
+            IsComputed = true,
+            IsStatic = isStatic,
+            IsExpressionBodied = true,
+            GetAccessor = getAccessor,
+            SetAccessor = null,
+            InitAccessor = null,
+            BackingField = null,
+        };
+
+        var propSymbol = new Symbol(propName, SymbolKind.Property, SymbolOrigin.UserCode, typeScope, declaredType: null, propSpan);
+        propSymbol.PropertyMetadata = propertyInfo;
+        typeScope.AddMember(propSymbol);
+        symbolTable.Register(propSymbol, exprProp);
+    }
+
+    /// <summary>
+    /// Registers an indexer declaration as a <see cref="SymbolKind.Indexer"/> symbol.
+    /// Stores parameter types and accessor info via <see cref="PropertyInfo"/>.
+    /// </summary>
+    private static void RegisterIndexerDeclaration(IndexerDeclarationNode indexerDecl, Scope typeScope, SymbolTable symbolTable)
+    {
+        if (indexerDecl is not BlockIndexerIndexerDeclarationNode blockIndexer)
+            return;
+
+        var indexerName = "this[]";
+        var indexerSpan = ToMistSourceSpan(blockIndexer.THIS.Span);
+        var isStatic = blockIndexer.Modifiers.Any(m => m is StaticModifierModifierNode);
+
+        // Walk accessor list to build PropertyInfo (same as block property).
+        AccessorInfo? getAccessor = null;
+        AccessorInfo? setAccessor = null;
+        AccessorInfo? initAccessor = null;
+
+        foreach (var accessor in blockIndexer.Accessors)
+        {
+            switch (accessor)
+            {
+                case AutoGetAccessorAccessorDeclarationNode autoGet:
+                    getAccessor = new AccessorInfo { Kind = AccessorKind.Get, BodyKind = AccessorBodyKind.Auto, Modifier = autoGet.AccessorModifier };
+                    break;
+                case BlockGetAccessorAccessorDeclarationNode blockGet:
+                    getAccessor = new AccessorInfo { Kind = AccessorKind.Get, BodyKind = AccessorBodyKind.Block, Modifier = blockGet.AccessorModifier };
+                    break;
+                case ExpressionGetAccessorAccessorDeclarationNode exprGet:
+                    getAccessor = new AccessorInfo { Kind = AccessorKind.Get, BodyKind = AccessorBodyKind.Expression, Modifier = exprGet.AccessorModifier };
+                    break;
+                case AutoSetAccessorAccessorDeclarationNode autoSet:
+                    setAccessor = new AccessorInfo { Kind = AccessorKind.Set, BodyKind = AccessorBodyKind.Auto, Modifier = autoSet.AccessorModifier };
+                    break;
+                case BlockSetAccessorAccessorDeclarationNode blockSet:
+                    setAccessor = new AccessorInfo { Kind = AccessorKind.Set, BodyKind = AccessorBodyKind.Block, Modifier = blockSet.AccessorModifier };
+                    break;
+                case ExpressionSetAccessorAccessorDeclarationNode exprSet:
+                    setAccessor = new AccessorInfo { Kind = AccessorKind.Set, BodyKind = AccessorBodyKind.Expression, Modifier = exprSet.AccessorModifier };
+                    break;
+                case AutoInitAccessorAccessorDeclarationNode autoInit:
+                    initAccessor = new AccessorInfo { Kind = AccessorKind.Init, BodyKind = AccessorBodyKind.Auto, Modifier = autoInit.AccessorModifier };
+                    break;
+                case BlockInitAccessorAccessorDeclarationNode blockInit:
+                    initAccessor = new AccessorInfo { Kind = AccessorKind.Init, BodyKind = AccessorBodyKind.Block, Modifier = blockInit.AccessorModifier };
+                    break;
+                case ExpressionInitAccessorAccessorDeclarationNode exprInit:
+                    initAccessor = new AccessorInfo { Kind = AccessorKind.Init, BodyKind = AccessorBodyKind.Expression, Modifier = exprInit.AccessorModifier };
+                    break;
+            }
+        }
+
+        var propertyInfo = new PropertyInfo
+        {
+            HasGet = getAccessor is not null,
+            HasSet = setAccessor is not null,
+            HasInit = initAccessor is not null,
+            IsComputed = false,
+            IsStatic = isStatic,
+            IsExpressionBodied = false,
+            GetAccessor = getAccessor,
+            SetAccessor = setAccessor,
+            InitAccessor = initAccessor,
+            BackingField = null,
+        };
+
+        var indexerSymbol = new Symbol(indexerName, SymbolKind.Indexer, SymbolOrigin.UserCode, typeScope, declaredType: null, indexerSpan);
+        indexerSymbol.PropertyMetadata = propertyInfo;
+        typeScope.AddMember(indexerSymbol);
+        symbolTable.Register(indexerSymbol, blockIndexer);
+    }
+
+    /// <summary>
+    /// Checks whether a block body contains a <c>field</c> keyword expression.
+    /// </summary>
+    private static bool ContainsFieldKeyword(BlockNode block)
+    {
+        foreach (var child in block.Children())
+        {
+            if (ContainsFieldKeywordInNode(child))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether an expression contains a <c>field</c> keyword expression.
+    /// </summary>
+    private static bool ContainsFieldKeywordInExpression(ExpressionNode expr)
+    {
+        return ContainsFieldKeywordInNode(expr);
+    }
+
+    /// <summary>
+    /// Recursively checks whether a syntax node tree contains a <c>field</c> keyword expression.
+    /// </summary>
+    private static bool ContainsFieldKeywordInNode(Storm.Runtime.SyntaxNode node)
+    {
+        if (node is FieldKeywordExpressionPrimaryNode)
+            return true;
+
+        foreach (var child in node.Children())
+        {
+            if (child is not null && ContainsFieldKeywordInNode(child))
+                return true;
+        }
+        return false;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1093,8 +1411,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Each entry is (interfaceType, methodSymbol) so we can report which
         // interface requires the method.
         var requiredMethods = new List<(InterfaceType Interface, ISymbol Method)>();
+        var requiredProperties = new List<(InterfaceType Interface, ISymbol Property)>();
         var visitedInterfaces = new HashSet<InterfaceType>();
-        CollectRequiredMethods(interfaces, requiredMethods, visitedInterfaces);
+        CollectRequiredMembers(interfaces, requiredMethods, requiredProperties, visitedInterfaces);
 
         // For each required method, search for a matching implementation.
         foreach (var (requiredInterface, requiredMethod) in requiredMethods)
@@ -1145,15 +1464,74 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
             }
         }
+
+        // For each required property, search for a matching implementation.
+        foreach (var (requiredInterface, requiredProperty) in requiredProperties)
+        {
+            var requiredPropInfo = (requiredProperty as Symbol)?.PropertyMetadata;
+            if (requiredPropInfo is null)
+                continue;
+
+            // Search the implementing type's member scope (and base chain) for a property with the same name.
+            var implProperty = FindMatchingProperty(requiredProperty.Name, memberScope, classType);
+
+            if (implProperty is null)
+            {
+                string? missingPath = FindCompilationUnitPathForType(
+                    typeName, symbolTable, asts, compilation);
+
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_MISSING_INTERFACE_PROPERTY"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.SemanticModelConstruction,
+                    $"'{typeName}' does not implement interface property '{requiredInterface.DisplayName}.{requiredProperty.Name}'.",
+                    Location: null,
+                    CompilationUnitPath: missingPath,
+                    AnalyzerName: null));
+                continue;
+            }
+
+            var implPropInfo = (implProperty as Symbol)?.PropertyMetadata;
+            if (implPropInfo is null)
+                continue;
+
+            // Check that the implementing property has the required accessors.
+            if (requiredPropInfo.HasGet && !implPropInfo.HasGet)
+            {
+                string? path = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_MISSING_INTERFACE_PROPERTY_ACCESSOR"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.SemanticModelConstruction,
+                    $"'{typeName}.{requiredProperty.Name}' does not implement 'get' accessor required by interface '{requiredInterface.DisplayName}'.",
+                    Location: null,
+                    CompilationUnitPath: path,
+                    AnalyzerName: null));
+            }
+
+            if (requiredPropInfo.HasSet && !implPropInfo.HasSet && !implPropInfo.HasInit)
+            {
+                string? path = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_MISSING_INTERFACE_PROPERTY_ACCESSOR"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.SemanticModelConstruction,
+                    $"'{typeName}.{requiredProperty.Name}' does not implement 'set' accessor required by interface '{requiredInterface.DisplayName}'.",
+                    Location: null,
+                    CompilationUnitPath: path,
+                    AnalyzerName: null));
+            }
+        }
     }
 
     /// <summary>
-    /// Recursively collects all required methods from the interface hierarchy,
+    /// Recursively collects all required methods and properties from the interface hierarchy,
     /// using a visited set to handle diamond inheritance.
     /// </summary>
-    private static void CollectRequiredMethods(
+    private static void CollectRequiredMembers(
         IReadOnlyList<InterfaceType> interfaces,
         List<(InterfaceType Interface, ISymbol Method)> requiredMethods,
+        List<(InterfaceType Interface, ISymbol Property)> requiredProperties,
         HashSet<InterfaceType> visited)
     {
         foreach (var iface in interfaces)
@@ -1161,21 +1539,59 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (!visited.Add(iface))
                 continue;
 
-            // Add all method members from this interface.
+            // Add all method and property members from this interface.
             foreach (var member in iface.MemberScope.Members)
             {
                 if (member.Kind == SymbolKind.Method)
                 {
                     requiredMethods.Add((iface, member));
                 }
+                else if (member.Kind == SymbolKind.Property)
+                {
+                    requiredProperties.Add((iface, member));
+                }
             }
 
             // Recurse into parent interfaces.
             if (iface.Interfaces.Count > 0)
             {
-                CollectRequiredMethods(iface.Interfaces, requiredMethods, visited);
+                CollectRequiredMembers(iface.Interfaces, requiredMethods, requiredProperties, visited);
             }
         }
+    }
+
+    /// <summary>
+    /// Searches the implementing type's member scope (and base type chain for
+    /// classes) for a property with the given name.
+    /// </summary>
+    private static ISymbol? FindMatchingProperty(
+        string propertyName,
+        IScope memberScope,
+        ClassType? classType)
+    {
+        // Search the direct member scope first.
+        foreach (var member in memberScope.Members)
+        {
+            if (member.Kind == SymbolKind.Property && member.Name == propertyName)
+                return member;
+        }
+
+        // For classes, walk the base type chain.
+        if (classType is not null)
+        {
+            var ancestor = classType.BaseType;
+            while (ancestor is not null)
+            {
+                foreach (var member in ancestor.MemberScope.Members)
+                {
+                    if (member.Kind == SymbolKind.Property && member.Name == propertyName)
+                        return member;
+                }
+                ancestor = ancestor.BaseType;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -1900,14 +2316,33 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var interfaceSymbol = symbolTable.GetDeclaredSymbol(interfaceDecl);
         if (interfaceSymbol?.DeclaredType is not InterfaceType) return;
 
-        // Resolve return types and parameter types for each interface method.
-        foreach (var methodDecl in interfaceDecl.Methods)
+        // Resolve return types and parameter types for each interface member.
+        foreach (var member in interfaceDecl.Members)
         {
-            var returnType = ResolveTypeReference(methodDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-            var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
-            if (methodSymbol is not null)
+            switch (member)
             {
-                methodSymbol.DeclaredType = returnType;
+                case InterfaceMethodMemberInterfaceMemberDeclarationNode methodMember:
+                {
+                    var methodDecl = methodMember.Method;
+                    var returnType = ResolveTypeReference(methodDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                    var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
+                    if (methodSymbol is not null)
+                    {
+                        methodSymbol.DeclaredType = returnType;
+                    }
+                    break;
+                }
+                case InterfacePropertyMemberInterfaceMemberDeclarationNode propertyMember:
+                {
+                    var propDecl = propertyMember.Property;
+                    var propType = ResolveTypeReference(propDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                    var propSymbol = symbolTable.GetDeclaredSymbol(propDecl) as Symbol;
+                    if (propSymbol is not null)
+                    {
+                        propSymbol.DeclaredType = propType;
+                    }
+                    break;
+                }
             }
         }
     }
@@ -1933,6 +2368,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             case MethodMemberMemberDeclarationNode methodMember:
                 ResolveMethodDeclaration(methodMember.Method, typeScope, fileScope, enclosingType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case PropertyMemberMemberDeclarationNode propertyMember:
+                ResolvePropertyDeclaration(propertyMember.Property, typeScope, fileScope, enclosingType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case IndexerMemberMemberDeclarationNode indexerMember:
+                ResolveIndexerDeclaration(indexerMember.Indexer, typeScope, fileScope, enclosingType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
         }
     }
@@ -2034,6 +2475,218 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Resolve the body.
         ResolveBlock(methodDecl.Body, methodScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    /// <summary>
+    /// Resolves property type references, <c>field</c> keyword, and <c>value</c> implicit parameter.
+    /// </summary>
+    private static void ResolvePropertyDeclaration(
+        PropertyDeclarationNode propertyDecl,
+        Scope typeScope,
+        Scope fileScope,
+        IType enclosingType,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        switch (propertyDecl)
+        {
+            case BlockPropertyPropertyDeclarationNode blockProp:
+                ResolveBlockPropertyDeclaration(blockProp, typeScope, fileScope, enclosingType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
+                ResolveExpressionBodiedPropertyDeclaration(exprProp, typeScope, fileScope, enclosingType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+        }
+    }
+
+    private static void ResolveBlockPropertyDeclaration(
+        BlockPropertyPropertyDeclarationNode blockProp,
+        Scope typeScope,
+        Scope fileScope,
+        IType enclosingType,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Resolve the property type and update the property symbol.
+        var propType = ResolveTypeReference(blockProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        var propSymbol = symbolTable.GetDeclaredSymbol(blockProp) as Symbol;
+        if (propSymbol is not null)
+        {
+            propSymbol.DeclaredType = propType;
+        }
+
+        // Also update the backing field's declared type if present.
+        var propInfo = propSymbol?.PropertyMetadata;
+        if (propInfo?.BackingField is Symbol backingField)
+        {
+            backingField.DeclaredType = propType;
+        }
+
+        var isStatic = blockProp.Modifiers.Any(m => m is StaticModifierModifierNode);
+
+        // Resolve each accessor body.
+        foreach (var accessor in blockProp.Accessors)
+        {
+            ResolveAccessorBody(accessor, propType, propInfo, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        }
+
+        // Resolve the optional initializer expression.
+        if (blockProp.Initializer is ExpressionNode initExpr)
+        {
+            ResolveExpression(initExpr, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        }
+    }
+
+    private static void ResolveExpressionBodiedPropertyDeclaration(
+        ExpressionBodiedPropertyPropertyDeclarationNode exprProp,
+        Scope typeScope,
+        Scope fileScope,
+        IType enclosingType,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Resolve the property type and update the property symbol.
+        var propType = ResolveTypeReference(exprProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        var propSymbol = symbolTable.GetDeclaredSymbol(exprProp) as Symbol;
+        if (propSymbol is not null)
+        {
+            propSymbol.DeclaredType = propType;
+        }
+
+        var isStatic = exprProp.Modifiers.Any(m => m is StaticModifierModifierNode);
+
+        // Resolve the expression body.
+        ResolveExpression(exprProp.Body, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    /// <summary>
+    /// Resolves an accessor body, injecting implicit <c>value</c> parameter for set/init
+    /// and resolving <c>field</c> keyword references.
+    /// </summary>
+    private static void ResolveAccessorBody(
+        AccessorDeclarationNode accessor,
+        IType propType,
+        PropertyInfo? propInfo,
+        Scope typeScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Create an accessor scope that includes the backing field symbol (if any)
+        // so that 'field' keyword resolution finds the correct backing field.
+        Scope accessorBaseScope;
+        if (propInfo?.BackingField is Symbol backingFieldSym)
+        {
+            accessorBaseScope = new Scope(parent: typeScope);
+            // Register a synthetic property symbol that points to this specific backing field,
+            // so ResolveFieldKeyword finds the correct one.
+            var syntheticProp = new Symbol("__accessor_property__", SymbolKind.Property, SymbolOrigin.UserCode, accessorBaseScope, propType, declarationSpan: null);
+            syntheticProp.PropertyMetadata = propInfo;
+            accessorBaseScope.AddMember(syntheticProp);
+        }
+        else
+        {
+            accessorBaseScope = typeScope;
+        }
+
+        switch (accessor)
+        {
+            case BlockGetAccessorAccessorDeclarationNode blockGet:
+                ResolveBlock(blockGet.Body, accessorBaseScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case ExpressionGetAccessorAccessorDeclarationNode exprGet:
+                ResolveExpression(exprGet.Expression, accessorBaseScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case BlockSetAccessorAccessorDeclarationNode blockSet:
+            {
+                // Inject implicit 'value' parameter of the property's declared type.
+                var setScope = new Scope(parent: accessorBaseScope);
+                var valueSymbol = new Symbol("value", SymbolKind.Parameter, SymbolOrigin.UserCode, setScope, propType, declarationSpan: null);
+                setScope.AddMember(valueSymbol);
+                ResolveBlock(blockSet.Body, setScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            }
+            case ExpressionSetAccessorAccessorDeclarationNode exprSet:
+            {
+                var setScope = new Scope(parent: accessorBaseScope);
+                var valueSymbol = new Symbol("value", SymbolKind.Parameter, SymbolOrigin.UserCode, setScope, propType, declarationSpan: null);
+                setScope.AddMember(valueSymbol);
+                ResolveExpression(exprSet.Expression, setScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            }
+            case BlockInitAccessorAccessorDeclarationNode blockInit:
+            {
+                var initScope = new Scope(parent: accessorBaseScope);
+                var valueSymbol = new Symbol("value", SymbolKind.Parameter, SymbolOrigin.UserCode, initScope, propType, declarationSpan: null);
+                initScope.AddMember(valueSymbol);
+                ResolveBlock(blockInit.Body, initScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            }
+            case ExpressionInitAccessorAccessorDeclarationNode exprInit:
+            {
+                var initScope = new Scope(parent: accessorBaseScope);
+                var valueSymbol = new Symbol("value", SymbolKind.Parameter, SymbolOrigin.UserCode, initScope, propType, declarationSpan: null);
+                initScope.AddMember(valueSymbol);
+                ResolveExpression(exprInit.Expression, initScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            }
+            // Auto accessors (AutoGet, AutoSet, AutoInit) have no body to resolve.
+        }
+    }
+
+    /// <summary>
+    /// Resolves indexer type references and accessor bodies.
+    /// </summary>
+    private static void ResolveIndexerDeclaration(
+        IndexerDeclarationNode indexerDecl,
+        Scope typeScope,
+        Scope fileScope,
+        IType enclosingType,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        if (indexerDecl is not BlockIndexerIndexerDeclarationNode blockIndexer)
+            return;
+
+        // Resolve the indexer return type and update the indexer symbol.
+        var indexerType = ResolveTypeReference(blockIndexer.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        var indexerSymbol = symbolTable.GetDeclaredSymbol(blockIndexer) as Symbol;
+        if (indexerSymbol is not null)
+        {
+            indexerSymbol.DeclaredType = indexerType;
+        }
+
+        var isStatic = blockIndexer.Modifiers.Any(m => m is StaticModifierModifierNode);
+
+        // Create a scope for the indexer parameters.
+        var indexerScope = new Scope(parent: typeScope);
+
+        // Register indexer parameters.
+        RegisterParameters(blockIndexer.Parameters, indexerScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+
+        // Resolve each accessor body with the indexer scope (which has the parameters).
+        var propInfo = indexerSymbol?.PropertyMetadata;
+        foreach (var accessor in blockIndexer.Accessors)
+        {
+            ResolveAccessorBody(accessor, indexerType, propInfo, indexerScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        }
     }
 
     private static void RegisterParameters(
@@ -2941,6 +3594,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
                 break;
 
+            case FieldKeywordExpressionPrimaryNode:
+            {
+                // Resolve 'field' keyword to the backing field symbol of the enclosing property.
+                // Walk the scope chain to find the enclosing property symbol.
+                var backingFieldType = ResolveFieldKeyword(currentScope, symbolTable, sourceText, diagnostics);
+                result = backingFieldType;
+                break;
+            }
+
             case ArrayCreationExpressionPrimaryNode arrayCreation:
             {
                 var elementType = ResolveTypeReference(arrayCreation.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
@@ -3358,6 +4020,38 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // If not both numeric, return the left type as a fallback.
         return left;
+    }
+
+    /// <summary>
+    /// Resolves the <c>field</c> keyword to the backing field of the enclosing property.
+    /// Walks the symbol table to find a property symbol whose backing field is in the
+    /// current scope chain.
+    /// </summary>
+    private static IType ResolveFieldKeyword(
+        Scope currentScope,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Walk the scope chain to find the type scope that contains a property with a backing field.
+        // The 'field' keyword should resolve to the backing field of the enclosing property.
+        // We look for property symbols in the type scope (parent of the accessor scope).
+        IScope? scope = currentScope;
+        while (scope is not null)
+        {
+            foreach (var member in scope.Members)
+            {
+                if (member.Kind == SymbolKind.Property && member is Symbol propSymbol && propSymbol.PropertyMetadata?.BackingField is Symbol backingField)
+                {
+                    return backingField.DeclaredType ?? UnknownType.Instance;
+                }
+            }
+            scope = scope.Parent;
+        }
+
+        // 'field' keyword used outside a property accessor or in a computed property.
+        // Return UnknownType — the type checker will report the appropriate diagnostic.
+        return UnknownType.Instance;
     }
 
     /// <summary>

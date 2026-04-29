@@ -275,6 +275,25 @@ public class Program
         Console.WriteLine($"helper circle: {DescribeShape(circle)}");
         Console.WriteLine($"helper rect: {DescribeShape(rect)}");
 
+        // 26. Properties: auto-properties, computed properties, interface properties
+        Console.WriteLine("--- Properties ---");
+        // Auto-property read/write on Circle
+        Console.WriteLine($"circle.Name={circle.Name}");
+        Console.WriteLine($"circle.Radius={circle.Radius}");
+        circle.Radius = 10;
+        Console.WriteLine($"circle.Radius after set={circle.Radius}");
+
+        // Computed property
+        Console.WriteLine($"circle.Diameter={circle.Diameter}");
+
+        // Interface property access
+        Console.WriteLine($"shape1.Name={shape1.Name}");
+
+        // IResizable property access
+        rect.Scale = 3;
+        Console.WriteLine($"rect.Scale={rect.Scale}");
+        Console.WriteLine($"resizable.Scale={resizable.Scale}");
+
         Console.WriteLine("=== Done! ===");
     }
 }

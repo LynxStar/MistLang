@@ -1,0 +1,33 @@
+// IndexerDemo — Demonstrates indexer declarations.
+
+using System;
+
+namespace Properties;
+
+public class IndexerDemo
+{
+    private int[] _items;
+
+    public IndexerDemo(int size)
+    {
+        this._items = new int[size];
+    }
+
+    // Indexer with block-body get and set
+    public int this[int index]
+    {
+        get
+        {
+            return _items[index];
+        }
+        set
+        {
+            _items[index] = value;
+        }
+    }
+
+    public string Describe()
+    {
+        return $"IndexerDemo(length={_items.Length})";
+    }
+}

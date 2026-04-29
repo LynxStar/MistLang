@@ -1,0 +1,35 @@
+// AccessorModifiers — Demonstrates private set; patterns.
+
+using System;
+
+namespace Properties;
+
+public class AccessorModifiers
+{
+    // Public get, private set
+    public string Name { get; private set; }
+
+    // Public get, private set with initializer
+    public int Value { get; private set; } = 10;
+
+    public AccessorModifiers(string name)
+    {
+        this.Name = name;
+    }
+
+    // Only internal methods can modify the private setter
+    public void UpdateName(string newName)
+    {
+        this.Name = newName;
+    }
+
+    public void IncrementValue()
+    {
+        this.Value = this.Value + 1;
+    }
+
+    public string Describe()
+    {
+        return $"AccessorModifiers(Name={Name}, Value={Value})";
+    }
+}

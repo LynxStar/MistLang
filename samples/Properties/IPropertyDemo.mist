@@ -1,0 +1,32 @@
+// IPropertyDemo — Demonstrates interface property declarations.
+
+using System;
+
+namespace Properties;
+
+interface ILabeled
+{
+    string Label { get; }
+}
+
+interface IEditable : ILabeled
+{
+    int Value { get; set; }
+}
+
+public class LabeledItem : IEditable
+{
+    public string Label { get; }
+    public int Value { get; set; }
+
+    public LabeledItem(string label, int value)
+    {
+        this.Label = label;
+        this.Value = value;
+    }
+
+    public string Describe()
+    {
+        return $"LabeledItem(Label={Label}, Value={Value})";
+    }
+}

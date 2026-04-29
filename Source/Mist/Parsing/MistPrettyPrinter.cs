@@ -176,9 +176,9 @@ public sealed class MistPrettyPrinter
         AppendLine($"interface {name}{interfaceClause} {{");
         _indentLevel++;
 
-        for (var i = 0; i < interfaceDecl.Methods.Length; i++)
+        for (var i = 0; i < interfaceDecl.Members.Length; i++)
         {
-            EmitInterfaceMethodDeclaration(interfaceDecl.Methods[i]);
+            EmitInterfaceMemberDeclaration(interfaceDecl.Members[i]);
         }
 
         _indentLevel--;
@@ -219,6 +219,12 @@ public sealed class MistPrettyPrinter
                 break;
             case MethodMemberMemberDeclarationNode methodMember:
                 EmitMethodDeclaration(methodMember.Method);
+                break;
+            case PropertyMemberMemberDeclarationNode propertyMember:
+                EmitPropertyDeclaration(propertyMember.Property);
+                break;
+            case IndexerMemberMemberDeclarationNode indexerMember:
+                EmitIndexerDeclaration(indexerMember.Indexer);
                 break;
         }
     }
@@ -284,6 +290,272 @@ public sealed class MistPrettyPrinter
 
         _indentLevel--;
         AppendLine("}");
+    }
+
+    // ─── Property Declarations ──────────────────────────────────────────
+
+    private void EmitPropertyDeclaration(PropertyDeclarationNode propertyDecl)
+    {
+        switch (propertyDecl)
+        {
+            case BlockPropertyPropertyDeclarationNode blockProp:
+                EmitBlockPropertyDeclaration(blockProp);
+                break;
+            case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
+                EmitExpressionBodiedPropertyDeclaration(exprProp);
+                break;
+        }
+    }
+
+    private void EmitBlockPropertyDeclaration(BlockPropertyPropertyDeclarationNode blockProp)
+    {
+        var modifiers = EmitModifiers(blockProp.Modifiers);
+        var type = EmitTypeReference(blockProp.Type);
+        var name = blockProp.Name.Lexeme;
+
+        // Build accessor list.
+        var accessorParts = new List<string>();
+        foreach (var accessor in blockProp.Accessors)
+        {
+            accessorParts.Add(EmitAccessorDeclaration(accessor));
+        }
+
+        var accessorBody = string.Join(" ", accessorParts);
+
+        // Emit initializer if present.
+        if (blockProp.Initializer is not null)
+        {
+            var init = EmitExpression(blockProp.Initializer);
+            AppendLine($"{modifiers}{type} {name} {{ {accessorBody} }} = {init};");
+        }
+        else
+        {
+            AppendLine($"{modifiers}{type} {name} {{ {accessorBody} }}");
+        }
+    }
+
+    private void EmitExpressionBodiedPropertyDeclaration(ExpressionBodiedPropertyPropertyDeclarationNode exprProp)
+    {
+        var modifiers = EmitModifiers(exprProp.Modifiers);
+        var type = EmitTypeReference(exprProp.Type);
+        var name = exprProp.Name.Lexeme;
+        var body = EmitExpression(exprProp.Body);
+
+        AppendLine($"{modifiers}{type} {name} => {body};");
+    }
+
+    private string EmitAccessorDeclaration(AccessorDeclarationNode accessor)
+    {
+        switch (accessor)
+        {
+            // ── Get accessors ──
+            case AutoGetAccessorAccessorDeclarationNode autoGet:
+            {
+                var mod = EmitAccessorModifier(autoGet.AccessorModifier);
+                return $"{mod}get;";
+            }
+            case BlockGetAccessorAccessorDeclarationNode blockGet:
+            {
+                var mod = EmitAccessorModifier(blockGet.AccessorModifier);
+                var body = EmitBlockBody(blockGet.Body);
+                return $"{mod}get {body}";
+            }
+            case ExpressionGetAccessorAccessorDeclarationNode exprGet:
+            {
+                var mod = EmitAccessorModifier(exprGet.AccessorModifier);
+                var expr = EmitExpression(exprGet.Expression);
+                return $"{mod}get => {expr};";
+            }
+
+            // ── Set accessors ──
+            case AutoSetAccessorAccessorDeclarationNode autoSet:
+            {
+                var mod = EmitAccessorModifier(autoSet.AccessorModifier);
+                return $"{mod}set;";
+            }
+            case BlockSetAccessorAccessorDeclarationNode blockSet:
+            {
+                var mod = EmitAccessorModifier(blockSet.AccessorModifier);
+                var body = EmitBlockBody(blockSet.Body);
+                return $"{mod}set {body}";
+            }
+            case ExpressionSetAccessorAccessorDeclarationNode exprSet:
+            {
+                var mod = EmitAccessorModifier(exprSet.AccessorModifier);
+                var expr = EmitExpression(exprSet.Expression);
+                return $"{mod}set => {expr};";
+            }
+
+            // ── Init accessors ──
+            case AutoInitAccessorAccessorDeclarationNode autoInit:
+            {
+                var mod = EmitAccessorModifier(autoInit.AccessorModifier);
+                return $"{mod}init;";
+            }
+            case BlockInitAccessorAccessorDeclarationNode blockInit:
+            {
+                var mod = EmitAccessorModifier(blockInit.AccessorModifier);
+                var body = EmitBlockBody(blockInit.Body);
+                return $"{mod}init {body}";
+            }
+            case ExpressionInitAccessorAccessorDeclarationNode exprInit:
+            {
+                var mod = EmitAccessorModifier(exprInit.AccessorModifier);
+                var expr = EmitExpression(exprInit.Expression);
+                return $"{mod}init => {expr};";
+            }
+
+            default:
+                return "";
+        }
+    }
+
+    private static string EmitAccessorModifier(ModifierNode? modifier)
+    {
+        if (modifier is null) return "";
+
+        return modifier switch
+        {
+            PublicModifierModifierNode => "public ",
+            PrivateModifierModifierNode => "private ",
+            StaticModifierModifierNode => "static ",
+            _ => "",
+        };
+    }
+
+    /// <summary>
+    /// Emits a block body as an inline string for use in accessor declarations.
+    /// Produces "{ stmt1; stmt2; }" format.
+    /// </summary>
+    private string EmitBlockBody(BlockNode block)
+    {
+        if (block.Statements.IsEmpty)
+        {
+            return "{ }";
+        }
+
+        var parts = new List<string>();
+        foreach (var stmt in block.Statements)
+        {
+            parts.Add(EmitStatementInline(stmt));
+        }
+
+        return $"{{ {string.Join(" ", parts)} }}";
+    }
+
+    /// <summary>
+    /// Emits a statement as an inline string (no indentation/newline).
+    /// Used for accessor block bodies that are emitted on a single line.
+    /// </summary>
+    private string EmitStatementInline(StatementNode stmt)
+    {
+        switch (stmt)
+        {
+            case ReturnStatementStatementNode returnStmt:
+            {
+                if (returnStmt.ReturnStatement.Value is not null)
+                {
+                    return $"return {EmitExpression(returnStmt.ReturnStatement.Value)};";
+                }
+                return "return;";
+            }
+            case ExpressionStatementStatementNode exprStmt:
+                return $"{EmitExpression(exprStmt.ExpressionStatement.Expression)};";
+            case VariableDeclarationStatementStatementNode varDeclStmt:
+            {
+                switch (varDeclStmt.VariableDeclaration)
+                {
+                    case TypedVariableDeclarationVariableDeclarationStatementNode typed:
+                    {
+                        var type = EmitTypeReference(typed.Type);
+                        var name = typed.Name.Lexeme;
+                        var init = EmitExpression(typed.Initializer);
+                        return $"{type} {name} = {init};";
+                    }
+                    case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
+                    {
+                        var name = inferred.Name.Lexeme;
+                        var init = EmitExpression(inferred.Initializer);
+                        return $"var {name} = {init};";
+                    }
+                    default:
+                        return "";
+                }
+            }
+            case IfStatementStatementNode ifStmt:
+            {
+                var condition = EmitExpression(ifStmt.IfStatement.Condition);
+                return $"if ({condition}) {{ ... }}";
+            }
+            case WhileStatementStatementNode whileStmt:
+            {
+                var condition = EmitExpression(whileStmt.WhileStatement.Condition);
+                return $"while ({condition}) {{ ... }}";
+            }
+            case BreakStatementStatementNode:
+                return "break;";
+            default:
+                return "";
+        }
+    }
+
+    // ─── Indexer Declarations ────────────────────────────────────────────
+
+    private void EmitIndexerDeclaration(IndexerDeclarationNode indexerDecl)
+    {
+        if (indexerDecl is not BlockIndexerIndexerDeclarationNode blockIndexer)
+            return;
+
+        var modifiers = EmitModifiers(blockIndexer.Modifiers);
+        var type = EmitTypeReference(blockIndexer.Type);
+        var parameters = EmitParameterList(blockIndexer.Parameters);
+
+        // Build accessor list.
+        var accessorParts = new List<string>();
+        foreach (var accessor in blockIndexer.Accessors)
+        {
+            accessorParts.Add(EmitAccessorDeclaration(accessor));
+        }
+
+        var accessorBody = string.Join(" ", accessorParts);
+        AppendLine($"{modifiers}{type} this[{parameters}] {{ {accessorBody} }}");
+    }
+
+    // ─── Interface Property Declarations ─────────────────────────────────
+
+    private void EmitInterfaceMemberDeclaration(InterfaceMemberDeclarationNode memberDecl)
+    {
+        switch (memberDecl)
+        {
+            case InterfaceMethodMemberInterfaceMemberDeclarationNode methodMember:
+                EmitInterfaceMethodDeclaration(methodMember.Method);
+                break;
+            case InterfacePropertyMemberInterfaceMemberDeclarationNode propertyMember:
+                EmitInterfacePropertyDeclaration(propertyMember.Property);
+                break;
+        }
+    }
+
+    private void EmitInterfacePropertyDeclaration(InterfacePropertyDeclarationNode propertyDecl)
+    {
+        var type = EmitTypeReference(propertyDecl.Type);
+        var name = propertyDecl.Name.Lexeme;
+
+        var accessors = new List<string>();
+        foreach (var accessor in propertyDecl.Accessors)
+        {
+            switch (accessor)
+            {
+                case InterfaceGetAccessorInterfaceAccessorDeclarationNode:
+                    accessors.Add("get;");
+                    break;
+                case InterfaceSetAccessorInterfaceAccessorDeclarationNode:
+                    accessors.Add("set;");
+                    break;
+            }
+        }
+
+        AppendLine($"{type} {name} {{ {string.Join(" ", accessors)} }}");
     }
 
     // ─── Parameters and Arguments ────────────────────────────────────────
@@ -786,6 +1058,8 @@ public sealed class MistPrettyPrinter
                 return $"({EmitExpression(paren.Inner)})";
             case IdentifierExpressionPrimaryNode ident:
                 return ident.Name.Lexeme;
+            case FieldKeywordExpressionPrimaryNode:
+                return "field";
             case TypeLiteralExpressionPrimaryNode typeLiteral:
                 return EmitTypeReference(typeLiteral.TypeRef);
             default:

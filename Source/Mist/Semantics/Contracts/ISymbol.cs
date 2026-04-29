@@ -33,6 +33,8 @@ public enum SymbolKind
     Method,
     Parameter,
     LocalVariable,
+    Property,
+    Indexer,
 }
 
 /// <summary>

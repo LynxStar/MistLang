@@ -219,14 +219,16 @@ namespace Storm.SourceGenerator.Tests
         // ---------------------------------------------------------------
 
         [Fact]
-        public void LexerEmitter_RegexLiteral_EmitsRegexUsingDirective()
+        public void LexerEmitter_RegexLiteral_DoesNotEmitRegexUsingDirective()
         {
+            // DFA-based lexer compiles regex patterns into the DFA at generation time,
+            // so no runtime System.Text.RegularExpressions usage is needed.
             var ctx = CreateContext(
                 "token Ident = `[a-zA-Z_]+`;\nrule Start = Ident;");
 
             var output = LexerEmitter.Emit(ctx);
 
-            Assert.Contains("using System.Text.RegularExpressions;", output);
+            Assert.DoesNotContain("using System.Text.RegularExpressions;", output);
         }
 
         [Fact]
@@ -241,31 +243,165 @@ namespace Storm.SourceGenerator.Tests
         }
 
         [Fact]
-        public void LexerEmitter_RegexLiteral_EmitsCompiledAnchoredRegex()
+        public void LexerEmitter_RegexLiteral_EmitsDfaTablesInsteadOfRegex()
         {
+            // DFA-based lexer uses transition tables instead of runtime Regex
             var ctx = CreateContext(
                 "token Ident = `[a-zA-Z_]+`;\nrule Start = Ident;");
 
             var output = LexerEmitter.Emit(ctx);
 
-            // Should contain a static Regex field with Compiled option and anchored pattern
-            Assert.Contains("RegexOptions.Compiled", output);
-            Assert.Contains(@"@""^(?:[a-zA-Z_]+)""", output);
-            Assert.Contains("private static readonly Regex _regex_", output);
+            // Should NOT contain any runtime Regex usage
+            Assert.DoesNotContain("RegexOptions.Compiled", output);
+            Assert.DoesNotContain("private static readonly Regex _regex_", output);
+            // Should contain DFA transition tables
+            Assert.Contains("_charClass", output);
+            Assert.Contains("_trans_default", output);
+            Assert.Contains("_accept_default", output);
         }
 
         [Fact]
-        public void LexerEmitter_RegexLiteral_EmitsMatchLengthOrZero()
+        public void LexerEmitter_RegexLiteral_EmitsTableDrivenLexMethod()
         {
+            // DFA-based lexer uses table-driven Lex method instead of per-token TryMatch
             var ctx = CreateContext(
                 "token Ident = `[a-zA-Z_]+`;\nrule Start = Ident;");
 
             var output = LexerEmitter.Emit(ctx);
 
-            // The generated match code should return match length or 0
-            Assert.Contains(".Match(input.Substring(", output);
-            Assert.Contains(".Success", output);
-            Assert.Contains(".Length : 0", output);
+            // Should NOT contain old per-token matching
+            Assert.DoesNotContain(".Match(input.Substring(", output);
+            Assert.DoesNotContain("TryMatch_", output);
+            // Should contain table-driven lexing
+            Assert.Contains("_charClass[(int)ch]", output);
+            Assert.Contains("transTable[state, cls]", output);
+        }
+
+        // ---------------------------------------------------------------
+        //  Structural emission tests (Task 11.2)
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void LexerEmitter_EmitsCharClassArray()
+        {
+            var ctx = CreateContext(
+                "token Number = [0-9]+;\nrule Start = Number;");
+
+            var output = LexerEmitter.Emit(ctx);
+
+            Assert.Contains("private static readonly int[] _charClass = new int[]", output);
+        }
+
+        [Fact]
+        public void LexerEmitter_EmitsTransitionTableForDefaultMode()
+        {
+            var ctx = CreateContext(
+                "token Number = [0-9]+;\nrule Start = Number;");
+
+            var output = LexerEmitter.Emit(ctx);
+
+            Assert.Contains("private static readonly short[,] _trans_default = new short[,]", output);
+        }
+
+        [Fact]
+        public void LexerEmitter_EmitsAcceptingTableForDefaultMode()
+        {
+            var ctx = CreateContext(
+                "token Number = [0-9]+;\nrule Start = Number;");
+
+            var output = LexerEmitter.Emit(ctx);
+
+            Assert.Contains("private static readonly short[] _accept_default = new short[]", output);
+        }
+
+        [Fact]
+        public void LexerEmitter_DoesNotContainSystemTextRegularExpressions()
+        {
+            var ctx = CreateContext(
+                "token Ident = `[a-zA-Z_]+`;\ntoken Number = [0-9]+;\nrule Start = Ident;");
+
+            var output = LexerEmitter.Emit(ctx);
+
+            Assert.DoesNotContain("System.Text.RegularExpressions", output);
+            Assert.DoesNotContain("using System.Text.RegularExpressions", output);
+            Assert.DoesNotContain("new Regex(", output);
+        }
+
+        [Fact]
+        public void LexerEmitter_DoesNotContainTryMatchMethods()
+        {
+            var ctx = CreateContext(
+                "token Ident = `[a-zA-Z_]+`;\ntoken Number = [0-9]+;\nrule Start = Ident;");
+
+            var output = LexerEmitter.Emit(ctx);
+
+            Assert.DoesNotContain("TryMatch_", output);
+        }
+
+        [Fact]
+        public void LexerEmitter_EmitsLexMethodWithCorrectSignature()
+        {
+            var ctx = CreateContext(
+                "token Number = [0-9]+;\nrule Start = Number;");
+
+            var output = LexerEmitter.Emit(ctx);
+
+            Assert.Contains("public static TokenStream Lex(SourceText source, DiagnosticBag diagnostics)", output);
+        }
+
+        [Fact]
+        public void LexerEmitter_EmitsIsHiddenMethodWithCorrectSignature()
+        {
+            var ctx = CreateContext(
+                "token Number = [0-9]+;\nrule Start = Number;");
+
+            var output = LexerEmitter.Emit(ctx);
+
+            Assert.Contains("public static bool IsHidden(int tokenKind)", output);
+        }
+
+        [Fact]
+        public void LexerEmitter_EmitsGetTokenModeMethodWithCorrectSignature()
+        {
+            var ctx = CreateContext(
+                "token Number = [0-9]+;\nrule Start = Number;");
+
+            var output = LexerEmitter.Emit(ctx);
+
+            Assert.Contains("public static int GetTokenMode(int tokenKind)", output);
+        }
+
+        [Fact]
+        public void LexerEmitter_EmitsStartStateConstant()
+        {
+            var ctx = CreateContext(
+                "token Number = [0-9]+;\nrule Start = Number;");
+
+            var output = LexerEmitter.Emit(ctx);
+
+            Assert.Contains("private const int _start_default", output);
+        }
+
+        [Fact]
+        public void LexerEmitter_EmitsModeConstant()
+        {
+            var ctx = CreateContext(
+                "token Number = [0-9]+;\nrule Start = Number;");
+
+            var output = LexerEmitter.Emit(ctx);
+
+            Assert.Contains("private const int Mode_default = 0;", output);
+        }
+
+        [Fact]
+        public void LexerEmitter_EmitsTokenModesArray()
+        {
+            var ctx = CreateContext(
+                "token Number = [0-9]+;\nrule Start = Number;");
+
+            var output = LexerEmitter.Emit(ctx);
+
+            Assert.Contains("private static readonly int[] TokenModes = new int[]", output);
         }
 
         // ---------------------------------------------------------------

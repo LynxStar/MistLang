@@ -135,14 +135,26 @@ public class InterfaceOverloadSatisfactionPropertyTests
         string interfaceName,
         ImmutableArray<MemberDeclarationNode> members)
     {
+        var baseList = MakeBaseList(interfaceName);
         var decl = new ClassDeclarationNode
         {
             Name = MakeToken(name),
             Members = members,
-            BaseClause = MakeToken(":"),
-            BaseClassName = MakeToken(interfaceName),
+            BaseClause = baseList,
+            BaseList = baseList,
         };
         return decl;
+    }
+
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = MakeToken(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
     }
 
     private static MemberDeclarationNode WrapMethod(MethodDeclarationNode method) =>

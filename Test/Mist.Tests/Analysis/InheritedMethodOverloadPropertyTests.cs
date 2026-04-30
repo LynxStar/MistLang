@@ -115,11 +115,23 @@ public class InheritedMethodOverloadPropertyTests
 
         if (baseClassName is not null)
         {
-            classDecl.BaseClause = MakeToken(":");
-            classDecl.BaseClassName = MakeToken(baseClassName);
+            var baseList = MakeBaseList(baseClassName);
+            classDecl.BaseClause = baseList;
+            classDecl.BaseList = baseList;
         }
 
         return classDecl;
+    }
+
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = MakeToken(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
     }
 
     /// <summary>
@@ -166,7 +178,7 @@ public class InheritedMethodOverloadPropertyTests
             }
 
             // Walk the base type chain to collect inherited methods.
-            var baseType = ct.BaseType;
+            var baseType = ct.BaseType as ClassType;
             while (baseType is not null)
             {
                 foreach (var member in baseType.MemberScope.Members)
@@ -174,7 +186,7 @@ public class InheritedMethodOverloadPropertyTests
                     if (member.Kind == SymbolKind.Method && member.Name == methodName)
                         results.Add(member);
                 }
-                baseType = baseType.BaseType;
+                baseType = baseType.BaseType as ClassType;
             }
         }
 

@@ -2293,9 +2293,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        // Check if any constructor matches the argument types.
-        var hasMatch = constructors.Any(ctor => ConstructorMatches(ctor, argTypes, createdType, model));
-        if (!hasMatch)
         // When multiple constructors exist, use overload resolution.
         if (constructors.Count > 1)
         {
@@ -2331,7 +2328,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         else
         {
             // Single constructor — preserve existing behavior with MIST_TC_0011.
-            var hasMatch = ConstructorMatches(constructors[0], argTypes, model);
+            var hasMatch = ConstructorMatches(constructors[0], argTypes, createdType, model);
             if (!hasMatch)
             {
                 diagnostics.Add(MakeDiagnostic(
@@ -2398,8 +2395,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             ? memberScope.Members.Where(m => m.Kind == SymbolKind.Constructor).ToList()
             : memberScope.Members.Where(m => m.Kind == SymbolKind.Constructor && !ReferenceEquals(m, ctorSymbol)).ToList();
 
-        var hasMatch = candidateConstructors.Any(ctor => ConstructorMatches(ctor, argTypes, targetType, model));
-        if (!hasMatch)
         if (candidateConstructors.Count == 0)
         {
             // No constructors available — only an error if arguments were provided.
@@ -2449,7 +2444,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         else
         {
             // Single constructor — preserve existing behavior with MIST_TC_0013.
-            var hasMatch = ConstructorMatches(candidateConstructors[0], argTypes, model);
+            var hasMatch = ConstructorMatches(candidateConstructors[0], argTypes, targetType, model);
             if (!hasMatch)
             {
                 diagnostics.Add(MakeDiagnostic(
@@ -3294,7 +3289,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Walk the base type chain to collect inherited methods.
         if (targetType is ClassType classType)
         {
-            var baseType = classType.BaseType;
+            var baseType = classType.BaseType as ClassType;
             while (baseType is not null)
             {
                 var baseScope = baseType.MemberScope;
@@ -3303,7 +3298,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     if (member.Kind == SymbolKind.Method && member.Name == methodName)
                         results.Add(member);
                 }
-                baseType = baseType.BaseType;
+                baseType = baseType.BaseType as ClassType;
             }
         }
 
@@ -3320,7 +3315,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (targetType is null)
             return results;
 
-        var memberScope = targetType switch
+        // For ConstructedType (e.g., GenericBox<int>), unwrap to the generic
+        // definition to find constructors in the original type's member scope.
+        var lookupType = targetType is ConstructedType cst ? cst.GenericDefinition : targetType;
+
+        var memberScope = lookupType switch
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,

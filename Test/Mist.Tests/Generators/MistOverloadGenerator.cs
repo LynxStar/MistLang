@@ -171,11 +171,23 @@ public static class MistOverloadGenerator
 
         if (baseClassName is not null)
         {
-            classDecl.BaseClause = Tok(":");
-            classDecl.BaseClassName = Tok(baseClassName);
+            var baseList = MakeBaseList(baseClassName);
+            classDecl.BaseClause = baseList;
+            classDecl.BaseList = baseList;
         }
 
         return classDecl;
+    }
+
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = Tok(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
     }
 
     /// <summary>

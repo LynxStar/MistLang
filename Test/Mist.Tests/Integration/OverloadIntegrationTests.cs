@@ -59,6 +59,7 @@ public sealed class OverloadIntegrationTests : IDisposable
             OutputDirectory: Path.Combine(_tempDir, "out"),
             BinDirectory: Path.Combine(_tempDir, "bin"),
             ProjectName: "TestProject",
+            NamespaceRoot: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         return driver.Compile(options);

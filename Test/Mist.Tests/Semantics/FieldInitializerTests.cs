@@ -56,7 +56,7 @@ public class FieldInitializerTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, ImmutableArray.Create(ast), null, diagnostics);
+        var model = _builder.Build(compilation, ImmutableArray.Create(ast), null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
         return (model, diagnostics.ToImmutableArray());
     }
 
@@ -144,8 +144,8 @@ public class FieldInitializerTests
 
         return new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -336,14 +336,13 @@ public class FieldInitializerTests
         var ast1 = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("App"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = counterClass }),
                 Span = new Storm.Runtime.SourceSpan(0, source1.Length),
-            },
+            } }),
         };
 
         // AST for file 2: Program class with Main
@@ -368,14 +367,13 @@ public class FieldInitializerTests
         var ast2 = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("App"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
                 Span = new Storm.Runtime.SourceSpan(0, source2.Length),
-            },
+            } }),
         };
 
         // Build semantic model with both ASTs
@@ -391,6 +389,8 @@ public class FieldInitializerTests
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast1, ast2),
             null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             diagnostics);
 
         var allDiagnostics = diagnostics.ToImmutableArray();

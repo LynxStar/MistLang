@@ -220,6 +220,8 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             diagnostics);
     }
 
@@ -481,7 +483,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
 
         var tpList = string.Join(", ", scenario.TypeParams);
         var source = $"class {scenario.TypeName}<{tpList}> {{ public {scenario.TypeParams[0]} value; }}\nclass Program {{ public static void Main() {{ }} }}";
-        return (new CompilationUnitNode { Types = typeDecls.ToImmutableArray() }, source);
+        return (new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() }, source);
     }
 
     /// <summary>
@@ -503,7 +505,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
 
         var tpList = string.Join(", ", scenario.TypeParams);
         var source = $"struct {scenario.TypeName}<{tpList}> {{ }}\nclass Program {{ public static void Main() {{ }} }}";
-        return (new CompilationUnitNode { Types = typeDecls.ToImmutableArray() }, source);
+        return (new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() }, source);
     }
 
     /// <summary>
@@ -525,7 +527,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
 
         var tpList = string.Join(", ", scenario.TypeParams);
         var source = $"interface {scenario.TypeName}<{tpList}> {{ }}\nclass Program {{ public static void Main() {{ }} }}";
-        return (new CompilationUnitNode { Types = typeDecls.ToImmutableArray() }, source);
+        return (new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() }, source);
     }
 
     /// <summary>
@@ -569,7 +571,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(ImmutableArray<StatementNode>.Empty) });
 
         var source = $"class {scenario.TypeName} {{ public T DoIt<T>(T input) {{ return input; }} }}\nclass Program {{ public static void Main() {{ }} }}";
-        return (new CompilationUnitNode { Types = typeDecls.ToImmutableArray() }, source);
+        return (new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() }, source);
     }
 
     /// <summary>
@@ -599,7 +601,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         });
 
         var source = $"class {scenario.TypeName}<T> {{ }}\nclass Program {{ public static void Main() {{ {scenario.TypeName}<{scenario.ConcreteType}> x = new {scenario.TypeName}<{scenario.ConcreteType}>(); }} }}";
-        return (new CompilationUnitNode { Types = typeDecls.ToImmutableArray() }, source);
+        return (new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() }, source);
     }
 
     /// <summary>
@@ -664,7 +666,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         });
 
         var source = $"class {scenario.TypeName} {{ public T DoIt<T>(T input) {{ return input; }} }}\nclass Program {{ public static void Main() {{ {scenario.TypeName} obj = new {scenario.TypeName}(); obj.DoIt<{scenario.ConcreteType}>(); }} }}";
-        return (new CompilationUnitNode { Types = typeDecls.ToImmutableArray() }, source);
+        return (new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() }, source);
     }
 
     /// <summary>
@@ -700,7 +702,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(ImmutableArray<StatementNode>.Empty) });
 
         var source = $"class {scenario.BaseTypeName}<T> {{ }}\nclass {scenario.TypeName}<T> : {scenario.BaseTypeName}<T> {{ }}\nclass Program {{ public static void Main() {{ }} }}";
-        return (new CompilationUnitNode { Types = typeDecls.ToImmutableArray() }, source);
+        return (new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() }, source);
     }
 
     /// <summary>
@@ -735,7 +737,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         });
 
         var source = $"class {scenario.TypeName}<T> {{ }}\nclass Program {{ public static void Main() {{ {scenario.TypeName}<{scenario.TypeName}<{scenario.ConcreteType}>> x = new {scenario.TypeName}<{scenario.TypeName}<{scenario.ConcreteType}>>(); }} }}";
-        return (new CompilationUnitNode { Types = typeDecls.ToImmutableArray() }, source);
+        return (new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() }, source);
     }
 
     // ═════════════════════════════════════════════════════════════════════

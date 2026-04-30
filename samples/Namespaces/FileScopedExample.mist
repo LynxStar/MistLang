@@ -1,0 +1,12 @@
+using System;
+
+// Demonstrates: File-scoped namespace declaration (Req 10.4)
+namespace Namespaces.Utilities;
+
+public class StringHelper
+{
+    public static string Greet(string name)
+    {
+        return $"Hello, {name}!";
+    }
+}

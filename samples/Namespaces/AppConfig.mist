@@ -1,0 +1,21 @@
+using System;
+
+// No explicit namespace — inferred as "Namespaces" (matches NamespaceRoot)
+// Demonstrates: Same-namespace scoping — Program.mist can reference AppConfig without using (Req 10.8)
+
+public class AppConfig
+{
+    private string appName;
+    private string version;
+
+    public AppConfig(string appName, string version)
+    {
+        this.appName = appName;
+        this.version = version;
+    }
+
+    public string Display()
+    {
+        return $"App: {appName} v{version}";
+    }
+}

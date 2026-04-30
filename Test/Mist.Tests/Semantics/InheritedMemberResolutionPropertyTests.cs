@@ -64,7 +64,7 @@ public class InheritedMemberResolutionPropertyTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, diagnostics);
+        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
         return (model, diagnostics.ToImmutableArray());
     }
 
@@ -399,7 +399,7 @@ public class InheritedMemberResolutionPropertyTests
 
         return new CompilationUnitNode
         {
-            Types = typeDecls.ToImmutableArray(),
+            Items = (typeDecls.ToImmutableArray()).AsTopLevelItems(),
         };
     }
 

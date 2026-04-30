@@ -42,7 +42,7 @@ public class VoidTypeCheckerTests
     {
         var compilation = MakeCompilation();
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, diagnostics);
+        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private ImmutableArray<Diagnostic> RunTypeChecker(ISemanticModel model)
@@ -231,8 +231,8 @@ public class VoidTypeCheckerTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -266,8 +266,8 @@ public class VoidTypeCheckerTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -323,8 +323,8 @@ public class VoidTypeCheckerTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -366,9 +366,9 @@ public class VoidTypeCheckerTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClassDecl }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClassDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -413,8 +413,8 @@ public class VoidTypeCheckerTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -449,9 +449,9 @@ public class VoidTypeCheckerTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = containerClass },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -491,9 +491,9 @@ public class VoidTypeCheckerTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new StructTypeTypeDeclarationNode { StructDeclaration = containerStruct },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -540,8 +540,8 @@ public class VoidTypeCheckerTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);

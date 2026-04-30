@@ -59,6 +59,7 @@ public class PipelineBackendPropertyTests
                 OutputDirectory: Path.Combine(tempDir, "out"),
                 BinDirectory: Path.Combine(tempDir, "bin"),
                 ProjectName: "TestProject",
+                NamespaceRoot: "TestProject",
                 EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
             var result = driver.Compile(options);
@@ -107,6 +108,7 @@ public class PipelineBackendPropertyTests
                 OutputDirectory: Path.Combine(tempDir, "out"),
                 BinDirectory: Path.Combine(tempDir, "bin"),
                 ProjectName: "TestProject",
+                NamespaceRoot: "TestProject",
                 EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
             var result = driver.Compile(options);
@@ -157,6 +159,7 @@ public class PipelineBackendPropertyTests
                 OutputDirectory: Path.Combine(tempDir, "out"),
                 BinDirectory: Path.Combine(tempDir, "bin"),
                 ProjectName: "TestProject",
+                NamespaceRoot: "TestProject",
                 EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
             var result = driver.Compile(options);
@@ -189,7 +192,7 @@ public class PipelineBackendPropertyTests
         var compilation = new MistCompilation(ImmutableArray.Create(unit));
         var builder = new SemanticModelBuilder();
         var bag = new DiagnosticBag();
-        var model = builder.Build(compilation, ImmutableArray<Storm.Runtime.SyntaxNode>.Empty, null, bag);
+        var model = builder.Build(compilation, ImmutableArray<Storm.Runtime.SyntaxNode>.Empty, null, namespaceRoot: "TestProject", projectFolder: "/test", bag);
 
         // Use the CSharpEmitter directly to test emission determinism
         // without invoking dotnet build (which would introduce external non-determinism).

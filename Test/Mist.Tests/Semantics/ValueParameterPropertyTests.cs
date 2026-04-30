@@ -185,6 +185,8 @@ public class ValueParameterPropertyTests
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             diagnostics);
     }
 

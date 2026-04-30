@@ -134,6 +134,8 @@ public sealed class TypeLiteralEmitterPropertyTests : IDisposable
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(parseResult.Root),
             ambientTypeResolver: null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             semanticBag);
 
         // 4. Emit C#

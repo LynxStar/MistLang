@@ -76,7 +76,7 @@ public class OverloadRegistrationPropertyTests
     {
         var compilation = MakeCompilation();
         var diagnostics = new DiagnosticBag();
-        return Builder.Build(compilation, ImmutableArray.Create(ast), null, diagnostics);
+        return Builder.Build(compilation, ImmutableArray.Create(ast), null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private static ParameterNode MakeParameter(string typeName, string paramName)
@@ -241,8 +241,8 @@ public class OverloadRegistrationPropertyTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -300,8 +300,8 @@ public class OverloadRegistrationPropertyTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);

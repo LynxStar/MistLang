@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;
@@ -43,7 +44,7 @@ public class SemanticModelBuilderPass1Tests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, diagnostics);
+        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     // ─── Empty program ──────────────────────────────────────────────────────
@@ -54,8 +55,11 @@ public class SemanticModelBuilderPass1Tests
         var ast = new CompilationUnitNode();
         var model = BuildModel(ast);
 
-        Assert.Empty(model.GlobalScope.Members);
-        Assert.Empty(model.AllSymbols);
+        // With inferred namespaces, an empty compilation unit still creates
+        // the inferred namespace scope ("TestProject") in the global scope.
+        // But there should be no user-defined type symbols.
+        var nonNamespaceSymbols = model.AllSymbols.Where(s => s.Kind != SymbolKind.Namespace).ToArray();
+        Assert.Empty(nonNamespaceSymbols);
     }
 
     // ─── Class declaration (no namespace) ────────────────────────────────────
@@ -70,18 +74,25 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
 
-        var classSymbol = model.GlobalScope.Lookup("MyClass");
+        // With inferred namespaces, types without explicit namespace are registered
+        // under the inferred namespace "TestProject", not the global scope directly.
+        var nsSymbol = model.GlobalScope.Lookup("TestProject");
+        Assert.NotNull(nsSymbol);
+        Assert.Equal(SymbolKind.Namespace, nsSymbol!.Kind);
+
+        var classSymbol = model.AllSymbols.FirstOrDefault(s => s.Name == "MyClass");
         Assert.NotNull(classSymbol);
         Assert.Equal("MyClass", classSymbol!.Name);
         Assert.Equal(SymbolKind.Class, classSymbol.Kind);
         Assert.Equal(SymbolOrigin.UserCode, classSymbol.Origin);
         Assert.IsType<ClassType>(classSymbol.DeclaredType);
+        Assert.Equal("TestProject", ((ClassType)classSymbol.DeclaredType!).ContainingNamespace);
     }
 
     // ─── Struct declaration (no namespace) ───────────────────────────────────
@@ -96,18 +107,20 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
 
-        var structSymbol = model.GlobalScope.Lookup("Point");
-        Assert.NotNull(structSymbol);
-        Assert.Equal("Point", structSymbol!.Name);
-        Assert.Equal(SymbolKind.Struct, structSymbol.Kind);
-        Assert.Equal(SymbolOrigin.UserCode, structSymbol.Origin);
-        Assert.IsType<StructType>(structSymbol.DeclaredType);
+        // With inferred namespaces, types are under the "TestProject" namespace
+        var classSymbol = model.AllSymbols.FirstOrDefault(s => s.Name == "Point");
+        Assert.NotNull(classSymbol);
+        Assert.Equal("Point", classSymbol!.Name);
+        Assert.Equal(SymbolKind.Struct, classSymbol.Kind);
+        Assert.Equal(SymbolOrigin.UserCode, classSymbol.Origin);
+        Assert.IsType<StructType>(classSymbol.DeclaredType);
+        Assert.Equal("TestProject", ((StructType)classSymbol.DeclaredType!).ContainingNamespace);
     }
 
     // ─── Namespace declaration ───────────────────────────────────────────────
@@ -129,7 +142,7 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Namespace = nsNode,
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = nsNode }),
         };
 
         var model = BuildModel(ast, source);
@@ -158,7 +171,7 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Namespace = nsNode,
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = nsNode }),
         };
 
         var model = BuildModel(ast, source);
@@ -193,19 +206,17 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Namespace = nsNode,
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = nsNode }),
         };
 
         var model = BuildModel(ast, source);
 
         // The class should NOT be in the global scope directly
-        // (only the namespace symbol is in global scope)
+        // Global scope contains namespace symbols (MyApp and possibly the inferred TestProject)
         var globalMembers = model.GlobalScope.Members;
-        Assert.Single(globalMembers);
-        Assert.Equal(SymbolKind.Namespace, globalMembers[0].Kind);
+        Assert.All(globalMembers, m => Assert.Equal(SymbolKind.Namespace, m.Kind));
 
         // The class should be findable via scope chain lookup from namespace scope
-        // (since namespace scope's parent is global scope, and the class is in namespace scope)
         var allSymbols = model.AllSymbols;
         Assert.Contains(allSymbols, s => s.Name == "Greeter" && s.Kind == SymbolKind.Class);
 
@@ -237,8 +248,8 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -271,8 +282,8 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -303,8 +314,8 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -355,15 +366,16 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
 
         var allSymbols = model.AllSymbols;
-        // 1 class + 3 members = 4 symbols
-        Assert.Equal(4, allSymbols.Length);
+        // 1 namespace (TestProject) + 1 class + 3 members = 5 symbols
+        Assert.Equal(5, allSymbols.Length);
+        Assert.Contains(allSymbols, s => s.Name == "TestProject" && s.Kind == SymbolKind.Namespace);
         Assert.Contains(allSymbols, s => s.Name == "Point" && s.Kind == SymbolKind.Class);
         Assert.Contains(allSymbols, s => s.Name == "_x" && s.Kind == SymbolKind.Field);
         Assert.Contains(allSymbols, s => s.Name == "Point" && s.Kind == SymbolKind.Constructor);
@@ -387,16 +399,19 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl },
-                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }),
+                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
 
-        Assert.Equal(2, model.GlobalScope.Members.Count);
-        Assert.Contains(model.GlobalScope.Members, s => s.Name == "Foo" && s.Kind == SymbolKind.Class);
-        Assert.Contains(model.GlobalScope.Members, s => s.Name == "Bar" && s.Kind == SymbolKind.Struct);
+        // With inferred namespaces, types are under the "TestProject" namespace scope.
+        // Global scope contains the namespace symbol; types are in the namespace scope.
+        var typeSymbols = model.AllSymbols.Where(s => s.Kind != SymbolKind.Namespace).ToArray();
+        Assert.Equal(2, typeSymbols.Length);
+        Assert.Contains(typeSymbols, s => s.Name == "Foo" && s.Kind == SymbolKind.Class);
+        Assert.Contains(typeSymbols, s => s.Name == "Bar" && s.Kind == SymbolKind.Struct);
     }
 
     // ─── SymbolTable node-to-symbol mapping ──────────────────────────────────
@@ -411,8 +426,8 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -440,8 +455,8 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -472,18 +487,19 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
 
-        // Global scope should only contain the class symbol, not the field
+        // With inferred namespaces, global scope contains the namespace symbol "TestProject"
         Assert.Single(model.GlobalScope.Members);
-        Assert.Equal("MyClass", model.GlobalScope.Members[0].Name);
+        Assert.Equal("TestProject", model.GlobalScope.Members[0].Name);
+        Assert.Equal(SymbolKind.Namespace, model.GlobalScope.Members[0].Kind);
 
-        // The field should be in the type's scope
-        var classSymbol = model.GlobalScope.Members[0];
+        // The class should be in the namespace scope, not global scope
+        var classSymbol = model.AllSymbols.First(s => s.Name == "MyClass");
         var classType = classSymbol.DeclaredType as ClassType;
         Assert.NotNull(classType);
         var fieldSymbol = classType!.MemberScope.Lookup("_value");
@@ -514,7 +530,7 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Namespace = nsNode,
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = nsNode }),
         };
 
         var model = BuildModel(ast, source);
@@ -559,7 +575,7 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Namespace = nsNode,
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = nsNode }),
         };
 
         var model = BuildModel(ast, source);
@@ -604,13 +620,14 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
 
-        var structSymbol = model.GlobalScope.Lookup("Point");
+        // With inferred namespaces, the struct is under the "TestProject" namespace
+        var structSymbol = model.AllSymbols.FirstOrDefault(s => s.Name == "Point" && s.Kind == SymbolKind.Struct);
         Assert.NotNull(structSymbol);
         var structType = structSymbol!.DeclaredType as StructType;
         Assert.NotNull(structType);
@@ -636,8 +653,8 @@ public class SemanticModelBuilderPass1Tests
         };
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);

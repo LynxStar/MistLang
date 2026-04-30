@@ -281,7 +281,7 @@ public class PrettyPrinterPropertyTests
     {
         return new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode
                 {
                     ClassDeclaration = new ClassDeclarationNode
@@ -289,7 +289,7 @@ public class PrettyPrinterPropertyTests
                         Name = MakeToken("Empty"),
                         Members = ImmutableArray<MemberDeclarationNode>.Empty,
                     },
-                }),
+                }).AsTopLevelItems(),
         };
     }
 
@@ -383,8 +383,8 @@ public class PrettyPrinterPropertyTests
 
         return new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -434,7 +434,7 @@ public class PrettyPrinterPropertyTests
         return new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(usingDecl),
-            Namespace = nsNode,
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = nsNode }),
         };
     }
 
@@ -540,8 +540,8 @@ public class PrettyPrinterPropertyTests
 
         return new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -598,8 +598,8 @@ public class PrettyPrinterPropertyTests
 
         return new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -651,8 +651,8 @@ public class PrettyPrinterPropertyTests
 
         return new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -680,7 +680,7 @@ public class PrettyPrinterPropertyTests
 
         return new CompilationUnitNode
         {
-            Namespace = nsNode,
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = nsNode }),
         };
     }
 
@@ -885,12 +885,15 @@ public class PrettyPrinterPropertyTests
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             diagnostics);
 
-        // Every user-code symbol name should appear in the output.
+        // Every user-code symbol name should appear in the output,
+        // except inferred namespace symbols which don't appear in source.
         foreach (var symbol in model.AllSymbols)
         {
-            if (symbol.Origin == SymbolOrigin.UserCode)
+            if (symbol.Origin == SymbolOrigin.UserCode && symbol.Kind != SymbolKind.Namespace)
             {
                 Assert.Contains(symbol.Name, output);
             }
@@ -913,6 +916,8 @@ public class PrettyPrinterPropertyTests
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             diagnostics);
 
         foreach (var symbol in model.AllSymbols)
@@ -978,6 +983,8 @@ public class PrettyPrinterPropertyTests
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             diagnostics);
 
         // Namespace should appear
@@ -1006,11 +1013,14 @@ public class PrettyPrinterPropertyTests
                 compilation,
                 ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
                 ambientTypeResolver: null,
+                namespaceRoot: "TestProject",
+                projectFolder: "/test",
                 diagnostics);
 
             foreach (var symbol in model.AllSymbols)
             {
-                if (symbol.Origin == SymbolOrigin.UserCode)
+                // Skip inferred namespace symbols — they don't appear in source
+                if (symbol.Origin == SymbolOrigin.UserCode && symbol.Kind != SymbolKind.Namespace)
                 {
                     Assert.True(output.Contains(symbol.Name),
                         $"Symbol '{symbol.Name}' (kind: {symbol.Kind}) not found in pretty-printed output:\n{output}");

@@ -177,6 +177,8 @@ public sealed partial class InterfaceEmissionPropertyTests : IDisposable
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             diagnostics);
     }
 
@@ -421,7 +423,7 @@ public sealed partial class InterfaceEmissionPropertyTests : IDisposable
 
         return new CompilationUnitNode
         {
-            Types = typeDecls.ToImmutableArray(),
+            Items = (typeDecls.ToImmutableArray()).AsTopLevelItems(),
         };
     }
 
@@ -589,9 +591,9 @@ public sealed partial class InterfaceEmissionPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create(
-                WrapInterface(interfaceDecl),
-                WrapClass(MakeProgramClass())),
+            Items = ImmutableArray.Create<TopLevelItemNode>(
+                WrapInterface(interfaceDecl).AsTopLevelItem(),
+                WrapClass(MakeProgramClass()).AsTopLevelItem()),
         };
 
         var model = BuildModel(ast, source);
@@ -618,10 +620,10 @@ public sealed partial class InterfaceEmissionPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create(
-                WrapInterface(baseInterface),
-                WrapInterface(derivedInterface),
-                WrapClass(MakeProgramClass())),
+            Items = ImmutableArray.Create<TopLevelItemNode>(
+                WrapInterface(baseInterface).AsTopLevelItem(),
+                WrapInterface(derivedInterface).AsTopLevelItem(),
+                WrapClass(MakeProgramClass()).AsTopLevelItem()),
         };
 
         var model = BuildModel(ast, source);
@@ -645,10 +647,10 @@ public sealed partial class InterfaceEmissionPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create(
-                WrapInterface(interfaceDecl),
-                WrapClass(classDecl),
-                WrapClass(MakeProgramClass())),
+            Items = ImmutableArray.Create<TopLevelItemNode>(
+                WrapInterface(interfaceDecl).AsTopLevelItem(),
+                WrapClass(classDecl).AsTopLevelItem(),
+                WrapClass(MakeProgramClass()).AsTopLevelItem()),
         };
 
         var model = BuildModel(ast, source);
@@ -671,10 +673,10 @@ public sealed partial class InterfaceEmissionPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create(
-                WrapInterface(interfaceDecl),
-                WrapStruct(structDecl),
-                WrapClass(MakeProgramClass())),
+            Items = ImmutableArray.Create<TopLevelItemNode>(
+                WrapInterface(interfaceDecl).AsTopLevelItem(),
+                WrapStruct(structDecl).AsTopLevelItem(),
+                WrapClass(MakeProgramClass()).AsTopLevelItem()),
         };
 
         var model = BuildModel(ast, source);
@@ -697,9 +699,9 @@ public sealed partial class InterfaceEmissionPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create(
-                WrapInterface(interfaceDecl),
-                WrapClass(MakeProgramClass())),
+            Items = ImmutableArray.Create<TopLevelItemNode>(
+                WrapInterface(interfaceDecl).AsTopLevelItem(),
+                WrapClass(MakeProgramClass()).AsTopLevelItem()),
         };
 
         var model = BuildModel(ast, source);
@@ -728,9 +730,9 @@ public sealed partial class InterfaceEmissionPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create(
-                WrapInterface(interfaceDecl),
-                WrapClass(MakeProgramClass())),
+            Items = ImmutableArray.Create<TopLevelItemNode>(
+                WrapInterface(interfaceDecl).AsTopLevelItem(),
+                WrapClass(MakeProgramClass()).AsTopLevelItem()),
         };
 
         var model = BuildModel(ast, source);

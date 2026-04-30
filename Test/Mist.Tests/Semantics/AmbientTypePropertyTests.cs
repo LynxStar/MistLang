@@ -62,7 +62,7 @@ public class AmbientTypePropertyTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, diagnostics);
+        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
         return (model, diagnostics.ToImmutableArray());
     }
 
@@ -146,8 +146,8 @@ public class AmbientTypePropertyTests
         return new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -433,8 +433,8 @@ public class AmbientTypePropertyTests
         var ast = new CompilationUnitNode
         {
             // No usings!
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var resolver = new CSharpAmbientTypeResolver();

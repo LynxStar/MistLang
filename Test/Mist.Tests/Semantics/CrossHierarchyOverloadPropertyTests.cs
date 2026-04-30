@@ -97,7 +97,7 @@ public class CrossHierarchyOverloadPropertyTests
     {
         var compilation = MakeCompilation();
         var diagnostics = new DiagnosticBag();
-        var model = Builder.Build(compilation, ImmutableArray.Create(ast), null, diagnostics);
+        var model = Builder.Build(compilation, ImmutableArray.Create(ast), null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
         return (model, diagnostics);
     }
 
@@ -174,7 +174,7 @@ public class CrossHierarchyOverloadPropertyTests
             (TypeDeclarationNode)new ClassTypeTypeDeclarationNode { ClassDeclaration = c })
             .ToImmutableArray();
 
-        return new CompilationUnitNode { Types = types };
+        return new CompilationUnitNode { Items = (types).AsTopLevelItems() };
     }
 
     // ═══════════════════════════════════════════════════════════════════════

@@ -56,7 +56,7 @@ public class AccessModifierPropertyTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, diagnostics);
+        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private ImmutableArray<Diagnostic> RunTypeChecker(ISemanticModel model)
@@ -333,9 +333,9 @@ public class AccessModifierPropertyTests
 
         return new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = classA },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classB }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classB }).AsTopLevelItems(),
         };
     }
 

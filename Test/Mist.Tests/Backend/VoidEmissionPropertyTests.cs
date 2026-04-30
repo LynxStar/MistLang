@@ -181,6 +181,8 @@ public sealed class VoidEmissionPropertyTests : IDisposable
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             diagnostics);
     }
 
@@ -360,8 +362,8 @@ public sealed class VoidEmissionPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         return (ast, source);

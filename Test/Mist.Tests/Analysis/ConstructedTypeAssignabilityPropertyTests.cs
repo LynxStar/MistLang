@@ -55,7 +55,7 @@ public class ConstructedTypeAssignabilityPropertyTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, diagnostics);
+        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private ImmutableArray<Diagnostic> RunTypeChecker(ISemanticModel model)
@@ -315,7 +315,7 @@ public class ConstructedTypeAssignabilityPropertyTests
         var mainStatements = ImmutableArray.Create(varDeclA, varDeclB);
         typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(mainStatements) });
 
-        return new CompilationUnitNode { Types = typeDecls.ToImmutableArray() };
+        return new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() };
     }
 
     /// <summary>
@@ -365,7 +365,7 @@ public class ConstructedTypeAssignabilityPropertyTests
         var mainStatements = ImmutableArray.Create(varDeclD, varDeclB);
         typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(mainStatements) });
 
-        return new CompilationUnitNode { Types = typeDecls.ToImmutableArray() };
+        return new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() };
     }
 
     /// <summary>
@@ -415,7 +415,7 @@ public class ConstructedTypeAssignabilityPropertyTests
         var mainStatements = ImmutableArray.Create(varDeclB, varDeclI);
         typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(mainStatements) });
 
-        return new CompilationUnitNode { Types = typeDecls.ToImmutableArray() };
+        return new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() };
     }
 
     private static ClassDeclarationNode MakeProgramClass(ImmutableArray<StatementNode> mainStatements)

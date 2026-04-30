@@ -129,7 +129,7 @@ public sealed class CompilerDriver : ICompilerDriver
         ISemanticModel? semanticModel;
         try
         {
-            semanticModel = semanticModelBuilder.Build(compilation, asts.ToImmutable(), ambientTypeResolver, semanticBag);
+            semanticModel = semanticModelBuilder.Build(compilation, asts.ToImmutable(), ambientTypeResolver, options.NamespaceRoot, options.ProjectFolder, semanticBag);
         }
         catch(Exception ex)
         {

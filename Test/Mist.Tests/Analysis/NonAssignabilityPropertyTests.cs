@@ -61,7 +61,7 @@ public class NonAssignabilityPropertyTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, diagnostics);
+        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private ImmutableArray<Diagnostic> RunTypeChecker(ISemanticModel model)
@@ -311,7 +311,7 @@ public class NonAssignabilityPropertyTests
 
         return new CompilationUnitNode
         {
-            Types = typeDecls.ToImmutableArray(),
+            Items = (typeDecls.ToImmutableArray()).AsTopLevelItems(),
         };
     }
 

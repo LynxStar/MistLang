@@ -65,6 +65,8 @@ public sealed class PropertyEmissionPropertyTests : IDisposable
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             diagnostics);
     }
 

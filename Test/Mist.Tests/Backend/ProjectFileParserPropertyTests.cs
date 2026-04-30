@@ -281,6 +281,7 @@ public sealed class ProjectFileParserPropertyTests
                 OutputDirectory: Path.Combine(tempDir, "out"),
                 BinDirectory: Path.Combine(tempDir, "bin"),
                 ProjectName: name.Value,
+                NamespaceRoot: name.Value,
                 EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
             driver.Compile(options);
@@ -315,7 +316,7 @@ public sealed class ProjectFileParserPropertyTests
             var compilation = new MistCompilation(ImmutableArray.Create(unit));
             var builder = new SemanticModelBuilder();
             var bag = new DiagnosticBag();
-            var model = builder.Build(compilation, ImmutableArray<Storm.Runtime.SyntaxNode>.Empty, null, bag);
+            var model = builder.Build(compilation, ImmutableArray<Storm.Runtime.SyntaxNode>.Empty, null, namespaceRoot: "TestProject", projectFolder: "/test", bag);
 
             // Emit into the temp directory with the generated project name
             var emitBag = new DiagnosticBag();

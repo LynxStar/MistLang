@@ -63,7 +63,7 @@ public class InterfaceOverloadSatisfactionPropertyTests
     {
         var compilation = MakeCompilation();
         var diagnostics = new DiagnosticBag();
-        var model = Builder.Build(compilation, ImmutableArray.Create(ast), null, diagnostics);
+        var model = Builder.Build(compilation, ImmutableArray.Create(ast), null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
         return (model, diagnostics);
     }
 
@@ -170,7 +170,7 @@ public class InterfaceOverloadSatisfactionPropertyTests
     {
         return new CompilationUnitNode
         {
-            Types = typeDecls.ToImmutableArray(),
+            Items = (typeDecls.ToImmutableArray()).AsTopLevelItems(),
         };
     }
 

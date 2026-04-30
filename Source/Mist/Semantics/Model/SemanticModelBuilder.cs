@@ -24,6 +24,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         MistCompilation compilation,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         IAmbientTypeResolver? ambientTypeResolver,
+        string namespaceRoot,
+        string projectFolder,
         DiagnosticBag diagnostics)
     {
         var globalScope = new Scope(parent: null);
@@ -38,7 +40,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             try
             {
-                Pass1_RegisterTypes(ast, globalScope, symbolTable, sourceText, diagnostics);
+                Pass1_RegisterTypes(ast, globalScope, symbolTable, sourceText, namespaceRoot, projectFolder, diagnostics);
             }
             catch (Exception ex)
             {
@@ -131,6 +133,35 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // Inferred Namespace Computation
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Computes the inferred namespace for a source file based on its location
+    /// relative to the project folder.
+    /// </summary>
+    /// <param name="namespaceRoot">The root namespace segment (from mist.toml or project name).</param>
+    /// <param name="projectFolder">The absolute path to the project folder.</param>
+    /// <param name="filePath">The absolute path to the source file.</param>
+    /// <returns>The inferred namespace string.</returns>
+    internal static string ComputeInferredNamespace(
+        string namespaceRoot, string projectFolder, string filePath)
+    {
+        var fileDir = Path.GetDirectoryName(filePath);
+        if (string.IsNullOrEmpty(fileDir))
+            return namespaceRoot;
+
+        var relativePath = Path.GetRelativePath(projectFolder, fileDir);
+        if (relativePath == "." || string.IsNullOrEmpty(relativePath))
+            return namespaceRoot;
+
+        var segments = relativePath
+            .Replace(Path.DirectorySeparatorChar, '.')
+            .Replace(Path.AltDirectorySeparatorChar, '.');
+        return $"{namespaceRoot}.{segments}";
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // Pass 1 — Register user-defined types
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -139,6 +170,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Scope globalScope,
         SymbolTable symbolTable,
         SourceText? sourceText,
+        string namespaceRoot,
+        string projectFolder,
         DiagnosticBag diagnostics)
     {
         if (ast is not CompilationUnitNode compilationUnit)
@@ -146,48 +179,108 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return;
         }
 
-        Scope typeContainerScope = globalScope;
-        string? namespaceName = null;
+        // Compute the inferred namespace for this file based on its path.
+        var filePath = sourceText?.Path ?? "";
+        var inferredNamespace = string.IsNullOrEmpty(filePath)
+            ? namespaceRoot
+            : ComputeInferredNamespace(namespaceRoot, projectFolder, filePath);
 
-        if (compilationUnit.Namespace is not null)
+        // Track the "current namespace" — initially the inferred namespace.
+        var currentNamespace = inferredNamespace;
+        var currentScope = GetOrCreateNamespaceScope(globalScope, symbolTable, currentNamespace, ast);
+
+        // Iterate over TopLevelItem nodes.
+        foreach (var item in compilationUnit.Items)
         {
-            namespaceName = ExtractNamespaceName(compilationUnit.Namespace, sourceText);
-
-            // Reuse an existing namespace scope if this namespace was already
-            // registered by a previous compilation unit (multiple files can
-            // contribute types to the same namespace).
-            Scope? namespaceScope = FindExistingNamespaceScope(globalScope, symbolTable, namespaceName);
-
-            if (namespaceScope is null)
+            switch (item)
             {
+                case NamespaceItemTopLevelItemNode nsItem:
+                {
+                    var nsDecl = nsItem.NamespaceDeclaration;
+                    var declaredName = ExtractNamespaceName(nsDecl, sourceText);
+
+                    if (nsDecl is FileScopedNamespaceNamespaceDeclarationNode)
+                    {
+                        // File-scoped: update current namespace for subsequent types.
+                        currentNamespace = declaredName;
+                        currentScope = GetOrCreateNamespaceScope(globalScope, symbolTable, currentNamespace, nsDecl);
+
+                        // Register types in the file-scoped namespace body.
+                        var bodyTypes = GetNamespaceBodyTypes(nsDecl);
+                        foreach (var typeDecl in bodyTypes)
+                        {
+                            RegisterTypeDeclaration(typeDecl, currentScope, symbolTable, currentNamespace, sourceText, diagnostics);
+                        }
+                    }
+                    else if (nsDecl is BlockNamespaceNamespaceDeclarationNode)
+                    {
+                        // Block: register only enclosed types; current namespace unchanged after block.
+                        var blockScope = GetOrCreateNamespaceScope(globalScope, symbolTable, declaredName, nsDecl);
+                        var bodyTypes = GetNamespaceBodyTypes(nsDecl);
+                        foreach (var typeDecl in bodyTypes)
+                        {
+                            RegisterTypeDeclaration(typeDecl, blockScope, symbolTable, declaredName, sourceText, diagnostics);
+                        }
+                    }
+                    break;
+                }
+                case TypeItemTopLevelItemNode typeItem:
+                {
+                    // Register type under the current namespace.
+                    RegisterTypeDeclaration(typeItem.TypeDeclaration, currentScope, symbolTable, currentNamespace, sourceText, diagnostics);
+                    break;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or creates a namespace scope for the given namespace name.
+    /// Reuses an existing scope if the namespace was already registered by a previous file.
+    /// </summary>
+    private static Scope GetOrCreateNamespaceScope(
+        Scope globalScope,
+        SymbolTable symbolTable,
+        string namespaceName,
+        Storm.Runtime.SyntaxNode declaringNode)
+    {
+        // Try to find an existing namespace scope.
+        Scope? namespaceScope = FindExistingNamespaceScope(globalScope, symbolTable, namespaceName);
+
+        if (namespaceScope is not null)
+            return namespaceScope;
+
+        // Also check if there's already a namespace symbol registered (even if no types yet).
+        foreach (var member in globalScope.Members)
+        {
+            if (member.Kind == SymbolKind.Namespace && member.Name == namespaceName)
+            {
+                // The namespace symbol exists but FindExistingNamespaceScope didn't find a scope
+                // (no types registered yet). We need to find or create the scope.
+                // Look for the scope associated with this namespace symbol.
+                // Since we can't directly get the scope from the symbol, create a new one
+                // and it will be found next time via types registered in it.
                 namespaceScope = new Scope(parent: globalScope);
-
-                var namespaceSpan = ToMistSourceSpan(compilationUnit.Namespace.Span);
-                var namespaceSymbol = new Symbol(
-                    namespaceName,
-                    SymbolKind.Namespace,
-                    SymbolOrigin.UserCode,
-                    globalScope,
-                    declaredType: null,
-                    namespaceSpan);
-
-                globalScope.AddMember(namespaceSymbol);
-                symbolTable.Register(namespaceSymbol, compilationUnit.Namespace);
-            }
-
-            typeContainerScope = namespaceScope;
-
-            var namespaceTypes = GetNamespaceBodyTypes(compilationUnit.Namespace);
-            foreach (var typeDecl in namespaceTypes)
-            {
-                RegisterTypeDeclaration(typeDecl, typeContainerScope, symbolTable, namespaceName, sourceText, diagnostics);
+                return namespaceScope;
             }
         }
 
-        foreach (var typeDecl in compilationUnit.Types)
-        {
-            RegisterTypeDeclaration(typeDecl, typeContainerScope, symbolTable, namespaceName, sourceText, diagnostics);
-        }
+        // Create a new namespace scope and register the namespace symbol.
+        namespaceScope = new Scope(parent: globalScope);
+
+        var namespaceSpan = ToMistSourceSpan(declaringNode.Span);
+        var namespaceSymbol = new Symbol(
+            namespaceName,
+            SymbolKind.Namespace,
+            SymbolOrigin.UserCode,
+            globalScope,
+            declaredType: null,
+            namespaceSpan);
+
+        globalScope.AddMember(namespaceSymbol);
+        symbolTable.Register(namespaceSymbol, declaringNode);
+
+        return namespaceScope;
     }
 
     private static void RegisterTypeDeclaration(
@@ -1277,23 +1370,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static bool ContainsClassDeclaration(CompilationUnitNode cu, ClassDeclarationNode classDecl)
     {
-        foreach (var typeDecl in cu.Types)
+        foreach (var item in cu.Items)
         {
-            if (typeDecl is ClassTypeTypeDeclarationNode ct && ReferenceEquals(ct.ClassDeclaration, classDecl))
+            switch (item)
             {
-                return true;
-            }
-        }
-
-        if (cu.Namespace is not null)
-        {
-            var namespaceTypes = GetNamespaceBodyTypes(cu.Namespace);
-            foreach (var typeDecl in namespaceTypes)
-            {
-                if (typeDecl is ClassTypeTypeDeclarationNode ct && ReferenceEquals(ct.ClassDeclaration, classDecl))
-                {
-                    return true;
-                }
+                case TypeItemTopLevelItemNode typeItem:
+                    if (typeItem.TypeDeclaration is ClassTypeTypeDeclarationNode ct && ReferenceEquals(ct.ClassDeclaration, classDecl))
+                        return true;
+                    break;
+                case NamespaceItemTopLevelItemNode nsItem:
+                    var namespaceTypes = GetNamespaceBodyTypes(nsItem.NamespaceDeclaration);
+                    foreach (var typeDecl in namespaceTypes)
+                    {
+                        if (typeDecl is ClassTypeTypeDeclarationNode nsCt && ReferenceEquals(nsCt.ClassDeclaration, classDecl))
+                            return true;
+                    }
+                    break;
             }
         }
 
@@ -1777,19 +1869,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static bool ContainsTypeDeclarationNode(CompilationUnitNode cu, Storm.Runtime.SyntaxNode declaringNode)
     {
-        foreach (var typeDecl in cu.Types)
+        foreach (var item in cu.Items)
         {
-            if (MatchesTypeDeclaration(typeDecl, declaringNode))
-                return true;
-        }
-
-        if (cu.Namespace is not null)
-        {
-            var namespaceTypes = GetNamespaceBodyTypes(cu.Namespace);
-            foreach (var typeDecl in namespaceTypes)
+            switch (item)
             {
-                if (MatchesTypeDeclaration(typeDecl, declaringNode))
-                    return true;
+                case TypeItemTopLevelItemNode typeItem:
+                    if (MatchesTypeDeclaration(typeItem.TypeDeclaration, declaringNode))
+                        return true;
+                    break;
+                case NamespaceItemTopLevelItemNode nsItem:
+                    var namespaceTypes = GetNamespaceBodyTypes(nsItem.NamespaceDeclaration);
+                    foreach (var typeDecl in namespaceTypes)
+                    {
+                        if (MatchesTypeDeclaration(typeDecl, declaringNode))
+                            return true;
+                    }
+                    break;
             }
         }
 
@@ -3273,26 +3368,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return;
         }
 
-        // Determine the namespace scope and file-level scope for using declarations.
-        // The file scope is where using imports are recorded.
-        Scope typeContainerScope = globalScope;
-        string? namespaceName = null;
+        // Compute the inferred namespace for this file (same logic as Pass 1).
+        var filePath = sourceText?.Path ?? "";
+        // We need namespaceRoot and projectFolder — extract from the global scope context.
+        // Since Pass 2 doesn't receive these directly, we infer the primary namespace
+        // by looking at what Pass 1 registered for top-level types in this file,
+        // or by finding the first namespace declaration.
+        var inferredNamespaceScope = FindInferredNamespaceScopeForFile(
+            compilationUnit, globalScope, symbolTable, sourceText);
 
-        if (compilationUnit.Namespace is not null)
-        {
-            namespaceName = ExtractNamespaceName(compilationUnit.Namespace, sourceText);
-
-            // Find the namespace scope created in Pass 1.
-            // The type container scope is the namespace scope (child of global).
-            // We need to find it by looking at the types registered in Pass 1.
-            typeContainerScope = FindNamespaceScope(globalScope, symbolTable, compilationUnit.Namespace);
-        }
+        // Determine the primary namespace scope for this file.
+        // The scope chain is: local → file → namespace → global.
+        // For files with no explicit namespace, the inferred namespace scope is used.
+        // For files with explicit namespaces, each namespace section gets its own scope.
+        Scope primaryNamespaceScope = inferredNamespaceScope ?? globalScope;
 
         // Create a file-level scope to hold using imports. This scope sits between
-        // the namespace/global scope and the type scopes.
-        var fileScope = new Scope(parent: typeContainerScope);
+        // the namespace scope and the type scopes.
+        var fileScope = new Scope(parent: primaryNamespaceScope);
 
-        // Process using declarations — verify namespace existence.
+        // Process using declarations — verify namespace existence and record imports.
         foreach (var usingDecl in compilationUnit.Usings)
         {
             var usingName = ExtractQualifiedName(usingDecl.Name, sourceText);
@@ -3329,21 +3424,100 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
-        // Resolve types in namespace body type declarations.
-        if (compilationUnit.Namespace is not null)
+        // Resolve types in items (namespace body types and top-level types).
+        // For each namespace section, we use a file scope whose parent is the
+        // appropriate namespace scope so that same-namespace types are visible.
+        foreach (var item in compilationUnit.Items)
         {
-            var namespaceTypes = GetNamespaceBodyTypes(compilationUnit.Namespace);
-            foreach (var typeDecl in namespaceTypes)
+            switch (item)
             {
-                ResolveTypeDeclaration(typeDecl, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                case NamespaceItemTopLevelItemNode nsItem:
+                {
+                    var nsDecl = nsItem.NamespaceDeclaration;
+                    var declaredName = ExtractNamespaceName(nsDecl, sourceText);
+
+                    // Find the namespace scope for this declaration.
+                    var nsScope = FindExistingNamespaceScope(globalScope, symbolTable, declaredName);
+
+                    // Create a file scope for this namespace section if it differs
+                    // from the primary namespace scope.
+                    Scope sectionFileScope;
+                    if (nsScope is not null && nsScope != primaryNamespaceScope)
+                    {
+                        sectionFileScope = new Scope(parent: nsScope);
+                        // Copy using imports to this section scope.
+                        foreach (var ns in fileScope.ImportedNamespaces)
+                        {
+                            sectionFileScope.AddImportedNamespace(ns);
+                        }
+                    }
+                    else
+                    {
+                        sectionFileScope = fileScope;
+                    }
+
+                    var namespaceTypes = GetNamespaceBodyTypes(nsDecl);
+                    foreach (var typeDecl in namespaceTypes)
+                    {
+                        ResolveTypeDeclaration(typeDecl, sectionFileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+                    break;
+                }
+                case TypeItemTopLevelItemNode typeItem:
+                    ResolveTypeDeclaration(typeItem.TypeDeclaration, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Finds the inferred namespace scope for a file by looking at the first top-level
+    /// type registered in Pass 1 (types outside any explicit namespace declaration).
+    /// If the file has no top-level types, falls back to the first namespace declaration's scope.
+    /// </summary>
+    private static Scope? FindInferredNamespaceScopeForFile(
+        CompilationUnitNode compilationUnit,
+        Scope globalScope,
+        SymbolTable symbolTable,
+        SourceText? sourceText)
+    {
+        // First, try to find a top-level type (outside any namespace) and use its containing scope.
+        foreach (var item in compilationUnit.Items)
+        {
+            if (item is TypeItemTopLevelItemNode typeItem)
+            {
+                Storm.Runtime.SyntaxNode declNode = typeItem.TypeDeclaration switch
+                {
+                    ClassTypeTypeDeclarationNode ct => ct.ClassDeclaration,
+                    StructTypeTypeDeclarationNode st => st.StructDeclaration,
+                    InterfaceTypeTypeDeclarationNode it => it.InterfaceDeclaration,
+                    _ => typeItem.TypeDeclaration
+                };
+
+                var symbol = symbolTable.GetDeclaredSymbol(declNode);
+                if (symbol?.ContainingScope is Scope namespaceScope && namespaceScope.Parent == globalScope)
+                {
+                    return namespaceScope;
+                }
             }
         }
 
-        // Resolve types in top-level type declarations.
-        foreach (var typeDecl in compilationUnit.Types)
+        // No top-level types found. Try the first namespace declaration.
+        foreach (var item in compilationUnit.Items)
         {
-            ResolveTypeDeclaration(typeDecl, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            if (item is NamespaceItemTopLevelItemNode nsItem)
+            {
+                var nsName = ExtractNamespaceName(nsItem.NamespaceDeclaration, sourceText);
+                var nsScope = FindExistingNamespaceScope(globalScope, symbolTable, nsName);
+                if (nsScope is not null)
+                    return nsScope;
+
+                // Fall back to FindNamespaceScope which looks at body types.
+                return FindNamespaceScope(globalScope, symbolTable, nsItem.NamespaceDeclaration);
+            }
         }
+
+        return null;
     }
 
     /// <summary>
@@ -4265,7 +4439,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var wellKnown = TryResolveWellKnownType(typeName);
         if (wellKnown is not null) return wellKnown;
 
-        // 2. Search current scope → parent scopes.
+        // 2. Search current scope → parent scopes (local → file → namespace → global).
         var symbol = fileScope.Lookup(typeName);
         if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface))
         {
@@ -4273,11 +4447,67 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // 3. Search imported namespaces from using declarations.
+        var importedNamespaces = CollectImportedNamespaces(fileScope);
+
+        // 3a. Search user-defined namespace scopes for the type.
+        IType? userResolvedType = null;
+        string? userResolvedNs = null;
+        string? ambiguousNs = null;
+
+        // Find the global scope by walking up from fileScope.
+        var globalScope = FindGlobalScope(fileScope);
+
+        foreach (var ns in importedNamespaces)
+        {
+            // Search user-defined namespace scopes.
+            var nsScope = globalScope is not null
+                ? FindExistingNamespaceScope(globalScope, symbolTable, ns)
+                : null;
+
+            if (nsScope is not null)
+            {
+                foreach (var member in nsScope.Members)
+                {
+                    if (member.Name == typeName &&
+                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface))
+                    {
+                        if (userResolvedType is not null)
+                        {
+                            // Ambiguity: same type name found in multiple imported namespaces.
+                            ambiguousNs = ns;
+                        }
+                        else
+                        {
+                            userResolvedType = member.DeclaredType ?? UnknownType.Instance;
+                            userResolvedNs = ns;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (ambiguousNs is not null && userResolvedNs is not null)
+        {
+            diagnostics.Add(new Diagnostic(
+                new DiagnosticId("MIST_AMBIGUOUS_TYPE"),
+                DiagnosticSeverity.Error,
+                PipelineStage.SemanticModelConstruction,
+                $"The type name '{typeName}' is ambiguous between namespaces '{userResolvedNs}' and '{ambiguousNs}'.",
+                Location: null,
+                CompilationUnitPath: sourceText?.Path,
+                AnalyzerName: null));
+            return UnknownType.Instance;
+        }
+
+        if (userResolvedType is not null)
+        {
+            return userResolvedType;
+        }
+
+        // 3b. Search ambient namespaces via ambient resolver.
         if (ambientTypeResolver is not null)
         {
-            // Collect imported namespaces from the file scope and its ancestors.
-            var importedNamespaces = CollectImportedNamespaces(fileScope);
-
             foreach (var ns in importedNamespaces)
             {
                 // Try ambient resolver for each imported namespace.
@@ -4302,6 +4532,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             AnalyzerName: null));
 
         return UnknownType.Instance;
+    }
+
+    /// <summary>
+    /// Finds the global scope by walking up the parent chain from the given scope.
+    /// The global scope is the one with no parent.
+    /// </summary>
+    private static Scope? FindGlobalScope(Scope scope)
+    {
+        IScope? current = scope;
+        while (current is not null)
+        {
+            if (current is Scope s && s.Parent is null)
+                return s;
+            current = current.Parent;
+        }
+        return scope; // fallback
     }
 
     /// <summary>
@@ -4413,11 +4659,36 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var symbol = fileScope.Lookup(argName);
                 if (symbol is null || (symbol.Kind != SymbolKind.Class && symbol.Kind != SymbolKind.Struct && symbol.Kind != SymbolKind.Interface))
                 {
+                    // Check user-defined namespace scopes first.
+                    var importedNamespaces = CollectImportedNamespaces(fileScope);
+                    var globalScope = FindGlobalScope(fileScope);
+                    var userResolved = false;
+
+                    foreach (var ns in importedNamespaces)
+                    {
+                        var nsScope = globalScope is not null
+                            ? FindExistingNamespaceScope(globalScope, symbolTable, ns)
+                            : null;
+
+                        if (nsScope is not null)
+                        {
+                            foreach (var member in nsScope.Members)
+                            {
+                                if (member.Name == argName &&
+                                    (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface))
+                                {
+                                    userResolved = true;
+                                    break;
+                                }
+                            }
+                            if (userResolved) break;
+                        }
+                    }
+
                     // Check ambient resolver.
                     IType? ambientResolved = null;
-                    if (ambientTypeResolver is not null)
+                    if (!userResolved && ambientTypeResolver is not null)
                     {
-                        var importedNamespaces = CollectImportedNamespaces(fileScope);
                         foreach (var ns in importedNamespaces)
                         {
                             ambientResolved = ambientTypeResolver.ResolveType(ns, argName);
@@ -4426,7 +4697,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
                     }
 
-                    if (ambientResolved is null)
+                    if (!userResolved && ambientResolved is null)
                     {
                         diagnostics.Add(MakeDiagnosticWithLocation(
                             DiagnosticId.UndefinedTypeArgument.Value,
@@ -5169,17 +5440,40 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var wellKnown = TryResolveWellKnownType(name);
         if (wellKnown is not null) return wellKnown;
 
-        // Check scope chain for type symbols.
+        // Check scope chain for type symbols (local → file → namespace → global).
         var symbol = fileScope.Lookup(name);
         if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface))
         {
             return symbol.DeclaredType;
         }
 
+        // Check imported namespaces — first user-defined, then ambient.
+        var importedNamespaces = CollectImportedNamespaces(fileScope);
+        var globalScope = FindGlobalScope(fileScope);
+
+        // Check user-defined namespace scopes.
+        foreach (var ns in importedNamespaces)
+        {
+            var nsScope = globalScope is not null
+                ? FindExistingNamespaceScope(globalScope, symbolTable, ns)
+                : null;
+
+            if (nsScope is not null)
+            {
+                foreach (var member in nsScope.Members)
+                {
+                    if (member.Name == name &&
+                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface))
+                    {
+                        return member.DeclaredType;
+                    }
+                }
+            }
+        }
+
         // Check imported namespaces via ambient resolver.
         if (ambientTypeResolver is not null)
         {
-            var importedNamespaces = CollectImportedNamespaces(fileScope);
             foreach (var ns in importedNamespaces)
             {
                 var resolvedType = ambientTypeResolver.ResolveType(ns, name);

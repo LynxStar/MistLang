@@ -114,7 +114,7 @@ public sealed class EmitterOutputTests : IDisposable
         var sourceText = new SourceText("test.mist", source);
         var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), resolver, diagnostics);
+        return _builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), resolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private string EmitAndGetCsContent(ISemanticModel model)
@@ -172,12 +172,12 @@ public sealed class EmitterOutputTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = nsName,
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
-            },
+            } }),
         };
 
         var model = BuildModel(ast, source);
@@ -220,12 +220,12 @@ public sealed class EmitterOutputTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Namespace = new BlockNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new BlockNamespaceNamespaceDeclarationNode
             {
                 Name = nsName,
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
-            },
+            } }),
         };
 
         var model = BuildModel(ast, source);
@@ -267,8 +267,8 @@ public sealed class EmitterOutputTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -322,9 +322,9 @@ public sealed class EmitterOutputTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new StructTypeTypeDeclarationNode { StructDeclaration = structDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -388,8 +388,8 @@ public sealed class EmitterOutputTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -461,8 +461,8 @@ public sealed class EmitterOutputTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -516,8 +516,8 @@ public sealed class EmitterOutputTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var resolver = new CSharpAmbientTypeResolver();
@@ -558,8 +558,8 @@ public sealed class EmitterOutputTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -619,8 +619,8 @@ public sealed class EmitterOutputTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -706,9 +706,9 @@ public sealed class EmitterOutputTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = pointClass },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -774,8 +774,8 @@ public sealed class EmitterOutputTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -848,8 +848,8 @@ public sealed class EmitterOutputTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -889,8 +889,8 @@ public sealed class EmitterOutputTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast, source);
@@ -1001,6 +1001,8 @@ public sealed class EmitterOutputTests : IDisposable
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(parseResult.Root),
             ambientTypeResolver: null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             semanticBag);
 
         // 4. Emit C#

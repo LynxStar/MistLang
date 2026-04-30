@@ -51,7 +51,7 @@ public class UndefinedIdentifierPropertyTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, diagnostics);
+        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
         return (model, diagnostics.ToImmutableArray());
     }
 
@@ -190,8 +190,8 @@ public class UndefinedIdentifierPropertyTests
 
         return new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -305,8 +305,8 @@ public class UndefinedIdentifierPropertyTests
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(usingDecl),
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -429,8 +429,8 @@ public class UndefinedIdentifierPropertyTests
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(usingDecl),
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);

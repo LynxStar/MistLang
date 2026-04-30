@@ -198,7 +198,7 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
     {
         return new CompilationUnitNode
         {
-            Types = types.ToImmutableArray(),
+            Items = types.ToImmutableArray().AsTopLevelItems(),
         };
     }
 
@@ -218,6 +218,8 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             buildDiagnostics);
 
         // Step 2: Run type checker
@@ -402,7 +404,7 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         var sourceText = new SourceText("test.mist", source);
         var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diags = new DiagnosticBag();
-        var model = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), null, diags);
+        var model = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), null, namespaceRoot: "TestProject", projectFolder: "/test", diags);
 
         // Clean output dir for fresh emit
         CleanOutputDir();

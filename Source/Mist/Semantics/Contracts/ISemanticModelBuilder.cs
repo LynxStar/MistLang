@@ -13,5 +13,7 @@ public interface ISemanticModelBuilder
         MistCompilation compilation,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         IAmbientTypeResolver? ambientTypeResolver,
+        string namespaceRoot,
+        string projectFolder,
         DiagnosticBag diagnostics);
 }

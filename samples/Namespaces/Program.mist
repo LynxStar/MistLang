@@ -1,0 +1,27 @@
+using System;
+using Namespaces.Models;
+using Namespaces.Models.Game;
+
+// No explicit namespace — inferred as "Namespaces" (matches NamespaceRoot)
+// Demonstrates: Inferred namespace at project root (Req 10.2)
+// Demonstrates: using declarations to reference types from other namespaces (Req 10.7)
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Use type from Namespaces.Models (imported via using)
+        var player = new Player("Alice", 100);
+        Console.WriteLine(player.Describe());
+
+        // Use type from Namespaces.Models.Game (imported via using)
+        var state = new GameState(1, true);
+        Console.WriteLine(state.Summary());
+
+        // Use type from same namespace (Namespaces) — no using needed
+        var config = new AppConfig("Namespace Demo", "1.0");
+        Console.WriteLine(config.Display());
+
+        Console.WriteLine("Done!");
+    }
+}

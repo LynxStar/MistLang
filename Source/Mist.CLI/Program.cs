@@ -206,6 +206,7 @@ internal class Program
             OutputDirectory: cliArgs.OutputDirectory,
             BinDirectory: cliArgs.BinDirectory,
             ProjectName: config.Name,
+            NamespaceRoot: config.NamespaceRoot,
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         // Construct the compiler pipeline

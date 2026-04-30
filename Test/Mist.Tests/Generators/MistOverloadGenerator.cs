@@ -199,7 +199,7 @@ public static class MistOverloadGenerator
                 (TypeDeclarationNode)new ClassTypeTypeDeclarationNode { ClassDeclaration = c })
             .ToImmutableArray();
 
-        return new CompilationUnitNode { Types = types };
+        return new CompilationUnitNode { Items = (types).AsTopLevelItems() };
     }
 
     /// <summary>

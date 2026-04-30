@@ -60,6 +60,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             OutputDirectory: _outputDir,
             BinDirectory: Path.Combine(_outputDir, "bin"),
             ProjectName: "TestProject",
+            NamespaceRoot: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
     }
 
@@ -241,6 +242,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             OutputDirectory: _outputDir,
             BinDirectory: Path.Combine(_outputDir, "bin"),
             ProjectName: "TestProject",
+            NamespaceRoot: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         var driver = CreateRealDriver();
@@ -284,14 +286,13 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("MyApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
                 Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            },
+            } }),
         };
 
         // Build semantic model
@@ -299,7 +300,7 @@ public sealed class EndToEndCompilationTests : IDisposable
         var sourceText = new SourceText("test.mist", source);
         var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        var model = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), null, diagnostics);
+        var model = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
 
         // Run type checker
         var typeChecker = new TypeCheckerAnalyzer();
@@ -387,21 +388,20 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("TestNs"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
                 Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            },
+            } }),
         };
 
         var builder = new SemanticModelBuilder();
         var sourceText = new SourceText("greeter.mist", source);
         var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        var model = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), null, diagnostics);
+        var model = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
 
         // Emit C#
         var emitDiagnostics = new DiagnosticBag();
@@ -473,22 +473,21 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("TestNs"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new StructTypeTypeDeclarationNode { StructDeclaration = structDecl },
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
                 Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            },
+            } }),
         };
 
         var builder = new SemanticModelBuilder();
         var sourceText = new SourceText("point.mist", source);
         var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        var model = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), null, diagnostics);
+        var model = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
 
         var emitDiagnostics = new DiagnosticBag();
         CSharpEmitter.Emit(model, _outputDir, "TestProject", emitDiagnostics);
@@ -531,14 +530,13 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("MyApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
                 Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            },
+            } }),
         };
 
         // Use the real CSharpAmbientTypeResolver
@@ -552,6 +550,8 @@ public sealed class EndToEndCompilationTests : IDisposable
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             resolver,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             diagnostics);
 
         // The using System should be resolved without errors
@@ -599,21 +599,20 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("MyApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
                 Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            },
+            } }),
         };
 
         var builder = new SemanticModelBuilder();
         var sourceText = new SourceText("test.mist", source);
         var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        var model = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), null, diagnostics);
+        var model = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
 
         // Run type checker — should not throw
         var typeChecker = new TypeCheckerAnalyzer();
@@ -676,14 +675,13 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast1 = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("App"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = helperClass }),
                 Span = new Storm.Runtime.SourceSpan(0, source1.Length),
-            },
+            } }),
         };
 
         // AST for file 2: Program class with Main
@@ -709,14 +707,13 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast2 = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("App"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
                 Span = new Storm.Runtime.SourceSpan(0, source2.Length),
-            },
+            } }),
         };
 
         // Build semantic model with both ASTs
@@ -732,6 +729,8 @@ public sealed class EndToEndCompilationTests : IDisposable
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast1, ast2),
             null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             diagnostics);
 
         // Both types should be registered in the semantic model
@@ -785,27 +784,25 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast1 = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("Shared"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = fooClass }),
                 Span = new Storm.Runtime.SourceSpan(0, source1.Length),
-            },
+            } }),
         };
 
         var ast2 = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("Shared"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = barClass }),
                 Span = new Storm.Runtime.SourceSpan(0, source2.Length),
-            },
+            } }),
         };
 
         var builder = new SemanticModelBuilder();
@@ -818,6 +815,8 @@ public sealed class EndToEndCompilationTests : IDisposable
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast1, ast2),
             null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             diagnostics);
 
         // Both Foo and Bar should be in the model
@@ -856,21 +855,20 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("MyApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
                 Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            },
+            } }),
         };
 
         var builder = new SemanticModelBuilder();
         var sourceText = new SourceText("test.mist", source);
         var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        var model = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), null, diagnostics);
+        var model = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
 
         // Use the full backend (emit + dotnet build)
         var backend = new CSharpTranspilerBackend();
@@ -912,21 +910,20 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("MyApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
                 Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            },
+            } }),
         };
 
         var builder = new SemanticModelBuilder();
         var sourceText = new SourceText("test.mist", source);
         var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        var model = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), null, diagnostics);
+        var model = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
 
         // Emit and compile
         var backend = new CSharpTranspilerBackend();
@@ -980,6 +977,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             OutputDirectory: _outputDir,
             BinDirectory: binDir,
             ProjectName: "Inheritance",
+            NamespaceRoot: "Inheritance",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         var result = driver.Compile(options);
@@ -1072,6 +1070,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             OutputDirectory: _outputDir,
             BinDirectory: binDir,
             ProjectName: "AllFeatures",
+            NamespaceRoot: "AllFeatures",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         var result = driver.Compile(options);
@@ -1111,6 +1110,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             OutputDirectory: _outputDir,
             BinDirectory: binDir,
             ProjectName: "AllFeatures",
+            NamespaceRoot: "AllFeatures",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         var result = driver.Compile(options);
@@ -1157,6 +1157,276 @@ public sealed class EndToEndCompilationTests : IDisposable
         // Interface-typed parameter dispatch via static helper
         Assert.Contains("helper circle:", stdout);
         Assert.Contains("helper rect:", stdout);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Section 5: Namespaces sample project integration test
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void NamespacesSample_CompilesAndRunsCorrectly()
+    {
+        // Compile the samples/Namespaces/ directory through the full Mist pipeline
+        var repoRoot = FindRepoRoot();
+        var sampleDir = Path.Combine(repoRoot, "samples", "Namespaces");
+        Assert.True(Directory.Exists(sampleDir), $"Namespaces sample directory not found at {sampleDir}");
+
+        // Discover all .mist source files (including subdirectories)
+        var sourceFiles = Directory.EnumerateFiles(sampleDir, "*.mist", SearchOption.AllDirectories)
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
+        Assert.True(sourceFiles.Count >= 5, $"Expected at least 5 .mist files, found {sourceFiles.Count}");
+
+        // Compile using the real driver
+        var driver = CreateRealDriver();
+        var binDir = Path.Combine(_outputDir, "bin");
+        var options = new CompilerOptions(
+            ProjectFolder: sampleDir,
+            SourcePaths: sourceFiles.ToImmutableArray(),
+            Backend: new BackendId("csharp"),
+            OutputDirectory: _outputDir,
+            BinDirectory: binDir,
+            ProjectName: "Namespaces",
+            NamespaceRoot: "Namespaces",
+            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+
+        var result = driver.Compile(options);
+
+        // The compilation should succeed with zero error diagnostics
+        var errorDiagnostics = result.Diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToList();
+
+        Assert.True(errorDiagnostics.Count == 0,
+            $"Namespaces compilation produced {errorDiagnostics.Count} error(s):\n{string.Join("\n", errorDiagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"))}");
+        Assert.True(result.Succeeded,
+            $"Namespaces compilation failed. Diagnostics:\n{string.Join("\n", result.Diagnostics.Select(d => $"  [{d.Severity}] {d.Id.Value}: {d.Message}"))}");
+        Assert.NotNull(result.PrimaryOutputArtifactPath);
+        Assert.True(File.Exists(result.PrimaryOutputArtifactPath),
+            $"Expected artifact at {result.PrimaryOutputArtifactPath}");
+        Assert.NotNull(result.PrimaryOutputArtifactPath);
+        Assert.True(File.Exists(result.PrimaryOutputArtifactPath),
+            $"Expected artifact at {result.PrimaryOutputArtifactPath}");
+
+        // Run the produced executable and verify output
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "dotnet",
+            Arguments = result.PrimaryOutputArtifactPath,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        using var process = System.Diagnostics.Process.Start(psi);
+        Assert.NotNull(process);
+
+        var stdout = process.StandardOutput.ReadToEnd();
+        process.WaitForExit(15000);
+        Assert.True(process.HasExited, "Process did not exit within timeout");
+        Assert.Equal(0, process.ExitCode);
+
+        // Verify output from Program.mist demonstrating namespace features
+        Assert.Contains("Player: Alice, HP: 100", stdout);
+        Assert.Contains("Level: 1, Active: True", stdout);
+        Assert.Contains("App: Namespace Demo v1.0", stdout);
+        Assert.Contains("Done!", stdout);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Section 6: Backward compatibility integration tests
+    // Validates: Requirements 12.1, 12.2, 12.3
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Helper that compiles a sample project through the full pipeline, asserts zero errors,
+    /// verifies the artifact exists, and runs the executable expecting exit code 0.
+    /// </summary>
+    private CompilerResult CompileAndRunSample(string sampleName, int minSourceFiles = 1)
+    {
+        var repoRoot = FindRepoRoot();
+        var sampleDir = Path.Combine(repoRoot, "samples", sampleName);
+        Assert.True(Directory.Exists(sampleDir), $"{sampleName} sample directory not found at {sampleDir}");
+
+        var sourceFiles = Directory.EnumerateFiles(sampleDir, "*.mist", SearchOption.AllDirectories)
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
+        Assert.True(sourceFiles.Count >= minSourceFiles,
+            $"Expected at least {minSourceFiles} .mist file(s) in {sampleName}, found {sourceFiles.Count}");
+
+        var driver = CreateRealDriver();
+        var binDir = Path.Combine(_outputDir, "bin");
+        var options = new CompilerOptions(
+            ProjectFolder: sampleDir,
+            SourcePaths: sourceFiles.ToImmutableArray(),
+            Backend: new BackendId("csharp"),
+            OutputDirectory: _outputDir,
+            BinDirectory: binDir,
+            ProjectName: sampleName,
+            NamespaceRoot: sampleName,
+            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+
+        var result = driver.Compile(options);
+
+        // Compilation must succeed with zero errors
+        var errorDiagnostics = result.Diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToList();
+        Assert.True(errorDiagnostics.Count == 0,
+            $"{sampleName} compilation produced {errorDiagnostics.Count} error(s):\n{string.Join("\n", errorDiagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"))}");
+        Assert.True(result.Succeeded,
+            $"{sampleName} compilation failed. Diagnostics:\n{string.Join("\n", result.Diagnostics.Select(d => $"  [{d.Severity}] {d.Id.Value}: {d.Message}"))}");
+
+        // Artifact must exist
+        Assert.NotNull(result.PrimaryOutputArtifactPath);
+        Assert.True(File.Exists(result.PrimaryOutputArtifactPath),
+            $"Expected artifact at {result.PrimaryOutputArtifactPath}");
+
+        // Run the executable — must exit with code 0
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "dotnet",
+            Arguments = result.PrimaryOutputArtifactPath,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        using var process = System.Diagnostics.Process.Start(psi);
+        Assert.NotNull(process);
+
+        process.WaitForExit(15000);
+        Assert.True(process.HasExited, "Process did not exit within timeout");
+        Assert.Equal(0, process.ExitCode);
+
+        return result;
+    }
+
+    [Fact]
+    public void BackwardCompat_HelloMist_CompilesAndRuns()
+    {
+        // HelloMist has explicit namespace declarations (namespace HelloMist;) in every file.
+        // Requirement 12.2: files with existing single namespace declarations continue to work identically.
+        CompileAndRunSample("HelloMist", minSourceFiles: 3);
+    }
+
+    [Fact]
+    public void BackwardCompat_Simpliest_CompilesAndRuns()
+    {
+        // Simpliest has an explicit namespace declaration (namespace Simpliest;).
+        // Requirement 12.2: files with existing single namespace declarations continue to work identically.
+        CompileAndRunSample("Simpliest", minSourceFiles: 1);
+    }
+
+    [Fact]
+    public void BackwardCompat_Interfaces_CompilesAndRuns()
+    {
+        // Interfaces has explicit namespace declarations in all files.
+        // Requirement 12.2: files with existing single namespace declarations continue to work identically.
+        CompileAndRunSample("Interfaces", minSourceFiles: 5);
+    }
+
+    [Fact]
+    public void BackwardCompat_Properties_CompilesAndRuns()
+    {
+        // Properties has explicit namespace declarations in all files.
+        // Requirement 12.2: files with existing single namespace declarations continue to work identically.
+        CompileAndRunSample("Properties", minSourceFiles: 10);
+    }
+
+    [Fact]
+    public void BackwardCompat_Generics_CompilesWithoutNamespaceErrors()
+    {
+        // Generics has explicit namespace declarations in all files.
+        // Note: the Generics sample has pre-existing compilation errors related to
+        // generic method resolution (not namespace-related). We verify that no
+        // namespace-related errors are introduced by the inferred namespace feature.
+        var repoRoot = FindRepoRoot();
+        var sampleDir = Path.Combine(repoRoot, "samples", "Generics");
+        Assert.True(Directory.Exists(sampleDir));
+
+        var sourceFiles = Directory.EnumerateFiles(sampleDir, "*.mist", SearchOption.AllDirectories)
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
+        Assert.True(sourceFiles.Count >= 5);
+
+        var driver = CreateRealDriver();
+        var binDir = Path.Combine(_outputDir, "bin");
+        var options = new CompilerOptions(
+            ProjectFolder: sampleDir,
+            SourcePaths: sourceFiles.ToImmutableArray(),
+            Backend: new BackendId("csharp"),
+            OutputDirectory: _outputDir,
+            BinDirectory: binDir,
+            ProjectName: "Generics",
+            NamespaceRoot: "Generics",
+            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+
+        var result = driver.Compile(options);
+
+        // Verify no namespace-related errors are produced
+        var namespaceDiagnostics = result.Diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Error &&
+                        (d.Id.Value.Contains("NAMESPACE") || d.Id.Value.Contains("AMBIGUOUS")))
+            .ToList();
+        Assert.True(namespaceDiagnostics.Count == 0,
+            $"Generics compilation produced namespace-related error(s):\n{string.Join("\n", namespaceDiagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"))}");
+    }
+
+    [Fact]
+    public void BackwardCompat_HelloMist_ExplicitNamespacePreserved()
+    {
+        // Verify that files with explicit namespace HelloMist; still emit under that namespace,
+        // not under an inferred namespace. Requirement 12.2.
+        var repoRoot = FindRepoRoot();
+        var sampleDir = Path.Combine(repoRoot, "samples", "HelloMist");
+        var sourceFiles = Directory.EnumerateFiles(sampleDir, "*.mist", SearchOption.AllDirectories)
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
+
+        var driver = CreateRealDriver();
+        var binDir = Path.Combine(_outputDir, "bin");
+        var options = new CompilerOptions(
+            ProjectFolder: sampleDir,
+            SourcePaths: sourceFiles.ToImmutableArray(),
+            Backend: new BackendId("csharp"),
+            OutputDirectory: _outputDir,
+            BinDirectory: binDir,
+            ProjectName: "HelloMist",
+            NamespaceRoot: "HelloMist",
+            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+
+        var result = driver.Compile(options);
+        Assert.True(result.Succeeded);
+
+        // Verify emitted C# files contain the explicit namespace HelloMist
+        var programCs = Path.Combine(_outputDir, "Program.cs");
+        Assert.True(File.Exists(programCs), "Program.cs should be emitted");
+        var content = File.ReadAllText(programCs);
+        Assert.Contains("namespace HelloMist", content);
+    }
+
+    [Fact]
+    public void BackwardCompat_NoNamespaceRoot_DefaultsToProjectName()
+    {
+        // Requirement 12.1: when mist.toml has no namespace_root field,
+        // the NamespaceRoot defaults to the project name without changes.
+        // All sample mist.toml files lack namespace_root — verify they compile fine.
+        // This is implicitly tested by all the above tests, but we verify the
+        // ProjectFileParser behavior explicitly here.
+        var repoRoot = FindRepoRoot();
+        var sampleDir = Path.Combine(repoRoot, "samples", "HelloMist");
+        Assert.True(Directory.Exists(sampleDir));
+
+        var diagnostics = new DiagnosticBag();
+        var config = ProjectFileParser.Parse(sampleDir, diagnostics);
+
+        Assert.NotNull(config);
+        Assert.Equal("HelloMist", config!.Name);
+        Assert.Equal("HelloMist", config.NamespaceRoot);
+        Assert.Empty(diagnostics.ToImmutableArray());
     }
 
     // ─── Utility: find the repository root ───────────────────────────────

@@ -1,0 +1,19 @@
+using System;
+
+// No explicit namespace — inferred as "Namespaces.Models" from folder path
+// Demonstrates: Same-namespace scoping within Models — Player.mist and Item.mist share namespace (Req 10.8)
+
+public class Item
+{
+    private string label;
+
+    public Item(string label)
+    {
+        this.label = label;
+    }
+
+    public string GetLabel()
+    {
+        return label;
+    }
+}

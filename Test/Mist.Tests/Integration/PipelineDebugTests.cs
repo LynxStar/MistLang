@@ -89,14 +89,14 @@ public sealed class PipelineDebugTests : IDisposable
         Assert.NotNull(cu);
 
         // Check namespace
-        Assert.NotNull(cu!.Namespace);
-        var ns = cu.Namespace as FileScopedNamespaceNamespaceDeclarationNode;
+        Assert.NotNull(cu!.GetNamespace());
+        var ns = cu.GetNamespace() as FileScopedNamespaceNamespaceDeclarationNode;
         Assert.NotNull(ns);
 
         // THIS IS THE KEY CHECK: the namespace body should contain the Program class
         Assert.True(ns!.Body.Length > 0,
-            $"FileScopedNamespace.Body is empty! Namespace type: {cu.Namespace.GetType().Name}. " +
-            $"CompilationUnit.Types.Length: {cu.Types.Length}. " +
+            $"FileScopedNamespace.Body is empty! Namespace type: {cu.GetNamespace()!.GetType().Name}. " +
+            $"CompilationUnit.GetTypes().Length: {cu.GetTypes().Length}. " +
             $"Diagnostics:\n{diagDump}\nFirst 30 tokens:\n{tokenDump}");
 
         // Verify the class is there
@@ -135,7 +135,7 @@ public sealed class PipelineDebugTests : IDisposable
         var cu = parseResult.Root as CompilationUnitNode;
         Assert.NotNull(cu);
 
-        var ns = cu!.Namespace as FileScopedNamespaceNamespaceDeclarationNode;
+        var ns = cu!.GetNamespace() as FileScopedNamespaceNamespaceDeclarationNode;
         Assert.NotNull(ns);
         Assert.True(ns!.Body.Length > 0, "Minimal source: namespace body is empty!");
     }
@@ -187,7 +187,7 @@ public sealed class PipelineDebugTests : IDisposable
         var cu = parseResult.Root as CompilationUnitNode;
         Assert.NotNull(cu);
 
-        var ns = cu!.Namespace as FileScopedNamespaceNamespaceDeclarationNode;
+        var ns = cu!.GetNamespace() as FileScopedNamespaceNamespaceDeclarationNode;
         Assert.NotNull(ns);
         Assert.True(ns!.Body.Length > 0,
             $"[{name}] Namespace body is empty!\nDiagnostics:\n{diagDump}");
@@ -248,7 +248,7 @@ public sealed class PipelineDebugTests : IDisposable
         var builder = new SemanticModelBuilder();
         var resolver = new CSharpAmbientTypeResolver();
         var semanticBag = new DiagnosticBag();
-        var model = builder.Build(compilation, asts.ToImmutable(), resolver, semanticBag);
+        var model = builder.Build(compilation, asts.ToImmutable(), resolver, namespaceRoot: "TestProject", projectFolder: "/test", semanticBag);
 
         // Check that we have more than just namespace symbols
         var allSymbols = model.AllSymbols.ToList();
@@ -291,6 +291,7 @@ public sealed class PipelineDebugTests : IDisposable
             OutputDirectory: _outputDir,
             BinDirectory: Path.Combine(_outputDir, "bin"),
             ProjectName: "TestProject",
+            NamespaceRoot: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         var result = driver.Compile(options);

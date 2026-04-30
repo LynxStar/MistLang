@@ -56,7 +56,7 @@ public class SemanticModelBuilderUnitTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, diagnostics);
+        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private (ISemanticModel Model, ImmutableArray<Diagnostic> Diagnostics) BuildModelWithDiagnostics(
@@ -66,7 +66,7 @@ public class SemanticModelBuilderUnitTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, diagnostics);
+        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
         return (model, diagnostics.ToImmutableArray());
     }
 
@@ -254,8 +254,8 @@ public class SemanticModelBuilderUnitTests
 
         return new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -300,7 +300,7 @@ public class SemanticModelBuilderUnitTests
             Span = new Storm.Runtime.SourceSpan(0, source.Length),
         };
 
-        var ast = new CompilationUnitNode { Namespace = nsNode };
+        var ast = new CompilationUnitNode { Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = nsNode }) };
         var model = BuildModel(ast, source);
 
         // Find the local variable "x" and walk up its scope chain.
@@ -357,18 +357,20 @@ public class SemanticModelBuilderUnitTests
         };
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
 
-        // Global scope should only have the class, not the field or method.
+        // With inferred namespaces, global scope has the namespace symbol "TestProject",
+        // not the class directly. The class is under the namespace scope.
         Assert.Single(model.GlobalScope.Members);
-        Assert.Equal("C", model.GlobalScope.Members[0].Name);
+        Assert.Equal("TestProject", model.GlobalScope.Members[0].Name);
+        Assert.Equal(SymbolKind.Namespace, model.GlobalScope.Members[0].Kind);
 
         // The field and method should be in the type scope.
-        var classSymbol = model.GlobalScope.Members[0];
+        var classSymbol = model.AllSymbols.First(s => s.Name == "C" && s.Kind == SymbolKind.Class);
         var classType = Assert.IsType<ClassType>(classSymbol.DeclaredType);
         Assert.NotNull(classType.MemberScope.Lookup("f"));
         Assert.NotNull(classType.MemberScope.Lookup("M"));
@@ -444,7 +446,7 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(usingDecl),
-            Namespace = nsNode,
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = nsNode }),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast, source);
@@ -475,8 +477,8 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(usingDecl),
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var resolver = new CSharpAmbientTypeResolver();
@@ -507,8 +509,8 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(usingDecl),
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -552,8 +554,8 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(usingDecl),
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var resolver = new CSharpAmbientTypeResolver();
@@ -614,8 +616,8 @@ public class SemanticModelBuilderUnitTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -695,8 +697,8 @@ public class SemanticModelBuilderUnitTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -741,8 +743,8 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(usingDecl),
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var resolver = new CSharpAmbientTypeResolver();
@@ -795,8 +797,8 @@ public class SemanticModelBuilderUnitTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -867,8 +869,8 @@ public class SemanticModelBuilderUnitTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         // Note: The ParameterListNode grammar uses (COMMA Parameter)* for additional params.
@@ -952,8 +954,8 @@ public class SemanticModelBuilderUnitTests
         };
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -994,8 +996,8 @@ public class SemanticModelBuilderUnitTests
         };
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -1050,8 +1052,8 @@ public class SemanticModelBuilderUnitTests
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(usingDecl),
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var resolver = new CSharpAmbientTypeResolver();
@@ -1150,9 +1152,9 @@ public class SemanticModelBuilderUnitTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = baseDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedDecl }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -1176,9 +1178,9 @@ public class SemanticModelBuilderUnitTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = baseDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedDecl }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -1205,10 +1207,10 @@ public class SemanticModelBuilderUnitTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = aDecl },
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = bDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = cDecl }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = cDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -1232,9 +1234,9 @@ public class SemanticModelBuilderUnitTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = baseDecl },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedDecl }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedDecl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -1251,8 +1253,8 @@ public class SemanticModelBuilderUnitTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = decl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = decl }).AsTopLevelItems(),
         };
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);

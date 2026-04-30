@@ -144,8 +144,8 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         // Build a source string that matches the AST structure for span extraction.
@@ -167,7 +167,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         var sourceText = new SourceText("test.mist", source);
         var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), resolver, diagnostics);
+        return _builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), resolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private string EmitAndGetCsContent(ISemanticModel model)
@@ -332,8 +332,8 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         var source = "class Program {\n    public static void Main() {\n        int x = 42;\n    }\n}";

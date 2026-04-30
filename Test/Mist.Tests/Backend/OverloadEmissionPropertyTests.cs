@@ -102,6 +102,8 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             diagnostics);
     }
 
@@ -319,8 +321,8 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         return (ast, source);
@@ -400,8 +402,8 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         return (ast, source);
@@ -524,6 +526,7 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
                 OutputDirectory: Path.Combine(tempDir, "out"),
                 BinDirectory: Path.Combine(tempDir, "bin"),
                 ProjectName: "TestProject",
+                NamespaceRoot: "TestProject",
                 EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
             var result = driver.Compile(options);

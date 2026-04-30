@@ -389,8 +389,8 @@ public class GenericRoundTripPropertyTests
         {
             var cu = new CompilationUnitNode
             {
-                Types = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                Items = ImmutableArray.Create<TypeDeclarationNode>(
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
             };
             var desc = $"class {classDecl.Name.Lexeme}<...>";
             return new GenericRoundTripTestCase(desc, cu);
@@ -403,8 +403,8 @@ public class GenericRoundTripPropertyTests
         {
             var cu = new CompilationUnitNode
             {
-                Types = ImmutableArray.Create<TypeDeclarationNode>(
-                    new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }),
+                Items = ImmutableArray.Create<TypeDeclarationNode>(
+                    new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }).AsTopLevelItems(),
             };
             var desc = $"struct {structDecl.Name.Lexeme}<...>";
             return new GenericRoundTripTestCase(desc, cu);
@@ -417,8 +417,8 @@ public class GenericRoundTripPropertyTests
         {
             var cu = new CompilationUnitNode
             {
-                Types = ImmutableArray.Create<TypeDeclarationNode>(
-                    new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl }),
+                Items = ImmutableArray.Create<TypeDeclarationNode>(
+                    new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl }).AsTopLevelItems(),
             };
             var desc = $"interface {interfaceDecl.Name.Lexeme}<...>";
             return new GenericRoundTripTestCase(desc, cu);
@@ -463,8 +463,8 @@ public class GenericRoundTripPropertyTests
 
         var cu = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         return new GenericRoundTripTestCase($"class {className} with generic method calls", cu);

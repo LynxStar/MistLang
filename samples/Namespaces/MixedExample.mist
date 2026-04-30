@@ -1,0 +1,26 @@
+using System;
+
+// Demonstrates: Multiple namespace declarations in a single file (Req 10.6)
+// Uses two block namespaces since C# doesn't allow mixing file-scoped and block in one file
+
+namespace Namespaces.MixedA
+{
+    public class AlphaType
+    {
+        public string Name()
+        {
+            return "AlphaType";
+        }
+    }
+}
+
+namespace Namespaces.MixedB
+{
+    public class BetaType
+    {
+        public string Name()
+        {
+            return "BetaType";
+        }
+    }
+}

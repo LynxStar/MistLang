@@ -50,7 +50,7 @@ public class TypeCheckerOverloadDiagnosticTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, diagnostics);
+        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private ImmutableArray<Diagnostic> RunTypeChecker(ISemanticModel model)
@@ -272,9 +272,9 @@ public class TypeCheckerOverloadDiagnosticTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = fooClass },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
         };
 
         // Act
@@ -327,9 +327,9 @@ public class TypeCheckerOverloadDiagnosticTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = fooClass },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
         };
 
         // Act
@@ -383,9 +383,9 @@ public class TypeCheckerOverloadDiagnosticTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = barClass },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
         };
 
         // Act
@@ -437,9 +437,9 @@ public class TypeCheckerOverloadDiagnosticTests
 
         var ast = new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = fooClass },
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsTopLevelItems(),
         };
 
         // Act

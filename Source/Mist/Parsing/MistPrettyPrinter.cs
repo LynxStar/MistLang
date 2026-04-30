@@ -15,6 +15,12 @@ public sealed class MistPrettyPrinter
     private readonly StringBuilder _sb = new();
     private int _indentLevel;
     private const string IndentUnit = "    "; // 4 spaces per indent level
+    private readonly string? _sourceText;
+
+    private MistPrettyPrinter(string? sourceText = null)
+    {
+        _sourceText = sourceText;
+    }
 
     /// <summary>
     /// Pretty-prints the given AST node to syntactically valid Mist source text.
@@ -22,6 +28,18 @@ public sealed class MistPrettyPrinter
     public static string Print(SyntaxNode ast)
     {
         var printer = new MistPrettyPrinter();
+        printer.Visit(ast);
+        return printer._sb.ToString();
+    }
+
+    /// <summary>
+    /// Pretty-prints the given AST node using the original source text to reconstruct
+    /// qualified names from span information. Use this overload for round-trip fidelity
+    /// when working with ASTs produced by the parser.
+    /// </summary>
+    public static string Print(SyntaxNode ast, string sourceText)
+    {
+        var printer = new MistPrettyPrinter(sourceText);
         printer.Visit(ast);
         return printer._sb.ToString();
     }
@@ -48,19 +66,22 @@ public sealed class MistPrettyPrinter
             EmitUsingDeclaration(usingDecl);
         }
 
-        if (cu.Usings.Length > 0 && (cu.Namespace is not null || cu.Types.Length > 0))
+        if (cu.Usings.Length > 0 && cu.Items.Length > 0)
         {
             AppendLine();
         }
 
-        if (cu.Namespace is not null)
+        foreach (var item in cu.Items)
         {
-            EmitNamespaceDeclaration(cu.Namespace);
-        }
-
-        foreach (var typeDecl in cu.Types)
-        {
-            EmitTypeDeclaration(typeDecl);
+            switch (item)
+            {
+                case NamespaceItemTopLevelItemNode nsItem:
+                    EmitNamespaceDeclaration(nsItem.NamespaceDeclaration);
+                    break;
+                case TypeItemTopLevelItemNode typeItem:
+                    EmitTypeDeclaration(typeItem.TypeDeclaration);
+                    break;
+            }
         }
     }
 
@@ -1181,28 +1202,44 @@ public sealed class MistPrettyPrinter
 
     /// <summary>
     /// Extracts the qualified name from a QualifiedIdentifierNode.
-    /// Uses the Span to reconstruct dotted names, falling back to the IDENTIFIER lexeme.
+    /// When source text is available, uses the Span to extract the exact text.
+    /// Otherwise, reconstructs from the IDENTIFIER and IDENTIFIERs properties.
     /// </summary>
-    private static string ExtractQualifiedName(QualifiedIdentifierNode qualifiedId)
+    private string ExtractQualifiedName(QualifiedIdentifierNode qualifiedId)
     {
-        // Walk children to reconstruct the dotted name from tokens.
-        // The QualifiedIdentifierNode stores the first IDENTIFIER token,
-        // and additional DOT IDENTIFIER pairs are in the Span.
-        // Since we don't have source text, we reconstruct from the node's lexeme
-        // and any additional identifiers found in the span.
-        // For hand-crafted ASTs, the Span property may encode the full name.
-        var lexeme = qualifiedId.IDENTIFIER.Lexeme;
-        if (string.IsNullOrEmpty(lexeme))
+        // Prefer extracting from source text via Span (handles dotted names correctly)
+        if (_sourceText is not null)
+        {
+            var span = qualifiedId.Span;
+            if (span.Length > 0 && span.Start + span.Length <= _sourceText.Length)
+            {
+                return _sourceText.Substring(span.Start, span.Length);
+            }
+        }
+
+        // Fall back to reconstructing from token properties (for hand-crafted ASTs)
+        var first = qualifiedId.IDENTIFIER.Lexeme;
+        if (string.IsNullOrEmpty(first))
         {
             return "";
         }
 
-        // If the span is larger than the single identifier, there may be dotted parts.
-        // However, since QualifiedIdentifierNode only exposes a single IDENTIFIER token,
-        // we rely on the lexeme for simple names and the Span for dotted names.
-        // For the pretty printer, we use the lexeme directly — dotted names will
-        // have been stored as the full dotted string in the lexeme by the parser.
-        return lexeme;
+        if (qualifiedId.IDENTIFIERs.IsDefaultOrEmpty)
+        {
+            return first;
+        }
+
+        // Reconstruct the dotted name: first.second.third...
+        var sb = new StringBuilder(first);
+        foreach (var token in qualifiedId.IDENTIFIERs)
+        {
+            if (!string.IsNullOrEmpty(token.Lexeme))
+            {
+                sb.Append('.');
+                sb.Append(token.Lexeme);
+            }
+        }
+        return sb.ToString();
     }
 
     private void AppendLine(string text = "")

@@ -198,7 +198,7 @@ public class InterfaceRoundTripPropertyTests
     {
         return new CompilationUnitNode
         {
-            Types = typeDecls.ToImmutableArray(),
+            Items = (typeDecls.ToImmutableArray()).AsTopLevelItems(),
         };
     }
 

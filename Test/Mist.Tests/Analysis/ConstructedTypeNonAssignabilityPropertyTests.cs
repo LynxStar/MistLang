@@ -52,7 +52,7 @@ public class ConstructedTypeNonAssignabilityPropertyTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, diagnostics);
+        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private ImmutableArray<Diagnostic> RunTypeChecker(ISemanticModel model)
@@ -261,7 +261,7 @@ public class ConstructedTypeNonAssignabilityPropertyTests
         };
         typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass });
 
-        return new CompilationUnitNode { Types = typeDecls.ToImmutableArray() };
+        return new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() };
     }
 
     // ─── Property tests ──────────────────────────────────────────────────

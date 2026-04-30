@@ -113,7 +113,7 @@ public class TypeCheckerPreservationPropertyTests
         ImmutableArray<Storm.Runtime.SyntaxNode> asts)
     {
         var buildDiagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, asts, ambientTypeResolver: null, buildDiagnostics);
+        var model = _builder.Build(compilation, asts, ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", buildDiagnostics);
         var tcDiagnostics = new DiagnosticBag();
         _analyzer.Analyze(model, tcDiagnostics);
         return tcDiagnostics.ToImmutableArray();
@@ -198,21 +198,20 @@ public class TypeCheckerPreservationPropertyTests
             return new CompilationUnitNode
             {
                 Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-                Types = ImmutableArray<TypeDeclarationNode>.Empty,
-                Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+                Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
                 {
                     Name = MakeQualifiedId(namespaceName),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
                         new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
                     Span = new Storm.Runtime.SourceSpan(0, 100),
-                },
+                } }),
             };
         }
 
         return new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -246,8 +245,8 @@ public class TypeCheckerPreservationPropertyTests
 
         return new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -293,8 +292,8 @@ public class TypeCheckerPreservationPropertyTests
 
         return new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -362,8 +361,8 @@ public class TypeCheckerPreservationPropertyTests
 
         return new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = fooClass }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = fooClass }).AsTopLevelItems(),
         };
     }
 
@@ -442,8 +441,8 @@ public class TypeCheckerPreservationPropertyTests
 
         return new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
     }
 

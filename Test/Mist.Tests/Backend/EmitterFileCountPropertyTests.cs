@@ -120,8 +120,8 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 
         return new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -149,7 +149,7 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 
         var compilation = new MistCompilation(units.ToImmutableArray());
         var diagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, asts.ToImmutableArray(), ambientTypeResolver: null, diagnostics);
+        var model = _builder.Build(compilation, asts.ToImmutableArray(), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
 
         return (model, fileCount);
     }

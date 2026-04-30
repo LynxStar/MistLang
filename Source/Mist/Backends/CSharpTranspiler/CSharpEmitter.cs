@@ -140,19 +140,75 @@ internal sealed class CSharpSourceWriter
             AppendLine();
         }
 
-        // Emit namespace declaration.
-        if (cu.Namespace is not null)
-        {
-            EmitNamespaceDeclaration(cu.Namespace);
-        }
+        // Emit namespace and type declarations from items.
+        // Top-level types (outside any explicit namespace) belong to the inferred
+        // namespace. We look up each type's ContainingNamespace from the semantic
+        // model and emit a file-scoped namespace declaration before the first type
+        // in each inferred namespace group.
+        string? emittedInferredNamespace = null;
 
-        // Emit top-level type declarations (outside namespace).
-        foreach (var typeDecl in cu.Types)
+        foreach (var item in cu.Items)
         {
-            EmitTypeDeclaration(typeDecl);
+            switch (item)
+            {
+                case NamespaceItemTopLevelItemNode nsItem:
+                    EmitNamespaceDeclaration(nsItem.NamespaceDeclaration);
+                    break;
+                case TypeItemTopLevelItemNode typeItem:
+                {
+                    // Determine the type's namespace from the semantic model.
+                    var typeNamespace = GetTypeContainingNamespace(typeItem.TypeDeclaration);
+
+                    // If this type has a namespace and we haven't emitted it yet,
+                    // emit a file-scoped namespace declaration.
+                    if (typeNamespace is not null && typeNamespace != emittedInferredNamespace)
+                    {
+                        if (emittedInferredNamespace is not null)
+                        {
+                            // Separate namespace sections with a blank line.
+                            AppendLine();
+                        }
+                        AppendLine($"namespace {typeNamespace};");
+                        AppendLine();
+                        emittedInferredNamespace = typeNamespace;
+                    }
+
+                    EmitTypeDeclaration(typeItem.TypeDeclaration);
+                    break;
+                }
+            }
         }
 
         return _sb.ToString();
+    }
+
+    /// <summary>
+    /// Looks up the ContainingNamespace for a type declaration by querying the
+    /// semantic model for the symbol declared by the inner declaration node
+    /// (ClassDeclaration, StructDeclaration, or InterfaceDeclaration).
+    /// </summary>
+    private string? GetTypeContainingNamespace(TypeDeclarationNode typeDecl)
+    {
+        Storm.Runtime.SyntaxNode? innerNode = typeDecl switch
+        {
+            ClassTypeTypeDeclarationNode classType => classType.ClassDeclaration,
+            StructTypeTypeDeclarationNode structType => structType.StructDeclaration,
+            InterfaceTypeTypeDeclarationNode interfaceType => interfaceType.InterfaceDeclaration,
+            _ => null,
+        };
+
+        if (innerNode is null) return null;
+
+        var symbol = _model.GetDeclaredSymbol(innerNode);
+        if (symbol?.DeclaredType is null) return null;
+
+        return symbol.DeclaredType switch
+        {
+            ClassType ct => ct.ContainingNamespace,
+            StructType st => st.ContainingNamespace,
+            InterfaceType it => it.ContainingNamespace,
+            _ => null,
+        };
     }
 
     private void EmitNamespaceDeclaration(NamespaceDeclarationNode ns)

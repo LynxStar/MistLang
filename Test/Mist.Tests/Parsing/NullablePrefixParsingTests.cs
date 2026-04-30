@@ -36,7 +36,7 @@ public class NullablePrefixParsingTests
         var cu = result.Root as CompilationUnitNode;
         Assert.NotNull(cu);
 
-        var ns = cu!.Namespace as FileScopedNamespaceNamespaceDeclarationNode;
+        var ns = cu!.GetNamespace() as FileScopedNamespaceNamespaceDeclarationNode;
         Assert.NotNull(ns);
         Assert.True(ns!.Body.Length > 0, "FileScopedNamespace.Body should contain the class declaration");
 
@@ -54,9 +54,9 @@ public class NullablePrefixParsingTests
         Assert.Empty(result.Diagnostics);
         var cu = result.Root as CompilationUnitNode;
         Assert.NotNull(cu);
-        Assert.True(cu!.Types.Length > 0);
+        Assert.True(cu!.GetTypes().Length > 0);
 
-        var typeDecl = cu.Types[0] as ClassTypeTypeDeclarationNode;
+        var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
         Assert.Equal(2, typeDecl!.ClassDeclaration.Modifiers.Length);
         Assert.IsType<PublicModifierModifierNode>(typeDecl.ClassDeclaration.Modifiers[0]);
@@ -73,7 +73,7 @@ public class NullablePrefixParsingTests
         var cu = result.Root as CompilationUnitNode;
         Assert.NotNull(cu);
 
-        var typeDecl = cu!.Types[0] as ClassTypeTypeDeclarationNode;
+        var typeDecl = cu!.GetTypes()[0] as ClassTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
         Assert.Equal(2, typeDecl!.ClassDeclaration.Members.Length);
     }
@@ -88,7 +88,7 @@ public class NullablePrefixParsingTests
         var cu = result.Root as CompilationUnitNode;
         Assert.NotNull(cu);
 
-        var ns = cu!.Namespace as FileScopedNamespaceNamespaceDeclarationNode;
+        var ns = cu!.GetNamespace() as FileScopedNamespaceNamespaceDeclarationNode;
         Assert.NotNull(ns);
         Assert.Equal(2, ns!.Body.Length);
 
@@ -122,7 +122,7 @@ public class Program
 
         Assert.Single(cu!.Usings);
 
-        var ns = cu.Namespace as FileScopedNamespaceNamespaceDeclarationNode;
+        var ns = cu.GetNamespace() as FileScopedNamespaceNamespaceDeclarationNode;
         Assert.NotNull(ns);
 
         Assert.True(ns!.Body.Length > 0, "Namespace body should contain the Program class");
@@ -141,9 +141,9 @@ public class Program
         Assert.NotNull(result.Root);
         var cu = result.Root as CompilationUnitNode;
         Assert.NotNull(cu);
-        Assert.True(cu!.Types.Length > 0);
+        Assert.True(cu!.GetTypes().Length > 0);
 
-        var typeDecl = cu.Types[0] as ClassTypeTypeDeclarationNode;
+        var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
         var classDecl = typeDecl!.ClassDeclaration;
         Assert.Equal("C", classDecl.Name.Lexeme);
@@ -170,7 +170,7 @@ public class Program
         var cu = result.Root as CompilationUnitNode;
         Assert.NotNull(cu);
 
-        var typeDecl = cu!.Types[0] as ClassTypeTypeDeclarationNode;
+        var typeDecl = cu!.GetTypes()[0] as ClassTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
         var classDecl = typeDecl!.ClassDeclaration;
         Assert.Equal(2, classDecl.Members.Length);
@@ -190,7 +190,7 @@ public class Program
         var cu = result.Root as CompilationUnitNode;
         Assert.NotNull(cu);
 
-        var typeDecl = cu!.Types[0] as ClassTypeTypeDeclarationNode;
+        var typeDecl = cu!.GetTypes()[0] as ClassTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
         var classDecl = typeDecl!.ClassDeclaration;
         Assert.Equal(3, classDecl.Members.Length);
@@ -229,7 +229,7 @@ public class Point
         var cu = result.Root as CompilationUnitNode;
         Assert.NotNull(cu);
 
-        var ns = cu!.Namespace as FileScopedNamespaceNamespaceDeclarationNode;
+        var ns = cu!.GetNamespace() as FileScopedNamespaceNamespaceDeclarationNode;
         Assert.NotNull(ns);
         Assert.True(ns!.Body.Length > 0, "Namespace body should contain the Point class");
 

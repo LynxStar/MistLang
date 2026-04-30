@@ -167,6 +167,8 @@ public class PropertyAccessTypePropertyTests
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             semanticDiagnostics);
 
         // Run the type checker analyzer to get MIST_TC_* diagnostics

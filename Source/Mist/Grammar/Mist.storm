@@ -78,7 +78,12 @@ token IDENTIFIER = `[a-zA-Z_][a-zA-Z0-9_]*`;
 
 // ─── Parser Rules — Top Level ────────────────────────────────────────────────
 
-rule CompilationUnit = usings:UsingDeclaration* namespace:NamespaceDeclaration? types:TypeDeclaration*;
+rule CompilationUnit = usings:UsingDeclaration* items:TopLevelItem*;
+
+rule TopLevelItem
+    = namespaceDeclaration:NamespaceDeclaration  as NamespaceItem
+    | typeDeclaration:TypeDeclaration            as TypeItem
+    ;
 
 rule UsingDeclaration = USING name:QualifiedIdentifier SEMICOLON;
 

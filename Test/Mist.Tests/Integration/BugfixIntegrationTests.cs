@@ -240,14 +240,13 @@ public sealed class BugfixIntegrationTests : IDisposable
         var ast1 = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("TestApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = geometryClass }),
                 Span = new Storm.Runtime.SourceSpan(0, source1.Length),
-            },
+            } }),
         };
 
         // ── File 2: StringHelper class — Bug 3 (string.Length() call) ──
@@ -307,14 +306,13 @@ public sealed class BugfixIntegrationTests : IDisposable
         var ast2 = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("TestApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = stringHelperClass }),
                 Span = new Storm.Runtime.SourceSpan(0, source2.Length),
-            },
+            } }),
         };
 
         // ── File 3: Program class with Main entry point ──
@@ -342,14 +340,13 @@ public sealed class BugfixIntegrationTests : IDisposable
         var ast3 = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("TestApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
                 Span = new Storm.Runtime.SourceSpan(0, source3.Length),
-            },
+            } }),
         };
 
         // ── Build semantic model with all three files ──
@@ -366,6 +363,8 @@ public sealed class BugfixIntegrationTests : IDisposable
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast1, ast2, ast3),
             resolver,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             diagnostics);
 
         // ── Assert: no error diagnostics from semantic model building ──
@@ -453,14 +452,13 @@ public sealed class BugfixIntegrationTests : IDisposable
         var ast1 = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("TestApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = widgetClass }),
                 Span = new Storm.Runtime.SourceSpan(0, source1.Length),
-            },
+            } }),
         };
 
         // ── File 2: Class with string.Length() call (Bug 3) ──
@@ -519,14 +517,13 @@ public sealed class BugfixIntegrationTests : IDisposable
         var ast2 = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("TestApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = textUtilClass }),
                 Span = new Storm.Runtime.SourceSpan(0, source2.Length),
-            },
+            } }),
         };
 
         // ── File 3: Program with Main ──
@@ -554,14 +551,13 @@ public sealed class BugfixIntegrationTests : IDisposable
         var ast3 = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Types = ImmutableArray<TypeDeclarationNode>.Empty,
-            Namespace = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("TestApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
                 Span = new Storm.Runtime.SourceSpan(0, source3.Length),
-            },
+            } }),
         };
 
         // ── Build semantic model ──
@@ -578,6 +574,8 @@ public sealed class BugfixIntegrationTests : IDisposable
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast1, ast2, ast3),
             resolver,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
             diagnostics);
 
         // ── Assert: no error diagnostics from semantic model ──

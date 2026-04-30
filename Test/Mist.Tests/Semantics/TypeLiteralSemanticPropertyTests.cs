@@ -89,7 +89,7 @@ public class TypeLiteralSemanticPropertyTests
         var sourceText = new SourceText("test.mist", source);
         var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, diagnostics);
+        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     /// <summary>
@@ -453,7 +453,7 @@ public class TypeLiteralSemanticPropertyTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, diagnostics);
+        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
         return (model, diagnostics.ToImmutableArray());
     }
 
@@ -513,8 +513,8 @@ public class TypeLiteralSemanticPropertyTests
 
         return new CompilationUnitNode
         {
-            Types = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
     }
 
@@ -594,7 +594,7 @@ public class TypeLiteralSemanticPropertyTests
 
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        _builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(root), ambientTypeResolver: null, diagnostics);
+        _builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(root), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
 
         Assert.DoesNotContain(diagnostics.ToImmutableArray(),
             d => d.Id.Value == "MIST_UNDEFINED_TYPE");

@@ -1,0 +1,21 @@
+using System;
+
+// No explicit namespace — inferred as "Namespaces.Models" from folder path
+// Demonstrates: Inferred namespace from subdirectory (Req 10.3)
+
+public class Player
+{
+    private string name;
+    private int health;
+
+    public Player(string name, int health)
+    {
+        this.name = name;
+        this.health = health;
+    }
+
+    public string Describe()
+    {
+        return $"Player: {name}, HP: {health}";
+    }
+}

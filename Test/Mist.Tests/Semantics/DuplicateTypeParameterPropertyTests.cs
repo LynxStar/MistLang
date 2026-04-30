@@ -51,7 +51,7 @@ public class DuplicateTypeParameterPropertyTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, diagnostics);
+        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
         return (model, diagnostics.ToImmutableArray());
     }
 
@@ -72,7 +72,7 @@ public class DuplicateTypeParameterPropertyTests
 
     private static CompilationUnitNode MakeCompilationUnit(params TypeDeclarationNode[] typeDecls)
     {
-        return new CompilationUnitNode { Types = typeDecls.ToImmutableArray() };
+        return new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() };
     }
 
     // ─── Test data models ────────────────────────────────────────────────

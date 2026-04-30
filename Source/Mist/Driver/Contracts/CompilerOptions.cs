@@ -13,4 +13,5 @@ public sealed record CompilerOptions(
     string OutputDirectory,
     string BinDirectory,
     string ProjectName,
+    string NamespaceRoot,
     ImmutableArray<string> EnabledAnalyzerIds);

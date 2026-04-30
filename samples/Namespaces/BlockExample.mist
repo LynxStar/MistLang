@@ -1,0 +1,13 @@
+using System;
+
+// Demonstrates: Block namespace declaration (Req 10.5)
+namespace Namespaces.Helpers
+{
+    public class MathHelper
+    {
+        public static int Add(int a, int b)
+        {
+            return a + b;
+        }
+    }
+}

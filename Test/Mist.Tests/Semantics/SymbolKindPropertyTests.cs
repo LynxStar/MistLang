@@ -51,7 +51,7 @@ public class SymbolKindPropertyTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, diagnostics);
+        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     /// <summary>
@@ -394,7 +394,7 @@ public class SymbolKindPropertyTests
             };
             ast = new CompilationUnitNode
             {
-                Namespace = nsNode,
+                Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = nsNode }),
             };
             expected.Add(("TestNs", SymbolKind.Namespace));
         }
@@ -402,7 +402,7 @@ public class SymbolKindPropertyTests
         {
             ast = new CompilationUnitNode
             {
-                Types = typeDecls.ToImmutable(),
+                Items = typeDecls.ToImmutable().AsTopLevelItems(),
             };
         }
 

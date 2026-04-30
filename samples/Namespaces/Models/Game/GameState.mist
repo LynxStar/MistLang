@@ -1,0 +1,21 @@
+using System;
+
+// No explicit namespace — inferred as "Namespaces.Models.Game" from nested folder path
+// Demonstrates: Nested inferred namespace from Models/Game/ (Req 10.3)
+
+public class GameState
+{
+    private int level;
+    private bool active;
+
+    public GameState(int level, bool active)
+    {
+        this.level = level;
+        this.active = active;
+    }
+
+    public string Summary()
+    {
+        return $"Level: {level}, Active: {active}";
+    }
+}

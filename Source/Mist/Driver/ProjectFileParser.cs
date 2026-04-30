@@ -142,6 +142,52 @@ public static partial class ProjectFileParser
             return null;
         }
 
-        return new ProjectConfiguration(name);
+        // 8. namespace_root field (optional)
+        string namespaceRoot;
+        if (model.TryGetValue("namespace_root", out var nsRootObj) && nsRootObj is string nsRootStr)
+        {
+            // 8a. non-empty/non-whitespace check
+            if (string.IsNullOrWhiteSpace(nsRootStr))
+            {
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_PROJECT_EMPTY_NAMESPACE_ROOT"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Driver,
+                    $"Namespace root in '{filePath}' must not be empty or whitespace when specified.",
+                    Location: null,
+                    CompilationUnitPath: filePath,
+                    AnalyzerName: null));
+                return null;
+            }
+
+            // 8b. character validation (same regex as name)
+            if (!ValidNamePattern().IsMatch(nsRootStr))
+            {
+                var invalidChars = nsRootStr
+                    .Where(c => !char.IsLetterOrDigit(c) && c != '-' && c != '_' && c != '.')
+                    .Distinct()
+                    .OrderBy(c => c);
+                var invalidList = string.Join(", ", invalidChars.Select(c => $"'{c}'"));
+
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_PROJECT_INVALID_NAMESPACE_ROOT"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Driver,
+                    $"Namespace root in '{filePath}' contains invalid characters: {invalidList}. Only alphanumeric characters, hyphens, underscores, and periods are allowed.",
+                    Location: null,
+                    CompilationUnitPath: filePath,
+                    AnalyzerName: null));
+                return null;
+            }
+
+            namespaceRoot = nsRootStr;
+        }
+        else
+        {
+            // 8c. default to name when namespace_root is absent
+            namespaceRoot = name;
+        }
+
+        return new ProjectConfiguration(name, namespaceRoot);
     }
 }

@@ -243,9 +243,9 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | Raw string literals (`"""..."""`) | 🔲 | C# 11 |
 | Char literals | ✅ | With escape sequences |
 | `true` / `false` | ✅ | |
-| `null` | 🔲 | |
+| `null` | ⛔ | |
 | `default` / `default(T)` | 🔲 | |
-| `typeof(T)` | 🔲 | |
+| `typeof(T)` | ⛔ | |
 | `nameof(x)` | 🔲 | C# 6 |
 | `sizeof(T)` | ⛔ | Low-level, out of scope |
 | Digit separators (`1_000_000`) | 🔲 | C# 7 |

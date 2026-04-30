@@ -130,13 +130,13 @@ public sealed class MistPrettyPrinter
     {
         var modifiers = EmitModifiers(classDecl.Modifiers);
         var name = classDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(classDecl.TypeParams);
         var baseClause = "";
-        if (classDecl.BaseClause is not null)
+        if (classDecl.BaseList is not null)
         {
-            var baseName = classDecl.BaseClassName.Lexeme;
-            baseClause = $" : {baseName}";
+            baseClause = $" : {EmitBaseList(classDecl.BaseList)}";
         }
-        AppendLine($"{modifiers}class {name}{baseClause} {{");
+        AppendLine($"{modifiers}class {name}{typeParams}{baseClause} {{");
         _indentLevel++;
 
         EmitMembers(classDecl.Members);
@@ -149,13 +149,13 @@ public sealed class MistPrettyPrinter
     {
         var modifiers = EmitModifiers(structDecl.Modifiers);
         var name = structDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(structDecl.TypeParams);
         var interfaceClause = "";
-        if (structDecl.InterfaceList is not null)
+        if (structDecl.Interfaces is not null)
         {
-            var interfaceName = structDecl.InterfaceName.Lexeme;
-            interfaceClause = $" : {interfaceName}";
+            interfaceClause = $" : {EmitBaseList(structDecl.Interfaces)}";
         }
-        AppendLine($"{modifiers}struct {name}{interfaceClause} {{");
+        AppendLine($"{modifiers}struct {name}{typeParams}{interfaceClause} {{");
         _indentLevel++;
 
         EmitMembers(structDecl.Members);
@@ -167,13 +167,13 @@ public sealed class MistPrettyPrinter
     private void EmitInterfaceDeclaration(InterfaceDeclarationNode interfaceDecl)
     {
         var name = interfaceDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(interfaceDecl.TypeParams);
         var interfaceClause = "";
-        if (interfaceDecl.InterfaceList is not null)
+        if (interfaceDecl.Interfaces is not null)
         {
-            var parentName = interfaceDecl.InterfaceName.Lexeme;
-            interfaceClause = $" : {parentName}";
+            interfaceClause = $" : {EmitBaseList(interfaceDecl.Interfaces)}";
         }
-        AppendLine($"interface {name}{interfaceClause} {{");
+        AppendLine($"interface {name}{typeParams}{interfaceClause} {{");
         _indentLevel++;
 
         for (var i = 0; i < interfaceDecl.Members.Length; i++)
@@ -189,8 +189,9 @@ public sealed class MistPrettyPrinter
     {
         var returnType = EmitTypeReference(methodDecl.ReturnType);
         var name = methodDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
         var parameters = EmitParameterList(methodDecl.Parameters);
-        AppendLine($"{returnType} {name}({parameters});");
+        AppendLine($"{returnType} {name}{typeParams}({parameters});");
     }
 
     private void EmitMembers(ImmutableArray<MemberDeclarationNode> members)
@@ -278,9 +279,10 @@ public sealed class MistPrettyPrinter
         var modifiers = EmitModifiers(methodDecl.Modifiers);
         var returnType = EmitTypeReference(methodDecl.ReturnType);
         var name = methodDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
         var parameters = EmitParameterList(methodDecl.Parameters);
 
-        AppendLine($"{modifiers}{returnType} {name}({parameters}) {{");
+        AppendLine($"{modifiers}{returnType} {name}{typeParams}({parameters}) {{");
         _indentLevel++;
 
         foreach (var stmt in methodDecl.Body.Statements)
@@ -623,11 +625,12 @@ public sealed class MistPrettyPrinter
             case NamedTypeRefTypeReferenceNode namedRef:
             {
                 var name = ExtractQualifiedName(namedRef.Name);
+                var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs);
                 if (namedRef.ArrayRank.HasValue)
                 {
-                    return $"{name}[]";
+                    return $"{name}{typeArgs}[]";
                 }
-                return name;
+                return $"{name}{typeArgs}";
             }
             default:
                 return "object";
@@ -997,8 +1000,9 @@ public sealed class MistPrettyPrinter
             case MethodCallSuffixPostfixSuffixNode methodCall:
             {
                 var name = methodCall.Name.Lexeme;
+                var typeArgs = EmitTypeArgumentList(methodCall.TypeArgs);
                 var args = EmitArgumentList(methodCall.Arguments);
-                return $"{target}.{name}({args})";
+                return $"{target}.{name}{typeArgs}({args})";
             }
             case MemberAccessSuffixPostfixSuffixNode memberAccess:
             {
@@ -1051,8 +1055,9 @@ public sealed class MistPrettyPrinter
             case ObjectCreationExpressionPrimaryNode objCreation:
             {
                 var type = ExtractQualifiedName(objCreation.Type);
+                var typeArgs = EmitTypeArgumentList(objCreation.TypeArgs);
                 var args = EmitArgumentList(objCreation.Arguments);
-                return $"new {type}({args})";
+                return $"new {type}{typeArgs}({args})";
             }
             case ParenthesizedExpressionPrimaryNode paren:
                 return $"({EmitExpression(paren.Inner)})";
@@ -1118,6 +1123,61 @@ public sealed class MistPrettyPrinter
     }
 
     // ─── Utilities ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Emits a base list (base types / interface list) as a comma-separated string.
+    /// Each entry is a type name with optional type arguments.
+    /// </summary>
+    private string EmitBaseList(BaseListNode baseList)
+    {
+        var parts = new List<string>();
+        parts.Add(EmitBaseTypeRef(baseList.First));
+        foreach (var rest in baseList.BaseTypeRefs)
+        {
+            parts.Add(EmitBaseTypeRef(rest));
+        }
+        return string.Join(", ", parts);
+    }
+
+    /// <summary>
+    /// Emits a single base type reference (name with optional type arguments).
+    /// </summary>
+    private string EmitBaseTypeRef(BaseTypeRefNode baseTypeRef)
+    {
+        return baseTypeRef.Name.Lexeme + EmitTypeArgumentList(baseTypeRef.TypeArgs);
+    }
+
+    /// <summary>
+    /// Emits a type parameter list (e.g., &lt;T, U&gt;) or empty string if null.
+    /// </summary>
+    private static string EmitTypeParameterList(TypeParameterListNode? typeParams)
+    {
+        if (typeParams is null) return "";
+
+        var parts = new List<string>();
+        parts.Add(typeParams.TypeParameter.Name.Lexeme);
+        foreach (var tp in typeParams.TypeParameters)
+        {
+            parts.Add(tp.Name.Lexeme);
+        }
+        return $"<{string.Join(", ", parts)}>";
+    }
+
+    /// <summary>
+    /// Emits a type argument list (e.g., &lt;int, string&gt;) or empty string if null.
+    /// </summary>
+    private string EmitTypeArgumentList(TypeArgumentListNode? typeArgs)
+    {
+        if (typeArgs is null) return "";
+
+        var parts = new List<string>();
+        parts.Add(EmitTypeReference(typeArgs.TypeReference));
+        foreach (var typeRef in typeArgs.TypeReferences)
+        {
+            parts.Add(EmitTypeReference(typeRef));
+        }
+        return $"<{string.Join(", ", parts)}>";
+    }
 
     /// <summary>
     /// Extracts the qualified name from a QualifiedIdentifierNode.

@@ -43,6 +43,17 @@ public class InterfaceAssignabilityPropertyTests
             lexeme: lexeme);
     }
 
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = MakeToken(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
+    }
+
     private static MistCompilation MakeCompilation(string source = "")
     {
         var sourceText = new SourceText("test.mist", source);
@@ -182,8 +193,11 @@ public class InterfaceAssignabilityPropertyTests
 
         if (parentInterfaceName is not null)
         {
-            decl.InterfaceList = MakeToken(":");
-            decl.InterfaceName = MakeToken(parentInterfaceName);
+            var _ifaceList1 = MakeBaseList(parentInterfaceName);
+
+            decl.InterfaceList = _ifaceList1;
+
+            decl.Interfaces = _ifaceList1;
         }
 
         return decl;
@@ -226,8 +240,11 @@ public class InterfaceAssignabilityPropertyTests
 
         if (baseOrInterfaceName is not null)
         {
-            decl.BaseClause = MakeToken(":");
-            decl.BaseClassName = MakeToken(baseOrInterfaceName);
+            var _baseList1 = MakeBaseList(baseOrInterfaceName);
+
+            decl.BaseClause = _baseList1;
+
+            decl.BaseList = _baseList1;
         }
 
         return decl;
@@ -246,8 +263,11 @@ public class InterfaceAssignabilityPropertyTests
 
         if (interfaceName is not null)
         {
-            decl.InterfaceList = MakeToken(":");
-            decl.InterfaceName = MakeToken(interfaceName);
+            var _ifaceList2 = MakeBaseList(interfaceName);
+
+            decl.InterfaceList = _ifaceList2;
+
+            decl.Interfaces = _ifaceList2;
         }
 
         return decl;
@@ -783,5 +803,7 @@ public class InterfaceAssignabilityPropertyTests
         var diagnostics = RunTypeChecker(model);
 
         Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0001");
+    ;
     }
+
 }

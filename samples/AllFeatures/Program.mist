@@ -294,6 +294,19 @@ public class Program
         Console.WriteLine($"rect.Scale={rect.Scale}");
         Console.WriteLine($"resizable.Scale={resizable.Scale}");
 
+        // 27. Generics: generic class, generic interface, constructed generic types
+        Console.WriteLine("--- Generics ---");
+        var gbox = new GenericBox<int>(42);
+        Console.WriteLine($"gbox={gbox.Describe()}");
+        Console.WriteLine($"gbox.item={gbox.GetItem()}");
+
+        var gboxStr = new GenericBox<string>("hello");
+        Console.WriteLine($"gboxStr={gboxStr.Describe()}");
+
+        // Generic interface-typed variable
+        IGenericContainer<int> gc = new GenericBox<int>(99);
+        Console.WriteLine($"gc.item={gc.GetItem()}");
+
         Console.WriteLine("=== Done! ===");
     }
 }

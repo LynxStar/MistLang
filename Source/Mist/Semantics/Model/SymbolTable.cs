@@ -1,5 +1,6 @@
 using Mist.Common.Text;
 using Mist.Semantics.Contracts;
+using Mist.Semantics.Model.Types;
 
 namespace Mist.Semantics.Model;
 
@@ -37,6 +38,11 @@ public sealed class Symbol : ISymbol
     /// Property-specific metadata. Non-null only for Property and Indexer symbols.
     /// </summary>
     public PropertyInfo? PropertyMetadata { get; internal set; }
+
+    /// <summary>
+    /// Type parameters for generic method symbols. Empty for non-generic methods and non-method symbols.
+    /// </summary>
+    public IReadOnlyList<TypeParameterType> TypeParameters { get; internal set; } = Array.Empty<TypeParameterType>();
 }
 
 /// <summary>

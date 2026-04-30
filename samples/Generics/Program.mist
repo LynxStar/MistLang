@@ -1,0 +1,79 @@
+// Generics — Comprehensive sample demonstrating all generics features in Mist.
+
+using System;
+
+namespace Generics;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Console.WriteLine("=== Generics Sample ===");
+
+        // 1. Generic class with single type parameter (Box<T>)
+        Console.WriteLine("--- Box<T> (single type parameter) ---");
+        var intBox = new Box<int>(42);
+        Console.WriteLine(intBox.Describe());
+        Console.WriteLine($"  value={intBox.GetValue()}");
+
+        var strBox = new Box<string>("hello");
+        Console.WriteLine(strBox.Describe());
+        Console.WriteLine($"  value={strBox.GetValue()}");
+
+        // 2. Generic class with multiple type parameters (Pair<T, U>)
+        Console.WriteLine("--- Pair<T, U> (multiple type parameters) ---");
+        var pair = new Pair<string, int>("age", 30);
+        Console.WriteLine(pair.Describe());
+        Console.WriteLine($"  first={pair.GetFirst()} second={pair.GetSecond()}");
+
+        // 3. Generic struct (ValueHolder<T>)
+        Console.WriteLine("--- ValueHolder<T> (generic struct) ---");
+        var holder = new ValueHolder<int>(99);
+        Console.WriteLine(holder.Describe());
+        Console.WriteLine($"  held={holder.GetHeld()}");
+
+        // 4. Generic interface (IContainer<T>) — Box<T> implements IContainer<T>
+        Console.WriteLine("--- IContainer<T> (generic interface) ---");
+        IContainer<int> container = new Box<int>(10);
+        Console.WriteLine($"  container value={container.GetValue()}");
+        container.SetValue(20);
+        Console.WriteLine($"  container after set={container.GetValue()}");
+
+        // 5. Generic method (GenericUtils.Identity<T>)
+        Console.WriteLine("--- Generic method ---");
+        int identInt = GenericUtils.Identity<int>(7);
+        string identStr = GenericUtils.Identity<string>("mist");
+        Console.WriteLine($"  Identity<int>(7)={identInt}");
+        Console.WriteLine($"  Identity<string>(mist)={identStr}");
+
+        // 6. Nested generic type arguments (Box<Box<int>>)
+        Console.WriteLine("--- Nested generics ---");
+        var inner = new Box<int>(5);
+        var nested = new Box<Box<int>>(inner);
+        Console.WriteLine($"  nested outer={nested.Describe()}");
+        Console.WriteLine($"  nested inner value={nested.GetValue().GetValue()}");
+
+        // 7. Generic inheritance: generic class extending generic class (SpecialBox<T> : Box<T>)
+        Console.WriteLine("--- Generic inheritance ---");
+        var special = new SpecialBox<string>("gift", "Birthday");
+        Console.WriteLine(special.DescribeSpecial());
+        Console.WriteLine($"  value={special.GetValue()} label={special.GetLabel()}");
+
+        // 8. Non-generic class extending constructed generic (IntBox : Box<int>)
+        Console.WriteLine("--- Non-generic extending constructed generic ---");
+        var intBoxDerived = new IntBox(21);
+        Console.WriteLine($"  value={intBoxDerived.GetValue()} doubled={intBoxDerived.GetDoubled()}");
+
+        // 9. Generic type implementing generic interface — assignability
+        Console.WriteLine("--- Generic interface assignability ---");
+        IContainer<string> strContainer = new Box<string>("world");
+        Console.WriteLine($"  strContainer value={strContainer.GetValue()}");
+
+        // 10. Constructed type assignability: derived to base
+        Console.WriteLine("--- Constructed type assignability ---");
+        Box<string> baseRef = new SpecialBox<string>("item", "Tag");
+        Console.WriteLine($"  baseRef value={baseRef.GetValue()}");
+
+        Console.WriteLine("=== Done! ===");
+    }
+}

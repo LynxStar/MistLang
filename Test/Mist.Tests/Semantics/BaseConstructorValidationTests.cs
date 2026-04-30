@@ -36,6 +36,17 @@ public class BaseConstructorValidationTests
             lexeme: lexeme);
     }
 
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = MakeToken(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
+    }
+
     private static MistCompilation MakeCompilation(string source = "")
     {
         var sourceText = new SourceText("test.mist", source);
@@ -65,8 +76,11 @@ public class BaseConstructorValidationTests
 
         if (baseClassName is not null)
         {
-            classDecl.BaseClause = MakeToken(":");
-            classDecl.BaseClassName = MakeToken(baseClassName);
+            var _baseList1 = MakeBaseList(baseClassName);
+
+            classDecl.BaseClause = _baseList1;
+
+            classDecl.BaseList = _baseList1;
         }
 
         return classDecl;
@@ -312,5 +326,7 @@ public class BaseConstructorValidationTests
         // call it. No MIST_BASE_CTOR_UNSATISFIED for C.
         // B chains to A via `: base(0)`, so no diagnostic for B either.
         Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_BASE_CTOR_UNSATISFIED");
+    ;
     }
+
 }

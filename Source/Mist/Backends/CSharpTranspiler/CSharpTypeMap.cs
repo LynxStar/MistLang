@@ -45,6 +45,8 @@ internal static class CSharpTypeMap
         VoidType => "void",
         ArrayType a => $"{GetTypeName(a.ElementType)}[]",
         TypeType => "System.Type",
+        TypeParameterType tp => tp.Name,
+        ConstructedType ct => $"{GetTypeName(ct.GenericDefinition)}<{string.Join(", ", ct.TypeArguments.Select(GetTypeName))}>",
         ClassType c => c.DisplayName,
         StructType s => s.DisplayName,
         InterfaceType i => i.DisplayName,

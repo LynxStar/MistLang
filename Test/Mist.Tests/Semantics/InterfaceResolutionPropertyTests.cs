@@ -41,6 +41,17 @@ public class InterfaceResolutionPropertyTests
             lexeme: lexeme);
     }
 
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = MakeToken(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
+    }
+
     private static MistCompilation MakeCompilation(string source = "")
     {
         var sourceText = new SourceText("test.mist", source);
@@ -85,8 +96,11 @@ public class InterfaceResolutionPropertyTests
 
         if (parentInterfaceName is not null)
         {
-            decl.InterfaceList = MakeToken(":");
-            decl.InterfaceName = MakeToken(parentInterfaceName);
+            var _ifaceList1 = MakeBaseList(parentInterfaceName);
+
+            decl.InterfaceList = _ifaceList1;
+
+            decl.Interfaces = _ifaceList1;
         }
 
         return decl;
@@ -109,8 +123,11 @@ public class InterfaceResolutionPropertyTests
         // InterfaceType to determine if it's a base class or interface.
         if (interfaceName is not null)
         {
-            decl.BaseClause = MakeToken(":");
-            decl.BaseClassName = MakeToken(interfaceName);
+            var _baseList1 = MakeBaseList(interfaceName);
+
+            decl.BaseClause = _baseList1;
+
+            decl.BaseList = _baseList1;
         }
 
         return decl;
@@ -129,8 +146,11 @@ public class InterfaceResolutionPropertyTests
 
         if (interfaceName is not null)
         {
-            decl.InterfaceList = MakeToken(":");
-            decl.InterfaceName = MakeToken(interfaceName);
+            var _ifaceList2 = MakeBaseList(interfaceName);
+
+            decl.InterfaceList = _ifaceList2;
+
+            decl.Interfaces = _ifaceList2;
         }
 
         return decl;
@@ -307,7 +327,7 @@ public class InterfaceResolutionPropertyTests
             return false;
 
         // Get the Interfaces property from the implementing type
-        IReadOnlyList<InterfaceType> resolvedInterfaces;
+        IReadOnlyList<IType> resolvedInterfaces;
         switch (implementingSymbol.DeclaredType)
         {
             case ClassType classType:
@@ -452,8 +472,11 @@ public class InterfaceResolutionPropertyTests
             Name = MakeToken("Dog"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        derivedClassDecl.BaseClause = MakeToken(":");
-        derivedClassDecl.BaseClassName = MakeToken("Animal");
+        var _baseList2 = MakeBaseList("Animal");
+
+        derivedClassDecl.BaseClause = _baseList2;
+
+        derivedClassDecl.BaseList = _baseList2;
 
         var ast = MakeCompilationUnit(
             WrapClass(baseClassDecl),
@@ -466,5 +489,7 @@ public class InterfaceResolutionPropertyTests
         Assert.NotNull(dogType.BaseType);
         Assert.Equal("Animal", dogType.BaseType!.DisplayName);
         Assert.Empty(dogType.Interfaces);
+    ;
     }
+
 }

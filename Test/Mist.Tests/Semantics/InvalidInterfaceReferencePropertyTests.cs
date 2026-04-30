@@ -41,6 +41,17 @@ public class InvalidInterfaceReferencePropertyTests
             lexeme: lexeme);
     }
 
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = MakeToken(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
+    }
+
     private static MistCompilation MakeCompilation(string source = "")
     {
         var sourceText = new SourceText("test.mist", source);
@@ -85,8 +96,11 @@ public class InvalidInterfaceReferencePropertyTests
 
         if (parentInterfaceName is not null)
         {
-            decl.InterfaceList = MakeToken(":");
-            decl.InterfaceName = MakeToken(parentInterfaceName);
+            var _ifaceList1 = MakeBaseList(parentInterfaceName);
+
+            decl.InterfaceList = _ifaceList1;
+
+            decl.Interfaces = _ifaceList1;
         }
 
         return decl;
@@ -116,8 +130,11 @@ public class InvalidInterfaceReferencePropertyTests
 
         if (interfaceName is not null)
         {
-            decl.InterfaceList = MakeToken(":");
-            decl.InterfaceName = MakeToken(interfaceName);
+            var _ifaceList2 = MakeBaseList(interfaceName);
+
+            decl.InterfaceList = _ifaceList2;
+
+            decl.Interfaces = _ifaceList2;
         }
 
         return decl;
@@ -325,11 +342,11 @@ public class InvalidInterfaceReferencePropertyTests
         if (referencingSymbol is null)
             return false;
 
-        IReadOnlyList<InterfaceType> resolvedInterfaces = referencingSymbol.DeclaredType switch
+        IReadOnlyList<IType> resolvedInterfaces = referencingSymbol.DeclaredType switch
         {
             StructType structType => structType.Interfaces,
             InterfaceType interfaceType => interfaceType.Interfaces,
-            _ => Array.Empty<InterfaceType>(),
+            _ => Array.Empty<IType>(),
         };
 
         // The invalid reference should not appear in the resolved interfaces
@@ -449,5 +466,7 @@ public class InvalidInterfaceReferencePropertyTests
         var interfaceSymbol = model.AllSymbols.First(s => s.Name == "IChild" && s.Kind == SymbolKind.Interface);
         var interfaceType = Assert.IsType<InterfaceType>(interfaceSymbol.DeclaredType);
         Assert.Empty(interfaceType.Interfaces);
+    ;
     }
+
 }

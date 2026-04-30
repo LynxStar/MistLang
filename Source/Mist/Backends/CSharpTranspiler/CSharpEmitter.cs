@@ -217,21 +217,26 @@ internal sealed class CSharpSourceWriter
 
         var modifiers = EmitModifiers(classDecl.Modifiers);
         var name = classDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(classDecl.TypeParams);
         var baseClause = "";
-        if (symbol?.DeclaredType is ClassType classType)
+        if (classDecl.BaseList is not null)
+        {
+            baseClause = $" : {EmitBaseListWithTypeArgs(classDecl.BaseList)}";
+        }
+        else if (symbol?.DeclaredType is ClassType classType)
         {
             var parts = new List<string>();
 
             // Base class (if any)
             if (classType.BaseType is not null)
             {
-                parts.Add(classType.BaseType.DisplayName);
+                parts.Add(CSharpTypeMap.GetTypeName(classType.BaseType));
             }
 
             // Interfaces
             foreach (var iface in classType.Interfaces)
             {
-                parts.Add(iface.DisplayName);
+                parts.Add(CSharpTypeMap.GetTypeName(iface));
             }
 
             if (parts.Count > 0)
@@ -239,13 +244,7 @@ internal sealed class CSharpSourceWriter
                 baseClause = $" : {string.Join(", ", parts)}";
             }
         }
-        else if (classDecl.BaseClause is not null)
-        {
-            // Fallback to AST if semantic model lookup fails
-            var baseName = classDecl.BaseClassName.Lexeme;
-            baseClause = $" : {baseName}";
-        }
-        AppendLine($"{modifiers}class {name}{baseClause}");
+        AppendLine($"{modifiers}class {name}{typeParams}{baseClause}");
         AppendLine("{");
         _indentLevel++;
 
@@ -265,13 +264,13 @@ internal sealed class CSharpSourceWriter
     private void EmitInterfaceDeclaration(InterfaceDeclarationNode interfaceDecl)
     {
         var name = interfaceDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(interfaceDecl.TypeParams);
         var interfaceList = "";
-        if (interfaceDecl.InterfaceList is not null)
+        if (interfaceDecl.Interfaces is not null)
         {
-            var parentName = interfaceDecl.InterfaceName.Lexeme;
-            interfaceList = $" : {parentName}";
+            interfaceList = $" : {EmitBaseListWithTypeArgs(interfaceDecl.Interfaces)}";
         }
-        AppendLine($"interface {name}{interfaceList}");
+        AppendLine($"interface {name}{typeParams}{interfaceList}");
         AppendLine("{");
         _indentLevel++;
 
@@ -296,8 +295,9 @@ internal sealed class CSharpSourceWriter
     {
         var returnType = EmitTypeReference(methodDecl.ReturnType);
         var name = methodDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
         var parameters = EmitParameterList(methodDecl.Parameters);
-        AppendLine($"{returnType} {name}({parameters});");
+        AppendLine($"{returnType} {name}{typeParams}({parameters});");
     }
 
     private void EmitInterfacePropertyDeclaration(InterfacePropertyDeclarationNode propertyDecl)
@@ -332,19 +332,18 @@ internal sealed class CSharpSourceWriter
 
         var modifiers = EmitModifiers(structDecl.Modifiers);
         var name = structDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(structDecl.TypeParams);
         var interfaceList = "";
-        if (symbol?.DeclaredType is StructType structType && structType.Interfaces.Count > 0)
+        if (structDecl.Interfaces is not null)
         {
-            var names = structType.Interfaces.Select(i => i.DisplayName);
+            interfaceList = $" : {EmitBaseListWithTypeArgs(structDecl.Interfaces)}";
+        }
+        else if (symbol?.DeclaredType is StructType structType && structType.Interfaces.Count > 0)
+        {
+            var names = structType.Interfaces.Select(i => CSharpTypeMap.GetTypeName(i));
             interfaceList = $" : {string.Join(", ", names)}";
         }
-        else if (structDecl.InterfaceList is not null)
-        {
-            // Fallback to AST if semantic model lookup fails
-            var interfaceName = structDecl.InterfaceName.Lexeme;
-            interfaceList = $" : {interfaceName}";
-        }
-        AppendLine($"{modifiers}struct {name}{interfaceList}");
+        AppendLine($"{modifiers}struct {name}{typeParams}{interfaceList}");
         AppendLine("{");
         _indentLevel++;
 
@@ -426,9 +425,10 @@ internal sealed class CSharpSourceWriter
         var modifiers = EmitModifiers(methodDecl.Modifiers);
         var returnType = EmitTypeReference(methodDecl.ReturnType);
         var name = methodDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
         var parameters = EmitParameterList(methodDecl.Parameters);
 
-        AppendLine($"{modifiers}{returnType} {name}({parameters})");
+        AppendLine($"{modifiers}{returnType} {name}{typeParams}({parameters})");
         EmitBlock(methodDecl.Body);
     }
 
@@ -812,11 +812,12 @@ internal sealed class CSharpSourceWriter
             case NamedTypeRefTypeReferenceNode namedRef:
             {
                 var name = ExtractQualifiedName(namedRef.Name);
+                var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs);
                 if (namedRef.ArrayRank.HasValue)
                 {
-                    return $"{name}[]";
+                    return $"{name}{typeArgs}[]";
                 }
-                return name;
+                return $"{name}{typeArgs}";
             }
             default:
                 return "object";
@@ -1150,18 +1151,19 @@ internal sealed class CSharpSourceWriter
             case MethodCallSuffixPostfixSuffixNode methodCall:
             {
                 var name = methodCall.Name.Lexeme;
+                var typeArgs = EmitTypeArgumentList(methodCall.TypeArgs);
 
                 // In Mist, property-like members (e.g., string.Length) use method call
                 // syntax: input.Length(). In C#, these are properties and must be emitted
                 // without parentheses: input.Length.
-                if (methodCall.Arguments is null && CSharpPropertyMembers.Contains(name))
+                if (methodCall.Arguments is null && methodCall.TypeArgs is null && CSharpPropertyMembers.Contains(name))
                 {
                     return $"{target}.{name}";
                 }
 
                 // Check if this method call actually resolves to a property symbol —
                 // if so, emit as property access (no parentheses).
-                if (methodCall.Arguments is null)
+                if (methodCall.Arguments is null && methodCall.TypeArgs is null)
                 {
                     var resolvedSymbol = TryResolveToPropertySymbol(suffix);
                     if (resolvedSymbol is not null)
@@ -1171,7 +1173,7 @@ internal sealed class CSharpSourceWriter
                 }
 
                 var args = EmitArgumentList(methodCall.Arguments);
-                return $"{target}.{name}({args})";
+                return $"{target}.{name}{typeArgs}({args})";
             }
             case MemberAccessSuffixPostfixSuffixNode memberAccess:
             {
@@ -1242,8 +1244,9 @@ internal sealed class CSharpSourceWriter
             case ObjectCreationExpressionPrimaryNode objCreation:
             {
                 var type = ExtractQualifiedName(objCreation.Type);
+                var typeArgs = EmitTypeArgumentList(objCreation.TypeArgs);
                 var args = EmitArgumentList(objCreation.Arguments);
-                return $"new {type}({args})";
+                return $"new {type}{typeArgs}({args})";
             }
             case ParenthesizedExpressionPrimaryNode paren:
                 return $"({EmitExpression(paren.Inner)})";
@@ -1309,6 +1312,59 @@ internal sealed class CSharpSourceWriter
     }
 
     // ─── Utilities ───────────────────────────────────────────────────────
+
+    private static string EmitTypeParameterList(TypeParameterListNode? typeParams)
+    {
+        if (typeParams is null) return "";
+
+        var parts = new List<string>();
+        parts.Add(typeParams.TypeParameter.Name.Lexeme);
+        foreach (var tp in typeParams.TypeParameters)
+        {
+            parts.Add(tp.Name.Lexeme);
+        }
+        return $"<{string.Join(", ", parts)}>";
+    }
+
+    private string EmitTypeArgumentList(TypeArgumentListNode? typeArgs)
+    {
+        if (typeArgs is null) return "";
+
+        var parts = new List<string>();
+        parts.Add(EmitTypeReference(typeArgs.TypeReference));
+        foreach (var typeRef in typeArgs.TypeReferences)
+        {
+            parts.Add(EmitTypeReference(typeRef));
+        }
+        return $"<{string.Join(", ", parts)}>";
+    }
+
+    private string EmitBaseTypeRef(BaseTypeRefNode baseTypeRef)
+    {
+        return baseTypeRef.Name.Lexeme + EmitTypeArgumentList(baseTypeRef.TypeArgs);
+    }
+
+    private string EmitBaseListWithTypeArgs(BaseListNode baseList)
+    {
+        var parts = new List<string>();
+        parts.Add(EmitBaseTypeRef(baseList.First));
+        foreach (var rest in baseList.BaseTypeRefs)
+        {
+            parts.Add(EmitBaseTypeRef(rest));
+        }
+        return string.Join(", ", parts);
+    }
+
+    private static string EmitBaseList(BaseListNode baseList)
+    {
+        var parts = new List<string>();
+        parts.Add(baseList.First.Name.Lexeme);
+        foreach (var rest in baseList.BaseTypeRefs)
+        {
+            parts.Add(rest.Name.Lexeme);
+        }
+        return string.Join(", ", parts);
+    }
 
     private string ExtractQualifiedName(QualifiedIdentifierNode qualifiedId)
     {

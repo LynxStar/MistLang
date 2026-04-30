@@ -1,0 +1,11 @@
+// IContainer<T> — Demonstrates a generic interface with a single type parameter.
+
+using System;
+
+namespace Generics;
+
+interface IContainer<T>
+{
+    T GetValue();
+    void SetValue(T value);
+}

@@ -11,8 +11,9 @@ public sealed class ClassType : IType
     public TypeKind Kind => TypeKind.Class;
     public IScope MemberScope { get; }
     public string? ContainingNamespace { get; }
-    public ClassType? BaseType { get; internal set; }
-    public IReadOnlyList<InterfaceType> Interfaces { get; internal set; } = Array.Empty<InterfaceType>();
+    public IType? BaseType { get; internal set; }
+    public IReadOnlyList<IType> Interfaces { get; internal set; } = Array.Empty<IType>();
+    public IReadOnlyList<TypeParameterType> TypeParameters { get; internal set; } = Array.Empty<TypeParameterType>();
 
     public ClassType(string displayName, IScope memberScope, string? containingNamespace)
     {

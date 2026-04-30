@@ -40,6 +40,17 @@ public class CycleDetectionPropertyTests
             lexeme: lexeme);
     }
 
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = MakeToken(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
+    }
+
     private static MistCompilation MakeCompilation(string source = "")
     {
         var sourceText = new SourceText("test.mist", source);
@@ -66,8 +77,11 @@ public class CycleDetectionPropertyTests
 
         if (baseClassName is not null)
         {
-            classDecl.BaseClause = MakeToken(":");
-            classDecl.BaseClassName = MakeToken(baseClassName);
+            var _baseList1 = MakeBaseList(baseClassName);
+
+            classDecl.BaseClause = _baseList1;
+
+            classDecl.BaseList = _baseList1;
         }
 
         return classDecl;
@@ -267,10 +281,12 @@ public class CycleDetectionPropertyTests
                     // Still a cycle — chain did not terminate
                     return false;
                 }
-                current = current!.BaseType;
+                current = current!.BaseType as ClassType;
             }
         }
 
         return true;
+    ;
     }
+
 }

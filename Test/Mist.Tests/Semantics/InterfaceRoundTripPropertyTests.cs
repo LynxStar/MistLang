@@ -38,6 +38,17 @@ public class InterfaceRoundTripPropertyTests
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
 
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = Tok(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
+    }
+
     // ─── Test data model ─────────────────────────────────────────────────
 
     /// <summary>
@@ -84,8 +95,9 @@ public class InterfaceRoundTripPropertyTests
 
         if (parentInterfaceName is not null)
         {
-            decl.InterfaceList = Tok(":");
-            decl.InterfaceName = Tok(parentInterfaceName);
+            var _ifaceList = MakeBaseList(parentInterfaceName);
+            decl.InterfaceList = _ifaceList;
+            decl.Interfaces = _ifaceList;
         }
 
         return decl;
@@ -106,8 +118,9 @@ public class InterfaceRoundTripPropertyTests
 
         if (baseOrInterfaceName is not null)
         {
-            decl.BaseClause = Tok(":");
-            decl.BaseClassName = Tok(baseOrInterfaceName);
+            var _baseList = MakeBaseList(baseOrInterfaceName);
+            decl.BaseClause = _baseList;
+            decl.BaseList = _baseList;
         }
 
         return decl;
@@ -128,8 +141,9 @@ public class InterfaceRoundTripPropertyTests
 
         if (interfaceName is not null)
         {
-            decl.InterfaceList = Tok(":");
-            decl.InterfaceName = Tok(interfaceName);
+            var _ifaceList = MakeBaseList(interfaceName);
+            decl.InterfaceList = _ifaceList;
+            decl.Interfaces = _ifaceList;
         }
 
         return decl;

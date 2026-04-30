@@ -40,6 +40,17 @@ public class InterfaceCycleDetectionPropertyTests
             lexeme: lexeme);
     }
 
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = MakeToken(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
+    }
+
     private static MistCompilation MakeCompilation(string source = "")
     {
         var sourceText = new SourceText("test.mist", source);
@@ -70,8 +81,11 @@ public class InterfaceCycleDetectionPropertyTests
 
         if (parentInterfaceName is not null)
         {
-            decl.InterfaceList = MakeToken(":");
-            decl.InterfaceName = MakeToken(parentInterfaceName);
+            var _ifaceList1 = MakeBaseList(parentInterfaceName);
+
+            decl.InterfaceList = _ifaceList1;
+
+            decl.Interfaces = _ifaceList1;
         }
 
         return decl;
@@ -320,7 +334,7 @@ public class InterfaceCycleDetectionPropertyTests
                     return false;
                 }
 
-                foreach (var parent in current.Interfaces)
+                foreach (var parent in current.Interfaces.OfType<InterfaceType>())
                 {
                     queue.Enqueue(parent);
                 }
@@ -460,11 +474,13 @@ public class InterfaceCycleDetectionPropertyTests
             {
                 var current = queue.Dequeue();
                 Assert.True(visited.Add(current), $"Cycle still present at {current.DisplayName}");
-                foreach (var parent in current.Interfaces)
+                foreach (var parent in current.Interfaces.OfType<InterfaceType>())
                 {
                     queue.Enqueue(parent);
                 }
             }
         }
+    ;
     }
+
 }

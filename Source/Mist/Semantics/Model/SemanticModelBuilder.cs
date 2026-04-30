@@ -191,15 +191,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         switch (typeDecl)
         {
             case ClassTypeTypeDeclarationNode classTypeNode:
-                RegisterClassDeclaration(classTypeNode.ClassDeclaration, parentScope, symbolTable, namespaceName, diagnostics);
+                RegisterClassDeclaration(classTypeNode.ClassDeclaration, parentScope, symbolTable, namespaceName, sourceText, diagnostics);
                 break;
             case StructTypeTypeDeclarationNode structTypeNode:
-                RegisterStructDeclaration(structTypeNode.StructDeclaration, parentScope, symbolTable, namespaceName, diagnostics);
+                RegisterStructDeclaration(structTypeNode.StructDeclaration, parentScope, symbolTable, namespaceName, sourceText, diagnostics);
                 break;
             case InterfaceTypeTypeDeclarationNode interfaceTypeNode:
                 RegisterInterfaceDeclaration(
                     interfaceTypeNode.InterfaceDeclaration,
-                    parentScope, symbolTable, namespaceName, diagnostics);
+                    parentScope, symbolTable, namespaceName, sourceText, diagnostics);
                 break;
         }
     }
@@ -209,6 +209,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Scope parentScope,
         SymbolTable symbolTable,
         string? namespaceName,
+        SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
         var className = classDecl.Name.Lexeme;
@@ -221,9 +222,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         parentScope.AddMember(classSymbol);
         symbolTable.Register(classSymbol, classDecl);
 
+        // Register type parameters if present.
+        RegisterTypeParameters(classDecl.TypeParams, className, typeScope, classType, sourceText, diagnostics);
+
         foreach (var memberDecl in classDecl.Members)
         {
-            RegisterMemberDeclaration(memberDecl, typeScope, symbolTable, diagnostics);
+            RegisterMemberDeclaration(memberDecl, typeScope, symbolTable, sourceText, diagnostics);
         }
     }
 
@@ -232,6 +236,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Scope parentScope,
         SymbolTable symbolTable,
         string? namespaceName,
+        SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
         var structName = structDecl.Name.Lexeme;
@@ -244,9 +249,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         parentScope.AddMember(structSymbol);
         symbolTable.Register(structSymbol, structDecl);
 
+        // Register type parameters if present.
+        RegisterTypeParameters(structDecl.TypeParams, structName, typeScope, structType, sourceText, diagnostics);
+
         foreach (var memberDecl in structDecl.Members)
         {
-            RegisterMemberDeclaration(memberDecl, typeScope, symbolTable, diagnostics);
+            RegisterMemberDeclaration(memberDecl, typeScope, symbolTable, sourceText, diagnostics);
         }
     }
 
@@ -255,6 +263,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Scope parentScope,
         SymbolTable symbolTable,
         string? namespaceName,
+        SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
         var interfaceName = interfaceDecl.Name.Lexeme;
@@ -267,12 +276,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         parentScope.AddMember(interfaceSymbol);
         symbolTable.Register(interfaceSymbol, interfaceDecl);
 
+        // Register type parameters if present.
+        RegisterTypeParameters(interfaceDecl.TypeParams, interfaceName, typeScope, interfaceType, sourceText, diagnostics);
+
         foreach (var member in interfaceDecl.Members)
         {
             switch (member)
             {
                 case InterfaceMethodMemberInterfaceMemberDeclarationNode methodMember:
-                    RegisterInterfaceMethodDeclaration(methodMember.Method, typeScope, symbolTable);
+                    RegisterInterfaceMethodDeclaration(methodMember.Method, typeScope, symbolTable, sourceText, diagnostics);
                     break;
                 case InterfacePropertyMemberInterfaceMemberDeclarationNode propertyMember:
                     RegisterInterfacePropertyDeclaration(propertyMember.Property, typeScope, symbolTable);
@@ -284,13 +296,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static void RegisterInterfaceMethodDeclaration(
         InterfaceMethodDeclarationNode methodDecl,
         Scope typeScope,
-        SymbolTable symbolTable)
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
     {
         var methodName = methodDecl.Name.Lexeme;
         var methodSpan = ToMistSourceSpan(methodDecl.Name.Span);
         var methodSymbol = new Symbol(methodName, SymbolKind.Method, SymbolOrigin.UserCode, typeScope, declaredType: null, methodSpan);
         typeScope.AddMember(methodSymbol);
         symbolTable.Register(methodSymbol, methodDecl);
+
+        // Register method type parameters if present.
+        RegisterMethodTypeParameters(methodDecl.TypeParams, methodSymbol, typeScope, sourceText, diagnostics);
     }
 
     /// <summary>
@@ -349,6 +366,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         MemberDeclarationNode memberDecl,
         Scope typeScope,
         SymbolTable symbolTable,
+        SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
         switch (memberDecl)
@@ -360,7 +378,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 RegisterConstructorDeclaration(ctorMember.Constructor, typeScope, symbolTable);
                 break;
             case MethodMemberMemberDeclarationNode methodMember:
-                RegisterMethodDeclaration(methodMember.Method, typeScope, symbolTable);
+                RegisterMethodDeclaration(methodMember.Method, typeScope, symbolTable, sourceText, diagnostics);
                 break;
             case PropertyMemberMemberDeclarationNode propertyMember:
                 RegisterPropertyDeclaration(propertyMember.Property, typeScope, symbolTable);
@@ -389,13 +407,177 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         symbolTable.Register(ctorSymbol, ctorDecl);
     }
 
-    private static void RegisterMethodDeclaration(MethodDeclarationNode methodDecl, Scope typeScope, SymbolTable symbolTable)
+    private static void RegisterMethodDeclaration(MethodDeclarationNode methodDecl, Scope typeScope, SymbolTable symbolTable, SourceText? sourceText, DiagnosticBag diagnostics)
     {
         var methodName = methodDecl.Name.Lexeme;
         var methodSpan = ToMistSourceSpan(methodDecl.Name.Span);
         var methodSymbol = new Symbol(methodName, SymbolKind.Method, SymbolOrigin.UserCode, typeScope, declaredType: null, methodSpan);
         typeScope.AddMember(methodSymbol);
         symbolTable.Register(methodSymbol, methodDecl);
+
+        // Register method type parameters if present.
+        RegisterMethodTypeParameters(methodDecl.TypeParams, methodSymbol, typeScope, sourceText, diagnostics);
+    }
+
+    /// <summary>
+    /// Extracts type parameter names from a <see cref="TypeParameterListNode"/> and returns
+    /// them as a list of <see cref="TypeParameterType"/> instances with correct ordinals.
+    /// Also checks for duplicate names and shadowing of the enclosing type name.
+    /// </summary>
+    private static IReadOnlyList<TypeParameterType> ExtractTypeParameters(
+        TypeParameterListNode? typeParamList,
+        string? enclosingTypeName,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        if (typeParamList is null)
+            return Array.Empty<TypeParameterType>();
+
+        var typeParams = new List<TypeParameterType>();
+        var seenNames = new HashSet<string>();
+        var ordinal = 0;
+
+        // Process the first type parameter.
+        var firstName = typeParamList.TypeParameter.Name.Lexeme;
+        ProcessTypeParameter(firstName, ordinal++, typeParamList.TypeParameter, enclosingTypeName, seenNames, typeParams, sourceText, diagnostics);
+
+        // Process the rest of the type parameters.
+        foreach (var tp in typeParamList.TypeParameters)
+        {
+            var name = tp.Name.Lexeme;
+            ProcessTypeParameter(name, ordinal++, tp, enclosingTypeName, seenNames, typeParams, sourceText, diagnostics);
+        }
+
+        return typeParams;
+    }
+
+    /// <summary>
+    /// Processes a single type parameter: checks for duplicates and shadowing,
+    /// then creates and adds a <see cref="TypeParameterType"/> to the list.
+    /// </summary>
+    private static void ProcessTypeParameter(
+        string name,
+        int ordinal,
+        TypeParameterNode node,
+        string? enclosingTypeName,
+        HashSet<string> seenNames,
+        List<TypeParameterType> typeParams,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Check for duplicate type parameter names.
+        if (!seenNames.Add(name))
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                DiagnosticId.DuplicateTypeParameter.Value,
+                DiagnosticSeverity.Error,
+                $"Duplicate type parameter name '{name}'.",
+                node,
+                sourceText));
+        }
+
+        // Check if the type parameter shadows the enclosing type name.
+        if (enclosingTypeName is not null && name == enclosingTypeName)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                DiagnosticId.TypeParameterShadowsType.Value,
+                DiagnosticSeverity.Warning,
+                $"Type parameter '{name}' shadows the enclosing type name.",
+                node,
+                sourceText));
+        }
+
+        typeParams.Add(new TypeParameterType(name, ordinal));
+    }
+
+    /// <summary>
+    /// Registers type parameters for a class, struct, or interface declaration.
+    /// Creates <see cref="TypeParameterType"/> instances, stores them on the declaring type,
+    /// and registers each as a symbol in the type's member scope.
+    /// </summary>
+    private static void RegisterTypeParameters(
+        TypeParameterListNode? typeParamList,
+        string typeName,
+        Scope typeScope,
+        IType declaringType,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var typeParams = ExtractTypeParameters(typeParamList, typeName, sourceText, diagnostics);
+        if (typeParams.Count == 0)
+            return;
+
+        // Store type parameters on the declaring type.
+        switch (declaringType)
+        {
+            case ClassType classType:
+                classType.TypeParameters = typeParams;
+                break;
+            case StructType structType:
+                structType.TypeParameters = typeParams;
+                break;
+            case InterfaceType interfaceType:
+                interfaceType.TypeParameters = typeParams;
+                break;
+        }
+
+        // Register each type parameter as a symbol in the type's member scope
+        // so it can be resolved as a type within the type body.
+        foreach (var tp in typeParams)
+        {
+            var tpSpan = GetTypeParameterSpan(typeParamList!, tp.Ordinal);
+            var tpSymbol = new Symbol(tp.Name, SymbolKind.Class, SymbolOrigin.UserCode, typeScope, tp, tpSpan);
+            typeScope.AddMember(tpSymbol);
+        }
+    }
+
+    /// <summary>
+    /// Registers type parameters for a method declaration (both regular and interface methods).
+    /// Creates <see cref="TypeParameterType"/> instances, stores them on the method symbol,
+    /// and registers each in the method's enclosing type scope so they can be resolved.
+    /// </summary>
+    private static void RegisterMethodTypeParameters(
+        TypeParameterListNode? typeParamList,
+        Symbol methodSymbol,
+        Scope typeScope,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        if (typeParamList is null)
+            return;
+
+        // For method type parameters, we don't check shadowing against the enclosing type name
+        // (that's only for type-level type parameters). We only check for duplicates.
+        var typeParams = ExtractTypeParameters(typeParamList, enclosingTypeName: null, sourceText, diagnostics);
+        if (typeParams.Count == 0)
+            return;
+
+        // Store type parameters on the method symbol.
+        methodSymbol.TypeParameters = typeParams;
+
+        // Register each type parameter as a symbol in the type scope so they
+        // take precedence over enclosing type parameters during resolution.
+        foreach (var tp in typeParams)
+        {
+            var tpSpan = GetTypeParameterSpan(typeParamList, tp.Ordinal);
+            var tpSymbol = new Symbol(tp.Name, SymbolKind.Class, SymbolOrigin.UserCode, typeScope, tp, tpSpan);
+            typeScope.AddMember(tpSymbol);
+        }
+    }
+
+    /// <summary>
+    /// Gets the source span for a type parameter at the given ordinal in a <see cref="TypeParameterListNode"/>.
+    /// </summary>
+    private static Common.Text.SourceSpan? GetTypeParameterSpan(TypeParameterListNode typeParamList, int ordinal)
+    {
+        if (ordinal == 0)
+            return ToMistSourceSpan(typeParamList.TypeParameter.Name.Span);
+
+        var index = ordinal - 1;
+        if (index < typeParamList.TypeParameters.Length)
+            return ToMistSourceSpan(typeParamList.TypeParameters[index].Name.Span);
+
+        return null;
     }
 
     /// <summary>
@@ -681,12 +863,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             // Check if this class has an inheritance clause.
-            if (classDecl.BaseClause is null)
+            if (classDecl.BaseList is null)
             {
                 continue;
             }
 
-            var baseClassName = classDecl.BaseClassName.Lexeme;
+            var baseClassName = classDecl.BaseList.First.Name.Lexeme;
             var parentScope = symbol.ContainingScope;
 
             // Look up the base class name in the parent scope.
@@ -717,9 +899,329 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             else if (resolvedSymbol.DeclaredType is ClassType resolvedClassType)
             {
-                classType.BaseType = resolvedClassType;
+                var typeArgs = classDecl.BaseList.First.TypeArgs;
+                classType.BaseType = ResolveGenericTypeReference(
+                    resolvedClassType, typeArgs, baseClassName,
+                    classType, classDecl, asts, compilation, diagnostics);
             }
         }
+    }
+
+    /// <summary>
+    /// Resolves a type reference in an inheritance context (base clause or interface list),
+    /// handling type arguments to produce a <see cref="ConstructedType"/> when appropriate.
+    /// Emits diagnostics for arity mismatches, non-generic type arguments, and missing type arguments.
+    /// </summary>
+    private static IType ResolveGenericTypeReference(
+        IType resolvedType,
+        TypeArgumentListNode? typeArgs,
+        string typeName,
+        IType declaringType,
+        Storm.Runtime.SyntaxNode declaringNode,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // Get the type parameters from the resolved type.
+        var typeParams = GetTypeParameters(resolvedType);
+        var hasTypeArgs = typeArgs is not null;
+        var typeParamCount = typeParams.Count;
+
+        if (hasTypeArgs)
+        {
+            // Type arguments were provided.
+            if (typeParamCount == 0)
+            {
+                // The referenced type is not generic — emit MIST_NOT_GENERIC.
+                var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    DiagnosticId.NotGeneric.Value,
+                    DiagnosticSeverity.Error,
+                    $"Type '{typeName}' is not generic and does not accept type arguments.",
+                    declaringNode,
+                    sourceText));
+                return resolvedType;
+            }
+
+            // Resolve the type arguments.
+            var resolvedTypeArgs = ResolveTypeArgumentList(typeArgs!, declaringType, declaringNode, asts, compilation, diagnostics);
+            var typeArgCount = resolvedTypeArgs.Count;
+
+            if (typeArgCount != typeParamCount)
+            {
+                // Arity mismatch — emit MIST_ARITY_MISMATCH.
+                var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    DiagnosticId.ArityMismatch.Value,
+                    DiagnosticSeverity.Error,
+                    $"Type '{typeName}' expects {typeParamCount} type argument(s) but received {typeArgCount}.",
+                    declaringNode,
+                    sourceText));
+                return resolvedType;
+            }
+
+            // Construct the ConstructedType.
+            return new ConstructedType(resolvedType, resolvedTypeArgs);
+        }
+        else
+        {
+            // No type arguments provided.
+            if (typeParamCount > 0)
+            {
+                // The referenced type is generic but no type arguments were provided.
+                // Check if the declaring type has matching type parameters that could
+                // be forwarded (e.g., class Foo<T> : Bar<T> is handled when type args
+                // are explicitly provided). If the declaring type is non-generic,
+                // emit MIST_MISSING_TYPE_ARGUMENTS.
+                var declaringTypeParams = GetTypeParameters(declaringType);
+                if (declaringTypeParams.Count == 0)
+                {
+                    var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        DiagnosticId.MissingTypeArguments.Value,
+                        DiagnosticSeverity.Error,
+                        $"Generic type '{typeName}' requires type arguments.",
+                        declaringNode,
+                        sourceText));
+                }
+            }
+
+            return resolvedType;
+        }
+    }
+
+    /// <summary>
+    /// Resolves a <see cref="TypeArgumentListNode"/> to a list of <see cref="IType"/> instances.
+    /// Each type argument name is looked up in the declaring type's member scope (for type parameters)
+    /// and in the parent scope (for concrete types).
+    /// </summary>
+    private static IReadOnlyList<IType> ResolveTypeArgumentList(
+        TypeArgumentListNode typeArgList,
+        IType declaringType,
+        Storm.Runtime.SyntaxNode declaringNode,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        var resolvedArgs = new List<IType>();
+
+        // Resolve the first type argument.
+        var firstType = ResolveTypeArgFromTypeReference(typeArgList.TypeReference, declaringType, declaringNode, asts, compilation, diagnostics);
+        resolvedArgs.Add(firstType);
+
+        // Resolve the rest of the type arguments.
+        foreach (var typeRef in typeArgList.TypeReferences)
+        {
+            var argType = ResolveTypeArgFromTypeReference(typeRef, declaringType, declaringNode, asts, compilation, diagnostics);
+            resolvedArgs.Add(argType);
+        }
+
+        return resolvedArgs;
+    }
+
+    /// <summary>
+    /// Resolves a single type argument from a <see cref="TypeReferenceNode"/> in an inheritance context.
+    /// Handles primitive types, type parameter references, and named types.
+    /// </summary>
+    private static IType ResolveTypeArgFromTypeReference(
+        TypeReferenceNode typeRef,
+        IType declaringType,
+        Storm.Runtime.SyntaxNode declaringNode,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        switch (typeRef)
+        {
+            case PrimitiveTypeRefTypeReferenceNode primitiveRef:
+                var baseType = ResolvePrimitiveType(primitiveRef.PrimitiveType);
+                if (primitiveRef.ArrayRank.HasValue)
+                    return new ArrayType(baseType);
+                return baseType;
+
+            case VoidTypeRefTypeReferenceNode:
+                return VoidType.Instance;
+
+            case NamedTypeRefTypeReferenceNode namedRef:
+            {
+                // The generated parser may not populate IDENTIFIER.Lexeme on
+                // QualifiedIdentifierNode. Fall back to extracting the name
+                // from the source text span when the lexeme is empty.
+                var argName = namedRef.Name.IDENTIFIER.Lexeme;
+                if (string.IsNullOrEmpty(argName))
+                {
+                    var span = namedRef.Name.Span;
+                    if (span.Length > 0)
+                    {
+                        // Find the correct source text by matching the declaring
+                        // node to its compilation unit via containment check
+                        // (span-based matching is unreliable across files).
+                        var srcTextForArg = FindSourceTextByContainment(declaringNode, asts, compilation);
+                        if (srcTextForArg is not null && span.Start + span.Length <= srcTextForArg.Contents.Length)
+                        {
+                            argName = srcTextForArg.Contents.Substring(span.Start, span.Length);
+                        }
+                    }
+                }
+
+                // First, look up in the declaring type's member scope (for type parameters).
+                var memberScope = GetMemberScope(declaringType);
+                ISymbol? resolvedSymbol = memberScope?.Lookup(argName);
+
+                if (resolvedSymbol is not null && resolvedSymbol.DeclaredType is TypeParameterType tpt)
+                {
+                    return tpt;
+                }
+
+                // Look up in the parent scope chain (for concrete types).
+                if (resolvedSymbol is null && memberScope?.Parent is not null)
+                {
+                    resolvedSymbol = memberScope.Parent.Lookup(argName);
+                }
+
+                if (resolvedSymbol is not null && resolvedSymbol.DeclaredType is not null)
+                {
+                    var resolvedType = resolvedSymbol.DeclaredType;
+
+                    // If this type argument itself has type arguments (nested generics),
+                    // resolve them recursively.
+                    if (namedRef.TypeArgs is not null)
+                    {
+                        var nestedTypeParams = GetTypeParameters(resolvedType);
+                        if (nestedTypeParams.Count == 0)
+                        {
+                            var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+                            diagnostics.Add(MakeDiagnosticWithLocation(
+                                DiagnosticId.NotGeneric.Value,
+                                DiagnosticSeverity.Error,
+                                $"Type '{argName}' is not generic and does not accept type arguments.",
+                                declaringNode,
+                                sourceText));
+                            return resolvedType;
+                        }
+
+                        var nestedArgs = ResolveTypeArgumentList(namedRef.TypeArgs, declaringType, declaringNode, asts, compilation, diagnostics);
+                        if (nestedArgs.Count != nestedTypeParams.Count)
+                        {
+                            var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+                            diagnostics.Add(MakeDiagnosticWithLocation(
+                                DiagnosticId.ArityMismatch.Value,
+                                DiagnosticSeverity.Error,
+                                $"Type '{argName}' expects {nestedTypeParams.Count} type argument(s) but received {nestedArgs.Count}.",
+                                declaringNode,
+                                sourceText));
+                            return resolvedType;
+                        }
+
+                        return new ConstructedType(resolvedType, nestedArgs);
+                    }
+
+                    if (namedRef.ArrayRank.HasValue)
+                        return new ArrayType(resolvedType);
+
+                    return resolvedType;
+                }
+
+                // Type argument could not be resolved.
+                var srcText = FindSourceTextForNode(declaringNode, asts, compilation);
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    DiagnosticId.UndefinedTypeArgument.Value,
+                    DiagnosticSeverity.Error,
+                    $"Type argument '{argName}' could not be resolved.",
+                    declaringNode,
+                    srcText));
+                return UnknownType.Instance;
+            }
+
+            default:
+                return UnknownType.Instance;
+        }
+    }
+
+    /// <summary>
+    /// Gets the type parameters from a type (ClassType, StructType, or InterfaceType).
+    /// Returns an empty list for types that don't have type parameters.
+    /// </summary>
+    private static IReadOnlyList<TypeParameterType> GetTypeParameters(IType type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.TypeParameters,
+            StructType st => st.TypeParameters,
+            InterfaceType it => it.TypeParameters,
+            _ => Array.Empty<TypeParameterType>(),
+        };
+    }
+
+    /// <summary>
+    /// Gets the member scope from a type (ClassType, StructType, or InterfaceType).
+    /// Returns null for types that don't have a member scope.
+    /// </summary>
+    private static IScope? GetMemberScope(IType type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            InterfaceType it => it.MemberScope,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Finds the <see cref="SourceText"/> for any syntax node by walking the ASTs.
+    /// </summary>
+    private static SourceText? FindSourceTextForNode(
+        Storm.Runtime.SyntaxNode node,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation)
+    {
+        // Use the node's span to find which compilation unit it belongs to.
+        for (var i = 0; i < asts.Length; i++)
+        {
+            if (asts[i] is CompilationUnitNode cu)
+            {
+                // Check if the node's span falls within this compilation unit's span.
+                if (node.Span.Start >= cu.Span.Start && node.Span.Start < cu.Span.Start + cu.Span.Length)
+                {
+                    return i < compilation.Units.Length ? compilation.Units[i].Source : null;
+                }
+            }
+        }
+
+        // Fallback: try to find by checking if the node is contained in any type declaration.
+        for (var i = 0; i < asts.Length; i++)
+        {
+            if (i < compilation.Units.Length)
+            {
+                return compilation.Units[i].Source;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the <see cref="SourceText"/> for a type declaration node by checking
+    /// which compilation unit contains it via reference-equality containment check.
+    /// This is more reliable than span-based matching when multiple files have
+    /// overlapping spans.
+    /// </summary>
+    private static SourceText? FindSourceTextByContainment(
+        Storm.Runtime.SyntaxNode declaringNode,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation)
+    {
+        for (var i = 0; i < asts.Length; i++)
+        {
+            if (asts[i] is CompilationUnitNode cu && ContainsTypeDeclarationNode(cu, declaringNode))
+            {
+                return i < compilation.Units.Length ? compilation.Units[i].Source : null;
+            }
+        }
+
+        // Fallback to span-based matching.
+        return FindSourceTextForNode(declaringNode, asts, compilation);
     }
 
     /// <summary>
@@ -858,49 +1360,76 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return;
 
         // No base clause means no base class and no interfaces.
-        if (classDecl.BaseClause is null)
+        if (classDecl.BaseList is null)
             return;
 
-        var firstName = classDecl.BaseClassName.Lexeme;
-        if (string.IsNullOrEmpty(firstName))
-            return;
+        // Collect all BaseTypeRefNode entries from the base list.
+        var allEntries = new List<BaseTypeRefNode>();
+        allEntries.Add(classDecl.BaseList.First);
+        foreach (var rest in classDecl.BaseList.BaseTypeRefs)
+        {
+            allEntries.Add(rest);
+        }
 
         // If Pass1_ResolveBaseTypes already resolved a base class, the first
-        // name was consumed as the base class. Nothing more to do for interfaces
-        // from the first name (additional names from COMMA IDENTIFIER* are not
-        // captured by the current Storm generator).
-        if (classType.BaseType is not null)
-            return;
+        // entry was consumed as the base class. Start from the second entry.
+        var startIndex = classType.BaseType is not null ? 1 : 0;
 
-        // The first name was NOT resolved as a base class. Check if it's an interface.
-        var parentScope = classSymbol.ContainingScope;
-        var resolvedSymbol = parentScope.Lookup(firstName);
-
-        if (resolvedSymbol is null)
+        if (startIndex == 0)
         {
-            // The name was already reported as MIST_UNDEFINED_BASE_TYPE by
-            // Pass1_ResolveBaseTypes. Emit MIST_UNDEFINED_INTERFACE as well
-            // since it could have been intended as an interface.
-            // Actually, Pass1_ResolveBaseTypes already emitted an error for
-            // undefined names. We should not double-report. However, the
-            // design says to emit MIST_UNDEFINED_INTERFACE. Let's check if
-            // the name was already reported — if resolvedSymbol is null, it
-            // was already reported by Pass1_ResolveBaseTypes. Skip here.
-            return;
+            // The first name was NOT resolved as a base class. Check if it's an interface.
+            var firstName = allEntries[0].Name.Lexeme;
+            if (string.IsNullOrEmpty(firstName))
+                return;
+
+            var parentScope = classSymbol.ContainingScope;
+            var resolvedSymbol = parentScope.Lookup(firstName);
+
+            if (resolvedSymbol is null)
+            {
+                // Already reported as MIST_UNDEFINED_BASE_TYPE by Pass1_ResolveBaseTypes. Skip.
+                startIndex = 1;
+            }
+            else if (resolvedSymbol.DeclaredType is InterfaceType resolvedInterface)
+            {
+                var typeArgs = allEntries[0].TypeArgs;
+                var resolvedType = ResolveGenericTypeReference(
+                    resolvedInterface, typeArgs, firstName,
+                    classType, classDecl, asts, compilation, diagnostics);
+                classType.Interfaces = new List<IType> { resolvedType };
+                startIndex = 1;
+            }
+            else if (resolvedSymbol.DeclaredType is StructType)
+            {
+                // Already reported as MIST_CANNOT_INHERIT_STRUCT by Pass1_ResolveBaseTypes.
+                startIndex = 1;
+            }
+            else
+            {
+                // Resolved to a ClassType but BaseType is null (shouldn't happen normally).
+                startIndex = 1;
+            }
         }
 
-        if (resolvedSymbol.DeclaredType is InterfaceType resolvedInterface)
+        // Resolve remaining entries as interfaces.
+        if (startIndex < allEntries.Count)
         {
-            classType.Interfaces = new List<InterfaceType> { resolvedInterface };
+            var parentScope = classSymbol.ContainingScope;
+            var additionalInterfaces = ResolveInterfaceEntries(
+                allEntries.Skip(startIndex),
+                parentScope,
+                classType,
+                classDecl,
+                symbolTable, asts, compilation, diagnostics,
+                findPathForSymbol: classSymbol);
+
+            if (additionalInterfaces.Count > 0)
+            {
+                var existing = classType.Interfaces.ToList();
+                existing.AddRange(additionalInterfaces);
+                classType.Interfaces = existing;
+            }
         }
-        else if (resolvedSymbol.DeclaredType is StructType)
-        {
-            // Already reported as MIST_CANNOT_INHERIT_STRUCT by Pass1_ResolveBaseTypes.
-            // No additional diagnostic needed.
-        }
-        // If it resolved to a ClassType but BaseType is null, that means
-        // Pass1_ResolveBaseTypes didn't set it (shouldn't happen in normal flow).
-        // No action needed.
     }
 
     /// <summary>
@@ -918,18 +1447,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (declaringNode is not StructDeclarationNode structDecl)
             return;
 
-        if (structDecl.InterfaceList is null)
+        if (structDecl.Interfaces is null)
             return;
 
-        var interfaceName = structDecl.InterfaceName.Lexeme;
-        if (string.IsNullOrEmpty(interfaceName))
+        var entries = ExtractBaseListEntries(structDecl.Interfaces);
+        if (entries.Count == 0)
             return;
 
         var parentScope = structSymbol.ContainingScope;
-        var resolvedInterfaces = ResolveInterfaceNames(
-            new[] { interfaceName },
+        var resolvedInterfaces = ResolveInterfaceEntries(
+            entries,
             parentScope,
-            structType.DisplayName,
+            structType,
+            structDecl,
             symbolTable, asts, compilation, diagnostics,
             findPathForSymbol: structSymbol);
 
@@ -954,18 +1484,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (declaringNode is not InterfaceDeclarationNode interfaceDecl)
             return;
 
-        if (interfaceDecl.InterfaceList is null)
+        if (interfaceDecl.Interfaces is null)
             return;
 
-        var interfaceName = interfaceDecl.InterfaceName.Lexeme;
-        if (string.IsNullOrEmpty(interfaceName))
+        var entries = ExtractBaseListEntries(interfaceDecl.Interfaces);
+        if (entries.Count == 0)
             return;
 
         var parentScope = interfaceSymbol.ContainingScope;
-        var resolvedInterfaces = ResolveInterfaceNames(
-            new[] { interfaceName },
+        var resolvedInterfaces = ResolveInterfaceEntries(
+            entries,
             parentScope,
-            interfaceType.DisplayName,
+            interfaceType,
+            interfaceDecl,
             symbolTable, asts, compilation, diagnostics,
             findPathForSymbol: interfaceSymbol);
 
@@ -1064,6 +1595,120 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         return resolved;
+    }
+
+    /// <summary>
+    /// Resolves a set of <see cref="BaseTypeRefNode"/> entries to interface types,
+    /// handling type arguments to produce <see cref="ConstructedType"/> when appropriate.
+    /// Emits diagnostics for undefined names and non-interface types.
+    /// </summary>
+    private static List<IType> ResolveInterfaceEntries(
+        IEnumerable<BaseTypeRefNode> entries,
+        IScope parentScope,
+        IType declaringType,
+        Storm.Runtime.SyntaxNode declaringNode,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics,
+        ISymbol findPathForSymbol)
+    {
+        var resolved = new List<IType>();
+
+        foreach (var entry in entries)
+        {
+            var name = entry.Name.Lexeme;
+            if (string.IsNullOrEmpty(name))
+                continue;
+
+            var resolvedSymbol = parentScope.Lookup(name);
+
+            if (resolvedSymbol is null)
+            {
+                var sourceText = FindSourceTextForSymbol(
+                    findPathForSymbol, symbolTable, asts, compilation);
+                var declNode = symbolTable.GetDeclaringNode(findPathForSymbol);
+
+                if (declNode is not null)
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        "MIST_UNDEFINED_INTERFACE",
+                        DiagnosticSeverity.Error,
+                        $"The interface type '{name}' could not be found.",
+                        declNode,
+                        sourceText));
+                }
+                else
+                {
+                    string? compilationUnitPath = FindCompilationUnitPathForSymbol(
+                        findPathForSymbol, symbolTable, asts, compilation);
+
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_UNDEFINED_INTERFACE"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        $"The interface type '{name}' could not be found.",
+                        Location: null,
+                        CompilationUnitPath: compilationUnitPath,
+                        AnalyzerName: null));
+                }
+                continue;
+            }
+
+            if (resolvedSymbol.DeclaredType is InterfaceType resolvedInterface)
+            {
+                var resolvedType = ResolveGenericTypeReference(
+                    resolvedInterface, entry.TypeArgs, name,
+                    declaringType, declaringNode, asts, compilation, diagnostics);
+                resolved.Add(resolvedType);
+            }
+            else
+            {
+                var sourceText = FindSourceTextForSymbol(
+                    findPathForSymbol, symbolTable, asts, compilation);
+                var declNode = symbolTable.GetDeclaringNode(findPathForSymbol);
+
+                if (declNode is not null)
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        "MIST_NOT_AN_INTERFACE",
+                        DiagnosticSeverity.Error,
+                        $"'{name}' is not an interface; only interfaces can appear in an interface list.",
+                        declNode,
+                        sourceText));
+                }
+                else
+                {
+                    string? compilationUnitPath = FindCompilationUnitPathForSymbol(
+                        findPathForSymbol, symbolTable, asts, compilation);
+
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_NOT_AN_INTERFACE"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        $"'{name}' is not an interface; only interfaces can appear in an interface list.",
+                        Location: null,
+                        CompilationUnitPath: compilationUnitPath,
+                        AnalyzerName: null));
+                }
+            }
+        }
+
+        return resolved;
+    }
+
+    /// <summary>
+    /// Extracts all <see cref="BaseTypeRefNode"/> entries from a <see cref="BaseListNode"/>.
+    /// </summary>
+    private static List<BaseTypeRefNode> ExtractBaseListEntries(BaseListNode baseList)
+    {
+        var entries = new List<BaseTypeRefNode>();
+        entries.Add(baseList.First);
+        foreach (var rest in baseList.BaseTypeRefs)
+        {
+            entries.Add(rest);
+        }
+        return entries;
     }
 
     /// <summary>
@@ -1300,7 +1945,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Visit each interface in the current interface's Interfaces list.
         // Take a snapshot of the list since it may be modified during cycle breaking.
-        var interfaces = current.Interfaces.ToList();
+        var interfaces = current.Interfaces.OfType<InterfaceType>().ToList();
         foreach (var child in interfaces)
         {
             DetectInterfaceCyclesDfsVisit(
@@ -1444,7 +2089,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
 
                 chain.Add(current);
-                current = current.BaseType;
+                current = current.BaseType as ClassType;
             }
 
             // All classes in this chain that didn't form a cycle are verified.
@@ -1562,7 +2207,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <param name="diagnostics">Diagnostic bag.</param>
     private static void ValidateInterfaceSatisfaction(
         string typeName,
-        IReadOnlyList<InterfaceType> interfaces,
+        IReadOnlyList<IType> interfaces,
         IScope memberScope,
         ClassType? classType,
         SymbolTable symbolTable,
@@ -1724,13 +2369,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// using a visited set to handle diamond inheritance.
     /// </summary>
     private static void CollectRequiredMembers(
-        IReadOnlyList<InterfaceType> interfaces,
+        IReadOnlyList<IType> interfaces,
         List<(InterfaceType Interface, ISymbol Method)> requiredMethods,
         List<(InterfaceType Interface, ISymbol Property)> requiredProperties,
         HashSet<InterfaceType> visited)
     {
-        foreach (var iface in interfaces)
+        foreach (var ifaceType in interfaces)
         {
+            if (ifaceType is not InterfaceType iface)
+                continue;
+
             if (!visited.Add(iface))
                 continue;
 
@@ -1774,7 +2422,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // For classes, walk the base type chain.
         if (classType is not null)
         {
-            var ancestor = classType.BaseType;
+            var ancestor = classType.BaseType as ClassType;
             while (ancestor is not null)
             {
                 foreach (var member in ancestor.MemberScope.Members)
@@ -1782,7 +2430,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if (member.Kind == SymbolKind.Property && member.Name == propertyName)
                         return member;
                 }
-                ancestor = ancestor.BaseType;
+                ancestor = ancestor.BaseType as ClassType;
             }
         }
 
@@ -1824,14 +2472,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // For classes, walk the base type chain.
         if (classType is not null)
         {
-            var ancestor = classType.BaseType;
+            var ancestor = classType.BaseType as ClassType;
             while (ancestor is not null)
             {
                 result = SearchScopeForMethod(methodName, requiredMethodDecl, ancestor.MemberScope, symbolTable);
                 if (result is not MethodMatchResult.MissingResult)
                     return result;
 
-                ancestor = ancestor.BaseType;
+                ancestor = ancestor.BaseType as ClassType;
             }
         }
 
@@ -2146,7 +2794,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
 
                 // Walk the ancestor chain looking for a member with the same name.
-                var ancestor = classType.BaseType;
+                var ancestor = classType.BaseType as ClassType;
                 while (ancestor is not null)
                 {
                     foreach (var ancestorMember in ancestor.MemberScope.Members)
@@ -2187,7 +2835,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
                     }
 
-                    ancestor = ancestor.BaseType;
+                    ancestor = ancestor.BaseType as ClassType;
                 }
 
                 nextMember:;
@@ -2229,8 +2877,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             var baseType = classType.BaseType;
 
+            // Get the member scope from the base type.
+            IScope? baseScope = baseType switch
+            {
+                ClassType ct => ct.MemberScope,
+                ConstructedType cst => cst.MemberScope,
+                _ => null,
+            };
+            if (baseScope is null)
+                continue;
+
             // Find explicit constructors on the base class.
-            var baseConstructors = baseType.MemberScope.Members
+            var baseConstructors = baseScope.Members
                 .Where(m => m.Kind == SymbolKind.Constructor)
                 .ToList();
 
@@ -2548,6 +3206,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         var typeScope = (Scope)classType.MemberScope;
 
+        // Propagate type parameters from the type scope to the file scope so
+        // that type parameter names (e.g., T in GenericBox<T>) can be resolved
+        // when resolving member type references through the file scope.
+        PropagateTypeParameters(typeScope, fileScope);
+
         foreach (var memberDecl in classDecl.Members)
         {
             ResolveMemberDeclaration(memberDecl, typeScope, fileScope, classType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -2568,6 +3231,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         var typeScope = (Scope)structType.MemberScope;
 
+        // Propagate type parameters from the type scope to the file scope.
+        PropagateTypeParameters(typeScope, fileScope);
+
         foreach (var memberDecl in structDecl.Members)
         {
             ResolveMemberDeclaration(memberDecl, typeScope, fileScope, structType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -2583,7 +3249,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         var interfaceSymbol = symbolTable.GetDeclaredSymbol(interfaceDecl);
-        if (interfaceSymbol?.DeclaredType is not InterfaceType) return;
+        if (interfaceSymbol?.DeclaredType is not InterfaceType interfaceType) return;
+
+        // Propagate type parameters from the interface's type scope to the file
+        // scope so that type parameter names (e.g., T in IGenericContainer<T>)
+        // can be resolved when resolving member type references.
+        var typeScope = (Scope)interfaceType.MemberScope;
+        PropagateTypeParameters(typeScope, fileScope);
 
         // Resolve return types and parameter types for each interface member.
         foreach (var member in interfaceDecl.Members)
@@ -3249,7 +3921,32 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             case NamedTypeRefTypeReferenceNode namedRef:
                 var typeName = ExtractQualifiedName(namedRef.Name, sourceText);
+
+                // Check if the identifier resolves to a TypeParameterType first.
+                // Type parameters don't accept type arguments.
+                var namedSymbol = fileScope.Lookup(typeName);
+                if (namedSymbol is not null && namedSymbol.DeclaredType is TypeParameterType tpt)
+                {
+                    if (namedRef.TypeArgs is not null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            DiagnosticId.NotGeneric.Value,
+                            DiagnosticSeverity.Error,
+                            $"Type '{typeName}' is not generic and does not accept type arguments.",
+                            namedRef,
+                            sourceText));
+                    }
+                    return tpt;
+                }
+
                 baseType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+                // Handle type arguments if present.
+                if (namedRef.TypeArgs is not null)
+                {
+                    baseType = ResolvePass2TypeArguments(baseType, typeName, namedRef.TypeArgs, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                }
+
                 if (namedRef.ArrayRank.HasValue)
                 {
                     return new ArrayType(baseType);
@@ -3341,6 +4038,146 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Resolves type arguments on a type reference in Pass 2 context.
+    /// Validates arity and emits diagnostics for mismatches and non-generic types.
+    /// Returns a <see cref="ConstructedType"/> if the type is generic with matching arity,
+    /// or the original type with diagnostics if there's an error.
+    /// </summary>
+    private static IType ResolvePass2TypeArguments(
+        IType resolvedType,
+        string typeName,
+        TypeArgumentListNode typeArgList,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // If the resolved type is unknown, don't cascade errors.
+        if (resolvedType is UnknownType)
+            return resolvedType;
+
+        var typeParams = GetTypeParameters(resolvedType);
+        if (typeParams.Count == 0)
+        {
+            // The type is not generic — emit MIST_NOT_GENERIC.
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                DiagnosticId.NotGeneric.Value,
+                DiagnosticSeverity.Error,
+                $"Type '{typeName}' is not generic and does not accept type arguments.",
+                typeArgList,
+                sourceText));
+            return resolvedType;
+        }
+
+        // Resolve each type argument recursively.
+        var resolvedTypeArgs = ResolvePass2TypeArgumentList(typeArgList, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+        if (resolvedTypeArgs.Count != typeParams.Count)
+        {
+            // Arity mismatch — emit MIST_ARITY_MISMATCH.
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                DiagnosticId.ArityMismatch.Value,
+                DiagnosticSeverity.Error,
+                $"Type '{typeName}' expects {typeParams.Count} type argument(s) but received {resolvedTypeArgs.Count}.",
+                typeArgList,
+                sourceText));
+            return UnknownType.Instance;
+        }
+
+        return new ConstructedType(resolvedType, resolvedTypeArgs);
+    }
+
+    /// <summary>
+    /// Resolves a <see cref="TypeArgumentListNode"/> to a list of <see cref="IType"/> instances
+    /// in Pass 2 context. Each type argument is resolved using the standard
+    /// <see cref="ResolveTypeReference"/> method, supporting nested generics.
+    /// Emits <c>MIST_UNDEFINED_TYPE_ARGUMENT</c> for unresolvable type arguments.
+    /// </summary>
+    private static IReadOnlyList<IType> ResolvePass2TypeArgumentList(
+        TypeArgumentListNode typeArgList,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var resolvedArgs = new List<IType>();
+
+        // Resolve the first type argument.
+        var firstType = ResolvePass2SingleTypeArg(typeArgList.TypeReference, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        resolvedArgs.Add(firstType);
+
+        // Resolve the rest of the type arguments.
+        foreach (var typeRef in typeArgList.TypeReferences)
+        {
+            var argType = ResolvePass2SingleTypeArg(typeRef, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            resolvedArgs.Add(argType);
+        }
+
+        return resolvedArgs;
+    }
+
+    /// <summary>
+    /// Resolves a single type argument in Pass 2 context.
+    /// Uses <see cref="ResolveTypeReference"/> for full recursive resolution.
+    /// Emits <c>MIST_UNDEFINED_TYPE_ARGUMENT</c> if the result is <see cref="UnknownType"/>
+    /// and the type reference is a named type (not a primitive or void).
+    /// </summary>
+    private static IType ResolvePass2SingleTypeArg(
+        TypeReferenceNode typeRef,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // For named type references, check if the name can be resolved before
+        // calling the full ResolveTypeReference (which emits MIST_UNDEFINED_TYPE).
+        // If it can't be resolved, emit MIST_UNDEFINED_TYPE_ARGUMENT instead.
+        if (typeRef is NamedTypeRefTypeReferenceNode namedRef)
+        {
+            var argName = ExtractQualifiedName(namedRef.Name, sourceText);
+
+            // Check if the name resolves to anything.
+            var wellKnown = TryResolveWellKnownType(argName);
+            if (wellKnown is null)
+            {
+                var symbol = fileScope.Lookup(argName);
+                if (symbol is null || (symbol.Kind != SymbolKind.Class && symbol.Kind != SymbolKind.Struct && symbol.Kind != SymbolKind.Interface))
+                {
+                    // Check ambient resolver.
+                    IType? ambientResolved = null;
+                    if (ambientTypeResolver is not null)
+                    {
+                        var importedNamespaces = CollectImportedNamespaces(fileScope);
+                        foreach (var ns in importedNamespaces)
+                        {
+                            ambientResolved = ambientTypeResolver.ResolveType(ns, argName);
+                            if (ambientResolved is not null)
+                                break;
+                        }
+                    }
+
+                    if (ambientResolved is null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            DiagnosticId.UndefinedTypeArgument.Value,
+                            DiagnosticSeverity.Error,
+                            $"Type argument '{argName}' could not be resolved.",
+                            namedRef,
+                            sourceText));
+                        return UnknownType.Instance;
+                    }
+                }
+            }
+        }
+
+        // Use the standard type reference resolution for full recursive support.
+        return ResolveTypeReference(typeRef, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+    }
+
+    /// <summary>
     /// Tries to resolve a well-known type by name (primitives, string, void).
     /// </summary>
     private static IType? TryResolveWellKnownType(string name)
@@ -3364,6 +4201,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             "void" => VoidType.Instance,
             _ => null,
         };
+    }
+
+    /// <summary>
+    /// Copies type parameter symbols from the type scope to the file scope so that
+    /// type parameter names (e.g., T) can be resolved when resolving member type
+    /// references through the file scope. Only symbols whose DeclaredType is
+    /// <see cref="TypeParameterType"/> are copied, avoiding constructor/method
+    /// name collisions.
+    /// </summary>
+    private static void PropagateTypeParameters(Scope typeScope, Scope fileScope)
+    {
+        foreach (var member in typeScope.Members)
+        {
+            if (member.DeclaredType is TypeParameterType)
+            {
+                fileScope.AddMember(member);
+            }
+        }
     }
 
     /// <summary>
@@ -3735,6 +4590,41 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var memberName = methodCall.Name.Lexeme;
                 var memberType = LookupMemberType(targetType, memberName, ambientTypeResolver, fileScope, symbolTable, sourceText, diagnostics);
 
+                // Handle type arguments on method invocations (e.g., obj.Method<int>()).
+                if (methodCall.TypeArgs is not null)
+                {
+                    // Look up the method symbol to check its type parameters.
+                    var methodSymbol = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                    if (methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
+                    {
+                        // Resolve the type arguments.
+                        var resolvedTypeArgs = ResolvePass2TypeArgumentList(methodCall.TypeArgs, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+                        if (resolvedTypeArgs.Count != sym.TypeParameters.Count)
+                        {
+                            // Method arity mismatch.
+                            diagnostics.Add(MakeDiagnosticWithLocation(
+                                DiagnosticId.MethodArityMismatch.Value,
+                                DiagnosticSeverity.Error,
+                                $"Method '{memberName}' expects {sym.TypeParameters.Count} type argument(s) but received {resolvedTypeArgs.Count}.",
+                                methodCall.TypeArgs,
+                                sourceText));
+                            memberType = UnknownType.Instance;
+                        }
+                        // Type arguments are valid — substitution will be handled by the type checker.
+                    }
+                    else if (methodSymbol is not null)
+                    {
+                        // Method is not generic but type arguments were provided.
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            DiagnosticId.MethodArityMismatch.Value,
+                            DiagnosticSeverity.Error,
+                            $"Method '{memberName}' expects 0 type argument(s) but received {CountTypeArgs(methodCall.TypeArgs)}.",
+                            methodCall.TypeArgs,
+                            sourceText));
+                    }
+                }
+
                 // Resolve arguments.
                 if (methodCall.Arguments is not null)
                 {
@@ -3880,6 +4770,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var typeName = ExtractQualifiedName(objCreation.Type, sourceText);
                 var createdType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+                // Handle type arguments on new expressions (e.g., new Box<int>()).
+                if (objCreation.TypeArgs is not null)
+                {
+                    createdType = ResolvePass2TypeArguments(createdType, typeName, objCreation.TypeArgs, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                }
+
                 if (objCreation.Arguments is not null)
                 {
                     ResolveArgumentList(objCreation.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -3912,7 +4809,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     else if (!isStatic && enclosingType is ClassType enclosingClass)
                     {
                         IType? inheritedMemberType = null;
-                        var ancestor = enclosingClass.BaseType;
+                        var ancestor = enclosingClass.BaseType as ClassType;
                         while (ancestor is not null)
                         {
                             foreach (var m in ancestor.MemberScope.Members)
@@ -3925,7 +4822,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             }
                             if (inheritedMemberType is not null)
                                 break;
-                            ancestor = ancestor.BaseType;
+                            ancestor = ancestor.BaseType as ClassType;
                         }
 
                         if (inheritedMemberType is not null)
@@ -4041,6 +4938,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return UnknownType.Instance;
         }
 
+        // For ConstructedType, unwrap to the generic definition and look up the member,
+        // then substitute type parameters with type arguments.
+        IReadOnlyList<TypeParameterType>? constructedTypeParams = null;
+        IReadOnlyList<IType>? constructedTypeArgs = null;
+        if (targetType is ConstructedType constructedTarget)
+        {
+            constructedTypeParams = constructedTarget.GenericDefinition switch
+            {
+                ClassType ct2 => ct2.TypeParameters,
+                StructType st2 => st2.TypeParameters,
+                InterfaceType it2 => it2.TypeParameters,
+                _ => null,
+            };
+            constructedTypeArgs = constructedTarget.TypeArguments;
+            targetType = constructedTarget.GenericDefinition;
+        }
+
         // Get the member scope from the target type.
         IScope? memberScope = targetType switch
         {
@@ -4097,7 +5011,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     if (m.Name == memberName)
                     {
-                        return m.DeclaredType ?? UnknownType.Instance;
+                        var memberType = m.DeclaredType ?? UnknownType.Instance;
+                        return SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
                     }
                 }
 
@@ -4109,12 +5024,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         if (m.Name == memberName)
                         {
-                            return m.DeclaredType ?? UnknownType.Instance;
+                            var memberType = m.DeclaredType ?? UnknownType.Instance;
+                            return SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
                         }
                     }
                 }
 
-                current = current.BaseType;
+                current = current.BaseType as ClassType;
             }
         }
         else if (memberScope is not null)
@@ -4122,7 +5038,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var member = memberScope.Lookup(memberName);
             if (member is not null)
             {
-                return member.DeclaredType ?? UnknownType.Instance;
+                var memberType = member.DeclaredType ?? UnknownType.Instance;
+                return SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
             }
 
             // For interface types, walk inherited interfaces transitively.
@@ -4131,21 +5048,75 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var result = LookupInheritedInterfaceMember(interfaceTarget, memberName);
                 if (result is not null)
                 {
-                    return result;
+                    return SubstituteMemberTypeIfNeeded(result, constructedTypeParams, constructedTypeArgs);
                 }
             }
         }
+
+        // Use the original target type display name for the diagnostic (including type args).
+        var diagnosticTypeName = (constructedTypeParams is not null && constructedTypeArgs is not null)
+            ? $"{targetType.DisplayName}<{string.Join(", ", constructedTypeArgs.Select(a => a.DisplayName))}>"
+            : targetType.DisplayName;
 
         diagnostics.Add(new Diagnostic(
             new DiagnosticId("MIST_UNDEFINED_MEMBER"),
             DiagnosticSeverity.Error,
             PipelineStage.SemanticModelConstruction,
-            $"'{targetType.DisplayName}' does not contain a definition for '{memberName}'.",
+            $"'{diagnosticTypeName}' does not contain a definition for '{memberName}'.",
             Location: null,
             CompilationUnitPath: sourceText?.Path,
             AnalyzerName: null));
 
         return UnknownType.Instance;
+    }
+
+    /// <summary>
+    /// Substitutes type parameters with type arguments in a member type if a substitution mapping is available.
+    /// Used when looking up members on a <see cref="ConstructedType"/>.
+    /// </summary>
+    private static IType SubstituteMemberTypeIfNeeded(
+        IType memberType,
+        IReadOnlyList<TypeParameterType>? typeParams,
+        IReadOnlyList<IType>? typeArgs)
+    {
+        if (typeParams is null || typeArgs is null || typeParams.Count == 0)
+            return memberType;
+
+        return SubstituteTypeInMember(memberType, typeParams, typeArgs);
+    }
+
+    /// <summary>
+    /// Substitutes type parameters with corresponding type arguments in a type.
+    /// - If the type is a <see cref="TypeParameterType"/> matching one of the type params, returns the corresponding type arg.
+    /// - If the type is a <see cref="ConstructedType"/>, recursively substitutes its type arguments.
+    /// - Otherwise, returns the type unchanged.
+    /// </summary>
+    private static IType SubstituteTypeInMember(IType type, IReadOnlyList<TypeParameterType> typeParams, IReadOnlyList<IType> typeArgs)
+    {
+        if (type is TypeParameterType tpt)
+        {
+            for (var i = 0; i < typeParams.Count; i++)
+            {
+                if (tpt.Name == typeParams[i].Name && tpt.Ordinal == typeParams[i].Ordinal)
+                    return i < typeArgs.Count ? typeArgs[i] : type;
+            }
+            return type;
+        }
+
+        if (type is ConstructedType ct)
+        {
+            var substitutedArgs = new IType[ct.TypeArguments.Count];
+            var changed = false;
+            for (var i = 0; i < ct.TypeArguments.Count; i++)
+            {
+                substitutedArgs[i] = SubstituteTypeInMember(ct.TypeArguments[i], typeParams, typeArgs);
+                if (!ReferenceEquals(substitutedArgs[i], ct.TypeArguments[i]))
+                    changed = true;
+            }
+            return changed ? new ConstructedType(ct.GenericDefinition, substitutedArgs) : ct;
+        }
+
+        return type;
     }
 
     /// <summary>
@@ -4163,12 +5134,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     private static IType? LookupInheritedInterfaceMemberCore(
-        IReadOnlyList<InterfaceType> interfaces,
+        IReadOnlyList<IType> interfaces,
         string memberName,
         HashSet<InterfaceType> visited)
     {
-        foreach (var iface in interfaces)
+        foreach (var ifaceType in interfaces)
         {
+            if (ifaceType is not InterfaceType iface)
+                continue;
+
             if (!visited.Add(iface))
                 continue;
 
@@ -4186,6 +5160,64 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Looks up a member symbol by name on a target type.
+    /// Similar to <see cref="LookupMemberType"/> but returns the <see cref="ISymbol"/> instead of the type.
+    /// Used for checking method type parameters on generic method invocations.
+    /// </summary>
+    private static ISymbol? LookupMemberSymbol(
+        IType targetType,
+        string memberName,
+        IAmbientTypeResolver? ambientTypeResolver,
+        Scope fileScope,
+        SymbolTable symbolTable)
+    {
+        if (targetType is UnknownType)
+            return null;
+
+        // For ConstructedType, look up in the generic definition's member scope.
+        if (targetType is ConstructedType ct)
+            targetType = ct.GenericDefinition;
+
+        IScope? memberScope = targetType switch
+        {
+            ClassType classType => classType.MemberScope,
+            StructType structType => structType.MemberScope,
+            InterfaceType interfaceType => interfaceType.MemberScope,
+            _ => null,
+        };
+
+        if (targetType is ClassType classTarget)
+        {
+            ClassType? current = classTarget;
+            while (current is not null)
+            {
+                foreach (var m in current.MemberScope.Members)
+                {
+                    if (m.Name == memberName)
+                        return m;
+                }
+                current = current.BaseType as ClassType;
+            }
+        }
+        else if (memberScope is not null)
+        {
+            var member = memberScope.Lookup(memberName);
+            if (member is not null)
+                return member;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Counts the number of type arguments in a <see cref="TypeArgumentListNode"/>.
+    /// </summary>
+    private static int CountTypeArgs(TypeArgumentListNode typeArgList)
+    {
+        return 1 + typeArgList.TypeReferences.Length;
     }
 
     /// <summary>
@@ -4355,6 +5387,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     // ─── Shared Utilities ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Extracts all type names from a <see cref="BaseListNode"/> as a string array.
+    /// The first entry comes from <c>First</c>, and additional entries from <c>BaseTypeRefs</c>.
+    /// </summary>
+    private static string[] ExtractBaseListNames(BaseListNode baseList)
+    {
+        var names = new List<string>();
+        var firstName = baseList.First.Name.Lexeme;
+        if (!string.IsNullOrEmpty(firstName))
+        {
+            names.Add(firstName);
+        }
+        foreach (var rest in baseList.BaseTypeRefs)
+        {
+            var restName = rest.Name.Lexeme;
+            if (!string.IsNullOrEmpty(restName))
+            {
+                names.Add(restName);
+            }
+        }
+        return names.ToArray();
+    }
 
     private static string ExtractNamespaceName(
         NamespaceDeclarationNode namespaceNode,

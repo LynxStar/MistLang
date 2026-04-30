@@ -23,6 +23,7 @@ public sealed class CSharpEmitter
         var backendNamespaces = CollectBackendNamespaces(model);
 
         // Emit one .cs file per Mist source file.
+        var anyNeedsMistVoid = false;
         for (var i = 0; i < model.Units.Count; i++)
         {
             var unit = model.Units[i];
@@ -36,7 +37,17 @@ public sealed class CSharpEmitter
                 var writer = new CSharpSourceWriter(model, backendNamespaces, unit.Source);
                 var csContent = writer.EmitCompilationUnit(compilationUnit);
                 File.WriteAllText(csPath, csContent);
+
+                if (writer.NeedsMistVoidStruct)
+                    anyNeedsMistVoid = true;
             }
+        }
+
+        // Emit the MistVoid helper struct once into a shared file if any compilation unit uses void as a value.
+        if (anyNeedsMistVoid)
+        {
+            var mistVoidPath = Path.Combine(outputDirectory, "MistVoid.g.cs");
+            File.WriteAllText(mistVoidPath, GenerateMistVoidFile());
         }
     }
 
@@ -87,6 +98,24 @@ public sealed class CSharpEmitter
 
         return [.. namespaces.OrderBy(n => n, StringComparer.Ordinal)];
     }
+
+    private static string GenerateMistVoidFile()
+    {
+        return """
+            #nullable enable
+            [System.Runtime.CompilerServices.CompilerGenerated]
+            public readonly struct MistVoid : System.IEquatable<MistVoid>
+            {
+                public static readonly MistVoid Instance = default;
+                public bool Equals(MistVoid other) => true;
+                public override bool Equals(object? obj) => obj is MistVoid;
+                public override int GetHashCode() => 0;
+                public static bool operator ==(MistVoid left, MistVoid right) => true;
+                public static bool operator !=(MistVoid left, MistVoid right) => false;
+                public override string ToString() => "Void";
+            }
+            """;
+    }
 }
 
 /// <summary>
@@ -104,6 +133,12 @@ internal sealed class CSharpSourceWriter
     private bool _inValueReturningVoidMethod;
     private readonly HashSet<string> _valueReturningVoidMethods = new(StringComparer.Ordinal);
     private const string IndentUnit = "    ";
+
+    /// <summary>
+    /// Indicates whether this compilation unit requires the MistVoid helper struct.
+    /// Checked by the emitter after emission to decide whether to generate the shared MistVoid file.
+    /// </summary>
+    public bool NeedsMistVoidStruct => _needsMistVoidStruct;
 
     public CSharpSourceWriter(
         ISemanticModel model,
@@ -158,36 +193,7 @@ internal sealed class CSharpSourceWriter
             EmitTypeDeclaration(typeDecl);
         }
 
-        // Emit the MistVoid helper struct if any void value usage was detected.
-        if (_needsMistVoidStruct)
-        {
-            EmitMistVoidStruct();
-        }
-
         return _sb.ToString();
-    }
-
-    /// <summary>
-    /// Emits the MistVoid readonly struct that serves as the C# representation
-    /// of Mist's void unit type in value contexts. This struct is emitted once
-    /// per compilation unit that uses void as a value type.
-    /// </summary>
-    private void EmitMistVoidStruct()
-    {
-        AppendLine();
-        AppendLine("[System.Runtime.CompilerServices.CompilerGenerated]");
-        AppendLine("public readonly struct MistVoid : System.IEquatable<MistVoid>");
-        AppendLine("{");
-        _indentLevel++;
-        AppendLine("public static readonly MistVoid Instance = default;");
-        AppendLine("public bool Equals(MistVoid other) => true;");
-        AppendLine("public override bool Equals(object? obj) => obj is MistVoid;");
-        AppendLine("public override int GetHashCode() => 0;");
-        AppendLine("public static bool operator ==(MistVoid left, MistVoid right) => true;");
-        AppendLine("public static bool operator !=(MistVoid left, MistVoid right) => false;");
-        AppendLine("public override string ToString() => \"Void\";");
-        _indentLevel--;
-        AppendLine("}");
     }
 
     /// <summary>

@@ -189,8 +189,16 @@ public sealed class VoidEmissionPropertyTests : IDisposable
         var diagnostics = new DiagnosticBag();
         CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
 
-        var csFile = Directory.GetFiles(_outputDir, "*.cs").FirstOrDefault();
+        // Return the content of the main source file (not MistVoid.g.cs or .csproj)
+        var csFile = Directory.GetFiles(_outputDir, "*.cs")
+            .FirstOrDefault(f => !f.EndsWith("MistVoid.g.cs", StringComparison.Ordinal));
         return csFile is not null ? File.ReadAllText(csFile) : "";
+    }
+
+    private bool MistVoidFileExists()
+    {
+        var mistVoidPath = Path.Combine(_outputDir, "MistVoid.g.cs");
+        return File.Exists(mistVoidPath);
     }
 
     private void CleanOutputDir()
@@ -400,8 +408,8 @@ public sealed class VoidEmissionPropertyTests : IDisposable
             @"public\s+MistVoid\s+" + Regex.Escape(scenario.MethodName) + @"\s*\(");
         var hasMistVoidReturnType = methodSignaturePattern.IsMatch(csContent);
 
-        // Req 10.1: The MistVoid struct should be emitted
-        var hasMistVoidStruct = csContent.Contains("public readonly struct MistVoid");
+        // Req 10.1: The MistVoid struct should be emitted (in a separate shared file)
+        var hasMistVoidStruct = MistVoidFileExists();
 
         // Req 10.5: The variable declaration should use MistVoid or var (both valid)
         // The emitter uses var for inferred declarations, which is fine

@@ -229,10 +229,23 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         var emitDiagnostics = new DiagnosticBag();
         CSharpEmitter.Emit(model, _outputDir, "TestProject", emitDiagnostics);
 
-        var csFile = Directory.GetFiles(_outputDir, "*.cs").FirstOrDefault();
+        // Return the main source file content (not MistVoid.g.cs or .csproj)
+        var csFile = Directory.GetFiles(_outputDir, "*.cs")
+            .FirstOrDefault(f => !f.EndsWith("MistVoid.g.cs", StringComparison.Ordinal));
         var csContent = csFile is not null ? File.ReadAllText(csFile) : "";
 
         return (csContent, buildDiagnostics.ToImmutableArray(), tcDiagnostics.ToImmutableArray());
+    }
+
+    private bool MistVoidFileExists()
+    {
+        return File.Exists(Path.Combine(_outputDir, "MistVoid.g.cs"));
+    }
+
+    private string GetMistVoidFileContent()
+    {
+        var mistVoidPath = Path.Combine(_outputDir, "MistVoid.g.cs");
+        return File.Exists(mistVoidPath) ? File.ReadAllText(mistVoidPath) : "";
     }
 
     private void CleanOutputDir()
@@ -319,8 +332,8 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         // The T field in Result<T> should be emitted (the generic definition uses T)
         Assert.Contains("T value", csContent);
 
-        // The MistVoid struct should be emitted since void is used as a value type
-        Assert.Contains("public readonly struct MistVoid", csContent);
+        // The MistVoid struct should be emitted in a separate shared file
+        Assert.True(MistVoidFileExists());
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -367,15 +380,17 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         Assert.Contains("MistVoid.Instance", csContent);
         Assert.Contains("var x = MistVoid.Instance;", csContent);
 
-        // Verify the MistVoid struct is emitted with all required members
-        Assert.Contains("public readonly struct MistVoid : System.IEquatable<MistVoid>", csContent);
-        Assert.Contains("public static readonly MistVoid Instance = default;", csContent);
-        Assert.Contains("public bool Equals(MistVoid other) => true;", csContent);
-        Assert.Contains("public override bool Equals(object? obj) => obj is MistVoid;", csContent);
-        Assert.Contains("public override int GetHashCode() => 0;", csContent);
-        Assert.Contains("public static bool operator ==(MistVoid left, MistVoid right) => true;", csContent);
-        Assert.Contains("public static bool operator !=(MistVoid left, MistVoid right) => false;", csContent);
-        Assert.Contains("public override string ToString() => \"Void\";", csContent);
+        // Verify the MistVoid struct is emitted in a separate shared file with all required members
+        var mistVoidContent = GetMistVoidFileContent();
+        Assert.NotEmpty(mistVoidContent);
+        Assert.Contains("public readonly struct MistVoid : System.IEquatable<MistVoid>", mistVoidContent);
+        Assert.Contains("public static readonly MistVoid Instance = default;", mistVoidContent);
+        Assert.Contains("public bool Equals(MistVoid other) => true;", mistVoidContent);
+        Assert.Contains("public override bool Equals(object? obj) => obj is MistVoid;", mistVoidContent);
+        Assert.Contains("public override int GetHashCode() => 0;", mistVoidContent);
+        Assert.Contains("public static bool operator ==(MistVoid left, MistVoid right) => true;", mistVoidContent);
+        Assert.Contains("public static bool operator !=(MistVoid left, MistVoid right) => false;", mistVoidContent);
+        Assert.Contains("public override string ToString() => \"Void\";", mistVoidContent);
 
         // Now verify the generated C# actually compiles with dotnet build
         var backend = new CSharpTranspilerBackend();
@@ -460,8 +475,8 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         Assert.Contains("public void DoWork()", csContent);
         Assert.DoesNotContain("MistVoid DoWork", csContent);
 
-        // No MistVoid struct should be emitted since void is not used as a value
-        Assert.DoesNotContain("public readonly struct MistVoid", csContent);
+        // No MistVoid file should be emitted since void is not used as a value
+        Assert.False(MistVoidFileExists());
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -533,7 +548,7 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         // The variable declaration should use var
         Assert.Contains("var result = DoWork();", csContent);
 
-        // The MistVoid struct should be emitted
-        Assert.Contains("public readonly struct MistVoid", csContent);
+        // The MistVoid struct should be emitted in a separate shared file
+        Assert.True(MistVoidFileExists());
     }
 }

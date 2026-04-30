@@ -523,6 +523,7 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
                 Backend: new BackendId("csharp"),
                 OutputDirectory: Path.Combine(tempDir, "out"),
                 BinDirectory: Path.Combine(tempDir, "bin"),
+                ProjectName: "TestProject",
                 EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
             var result = driver.Compile(options);

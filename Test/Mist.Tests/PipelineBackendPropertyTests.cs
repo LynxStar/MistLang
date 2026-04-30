@@ -58,6 +58,7 @@ public class PipelineBackendPropertyTests
                 Backend: new BackendId("csharp"),
                 OutputDirectory: Path.Combine(tempDir, "out"),
                 BinDirectory: Path.Combine(tempDir, "bin"),
+                ProjectName: "TestProject",
                 EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
             var result = driver.Compile(options);
@@ -105,6 +106,7 @@ public class PipelineBackendPropertyTests
                 Backend: new BackendId("csharp"),
                 OutputDirectory: Path.Combine(tempDir, "out"),
                 BinDirectory: Path.Combine(tempDir, "bin"),
+                ProjectName: "TestProject",
                 EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
             var result = driver.Compile(options);
@@ -154,6 +156,7 @@ public class PipelineBackendPropertyTests
                 Backend: new BackendId("csharp"),
                 OutputDirectory: Path.Combine(tempDir, "out"),
                 BinDirectory: Path.Combine(tempDir, "bin"),
+                ProjectName: "TestProject",
                 EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
             var result = driver.Compile(options);

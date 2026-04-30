@@ -189,6 +189,15 @@ internal class Program
 
     private static CompilerResult CompileProject(List<string> sourceFiles, CliArguments cliArgs)
     {
+        // Parse the project file to get the project name
+        var parseDiagnostics = new DiagnosticBag();
+        var config = ProjectFileParser.Parse(Path.GetFullPath(cliArgs.ProjectFolder), parseDiagnostics);
+
+        if(config is null)
+        {
+            return new CompilerResult(false, null, parseDiagnostics.ToImmutableArray());
+        }
+
         // Map CLI arguments to CompilerOptions
         var options = new CompilerOptions(
             ProjectFolder: Path.GetFullPath(cliArgs.ProjectFolder),
@@ -196,6 +205,7 @@ internal class Program
             Backend: new BackendId(cliArgs.BackendId),
             OutputDirectory: cliArgs.OutputDirectory,
             BinDirectory: cliArgs.BinDirectory,
+            ProjectName: config.Name,
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         // Construct the compiler pipeline

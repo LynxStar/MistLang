@@ -290,6 +290,7 @@ public sealed class PipelineDebugTests : IDisposable
             Backend: new BackendId("csharp"),
             OutputDirectory: _outputDir,
             BinDirectory: Path.Combine(_outputDir, "bin"),
+            ProjectName: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         var result = driver.Compile(options);

@@ -59,6 +59,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             Backend: new BackendId("csharp"),
             OutputDirectory: _outputDir,
             BinDirectory: Path.Combine(_outputDir, "bin"),
+            ProjectName: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
     }
 
@@ -239,6 +240,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             Backend: new BackendId("nonexistent-backend"),
             OutputDirectory: _outputDir,
             BinDirectory: Path.Combine(_outputDir, "bin"),
+            ProjectName: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         var driver = CreateRealDriver();
@@ -977,6 +979,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             Backend: new BackendId("csharp"),
             OutputDirectory: _outputDir,
             BinDirectory: binDir,
+            ProjectName: "Inheritance",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         var result = driver.Compile(options);
@@ -1068,6 +1071,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             Backend: new BackendId("csharp"),
             OutputDirectory: _outputDir,
             BinDirectory: binDir,
+            ProjectName: "AllFeatures",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         var result = driver.Compile(options);
@@ -1106,6 +1110,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             Backend: new BackendId("csharp"),
             OutputDirectory: _outputDir,
             BinDirectory: binDir,
+            ProjectName: "AllFeatures",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
         var result = driver.Compile(options);

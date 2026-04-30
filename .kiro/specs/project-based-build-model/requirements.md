@@ -4,10 +4,27 @@
 
 The Mist compiler currently accepts individual source files and directories as positional arguments, expanding directories to discover `.mist` files recursively. This feature replaces that model with a project-folder-based build model inspired by .NET's `bin`/`obj` convention. Instead of passing individual files or folders, the user passes a single project folder. Build output is split into two directories: an intermediate output directory (`out`) for generated source code (emitted C# files, `.csproj`), and a binary directory (`bin`) for the final compiled artifact (e.g., the compiled DLL/executable). Both directories live inside the project folder by default, and every build cleans both directories before emitting new artifacts. The user may still override either directory location.
 
+Additionally, the Mist compiler introduces a **project file** that lives in the project folder root. This file provides project-level metadata — starting with a `name` field that controls the generated project name (used for the `.csproj` filename and the output DLL/executable name). This replaces the current behavior of deriving the project name from the folder name. The project file format must be chosen from among JSON, TOML, YAML, or XML, considering the Mist ecosystem context (a C# compiler that transpiles to C#).
+
+## Format Decision: Project File
+
+**Chosen format: TOML** (`mist.toml`)
+
+TOML was selected because it is purpose-built for configuration files, supports comments, and is the modern standard for language project files (Rust's `Cargo.toml`, Python's `pyproject.toml`). The `Tomlyn` NuGet package provides TOML parsing for .NET.
+
+Example `mist.toml`:
+```toml
+# Mist project configuration
+name = "HelloMist"
+```
+
 ## Glossary
 
 - **CLI**: The Mist command-line interface entry point (`Mist.CLI`).
-- **Project_Folder**: A directory that serves as the root of a Mist project. It contains `.mist` source files (possibly in subdirectories) and hosts the default output directory.
+- **Project_Folder**: A directory that serves as the root of a Mist project. It contains `.mist` source files (possibly in subdirectories), the Project_File, and hosts the default output directories.
+- **Project_File**: A TOML configuration file named `mist.toml` in the root of the Project_Folder that contains project-level metadata.
+- **Project_Name**: The name of the project as specified in the `name` field of the Project_File. Used to name the generated `.csproj` file and the output DLL/executable.
+- **Project_File_Parser**: The component responsible for reading and parsing the Project_File into a structured representation.
 - **Output_Directory**: The directory where the compiler writes intermediate generated source code (emitted C# files, `.csproj`). This is temporary/intermediate output produced by the Backend emitter. Defaults to `<Project_Folder>/out`.
 - **Bin_Directory**: The directory where the compiler writes the final compiled artifact (e.g., the compiled DLL/executable). This is the final output produced by the compilation driver. Defaults to `<Project_Folder>/bin`.
 - **Source_Discovery**: The process of recursively finding all `.mist` files within the Project_Folder.
@@ -71,7 +88,7 @@ The Mist compiler currently accepts individual source files and directories as p
 
 #### Acceptance Criteria
 
-1. THE CLI SHALL display the usage pattern as `mist [project-folder] [--backend <id>] [--output <dir>] [--bin <dir>] [--mode <compile|lex>]`.
+1. THE CLI SHALL display the usage pattern as `mist <build|run> [project-folder] [--backend <id>] [--output <dir>] [--bin <dir>] [--mode <compile|lex>]`.
 2. WHEN the Argument_Parser encounters parse errors, THE CLI SHALL print the updated usage pattern to standard error.
 
 ### Requirement 6: Update CompilerOptions to Reflect Project Model
@@ -117,3 +134,61 @@ The Mist compiler currently accepts individual source files and directories as p
 2. WHEN the Backend compiles the emitted source code, THE Backend SHALL place the final compiled artifact (DLL or executable) in the Bin_Directory.
 3. THE Backend SHALL pass the Bin_Directory as the output path to the `dotnet build` invocation so that the compiled binary is placed in the Bin_Directory.
 4. THE Backend SHALL receive both the Output_Directory and the Bin_Directory from the Compiler_Driver.
+
+### Requirement 10: Project File Provides Project Name
+
+**User Story:** As a developer, I want to define my project's name in a project file, so that I have explicit control over the generated project name instead of relying on the folder name.
+
+#### Acceptance Criteria
+
+1. THE Project_File SHALL be a TOML file named `mist.toml` residing in the root of the Project_Folder.
+2. THE Project_File SHALL contain a `name` field that specifies the Project_Name.
+3. WHEN the Project_File exists and contains a valid `name` field, THE Compiler_Driver SHALL use the `name` value as the Project_Name for the generated `.csproj` filename and the output artifact name.
+4. IF the `mist.toml` file does not exist in the Project_Folder, THEN THE CLI SHALL report an error indicating that no project file was found and the build cannot proceed.
+5. IF the Project_File exists but does not contain a `name` field, THEN THE Project_File_Parser SHALL report an error indicating that the `name` field is required.
+6. IF the Project_File exists but contains a `name` field with an empty or whitespace-only value, THEN THE Project_File_Parser SHALL report an error indicating that the project name must be non-empty.
+
+### Requirement 11: Project Name Validation
+
+**User Story:** As a developer, I want the compiler to validate my project name, so that the generated artifacts have valid filenames and the build does not fail due to invalid characters.
+
+#### Acceptance Criteria
+
+1. THE Project_File_Parser SHALL validate that the Project_Name contains only alphanumeric characters, hyphens, underscores, and periods.
+2. IF the Project_Name contains invalid characters, THEN THE Project_File_Parser SHALL report an error listing the invalid characters found.
+3. THE Project_File_Parser SHALL validate that the Project_Name is no longer than 128 characters.
+4. IF the Project_Name exceeds 128 characters, THEN THE Project_File_Parser SHALL report an error indicating the maximum length.
+
+### Requirement 12: Parse Project File
+
+**User Story:** As a developer of the Mist compiler, I want a dedicated parser for the project file, so that the project file format is cleanly separated from the rest of the compiler.
+
+#### Acceptance Criteria
+
+1. THE Project_File_Parser SHALL read the `mist.toml` file from the Project_Folder root.
+2. THE Project_File_Parser SHALL parse the TOML content into a structured Project_Configuration object containing the Project_Name.
+3. IF the Project_File contains TOML syntax errors, THEN THE Project_File_Parser SHALL report a descriptive parse error including the file path and error details from the TOML parser.
+4. THE Project_File_Parser SHALL produce a Project_Configuration object that can be extended with additional fields in the future without breaking changes.
+
+### Requirement 13: Project Name Flows Through Compilation Pipeline
+
+**User Story:** As a developer of the Mist compiler, I want the project name from the project file to replace the folder-name derivation, so that the entire pipeline uses the explicit project name.
+
+#### Acceptance Criteria
+
+1. THE CLI SHALL read the Project_File and extract the Project_Name before invoking the Compiler_Driver.
+2. THE CompilerOptions record SHALL include a `ProjectName` field of type `string` populated from the Project_File.
+3. THE Compiler_Driver SHALL pass the Project_Name to the Backend instead of deriving it from the folder name.
+4. THE CSharpEmitter SHALL use the Project_Name to name the generated `.csproj` file (e.g., `{ProjectName}.csproj`).
+5. THE CSharpCompilationDriver SHALL use the Project_Name to determine the output artifact filename (e.g., `{ProjectName}.dll`).
+
+### Requirement 14: Update Sample Projects with Project Files
+
+**User Story:** As a developer, I want the existing sample projects to include project files, so that they serve as examples of the new project model.
+
+#### Acceptance Criteria
+
+1. WHEN a sample project exists in the `samples/` directory, THE sample project SHALL contain a `mist.toml` file with a `name` field matching the sample's intended project name.
+2. THE sample project `HelloMist` SHALL have a `mist.toml` with `name = "HelloMist"`.
+3. THE sample project `AllFeatures` SHALL have a `mist.toml` with `name = "AllFeatures"`.
+4. THE sample project `Simpliest` SHALL have a `mist.toml` with `name = "Simpliest"`.

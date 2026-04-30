@@ -12,4 +12,5 @@ public sealed record CompilerOptions(
     BackendId Backend,
     string OutputDirectory,
     string BinDirectory,
+    string ProjectName,
     ImmutableArray<string> EnabledAnalyzerIds);

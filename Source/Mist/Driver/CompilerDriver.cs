@@ -185,7 +185,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
         // Step 6: Emit via backend
         var backendBag = new DiagnosticBag();
-        var projectName = Path.GetFileName(options.ProjectFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var projectName = options.ProjectName;
         var backendResult = backend.Emit(semanticModel, options.OutputDirectory, options.BinDirectory, projectName, backendBag);
 
         foreach(var d in backendBag.ToImmutableArray())

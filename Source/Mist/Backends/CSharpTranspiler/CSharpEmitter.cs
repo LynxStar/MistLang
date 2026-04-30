@@ -100,6 +100,9 @@ internal sealed class CSharpSourceWriter
     private readonly ImmutableArray<string> _backendNamespaces;
     private readonly Common.Text.SourceText _sourceText;
     private int _indentLevel;
+    private bool _needsMistVoidStruct;
+    private bool _inValueReturningVoidMethod;
+    private readonly HashSet<string> _valueReturningVoidMethods = new(StringComparer.Ordinal);
     private const string IndentUnit = "    ";
 
     public CSharpSourceWriter(
@@ -114,6 +117,9 @@ internal sealed class CSharpSourceWriter
 
     public string EmitCompilationUnit(CompilationUnitNode cu)
     {
+        // Analyze which void methods have their return values consumed at call sites.
+        AnalyzeValueReturningVoidMethods(cu);
+
         // Collect using directives from the source.
         var usings = new HashSet<string>(StringComparer.Ordinal);
 
@@ -152,7 +158,403 @@ internal sealed class CSharpSourceWriter
             EmitTypeDeclaration(typeDecl);
         }
 
+        // Emit the MistVoid helper struct if any void value usage was detected.
+        if (_needsMistVoidStruct)
+        {
+            EmitMistVoidStruct();
+        }
+
         return _sb.ToString();
+    }
+
+    /// <summary>
+    /// Emits the MistVoid readonly struct that serves as the C# representation
+    /// of Mist's void unit type in value contexts. This struct is emitted once
+    /// per compilation unit that uses void as a value type.
+    /// </summary>
+    private void EmitMistVoidStruct()
+    {
+        AppendLine();
+        AppendLine("[System.Runtime.CompilerServices.CompilerGenerated]");
+        AppendLine("public readonly struct MistVoid : System.IEquatable<MistVoid>");
+        AppendLine("{");
+        _indentLevel++;
+        AppendLine("public static readonly MistVoid Instance = default;");
+        AppendLine("public bool Equals(MistVoid other) => true;");
+        AppendLine("public override bool Equals(object? obj) => obj is MistVoid;");
+        AppendLine("public override int GetHashCode() => 0;");
+        AppendLine("public static bool operator ==(MistVoid left, MistVoid right) => true;");
+        AppendLine("public static bool operator !=(MistVoid left, MistVoid right) => false;");
+        AppendLine("public override string ToString() => \"Void\";");
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    /// <summary>
+    /// Scans the compilation unit AST to identify void methods whose return values
+    /// are consumed at any call site. A call's return value is "consumed" if the call
+    /// does not appear as a standalone expression statement — i.e., it appears as a
+    /// variable initializer, method argument, assignment right-hand side, or part of
+    /// a larger expression.
+    /// </summary>
+    private void AnalyzeValueReturningVoidMethods(CompilationUnitNode cu)
+    {
+        // Step 1: Collect all void method names declared in this compilation unit.
+        var voidMethodNames = new HashSet<string>(StringComparer.Ordinal);
+        CollectVoidMethodNames(cu, voidMethodNames);
+
+        if (voidMethodNames.Count == 0)
+            return;
+
+        // Step 2: Walk the AST to find call sites where a void method's return value is consumed.
+        FindValueReturningCallSites(cu, voidMethodNames);
+    }
+
+    /// <summary>
+    /// Recursively collects the names of all methods with a void return type
+    /// declared in the compilation unit.
+    /// </summary>
+    private static void CollectVoidMethodNames(CompilationUnitNode cu, HashSet<string> voidMethodNames)
+    {
+        // Collect from namespace body types.
+        if (cu.Namespace is not null)
+        {
+            var types = cu.Namespace switch
+            {
+                FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
+                BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
+                _ => System.Collections.Immutable.ImmutableArray<TypeDeclarationNode>.Empty,
+            };
+
+            foreach (var typeDecl in types)
+            {
+                CollectVoidMethodNamesFromType(typeDecl, voidMethodNames);
+            }
+        }
+
+        // Collect from top-level types.
+        foreach (var typeDecl in cu.Types)
+        {
+            CollectVoidMethodNamesFromType(typeDecl, voidMethodNames);
+        }
+    }
+
+    private static void CollectVoidMethodNamesFromType(TypeDeclarationNode typeDecl, HashSet<string> voidMethodNames)
+    {
+        var members = typeDecl switch
+        {
+            ClassTypeTypeDeclarationNode classType => classType.ClassDeclaration.Members,
+            StructTypeTypeDeclarationNode structType => structType.StructDeclaration.Members,
+            _ => System.Collections.Immutable.ImmutableArray<MemberDeclarationNode>.Empty,
+        };
+
+        foreach (var member in members)
+        {
+            if (member is MethodMemberMemberDeclarationNode methodMember &&
+                methodMember.Method.ReturnType is VoidTypeRefTypeReferenceNode)
+            {
+                voidMethodNames.Add(methodMember.Method.Name.Lexeme);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Walks the AST to find call sites of void methods where the return value is consumed.
+    /// A call's return value is consumed if it appears in any context other than a standalone
+    /// expression statement (e.g., as a variable initializer, method argument, or assignment RHS).
+    /// </summary>
+    private void FindValueReturningCallSites(CompilationUnitNode cu, HashSet<string> voidMethodNames)
+    {
+        // Walk all type declarations to find method bodies.
+        var types = new List<TypeDeclarationNode>();
+
+        if (cu.Namespace is not null)
+        {
+            var nsTypes = cu.Namespace switch
+            {
+                FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
+                BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
+                _ => System.Collections.Immutable.ImmutableArray<TypeDeclarationNode>.Empty,
+            };
+            types.AddRange(nsTypes);
+        }
+        types.AddRange(cu.Types);
+
+        foreach (var typeDecl in types)
+        {
+            var members = typeDecl switch
+            {
+                ClassTypeTypeDeclarationNode classType => classType.ClassDeclaration.Members,
+                StructTypeTypeDeclarationNode structType => structType.StructDeclaration.Members,
+                _ => System.Collections.Immutable.ImmutableArray<MemberDeclarationNode>.Empty,
+            };
+
+            foreach (var member in members)
+            {
+                switch (member)
+                {
+                    case MethodMemberMemberDeclarationNode methodMember:
+                        ScanBlockForValueReturningCalls(methodMember.Method.Body, voidMethodNames);
+                        break;
+                    case ConstructorMemberMemberDeclarationNode ctorMember:
+                        ScanBlockForValueReturningCalls(ctorMember.Constructor.Body, voidMethodNames);
+                        break;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Scans a block of statements for void method calls whose return values are consumed.
+    /// </summary>
+    private void ScanBlockForValueReturningCalls(BlockNode block, HashSet<string> voidMethodNames)
+    {
+        foreach (var stmt in block.Statements)
+        {
+            ScanStatementForValueReturningCalls(stmt, voidMethodNames);
+        }
+    }
+
+    /// <summary>
+    /// Scans a statement for void method calls whose return values are consumed.
+    /// Expression statements (standalone calls like `method();`) do NOT consume the return value.
+    /// All other contexts (variable initializers, arguments, assignments, etc.) DO consume it.
+    /// </summary>
+    private void ScanStatementForValueReturningCalls(StatementNode stmt, HashSet<string> voidMethodNames)
+    {
+        switch (stmt)
+        {
+            case ExpressionStatementStatementNode exprStmt:
+                // A standalone expression statement does NOT consume the return value.
+                // However, the expression itself might contain nested calls that do consume values.
+                // For example: `otherMethod(voidMethod())` as a statement — the inner call is consumed.
+                ScanExpressionForNestedValueReturningCalls(exprStmt.ExpressionStatement.Expression, voidMethodNames);
+                break;
+
+            case VariableDeclarationStatementStatementNode varDeclStmt:
+                // The initializer expression is in a value-consuming context.
+                switch (varDeclStmt.VariableDeclaration)
+                {
+                    case TypedVariableDeclarationVariableDeclarationStatementNode typed:
+                        ScanExpressionForValueReturningCalls(typed.Initializer, voidMethodNames);
+                        break;
+                    case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
+                        ScanExpressionForValueReturningCalls(inferred.Initializer, voidMethodNames);
+                        break;
+                }
+                break;
+
+            case ReturnStatementStatementNode returnStmt:
+                if (returnStmt.ReturnStatement.Value is not null)
+                {
+                    ScanExpressionForValueReturningCalls(returnStmt.ReturnStatement.Value, voidMethodNames);
+                }
+                break;
+
+            case IfStatementStatementNode ifStmt:
+                ScanExpressionForValueReturningCalls(ifStmt.IfStatement.Condition, voidMethodNames);
+                ScanBlockForValueReturningCalls(ifStmt.IfStatement.ThenBranch, voidMethodNames);
+                if (ifStmt.IfStatement.ElseBranch is not null)
+                {
+                    ScanElseClauseForValueReturningCalls(ifStmt.IfStatement.ElseBranch, voidMethodNames);
+                }
+                break;
+
+            case WhileStatementStatementNode whileStmt:
+                ScanExpressionForValueReturningCalls(whileStmt.WhileStatement.Condition, voidMethodNames);
+                ScanBlockForValueReturningCalls(whileStmt.WhileStatement.Body, voidMethodNames);
+                break;
+
+            case ForStatementStatementNode forStmt:
+                if (forStmt.ForStatement.Condition is not null)
+                    ScanExpressionForValueReturningCalls(forStmt.ForStatement.Condition, voidMethodNames);
+                if (forStmt.ForStatement.Iterator is not null)
+                    ScanExpressionForValueReturningCalls(forStmt.ForStatement.Iterator, voidMethodNames);
+                ScanBlockForValueReturningCalls(forStmt.ForStatement.Body, voidMethodNames);
+                break;
+
+            case ForeachStatementStatementNode foreachStmt:
+                ScanExpressionForValueReturningCalls(foreachStmt.ForeachStatement.Collection, voidMethodNames);
+                ScanBlockForValueReturningCalls(foreachStmt.ForeachStatement.Body, voidMethodNames);
+                break;
+        }
+    }
+
+    private void ScanElseClauseForValueReturningCalls(ElseClauseNode elseClause, HashSet<string> voidMethodNames)
+    {
+        switch (elseClause)
+        {
+            case ElseIfElseClauseNode elseIf:
+                ScanExpressionForValueReturningCalls(elseIf.ElseIf.Condition, voidMethodNames);
+                ScanBlockForValueReturningCalls(elseIf.ElseIf.ThenBranch, voidMethodNames);
+                if (elseIf.ElseIf.ElseBranch is not null)
+                    ScanElseClauseForValueReturningCalls(elseIf.ElseIf.ElseBranch, voidMethodNames);
+                break;
+            case ElseBlockElseClauseNode elseBlock:
+                ScanBlockForValueReturningCalls(elseBlock.ElseBlock, voidMethodNames);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Scans an expression that is in a value-consuming context. Any void method call
+    /// found at the top level or nested within this expression has its return value consumed.
+    /// </summary>
+    private void ScanExpressionForValueReturningCalls(ExpressionNode expr, HashSet<string> voidMethodNames)
+    {
+        // Walk the expression tree looking for method calls to void methods.
+        ScanAssignmentForValueReturningCalls(expr.Assignment, voidMethodNames, isValueContext: true);
+    }
+
+    /// <summary>
+    /// Scans an expression statement's expression for nested value-returning calls.
+    /// The top-level call in an expression statement is NOT value-consuming, but nested
+    /// calls (e.g., arguments) ARE value-consuming.
+    /// </summary>
+    private void ScanExpressionForNestedValueReturningCalls(ExpressionNode expr, HashSet<string> voidMethodNames)
+    {
+        // The top-level expression in an expression statement is NOT in a value context,
+        // but sub-expressions (like arguments) ARE.
+        ScanAssignmentForValueReturningCalls(expr.Assignment, voidMethodNames, isValueContext: false);
+    }
+
+    private void ScanAssignmentForValueReturningCalls(AssignmentNode assignment, HashSet<string> voidMethodNames, bool isValueContext)
+    {
+        // The target of an assignment is not in a value context for the purpose of the call itself,
+        // but if there's an assignment value, the RHS is in a value context.
+        ScanLogicalOrForValueReturningCalls(assignment.Target, voidMethodNames, isValueContext);
+
+        if (assignment.Value is not null)
+        {
+            // The RHS of an assignment is always in a value context.
+            ScanAssignmentForValueReturningCalls(assignment.Value, voidMethodNames, isValueContext: true);
+        }
+    }
+
+    private void ScanLogicalOrForValueReturningCalls(LogicalOrNode node, HashSet<string> voidMethodNames, bool isValueContext)
+    {
+        ScanLogicalAndForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
+        if (node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+            ScanLogicalAndForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+    }
+
+    private void ScanLogicalAndForValueReturningCalls(LogicalAndNode node, HashSet<string> voidMethodNames, bool isValueContext)
+    {
+        ScanEqualityForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
+        if (node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+            ScanEqualityForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+    }
+
+    private void ScanEqualityForValueReturningCalls(EqualityNode node, HashSet<string> voidMethodNames, bool isValueContext)
+    {
+        ScanRelationalForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
+        if (node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+            ScanRelationalForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+    }
+
+    private void ScanRelationalForValueReturningCalls(RelationalNode node, HashSet<string> voidMethodNames, bool isValueContext)
+    {
+        ScanAdditiveForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
+        if (node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+            ScanAdditiveForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+    }
+
+    private void ScanAdditiveForValueReturningCalls(AdditiveNode node, HashSet<string> voidMethodNames, bool isValueContext)
+    {
+        ScanMultiplicativeForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
+        if (node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+            ScanMultiplicativeForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+    }
+
+    private void ScanMultiplicativeForValueReturningCalls(MultiplicativeNode node, HashSet<string> voidMethodNames, bool isValueContext)
+    {
+        ScanUnaryForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
+        if (node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+            ScanUnaryForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+    }
+
+    private void ScanUnaryForValueReturningCalls(UnaryNode unary, HashSet<string> voidMethodNames, bool isValueContext)
+    {
+        switch (unary)
+        {
+            case LogicalNotUnaryNode logicalNot:
+                ScanUnaryForValueReturningCalls(logicalNot.Operand, voidMethodNames, isValueContext);
+                break;
+            case NegateUnaryNode negate:
+                ScanUnaryForValueReturningCalls(negate.Operand, voidMethodNames, isValueContext);
+                break;
+            case PostfixExpressionUnaryNode postfix:
+                ScanPostfixForValueReturningCalls(postfix.Primary, voidMethodNames, isValueContext);
+                break;
+        }
+    }
+
+    private void ScanPostfixForValueReturningCalls(PostfixNode postfix, HashSet<string> voidMethodNames, bool isValueContext)
+    {
+        // Walk through the postfix chain. The last suffix determines whether this is a call.
+        // For `target.method(args)`, the MethodCallSuffix is the last suffix.
+        // For `func(args)`, the InvocationSuffix is the last suffix.
+        var suffixes = postfix.Suffix;
+
+        for (var i = 0; i < suffixes.Length; i++)
+        {
+            var suffix = suffixes[i];
+            var isLastSuffix = i == suffixes.Length - 1;
+
+            switch (suffix)
+            {
+                case MethodCallSuffixPostfixSuffixNode methodCall:
+                {
+                    var methodName = methodCall.Name.Lexeme;
+
+                    // If this is a call to a void method and we're in a value context,
+                    // mark it as value-returning.
+                    if (isValueContext && isLastSuffix && voidMethodNames.Contains(methodName))
+                    {
+                        _valueReturningVoidMethods.Add(methodName);
+                    }
+
+                    // Scan arguments — they are always in a value context.
+                    if (methodCall.Arguments is not null)
+                    {
+                        ScanArgumentListForValueReturningCalls(methodCall.Arguments, voidMethodNames);
+                    }
+                    break;
+                }
+                case InvocationSuffixPostfixSuffixNode invocation:
+                {
+                    // Direct invocation: the target identifier is the method name.
+                    if (isValueContext && isLastSuffix && postfix.Target is IdentifierExpressionPrimaryNode ident)
+                    {
+                        var methodName = ident.Name.Lexeme;
+                        if (voidMethodNames.Contains(methodName))
+                        {
+                            _valueReturningVoidMethods.Add(methodName);
+                        }
+                    }
+
+                    // Scan arguments — they are always in a value context.
+                    if (invocation.Arguments is not null)
+                    {
+                        ScanArgumentListForValueReturningCalls(invocation.Arguments, voidMethodNames);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Scans an argument list for void method calls whose return values are consumed.
+    /// All arguments are in a value-consuming context.
+    /// </summary>
+    private void ScanArgumentListForValueReturningCalls(ArgumentListNode argList, HashSet<string> voidMethodNames)
+    {
+        // Scan the first argument expression.
+        ScanExpressionForValueReturningCalls(argList.Expression, voidMethodNames);
+
+        // The Storm parser may not expose additional arguments as separate AST nodes
+        // (they're captured via source span). We scan what's available in the AST.
     }
 
     private void EmitNamespaceDeclaration(NamespaceDeclarationNode ns)
@@ -398,7 +800,7 @@ internal sealed class CSharpSourceWriter
     private void EmitFieldDeclaration(FieldDeclarationNode fieldDecl)
     {
         var modifiers = EmitModifiers(fieldDecl.Modifiers);
-        var type = EmitTypeReference(fieldDecl.Type);
+        var type = EmitTypeReference(fieldDecl.Type, isValueContext: true);
         var name = fieldDecl.Name.Lexeme;
 
         if (fieldDecl.Initializer != null)
@@ -441,8 +843,61 @@ internal sealed class CSharpSourceWriter
         var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
         var parameters = EmitParameterList(methodDecl.Parameters);
 
+        // Context-sensitive void return type: if this void method's return value
+        // is consumed at any call site, emit MistVoid instead of void.
+        var isValueReturningVoid = methodDecl.ReturnType is VoidTypeRefTypeReferenceNode
+            && _valueReturningVoidMethods.Contains(name);
+        if (isValueReturningVoid)
+        {
+            returnType = "MistVoid";
+            _needsMistVoidStruct = true;
+        }
+
         AppendLine($"{modifiers}{returnType} {name}{typeParams}({parameters})");
-        EmitBlock(methodDecl.Body);
+
+        // Set the flag so EmitReturnStatement knows to emit `return MistVoid.Instance;`
+        var previousFlag = _inValueReturningVoidMethod;
+        _inValueReturningVoidMethod = isValueReturningVoid;
+
+        EmitMethodBlock(methodDecl.Body, isValueReturningVoid);
+
+        _inValueReturningVoidMethod = previousFlag;
+    }
+
+    /// <summary>
+    /// Emits a method body block. For value-returning void methods, appends
+    /// <c>return MistVoid.Instance;</c> if the block does not already end with a return statement.
+    /// </summary>
+    private void EmitMethodBlock(BlockNode block, bool appendImplicitReturn)
+    {
+        AppendLine("{");
+        _indentLevel++;
+
+        foreach (var stmt in block.Statements)
+        {
+            EmitStatement(stmt);
+        }
+
+        // For value-returning void methods, ensure the method body ends with a return.
+        // If the last statement is not a return, append `return MistVoid.Instance;`.
+        if (appendImplicitReturn && !BlockEndsWithReturn(block))
+        {
+            AppendLine("return MistVoid.Instance;");
+        }
+
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    /// <summary>
+    /// Checks whether a block's last statement is a return statement.
+    /// </summary>
+    private static bool BlockEndsWithReturn(BlockNode block)
+    {
+        if (block.Statements.Length == 0)
+            return false;
+
+        return block.Statements[^1] is ReturnStatementStatementNode;
     }
 
     // ─── Property Emission ───────────────────────────────────────────────
@@ -650,7 +1105,7 @@ internal sealed class CSharpSourceWriter
                 {
                     case TypedVariableDeclarationVariableDeclarationStatementNode typed:
                     {
-                        var type = EmitTypeReference(typed.Type);
+                        var type = EmitTypeReference(typed.Type, isValueContext: true);
                         var name = typed.Name.Lexeme;
                         var init = EmitExpression(typed.Initializer);
                         return $"{type} {name} = {init};";
@@ -772,11 +1227,17 @@ internal sealed class CSharpSourceWriter
 
         // The Storm generator only stores the first parameter as a named property;
         // additional comma-separated parameters are parsed but discarded from the AST.
-        // Use the source span to faithfully reproduce the full parameter list.
+        // Use the source span to faithfully reproduce the full parameter list,
+        // but only if no parameter has a void type (which needs MistVoid substitution).
         var span = paramList.Span;
         if (span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
         {
-            return _sourceText.Contents.Substring(span.Start, span.Length);
+            // Check if any parameter uses void type — if so, we must emit manually
+            // to apply the void → MistVoid transformation.
+            if (paramList.Parameter.Type is not VoidTypeRefTypeReferenceNode)
+            {
+                return _sourceText.Contents.Substring(span.Start, span.Length);
+            }
         }
 
         // Fallback: emit the single parameter we do have.
@@ -785,7 +1246,7 @@ internal sealed class CSharpSourceWriter
 
     private string EmitParameter(ParameterNode param)
     {
-        var type = EmitTypeReference(param.Type);
+        var type = EmitTypeReference(param.Type, isValueContext: true);
         var name = param.Name.Lexeme;
         return $"{type} {name}";
     }
@@ -796,18 +1257,25 @@ internal sealed class CSharpSourceWriter
 
         // The Storm generator only stores the first expression as a named property;
         // additional comma-separated arguments are parsed but discarded from the AST.
-        // Use the source span to faithfully reproduce the full argument list.
+        // Use the source span to faithfully reproduce the full argument list,
+        // applying Void.Void → MistVoid.Instance substitution if needed.
         var span = argList.Span;
         if (span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
         {
-            return _sourceText.Contents.Substring(span.Start, span.Length);
+            var rawText = _sourceText.Contents.Substring(span.Start, span.Length);
+            if (rawText.Contains("Void.Void"))
+            {
+                _needsMistVoidStruct = true;
+                return rawText.Replace("Void.Void", "MistVoid.Instance");
+            }
+            return rawText;
         }
 
         // Fallback: emit the single argument we do have.
         return EmitExpression(argList.Expression);
     }
 
-    private string EmitTypeReference(TypeReferenceNode typeRef)
+    private string EmitTypeReference(TypeReferenceNode typeRef, bool isValueContext = false)
     {
         switch (typeRef)
         {
@@ -821,10 +1289,27 @@ internal sealed class CSharpSourceWriter
                 return keyword;
             }
             case VoidTypeRefTypeReferenceNode:
+                if (isValueContext)
+                {
+                    _needsMistVoidStruct = true;
+                    return "MistVoid";
+                }
                 return "void";
             case NamedTypeRefTypeReferenceNode namedRef:
             {
                 var name = ExtractQualifiedName(namedRef.Name);
+
+                // Handle "Void" identifier as equivalent to the void keyword.
+                if (name == "Void" && namedRef.TypeArgs is null && !namedRef.ArrayRank.HasValue)
+                {
+                    if (isValueContext)
+                    {
+                        _needsMistVoidStruct = true;
+                        return "MistVoid";
+                    }
+                    return "void";
+                }
+
                 var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs);
                 if (namedRef.ArrayRank.HasValue)
                 {
@@ -910,7 +1395,7 @@ internal sealed class CSharpSourceWriter
         {
             case TypedVariableDeclarationVariableDeclarationStatementNode typed:
             {
-                var type = EmitTypeReference(typed.Type);
+                var type = EmitTypeReference(typed.Type, isValueContext: true);
                 var name = typed.Name.Lexeme;
                 var init = EmitExpression(typed.Initializer);
                 AppendLine($"{type} {name} = {init};");
@@ -931,6 +1416,11 @@ internal sealed class CSharpSourceWriter
         if (returnStmt.Value is not null)
         {
             AppendLine($"return {EmitExpression(returnStmt.Value)};");
+        }
+        else if (_inValueReturningVoidMethod)
+        {
+            // In value-returning void methods, `return;` becomes `return MistVoid.Instance;`
+            AppendLine("return MistVoid.Instance;");
         }
         else
         {
@@ -997,7 +1487,7 @@ internal sealed class CSharpSourceWriter
         {
             case ForInitializerVariableDeclarationForInitializerNode varDecl:
             {
-                var type = EmitTypeReference(varDecl.VariableDeclaration);
+                var type = EmitTypeReference(varDecl.VariableDeclaration, isValueContext: true);
                 var name = varDecl.Name.Lexeme;
                 var init = EmitExpression(varDecl.Initializer);
                 return $"{type} {name} = {init}";
@@ -1011,7 +1501,7 @@ internal sealed class CSharpSourceWriter
 
     private void EmitForeachStatement(ForeachStatementNode foreachStmt)
     {
-        var type = EmitTypeReference(foreachStmt.Type);
+        var type = EmitTypeReference(foreachStmt.Type, isValueContext: true);
         var name = foreachStmt.Name.Lexeme;
         var collection = EmitExpression(foreachStmt.Collection);
 
@@ -1190,6 +1680,13 @@ internal sealed class CSharpSourceWriter
             }
             case MemberAccessSuffixPostfixSuffixNode memberAccess:
             {
+                // Special case: Void.Void → MistVoid.Instance
+                if (target == "Void" && memberAccess.Name.Lexeme == "Void")
+                {
+                    _needsMistVoidStruct = true;
+                    return "MistVoid.Instance";
+                }
+
                 // MemberAccessSuffix always emits as property access (no parentheses).
                 // This is the correct form for both field access and property access in C#.
                 var name = memberAccess.Name.Lexeme;
@@ -1344,10 +1841,10 @@ internal sealed class CSharpSourceWriter
         if (typeArgs is null) return "";
 
         var parts = new List<string>();
-        parts.Add(EmitTypeReference(typeArgs.TypeReference));
+        parts.Add(EmitTypeReference(typeArgs.TypeReference, isValueContext: true));
         foreach (var typeRef in typeArgs.TypeReferences)
         {
-            parts.Add(EmitTypeReference(typeRef));
+            parts.Add(EmitTypeReference(typeRef, isValueContext: true));
         }
         return $"<{string.Join(", ", parts)}>";
     }

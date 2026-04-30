@@ -37,16 +37,19 @@ internal static class CSharpTypeMap
 
     /// <summary>
     /// Returns the C# source representation of any Mist IType.
+    /// When <paramref name="isValueContext"/> is <c>true</c>, void maps to
+    /// <c>MistVoid</c> (the unit-type struct) instead of the C# <c>void</c> keyword.
+    /// The default <c>false</c> preserves backward compatibility for all existing callers.
     /// </summary>
-    public static string GetTypeName(IType type) => type switch
+    public static string GetTypeName(IType type, bool isValueContext = false) => type switch
     {
         PrimitiveType p => GetKeyword(p),
         StringType => "string",
-        VoidType => "void",
-        ArrayType a => $"{GetTypeName(a.ElementType)}[]",
+        VoidType => isValueContext ? "MistVoid" : "void",
+        ArrayType a => $"{GetTypeName(a.ElementType, isValueContext)}[]",
         TypeType => "System.Type",
         TypeParameterType tp => tp.Name,
-        ConstructedType ct => $"{GetTypeName(ct.GenericDefinition)}<{string.Join(", ", ct.TypeArguments.Select(GetTypeName))}>",
+        ConstructedType ct => $"{GetTypeName(ct.GenericDefinition, isValueContext)}<{string.Join(", ", ct.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
         ClassType c => c.DisplayName,
         StructType s => s.DisplayName,
         InterfaceType i => i.DisplayName,

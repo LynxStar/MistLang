@@ -325,6 +325,9 @@ public class Program
         Console.WriteLine($"Clamp(int): {MathHelper.Clamp(15, 0, 10)}");
         Console.WriteLine($"Clamp(double): {MathHelper.Clamp(0.5, 1.0, 5.0)}");
 
+        // 29. Void unit type: first-class void values, Result<void>, void parameters
+        VoidDemo.RunDemo();
+
         Console.WriteLine("=== Done! ===");
     }
 }

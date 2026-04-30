@@ -1069,6 +1069,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // (e.g., TypeType assigned to a non-Type variable).
                 declaredType ??= model.GetDeclaredSymbol(typed)?.DeclaredType;
 
+                // Check for void[] variable declarations (MIST_TC_0034).
+                if (declaredType is ArrayType arrayType && arrayType.ElementType is VoidType)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0034",
+                        "Cannot declare a variable of type 'void[]'. Void is not permitted as an array element type.",
+                        varDecl,
+                        model));
+                }
+
                 if (declaredType is not null && initType is not null)
                 {
                     // Allow numeric-to-numeric assignments in variable declarations
@@ -1125,8 +1135,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if (methodReturnType is VoidType)
             {
-                // Void methods must not return a value.
-                if (valueType is not null && !IsUnknown(valueType))
+                // Void methods: reject return values UNLESS the value is VoidType
+                if (valueType is not null && !IsUnknown(valueType) && valueType is not VoidType)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0008",
@@ -1784,32 +1794,34 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Look up the method symbol to check argument types against parameter types.
         var methodSymbol = model.GetDeclaredSymbol(methodCall);
-        if (methodSymbol is null || methodSymbol.Kind != SymbolKind.Method)
-            return;
 
-        // Determine type parameter substitution context.
-        // 1. If the target is a ConstructedType, substitute the enclosing type's type params.
-        // 2. If the method has its own type arguments, substitute those as well.
-        IReadOnlyList<TypeParameterType>? enclosingTypeParams = null;
-        IReadOnlyList<IType>? enclosingTypeArgs = null;
-        if (targetType is ConstructedType targetCt)
+        // If the symbol is registered on the call-site node, use it for substitution-aware checking.
+        if (methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method)
         {
-            enclosingTypeParams = GetTypeParameters(targetCt.GenericDefinition);
-            enclosingTypeArgs = targetCt.TypeArguments;
+            // Determine type parameter substitution context.
+            // 1. If the target is a ConstructedType, substitute the enclosing type's type params.
+            // 2. If the method has its own type arguments, substitute those as well.
+            IReadOnlyList<TypeParameterType>? enclosingTypeParams = null;
+            IReadOnlyList<IType>? enclosingTypeArgs = null;
+            if (targetType is ConstructedType targetCt)
+            {
+                enclosingTypeParams = GetTypeParameters(targetCt.GenericDefinition);
+                enclosingTypeArgs = targetCt.TypeArguments;
+            }
+
+            // Resolve method-level type arguments if present.
+            IReadOnlyList<TypeParameterType>? methodTypeParams = null;
+            IReadOnlyList<IType>? methodTypeArgs = null;
+            if (methodCall.TypeArgs is not null && methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
+            {
+                methodTypeParams = sym.TypeParameters;
+                methodTypeArgs = ResolveTypeArgumentsFromAst(methodCall.TypeArgs, model);
+            }
+
+            CheckArgumentTypesWithSubstitution(methodCall.Arguments, methodSymbol, model, diagnostics, methodCall,
+                enclosingTypeParams, enclosingTypeArgs, methodTypeParams, methodTypeArgs);
         }
 
-        // Resolve method-level type arguments if present.
-        IReadOnlyList<TypeParameterType>? methodTypeParams = null;
-        IReadOnlyList<IType>? methodTypeArgs = null;
-        if (methodCall.TypeArgs is not null && methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
-        {
-            methodTypeParams = sym.TypeParameters;
-            methodTypeArgs = ResolveTypeArgumentsFromAst(methodCall.TypeArgs, model);
-        }
-
-        CheckArgumentTypesWithSubstitution(methodCall.Arguments, methodSymbol, model, diagnostics, methodCall,
-            enclosingTypeParams, enclosingTypeArgs, methodTypeParams, methodTypeArgs);
-            
         var methodName = methodCall.Name.Lexeme;
 
         // Collect the full overload set from the target type (and inherited methods from base types).
@@ -1848,9 +1860,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return;
             }
         }
-        else
+        else if (candidates.Count == 1)
         {
             // Single candidate — preserve existing single-method diagnostics (MIST_TC_0002).
+            CheckArgumentTypes(methodCall.Arguments, candidates[0], model, diagnostics, methodCall);
+        }
+        else if (methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method)
+        {
+            // Fallback: use the symbol from the call-site node if no candidates found via target type.
             CheckArgumentTypes(methodCall.Arguments, methodSymbol, model, diagnostics, methodCall);
         }
     }
@@ -2201,6 +2218,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Check the size expression.
         CheckExpression(arrayCreation.Size, model, diagnostics);
+
+        // Check element type is not void (MIST_TC_0034).
+        var elementType = model.GetTypeOf(arrayCreation);
+        if (elementType is ArrayType at && at.ElementType is VoidType)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0034",
+                "Cannot create an array of type 'void'. Void is not permitted as an array element type.",
+                arrayCreation,
+                model));
+            return;
+        }
 
         var sizeType = model.GetTypeOf(arrayCreation.Size);
         if (sizeType is not null && !IsUnknown(sizeType))

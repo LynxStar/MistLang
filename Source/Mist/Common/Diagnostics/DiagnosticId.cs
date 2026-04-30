@@ -27,4 +27,9 @@ public readonly record struct DiagnosticId(string Value)
 
     /// <summary>Type argument cannot be resolved to a known type.</summary>
     public static readonly DiagnosticId UndefinedTypeArgument = new("MIST_UNDEFINED_TYPE_ARGUMENT");
+
+    // ── Void type diagnostics ────────────────────────────────────────────
+
+    /// <summary>Void is not permitted as an array element type.</summary>
+    public static readonly DiagnosticId VoidArrayNotPermitted = new("MIST_TC_0034");
 }

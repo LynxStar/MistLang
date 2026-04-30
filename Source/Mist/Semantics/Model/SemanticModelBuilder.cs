@@ -4466,6 +4466,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             "char" => PrimitiveType.Char,
             "string" => StringType.Instance,
             "void" => VoidType.Instance,
+            "Void" => VoidType.Instance,
             _ => null,
         };
     }
@@ -4905,6 +4906,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case MemberAccessSuffixPostfixSuffixNode memberAccess:
             {
                 var memberName = memberAccess.Name.Lexeme;
+
+                // Special case: Void.Void → VoidType instance expression
+                if (targetType is VoidType && memberName == "Void")
+                {
+                    expressionTypes[suffix] = VoidType.Instance;
+                    return VoidType.Instance;
+                }
+
                 var memberType = LookupMemberType(targetType, memberName, ambientTypeResolver, fileScope, symbolTable, sourceText, diagnostics);
                 expressionTypes[suffix] = memberType;
                 return memberType;

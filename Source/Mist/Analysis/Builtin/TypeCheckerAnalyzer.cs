@@ -863,7 +863,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 continue;
 
             var type = symbol.DeclaredType;
-            IReadOnlyList<InterfaceType>? interfaces = type switch
+            IReadOnlyList<IType>? interfaces = type switch
             {
                 ClassType ct => ct.Interfaces,
                 StructType st => st.Interfaces,
@@ -891,15 +891,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private static void CheckInterfacePropertyRequirements(
         ISymbol typeSymbol,
-        IReadOnlyList<InterfaceType> interfaces,
+        IReadOnlyList<IType> interfaces,
         IScope memberScope,
         ClassType? classType,
         ISemanticModel model,
         DiagnosticBag diagnostics,
         HashSet<InterfaceType> visited)
     {
-        foreach (var iface in interfaces)
+        foreach (var ifaceType in interfaces)
         {
+            if (ifaceType is not InterfaceType iface)
+                continue;
+
             if (!visited.Add(iface))
                 continue;
 
@@ -982,7 +985,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if (classType is not null)
         {
-            var ancestor = classType.BaseType;
+            var ancestor = classType.BaseType as ClassType;
             while (ancestor is not null)
             {
                 foreach (var member in ancestor.MemberScope.Members)
@@ -990,7 +993,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     if (member.Kind == SymbolKind.Property && member.Name == propertyName)
                         return member;
                 }
-                ancestor = ancestor.BaseType;
+                ancestor = ancestor.BaseType as ClassType;
             }
         }
 
@@ -1605,7 +1608,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 case MethodCallSuffixPostfixSuffixNode methodCall:
                     CheckMethodCallArguments(methodCall, currentType, model, diagnostics);
                     CheckMemberAccessModifiers(methodCall.Name.Lexeme, currentType, targetIsTypeName, methodCall, model, diagnostics);
-                    currentType = model.GetTypeOf(suffix);
+                    currentType = SubstituteMemberType(model.GetTypeOf(suffix), currentType);
+                    // Also substitute method-level type arguments in the return type.
+                    currentType = SubstituteMethodReturnType(currentType, methodCall, model);
                     // After the first suffix, subsequent accesses are on instances (the result of the method call).
                     targetIsTypeName = false;
                     break;
@@ -1626,12 +1631,50 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     CheckMemberAccessModifiers(memberAccess.Name.Lexeme, currentType, targetIsTypeName, memberAccess, model, diagnostics);
                     // MIST_TC_0019: Check property has accessible get accessor when read.
                     CheckPropertyReadAccess(memberAccess, currentType, model, diagnostics);
-                    currentType = model.GetTypeOf(suffix);
+                    currentType = SubstituteMemberType(model.GetTypeOf(suffix), currentType);
                     // After accessing a field, subsequent accesses are on the field's value (an instance).
                     targetIsTypeName = false;
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Substitutes type parameters in a member's type when the target is a <see cref="ConstructedType"/>.
+    /// For example, if the member type is <c>T</c> and the target is <c>Box&lt;int&gt;</c>,
+    /// the result is <c>int</c>.
+    /// </summary>
+    private static IType? SubstituteMemberType(IType? memberType, IType? targetType)
+    {
+        if (memberType is null || targetType is not ConstructedType ct)
+            return memberType;
+
+        var typeParams = GetTypeParameters(ct.GenericDefinition);
+        if (typeParams is null)
+            return memberType;
+
+        return SubstituteType(memberType, typeParams, ct.TypeArguments);
+    }
+
+    /// <summary>
+    /// Substitutes method-level type parameters in the return type of a generic method invocation.
+    /// For example, if the method is <c>T Identity&lt;T&gt;(T value)</c> and invoked as <c>Identity&lt;int&gt;(42)</c>,
+    /// the return type <c>T</c> becomes <c>int</c>.
+    /// </summary>
+    private static IType? SubstituteMethodReturnType(IType? returnType, MethodCallSuffixPostfixSuffixNode methodCall, ISemanticModel model)
+    {
+        if (returnType is null || methodCall.TypeArgs is null)
+            return returnType;
+
+        var methodSymbol = model.GetDeclaredSymbol(methodCall);
+        if (methodSymbol is not Symbol sym || sym.TypeParameters.Count == 0)
+            return returnType;
+
+        var methodTypeArgs = ResolveTypeArgumentsFromAst(methodCall.TypeArgs, model);
+        if (methodTypeArgs.Count != sym.TypeParameters.Count)
+            return returnType;
+
+        return SubstituteType(returnType, sym.TypeParameters, methodTypeArgs);
     }
 
     /// <summary>
@@ -1744,6 +1787,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (methodSymbol is null || methodSymbol.Kind != SymbolKind.Method)
             return;
 
+        // Determine type parameter substitution context.
+        // 1. If the target is a ConstructedType, substitute the enclosing type's type params.
+        // 2. If the method has its own type arguments, substitute those as well.
+        IReadOnlyList<TypeParameterType>? enclosingTypeParams = null;
+        IReadOnlyList<IType>? enclosingTypeArgs = null;
+        if (targetType is ConstructedType targetCt)
+        {
+            enclosingTypeParams = GetTypeParameters(targetCt.GenericDefinition);
+            enclosingTypeArgs = targetCt.TypeArguments;
+        }
+
+        // Resolve method-level type arguments if present.
+        IReadOnlyList<TypeParameterType>? methodTypeParams = null;
+        IReadOnlyList<IType>? methodTypeArgs = null;
+        if (methodCall.TypeArgs is not null && methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
+        {
+            methodTypeParams = sym.TypeParameters;
+            methodTypeArgs = ResolveTypeArgumentsFromAst(methodCall.TypeArgs, model);
+        }
+
+        CheckArgumentTypesWithSubstitution(methodCall.Arguments, methodSymbol, model, diagnostics, methodCall,
+            enclosingTypeParams, enclosingTypeArgs, methodTypeParams, methodTypeArgs);
+            
         var methodName = methodCall.Name.Lexeme;
 
         // Collect the full overload set from the target type (and inherited methods from base types).
@@ -1931,6 +1997,199 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
     }
 
+    /// <summary>
+    /// Checks argument types against parameter types with type argument substitution.
+    /// Applies enclosing type substitution (for ConstructedType member access) and
+    /// method-level substitution (for generic method invocations).
+    /// </summary>
+    private static void CheckArgumentTypesWithSubstitution(
+        ArgumentListNode? argList,
+        ISymbol methodSymbol,
+        ISemanticModel model,
+        DiagnosticBag diagnostics,
+        SyntaxNode callSite,
+        IReadOnlyList<TypeParameterType>? enclosingTypeParams,
+        IReadOnlyList<IType>? enclosingTypeArgs,
+        IReadOnlyList<TypeParameterType>? methodTypeParams,
+        IReadOnlyList<IType>? methodTypeArgs)
+    {
+        // Get parameter symbols from the method's containing scope.
+        SyntaxNode methodNode;
+        try { methodNode = model.GetDeclaringNode(methodSymbol); }
+        catch { return; }
+
+        ImmutableArray<ISymbol> paramSymbols;
+        if (methodNode is MethodDeclarationNode methodDecl && methodDecl.Parameters is not null)
+        {
+            var paramList = new List<ISymbol>();
+            foreach (var child in methodDecl.Parameters.Children())
+            {
+                if (child is ParameterNode paramNode)
+                {
+                    var paramSym = model.GetDeclaredSymbol(paramNode);
+                    if (paramSym is not null)
+                        paramList.Add(paramSym);
+                }
+            }
+            paramSymbols = [.. paramList];
+        }
+        else
+        {
+            return; // No parameters to check.
+        }
+
+        // Collect argument expressions.
+        var argExprs = new List<ExpressionNode>();
+        if (argList is not null)
+        {
+            foreach (var child in argList.Children())
+            {
+                if (child is ExpressionNode expr)
+                    argExprs.Add(expr);
+            }
+        }
+
+        // Check each argument against the corresponding parameter, applying substitution.
+        var count = Math.Min(argExprs.Count, paramSymbols.Length);
+        for (var i = 0; i < count; i++)
+        {
+            var argType = model.GetTypeOf(argExprs[i]);
+            var paramType = paramSymbols[i].DeclaredType;
+
+            if (argType is not null && paramType is not null)
+            {
+                // Apply enclosing type substitution (e.g., T → int for Box<int>).
+                if (enclosingTypeParams is not null && enclosingTypeArgs is not null)
+                    paramType = SubstituteType(paramType, enclosingTypeParams, enclosingTypeArgs);
+
+                // Apply method-level substitution (e.g., U → string for Method<string>).
+                if (methodTypeParams is not null && methodTypeArgs is not null)
+                    paramType = SubstituteType(paramType, methodTypeParams, methodTypeArgs);
+
+                if (!IsAssignable(argType, paramType))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0002",
+                        $"Argument type '{argType.DisplayName}' is not assignable to parameter type '{paramType.DisplayName}'",
+                        argExprs[i],
+                        model));
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the type parameters from a type definition (ClassType, StructType, or InterfaceType).
+    /// </summary>
+    private static IReadOnlyList<TypeParameterType>? GetTypeParameters(IType type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.TypeParameters.Count > 0 ? ct.TypeParameters : null,
+            StructType st => st.TypeParameters.Count > 0 ? st.TypeParameters : null,
+            InterfaceType it => it.TypeParameters.Count > 0 ? it.TypeParameters : null,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Resolves type arguments from a <see cref="TypeArgumentListNode"/> AST node
+    /// by resolving each type reference to its corresponding <see cref="IType"/>.
+    /// </summary>
+    private static IReadOnlyList<IType> ResolveTypeArgumentsFromAst(TypeArgumentListNode typeArgList, ISemanticModel model)
+    {
+        var result = new List<IType>();
+
+        // The TypeArgumentListNode has a TypeReference property (first arg) and TypeReferences array (rest).
+        var firstType = ResolveTypeReferenceToType(typeArgList.TypeReference, model);
+        result.Add(firstType);
+
+        foreach (var typeRef in typeArgList.TypeReferences)
+        {
+            var argType = ResolveTypeReferenceToType(typeRef, model);
+            result.Add(argType);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Resolves a <see cref="TypeReferenceNode"/> to its corresponding <see cref="IType"/>
+    /// by looking up the type name in the semantic model's symbol table.
+    /// </summary>
+    private static IType ResolveTypeReferenceToType(TypeReferenceNode typeRef, ISemanticModel model)
+    {
+        // Try the expression type map first (may be populated for some nodes).
+        var resolved = model.GetTypeOf(typeRef);
+        if (resolved is not null && resolved is not UnknownType)
+            return resolved;
+
+        switch (typeRef)
+        {
+            case PrimitiveTypeRefTypeReferenceNode primitiveRef:
+            {
+                var primType = ResolvePrimitiveType(primitiveRef.PrimitiveType);
+                if (primitiveRef.ArrayRank.HasValue && primType is not null)
+                    return new ArrayType(primType);
+                return primType ?? UnknownType.Instance;
+            }
+            case NamedTypeRefTypeReferenceNode namedRef:
+            {
+                var name = namedRef.Name.Children().FirstOrDefault()?.Span;
+                // Try to find the type by looking up the symbol.
+                var symbol = model.GetDeclaredSymbol(namedRef);
+                if (symbol?.DeclaredType is not null)
+                    return symbol.DeclaredType;
+
+                // Fallback: search all symbols for a matching type name.
+                var typeName = ExtractTypeName(namedRef);
+                foreach (var sym in model.AllSymbols)
+                {
+                    if (sym.Name == typeName && sym.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface)
+                        return sym.DeclaredType ?? UnknownType.Instance;
+                }
+                return UnknownType.Instance;
+            }
+            case VoidTypeRefTypeReferenceNode:
+                return VoidType.Instance;
+            default:
+                return UnknownType.Instance;
+        }
+    }
+
+    /// <summary>
+    /// Resolves a primitive type AST node to its corresponding <see cref="IType"/>.
+    /// </summary>
+    private static IType? ResolvePrimitiveType(PrimitiveTypeNode primitiveType)
+    {
+        return primitiveType switch
+        {
+            IntTypePrimitiveTypeNode => PrimitiveType.Int,
+            LongTypePrimitiveTypeNode => PrimitiveType.Long,
+            ShortTypePrimitiveTypeNode => PrimitiveType.Short,
+            ByteTypePrimitiveTypeNode => PrimitiveType.Byte,
+            FloatTypePrimitiveTypeNode => PrimitiveType.Float,
+            DoubleTypePrimitiveTypeNode => PrimitiveType.Double,
+            BoolTypePrimitiveTypeNode => PrimitiveType.Bool,
+            CharTypePrimitiveTypeNode => PrimitiveType.Char,
+            StringTypePrimitiveTypeNode => StringType.Instance,
+            DecimalTypePrimitiveTypeNode => PrimitiveType.Decimal,
+            UintTypePrimitiveTypeNode => PrimitiveType.Uint,
+            UlongTypePrimitiveTypeNode => PrimitiveType.Ulong,
+            UshortTypePrimitiveTypeNode => PrimitiveType.Ushort,
+            SbyteTypePrimitiveTypeNode => PrimitiveType.Sbyte,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Extracts the type name from a <see cref="NamedTypeRefTypeReferenceNode"/>.
+    /// </summary>
+    private static string ExtractTypeName(NamedTypeRefTypeReferenceNode namedRef)
+    {
+        return namedRef.Name.IDENTIFIER.Lexeme;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // Array operation checking (MIST_TC_0010, MIST_TC_0012)
     // ═══════════════════════════════════════════════════════════════════════
@@ -2005,6 +2264,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (createdType is null || IsUnknown(createdType))
             return;
 
+        // Find constructors on the type.
+        IScope? memberScope = createdType switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            ConstructedType cst => cst.MemberScope,
+            _ => null,
+        };
         // Collect all constructors from the target type's member scope.
         var constructors = CollectConstructorOverloads(createdType);
 
@@ -2061,7 +2328,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         else
         {
             // Single constructor — preserve existing behavior with MIST_TC_0011.
-            var hasMatch = ConstructorMatches(constructors[0], argTypes, model);
+            var hasMatch = ConstructorMatches(constructors[0], argTypes, createdType, model);
             if (!hasMatch)
             {
                 diagnostics.Add(MakeDiagnostic(
@@ -2177,7 +2444,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         else
         {
             // Single constructor — preserve existing behavior with MIST_TC_0013.
-            var hasMatch = ConstructorMatches(candidateConstructors[0], argTypes, model);
+            var hasMatch = ConstructorMatches(candidateConstructors[0], argTypes, targetType, model);
             if (!hasMatch)
             {
                 diagnostics.Add(MakeDiagnostic(
@@ -2189,7 +2456,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
     }
 
-    private static bool ConstructorMatches(ISymbol ctor, List<IType> argTypes, ISemanticModel model)
+    private static bool ConstructorMatches(ISymbol ctor, List<IType> argTypes, IType? createdType, ISemanticModel model)
     {
         // Get the constructor's parameters.
         SyntaxNode ctorNode;
@@ -2216,9 +2483,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (argTypes.Count != paramTypes.Count)
             return false;
 
+        // When the created type is a ConstructedType (e.g., GenericBox<int>),
+        // substitute type parameters in constructor parameter types with the
+        // actual type arguments before comparing.
+        IReadOnlyList<TypeParameterType>? typeParams = null;
+        IReadOnlyList<IType>? typeArgs = null;
+        if (createdType is ConstructedType ct)
+        {
+            typeParams = GetTypeParameters(ct.GenericDefinition);
+            typeArgs = ct.TypeArguments;
+        }
+
         for (var i = 0; i < argTypes.Count; i++)
         {
-            if (!IsAssignable(argTypes[i], paramTypes[i]))
+            var paramType = paramTypes[i];
+            if (typeParams is not null && typeArgs is not null)
+            {
+                paramType = SubstituteType(paramType, typeParams, typeArgs);
+            }
+            if (!IsAssignable(argTypes[i], paramType))
                 return false;
         }
 
@@ -2359,13 +2642,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Finds a member symbol by name on the given type.
+    /// For <see cref="ConstructedType"/>, looks up in the generic definition's member scope.
     /// </summary>
     private static ISymbol? FindMemberSymbol(IType targetType, string memberName, ISemanticModel model)
     {
+        // Unwrap ConstructedType to look up in the generic definition's member scope.
+        if (targetType is ConstructedType ct)
+            targetType = ct.GenericDefinition;
+
         IScope? memberScope = targetType switch
         {
-            ClassType ct => ct.MemberScope,
+            ClassType ct2 => ct2.MemberScope,
             StructType st => st.MemberScope,
+            InterfaceType it => it.MemberScope,
             _ => null,
         };
 
@@ -2523,6 +2812,40 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (source.DisplayName == target.DisplayName)
             return true;
 
+        // ConstructedType identity: same generic definition + same type arguments.
+        if (source is ConstructedType sourceConstructed && target is ConstructedType targetConstructed)
+        {
+            if (ReferenceEquals(sourceConstructed.GenericDefinition, targetConstructed.GenericDefinition)
+                && sourceConstructed.TypeArguments.Count == targetConstructed.TypeArguments.Count)
+            {
+                var allMatch = true;
+                for (var i = 0; i < sourceConstructed.TypeArguments.Count; i++)
+                {
+                    if (!TypesEqual(sourceConstructed.TypeArguments[i], targetConstructed.TypeArguments[i]))
+                    {
+                        allMatch = false;
+                        break;
+                    }
+                }
+                if (allMatch) return true;
+            }
+        }
+
+        // ConstructedType inheritance: walk the base type chain with substitution.
+        if (source is ConstructedType sourceConst && target is ConstructedType)
+        {
+            var baseType = GetSubstitutedBaseType(sourceConst);
+            if (baseType is not null && IsAssignable(baseType, target))
+                return true;
+        }
+
+        // ConstructedType to constructed interface assignability.
+        if (target is ConstructedType targetConst && targetConst.GenericDefinition is InterfaceType)
+        {
+            if (ImplementsConstructedInterface(source, targetConst))
+                return true;
+        }
+
         // Numeric widening.
         if (IsNumeric(source) && IsNumeric(target))
             return HasImplicitNumericConversion(source, target);
@@ -2540,16 +2863,197 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // A derived class is assignable to any of its ancestor classes.
         if (source is ClassType sourceClass && target is ClassType)
         {
-            var current = sourceClass.BaseType;
+            var current = sourceClass.BaseType as ClassType;
             while (current is not null)
             {
                 if (ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
                     return true;
-                current = current.BaseType;
+                current = current.BaseType as ClassType;
             }
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Compares two types for structural equality.
+    /// For <see cref="ConstructedType"/>, checks that the generic definitions are the same
+    /// and all type arguments are recursively equal.
+    /// For other types, uses reference equality or display name comparison.
+    /// </summary>
+    private static bool TypesEqual(IType a, IType b)
+    {
+        if (ReferenceEquals(a, b))
+            return true;
+
+        if (a is ConstructedType aCt && b is ConstructedType bCt)
+        {
+            if (!ReferenceEquals(aCt.GenericDefinition, bCt.GenericDefinition))
+                return false;
+            if (aCt.TypeArguments.Count != bCt.TypeArguments.Count)
+                return false;
+            for (var i = 0; i < aCt.TypeArguments.Count; i++)
+            {
+                if (!TypesEqual(aCt.TypeArguments[i], bCt.TypeArguments[i]))
+                    return false;
+            }
+            return true;
+        }
+
+        if (a is TypeParameterType aTp && b is TypeParameterType bTp)
+            return aTp.Name == bTp.Name && aTp.Ordinal == bTp.Ordinal;
+
+        return a.DisplayName == b.DisplayName;
+    }
+
+    /// <summary>
+    /// Gets the substituted base type of a <see cref="ConstructedType"/>.
+    /// If the generic definition is a <see cref="ClassType"/> with a base type,
+    /// substitutes the type parameters in the base type with the constructed type's type arguments.
+    /// </summary>
+    private static IType? GetSubstitutedBaseType(ConstructedType constructedType)
+    {
+        if (constructedType.GenericDefinition is not ClassType classDef)
+            return null;
+
+        var baseType = classDef.BaseType;
+        if (baseType is null)
+            return null;
+
+        var typeParams = classDef.TypeParameters;
+        var typeArgs = constructedType.TypeArguments;
+
+        return SubstituteType(baseType, typeParams, typeArgs);
+    }
+
+    /// <summary>
+    /// Checks whether <paramref name="source"/> implements the target constructed interface,
+    /// including transitive interface inheritance.
+    /// </summary>
+    private static bool ImplementsConstructedInterface(IType source, ConstructedType targetConstructedInterface)
+    {
+        // Collect all interfaces from the source type.
+        IReadOnlyList<IType>? interfaces = null;
+        IReadOnlyList<TypeParameterType>? typeParams = null;
+        IReadOnlyList<IType>? typeArgs = null;
+
+        switch (source)
+        {
+            case ConstructedType sourceCt:
+            {
+                switch (sourceCt.GenericDefinition)
+                {
+                    case ClassType classDef:
+                        interfaces = classDef.Interfaces;
+                        typeParams = classDef.TypeParameters;
+                        typeArgs = sourceCt.TypeArguments;
+                        // Also check base type chain.
+                        var baseType = GetSubstitutedBaseType(sourceCt);
+                        if (baseType is not null && ImplementsConstructedInterface(baseType, targetConstructedInterface))
+                            return true;
+                        break;
+                    case StructType structDef:
+                        interfaces = structDef.Interfaces;
+                        typeParams = structDef.TypeParameters;
+                        typeArgs = sourceCt.TypeArguments;
+                        break;
+                    case InterfaceType ifaceDef:
+                        // Check if the source interface itself matches the target.
+                        if (IsAssignable(source, targetConstructedInterface))
+                            return true;
+                        interfaces = ifaceDef.Interfaces;
+                        typeParams = ifaceDef.TypeParameters;
+                        typeArgs = sourceCt.TypeArguments;
+                        break;
+                }
+                break;
+            }
+            case ClassType classType:
+                interfaces = classType.Interfaces;
+                // Also check base type chain.
+                var current = classType.BaseType;
+                while (current is not null)
+                {
+                    if (current is ConstructedType baseCt && IsAssignable(baseCt, targetConstructedInterface))
+                        return true;
+                    if (current is ClassType baseClass)
+                    {
+                        foreach (var iface in baseClass.Interfaces)
+                        {
+                            var substituted = iface;
+                            if (substituted is ConstructedType ifaceCt && IsAssignable(ifaceCt, targetConstructedInterface))
+                                return true;
+                        }
+                        current = baseClass.BaseType;
+                    }
+                    else
+                        break;
+                }
+                break;
+            case StructType structType:
+                interfaces = structType.Interfaces;
+                break;
+            case InterfaceType ifaceType:
+                interfaces = ifaceType.Interfaces;
+                break;
+        }
+
+        if (interfaces is null)
+            return false;
+
+        foreach (var iface in interfaces)
+        {
+            // Substitute type parameters if we have a mapping.
+            var substitutedIface = (typeParams is not null && typeArgs is not null)
+                ? SubstituteType(iface, typeParams, typeArgs)
+                : iface;
+
+            if (substitutedIface is ConstructedType substitutedCt)
+            {
+                if (IsAssignable(substitutedCt, targetConstructedInterface))
+                    return true;
+                // Transitively check the interface's own inherited interfaces.
+                if (ImplementsConstructedInterface(substitutedCt, targetConstructedInterface))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Substitutes type parameters with corresponding type arguments in a type.
+    /// - If <paramref name="type"/> is a <see cref="TypeParameterType"/> matching one of the <paramref name="typeParams"/>,
+    ///   returns the corresponding entry from <paramref name="typeArgs"/>.
+    /// - If <paramref name="type"/> is a <see cref="ConstructedType"/>, recursively substitutes its type arguments.
+    /// - Otherwise, returns the type unchanged.
+    /// </summary>
+    private static IType SubstituteType(IType type, IReadOnlyList<TypeParameterType> typeParams, IReadOnlyList<IType> typeArgs)
+    {
+        if (type is TypeParameterType tpt)
+        {
+            for (var i = 0; i < typeParams.Count; i++)
+            {
+                if (tpt.Name == typeParams[i].Name && tpt.Ordinal == typeParams[i].Ordinal)
+                    return i < typeArgs.Count ? typeArgs[i] : type;
+            }
+            return type;
+        }
+
+        if (type is ConstructedType ct)
+        {
+            var substitutedArgs = new IType[ct.TypeArguments.Count];
+            var changed = false;
+            for (var i = 0; i < ct.TypeArguments.Count; i++)
+            {
+                substitutedArgs[i] = SubstituteType(ct.TypeArguments[i], typeParams, typeArgs);
+                if (!ReferenceEquals(substitutedArgs[i], ct.TypeArguments[i]))
+                    changed = true;
+            }
+            return changed ? new ConstructedType(ct.GenericDefinition, substitutedArgs) : ct;
+        }
+
+        return type;
     }
 
     /// <summary>
@@ -2565,12 +3069,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 if (InterfaceListContains(classType.Interfaces, targetInterface))
                     return true;
                 // Walk the base type chain and check each ancestor's interfaces.
-                var current = classType.BaseType;
+                var current = classType.BaseType as ClassType;
                 while (current is not null)
                 {
                     if (InterfaceListContains(current.Interfaces, targetInterface))
                         return true;
-                    current = current.BaseType;
+                    current = current.BaseType as ClassType;
                 }
                 return false;
 
@@ -2596,12 +3100,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Uses a visited set to handle diamond inheritance and prevent infinite loops.
     /// </summary>
     private static bool InterfaceListContains(
-        IReadOnlyList<InterfaceType> interfaces,
+        IReadOnlyList<IType> interfaces,
         InterfaceType target,
         HashSet<InterfaceType>? visited = null)
     {
-        foreach (var iface in interfaces)
+        foreach (var ifaceType in interfaces)
         {
+            if (ifaceType is not InterfaceType iface)
+                continue;
+
             if (ReferenceEquals(iface, target) || iface.DisplayName == target.DisplayName)
                 return true;
 
@@ -2782,7 +3289,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Walk the base type chain to collect inherited methods.
         if (targetType is ClassType classType)
         {
-            var baseType = classType.BaseType;
+            var baseType = classType.BaseType as ClassType;
             while (baseType is not null)
             {
                 var baseScope = baseType.MemberScope;
@@ -2791,7 +3298,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     if (member.Kind == SymbolKind.Method && member.Name == methodName)
                         results.Add(member);
                 }
-                baseType = baseType.BaseType;
+                baseType = baseType.BaseType as ClassType;
             }
         }
 
@@ -2808,7 +3315,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (targetType is null)
             return results;
 
-        var memberScope = targetType switch
+        // For ConstructedType (e.g., GenericBox<int>), unwrap to the generic
+        // definition to find constructors in the original type's member scope.
+        var lookupType = targetType is ConstructedType cst ? cst.GenericDefinition : targetType;
+
+        var memberScope = lookupType switch
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,

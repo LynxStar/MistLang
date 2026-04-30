@@ -123,6 +123,17 @@ public class InheritanceRoundTripPropertyTests
         };
     }
 
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = Tok(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
+    }
+
     private static ClassDeclarationNode MakeClassDecl(
         string name,
         string? baseClassName,
@@ -138,8 +149,14 @@ public class InheritanceRoundTripPropertyTests
 
         if (baseClassName is not null)
         {
-            classDecl.BaseClause = Tok(":");
-            classDecl.BaseClassName = Tok(baseClassName);
+            var _baseList = new BaseListNode
+            {
+                First = new BaseTypeRefNode { Name = Tok(baseClassName) },
+                Rest = new BaseTypeRefNode { Name = Tok(baseClassName) },
+                BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+            };
+            classDecl.BaseClause = _baseList;
+            classDecl.BaseList = _baseList;
         }
 
         return classDecl;
@@ -384,7 +401,7 @@ public class InheritanceRoundTripPropertyTests
         var description = string.Join(", ",
             classDecls.Select(c =>
             {
-                var basePart = c.BaseClause is not null ? $" : {c.BaseClassName.Lexeme}" : "";
+                var basePart = c.BaseClause is not null ? $" : {c.BaseList.First.Name.Lexeme}" : "";
                 return $"{c.Name.Lexeme}{basePart}";
             }));
 
@@ -439,5 +456,7 @@ public class InheritanceRoundTripPropertyTests
         // Step 4: Compare the two printed outputs — they must be identical
         return (printed1 == printed2).ToProperty()
             .Label($"Mismatch.\nPrinted1:\n{printed1}\nPrinted2:\n{printed2}");
+    ;
     }
+
 }

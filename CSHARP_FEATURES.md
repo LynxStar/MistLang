@@ -64,7 +64,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | Static classes | 🔲 | |
 | Partial classes | 🔲 | |
 | Nested types | 🔲 | |
-| Generic type declarations | 🔲 | |
+| Generic type declarations | ✅ | |
 | Generic constraints (`where T : ...`) | 🔲 | |
 
 ---
@@ -394,9 +394,9 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 
 | Feature | Status | Notes |
 |---|---|---|
-| Generic classes (`class Foo<T>`) | 🔲 | |
-| Generic methods (`void Foo<T>()`) | 🔲 | |
-| Generic interfaces | 🔲 | |
+| Generic classes (`class Foo<T>`) | ✅ | |
+| Generic methods (`void Foo<T>()`) | ✅ | |
+| Generic interfaces | ✅ | |
 | Type constraints (`where T : class`) | 🔲 | |
 | Covariance / contravariance | 🔲 | |
 | Generic delegates | 🔲 | |
@@ -522,7 +522,7 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 |---|---|---|---|
 | Value Types | 14 | 4 | 0 |
 | Reference Types | 4 | 6 | 1 |
-| Type Declarations | 3 | 11 | 0 |
+| Type Declarations | 4 | 10 | 0 |
 | Members — Fields | 3 | 3 | 1 |
 | Members — Properties | 10 | 1 | 0 |
 | Members — Methods | 5 | 12 | 0 |
@@ -544,7 +544,7 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 | Expressions — Other | 2 | 14 | 2 |
 | Inheritance | 3 | 8 | 0 |
 | Pattern Matching | 0 | 8 | 0 |
-| Generics | 0 | 6 | 0 |
+| Generics | 3 | 3 | 0 |
 | Async | 0 | 5 | 1 |
 | Namespaces & Imports | 3 | 3 | 1 |
 | Comments | 1 | 2 | 0 |

@@ -1,0 +1,10 @@
+// IGenericContainer<T> — Demonstrates a generic interface in the AllFeatures sample.
+
+using System;
+
+namespace AllFeatures;
+
+interface IGenericContainer<T>
+{
+    T GetItem();
+}

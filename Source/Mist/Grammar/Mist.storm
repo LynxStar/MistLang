@@ -95,13 +95,33 @@ rule TypeDeclaration
     | interfaceDeclaration:InterfaceDeclaration   as InterfaceType
     ;
 
+// ─── Parser Rules — Type Parameter and Type Argument Lists ───────────────────
+
+rule TypeParameterList = LESS_THAN TypeParameter (COMMA TypeParameter)* GREATER_THAN;
+
+rule TypeParameter = name:IDENTIFIER;
+
+rule TypeArgumentList = LESS_THAN TypeReference (COMMA TypeReference)* GREATER_THAN;
+
 // ─── Parser Rules — Type Declarations ────────────────────────────────────────
 
-rule ClassDeclaration  = modifiers:Modifier* CLASS  name:IDENTIFIER baseClause:(COLON baseClassName:IDENTIFIER (COMMA IDENTIFIER)*)? LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
-rule StructDeclaration = modifiers:Modifier* STRUCT name:IDENTIFIER interfaceList:(COLON interfaceName:IDENTIFIER (COMMA IDENTIFIER)*)? LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
+rule BaseTypeRef = name:IDENTIFIER typeArgs:TypeArgumentList?;
+
+rule BaseList = first:BaseTypeRef (COMMA rest:BaseTypeRef)*;
+
+rule ClassDeclaration = modifiers:Modifier* CLASS name:IDENTIFIER
+    typeParams:TypeParameterList?
+    baseClause:(COLON baseList:BaseList)?
+    LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
+
+rule StructDeclaration = modifiers:Modifier* STRUCT name:IDENTIFIER
+    typeParams:TypeParameterList?
+    interfaceList:(COLON interfaces:BaseList)?
+    LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
 rule InterfaceDeclaration = INTERFACE name:IDENTIFIER
-    interfaceList:(COLON interfaceName:IDENTIFIER (COMMA IDENTIFIER)*)?
+    typeParams:TypeParameterList?
+    interfaceList:(COLON interfaces:BaseList)?
     LEFT_BRACE members:InterfaceMemberDeclaration* RIGHT_BRACE;
 
 rule InterfaceMemberDeclaration
@@ -110,6 +130,7 @@ rule InterfaceMemberDeclaration
     ;
 
 rule InterfaceMethodDeclaration = returnType:TypeReference name:IDENTIFIER
+    typeParams:TypeParameterList?
     LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS SEMICOLON;
 
 rule InterfacePropertyDeclaration
@@ -175,6 +196,7 @@ rule ConstructorChain
     ;
 
 rule MethodDeclaration = modifiers:Modifier* returnType:TypeReference name:IDENTIFIER
+                         typeParams:TypeParameterList?
                          LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS body:Block;
 
 rule ParameterList = Parameter (COMMA Parameter)*;
@@ -187,7 +209,7 @@ rule ArgumentList = Expression (COMMA Expression)*;
 rule TypeReference
     = primitiveType:PrimitiveType arrayRank:(LEFT_BRACKET RIGHT_BRACKET)?  as PrimitiveTypeRef
     | VOID                                                                  as VoidTypeRef
-    | name:QualifiedIdentifier arrayRank:(LEFT_BRACKET RIGHT_BRACKET)?     as NamedTypeRef
+    | name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:(LEFT_BRACKET RIGHT_BRACKET)?  as NamedTypeRef
     ;
 
 rule PrimitiveType
@@ -272,7 +294,7 @@ rule Unary
 rule Postfix = target:Primary suffix:PostfixSuffix*;
 
 rule PostfixSuffix
-    = DOT name:IDENTIFIER LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as MethodCallSuffix
+    = DOT name:IDENTIFIER typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as MethodCallSuffix
     | DOT name:IDENTIFIER                                                         as MemberAccessSuffix
     | LEFT_BRACKET index:Expression RIGHT_BRACKET                                 as IndexSuffix
     | LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS                       as InvocationSuffix
@@ -290,7 +312,7 @@ rule Primary
     | THIS                                                                         as ThisExpression
     | FIELD                                                                        as FieldKeywordExpression
     | NEW type:TypeReference LEFT_BRACKET size:Expression RIGHT_BRACKET            as ArrayCreationExpression
-    | NEW type:QualifiedIdentifier LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as ObjectCreationExpression
+    | NEW type:QualifiedIdentifier typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as ObjectCreationExpression
     | LEFT_PARENTHESIS inner:Expression RIGHT_PARENTHESIS                          as ParenthesizedExpression
     | name:IDENTIFIER                                                              as IdentifierExpression
     | typeRef:TypeReference                                                        as TypeLiteralExpression

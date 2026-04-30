@@ -62,6 +62,17 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
             lexeme: lexeme);
     }
 
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = MakeToken(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
+    }
+
     private static ClassDeclarationNode MakeClassDecl(
         string name,
         string? baseClassName = null,
@@ -75,8 +86,11 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
 
         if (baseClassName is not null)
         {
-            classDecl.BaseClause = MakeToken(":");
-            classDecl.BaseClassName = MakeToken(baseClassName);
+            var _baseList1 = MakeBaseList(baseClassName);
+
+            classDecl.BaseClause = _baseList1;
+
+            classDecl.BaseList = _baseList1;
         }
 
         return classDecl;
@@ -352,5 +366,7 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
             return false;
 
         return true;
+    ;
     }
+
 }

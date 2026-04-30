@@ -63,6 +63,17 @@ public sealed partial class InterfaceEmissionPropertyTests : IDisposable
             lexeme: lexeme);
     }
 
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = MakeToken(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
+    }
+
     private static InterfaceMethodDeclarationNode MakeInterfaceMethod(
         string name,
         TypeReferenceNode? returnType = null)
@@ -91,8 +102,11 @@ public sealed partial class InterfaceEmissionPropertyTests : IDisposable
 
         if (parentInterfaceName is not null)
         {
-            decl.InterfaceList = MakeToken(":");
-            decl.InterfaceName = MakeToken(parentInterfaceName);
+            var _ifaceList1 = MakeBaseList(parentInterfaceName);
+
+            decl.InterfaceList = _ifaceList1;
+
+            decl.Interfaces = _ifaceList1;
         }
 
         return decl;
@@ -111,8 +125,11 @@ public sealed partial class InterfaceEmissionPropertyTests : IDisposable
 
         if (baseClassName is not null)
         {
-            classDecl.BaseClause = MakeToken(":");
-            classDecl.BaseClassName = MakeToken(baseClassName);
+            var _baseList1 = MakeBaseList(baseClassName);
+
+            classDecl.BaseClause = _baseList1;
+
+            classDecl.BaseList = _baseList1;
         }
 
         return classDecl;
@@ -131,8 +148,11 @@ public sealed partial class InterfaceEmissionPropertyTests : IDisposable
 
         if (interfaceName is not null)
         {
-            decl.InterfaceList = MakeToken(":");
-            decl.InterfaceName = MakeToken(interfaceName);
+            var _ifaceList2 = MakeBaseList(interfaceName);
+
+            decl.InterfaceList = _ifaceList2;
+
+            decl.Interfaces = _ifaceList2;
         }
 
         return decl;
@@ -718,5 +738,7 @@ public sealed partial class InterfaceEmissionPropertyTests : IDisposable
 
         Assert.Contains("interface ICalculator", csContent);
         Assert.Contains("int Calculate()", csContent);
+    ;
     }
+
 }

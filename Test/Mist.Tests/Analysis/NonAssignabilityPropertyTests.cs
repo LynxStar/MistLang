@@ -40,6 +40,17 @@ public class NonAssignabilityPropertyTests
             lexeme: lexeme);
     }
 
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = MakeToken(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
+    }
+
     private static MistCompilation MakeCompilation(string source = "")
     {
         var sourceText = new SourceText("test.mist", source);
@@ -134,8 +145,11 @@ public class NonAssignabilityPropertyTests
 
         if (baseClassName is not null)
         {
-            classDecl.BaseClause = MakeToken(":");
-            classDecl.BaseClassName = MakeToken(baseClassName);
+            var _baseList1 = MakeBaseList(baseClassName);
+
+            classDecl.BaseClause = _baseList1;
+
+            classDecl.BaseList = _baseList1;
         }
 
         return classDecl;
@@ -325,5 +339,7 @@ public class NonAssignabilityPropertyTests
 
         // At least one type mismatch diagnostic should be emitted for incompatible assignments
         return typeMismatchDiags.Count > 0;
+    ;
     }
+
 }

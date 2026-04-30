@@ -32,6 +32,17 @@ public class SemanticModelBuilderUnitTests
             lexeme: lexeme);
     }
 
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = MakeToken(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
+    }
+
     private static MistCompilation MakeCompilation(string source = "")
     {
         var sourceText = new SourceText("test.mist", source);
@@ -1089,8 +1100,11 @@ public class SemanticModelBuilderUnitTests
 
         if (baseClassName is not null)
         {
-            classDecl.BaseClause = MakeToken(":");
-            classDecl.BaseClassName = MakeToken(baseClassName);
+            var _baseList1 = MakeBaseList(baseClassName);
+
+            classDecl.BaseClause = _baseList1;
+
+            classDecl.BaseList = _baseList1;
         }
 
         return classDecl;
@@ -1244,5 +1258,7 @@ public class SemanticModelBuilderUnitTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_MEMBER_REDECLARATION");
+    ;
     }
+
 }

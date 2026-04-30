@@ -1,0 +1,25 @@
+// ValueHolder<T> — Demonstrates a generic struct with a single type parameter.
+
+using System;
+
+namespace Generics;
+
+public struct ValueHolder<T>
+{
+    private T held;
+
+    public ValueHolder(T held)
+    {
+        this.held = held;
+    }
+
+    public T GetHeld()
+    {
+        return held;
+    }
+
+    public string Describe()
+    {
+        return $"ValueHolder({held})";
+    }
+}

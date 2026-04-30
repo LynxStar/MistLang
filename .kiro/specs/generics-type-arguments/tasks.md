@@ -1,0 +1,326 @@
+# Implementation Plan: Generics and Type Arguments
+
+## Overview
+
+This plan implements generics (type parameters and type arguments) for the Mist programming language compiler. Tasks follow the compiler pipeline order: grammar → pretty-printer → semantic model types → semantic model builder → type checker → emitter → type map → syntax highlighting → samples → documentation. Each task builds incrementally on previous tasks, and property-based tests are placed close to the implementation they validate.
+
+## Tasks
+
+- [x] 1. Grammar changes for type parameter and type argument lists
+  - [x] 1.1 Add `TypeParameterList` and `TypeArgumentList` rules to `Mist.storm`
+    - Add `rule TypeParameterList = LESS_THAN IDENTIFIER (COMMA IDENTIFIER)* GREATER_THAN;`
+    - Add `rule TypeArgumentList = LESS_THAN TypeReference (COMMA TypeReference)* GREATER_THAN;`
+    - _Requirements: 1.1, 3.1_
+  - [x] 1.2 Extend type declaration rules with optional `TypeParameterList`
+    - Modify `ClassDeclaration` to include optional `typeParams:TypeParameterList?` after the class name and before the base clause
+    - Modify `StructDeclaration` to include optional `typeParams:TypeParameterList?` after the struct name and before the interface list
+    - Modify `InterfaceDeclaration` to include optional `typeParams:TypeParameterList?` after the interface name and before the interface list
+    - _Requirements: 1.2, 1.3, 1.4, 1.5, 1.6_
+  - [x] 1.3 Extend method declaration rules with optional `TypeParameterList`
+    - Modify `MethodDeclaration` to include optional `typeParams:TypeParameterList?` after the method name and before the parameter list
+    - Modify `InterfaceMethodDeclaration` to include optional `typeParams:TypeParameterList?` after the method name and before the parameter list
+    - _Requirements: 2.1, 2.2, 2.3, 2.4_
+  - [x] 1.4 Extend `TypeReference`, `ObjectCreationExpression`, and `MethodCallSuffix` with optional `TypeArgumentList`
+    - Modify `NamedTypeRef` in `TypeReference` to include optional `typeArgs:TypeArgumentList?` after the qualified identifier
+    - Modify `ObjectCreationExpression` in `Primary` to include optional `typeArgs:TypeArgumentList?` after the type name
+    - Modify `MethodCallSuffix` in `PostfixSuffix` to include optional `typeArgs:TypeArgumentList?` after the method name
+    - _Requirements: 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 4.5_
+  - [x] 1.5 Extend base clause and interface list syntax with optional `TypeArgumentList`
+    - Modify `ClassDeclaration` base clause to allow `TypeArgumentList?` after each base/interface name
+    - Modify `StructDeclaration` interface list to allow `TypeArgumentList?` after each interface name
+    - Modify `InterfaceDeclaration` interface list to allow `TypeArgumentList?` after each interface name
+    - _Requirements: 8.1, 8.2, 8.3_
+
+- [x] 2. Pretty-printer support for generics
+  - [x] 2.1 Add `EmitTypeParameterList` and `EmitTypeArgumentList` helper methods to `MistPrettyPrinter`
+    - `EmitTypeParameterList` emits `<T, U>` from a `TypeParameterListNode`
+    - `EmitTypeArgumentList` emits `<int, string>` from a `TypeArgumentListNode`
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+  - [x] 2.2 Extend declaration emission methods to include type parameter lists
+    - Modify `EmitClassDeclaration` to insert type parameter list after class name
+    - Modify `EmitStructDeclaration` to insert type parameter list after struct name
+    - Modify `EmitInterfaceDeclaration` to insert type parameter list after interface name
+    - Modify `EmitMethodDeclaration` to insert type parameter list after method name
+    - Modify `EmitInterfaceMethodDeclaration` to insert type parameter list after method name
+    - _Requirements: 5.1, 5.2, 5.3, 5.4_
+  - [x] 2.3 Extend type reference, object creation, and method call emission to include type argument lists
+    - Modify `EmitTypeReference` (NamedTypeRef) to append type argument list after name
+    - Modify `EmitPrimary` (ObjectCreationExpression) to append type argument list after type name
+    - Modify `EmitPostfixSuffix` (MethodCallSuffix) to append type argument list after method name
+    - _Requirements: 5.5, 5.6, 5.7, 5.8_
+  - [x] 2.4 Extend base clause and interface list emission to include type argument lists
+    - Modify class base clause emission to append type argument lists after each base/interface name
+    - Modify struct interface list emission to append type argument lists after each interface name
+    - Modify interface inheritance list emission to append type argument lists after each interface name
+    - _Requirements: 5.9_
+  - [x] 2.5 Write property test for generic syntax round-trip (Property 1)
+    - **Property 1: Generic syntax round-trip**
+    - Extend `MistAstGenerator` with generators for `TypeParameterListNode` (1–4 type parameters) and `TypeArgumentListNode` (1–4 type arguments including nested generics)
+    - Extend generators for generic class, struct, interface, and method declarations
+    - Extend generators for `NamedTypeRef` with type arguments, `ObjectCreationExpression` with type arguments, `MethodCallSuffix` with type arguments
+    - Verify that pretty-printing then parsing then pretty-printing produces identical output
+    - Test class: `GenericRoundTripPropertyTests` in `Test/Mist.Tests/Parsing/`
+    - **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10**
+
+- [x] 3. Checkpoint — Verify grammar and pretty-printer
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 4. Semantic model types for generics
+  - [x] 4.1 Create `TypeParameterType` class
+    - Create `Source/Mist/Semantics/Model/Types/TypeParameterType.cs`
+    - Implement `IType` with `DisplayName`, `Kind` (TypeKind.Class), `Name`, and `Ordinal` properties
+    - _Requirements: 6.1, 6.3_
+  - [x] 4.2 Create `ConstructedType` class
+    - Create `Source/Mist/Semantics/Model/Types/ConstructedType.cs`
+    - Implement `IType` with `GenericDefinition`, `TypeArguments`, `MemberScope`, `DisplayName` (e.g., `Box<int>`), and `Kind` properties
+    - _Requirements: 7.1_
+  - [x] 4.3 Add `TypeParameters` property to `ClassType`, `StructType`, and `InterfaceType`
+    - Add `public IReadOnlyList<TypeParameterType> TypeParameters { get; internal set; } = Array.Empty<TypeParameterType>();` to each type
+    - _Requirements: 6.3_
+  - [x] 4.4 Add `TypeParameters` property to method symbols
+    - Add `public IReadOnlyList<TypeParameterType> TypeParameters { get; internal set; } = Array.Empty<TypeParameterType>();` to the `Symbol` class (or equivalent)
+    - _Requirements: 6.2_
+  - [x] 4.5 Widen `BaseType` and `Interfaces` property types to accommodate `ConstructedType`
+    - Change `ClassType.BaseType` from `ClassType?` to `IType?` to allow `ConstructedType`
+    - Change `ClassType.Interfaces`, `StructType.Interfaces`, `InterfaceType.Interfaces` from `IReadOnlyList<InterfaceType>` to `IReadOnlyList<IType>` to allow `ConstructedType`
+    - Update all existing code that references these properties to handle the widened types
+    - _Requirements: 8.1, 8.3_
+
+- [x] 5. Add new diagnostic IDs for generics
+  - Add `MIST_ARITY_MISMATCH`, `MIST_NOT_GENERIC`, `MIST_MISSING_TYPE_ARGUMENTS`, `MIST_DUPLICATE_TYPE_PARAMETER`, `MIST_TYPE_PARAMETER_SHADOWS_TYPE`, `MIST_METHOD_ARITY_MISMATCH`, and `MIST_UNDEFINED_TYPE_ARGUMENT` diagnostic IDs
+  - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6_
+
+- [x] 6. Checkpoint — Verify semantic model types compile
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 7. Semantic model builder extensions — Pass 1: Type parameter registration
+  - [x] 7.1 Register type parameters for class, struct, and interface declarations
+    - In `Pass1_RegisterTypes`, when a type declaration has a `TypeParameterList`, create a `TypeParameterType(name, ordinal)` for each identifier
+    - Store the list on `ClassType.TypeParameters`, `StructType.TypeParameters`, or `InterfaceType.TypeParameters`
+    - Register each `TypeParameterType` as a symbol in the type's member scope
+    - _Requirements: 6.1, 6.3, 6.4_
+  - [x] 7.2 Register type parameters for method declarations
+    - When a `MethodDeclaration` or `InterfaceMethodDeclaration` has a `TypeParameterList`, create `TypeParameterType` instances
+    - Store on the method symbol's `TypeParameters` property
+    - Register in the method's local scope so they take precedence over enclosing type parameters
+    - _Requirements: 6.2, 9.4_
+  - [x] 7.3 Emit diagnostics for duplicate type parameter names and shadowing
+    - Check for duplicate type parameter names within the same `TypeParameterList` and emit `MIST_DUPLICATE_TYPE_PARAMETER`
+    - Check if a type parameter name shadows the enclosing type name and emit `MIST_TYPE_PARAMETER_SHADOWS_TYPE` warning
+    - _Requirements: 6.5, 6.6, 13.3_
+  - [x] 7.4 Write property test for type parameter registration (Property 2)
+    - **Property 2: Type parameter registration**
+    - Generate generic type declarations with N type parameters and generic methods with M type parameters
+    - Verify exactly N (or M) `TypeParameterType` instances are created with correct ordinals
+    - Verify each is registered in the declaring scope and resolvable as a type
+    - Test class: `TypeParameterRegistrationPropertyTests` in `Test/Mist.Tests/Semantics/`
+    - **Validates: Requirements 6.1, 6.2, 6.3, 6.4, 9.1, 9.2**
+  - [x] 7.5 Write property test for duplicate type parameter diagnostic (Property 3)
+    - **Property 3: Duplicate type parameter diagnostic**
+    - Generate type/method declarations with duplicate type parameter names
+    - Verify `MIST_DUPLICATE_TYPE_PARAMETER` diagnostic is emitted for each duplicate
+    - Test class: `DuplicateTypeParameterPropertyTests` in `Test/Mist.Tests/Semantics/`
+    - **Validates: Requirements 6.5, 13.3**
+
+- [x] 8. Semantic model builder extensions — Pass 1b: Generic base type and interface resolution
+  - [x] 8.1 Resolve generic base types to `ConstructedType`
+    - Extend `Pass1_ResolveBaseTypes` to handle `TypeArgumentList` on base clause entries
+    - Resolve each type argument to an `IType`, look up the referenced type, and construct a `ConstructedType` if it has type parameters
+    - Store the `ConstructedType` on `ClassType.BaseType`
+    - _Requirements: 8.1, 8.2, 8.5_
+  - [x] 8.2 Resolve generic interface lists to `ConstructedType`
+    - Extend `Pass1_ResolveInterfaceLists` to handle `TypeArgumentList` on interface list entries
+    - Resolve each interface with type arguments to a `ConstructedType`
+    - Store on the type's `Interfaces` property
+    - _Requirements: 8.3_
+  - [x] 8.3 Emit diagnostics for arity mismatches, non-generic type arguments, and missing type arguments in inheritance
+    - Emit `MIST_ARITY_MISMATCH` when type argument count doesn't match type parameter count
+    - Emit `MIST_NOT_GENERIC` when type arguments are provided to a non-generic type
+    - Emit `MIST_MISSING_TYPE_ARGUMENTS` when a non-generic type inherits from a generic type without providing type arguments
+    - _Requirements: 7.2, 7.3, 8.4, 13.1, 13.2, 13.5_
+  - [x] 8.4 Write property test for generic inheritance resolution (Property 7)
+    - **Property 7: Generic inheritance resolution**
+    - Generate classes with generic base classes and generic interface lists
+    - Verify base types and interfaces resolve to `ConstructedType` with correct type arguments
+    - Test class: `GenericInheritanceResolutionPropertyTests` in `Test/Mist.Tests/Semantics/`
+    - **Validates: Requirements 8.1, 8.2, 8.3, 8.5**
+  - [x] 8.5 Write property test for missing type arguments diagnostic (Property 8)
+    - **Property 8: Missing type arguments diagnostic**
+    - Generate non-generic types inheriting from generic types without type arguments
+    - Verify `MIST_MISSING_TYPE_ARGUMENTS` diagnostic is emitted
+    - Test class: `MissingTypeArgumentsPropertyTests` in `Test/Mist.Tests/Semantics/`
+    - **Validates: Requirements 8.4, 13.5**
+
+- [x] 9. Semantic model builder extensions — Pass 2: Type argument resolution
+  - [x] 9.1 Resolve `NamedTypeRef` with `TypeArgumentList` to `ConstructedType`
+    - Extend type reference resolution in `Pass2_ResolveTypes` to handle `TypeArgumentList`
+    - Resolve each type argument recursively (supporting nested generics like `List<List<int>>`)
+    - Look up the referenced type and construct a `ConstructedType` if it's generic
+    - If the identifier resolves to a `TypeParameterType`, return it directly
+    - _Requirements: 7.1, 7.4, 7.5, 7.6_
+  - [x] 9.2 Resolve `ObjectCreationExpression` with type arguments
+    - Resolve type arguments on `new` expressions
+    - Construct a `ConstructedType` for the created type
+    - Resolve constructor calls against the generic definition's constructors
+    - _Requirements: 4.1, 4.3_
+  - [x] 9.3 Resolve `MethodCallSuffix` with type arguments
+    - Resolve type arguments on method invocations
+    - Look up the method, substitute type parameters with provided type arguments
+    - Validate arity
+    - _Requirements: 4.2, 4.4_
+  - [x] 9.4 Emit diagnostics for arity mismatches, non-generic type arguments, and undefined type arguments in type references
+    - Emit `MIST_ARITY_MISMATCH` for type reference arity mismatches
+    - Emit `MIST_NOT_GENERIC` for type arguments on non-generic types
+    - Emit `MIST_METHOD_ARITY_MISMATCH` for method invocation arity mismatches
+    - Emit `MIST_UNDEFINED_TYPE_ARGUMENT` for unresolvable type arguments
+    - _Requirements: 7.2, 7.3, 11.6, 13.1, 13.2, 13.4, 13.6_
+  - [x] 9.5 Write property test for constructed type resolution (Property 4)
+    - **Property 4: Constructed type resolution**
+    - Generate type references with type argument lists where the referenced type has matching arity
+    - Verify a `ConstructedType` is produced with correct `GenericDefinition` and `TypeArguments`
+    - Include nested generics (e.g., `List<List<int>>`)
+    - Test class: `ConstructedTypeResolutionPropertyTests` in `Test/Mist.Tests/Semantics/`
+    - **Validates: Requirements 7.1, 7.4, 7.5**
+  - [x] 9.6 Write property test for arity mismatch diagnostic (Property 5)
+    - **Property 5: Arity mismatch diagnostic**
+    - Generate type references and method invocations with wrong number of type arguments
+    - Verify `MIST_ARITY_MISMATCH` or `MIST_METHOD_ARITY_MISMATCH` diagnostic is emitted
+    - Test class: `ArityMismatchPropertyTests` in `Test/Mist.Tests/Semantics/`
+    - **Validates: Requirements 7.2, 11.6, 13.1, 13.4**
+  - [x] 9.7 Write property test for non-generic type argument diagnostic (Property 6)
+    - **Property 6: Non-generic type argument diagnostic**
+    - Generate type references that provide type arguments to non-generic types
+    - Verify `MIST_NOT_GENERIC` diagnostic is emitted
+    - Test class: `NonGenericTypeArgumentPropertyTests` in `Test/Mist.Tests/Semantics/`
+    - **Validates: Requirements 7.3, 13.2**
+  - [x] 9.8 Write property test for undefined type argument diagnostic (Property 13)
+    - **Property 13: Undefined type argument diagnostic**
+    - Generate type references where a type argument name cannot be resolved
+    - Verify `MIST_UNDEFINED_TYPE_ARGUMENT` diagnostic is emitted
+    - Test class: `UndefinedTypeArgumentPropertyTests` in `Test/Mist.Tests/Semantics/`
+    - **Validates: Requirements 13.6**
+
+- [x] 10. Checkpoint — Verify semantic model builder
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 11. Type checker extensions for constructed types
+  - [x] 11.1 Extend `IsAssignable` for `ConstructedType` identity
+    - Two `ConstructedType` instances with the same `GenericDefinition` and same `TypeArguments` are assignable
+    - _Requirements: 11.1_
+  - [x] 11.2 Extend `IsAssignable` for constructed type inheritance
+    - Walk the base type chain of a `ConstructedType`, substituting type arguments, to check assignability to a base `ConstructedType`
+    - _Requirements: 11.3_
+  - [x] 11.3 Extend `IsAssignable` for constructed interface assignability
+    - Check if a `ConstructedType` implements a target constructed interface (including transitive interface inheritance)
+    - _Requirements: 11.4_
+  - [x] 11.4 Implement type argument substitution for member access
+    - Add `SubstituteType(IType type, IReadOnlyList<TypeParameterType> typeParams, IReadOnlyList<IType> typeArgs)` helper
+    - When resolving member access on a `ConstructedType`, substitute type parameters with corresponding type arguments
+    - Handle recursive substitution for `ConstructedType` type arguments
+    - _Requirements: 9.3, 11.5_
+  - [x] 11.5 Validate generic method invocations with type arguments
+    - Substitute type parameters with provided type arguments in method parameter types and return type
+    - Validate parameter types and return type after substitution
+    - _Requirements: 11.5, 11.6_
+  - [x] 11.6 Write property test for constructed type member access substitution (Property 9)
+    - **Property 9: Constructed type member access substitution**
+    - Generate programs with member access on `ConstructedType` values (fields and method calls)
+    - Verify type parameters are substituted with corresponding type arguments
+    - Test class: `ConstructedTypeMemberAccessPropertyTests` in `Test/Mist.Tests/Analysis/`
+    - **Validates: Requirements 9.3, 11.5**
+  - [x] 11.7 Write property test for constructed type assignability (Property 10)
+    - **Property 10: Constructed type assignability**
+    - Generate assignments between `ConstructedType` instances with same definition and same type arguments
+    - Generate assignments from derived constructed types to base constructed types
+    - Generate assignments from types implementing constructed interfaces
+    - Verify all are accepted by the type checker
+    - Test class: `ConstructedTypeAssignabilityPropertyTests` in `Test/Mist.Tests/Analysis/`
+    - **Validates: Requirements 11.1, 11.3, 11.4**
+  - [x] 11.8 Write property test for constructed type non-assignability (Property 11)
+    - **Property 11: Constructed type non-assignability**
+    - Generate assignments between `ConstructedType` instances with same definition but different type arguments
+    - Verify the type checker emits a diagnostic error
+    - Test class: `ConstructedTypeNonAssignabilityPropertyTests` in `Test/Mist.Tests/Analysis/`
+    - **Validates: Requirements 11.2**
+
+- [x] 12. Checkpoint — Verify type checker
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 13. C# emitter extensions for generics
+  - [x] 13.1 Emit type parameter lists on type and method declarations
+    - Extend `EmitClassDeclaration`, `EmitStructDeclaration`, `EmitInterfaceDeclaration` to emit `<T, U>` after the type name
+    - Extend `EmitMethodDeclaration`, `EmitInterfaceMethodDeclaration` to emit `<T>` after the method name
+    - _Requirements: 12.1, 12.2_
+  - [x] 13.2 Emit type argument lists on type references, object creation, and method invocations
+    - Extend `EmitTypeReference` (NamedTypeRef) to emit `<int, string>` after the type name
+    - Extend `EmitPrimary` (ObjectCreationExpression) to emit `new Name<Arg>(args)`
+    - Extend `EmitPostfixSuffix` (MethodCallSuffix) to emit `target.Method<Arg>(args)`
+    - _Requirements: 12.3, 12.4, 12.5, 12.8_
+  - [x] 13.3 Emit generic inheritance and interface clauses
+    - Emit `class Foo<T> : Bar<T>`, `class IntList : List<int>`, `class Box<T> : IContainer<T>` etc.
+    - _Requirements: 12.6, 12.7_
+
+- [x] 14. CSharpTypeMap extensions
+  - Add cases for `TypeParameterType` (emit the type parameter name) and `ConstructedType` (emit `GenericDef<Arg1, Arg2>`)
+  - _Requirements: 12.3_
+
+- [x] 15. Static members in generic types
+  - Verify that static fields and static methods inside generic type declarations are emitted correctly using the existing C# pattern (C# runtime provides separate static state per constructed type)
+  - _Requirements: 10.1, 10.2, 10.3_
+
+- [x] 15.1 Write property test for C# emission correctness (Property 12)
+  - **Property 12: C# emission correctness for generics**
+  - Generate valid Mist programs with generic declarations, type references, object creation, method invocations, inheritance clauses, and nested generics
+  - Verify emitted C# contains syntactically correct angle bracket syntax
+  - Test class: `GenericEmissionPropertyTests` in `Test/Mist.Tests/Backend/`
+  - **Validates: Requirements 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8**
+
+- [x] 16. Checkpoint — Verify emitter and type map
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 17. Syntax highlighting for generics
+  - Add TextMate grammar patterns to `Editor/mist-syntax-highlighting/syntaxes/mist.tmLanguage.json` for:
+    - Type parameter lists in class, struct, interface, and method declarations (scope: `entity.name.type.parameter.mist`)
+    - Method type parameter lists (scope: `entity.name.type.parameter.mist`)
+    - Type arguments in type references
+  - _Requirements: 16.1, 16.2, 16.3, 16.4_
+
+- [x] 18. Generics sample application
+  - [x] 18.1 Create `Samples/Generics/` directory with sample `.mist` files
+    - Create a generic class with single type parameter (`Box<T>`)
+    - Create a generic class with multiple type parameters (`Pair<T, U>`)
+    - Create a generic struct (`ValueHolder<T>`)
+    - Create a generic interface (`IContainer<T>`)
+    - Demonstrate a generic method on a class
+    - Demonstrate constructing generic objects (`new Box<int>()`, `new Pair<string, int>()`)
+    - Demonstrate nested generic type arguments (`Box<List<int>>`)
+    - Demonstrate generic inheritance (generic class extending generic class, non-generic class extending constructed generic)
+    - Demonstrate generic type implementing generic interface
+    - Include `static void Main` entry point with `Console.WriteLine` output
+    - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6, 14.7, 14.8, 14.9, 14.10, 14.11, 14.12_
+
+- [x] 19. AllFeatures sample update
+  - Add generics examples in new `.mist` files within `Samples/AllFeatures/`
+  - Demonstrate at least one generic class, one generic interface, and one usage of constructed generic types
+  - Ensure the AllFeatures sample compiles and runs successfully
+  - _Requirements: 15.1, 15.2, 15.3_
+
+- [x] 20. Documentation update
+  - Update `CSHARP_FEATURES.md`:
+    - Mark `Generic classes`, `Generic methods`, and `Generic interfaces` as ✅ in the Generics section
+    - Mark `Generic type declarations` as ✅ in the Type Declarations section
+    - Update the Summary table counts
+  - _Requirements: 17.1, 17.2, 17.3_
+
+- [x] 21. Final checkpoint — Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+## Notes
+
+- Tasks marked with `*` are optional and can be skipped for faster MVP
+- Each task references specific requirements for traceability
+- Checkpoints ensure incremental validation after each pipeline stage
+- Property tests validate universal correctness properties from the design document
+- Unit tests validate specific examples and edge cases
+- Grammar changes in task 1 auto-generate the parser via the Storm source generator — no manual parser code needed
+- The `BaseType` and `Interfaces` property type widening (task 4.5) may require updates to existing code in the type checker, emitter, and semantic model builder passes

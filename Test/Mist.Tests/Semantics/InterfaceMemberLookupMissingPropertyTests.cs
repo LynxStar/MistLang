@@ -41,6 +41,17 @@ public class InterfaceMemberLookupMissingPropertyTests
             lexeme: lexeme);
     }
 
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = MakeToken(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
+    }
+
     private static MistCompilation MakeCompilation(string source = "")
     {
         var sourceText = new SourceText("test.mist", source);
@@ -85,8 +96,11 @@ public class InterfaceMemberLookupMissingPropertyTests
 
         if (parentInterfaceName is not null)
         {
-            decl.InterfaceList = MakeToken(":");
-            decl.InterfaceName = MakeToken(parentInterfaceName);
+            var _ifaceList1 = MakeBaseList(parentInterfaceName);
+
+            decl.InterfaceList = _ifaceList1;
+
+            decl.Interfaces = _ifaceList1;
         }
 
         return decl;
@@ -126,8 +140,11 @@ public class InterfaceMemberLookupMissingPropertyTests
 
         if (baseOrInterfaceName is not null)
         {
-            decl.BaseClause = MakeToken(":");
-            decl.BaseClassName = MakeToken(baseOrInterfaceName);
+            var _baseList1 = MakeBaseList(baseOrInterfaceName);
+
+            decl.BaseClause = _baseList1;
+
+            decl.BaseList = _baseList1;
         }
 
         return decl;
@@ -531,5 +548,7 @@ public class InterfaceMemberLookupMissingPropertyTests
             .ToList();
 
         return undefinedMemberDiags.Count == 1;
+    ;
     }
+
 }

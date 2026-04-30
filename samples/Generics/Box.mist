@@ -1,0 +1,31 @@
+// Box<T> — Demonstrates a generic class with a single type parameter,
+// implementing a generic interface.
+
+using System;
+
+namespace Generics;
+
+public class Box<T> : IContainer<T>
+{
+    private T item;
+
+    public Box(T item)
+    {
+        this.item = item;
+    }
+
+    public T GetValue()
+    {
+        return item;
+    }
+
+    public void SetValue(T value)
+    {
+        this.item = value;
+    }
+
+    public string Describe()
+    {
+        return $"Box({item})";
+    }
+}

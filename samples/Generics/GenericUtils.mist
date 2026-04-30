@@ -1,0 +1,13 @@
+// GenericUtils — Demonstrates a generic method on a non-generic class.
+
+using System;
+
+namespace Generics;
+
+public class GenericUtils
+{
+    public static T Identity<T>(T value)
+    {
+        return value;
+    }
+}

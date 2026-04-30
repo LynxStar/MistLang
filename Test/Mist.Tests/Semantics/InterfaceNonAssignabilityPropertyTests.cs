@@ -41,6 +41,17 @@ public class InterfaceNonAssignabilityPropertyTests
             lexeme: lexeme);
     }
 
+    private static BaseListNode MakeBaseList(string name)
+    {
+        var baseTypeRef = new BaseTypeRefNode { Name = MakeToken(name) };
+        return new BaseListNode
+        {
+            First = baseTypeRef,
+            Rest = baseTypeRef,
+            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
+        };
+    }
+
     private static MistCompilation MakeCompilation(string source = "")
     {
         var sourceText = new SourceText("test.mist", source);
@@ -184,8 +195,11 @@ public class InterfaceNonAssignabilityPropertyTests
 
         if (baseOrInterfaceName is not null)
         {
-            decl.BaseClause = MakeToken(":");
-            decl.BaseClassName = MakeToken(baseOrInterfaceName);
+            var _baseList1 = MakeBaseList(baseOrInterfaceName);
+
+            decl.BaseClause = _baseList1;
+
+            decl.BaseList = _baseList1;
         }
 
         return decl;
@@ -204,8 +218,11 @@ public class InterfaceNonAssignabilityPropertyTests
 
         if (interfaceName is not null)
         {
-            decl.InterfaceList = MakeToken(":");
-            decl.InterfaceName = MakeToken(interfaceName);
+            var _ifaceList1 = MakeBaseList(interfaceName);
+
+            decl.InterfaceList = _ifaceList1;
+
+            decl.Interfaces = _ifaceList1;
         }
 
         return decl;
@@ -433,5 +450,7 @@ public class InterfaceNonAssignabilityPropertyTests
         var diagnostics = RunTypeChecker(model);
 
         Assert.Contains(diagnostics, d => d.Id.Value == "MIST_TC_0001");
+    ;
     }
+
 }

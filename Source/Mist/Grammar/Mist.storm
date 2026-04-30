@@ -17,7 +17,7 @@ token EQUAL_EQUAL           = "==";
 token NOT_EQUAL             = "!=";
 token LESS_THAN_OR_EQUAL    = "<=";
 token GREATER_THAN_OR_EQUAL = ">=";
-token FAT_ARROW             = "=>";
+token SUCH_THAT             = "=>";
 token PLUS                  = "+";
 token MINUS                 = "-";
 token STAR                  = "*";
@@ -166,19 +166,19 @@ rule PropertyDeclaration
       LEFT_BRACE accessors:AccessorDeclaration+ RIGHT_BRACE
       initializer:(EQUAL Expression SEMICOLON)?                    as BlockProperty
     | modifiers:Modifier* type:TypeReference name:IDENTIFIER
-      FAT_ARROW body:Expression SEMICOLON                          as ExpressionBodiedProperty
+      SUCH_THAT body:Expression SEMICOLON                          as ExpressionBodiedProperty
     ;
 
 rule AccessorDeclaration
     = accessorModifier:Modifier? GET SEMICOLON                                    as AutoGetAccessor
     | accessorModifier:Modifier? GET body:Block                                   as BlockGetAccessor
-    | accessorModifier:Modifier? GET FAT_ARROW expression:Expression SEMICOLON    as ExpressionGetAccessor
+    | accessorModifier:Modifier? GET SUCH_THAT expression:Expression SEMICOLON    as ExpressionGetAccessor
     | accessorModifier:Modifier? SET SEMICOLON                                    as AutoSetAccessor
     | accessorModifier:Modifier? SET body:Block                                   as BlockSetAccessor
-    | accessorModifier:Modifier? SET FAT_ARROW expression:Expression SEMICOLON    as ExpressionSetAccessor
+    | accessorModifier:Modifier? SET SUCH_THAT expression:Expression SEMICOLON    as ExpressionSetAccessor
     | accessorModifier:Modifier? INIT SEMICOLON                                   as AutoInitAccessor
     | accessorModifier:Modifier? INIT body:Block                                  as BlockInitAccessor
-    | accessorModifier:Modifier? INIT FAT_ARROW expression:Expression SEMICOLON   as ExpressionInitAccessor
+    | accessorModifier:Modifier? INIT SUCH_THAT expression:Expression SEMICOLON   as ExpressionInitAccessor
     ;
 
 rule IndexerDeclaration

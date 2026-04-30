@@ -248,6 +248,9 @@ internal sealed class CSharpSourceWriter
         AppendLine("{");
         _indentLevel++;
 
+        // Emit every member in declaration order. No name-based grouping or
+        // deduplication is performed, so overloaded methods and constructors
+        // are each emitted as separate C# declarations.
         for (var i = 0; i < classDecl.Members.Length; i++)
         {
             if (i > 0)
@@ -347,6 +350,9 @@ internal sealed class CSharpSourceWriter
         AppendLine("{");
         _indentLevel++;
 
+        // Emit every member in declaration order. No name-based grouping or
+        // deduplication is performed, so overloaded methods and constructors
+        // are each emitted as separate C# declarations.
         for (var i = 0; i < structDecl.Members.Length; i++)
         {
             if (i > 0)
@@ -360,6 +366,13 @@ internal sealed class CSharpSourceWriter
         AppendLine("}");
     }
 
+    /// <summary>
+    /// Emits a single member declaration from the AST.
+    /// Each member is emitted individually without any name-based deduplication,
+    /// which ensures that overloaded methods and constructors (multiple declarations
+    /// sharing the same name but with different parameter signatures) are all emitted
+    /// as separate C# declarations.
+    /// </summary>
     private void EmitMemberDeclaration(MemberDeclarationNode memberDecl)
     {
         switch (memberDecl)

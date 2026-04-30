@@ -1,0 +1,42 @@
+// Printer — Demonstrates method overloading and constructor overloading.
+// Multiple methods with the same name but different parameter types.
+
+using System;
+
+namespace AllFeatures;
+
+public class Printer
+{
+    private string _prefix;
+
+    // Overloaded constructors: different parameter signatures
+    public Printer(string prefix)
+    {
+        this._prefix = prefix;
+    }
+
+    public Printer() : this("[default]")
+    {
+    }
+
+    // Overloaded methods: same name, different parameter types
+    public string Format(int value)
+    {
+        return $"{_prefix} int={value}";
+    }
+
+    public string Format(bool value)
+    {
+        return $"{_prefix} bool={value}";
+    }
+
+    public string Format(double value)
+    {
+        return $"{_prefix} double={value}";
+    }
+
+    public string Format(string value)
+    {
+        return $"{_prefix} string={value}";
+    }
+}

@@ -307,6 +307,24 @@ public class Program
         IGenericContainer<int> gc = new GenericBox<int>(99);
         Console.WriteLine($"gc.item={gc.GetItem()}");
 
+        // 28. Method overloading: same name, different parameter types
+        Console.WriteLine("--- Method Overloading ---");
+        var printer = new Printer(">>>");
+        Console.WriteLine(printer.Format(42));
+        Console.WriteLine(printer.Format(true));
+        Console.WriteLine(printer.Format(3.14));
+        Console.WriteLine(printer.Format("hello"));
+
+        // Constructor overloading: default vs parameterized
+        var defaultPrinter = new Printer();
+        Console.WriteLine(defaultPrinter.Format(99));
+
+        // Static method overloading
+        Console.WriteLine($"Add(int): {MathHelper.Add(3, 4)}");
+        Console.WriteLine($"Add(double): {MathHelper.Add(1.5, 2.5)}");
+        Console.WriteLine($"Clamp(int): {MathHelper.Clamp(15, 0, 10)}");
+        Console.WriteLine($"Clamp(double): {MathHelper.Clamp(0.5, 1.0, 5.0)}");
+
         Console.WriteLine("=== Done! ===");
     }
 }

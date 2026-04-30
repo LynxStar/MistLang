@@ -87,13 +87,17 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 
 | Feature | Status | Notes |
 |---|---|---|
-| Auto-properties | 🔲 | |
-| Get/set accessors | 🔲 | |
-| Init-only setters (`init`) | 🔲 | C# 9 |
-| Expression-bodied properties | 🔲 | |
-| Static properties | 🔲 | |
+| Auto-properties | ✅ | `get; set;` with optional initializers |
+| Get/set accessors | ✅ | Auto, block-body, and expression-bodied forms |
+| Init-only setters (`init`) | ✅ | C# 9; auto, block, and expression forms |
+| Expression-bodied properties | ✅ | `Type Name => expr;` |
+| Static properties | ✅ | Via `static` modifier |
+| Accessor modifiers | ✅ | e.g., `private set;` |
+| `field` keyword | ✅ | Backing field access in accessor bodies |
+| Computed properties | ✅ | Get-only with body, no backing field |
+| Interface properties | ✅ | `get;` and/or `set;` signatures |
+| Indexers | ✅ | `this[ParamType param]` with accessors |
 | Abstract/virtual properties | 🔲 | |
-| Indexers | 🔲 | |
 
 ### Methods
 
@@ -239,9 +243,9 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | Raw string literals (`"""..."""`) | 🔲 | C# 11 |
 | Char literals | ✅ | With escape sequences |
 | `true` / `false` | ✅ | |
-| `null` | 🔲 | |
+| `null` | ⛔ | |
 | `default` / `default(T)` | 🔲 | |
-| `typeof(T)` | 🔲 | |
+| `typeof(T)` | ⛔ | |
 | `nameof(x)` | 🔲 | C# 6 |
 | `sizeof(T)` | ⛔ | Low-level, out of scope |
 | Digit separators (`1_000_000`) | 🔲 | C# 7 |
@@ -520,7 +524,7 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 | Reference Types | 4 | 6 | 1 |
 | Type Declarations | 4 | 10 | 0 |
 | Members — Fields | 3 | 3 | 1 |
-| Members — Properties | 0 | 7 | 0 |
+| Members — Properties | 10 | 1 | 0 |
 | Members — Methods | 5 | 12 | 0 |
 | Members — Constructors | 3 | 2 | 0 |
 | Members — Other | 0 | 5 | 0 |

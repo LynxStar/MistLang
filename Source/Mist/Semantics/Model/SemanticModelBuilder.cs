@@ -15,6 +15,11 @@ namespace Mist.Semantics.Model;
 /// </summary>
 public sealed class SemanticModelBuilder : ISemanticModelBuilder
 {
+    // ── Overloading diagnostic IDs ───────────────────────────────────────
+    internal static readonly DiagnosticId DuplicateMethodSignature = new("MIST_SM_0020");
+    internal static readonly DiagnosticId DuplicateConstructorSignature = new("MIST_SM_0021");
+    internal static readonly DiagnosticId MissingInterfaceOverload = new("MIST_SM_0022");
+
     public ISemanticModel Build(
         MistCompilation compilation,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
@@ -77,11 +82,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // implementing interfaces provides all required methods.
         Pass1_ValidateInterfaceSatisfaction(symbolTable, asts, compilation, diagnostics);
 
-        // Pass 1e: Check for member redeclarations in derived classes.
-        // After base types are resolved and cycles are broken, walk each
-        // class's ancestor chain to ensure no member name is redeclared.
-        Pass1_CheckMemberRedeclarations(symbolTable, asts, compilation, diagnostics);
-
         // Pass 1f: Check that base class constructor requirements are satisfied.
         // If a base class has explicit constructors that require parameters,
         // the derived class must provide a constructor with `: base(args)`.
@@ -110,6 +110,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     AnalyzerName: null));
             }
         }
+
+        // Post-Pass 2: Check for member redeclarations in derived classes.
+        // This runs after type resolution so that parameter types are resolved
+        // and method signatures can be compared accurately for overloading.
+        Pass1_CheckMemberRedeclarations(symbolTable, asts, compilation, diagnostics);
+
+        // Post-Pass 2: Check for duplicate method/constructor signatures.
+        // This runs after type resolution so that parameter types are resolved
+        // and signatures can be compared accurately.
+        Pass1_CheckDuplicateSignatures(symbolTable, asts, compilation, diagnostics);
 
         return new SemanticModel(
             compilation,
@@ -2242,17 +2252,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
 
                 case MethodMatchResult.MissingResult:
+                {
                     // No method with this name found anywhere in the type or its base chain.
+                    // Emit MIST_SM_0022 with the specific interface method signature.
+                    var paramSig = FormatParameterTypes(requiredMethodDecl.Parameters);
                     var missingSourceText = FindSourceTextForType(
                         typeName, symbolTable, asts, compilation);
                     var missingNode = FindDeclaringNodeForType(typeName, symbolTable);
 
+                    var message = $"'{typeName}' does not implement interface method '{requiredInterface.DisplayName}.{requiredMethod.Name}({paramSig})'.";
+
                     if (missingNode is not null)
                     {
                         diagnostics.Add(MakeDiagnosticWithLocation(
-                            "MIST_MISSING_INTERFACE_METHOD",
+                            MissingInterfaceOverload.Value,
                             DiagnosticSeverity.Error,
-                            $"'{typeName}' does not implement interface method '{requiredInterface.DisplayName}.{requiredMethod.Name}'.",
+                            message,
                             missingNode,
                             missingSourceText));
                     }
@@ -2262,28 +2277,34 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             typeName, symbolTable, asts, compilation);
 
                         diagnostics.Add(new Diagnostic(
-                            new DiagnosticId("MIST_MISSING_INTERFACE_METHOD"),
+                            MissingInterfaceOverload,
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
-                            $"'{typeName}' does not implement interface method '{requiredInterface.DisplayName}.{requiredMethod.Name}'.",
+                            message,
                             Location: null,
                             CompilationUnitPath: missingPath,
                             AnalyzerName: null));
                     }
                     break;
+                }
 
-                case MethodMatchResult.SignatureMismatch mismatch:
-                    // Method name matches but signature differs.
+                case MethodMatchResult.SignatureMismatch:
+                {
+                    // Method name matches but no overload has a matching parameter signature.
+                    // Emit MIST_SM_0022 with the specific interface method signature.
+                    var paramSig = FormatParameterTypes(requiredMethodDecl.Parameters);
                     var mismatchSourceText = FindSourceTextForType(
                         typeName, symbolTable, asts, compilation);
                     var mismatchNode = FindDeclaringNodeForType(typeName, symbolTable);
 
+                    var message = $"'{typeName}' does not implement interface method '{requiredInterface.DisplayName}.{requiredMethod.Name}({paramSig})'.";
+
                     if (mismatchNode is not null)
                     {
                         diagnostics.Add(MakeDiagnosticWithLocation(
-                            "MIST_INTERFACE_METHOD_SIGNATURE_MISMATCH",
+                            MissingInterfaceOverload.Value,
                             DiagnosticSeverity.Error,
-                            $"'{typeName}.{requiredMethod.Name}' does not match the signature required by interface '{requiredInterface.DisplayName}': expected '{mismatch.ExpectedSig}', found '{mismatch.ActualSig}'.",
+                            message,
                             mismatchNode,
                             mismatchSourceText));
                     }
@@ -2293,15 +2314,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             typeName, symbolTable, asts, compilation);
 
                         diagnostics.Add(new Diagnostic(
-                            new DiagnosticId("MIST_INTERFACE_METHOD_SIGNATURE_MISMATCH"),
+                            MissingInterfaceOverload,
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
-                            $"'{typeName}.{requiredMethod.Name}' does not match the signature required by interface '{requiredInterface.DisplayName}': expected '{mismatch.ExpectedSig}', found '{mismatch.ActualSig}'.",
+                            message,
                             Location: null,
                             CompilationUnitPath: mismatchPath,
                             AnalyzerName: null));
                     }
                     break;
+                }
             }
         }
 
@@ -2456,6 +2478,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// Searches the implementing type's member scope (and base type chain for
     /// classes) for a method matching the required interface method.
+    /// With overloading, we must check all scopes in the chain — a matching
+    /// overload might be in a base class even if the derived class has methods
+    /// with the same name but different signatures.
     /// </summary>
     private static MethodMatchResult FindMatchingMethod(
         string methodName,
@@ -2464,10 +2489,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ClassType? classType,
         SymbolTable symbolTable)
     {
+        // Track whether we found any method with the same name across all scopes.
+        var foundAnyWithName = false;
+        string? lastMismatchExpected = null;
+        string? lastMismatchActual = null;
+
         // Search the direct member scope first.
         var result = SearchScopeForMethod(methodName, requiredMethodDecl, memberScope, symbolTable);
-        if (result is not MethodMatchResult.MissingResult)
+        if (result is MethodMatchResult.MatchedResult)
             return result;
+        if (result is MethodMatchResult.SignatureMismatch directMismatch)
+        {
+            foundAnyWithName = true;
+            lastMismatchExpected = directMismatch.ExpectedSig;
+            lastMismatchActual = directMismatch.ActualSig;
+        }
 
         // For classes, walk the base type chain.
         if (classType is not null)
@@ -2476,19 +2512,30 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             while (ancestor is not null)
             {
                 result = SearchScopeForMethod(methodName, requiredMethodDecl, ancestor.MemberScope, symbolTable);
-                if (result is not MethodMatchResult.MissingResult)
+                if (result is MethodMatchResult.MatchedResult)
                     return result;
+                if (result is MethodMatchResult.SignatureMismatch ancestorMismatch)
+                {
+                    foundAnyWithName = true;
+                    lastMismatchExpected = ancestorMismatch.ExpectedSig;
+                    lastMismatchActual = ancestorMismatch.ActualSig;
+                }
 
                 ancestor = ancestor.BaseType as ClassType;
             }
         }
+
+        if (foundAnyWithName)
+            return MethodMatchResult.Mismatch(lastMismatchExpected!, lastMismatchActual!);
 
         return MethodMatchResult.Missing;
     }
 
     /// <summary>
     /// Searches a single scope for a method with the given name and checks
-    /// whether its signature matches the required interface method.
+    /// whether any overload's signature matches the required interface method.
+    /// With overloading, multiple methods may share the same name — we must
+    /// check all of them before concluding there is no match.
     /// </summary>
     private static MethodMatchResult SearchScopeForMethod(
         string methodName,
@@ -2496,10 +2543,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IScope scope,
         SymbolTable symbolTable)
     {
+        var foundAnyWithName = false;
+        string? lastActualSig = null;
+
         foreach (var member in scope.Members)
         {
             if (member.Kind != SymbolKind.Method || member.Name != methodName)
                 continue;
+
+            foundAnyWithName = true;
 
             // Found a method with the same name. Check signature.
             var memberNode = symbolTable.GetDeclaringNode(member);
@@ -2509,10 +2561,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (SignaturesMatch(requiredMethodDecl, implMethodDecl))
                 return MethodMatchResult.Matched;
 
-            // Name matches but signature differs.
+            // Track the last seen actual signature for diagnostic purposes.
+            lastActualSig = FormatMethodSignature(implMethodDecl);
+        }
+
+        if (foundAnyWithName)
+        {
+            // Name matches but no overload has a matching signature.
             var expectedSig = FormatInterfaceMethodSignature(requiredMethodDecl);
-            var actualSig = FormatMethodSignature(implMethodDecl);
-            return MethodMatchResult.Mismatch(expectedSig, actualSig);
+            return MethodMatchResult.Mismatch(expectedSig, lastActualSig ?? "()");
         }
 
         return MethodMatchResult.Missing;
@@ -2765,6 +2822,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// After base types are resolved and cycles are broken, walk each class's
     /// ancestor chain to enforce the additive-only constraint: a derived class
     /// cannot redeclare a field or method that already exists in any ancestor.
+    /// For methods, same name with a different parameter signature is a valid
+    /// overload (not a redeclaration). Only same name AND identical parameter
+    /// signature is flagged as a redeclaration error. Constructors are skipped
+    /// because they do not inherit across the class hierarchy.
     /// </summary>
     private static void Pass1_CheckMemberRedeclarations(
         SymbolTable symbolTable,
@@ -2788,9 +2849,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             foreach (var member in classType.MemberScope.Members)
             {
                 // Only check fields and methods (not constructors, parameters, etc.)
+                // Constructors don't inherit, so they are never redeclarations.
                 if (member.Kind != SymbolKind.Field && member.Kind != SymbolKind.Method)
                 {
                     continue;
+                }
+
+                // For methods, extract the parameter signature so we can distinguish
+                // overloads (same name, different signature) from true redeclarations
+                // (same name AND same signature).
+                IReadOnlyList<IType>? memberSignature = null;
+                if (member.Kind == SymbolKind.Method)
+                {
+                    memberSignature = ParameterSignature.Extract(member, symbolTable);
                 }
 
                 // Walk the ancestor chain looking for a member with the same name.
@@ -2799,38 +2870,36 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     foreach (var ancestorMember in ancestor.MemberScope.Members)
                     {
-                        if ((ancestorMember.Kind == SymbolKind.Field || ancestorMember.Kind == SymbolKind.Method)
-                            && ancestorMember.Name == member.Name)
+                        if (ancestorMember.Name != member.Name)
                         {
-                            var memberNode = symbolTable.GetDeclaringNode(member);
-                            var redeclSourceText = FindSourceTextForClassType(
-                                classType, symbolTable, asts, compilation);
+                            continue;
+                        }
 
-                            if (memberNode is not null)
+                        // Fields use name-only matching (unchanged behavior).
+                        if (member.Kind == SymbolKind.Field && ancestorMember.Kind == SymbolKind.Field)
+                        {
+                            EmitRedeclarationDiagnostic(classType, member, ancestor, symbolTable, asts, compilation, diagnostics);
+                            goto nextMember;
+                        }
+
+                        // Methods: only a redeclaration if the parameter signatures match.
+                        // Same name with a different signature is a valid overload.
+                        if (member.Kind == SymbolKind.Method && ancestorMember.Kind == SymbolKind.Method)
+                        {
+                            var ancestorSignature = ParameterSignature.Extract(ancestorMember, symbolTable);
+                            if (ParameterSignature.AreEqual(memberSignature!, ancestorSignature))
                             {
-                                diagnostics.Add(MakeDiagnosticWithLocation(
-                                    "MIST_MEMBER_REDECLARATION",
-                                    DiagnosticSeverity.Error,
-                                    $"'{classType.DisplayName}' cannot redeclare member '{member.Name}' already defined in '{ancestor.DisplayName}'.",
-                                    memberNode,
-                                    redeclSourceText));
+                                EmitRedeclarationDiagnostic(classType, member, ancestor, symbolTable, asts, compilation, diagnostics);
+                                goto nextMember;
                             }
-                            else
-                            {
-                                string? compilationUnitPath = FindCompilationUnitPathForClass(
-                                    classType, symbolTable, asts, compilation);
+                            // Different signature — valid overload, keep checking other ancestors.
+                            continue;
+                        }
 
-                                diagnostics.Add(new Diagnostic(
-                                    new DiagnosticId("MIST_MEMBER_REDECLARATION"),
-                                    DiagnosticSeverity.Error,
-                                    PipelineStage.SemanticModelConstruction,
-                                    $"'{classType.DisplayName}' cannot redeclare member '{member.Name}' already defined in '{ancestor.DisplayName}'.",
-                                    Location: null,
-                                    CompilationUnitPath: compilationUnitPath,
-                                    AnalyzerName: null));
-                            }
-
-                            // Stop walking ancestors for this member once we find the first conflict.
+                        // Cross-kind conflict (e.g. field in derived vs method in base with same name).
+                        if ((ancestorMember.Kind == SymbolKind.Field || ancestorMember.Kind == SymbolKind.Method))
+                        {
+                            EmitRedeclarationDiagnostic(classType, member, ancestor, symbolTable, asts, compilation, diagnostics);
                             goto nextMember;
                         }
                     }
@@ -2840,6 +2909,48 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 nextMember:;
             }
+        }
+    }
+
+    /// <summary>
+    /// Emits a <c>MIST_MEMBER_REDECLARATION</c> diagnostic for a member that
+    /// conflicts with an ancestor member.
+    /// </summary>
+    private static void EmitRedeclarationDiagnostic(
+        ClassType classType,
+        ISymbol member,
+        ClassType ancestor,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        var memberNode = symbolTable.GetDeclaringNode(member);
+        var redeclSourceText = FindSourceTextForClassType(
+            classType, symbolTable, asts, compilation);
+
+        if (memberNode is not null)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                "MIST_MEMBER_REDECLARATION",
+                DiagnosticSeverity.Error,
+                $"'{classType.DisplayName}' cannot redeclare member '{member.Name}' already defined in '{ancestor.DisplayName}'.",
+                memberNode,
+                redeclSourceText));
+        }
+        else
+        {
+            string? compilationUnitPath = FindCompilationUnitPathForClass(
+                classType, symbolTable, asts, compilation);
+
+            diagnostics.Add(new Diagnostic(
+                new DiagnosticId("MIST_MEMBER_REDECLARATION"),
+                DiagnosticSeverity.Error,
+                PipelineStage.SemanticModelConstruction,
+                $"'{classType.DisplayName}' cannot redeclare member '{member.Name}' already defined in '{ancestor.DisplayName}'.",
+                Location: null,
+                CompilationUnitPath: compilationUnitPath,
+                AnalyzerName: null));
         }
     }
 
@@ -2987,6 +3098,154 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         $"Base class '{baseType.DisplayName}' requires constructor arguments that are not provided.",
                         ctorDecl,
                         ctorSourceText));
+                }
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Post-Pass 2 — Check duplicate method/constructor signatures
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// After Pass 2 (type resolution), check for duplicate method and constructor
+    /// signatures within each type scope. Two methods with the same name and
+    /// identical parameter types are a duplicate; two constructors with identical
+    /// parameter types are a duplicate.
+    /// </summary>
+    private static void Pass1_CheckDuplicateSignatures(
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            IScope memberScope;
+            string typeName;
+
+            switch (symbol.Kind)
+            {
+                case SymbolKind.Class when symbol.DeclaredType is ClassType classType:
+                    memberScope = classType.MemberScope;
+                    typeName = classType.DisplayName;
+                    break;
+                case SymbolKind.Struct when symbol.DeclaredType is StructType structType:
+                    memberScope = structType.MemberScope;
+                    typeName = structType.DisplayName;
+                    break;
+                case SymbolKind.Interface when symbol.DeclaredType is InterfaceType interfaceType:
+                    memberScope = interfaceType.MemberScope;
+                    typeName = interfaceType.DisplayName;
+                    break;
+                default:
+                    continue;
+            }
+
+            // Check duplicate method signatures: group methods by name.
+            var methods = memberScope.Members
+                .Where(m => m.Kind == SymbolKind.Method)
+                .ToList();
+
+            var methodGroups = methods.GroupBy(m => m.Name);
+            foreach (var group in methodGroups)
+            {
+                var groupList = group.ToList();
+                if (groupList.Count <= 1)
+                    continue;
+
+                CheckDuplicatePairs(
+                    groupList, typeName, isConstructor: false,
+                    symbolTable, asts, compilation, diagnostics);
+            }
+
+            // Check duplicate constructor signatures.
+            var constructors = memberScope.Members
+                .Where(m => m.Kind == SymbolKind.Constructor)
+                .ToList();
+
+            if (constructors.Count > 1)
+            {
+                CheckDuplicatePairs(
+                    constructors, typeName, isConstructor: true,
+                    symbolTable, asts, compilation, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks all pairs of symbols in the list for identical parameter signatures
+    /// and emits the appropriate duplicate diagnostic for each match.
+    /// </summary>
+    private static void CheckDuplicatePairs(
+        List<ISymbol> symbols,
+        string typeName,
+        bool isConstructor,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // Pre-extract signatures for all symbols to avoid redundant extraction.
+        var signatures = new IReadOnlyList<IType>[symbols.Count];
+        for (var i = 0; i < symbols.Count; i++)
+        {
+            signatures[i] = ParameterSignature.Extract(symbols[i], symbolTable);
+        }
+
+        // Track which symbols have already been reported as duplicates
+        // to avoid emitting multiple diagnostics for the same pair.
+        var reported = new HashSet<int>();
+
+        for (var i = 0; i < symbols.Count; i++)
+        {
+            for (var j = i + 1; j < symbols.Count; j++)
+            {
+                if (reported.Contains(j))
+                    continue;
+
+                if (!ParameterSignature.AreEqual(signatures[i], signatures[j]))
+                    continue;
+
+                // Found a duplicate — emit diagnostic on the second (later) declaration.
+                reported.Add(j);
+
+                var diagnosticId = isConstructor
+                    ? DuplicateConstructorSignature
+                    : DuplicateMethodSignature;
+
+                var paramTypeNames = string.Join(", ", signatures[j].Select(t => t.DisplayName));
+
+                var message = isConstructor
+                    ? $"Type '{typeName}' already defines a constructor with parameter types ({paramTypeNames})"
+                    : $"Type '{typeName}' already defines method '{symbols[j].Name}' with parameter types ({paramTypeNames})";
+
+                var duplicateNode = symbolTable.GetDeclaringNode(symbols[j]);
+                var sourceText = FindSourceTextForType(
+                    typeName, symbolTable, asts, compilation);
+
+                if (duplicateNode is not null)
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        diagnosticId.Value,
+                        DiagnosticSeverity.Error,
+                        message,
+                        duplicateNode,
+                        sourceText));
+                }
+                else
+                {
+                    var compilationUnitPath = FindCompilationUnitPathForType(
+                        typeName, symbolTable, asts, compilation);
+
+                    diagnostics.Add(new Diagnostic(
+                        diagnosticId,
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        message,
+                        Location: null,
+                        CompilationUnitPath: compilationUnitPath,
+                        AnalyzerName: null));
                 }
             }
         }
@@ -3270,6 +3529,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if (methodSymbol is not null)
                     {
                         methodSymbol.DeclaredType = returnType;
+                    }
+
+                    // Register parameters so ParameterSignature.Extract can resolve
+                    // parameter types for overload duplicate-signature detection.
+                    if (methodDecl.Parameters is not null)
+                    {
+                        var methodScope = new Scope(parent: fileScope);
+                        RegisterParameters(methodDecl.Parameters, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                     }
                     break;
                 }

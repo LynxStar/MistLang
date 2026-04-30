@@ -1,0 +1,114 @@
+using Mist.Generated;
+using Mist.Semantics.Contracts;
+
+namespace Mist.Semantics.Model;
+
+/// <summary>
+/// Extracts and compares parameter signatures for overload resolution.
+/// A parameter signature is the ordered list of parameter types,
+/// excluding return type and parameter names.
+/// </summary>
+public static class ParameterSignature
+{
+    /// <summary>
+    /// Extracts the parameter types from a method or constructor's declaring AST node.
+    /// Returns an empty list for parameterless methods/constructors.
+    /// </summary>
+    public static IReadOnlyList<IType> Extract(ISymbol symbol, ISemanticModel model)
+    {
+        Storm.Runtime.SyntaxNode declaringNode;
+        try
+        {
+            declaringNode = model.GetDeclaringNode(symbol);
+        }
+        catch
+        {
+            return Array.Empty<IType>();
+        }
+
+        var paramList = GetParameterList(declaringNode);
+        if (paramList is null)
+            return Array.Empty<IType>();
+
+        var types = new List<IType>();
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode paramNode)
+            {
+                var paramSymbol = model.GetDeclaredSymbol(paramNode);
+                if (paramSymbol?.DeclaredType is { } paramType)
+                {
+                    types.Add(paramType);
+                }
+            }
+        }
+
+        return types;
+    }
+
+    /// <summary>
+    /// Extracts the parameter types from a method or constructor's declaring AST node
+    /// using a <see cref="SymbolTable"/> directly. This overload is used during semantic
+    /// model construction (before the <see cref="ISemanticModel"/> is built).
+    /// Returns an empty list for parameterless methods/constructors.
+    /// </summary>
+    public static IReadOnlyList<IType> Extract(ISymbol symbol, SymbolTable symbolTable)
+    {
+        var declaringNode = symbolTable.GetDeclaringNode(symbol);
+        if (declaringNode is null)
+            return Array.Empty<IType>();
+
+        var paramList = GetParameterList(declaringNode);
+        if (paramList is null)
+            return Array.Empty<IType>();
+
+        var types = new List<IType>();
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode paramNode)
+            {
+                var paramSymbol = symbolTable.GetDeclaredSymbol(paramNode);
+                if (paramSymbol?.DeclaredType is { } paramType)
+                {
+                    types.Add(paramType);
+                }
+            }
+        }
+
+        return types;
+    }
+
+    /// <summary>
+    /// Returns true if two parameter signatures are identical
+    /// (same count, same types in order by DisplayName).
+    /// </summary>
+    public static bool AreEqual(IReadOnlyList<IType> a, IReadOnlyList<IType> b)
+    {
+        if (a.Count != b.Count)
+            return false;
+
+        for (var i = 0; i < a.Count; i++)
+        {
+            if (a[i].DisplayName != b[i].DisplayName)
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Extracts the ParameterListNode from a declaring AST node,
+    /// handling MethodDeclarationNode, ConstructorDeclarationNode,
+    /// and InterfaceMethodDeclarationNode.
+    /// </summary>
+    private static ParameterListNode? GetParameterList(Storm.Runtime.SyntaxNode declaringNode)
+    {
+        return declaringNode switch
+        {
+            MethodDeclarationNode method => method.Parameters,
+            ConstructorDeclarationNode ctor => ctor.Parameters,
+            InterfaceMethodDeclarationNode interfaceMethod => interfaceMethod.Parameters,
+            _ => null,
+        };
+    }
+}

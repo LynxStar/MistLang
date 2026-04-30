@@ -22,9 +22,9 @@ namespace Mist.Tests.Semantics;
 /// (directly or transitively through interface inheritance), if the implementing
 /// type (or, for classes, any of its base types) provides a method matching every
 /// required interface method's signature (name, return type, and parameter types),
-/// then the semantic model builder SHALL emit no MIST_MISSING_INTERFACE_METHOD
+/// then the semantic model builder SHALL emit no MIST_SM_0022
 /// diagnostics. Conversely, for each required method that is not provided, exactly
-/// one MIST_MISSING_INTERFACE_METHOD diagnostic SHALL be emitted.
+/// one MIST_SM_0022 diagnostic SHALL be emitted.
 /// </summary>
 public class InterfaceSatisfactionPropertyTests
 {
@@ -394,7 +394,7 @@ public class InterfaceSatisfactionPropertyTests
     /// <summary>
     /// Property 6a: For any class or struct that implements an interface and
     /// provides all required methods, the semantic model builder SHALL emit
-    /// no MIST_MISSING_INTERFACE_METHOD diagnostics.
+    /// no MIST_SM_0022 diagnostics.
     ///
     /// **Validates: Requirements 7.1**
     /// </summary>
@@ -431,7 +431,7 @@ public class InterfaceSatisfactionPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var missingMethodDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_MISSING_INTERFACE_METHOD")
+            .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
 
         return missingMethodDiags.Count == 0;
@@ -440,7 +440,7 @@ public class InterfaceSatisfactionPropertyTests
     /// <summary>
     /// Property 6b: For any class or struct that implements an interface but
     /// is missing one or more required methods, the semantic model builder
-    /// SHALL emit exactly one MIST_MISSING_INTERFACE_METHOD diagnostic for
+    /// SHALL emit exactly one MIST_SM_0022 diagnostic for
     /// each missing method.
     ///
     /// **Validates: Requirements 7.1, 7.4**
@@ -478,7 +478,7 @@ public class InterfaceSatisfactionPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var missingMethodDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_MISSING_INTERFACE_METHOD")
+            .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
 
         // Exactly one diagnostic per missing method
@@ -505,7 +505,7 @@ public class InterfaceSatisfactionPropertyTests
     /// <summary>
     /// Property 6c: For any class that implements an interface where the base
     /// class provides all required methods, the semantic model builder SHALL
-    /// emit no MIST_MISSING_INTERFACE_METHOD diagnostics.
+    /// emit no MIST_SM_0022 diagnostics.
     ///
     /// **Validates: Requirements 7.1, 7.3**
     /// </summary>
@@ -630,7 +630,7 @@ public class InterfaceSatisfactionPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var missingMethodDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_MISSING_INTERFACE_METHOD")
+            .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
 
         return missingMethodDiags.Count == 0;
@@ -640,7 +640,7 @@ public class InterfaceSatisfactionPropertyTests
     /// Property 6d: For any class or struct that implements an interface which
     /// inherits from another interface (transitive), if the implementing type
     /// provides methods for all transitively required methods, the semantic
-    /// model builder SHALL emit no MIST_MISSING_INTERFACE_METHOD diagnostics.
+    /// model builder SHALL emit no MIST_SM_0022 diagnostics.
     ///
     /// **Validates: Requirements 7.1, 7.2**
     /// </summary>
@@ -688,7 +688,7 @@ public class InterfaceSatisfactionPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var missingMethodDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_MISSING_INTERFACE_METHOD")
+            .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
 
         return missingMethodDiags.Count == 0;
@@ -710,7 +710,7 @@ public class InterfaceSatisfactionPropertyTests
         var ast = MakeCompilationUnit(WrapInterface(interfaceDecl), WrapClass(classDecl));
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_MISSING_INTERFACE_METHOD");
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_SM_0022");
     }
 
     [Fact]
@@ -727,7 +727,7 @@ public class InterfaceSatisfactionPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var missingDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_MISSING_INTERFACE_METHOD")
+            .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
         Assert.Single(missingDiags);
         Assert.Contains("Process", missingDiags[0].Message);
@@ -749,7 +749,7 @@ public class InterfaceSatisfactionPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var missingDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_MISSING_INTERFACE_METHOD")
+            .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
         Assert.Equal(3, missingDiags.Count);
         Assert.Contains(missingDiags, d => d.Message.Contains("DoWork"));
@@ -770,7 +770,7 @@ public class InterfaceSatisfactionPropertyTests
         var ast = MakeCompilationUnit(WrapInterface(interfaceDecl), WrapStruct(structDecl));
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_MISSING_INTERFACE_METHOD");
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_SM_0022");
     }
 
     [Fact]
@@ -785,7 +785,7 @@ public class InterfaceSatisfactionPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var missingDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_MISSING_INTERFACE_METHOD")
+            .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
         Assert.Single(missingDiags);
         Assert.Contains("CompareTo", missingDiags[0].Message);
@@ -822,7 +822,7 @@ public class InterfaceSatisfactionPropertyTests
 
         // The base class should have no missing method diagnostics
         var missingDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_MISSING_INTERFACE_METHOD")
+            .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
         Assert.Empty(missingDiags);
 
@@ -856,7 +856,7 @@ public class InterfaceSatisfactionPropertyTests
             WrapClass(classDecl));
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_MISSING_INTERFACE_METHOD");
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_SM_0022");
     }
 
     [Fact]
@@ -881,7 +881,7 @@ public class InterfaceSatisfactionPropertyTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         var missingDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_MISSING_INTERFACE_METHOD")
+            .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
         Assert.Single(missingDiags);
         Assert.Contains("BaseMethod", missingDiags[0].Message);
@@ -898,6 +898,6 @@ public class InterfaceSatisfactionPropertyTests
         var ast = MakeCompilationUnit(WrapInterface(interfaceDecl), WrapClass(classDecl));
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_MISSING_INTERFACE_METHOD");
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_SM_0022");
     }
 }

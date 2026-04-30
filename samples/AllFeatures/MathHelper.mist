@@ -1,0 +1,46 @@
+// MathHelper — Demonstrates method overloading with a static utility class
+// and cross-hierarchy overloading with inheritance.
+
+using System;
+
+namespace AllFeatures;
+
+public class MathHelper
+{
+    // Overloaded static methods: same name, different parameter counts/types
+    public static int Add(int a, int b)
+    {
+        return a + b;
+    }
+
+    public static double Add(double a, double b)
+    {
+        return a + b;
+    }
+
+    public static int Clamp(int value, int min, int max)
+    {
+        if (value < min)
+        {
+            return min;
+        }
+        if (value > max)
+        {
+            return max;
+        }
+        return value;
+    }
+
+    public static double Clamp(double value, double min, double max)
+    {
+        if (value < min)
+        {
+            return min;
+        }
+        if (value > max)
+        {
+            return max;
+        }
+        return value;
+    }
+}

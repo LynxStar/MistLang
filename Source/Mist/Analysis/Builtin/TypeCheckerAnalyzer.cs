@@ -3,6 +3,7 @@ using Mist.Analysis.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
+using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
@@ -16,6 +17,10 @@ namespace Mist.Analysis.Builtin;
 public sealed class TypeCheckerAnalyzer : IAnalyzer
 {
     public string AnalyzerId => "TypeChecker";
+
+    // ── Overloading diagnostic IDs ───────────────────────────────────────
+    internal static readonly DiagnosticId NoApplicableOverload = new("MIST_TC_0031");
+    internal static readonly DiagnosticId AmbiguousOverload = new("MIST_TC_0032");
 
     // ── Numeric types for operator checking ──────────────────────────────
     private static readonly HashSet<IType> NumericTypes =
@@ -1739,7 +1744,49 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (methodSymbol is null || methodSymbol.Kind != SymbolKind.Method)
             return;
 
-        CheckArgumentTypes(methodCall.Arguments, methodSymbol, model, diagnostics, methodCall);
+        var methodName = methodCall.Name.Lexeme;
+
+        // Collect the full overload set from the target type (and inherited methods from base types).
+        var candidates = CollectMethodOverloads(targetType, methodName);
+
+        // If there are multiple candidates, use overload resolution.
+        if (candidates.Count > 1)
+        {
+            var argTypes = CollectArgumentTypes(methodCall.Arguments, model);
+            var result = OverloadResolver.Resolve(candidates, argTypes, model);
+
+            switch (result.Status)
+            {
+                case OverloadResolutionStatus.NoApplicableCandidate:
+                    var argTypeNames = string.Join(", ", argTypes.Select(t => t.DisplayName));
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0031",
+                        $"No overload for '{methodName}' matches argument types ({argTypeNames})",
+                        (SyntaxNode)methodCall,
+                        model));
+                    return;
+
+                case OverloadResolutionStatus.AmbiguousCall:
+                    var sigs = result.AmbiguousCandidates!
+                        .Select(c => FormatCandidateSignature(c, methodName, model));
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0032",
+                        $"Call to '{methodName}' is ambiguous between: {string.Join(" and ", sigs)}",
+                        (SyntaxNode)methodCall,
+                        model));
+                    return;
+
+                case OverloadResolutionStatus.Success:
+                    // Resolved successfully — proceed with the resolved symbol for further type checking.
+                    CheckArgumentTypes(methodCall.Arguments, result.BestCandidate!, model, diagnostics, methodCall);
+                    return;
+            }
+        }
+        else
+        {
+            // Single candidate — preserve existing single-method diagnostics (MIST_TC_0002).
+            CheckArgumentTypes(methodCall.Arguments, methodSymbol, model, diagnostics, methodCall);
+        }
     }
 
     private void CheckInvocationArguments(
@@ -1761,7 +1808,49 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if (invokedSymbol.Kind == SymbolKind.Method)
         {
-            CheckArgumentTypes(invocation.Arguments, invokedSymbol, model, diagnostics, invocation);
+            var methodName = invokedSymbol.Name;
+
+            // Collect the full overload set from the target type (and inherited methods from base types).
+            var candidates = CollectMethodOverloads(targetType, methodName);
+
+            // If there are multiple candidates, use overload resolution.
+            if (candidates.Count > 1)
+            {
+                var argTypes = CollectArgumentTypes(invocation.Arguments, model);
+                var result = OverloadResolver.Resolve(candidates, argTypes, model);
+
+                switch (result.Status)
+                {
+                    case OverloadResolutionStatus.NoApplicableCandidate:
+                        var argTypeNames = string.Join(", ", argTypes.Select(t => t.DisplayName));
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0031",
+                            $"No overload for '{methodName}' matches argument types ({argTypeNames})",
+                            (SyntaxNode)invocation,
+                            model));
+                        return;
+
+                    case OverloadResolutionStatus.AmbiguousCall:
+                        var sigs = result.AmbiguousCandidates!
+                            .Select(c => FormatCandidateSignature(c, methodName, model));
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0032",
+                            $"Call to '{methodName}' is ambiguous between: {string.Join(" and ", sigs)}",
+                            (SyntaxNode)invocation,
+                            model));
+                        return;
+
+                    case OverloadResolutionStatus.Success:
+                        // Resolved successfully — proceed with the resolved symbol for further type checking.
+                        CheckArgumentTypes(invocation.Arguments, result.BestCandidate!, model, diagnostics, invocation);
+                        return;
+                }
+            }
+            else
+            {
+                // Single candidate — preserve existing single-method diagnostics (MIST_TC_0002).
+                CheckArgumentTypes(invocation.Arguments, invokedSymbol, model, diagnostics, invocation);
+            }
         }
     }
 
@@ -1916,24 +2005,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (createdType is null || IsUnknown(createdType))
             return;
 
-        // Find constructors on the type.
-        IScope? memberScope = createdType switch
-        {
-            ClassType ct => ct.MemberScope,
-            StructType st => st.MemberScope,
-            _ => null,
-        };
-
-        if (memberScope is null)
-            return;
+        // Collect all constructors from the target type's member scope.
+        var constructors = CollectConstructorOverloads(createdType);
 
         // Collect argument types.
         var argTypes = CollectArgumentTypes(objectCreation.Arguments, model);
-
-        // Find matching constructor.
-        var constructors = memberScope.Members
-            .Where(m => m.Kind == SymbolKind.Constructor)
-            .ToList();
 
         if (constructors.Count == 0)
         {
@@ -1950,15 +2026,50 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        // Check if any constructor matches the argument types.
-        var hasMatch = constructors.Any(ctor => ConstructorMatches(ctor, argTypes, model));
-        if (!hasMatch)
+        // When multiple constructors exist, use overload resolution.
+        if (constructors.Count > 1)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0011",
-                $"Type '{createdType.DisplayName}' does not contain a constructor matching the given arguments",
-                objectCreation,
-                model));
+            var result = OverloadResolver.Resolve(constructors, argTypes, model);
+            var typeName = createdType.DisplayName;
+
+            switch (result.Status)
+            {
+                case OverloadResolutionStatus.NoApplicableCandidate:
+                    var argTypeNames = string.Join(", ", argTypes.Select(t => t.DisplayName));
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0031",
+                        $"No overload for '{typeName}' constructor matches argument types ({argTypeNames})",
+                        objectCreation,
+                        model));
+                    return;
+
+                case OverloadResolutionStatus.AmbiguousCall:
+                    var sigs = result.AmbiguousCandidates!
+                        .Select(c => FormatCandidateSignature(c, typeName, model));
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0032",
+                        $"Call to '{typeName}' constructor is ambiguous between: {string.Join(" and ", sigs)}",
+                        objectCreation,
+                        model));
+                    return;
+
+                case OverloadResolutionStatus.Success:
+                    // Resolved successfully — no diagnostic needed.
+                    return;
+            }
+        }
+        else
+        {
+            // Single constructor — preserve existing behavior with MIST_TC_0011.
+            var hasMatch = ConstructorMatches(constructors[0], argTypes, model);
+            if (!hasMatch)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0011",
+                    $"Type '{createdType.DisplayName}' does not contain a constructor matching the given arguments",
+                    objectCreation,
+                    model));
+            }
         }
     }
 
@@ -2017,14 +2128,64 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             ? memberScope.Members.Where(m => m.Kind == SymbolKind.Constructor).ToList()
             : memberScope.Members.Where(m => m.Kind == SymbolKind.Constructor && !ReferenceEquals(m, ctorSymbol)).ToList();
 
-        var hasMatch = candidateConstructors.Any(ctor => ConstructorMatches(ctor, argTypes, model));
-        if (!hasMatch)
+        if (candidateConstructors.Count == 0)
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0013",
-                $"No constructor on '{targetType.DisplayName}' matches the chained arguments",
-                chain,
-                model));
+            // No constructors available — only an error if arguments were provided.
+            if (argTypes.Count > 0)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0013",
+                    $"No constructor on '{targetType.DisplayName}' matches the chained arguments",
+                    chain,
+                    model));
+            }
+            return;
+        }
+
+        // When multiple constructors exist, use overload resolution.
+        if (candidateConstructors.Count > 1)
+        {
+            var result = OverloadResolver.Resolve(candidateConstructors, argTypes, model);
+            var typeName = targetType.DisplayName;
+
+            switch (result.Status)
+            {
+                case OverloadResolutionStatus.NoApplicableCandidate:
+                    var argTypeNames = string.Join(", ", argTypes.Select(t => t.DisplayName));
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0031",
+                        $"No overload for '{typeName}' constructor matches argument types ({argTypeNames})",
+                        chain,
+                        model));
+                    return;
+
+                case OverloadResolutionStatus.AmbiguousCall:
+                    var sigs = result.AmbiguousCandidates!
+                        .Select(c => FormatCandidateSignature(c, typeName, model));
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0032",
+                        $"Call to '{typeName}' constructor is ambiguous between: {string.Join(" and ", sigs)}",
+                        chain,
+                        model));
+                    return;
+
+                case OverloadResolutionStatus.Success:
+                    // Resolved successfully — no diagnostic needed.
+                    return;
+            }
+        }
+        else
+        {
+            // Single constructor — preserve existing behavior with MIST_TC_0013.
+            var hasMatch = ConstructorMatches(candidateConstructors[0], argTypes, model);
+            if (!hasMatch)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0013",
+                    $"No constructor on '{targetType.DisplayName}' matches the chained arguments",
+                    chain,
+                    model));
+            }
         }
     }
 
@@ -2348,7 +2509,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// - Either is UnknownType (error suppression)
     /// - Subtype assignability: derived class assignable to any ancestor class
     /// </summary>
-    private static bool IsAssignable(IType source, IType target)
+    internal static bool IsAssignable(IType source, IType target)
     {
         // UnknownType suppresses cascading errors.
         if (IsUnknown(source) || IsUnknown(target))
@@ -2588,6 +2749,93 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         return types;
+    }
+
+    /// <summary>
+    /// Collects all method symbols with the given name from the target type's member scope
+    /// and inherited methods from base types (walking the base type chain).
+    /// </summary>
+    private static List<ISymbol> CollectMethodOverloads(IType? targetType, string methodName)
+    {
+        var results = new List<ISymbol>();
+        if (targetType is null)
+            return results;
+
+        // Collect from the target type's own member scope.
+        var memberScope = targetType switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            InterfaceType it => it.MemberScope,
+            _ => null,
+        };
+
+        if (memberScope is not null)
+        {
+            foreach (var member in memberScope.Members)
+            {
+                if (member.Kind == SymbolKind.Method && member.Name == methodName)
+                    results.Add(member);
+            }
+        }
+
+        // Walk the base type chain to collect inherited methods.
+        if (targetType is ClassType classType)
+        {
+            var baseType = classType.BaseType;
+            while (baseType is not null)
+            {
+                var baseScope = baseType.MemberScope;
+                foreach (var member in baseScope.Members)
+                {
+                    if (member.Kind == SymbolKind.Method && member.Name == methodName)
+                        results.Add(member);
+                }
+                baseType = baseType.BaseType;
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Collects all constructor symbols from the target type's member scope.
+    /// Unlike methods, constructors are not inherited from base types.
+    /// </summary>
+    private static List<ISymbol> CollectConstructorOverloads(IType? targetType)
+    {
+        var results = new List<ISymbol>();
+        if (targetType is null)
+            return results;
+
+        var memberScope = targetType switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            _ => null,
+        };
+
+        if (memberScope is null)
+            return results;
+
+        foreach (var member in memberScope.Members)
+        {
+            if (member.Kind == SymbolKind.Constructor)
+                results.Add(member);
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Formats a candidate method symbol's signature for diagnostic messages.
+    /// Example: "Print(int)" or "Print(string, int)"
+    /// </summary>
+    private static string FormatCandidateSignature(ISymbol candidate, string methodName, ISemanticModel model)
+    {
+        var paramTypes = ParameterSignature.Extract(candidate, model);
+        var typeNames = string.Join(", ", paramTypes.Select(t => t.DisplayName));
+        return $"{methodName}({typeNames})";
     }
 
     /// <summary>

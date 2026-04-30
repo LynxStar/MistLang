@@ -37,6 +37,30 @@ public sealed class Scope : IScope
         return Parent?.Lookup(name);
     }
 
+    public IReadOnlyList<ISymbol> LookupAll(string name)
+    {
+        var results = new List<ISymbol>();
+        CollectAll(name, results);
+        return results;
+    }
+
+    private void CollectAll(string name, List<ISymbol> results)
+    {
+        foreach (var member in _members)
+        {
+            if (member.Name == name)
+                results.Add(member);
+        }
+
+        if (Parent is Scope parentScope)
+            parentScope.CollectAll(name, results);
+        else if (Parent is not null)
+        {
+            var parentResults = Parent.LookupAll(name);
+            results.AddRange(parentResults);
+        }
+    }
+
     internal void AddMember(ISymbol symbol)
     {
         _members.Add(symbol);

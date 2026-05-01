@@ -323,7 +323,7 @@ public class TypeCheckerPropertyTests
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = mainStatements },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = mainStatements } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -364,7 +364,7 @@ public class TypeCheckerPropertyTests
             Name = MakeToken(methodName),
             ReturnType = returnType,
             Parameters = parameters,
-            Body = new BlockNode { Statements = methodStatements },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = methodStatements } },
             Modifiers = methodModifiers.ToImmutable(),
         };
 
@@ -373,7 +373,7 @@ public class TypeCheckerPropertyTests
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = mainStatements ?? ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = mainStatements ?? ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),

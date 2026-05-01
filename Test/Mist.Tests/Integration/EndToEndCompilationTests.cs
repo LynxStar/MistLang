@@ -269,7 +269,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -356,10 +356,10 @@ public sealed class EndToEndCompilationTests : IDisposable
                 PrimitiveType = new StringTypePrimitiveTypeNode(),
             },
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create<StatementNode>(returnStmt),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -369,7 +369,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -447,7 +447,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -513,7 +513,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -582,7 +582,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -650,7 +650,7 @@ public sealed class EndToEndCompilationTests : IDisposable
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
             },
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create<StatementNode>(
                     new ReturnStatementStatementNode
@@ -660,7 +660,7 @@ public sealed class EndToEndCompilationTests : IDisposable
                             Value = MakeIntLiteralExpression("42"),
                         },
                     }),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -690,7 +690,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -767,7 +767,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -838,7 +838,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -893,7 +893,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),

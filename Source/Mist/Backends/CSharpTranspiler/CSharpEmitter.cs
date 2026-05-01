@@ -340,10 +340,12 @@ internal sealed class CSharpSourceWriter
                 switch (member)
                 {
                     case MethodMemberMemberDeclarationNode methodMember:
-                        ScanBlockForValueReturningCalls(methodMember.Method.Body, voidMethodNames);
+                        if (methodMember.Method.Body.GetBlock() is BlockNode mb)
+                            ScanBlockForValueReturningCalls(mb, voidMethodNames);
                         break;
                     case ConstructorMemberMemberDeclarationNode ctorMember:
-                        ScanBlockForValueReturningCalls(ctorMember.Constructor.Body, voidMethodNames);
+                        if (ctorMember.Constructor.Body.GetBlock() is BlockNode cb)
+                            ScanBlockForValueReturningCalls(cb, voidMethodNames);
                         break;
                 }
             }
@@ -907,7 +909,16 @@ internal sealed class CSharpSourceWriter
         }
 
         AppendLine($"{modifiers}{name}({parameters}){chain}");
-        EmitBlock(ctorDecl.Body);
+        if (ctorDecl.Body.GetBlock() is BlockNode block)
+        {
+            EmitBlock(block);
+        }
+        else
+        {
+            // No-body form (;) — grammar permits this for intrinsic members;
+            // semantic validation handles whether it is legal on this decl.
+            AppendLine(";");
+        }
     }
 
     private void EmitMethodDeclaration(MethodDeclarationNode methodDecl)
@@ -934,7 +945,15 @@ internal sealed class CSharpSourceWriter
         var previousFlag = _inValueReturningVoidMethod;
         _inValueReturningVoidMethod = isValueReturningVoid;
 
-        EmitMethodBlock(methodDecl.Body, isValueReturningVoid);
+        if (methodDecl.Body.GetBlock() is BlockNode block)
+        {
+            EmitMethodBlock(block, isValueReturningVoid);
+        }
+        else
+        {
+            // No-body form (;) — grammar permits this for intrinsic members.
+            AppendLine(";");
+        }
 
         _inValueReturningVoidMethod = previousFlag;
     }

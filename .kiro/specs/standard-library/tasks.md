@@ -19,63 +19,63 @@ Stages:
 
 ### Stage 1 — Grammar and intrinsic plumbing
 
-- [~] 1. Add `intrinsic` and `operator` reserved keyword tokens
+- [x] 1. Add `intrinsic` and `operator` reserved keyword tokens
     Add two new reserved keyword tokens to `Source/Mist/Grammar/keywords.storm`: `INTRINSIC = "intrinsic";` and `OPERATOR = "operator";`. Place them adjacent to existing modifier keywords (`PUBLIC`, `STATIC`, etc.). Both are reserved (not contextual), so they can never be used as identifiers. Requirement 5.14 mandates that `intrinsic` is defined in exactly one place — `keywords.storm` is that place. Regenerate the lexer so the new tokens are recognized. See design § *Components and Interfaces → 1. Grammar changes*.
-    - [~] 1.1 Unit test: lexer tokenizes `intrinsic` as `INTRINSIC`, `operator` as `OPERATOR`, and rejects them as identifiers.
+    - [x] 1.1 Unit test: lexer tokenizes `intrinsic` as `INTRINSIC`, `operator` as `OPERATOR`, and rejects them as identifiers.
     _Requirements: 5.14, 4.1_
 
-- [ ] 2. Extend `Modifier` grammar rule to accept `intrinsic`
+- [x] 2. Extend `Modifier` grammar rule to accept `intrinsic`
     In `Source/Mist/Grammar/Mist.storm`, add `| INTRINSIC as IntrinsicModifier` to the `Modifier` sum type (currently accepting `PUBLIC`, `PRIVATE`, `STATIC`). This single rule change lets `intrinsic` appear at both type level (because `ClassDeclaration`/`StructDeclaration` prefix `modifiers:Modifier*`) and member level (because `MethodDeclaration`/`ConstructorDeclaration` and the new `OperatorDeclaration` all prefix `modifiers:Modifier*`). No separate grammar rule is needed for type vs member placement. Regenerate the parser. See design § 1.
-    - [ ] 2.1 Unit test: parser accepts `intrinsic public struct Int32 { }` and `intrinsic public static Int32 operator +(Int32 a, Int32 b);` and produces AST nodes containing `IntrinsicModifier` in the modifier list.
+    - [x] 2.1 Unit test: parser accepts `intrinsic public struct Int32 { }` and `intrinsic public static Int32 operator +(Int32 a, Int32 b);` and produces AST nodes containing `IntrinsicModifier` in the modifier list.
     _Requirements: 5.1, 5.11_
 
-- [ ] 3. Add `OperatorDeclaration` grammar rule and wire it into `MemberDeclaration`
+- [x] 3. Add `OperatorDeclaration` grammar rule and wire it into `MemberDeclaration`
     In `Source/Mist/Grammar/Mist.storm`, add new rules per design § 1:
     - `OperatorDeclaration = modifiers:Modifier* returnType:TypeReference OPERATOR symbol:OperatorSymbol LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS body:OperatorBody`
     - `OperatorBody = block:Block as OperatorBlockBody | SEMICOLON as OperatorNoBody`
     - `OperatorSymbol` covering 14 symbols: `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `||`, `!`.
     Add `| operator:OperatorDeclaration as OperatorMember` to the `MemberDeclaration` rule. Regenerate the parser.
-    - [ ] 3.1 Unit test: parser accepts binary operators (`public static Int32 operator +(Int32 a, Int32 b) { return a; }`) and unary operators (`public static Int32 operator -(Int32 a) { return a; }`), producing `OperatorDeclaration` AST nodes with the correct `OperatorSymbol` variant.
-    - [ ] 3.2 Unit test: parser accepts `operator +(...);` (semicolon-terminated, no body) as `OperatorNoBody`.
+    - [x] 3.1 Unit test: parser accepts binary operators (`public static Int32 operator +(Int32 a, Int32 b) { return a; }`) and unary operators (`public static Int32 operator -(Int32 a) { return a; }`), producing `OperatorDeclaration` AST nodes with the correct `OperatorSymbol` variant.
+    - [x] 3.2 Unit test: parser accepts `operator +(...);` (semicolon-terminated, no body) as `OperatorNoBody`.
     _Requirements: 4.1, 4.3, 4.4, 4.5_
 
-- [ ] 4. Relax `MethodDeclaration` and `ConstructorDeclaration` bodies to allow `;`
+- [x] 4. Relax `MethodDeclaration` and `ConstructorDeclaration` bodies to allow `;`
     In `Source/Mist/Grammar/Mist.storm`, replace `body:Block` on `MethodDeclaration` and `ConstructorDeclaration` with `body:MethodBody`, where `MethodBody = block:Block as MethodBlockBody | SEMICOLON as MethodNoBody`. Whether `;` is valid on a given declaration (i.e., requires `intrinsic`) is enforced in the semantic model, not the grammar (see Task 8). Interface methods continue to use the existing `InterfaceMethodDeclaration` rule unchanged. Regenerate the parser.
-    - [ ] 4.1 Unit test: parser accepts `intrinsic public static Int32 operator +(Int32 a, Int32 b);` and `intrinsic public Int32();` with `MethodNoBody`/`OperatorNoBody`.
+    - [x] 4.1 Unit test: parser accepts `intrinsic public static Int32 operator +(Int32 a, Int32 b);` and `intrinsic public Int32();` with `MethodNoBody`/`OperatorNoBody`.
     _Requirements: 5.2_
 
-- [ ] 5. Add `IsBackendBacked` flag to `ClassType` and `StructType`
+- [x] 5. Add `IsBackendBacked` flag to `ClassType` and `StructType`
     Add `public bool IsBackendBacked { get; }` as an immutable readonly property to `Source/Mist/Semantics/Model/Types/ClassType.cs` and `Source/Mist/Semantics/Model/Types/StructType.cs`. Default to `false`. Expose it via a constructor parameter. The flag tells the emitter the type has a target-language backing participating in the `Backing_Type_Map`. See design § 2.
     _Requirements: 5.11, 9.7_
 
-- [ ] 6. Add `IsIntrinsic` flag to `Symbol`
+- [x] 6. Add `IsIntrinsic` flag to `Symbol`
     Add `public bool IsIntrinsic { get; }` as an immutable readonly property to `Source/Mist/Semantics/Model/SymbolTable.cs` (the `Symbol` class). Default to `false`. Expose it via a constructor parameter. The flag tells the emitter the member's body comes from the `IntrinsicEmissionTable` rather than from a Mist-bodied method. See design § 2.
     _Requirements: 5.1, 5.7_
 
-- [ ] 7. Create `KeywordAliases.cs` with the primitive-keyword → stdlib-type mapping
+- [x] 7. Create `KeywordAliases.cs` with the primitive-keyword → stdlib-type mapping
     Create `Source/Mist/Semantics/Model/KeywordAliases.cs` with `public static class KeywordAliases` exposing `public static readonly ImmutableDictionary<string, string> Map` containing all 14 entries per design § 2: `int → Standard.Int32`, `uint → Standard.UInt32`, `long → Standard.Int64`, `ulong → Standard.UInt64`, `short → Standard.Int16`, `ushort → Standard.UInt16`, `byte → Standard.Byte`, `sbyte → Standard.SByte`, `float → Standard.Single`, `double → Standard.Double`, `decimal → Standard.Decimal`, `bool → Standard.Boolean`, `char → Standard.Char`, `string → Standard.String`. Requirement 7.5 mandates a single location; this is it. Nothing reads it yet (keyword resolution is flipped in Stage 4).
-    - [ ] 7.1 Unit test: `KeywordAliases.Map` contains exactly 14 entries with the values specified in Requirement 7.1.
+    - [x] 7.1 Unit test: `KeywordAliases.Map` contains exactly 14 entries with the values specified in Requirement 7.1.
     _Requirements: 7.1, 7.5_
 
-- [ ] 8. Wire modifier and body translation into the AST → semantic-model pass
+- [x] 8. Wire modifier and body translation into the AST → semantic-model pass
     In `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`, extend the Pass 1 member-registration code so that when a `ClassDeclaration`/`StructDeclaration` or a `MethodDeclaration`/`ConstructorDeclaration`/`OperatorDeclaration` is translated:
     - `IntrinsicModifier` on the type sets `IsBackendBacked = true` on the resulting `ClassType`/`StructType`.
     - `IntrinsicModifier` on a member sets `IsIntrinsic = true` on the resulting `Symbol`.
     - A `MethodNoBody`/`OperatorNoBody` body is recorded on the symbol (e.g., via a `HasBody` flag) for downstream validation in Task 9.
     No diagnostics are emitted yet; just propagate the information.
-    - [ ] 8.1 Unit test: `intrinsic public struct Int32 { }` produces a `StructType` with `IsBackendBacked == true`; a member `intrinsic public static Int32 operator +(...);` on that type produces a `Symbol` with `IsIntrinsic == true` and `HasBody == false`.
+    - [x] 8.1 Unit test: `intrinsic public struct Int32 { }` produces a `StructType` with `IsBackendBacked == true`; a member `intrinsic public static Int32 operator +(...);` on that type produces a `Symbol` with `IsIntrinsic == true` and `HasBody == false`.
     _Requirements: 5.1, 5.2, 5.11_
 
-- [ ] 9. Add `Pass1e_ValidateIntrinsicMarkers` with diagnostics MIST_SB_0030–0032
+- [x] 9. Add `Pass1e_ValidateIntrinsicMarkers` with diagnostics MIST_SB_0030–0032
     In `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`, add a new Pass 1e immediately after symbol registration. For every type and member, emit:
     - `MIST_SB_0030` when a member with `IsIntrinsic == true` has a body (Requirement 5.3). Message: `Intrinsic member '{type}.{member}' must not have a body; use ';' to mark it as backend-provided.`
     - `MIST_SB_0031` when `IsIntrinsic` (member-level) or `IsBackendBacked` (type-level) appears on a declaration whose `CompilationUnit.IsStdlib == false` (Requirements 5.6, 5.13). `CompilationUnit.IsStdlib` is added in Task 26. For now, treat every unit as non-stdlib — this task's diagnostic emission is already correct once Task 26 lands the flag. Message: `The 'intrinsic' modifier is reserved for the Standard Library and cannot be used in user code.`
     - `MIST_SB_0032` when a member has `IsIntrinsic == true` but its containing type has `IsBackendBacked == false` (Requirement 5.15). Message: `Member-level 'intrinsic' is only permitted inside a type that is itself declared 'intrinsic'. Type '{type}' is not intrinsic.`
     Use the next unallocated `MIST_SB_*` IDs (see design § *Error Handling and Diagnostics*; last used is `MIST_SM_0022`).
-    - [ ] 9.1 Unit test: each of the three diagnostics fires on the corresponding adversarial snippet from design § *Error Handling and Diagnostics* and does NOT fire on the correct-usage counter-example.
+    - [x] 9.1 Unit test: each of the three diagnostics fires on the corresponding adversarial snippet from design § *Error Handling and Diagnostics* and does NOT fire on the correct-usage counter-example.
     _Requirements: 5.3, 5.6, 5.13, 5.15, 14.3, 14.4, 14.5_
 
-- [ ] 10. Checkpoint — Stage 1 complete
+- [x] 10. Checkpoint — Stage 1 complete
     Ensure the full solution builds and all existing unit tests pass. Grammar accepts new forms; no behavior change has shipped. Ask the user if questions arise.
     _Requirements: (none — gate)_
 

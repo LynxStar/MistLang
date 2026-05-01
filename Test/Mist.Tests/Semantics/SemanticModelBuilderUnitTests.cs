@@ -235,7 +235,7 @@ public class SemanticModelBuilderUnitTests
             Name = MakeToken(methodName),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = statements },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = statements } },
             Modifiers = modifiers,
         };
 
@@ -279,10 +279,10 @@ public class SemanticModelBuilderUnitTests
             Name = MakeToken("M"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(MakeIntVarDecl("x")),
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -346,7 +346,7 @@ public class SemanticModelBuilderUnitTests
         {
             Name = MakeToken("M"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
-            Body = new BlockNode(),
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
         var classDecl = new ClassDeclarationNode
         {
@@ -538,10 +538,10 @@ public class SemanticModelBuilderUnitTests
         {
             Name = MakeToken("M"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(MakeExpressionStatement(consoleExpr)),
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -601,10 +601,10 @@ public class SemanticModelBuilderUnitTests
         var ctorDecl = new ConstructorDeclarationNode
         {
             Name = MakeToken("C"),
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(MakeExpressionStatement(thisExpr)),
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -681,10 +681,10 @@ public class SemanticModelBuilderUnitTests
         {
             Name = MakeToken("M"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(MakeExpressionStatement(expr)),
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -727,10 +727,10 @@ public class SemanticModelBuilderUnitTests
         {
             Name = MakeToken("M"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(MakeExpressionStatement(consoleExpr)),
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -782,10 +782,10 @@ public class SemanticModelBuilderUnitTests
         {
             Name = MakeToken("M"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(MakeExpressionStatement(expr)),
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -857,7 +857,7 @@ public class SemanticModelBuilderUnitTests
             Name = MakeToken("M"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = paramList,
-            Body = new BlockNode(),
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -1038,7 +1038,7 @@ public class SemanticModelBuilderUnitTests
         {
             Name = MakeToken("M"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
-            Body = new BlockNode(),
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -1135,7 +1135,7 @@ public class SemanticModelBuilderUnitTests
             {
                 Name = MakeToken(name),
                 ReturnType = new VoidTypeRefTypeReferenceNode(),
-                Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+                Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             },
         };
     }

@@ -151,7 +151,7 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -199,7 +199,7 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -251,7 +251,7 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -307,7 +307,7 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -353,7 +353,7 @@ public sealed class EmitterOutputTests : IDisposable
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
             },
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create<StatementNode>(
                     new ReturnStatementStatementNode
@@ -363,7 +363,7 @@ public sealed class EmitterOutputTests : IDisposable
                             Value = MakeIntLiteralExpression("42"),
                         },
                     }),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -372,7 +372,7 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -426,7 +426,7 @@ public sealed class EmitterOutputTests : IDisposable
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
             },
             Parameters = paramList,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create<StatementNode>(
                     new ReturnStatementStatementNode
@@ -436,7 +436,7 @@ public sealed class EmitterOutputTests : IDisposable
                             Value = MakeIntLiteralExpression("0"),
                         },
                     }),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -445,7 +445,7 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -499,7 +499,7 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -543,7 +543,7 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -597,14 +597,14 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create<StatementNode>(
                     new VariableDeclarationStatementStatementNode
                     {
                         VariableDeclaration = varDecl,
                     }),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -655,7 +655,7 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Point"),
             Parameters = null,
             Chain = chain,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
         };
 
         // Constructor: Point(int x) { }
@@ -668,7 +668,7 @@ public sealed class EmitterOutputTests : IDisposable
         {
             Name = MakeToken("Point"),
             Parameters = new ParameterListNode { Parameter = paramX },
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
         };
 
         var fieldX = new FieldDeclarationNode
@@ -691,7 +691,7 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -752,14 +752,14 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create<StatementNode>(
                     new VariableDeclarationStatementStatementNode
                     {
                         VariableDeclaration = varDecl,
                     }),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -826,14 +826,14 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create<StatementNode>(
                     new VariableDeclarationStatementStatementNode
                     {
                         VariableDeclaration = varDecl,
                     }),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -874,7 +874,7 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),

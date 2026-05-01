@@ -105,7 +105,7 @@ public class VoidReturnPropertyTests
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -116,7 +116,7 @@ public class VoidReturnPropertyTests
             Name = MakeToken(methodName),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = methodBody },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = methodBody } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 

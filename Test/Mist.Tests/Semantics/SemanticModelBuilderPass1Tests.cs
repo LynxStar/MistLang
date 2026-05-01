@@ -272,7 +272,7 @@ public class SemanticModelBuilderPass1Tests
         var ctorDecl = new ConstructorDeclarationNode
         {
             Name = MakeToken("MyClass"),
-            Body = new BlockNode(),
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
         var classDecl = new ClassDeclarationNode
         {
@@ -304,7 +304,7 @@ public class SemanticModelBuilderPass1Tests
         {
             Name = MakeToken("DoWork"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
-            Body = new BlockNode(),
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
         var classDecl = new ClassDeclarationNode
         {
@@ -345,7 +345,7 @@ public class SemanticModelBuilderPass1Tests
         var ctorDecl = new ConstructorDeclarationNode
         {
             Name = MakeToken("Point"),
-            Body = new BlockNode(),
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
         var methodDecl = new MethodDeclarationNode
         {
@@ -354,7 +354,7 @@ public class SemanticModelBuilderPass1Tests
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
             },
-            Body = new BlockNode(),
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
         var classDecl = new ClassDeclarationNode
         {
@@ -445,7 +445,7 @@ public class SemanticModelBuilderPass1Tests
         {
             Name = MakeToken("Run"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
-            Body = new BlockNode(),
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
         var classDecl = new ClassDeclarationNode
         {
@@ -609,7 +609,7 @@ public class SemanticModelBuilderPass1Tests
         var ctorDecl = new ConstructorDeclarationNode
         {
             Name = MakeToken("Point"),
-            Body = new BlockNode(),
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
         var structDecl = new StructDeclarationNode
         {

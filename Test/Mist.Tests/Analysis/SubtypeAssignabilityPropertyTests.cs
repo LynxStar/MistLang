@@ -283,7 +283,7 @@ public class SubtypeAssignabilityPropertyTests
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = mainStatements },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = mainStatements } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -361,7 +361,7 @@ public class SubtypeAssignabilityPropertyTests
             Name = MakeToken("AcceptBase"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = new ParameterListNode { Parameter = param },
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),

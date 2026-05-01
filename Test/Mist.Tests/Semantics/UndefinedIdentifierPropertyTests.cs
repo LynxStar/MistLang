@@ -175,10 +175,10 @@ public class UndefinedIdentifierPropertyTests
             Name = MakeToken(methodName),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = statements,
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -294,10 +294,10 @@ public class UndefinedIdentifierPropertyTests
                         Name = MakeToken("TestMethod"),
                         ReturnType = new VoidTypeRefTypeReferenceNode(),
                         Parameters = null,
-                        Body = new BlockNode
+                        Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
                         {
                             Statements = ImmutableArray<StatementNode>.Empty,
-                        },
+                        } },
                     },
                 }),
         };

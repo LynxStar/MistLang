@@ -252,7 +252,7 @@ public class StringLengthPropertyTests
             Name = MakeToken("TestMethod"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = new ParameterListNode { Parameter = param },
-            Body = body,
+            Body = body.AsMethodBody(),
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -310,7 +310,7 @@ public class StringLengthPropertyTests
             Name = MakeToken("TestMethod"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = new ParameterListNode { Parameter = param },
-            Body = body,
+            Body = body.AsMethodBody(),
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 

@@ -195,10 +195,10 @@ public sealed class BugfixIntegrationTests : IDisposable
         {
             Name = MakeToken("Geometry"),
             Parameters = new ParameterListNode { Parameter = ctorParam },
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(MakeIdentifierStatement("x")),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -286,12 +286,12 @@ public sealed class BugfixIntegrationTests : IDisposable
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
             },
             Parameters = new ParameterListNode { Parameter = stringParam },
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create<StatementNode>(
                     new VariableDeclarationStatementStatementNode { VariableDeclaration = varDecl },
                     returnStmt),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -323,7 +323,7 @@ public sealed class BugfixIntegrationTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -433,10 +433,10 @@ public sealed class BugfixIntegrationTests : IDisposable
         {
             Name = MakeToken("Widget"),
             Parameters = new ParameterListNode { Parameter = ctorParam },
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(MakeIdentifierStatement("w")),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -497,12 +497,12 @@ public sealed class BugfixIntegrationTests : IDisposable
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
             },
             Parameters = new ParameterListNode { Parameter = textParam },
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create<StatementNode>(
                     new VariableDeclarationStatementStatementNode { VariableDeclaration = lenVarDecl },
                     returnLen),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -534,7 +534,7 @@ public sealed class BugfixIntegrationTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),

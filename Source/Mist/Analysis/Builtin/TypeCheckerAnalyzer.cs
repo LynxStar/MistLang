@@ -254,7 +254,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         _currentEnclosingType = FindDeclaringType(methodSymbol);
         _insideConstructor = false;
         _insidePropertyAccessor = false;
-        CheckBlock(methodDecl.Body, returnType, model, diagnostics);
+        if (methodDecl.Body.GetBlock() is BlockNode block)
+            CheckBlock(block, returnType, model, diagnostics);
     }
 
     private void CheckConstructorBody(ISymbol ctorSymbol, ISemanticModel model, DiagnosticBag diagnostics)
@@ -276,7 +277,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             CheckConstructorChain(ctorDecl.Chain, ctorSymbol, model, diagnostics);
         }
 
-        CheckBlock(ctorDecl.Body, VoidType.Instance, model, diagnostics);
+        if (ctorDecl.Body.GetBlock() is BlockNode ctorBlock)
+            CheckBlock(ctorBlock, VoidType.Instance, model, diagnostics);
         _insideConstructor = false;
     }
 

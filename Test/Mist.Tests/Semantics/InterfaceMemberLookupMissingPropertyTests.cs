@@ -119,10 +119,10 @@ public class InterfaceMemberLookupMissingPropertyTests
         {
             Name = MakeToken(name),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = bodyStatements ?? ImmutableArray<StatementNode>.Empty,
-            },
+            } },
             Modifiers = modifiers.ToImmutableArray(),
         };
     }

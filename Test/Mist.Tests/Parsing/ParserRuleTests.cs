@@ -79,7 +79,7 @@ public class ParserRuleTests
             var methodMember = classDecl.Members[0] as MethodMemberMemberDeclarationNode;
             Assert.NotNull(methodMember);
             var method = methodMember!.Method;
-            var stmt = method.Body.Statements[0] as VariableDeclarationStatementStatementNode;
+            var stmt = method.Body.GetBlock()!.Statements[0] as VariableDeclarationStatementStatementNode;
             Assert.NotNull(stmt);
             var varDecl = stmt!.VariableDeclaration as TypedVariableDeclarationVariableDeclarationStatementNode;
             Assert.NotNull(varDecl);
@@ -113,7 +113,7 @@ public class ParserRuleTests
             var classDecl = typeDecl!.ClassDeclaration;
             var methodMember = classDecl.Members[0] as MethodMemberMemberDeclarationNode;
             var method = methodMember!.Method;
-            var stmt = method.Body.Statements[0] as VariableDeclarationStatementStatementNode;
+            var stmt = method.Body.GetBlock()!.Statements[0] as VariableDeclarationStatementStatementNode;
             var varDecl = stmt!.VariableDeclaration as TypedVariableDeclarationVariableDeclarationStatementNode;
 
             var expr = varDecl!.Initializer;
@@ -137,7 +137,7 @@ public class ParserRuleTests
             var classDecl = typeDecl!.ClassDeclaration;
             var methodMember = classDecl.Members[0] as MethodMemberMemberDeclarationNode;
             var method = methodMember!.Method;
-            var stmt = method.Body.Statements[0] as VariableDeclarationStatementStatementNode;
+            var stmt = method.Body.GetBlock()!.Statements[0] as VariableDeclarationStatementStatementNode;
             var varDecl = stmt!.VariableDeclaration as TypedVariableDeclarationVariableDeclarationStatementNode;
 
             var expr = varDecl!.Initializer;
@@ -162,7 +162,7 @@ public class ParserRuleTests
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
-            var stmt = method.Body.Statements[0] as IfStatementStatementNode;
+            var stmt = method.Body.GetBlock()!.Statements[0] as IfStatementStatementNode;
             Assert.NotNull(stmt);
             Assert.NotNull(stmt!.IfStatement.Condition);
             Assert.NotNull(stmt.IfStatement.ThenBranch);
@@ -180,7 +180,7 @@ public class ParserRuleTests
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
-            var stmt = method.Body.Statements[0] as IfStatementStatementNode;
+            var stmt = method.Body.GetBlock()!.Statements[0] as IfStatementStatementNode;
             Assert.NotNull(stmt);
             Assert.NotNull(stmt!.IfStatement.ElseBranch);
             Assert.IsType<ElseBlockElseClauseNode>(stmt.IfStatement.ElseBranch);
@@ -197,7 +197,7 @@ public class ParserRuleTests
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
-            var stmt = method.Body.Statements[0] as WhileStatementStatementNode;
+            var stmt = method.Body.GetBlock()!.Statements[0] as WhileStatementStatementNode;
             Assert.NotNull(stmt);
             Assert.NotNull(stmt!.WhileStatement.Condition);
             Assert.NotNull(stmt.WhileStatement.Body);
@@ -214,7 +214,7 @@ public class ParserRuleTests
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
-            var stmt = method.Body.Statements[0] as ForStatementStatementNode;
+            var stmt = method.Body.GetBlock()!.Statements[0] as ForStatementStatementNode;
             Assert.NotNull(stmt);
             Assert.NotNull(stmt!.ForStatement.Initializer);
             Assert.NotNull(stmt.ForStatement.Condition);
@@ -233,7 +233,7 @@ public class ParserRuleTests
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
-            var stmt = method.Body.Statements[0] as ForeachStatementStatementNode;
+            var stmt = method.Body.GetBlock()!.Statements[0] as ForeachStatementStatementNode;
             Assert.NotNull(stmt);
             Assert.NotNull(stmt!.ForeachStatement.Type);
             Assert.NotNull(stmt.ForeachStatement.Collection);
@@ -251,7 +251,7 @@ public class ParserRuleTests
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
-            var stmt = method.Body.Statements[0] as ReturnStatementStatementNode;
+            var stmt = method.Body.GetBlock()!.Statements[0] as ReturnStatementStatementNode;
             Assert.NotNull(stmt);
             Assert.NotNull(stmt!.ReturnStatement.Value);
         }
@@ -267,7 +267,7 @@ public class ParserRuleTests
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
-            var stmt = method.Body.Statements[0] as ReturnStatementStatementNode;
+            var stmt = method.Body.GetBlock()!.Statements[0] as ReturnStatementStatementNode;
             Assert.NotNull(stmt);
             Assert.Null(stmt!.ReturnStatement.Value);
         }
@@ -283,7 +283,7 @@ public class ParserRuleTests
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
-            var whileStmt = method.Body.Statements[0] as WhileStatementStatementNode;
+            var whileStmt = method.Body.GetBlock()!.Statements[0] as WhileStatementStatementNode;
             Assert.NotNull(whileStmt);
             var breakStmt = whileStmt!.WhileStatement.Body.Statements[0] as BreakStatementStatementNode;
             Assert.NotNull(breakStmt);
@@ -300,7 +300,7 @@ public class ParserRuleTests
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
-            var stmt = method.Body.Statements[0] as VariableDeclarationStatementStatementNode;
+            var stmt = method.Body.GetBlock()!.Statements[0] as VariableDeclarationStatementStatementNode;
             Assert.NotNull(stmt);
             Assert.IsType<TypedVariableDeclarationVariableDeclarationStatementNode>(stmt!.VariableDeclaration);
         }
@@ -316,7 +316,7 @@ public class ParserRuleTests
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
-            var stmt = method.Body.Statements[0] as VariableDeclarationStatementStatementNode;
+            var stmt = method.Body.GetBlock()!.Statements[0] as VariableDeclarationStatementStatementNode;
             Assert.NotNull(stmt);
             Assert.IsType<InferredVariableDeclarationVariableDeclarationStatementNode>(stmt!.VariableDeclaration);
         }

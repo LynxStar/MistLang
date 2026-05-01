@@ -101,7 +101,7 @@ public class InheritanceRoundTripPropertyTests
             Name = Tok(name),
             ReturnType = returnType,
             Parameters = parameters,
-            Body = new BlockNode { Statements = body },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
             Modifiers = modifiers ?? ImmutableArray<ModifierNode>.Empty,
         };
     }
@@ -118,7 +118,7 @@ public class InheritanceRoundTripPropertyTests
             Name = Tok(className),
             Parameters = parameters,
             Chain = chain,
-            Body = new BlockNode { Statements = body ?? ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body ?? ImmutableArray<StatementNode>.Empty } },
             Modifiers = modifiers ?? ImmutableArray<ModifierNode>.Empty,
         };
     }

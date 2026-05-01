@@ -157,7 +157,7 @@ public class Program
         var ctor = classDecl.Members[1] as ConstructorMemberMemberDeclarationNode;
         Assert.NotNull(ctor);
         Assert.Equal("C", ctor!.Constructor.Name.Lexeme);
-        Assert.True(ctor.Constructor.Body.Statements.Length > 0, "Constructor body should have statements");
+        Assert.True(ctor.Constructor.Body.GetBlock()!.Statements.Length > 0, "Constructor body should have statements");
     }
 
     [Fact]
@@ -177,7 +177,7 @@ public class Program
 
         var ctor = classDecl.Members[1] as ConstructorMemberMemberDeclarationNode;
         Assert.NotNull(ctor);
-        Assert.True(ctor!.Constructor.Body.Statements.Length > 0, "Constructor body should have this.x = x statement");
+        Assert.True(ctor!.Constructor.Body.GetBlock()!.Statements.Length > 0, "Constructor body should have this.x = x statement");
     }
 
     [Fact]

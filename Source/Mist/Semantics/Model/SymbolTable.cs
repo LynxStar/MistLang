@@ -15,7 +15,9 @@ public sealed class Symbol : ISymbol
         SymbolOrigin origin,
         IScope containingScope,
         IType? declaredType,
-        SourceSpan? declarationSpan)
+        SourceSpan? declarationSpan,
+        bool isIntrinsic = false,
+        bool hasBody = true)
     {
         Name = name;
         Kind = kind;
@@ -25,6 +27,9 @@ public sealed class Symbol : ISymbol
 
         // Backend symbols have no source location in user code (R7.4).
         DeclarationSpan = origin == SymbolOrigin.Backend ? null : declarationSpan;
+
+        IsIntrinsic = isIntrinsic;
+        HasBody = hasBody;
     }
 
     public string Name { get; }
@@ -33,6 +38,29 @@ public sealed class Symbol : ISymbol
     public IScope ContainingScope { get; }
     public IType? DeclaredType { get; internal set; }
     public SourceSpan? DeclarationSpan { get; }
+
+    /// <summary>
+    /// Indicates the member's body is provided by the backend via the
+    /// <c>IntrinsicEmissionTable</c> rather than by a Mist-bodied method
+    /// (i.e., a member-level <c>intrinsic</c> modifier was present on its
+    /// declaration). The flag is set by the semantic model builder and read
+    /// by the emitter; it is immutable after construction.
+    /// </summary>
+    public bool IsIntrinsic { get; }
+
+    /// <summary>
+    /// Indicates whether the declaration provides a body. <c>true</c> for
+    /// ordinary block-bodied methods, constructors, and operators;
+    /// <c>false</c> for declarations that terminate with <c>;</c> (the
+    /// <c>MethodNoBody</c> / <c>OperatorNoBody</c> grammar variants).
+    /// Intrinsic members omit their bodies (Requirement 5.2); non-intrinsic
+    /// members must provide one (Requirement 5.3, 5.4). The flag is set by
+    /// the semantic model builder and read by downstream validation
+    /// (<c>Pass1e_ValidateIntrinsicMarkers</c>, Task 9). Defaults to
+    /// <c>true</c> so existing non-member callers (namespaces, fields,
+    /// locals, parameters) remain correct without modification.
+    /// </summary>
+    public bool HasBody { get; }
 
     /// <summary>
     /// Property-specific metadata. Non-null only for Property and Indexer symbols.

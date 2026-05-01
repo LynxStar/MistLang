@@ -109,7 +109,7 @@ public class InterfaceSignatureMismatchPropertyTests
             Name = MakeToken(name),
             ReturnType = returnType ?? new VoidTypeRefTypeReferenceNode(),
             Parameters = parameters,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
     }

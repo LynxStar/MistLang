@@ -143,7 +143,7 @@ public class ParameterScopingTests
             Name = MakeToken(methodName),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = new ParameterListNode { Parameter = param },
-            Body = new BlockNode { Statements = bodyStatements },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = bodyStatements } },
             Modifiers = modifiers,
         };
     }
@@ -321,10 +321,10 @@ public class ParameterScopingTests
         {
             Name = MakeToken("C"),
             Parameters = new ParameterListNode { Parameter = MakeParameter("int", "a") },
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(MakeIdentifierStatement("a")),
-            },
+            } },
         };
 
         var classC = new ClassDeclarationNode
@@ -345,10 +345,10 @@ public class ParameterScopingTests
         {
             Name = MakeToken("D"),
             Parameters = new ParameterListNode { Parameter = MakeParameter("int", "b") },
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(MakeIdentifierStatement("b")),
-            },
+            } },
         };
 
         var classD = new ClassDeclarationNode
@@ -423,10 +423,10 @@ public class ParameterScopingTests
         {
             Name = MakeToken("C"),
             Parameters = new ParameterListNode { Parameter = MakeParameter("int", "val") },
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(MakeIdentifierStatement("val")),
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode

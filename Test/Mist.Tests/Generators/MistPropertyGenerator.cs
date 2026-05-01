@@ -561,10 +561,10 @@ public static class MistPropertyGenerator
             Name = Tok("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = mainStatements ?? ImmutableArray<StatementNode>.Empty,
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),

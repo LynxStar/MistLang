@@ -218,7 +218,7 @@ public class SymbolKindPropertyTests
             {
                 Name = MakeToken("TestClass"),
                 Parameters = ctorParams,
-                Body = ctorBody,
+                Body = ctorBody.AsMethodBody(),
             };
             classMembers.Add(new ConstructorMemberMemberDeclarationNode { Constructor = ctorDecl });
             expected.Add(("TestClass", SymbolKind.Constructor));
@@ -272,7 +272,7 @@ public class SymbolKindPropertyTests
                 Name = MakeToken("TestMethod"),
                 ReturnType = new VoidTypeRefTypeReferenceNode(),
                 Parameters = methodParams,
-                Body = methodBody,
+                Body = methodBody.AsMethodBody(),
             };
             classMembers.Add(new MethodMemberMemberDeclarationNode { Method = methodDecl });
             expected.Add(("TestMethod", SymbolKind.Method));
@@ -328,7 +328,7 @@ public class SymbolKindPropertyTests
                 Name = MakeToken("HostMethod"),
                 ReturnType = new VoidTypeRefTypeReferenceNode(),
                 Parameters = hostParams,
-                Body = hostBody,
+                Body = hostBody.AsMethodBody(),
             };
             classMembers.Add(new MethodMemberMemberDeclarationNode { Method = hostMethod });
 

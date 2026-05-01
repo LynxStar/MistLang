@@ -149,14 +149,16 @@ rule InterfaceAccessorDeclaration
     ;
 
 rule Modifier
-    = PUBLIC  as PublicModifier
-    | PRIVATE as PrivateModifier
-    | STATIC  as StaticModifier
+    = PUBLIC    as PublicModifier
+    | PRIVATE   as PrivateModifier
+    | STATIC    as StaticModifier
+    | INTRINSIC as IntrinsicModifier
     ;
 
 rule MemberDeclaration
     = constructor:ConstructorDeclaration as ConstructorMember
     | method:MethodDeclaration           as MethodMember
+    | operator:OperatorDeclaration       as OperatorMember
     | property:PropertyDeclaration       as PropertyMember
     | indexer:IndexerDeclaration         as IndexerMember
     | field:FieldDeclaration             as FieldMember
@@ -193,7 +195,7 @@ rule IndexerDeclaration
     ;
 
 rule ConstructorDeclaration = modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
-                              chain:ConstructorChain? body:Block;
+                              chain:ConstructorChain? body:MethodBody;
 
 rule ConstructorChain
     = COLON THIS LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as ThisChain
@@ -202,7 +204,41 @@ rule ConstructorChain
 
 rule MethodDeclaration = modifiers:Modifier* returnType:TypeReference name:IDENTIFIER
                          typeParams:TypeParameterList?
-                         LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS body:Block;
+                         LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS body:MethodBody;
+
+rule MethodBody
+    = block:Block as MethodBlockBody
+    | SEMICOLON   as MethodNoBody
+    ;
+
+rule OperatorDeclaration = modifiers:Modifier*
+                           returnType:TypeReference
+                           OPERATOR
+                           symbol:OperatorSymbol
+                           LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
+                           body:OperatorBody;
+
+rule OperatorBody
+    = block:Block as OperatorBlockBody
+    | SEMICOLON   as OperatorNoBody
+    ;
+
+rule OperatorSymbol
+    = PLUS                  as PlusOp
+    | MINUS                 as MinusOp
+    | STAR                  as StarOp
+    | SLASH                 as SlashOp
+    | MODULO                as ModuloOp
+    | EQUAL_EQUAL           as EqualEqualOp
+    | NOT_EQUAL             as NotEqualOp
+    | LESS_THAN_OR_EQUAL    as LessThanOrEqualOp
+    | GREATER_THAN_OR_EQUAL as GreaterThanOrEqualOp
+    | LESS_THAN             as LessThanOp
+    | GREATER_THAN          as GreaterThanOp
+    | LOGICAL_AND           as LogicalAndOp
+    | LOGICAL_OR            as LogicalOrOp
+    | EXCLAMATION           as ExclamationOp
+    ;
 
 rule ParameterList = Parameter (COMMA Parameter)*;
 rule Parameter = type:TypeReference name:IDENTIFIER;

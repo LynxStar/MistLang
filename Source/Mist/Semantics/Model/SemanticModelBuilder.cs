@@ -20,6 +20,28 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     internal static readonly DiagnosticId DuplicateConstructorSignature = new("MIST_SM_0021");
     internal static readonly DiagnosticId MissingInterfaceOverload = new("MIST_SM_0022");
 
+    // ── Intrinsic-marker diagnostic IDs (Task 9, Requirements 5.3, 5.6, 5.13, 5.15) ──
+    /// <summary>
+    /// An intrinsic member was declared with a body. Per Requirement 5.3,
+    /// intrinsic members must terminate with <c>;</c> because their body is
+    /// supplied by the backend's <c>IntrinsicEmissionTable</c>.
+    /// </summary>
+    internal static readonly DiagnosticId IntrinsicMemberHasBody = new("MIST_SB_0030");
+
+    /// <summary>
+    /// The <c>intrinsic</c> modifier (at either type or member level) was
+    /// used in a non-stdlib compilation unit. Per Requirements 5.6 and 5.13,
+    /// the modifier is reserved for the Standard Library.
+    /// </summary>
+    internal static readonly DiagnosticId IntrinsicReservedForStdlib = new("MIST_SB_0031");
+
+    /// <summary>
+    /// A member-level <c>intrinsic</c> appeared inside a type that does not
+    /// itself carry the type-level <c>intrinsic</c> marker. Per Requirement
+    /// 5.15, intrinsic members are always hosted on Backend_Backed_Types.
+    /// </summary>
+    internal static readonly DiagnosticId MemberIntrinsicRequiresTypeIntrinsic = new("MIST_SB_0032");
+
     public ISemanticModel Build(
         MistCompilation compilation,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
@@ -54,6 +76,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     AnalyzerName: null));
             }
         }
+
+        // Pass 1e: Validate intrinsic markers (Task 9).
+        // Walks every registered type and member to emit diagnostics for:
+        //   * MIST_SB_0030 — intrinsic member with a body (Requirement 5.3).
+        //   * MIST_SB_0031 — 'intrinsic' modifier used in a non-stdlib unit
+        //     (Requirements 5.6, 5.13). Until Task 26 lands
+        //     CompilationUnit.IsStdlib, every unit is treated as non-stdlib,
+        //     so any 'intrinsic' in the semantic model currently fires this.
+        //   * MIST_SB_0032 — member-level 'intrinsic' inside a non-intrinsic
+        //     containing type (Requirement 5.15).
+        Pass1e_ValidateIntrinsicMarkers(asts, symbolTable, compilation, diagnostics);
 
         // Pass 1b: Resolve base types for class inheritance.
         // This runs after all types are registered so that forward references
@@ -317,7 +350,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var className = classDecl.Name.Lexeme;
         var typeScope = new Scope(parent: parentScope);
-        var classType = new ClassType(className, typeScope, namespaceName);
+        var isBackendBacked = HasIntrinsicModifier(classDecl.Modifiers);
+        var classType = new ClassType(className, typeScope, namespaceName, isBackendBacked);
 
         var classSpan = ToMistSourceSpan(classDecl.Name.Span);
         var classSymbol = new Symbol(className, SymbolKind.Class, SymbolOrigin.UserCode, parentScope, classType, classSpan);
@@ -344,7 +378,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var structName = structDecl.Name.Lexeme;
         var typeScope = new Scope(parent: parentScope);
-        var structType = new StructType(structName, typeScope, namespaceName);
+        var isBackendBacked = HasIntrinsicModifier(structDecl.Modifiers);
+        var structType = new StructType(structName, typeScope, namespaceName, isBackendBacked);
 
         var structSpan = ToMistSourceSpan(structDecl.Name.Span);
         var structSymbol = new Symbol(structName, SymbolKind.Struct, SymbolOrigin.UserCode, parentScope, structType, structSpan);
@@ -483,6 +518,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case MethodMemberMemberDeclarationNode methodMember:
                 RegisterMethodDeclaration(methodMember.Method, typeScope, symbolTable, sourceText, diagnostics);
                 break;
+            case OperatorMemberMemberDeclarationNode operatorMember:
+                RegisterOperatorDeclaration(operatorMember.Operator, typeScope, symbolTable);
+                break;
             case PropertyMemberMemberDeclarationNode propertyMember:
                 RegisterPropertyDeclaration(propertyMember.Property, typeScope, symbolTable);
                 break;
@@ -505,7 +543,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var ctorName = ctorDecl.Name.Lexeme;
         var ctorSpan = ToMistSourceSpan(ctorDecl.Name.Span);
-        var ctorSymbol = new Symbol(ctorName, SymbolKind.Constructor, SymbolOrigin.UserCode, typeScope, declaredType: null, ctorSpan);
+        var isIntrinsic = HasIntrinsicModifier(ctorDecl.Modifiers);
+        var hasBody = ctorDecl.Body is not MethodNoBodyMethodBodyNode;
+        var ctorSymbol = new Symbol(
+            ctorName, SymbolKind.Constructor, SymbolOrigin.UserCode, typeScope,
+            declaredType: null, ctorSpan,
+            isIntrinsic: isIntrinsic, hasBody: hasBody);
         typeScope.AddMember(ctorSymbol);
         symbolTable.Register(ctorSymbol, ctorDecl);
     }
@@ -514,13 +557,86 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var methodName = methodDecl.Name.Lexeme;
         var methodSpan = ToMistSourceSpan(methodDecl.Name.Span);
-        var methodSymbol = new Symbol(methodName, SymbolKind.Method, SymbolOrigin.UserCode, typeScope, declaredType: null, methodSpan);
+        var isIntrinsic = HasIntrinsicModifier(methodDecl.Modifiers);
+        var hasBody = methodDecl.Body is not MethodNoBodyMethodBodyNode;
+        var methodSymbol = new Symbol(
+            methodName, SymbolKind.Method, SymbolOrigin.UserCode, typeScope,
+            declaredType: null, methodSpan,
+            isIntrinsic: isIntrinsic, hasBody: hasBody);
         typeScope.AddMember(methodSymbol);
         symbolTable.Register(methodSymbol, methodDecl);
 
         // Register method type parameters if present.
         RegisterMethodTypeParameters(methodDecl.TypeParams, methodSymbol, typeScope, sourceText, diagnostics);
     }
+
+    /// <summary>
+    /// Registers an operator declaration as a static method symbol on the
+    /// containing type's scope. The operator's name is mangled as
+    /// <c>operator&lt;symbol&gt;</c> (e.g., <c>operator+</c>) so that overload
+    /// resolution in Task 14 can look it up by constructing the same key from
+    /// an operator expression.
+    ///
+    /// Task 8 propagates the <c>intrinsic</c> modifier and body-presence flag;
+    /// full operator registration (parameter signature extraction, shape
+    /// diagnostics, etc.) is Task 11's responsibility.
+    /// </summary>
+    private static void RegisterOperatorDeclaration(OperatorDeclarationNode opDecl, Scope typeScope, SymbolTable symbolTable)
+    {
+        var opLexeme = GetOperatorSymbolLexeme(opDecl.Symbol);
+        var opName = "operator" + opLexeme;
+        var opSpan = ToMistSourceSpan(opDecl.Symbol.Span);
+        var isIntrinsic = HasIntrinsicModifier(opDecl.Modifiers);
+        var hasBody = opDecl.Body is not OperatorNoBodyOperatorBodyNode;
+        var opSymbol = new Symbol(
+            opName, SymbolKind.Method, SymbolOrigin.UserCode, typeScope,
+            declaredType: null, opSpan,
+            isIntrinsic: isIntrinsic, hasBody: hasBody);
+        typeScope.AddMember(opSymbol);
+        symbolTable.Register(opSymbol, opDecl);
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the modifier list contains an
+    /// <see cref="IntrinsicModifierModifierNode"/>. Used at type level to set
+    /// <c>IsBackendBacked</c> on <see cref="ClassType"/>/<see cref="StructType"/>
+    /// and at member level to set <c>IsIntrinsic</c> on <see cref="Symbol"/>.
+    /// </summary>
+    private static bool HasIntrinsicModifier(ImmutableArray<ModifierNode> modifiers)
+    {
+        foreach (var modifier in modifiers)
+        {
+            if (modifier is IntrinsicModifierModifierNode)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Extracts the textual lexeme of an operator symbol node
+    /// (e.g., <c>"+"</c> for <see cref="PlusOpOperatorSymbolNode"/>). The
+    /// lexeme becomes the suffix of the operator's symbol name
+    /// (<c>"operator+"</c>) so the type checker can construct the same key
+    /// from an operator expression.
+    /// </summary>
+    private static string GetOperatorSymbolLexeme(OperatorSymbolNode symbol) => symbol switch
+    {
+        PlusOpOperatorSymbolNode => "+",
+        MinusOpOperatorSymbolNode => "-",
+        StarOpOperatorSymbolNode => "*",
+        SlashOpOperatorSymbolNode => "/",
+        ModuloOpOperatorSymbolNode => "%",
+        EqualEqualOpOperatorSymbolNode => "==",
+        NotEqualOpOperatorSymbolNode => "!=",
+        LessThanOpOperatorSymbolNode => "<",
+        GreaterThanOpOperatorSymbolNode => ">",
+        LessThanOrEqualOpOperatorSymbolNode => "<=",
+        GreaterThanOrEqualOpOperatorSymbolNode => ">=",
+        LogicalAndOpOperatorSymbolNode => "&&",
+        LogicalOrOpOperatorSymbolNode => "||",
+        ExclamationOpOperatorSymbolNode => "!",
+        _ => "",
+    };
 
     /// <summary>
     /// Extracts type parameter names from a <see cref="TypeParameterListNode"/> and returns
@@ -932,6 +1048,163 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (child is not null && ContainsFieldKeywordInNode(child))
                 return true;
         }
+        return false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Pass 1e — Validate intrinsic markers (Task 9)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates the <c>intrinsic</c> markers propagated by Pass 1 onto types
+    /// and members. Emits three diagnostics:
+    /// <list type="bullet">
+    /// <item>
+    /// <description><c>MIST_SB_0030</c> — an intrinsic member has a body
+    /// (Requirement 5.3). Intrinsic members must terminate with <c>;</c>
+    /// because their bodies are supplied by the backend.</description>
+    /// </item>
+    /// <item>
+    /// <description><c>MIST_SB_0031</c> — the <c>intrinsic</c> modifier
+    /// appears in a non-stdlib compilation unit (Requirements 5.6 &amp; 5.13).
+    /// Fires on both type-level and member-level misuse. Until Task 26
+    /// introduces <c>CompilationUnit.IsStdlib</c>, every unit is treated as
+    /// non-stdlib, so any occurrence of <c>intrinsic</c> currently triggers
+    /// this diagnostic.</description>
+    /// </item>
+    /// <item>
+    /// <description><c>MIST_SB_0032</c> — a member-level <c>intrinsic</c> sits
+    /// inside a type that is not itself declared <c>intrinsic</c>
+    /// (Requirement 5.15). Intrinsic members are always hosted on
+    /// Backend_Backed_Types.</description>
+    /// </item>
+    /// </list>
+    /// </summary>
+    private static void Pass1e_ValidateIntrinsicMarkers(
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        SymbolTable symbolTable,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // Iterate class and struct type symbols. For each, check the
+        // type-level intrinsic marker (MIST_SB_0031), then walk its member
+        // scope to check each member-level intrinsic marker.
+        foreach (var typeSymbol in symbolTable.AllSymbols)
+        {
+            if (typeSymbol.Kind != SymbolKind.Class && typeSymbol.Kind != SymbolKind.Struct)
+                continue;
+
+            var containingType = typeSymbol.DeclaredType;
+            if (containingType is null)
+                continue;
+
+            var isBackendBacked = containingType switch
+            {
+                ClassType ct => ct.IsBackendBacked,
+                StructType st => st.IsBackendBacked,
+                _ => false,
+            };
+
+            // MIST_SB_0031 (type-level): the 'intrinsic' modifier is reserved
+            // for the Standard Library. Until Task 26 lands
+            // CompilationUnit.IsStdlib, every unit is non-stdlib.
+            if (isBackendBacked && !IsStdlibSymbol(typeSymbol, asts, compilation))
+            {
+                var declaringNode = symbolTable.GetDeclaringNode(typeSymbol);
+                if (declaringNode is not null)
+                {
+                    var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        IntrinsicReservedForStdlib.Value,
+                        DiagnosticSeverity.Error,
+                        "The 'intrinsic' modifier is reserved for the Standard Library and cannot be used in user code.",
+                        declaringNode,
+                        sourceText));
+                }
+            }
+
+            // Walk the type's members to check member-level intrinsic markers.
+            var memberScope = containingType switch
+            {
+                ClassType ct => ct.MemberScope,
+                StructType st => st.MemberScope,
+                _ => null,
+            };
+            if (memberScope is null)
+                continue;
+
+            foreach (var member in memberScope.Members)
+            {
+                if (member is not Symbol memberSymbol || !memberSymbol.IsIntrinsic)
+                    continue;
+
+                // Only validate members that can carry 'intrinsic': methods,
+                // constructors, and operators (operators are registered as
+                // SymbolKind.Method with a mangled "operator<sym>" name).
+                if (memberSymbol.Kind != SymbolKind.Method
+                    && memberSymbol.Kind != SymbolKind.Constructor)
+                {
+                    continue;
+                }
+
+                var memberDeclaringNode = symbolTable.GetDeclaringNode(memberSymbol);
+                var memberSourceText = memberDeclaringNode is null
+                    ? null
+                    : FindSourceTextForNode(memberDeclaringNode, asts, compilation);
+
+                // MIST_SB_0030 — intrinsic member with a body.
+                if (memberSymbol.HasBody && memberDeclaringNode is not null)
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        IntrinsicMemberHasBody.Value,
+                        DiagnosticSeverity.Error,
+                        $"Intrinsic member '{typeSymbol.Name}.{memberSymbol.Name}' must not have a body; use ';' to mark it as backend-provided.",
+                        memberDeclaringNode,
+                        memberSourceText));
+                }
+
+                // MIST_SB_0031 — member-level 'intrinsic' in user code.
+                if (!IsStdlibSymbol(typeSymbol, asts, compilation) && memberDeclaringNode is not null)
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        IntrinsicReservedForStdlib.Value,
+                        DiagnosticSeverity.Error,
+                        "The 'intrinsic' modifier is reserved for the Standard Library and cannot be used in user code.",
+                        memberDeclaringNode,
+                        memberSourceText));
+                }
+
+                // MIST_SB_0032 — member-level 'intrinsic' inside a
+                // non-intrinsic containing type (Requirement 5.15).
+                if (!isBackendBacked && memberDeclaringNode is not null)
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        MemberIntrinsicRequiresTypeIntrinsic.Value,
+                        DiagnosticSeverity.Error,
+                        $"Member-level 'intrinsic' is only permitted inside a type that is itself declared 'intrinsic'. Type '{typeSymbol.Name}' is not intrinsic.",
+                        memberDeclaringNode,
+                        memberSourceText));
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the type declared by <paramref name="typeSymbol"/>
+    /// resides in a Standard Library compilation unit. Task 26 will introduce
+    /// <c>CompilationUnit.IsStdlib</c>; until then this always returns
+    /// <c>false</c>, which matches the specification's current-state
+    /// requirement (every unit is treated as non-stdlib).
+    /// </summary>
+    private static bool IsStdlibSymbol(
+        ISymbol typeSymbol,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation)
+    {
+        // Placeholder — Task 26 will check CompilationUnit.IsStdlib here.
+        _ = typeSymbol;
+        _ = asts;
+        _ = compilation;
         return false;
     }
 
@@ -3820,8 +4093,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ResolveArgumentList(baseChain.Arguments, methodScope, fileScope, enclosingType, /* isStatic */ false, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
         }
 
-        // Resolve the body.
-        ResolveBlock(ctorDecl.Body, methodScope, fileScope, enclosingType, /* isStatic */ false, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        // Resolve the body. A no-body (;) form is accepted by the grammar but
+        // has no statements to resolve; semantic validation of whether ; is
+        // permitted on this declaration is done elsewhere.
+        if (ctorDecl.Body.GetBlock() is BlockNode ctorBlock)
+            ResolveBlock(ctorBlock, methodScope, fileScope, enclosingType, /* isStatic */ false, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
     }
 
     private static void ResolveMethodDeclaration(
@@ -3855,8 +4131,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             RegisterParameters(methodDecl.Parameters, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
         }
 
-        // Resolve the body.
-        ResolveBlock(methodDecl.Body, methodScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        // Resolve the body. A no-body (;) form is accepted by the grammar but
+        // has no statements to resolve.
+        if (methodDecl.Body.GetBlock() is BlockNode methodBlock)
+            ResolveBlock(methodBlock, methodScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
     }
 
     /// <summary>

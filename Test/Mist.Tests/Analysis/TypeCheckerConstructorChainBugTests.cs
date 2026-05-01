@@ -159,11 +159,11 @@ public class TypeCheckerConstructorChainBugTests
         {
             Name = MakeToken("Point"),
             Parameters = new ParameterListNode { Parameter = paramX },
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(
                     MakeExpressionStatement(MakeIdentifierExpression("x"))),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -183,7 +183,7 @@ public class TypeCheckerConstructorChainBugTests
             Name = MakeToken("Point"),
             Parameters = null,
             Chain = chain,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -193,11 +193,11 @@ public class TypeCheckerConstructorChainBugTests
             Name = MakeToken("GetX"),
             ReturnType = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(
                     MakeReturnStatement(MakeIntLiteralExpression("0"))),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -265,11 +265,11 @@ public class TypeCheckerConstructorChainBugTests
         {
             Name = MakeToken("Color"),
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(
                     MakeExpressionStatement(MakeIdentifierExpression("r"))),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -307,7 +307,7 @@ public class TypeCheckerConstructorChainBugTests
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),

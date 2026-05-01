@@ -189,7 +189,7 @@ public class TypeCheckerOverloadDiagnosticTests
             Name = MakeToken(name),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = new ParameterListNode { Parameter = param },
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = modifiers,
         };
     }
@@ -205,7 +205,7 @@ public class TypeCheckerOverloadDiagnosticTests
         {
             Name = MakeToken(className),
             Parameters = new ParameterListNode { Parameter = param },
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
     }
@@ -220,7 +220,7 @@ public class TypeCheckerOverloadDiagnosticTests
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = body },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),

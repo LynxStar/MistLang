@@ -161,7 +161,7 @@ public class InterfaceRoundTripPropertyTests
             Name = Tok(name),
             ReturnType = returnType,
             Parameters = parameters,
-            Body = new BlockNode { Statements = body },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
             Modifiers = modifiers ?? ImmutableArray<ModifierNode>.Empty,
         };
     }

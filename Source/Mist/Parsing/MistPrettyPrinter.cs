@@ -286,9 +286,12 @@ public sealed class MistPrettyPrinter
         AppendLine($"{modifiers}{name}({parameters}){chain} {{");
         _indentLevel++;
 
-        foreach (var stmt in ctorDecl.Body.Statements)
+        if (ctorDecl.Body.GetBlock() is BlockNode ctorBlock)
         {
-            EmitStatement(stmt);
+            foreach (var stmt in ctorBlock.Statements)
+            {
+                EmitStatement(stmt);
+            }
         }
 
         _indentLevel--;
@@ -306,9 +309,12 @@ public sealed class MistPrettyPrinter
         AppendLine($"{modifiers}{returnType} {name}{typeParams}({parameters}) {{");
         _indentLevel++;
 
-        foreach (var stmt in methodDecl.Body.Statements)
+        if (methodDecl.Body.GetBlock() is BlockNode methodBlock)
         {
-            EmitStatement(stmt);
+            foreach (var stmt in methodBlock.Statements)
+            {
+                EmitStatement(stmt);
+            }
         }
 
         _indentLevel--;

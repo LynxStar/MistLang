@@ -109,7 +109,7 @@ public class TypeParameterRegistrationPropertyTests
             Name = MakeToken(name),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             TypeParams = MakeTypeParamList(typeParamNames),
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
     }

@@ -114,7 +114,7 @@ public class InheritedMemberResolutionPropertyTests
             {
                 Name = MakeToken(name),
                 ReturnType = new VoidTypeRefTypeReferenceNode(),
-                Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+                Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             },
         };
     }
@@ -385,10 +385,10 @@ public class InheritedMemberResolutionPropertyTests
                 {
                     Name = MakeToken("_probe_"),
                     ReturnType = new VoidTypeRefTypeReferenceNode(),
-                    Body = new BlockNode
+                    Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
                     {
                         Statements = ImmutableArray.Create(MakeExpressionStatement(accessExpr)),
-                    },
+                    } },
                 };
                 members.Add(new MethodMemberMemberDeclarationNode { Method = probeMethod });
             }

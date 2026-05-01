@@ -108,7 +108,7 @@ public static class MistOverloadGenerator
             Name = Tok(name),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = new ParameterListNode { Parameter = param },
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
     }
@@ -123,7 +123,7 @@ public static class MistOverloadGenerator
             Name = Tok(name),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
     }
@@ -138,7 +138,7 @@ public static class MistOverloadGenerator
         {
             Name = Tok(className),
             Parameters = new ParameterListNode { Parameter = param },
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
         };
     }
 
@@ -151,7 +151,7 @@ public static class MistOverloadGenerator
         {
             Name = Tok(className),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
         };
     }
 

@@ -266,7 +266,7 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -303,7 +303,7 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
                 Name = MakeToken(scenario.MethodName),
                 ReturnType = new VoidTypeRefTypeReferenceNode(),
                 Parameters = paramList,
-                Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+                Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
                 Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
             };
 
@@ -349,7 +349,7 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -384,7 +384,7 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
             {
                 Name = MakeToken(scenario.ClassName),
                 Parameters = paramList,
-                Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+                Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
                 Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
             };
 

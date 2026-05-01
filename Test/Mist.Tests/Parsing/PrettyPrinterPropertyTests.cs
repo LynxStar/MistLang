@@ -348,11 +348,11 @@ public class PrettyPrinterPropertyTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
             Name = MakeToken("Point"),
             Parameters = new ParameterListNode { Parameter = ctorParam },
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(
                     MakeExpressionStatement(assignExpr)),
-            },
+            } },
         };
 
         var methodDecl = new MethodDeclarationNode
@@ -364,11 +364,11 @@ public class PrettyPrinterPropertyTests
             },
             Name = MakeToken("GetX"),
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(
                     MakeReturnStatement(MakeIdentifierExpression("x"))),
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -521,14 +521,14 @@ public class PrettyPrinterPropertyTests
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Name = MakeToken("Run"),
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create<StatementNode>(
                     ifStmt,
                     whileStmt,
                     forStmt,
                     foreachStmt),
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -579,14 +579,14 @@ public class PrettyPrinterPropertyTests
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Name = MakeToken("Test"),
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create<StatementNode>(
                     varDecl,
                     yDecl,
                     callStmt,
                     returnStmt),
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -622,7 +622,7 @@ public class PrettyPrinterPropertyTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
             Name = MakeToken("Foo"),
             Parameters = new ParameterListNode { Parameter = paramX },
-            Body = new BlockNode(),
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
 
         var ctor2 = new ConstructorDeclarationNode
@@ -637,7 +637,7 @@ public class PrettyPrinterPropertyTests
                     Expression = MakeIntLiteralExpression("0"),
                 },
             },
-            Body = new BlockNode(),
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
 
         var classDecl = new ClassDeclarationNode

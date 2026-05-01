@@ -135,10 +135,10 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
             Modifiers = ImmutableArray.Create<ModifierNode>(staticModifier),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Name = Tok("Reset"),
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray<StatementNode>.Empty,
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -185,10 +185,10 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
             Modifiers = ImmutableArray.Create<ModifierNode>(staticMod),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Name = Tok("Clear"),
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray<StatementNode>.Empty,
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode

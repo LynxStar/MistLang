@@ -104,7 +104,7 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
                 Name = MakeToken("Main"),
                 ReturnType = new VoidTypeRefTypeReferenceNode(),
                 Parameters = null,
-                Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+                Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
                 Modifiers = ImmutableArray.Create<ModifierNode>(
                     new PublicModifierModifierNode(),
                     new StaticModifierModifierNode()),

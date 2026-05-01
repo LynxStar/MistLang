@@ -187,7 +187,7 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
             Name = Tok("Main"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode { Statements = body ?? ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body ?? ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -437,14 +437,14 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
             Name = Tok("DoWork"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create<StatementNode>(
                     new ReturnStatementStatementNode
                     {
                         ReturnStatement = new ReturnStatementNode { Value = null },
                     }),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -505,14 +505,14 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
             Name = Tok("DoWork"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create<StatementNode>(
                     new ReturnStatementStatementNode
                     {
                         ReturnStatement = new ReturnStatementNode { Value = null },
                     }),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 

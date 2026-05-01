@@ -196,7 +196,7 @@ public class ParameterScopingPropertyTests
                 Name = MakeToken($"M{i}"),
                 ReturnType = new VoidTypeRefTypeReferenceNode(),
                 Parameters = new ParameterListNode { Parameter = param },
-                Body = new BlockNode { Statements = body },
+                Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
                 Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
             };
 
@@ -259,7 +259,7 @@ public class ParameterScopingPropertyTests
             {
                 Name = MakeToken("TestClass"),
                 Parameters = new ParameterListNode { Parameter = param },
-                Body = new BlockNode { Statements = body },
+                Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
             };
             member = new ConstructorMemberMemberDeclarationNode { Constructor = ctor };
         }
@@ -270,7 +270,7 @@ public class ParameterScopingPropertyTests
                 Name = MakeToken("DoWork"),
                 ReturnType = new VoidTypeRefTypeReferenceNode(),
                 Parameters = new ParameterListNode { Parameter = param },
-                Body = new BlockNode { Statements = body },
+                Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
                 Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
             };
             member = new MethodMemberMemberDeclarationNode { Method = method };

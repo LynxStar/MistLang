@@ -110,6 +110,76 @@ public class LexerTokenKindTests
         Assert.NotEqual((int)TokenKind.IDENTIFIER, tokens[0].Kind);
     }
 
+    // ─── Reserved Keyword Tests — intrinsic and operator ─────────────────────
+    // Requirements: 5.14 (`intrinsic` is defined in exactly one place —
+    // `keywords.storm` — and is reserved, never usable as an identifier),
+    // 4.1 (grammar accepts `operator` in operator declarations — it must
+    // tokenize as its own keyword so the parser can recognize it).
+
+    [Theory]
+    [InlineData("intrinsic", TokenKind.INTRINSIC)]
+    [InlineData("operator", TokenKind.OPERATOR)]
+    public void ReservedKeyword_IntrinsicAndOperator_ProduceCorrectTokenKind(
+        string keyword, TokenKind expectedKind)
+    {
+        var tokens = LexDefaultTokens(keyword);
+
+        if (tokens.Count == 0) return; // Skeletal lexer
+
+        Assert.Single(tokens);
+        Assert.Equal((int)expectedKind, tokens[0].Kind);
+        // Both keywords are reserved (not contextual); they must never lex
+        // as IDENTIFIER regardless of context.
+        Assert.NotEqual((int)TokenKind.IDENTIFIER, tokens[0].Kind);
+        Assert.Equal(keyword, tokens[0].Lexeme);
+    }
+
+    [Theory]
+    [InlineData("intrinsic", TokenKind.INTRINSIC)]
+    [InlineData("operator", TokenKind.OPERATOR)]
+    public void ReservedKeyword_IntrinsicAndOperator_RejectedAsIdentifierInDeclaration(
+        string keyword, TokenKind expectedKind)
+    {
+        // Use the keyword in a position where an identifier would normally be
+        // expected (a variable name). The lexer must still tokenize it as the
+        // reserved keyword, not as an IDENTIFIER — confirming the keyword is
+        // truly reserved, not contextual.
+        var source = $"int {keyword} = 0;";
+        var tokens = LexDefaultTokens(source);
+
+        if (tokens.Count == 0) return; // Skeletal lexer
+
+        // tokens[0] is INT; tokens[1] must be the reserved keyword — NOT IDENTIFIER.
+        Assert.True(tokens.Count >= 2,
+            $"Expected at least 2 tokens for source '{source}', got {tokens.Count}");
+        Assert.Equal((int)expectedKind, tokens[1].Kind);
+        Assert.NotEqual((int)TokenKind.IDENTIFIER, tokens[1].Kind);
+        Assert.Equal(keyword, tokens[1].Lexeme);
+    }
+
+    [Theory]
+    [InlineData("intrinsics")]
+    [InlineData("operators")]
+    [InlineData("_intrinsic")]
+    [InlineData("_operator")]
+    [InlineData("myIntrinsic")]
+    [InlineData("operatorCount")]
+    public void ReservedKeyword_IntrinsicAndOperator_DoNotMatchPrefixOrSuffix(string identifier)
+    {
+        // Strings that merely contain "intrinsic" or "operator" as a substring
+        // (or have them as a prefix/suffix with additional characters) must
+        // still lex as IDENTIFIER — keyword matching requires a whole-word
+        // boundary. Maximal-munch must pick the longer identifier over the
+        // keyword prefix.
+        var tokens = LexDefaultTokens(identifier);
+
+        if (tokens.Count == 0) return; // Skeletal lexer
+
+        Assert.Single(tokens);
+        Assert.Equal((int)TokenKind.IDENTIFIER, tokens[0].Kind);
+        Assert.Equal(identifier, tokens[0].Lexeme);
+    }
+
     // ─── Multi-Character Operator Tests ──────────────────────────────────────
 
     [Theory]

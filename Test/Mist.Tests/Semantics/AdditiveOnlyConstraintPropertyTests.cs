@@ -112,7 +112,7 @@ public class AdditiveOnlyConstraintPropertyTests
             {
                 Name = MakeToken(name),
                 ReturnType = new VoidTypeRefTypeReferenceNode(),
-                Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+                Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             },
         };
     }

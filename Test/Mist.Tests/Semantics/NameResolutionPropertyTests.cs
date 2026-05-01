@@ -175,10 +175,10 @@ public class NameResolutionPropertyTests
             Name = MakeToken(methodName),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = paramList,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = statements,
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -347,11 +347,11 @@ public class NameResolutionPropertyTests
             Name = MakeToken("TestMethod"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(
                     MakeIntVarDecl("localVar", scenario.OuterValue.ToString())),
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -432,11 +432,11 @@ public class NameResolutionPropertyTests
             Name = MakeToken("TestMethod"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = new ParameterListNode { Parameter = paramNode },
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(
                     MakeIdentifierStatement("x")),
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -563,11 +563,11 @@ public class NameResolutionPropertyTests
             Name = MakeToken("TestMethod"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = null,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = ImmutableArray.Create(
                     MakeIdentifierStatement("NsItem")),
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -627,7 +627,7 @@ public class NameResolutionPropertyTests
             Name = MakeToken("TestMethod"),
             ReturnType = new VoidTypeRefTypeReferenceNode(),
             Parameters = new ParameterListNode { Parameter = paramNode },
-            Body = new BlockNode(),
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
 
         var classDecl = new ClassDeclarationNode

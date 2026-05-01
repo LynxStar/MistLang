@@ -108,7 +108,7 @@ public class BaseConstructorValidationTests
             Name = MakeToken(className),
             Parameters = parameters,
             Chain = chain,
-            Body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty },
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
         };
 
         return new ConstructorMemberMemberDeclarationNode { Constructor = ctorDecl };

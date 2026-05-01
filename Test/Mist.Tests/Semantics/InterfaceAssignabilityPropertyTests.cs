@@ -219,10 +219,10 @@ public class InterfaceAssignabilityPropertyTests
             Name = MakeToken(name),
             ReturnType = returnType ?? new VoidTypeRefTypeReferenceNode(),
             Parameters = parameters,
-            Body = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = bodyStatements ?? ImmutableArray<StatementNode>.Empty,
-            },
+            } },
             Modifiers = modifiers.ToImmutableArray(),
         };
     }

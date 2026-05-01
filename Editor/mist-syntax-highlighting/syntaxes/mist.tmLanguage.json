@@ -83,11 +83,11 @@
         },
         {
           "name": "storage.modifier.mist",
-          "match": "\\b(public|private|static)\\b"
+          "match": "\\b(public|private|static|intrinsic)\\b"
         },
         {
           "name": "keyword.other.mist",
-          "match": "\\b(new|var|this|get|set|init|field)\\b"
+          "match": "\\b(new|var|this|get|set|init|field|operator)\\b"
         }
       ]
     },

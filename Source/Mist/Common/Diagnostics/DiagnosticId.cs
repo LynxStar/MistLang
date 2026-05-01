@@ -32,4 +32,20 @@ public readonly record struct DiagnosticId(string Value)
 
     /// <summary>Void is not permitted as an array element type.</summary>
     public static readonly DiagnosticId VoidArrayNotPermitted = new("MIST_TC_0034");
+
+    // ── Standard Library loading diagnostics ─────────────────────────────
+
+    /// <summary>Stdlib file missing, unreadable, or the stdlib directory is absent.</summary>
+    public static readonly DiagnosticId StdlibParse = new("MIST_STDLIB_PARSE");
+
+    /// <summary>
+    /// The Standard Library has not been loaded (or a required stdlib type is
+    /// absent from the loaded set) at a point in the pipeline that requires
+    /// it. This is a fatal, compiler-internal condition: primitive keyword
+    /// resolution (Requirement 7.6) and related stdlib-dependent machinery
+    /// cannot proceed without the corresponding stdlib type. Raised by
+    /// <c>SemanticModelBuilder.LookupQualifiedStdlibType</c> via
+    /// <c>StdlibMissingException</c>.
+    /// </summary>
+    public static readonly DiagnosticId StdlibMissing = new("MIST_STDLIB_MISSING");
 }

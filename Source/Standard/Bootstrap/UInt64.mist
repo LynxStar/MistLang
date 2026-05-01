@@ -1,0 +1,21 @@
+namespace Standard;
+
+intrinsic public struct UInt64
+{
+    // Binary arithmetic operators — Requirement 3.1
+    intrinsic public static UInt64 operator +(UInt64 a, UInt64 b);
+    intrinsic public static UInt64 operator -(UInt64 a, UInt64 b);
+    intrinsic public static UInt64 operator *(UInt64 a, UInt64 b);
+    intrinsic public static UInt64 operator /(UInt64 a, UInt64 b);
+    intrinsic public static UInt64 operator %(UInt64 a, UInt64 b);
+
+    // Comparison operators — Requirement 3.2
+    intrinsic public static Boolean operator <(UInt64 a, UInt64 b);
+    intrinsic public static Boolean operator >(UInt64 a, UInt64 b);
+    intrinsic public static Boolean operator <=(UInt64 a, UInt64 b);
+    intrinsic public static Boolean operator >=(UInt64 a, UInt64 b);
+    intrinsic public static Boolean operator ==(UInt64 a, UInt64 b);
+    intrinsic public static Boolean operator !=(UInt64 a, UInt64 b);
+
+    // No unary '-' on unsigned types — Requirement 3.4.
+}

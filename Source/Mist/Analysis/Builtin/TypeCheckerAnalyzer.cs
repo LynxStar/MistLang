@@ -23,35 +23,53 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     internal static readonly DiagnosticId AmbiguousOverload = new("MIST_TC_0032");
 
     /// <summary>
-    /// Feature flag gating the new operator overload-resolution path introduced by
-    /// Task 14 of the Mist Standard Library spec. When <c>false</c> (the default),
-    /// operator expressions (<c>+</c>, <c>-</c>, <c>==</c>, etc.) are typed by the
-    /// existing hardcoded <see cref="NumericTypes"/> / <see cref="IsNumeric"/> /
-    /// <c>StringType</c>-for-<c>+</c> rules in the <c>Check*Node</c> methods.
-    /// When <c>true</c>, operator expressions resolve through
-    /// <see cref="ResolveBinaryOperator"/> / <see cref="ResolveUnaryOperator"/>
-    /// against operator-member candidates collected from the operand types,
-    /// using <see cref="OverloadResolver.Resolve"/>.
+    /// Feature flag gating the operator overload-resolution path introduced by
+    /// Task 14 of the Mist Standard Library spec. When <c>true</c> (the
+    /// default after Task 33 flipped it), operator expressions resolve
+    /// through <see cref="ResolveBinaryOperator"/> /
+    /// <see cref="ResolveUnaryOperator"/> against operator-member candidates
+    /// collected from the operand types, using
+    /// <see cref="OverloadResolver.Resolve"/>.
     ///
-    /// In Task 14 this flag is reserved for a future integration test (Task 16);
-    /// the existing <c>Check*Node</c> methods do not branch on it. Production traffic
-    /// continues on the old path until Stage 4 of the migration flips the default.
+    /// The flag is retained for rollback scenarios and targeted unit tests
+    /// that may want to compare paths; the <c>Check*Node</c> methods no
+    /// longer branch on it — they delegate unconditionally to the overload
+    /// resolution helpers. The legacy hardcoded <c>NumericTypes</c> HashSet,
+    /// <c>IsNumeric</c> helper, and <c>StringType</c>-for-<c>+</c> /
+    /// <c>PrimitiveType.Bool</c>-for-logical special cases have been
+    /// removed per Requirements 6.7, 6.8, and 6.9.
     /// </summary>
 #pragma warning disable CA1805 // Flag default value is part of the contract — the migration plan
                                // (design § Migration Plan) calls it out explicitly.
-    internal static bool UseOperatorOverloadResolution = false;
+    internal static bool UseOperatorOverloadResolution = true;
 #pragma warning restore CA1805
 
-    // ── Numeric types for operator checking ──────────────────────────────
-    private static readonly HashSet<IType> NumericTypes =
-    [
-        PrimitiveType.Int, PrimitiveType.Uint,
-        PrimitiveType.Long, PrimitiveType.Ulong,
-        PrimitiveType.Short, PrimitiveType.Ushort,
-        PrimitiveType.Byte, PrimitiveType.Sbyte,
-        PrimitiveType.Float, PrimitiveType.Double,
-        PrimitiveType.Decimal,
-    ];
+    /// <summary>
+    /// DisplayName-based numeric classification set — covers both the
+    /// legacy <see cref="PrimitiveType"/> singletons (DisplayName
+    /// <c>"int"</c>, <c>"double"</c>, etc.) and the stdlib
+    /// <c>Standard.*</c> <see cref="StructType"/> instances (DisplayName
+    /// <c>"Int32"</c>, <c>"Double"</c>, etc.). Consulted by helpers that
+    /// still need numeric classification after Task 33 — variable
+    /// narrowing (<see cref="CheckAssignability"/> callers), numeric
+    /// widening in <see cref="HasImplicitNumericConversion"/>, and
+    /// equality compatibility in <see cref="AreEqualityCompatible"/>.
+    /// Operator type-checking no longer consults this set; operator
+    /// applicability flows from Operator_Declarations via overload
+    /// resolution (Requirement 6.7).
+    /// </summary>
+    private static readonly HashSet<string> NumericDisplayNames = new(StringComparer.Ordinal)
+    {
+        // Legacy lexemes.
+        "int", "uint", "long", "ulong",
+        "short", "ushort", "byte", "sbyte",
+        "float", "double", "decimal",
+
+        // Stdlib simple names.
+        "Int32", "UInt32", "Int64", "UInt64",
+        "Int16", "UInt16", "Byte", "SByte",
+        "Single", "Double", "Decimal",
+    };
 
     // ── Current enclosing type during analysis (set per method/constructor) ──
     private IType? _currentEnclosingType;
@@ -1106,7 +1124,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // Allow numeric-to-numeric assignments in variable declarations
                     // to support constant narrowing (e.g., byte x = 0; where 0 is int).
                     // Non-numeric type mismatches (e.g., Type → int) are still checked.
-                    if (!(IsNumeric(initType) && IsNumeric(declaredType)))
+                    if (!(NumericDisplayNames.Contains(initType.DisplayName)
+                          && NumericDisplayNames.Contains(declaredType.DisplayName)))
                     {
                         CheckAssignability(initType, declaredType, typed.Initializer, diagnostics, model);
                     }
@@ -1267,7 +1286,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (condType is null || IsUnknown(condType))
             return;
 
-        if (condType is not PrimitiveType pt || pt != PrimitiveType.Bool)
+        // Compare against PrimitiveType.Bool via reference equality rather
+        // than a `is PrimitiveType` pattern match: after Task 32 lands the
+        // compat shim, PrimitiveType.Bool is a property whose return type
+        // is IType, and a post-Task-31 semantic model yields the stdlib
+        // Standard.Boolean StructType instance — not a legacy PrimitiveType.
+        // Reference equality still holds (Requirement 8.5) within a single
+        // build that resolved its bool keyword via PrimitiveType.Bool; the
+        // IsBoolLike fallback accepts either flavour so parallel builds
+        // that end up with a stale registry still classify correctly.
+        if (!ReferenceEquals(condType, PrimitiveType.Bool) && !IsBoolLike(condType))
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0007",
@@ -1405,27 +1433,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private void CheckLogicalOrNode(LogicalOrNode node, ISemanticModel model, DiagnosticBag diagnostics)
     {
+        // Walk children first — the overload resolver only resolves the
+        // top-level operator; the child subexpressions still need
+        // analysis for their own operator/member checks.
         CheckLogicalAndNode(node.Left, model, diagnostics);
 
         if (node.Right is not null)
         {
             CheckLogicalAndNode(node.Right, model, diagnostics);
 
-            var lhsType = model.GetTypeOf(node.Left);
-            var rhsType = model.GetTypeOf(node.Right);
-
-            if (lhsType is not null && rhsType is not null
-                && !IsUnknown(lhsType) && !IsUnknown(rhsType))
-            {
-                if (lhsType != PrimitiveType.Bool || rhsType != PrimitiveType.Bool)
-                {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0006",
-                        "Operator '||' requires operands of type 'bool'",
-                        node,
-                        model));
-                }
-            }
+            // Route typing / error emission through overload resolution
+            // (Requirements 6.1, 6.9). Boolean.operator|| is declared on
+            // Standard.Boolean; the old PrimitiveType.Bool special case
+            // is removed.
+            ResolveBinaryOperator(
+                "||",
+                node.Left,
+                node.Right,
+                node,
+                "MIST_TC_0006",
+                model,
+                diagnostics);
         }
     }
 
@@ -1437,21 +1465,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             CheckEqualityNode(node.Right, model, diagnostics);
 
-            var lhsType = model.GetTypeOf(node.Left);
-            var rhsType = model.GetTypeOf(node.Right);
-
-            if (lhsType is not null && rhsType is not null
-                && !IsUnknown(lhsType) && !IsUnknown(rhsType))
-            {
-                if (lhsType != PrimitiveType.Bool || rhsType != PrimitiveType.Bool)
-                {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0006",
-                        "Operator '&&' requires operands of type 'bool'",
-                        node,
-                        model));
-                }
-            }
+            // Route typing / error emission through overload resolution
+            // (Requirements 6.1, 6.9). Boolean.operator&& is declared on
+            // Standard.Boolean; the old PrimitiveType.Bool special case
+            // is removed.
+            ResolveBinaryOperator(
+                "&&",
+                node.Left,
+                node.Right,
+                node,
+                "MIST_TC_0006",
+                model,
+                diagnostics);
         }
     }
 
@@ -1463,22 +1488,34 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             CheckRelationalNode(node.Right, model, diagnostics);
 
+            // Void unit-type equality is a first-class language feature
+            // (void-unit-type spec § Requirement 9). Two VoidType operands
+            // compare equal via reference identity; there is no operator
+            // member to look up because VoidType is a compiler-internal
+            // type. Short-circuit before delegating to overload resolution
+            // so `Void.Void == Void.Void` and `Void.Void != Void.Void`
+            // remain well-typed.
             var lhsType = model.GetTypeOf(node.Left);
             var rhsType = model.GetTypeOf(node.Right);
-            var op = node.Operator.Lexeme ?? "==";
-
-            if (lhsType is not null && rhsType is not null
-                && !IsUnknown(lhsType) && !IsUnknown(rhsType))
+            if (lhsType is VoidType && rhsType is VoidType)
             {
-                if (!AreEqualityCompatible(lhsType, rhsType))
-                {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0005",
-                        $"Operator '{op}' cannot be applied to operands of type '{lhsType.DisplayName}' and '{rhsType.DisplayName}'",
-                        node,
-                        model));
-                }
+                model.SetTypeOf(node, PrimitiveType.Bool);
+                return;
             }
+
+            // Route typing / error emission through overload resolution
+            // (Requirements 6.1, 6.4). Equality operators on stdlib types
+            // (Int32, Boolean, String, …) are declared as static operator
+            // members; user types may also declare == / !=.
+            var op = node.Operator.Lexeme ?? "==";
+            ResolveBinaryOperator(
+                op,
+                node.Left,
+                node.Right,
+                node,
+                "MIST_TC_0005",
+                model,
+                diagnostics);
         }
     }
 
@@ -1490,22 +1527,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             CheckAdditiveNode(node.Right, model, diagnostics);
 
-            var lhsType = model.GetTypeOf(node.Left);
-            var rhsType = model.GetTypeOf(node.Right);
+            // Route typing / error emission through overload resolution
+            // (Requirements 6.1, 6.4). Relational operators (<, >, <=, >=)
+            // are declared on each numeric stdlib type and Char; the old
+            // NumericTypes / IsNumeric special case is removed
+            // (Requirement 6.7).
             var op = node.Operator.Lexeme ?? "<";
-
-            if (lhsType is not null && rhsType is not null
-                && !IsUnknown(lhsType) && !IsUnknown(rhsType))
-            {
-                if (!IsNumeric(lhsType) || !IsNumeric(rhsType))
-                {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0004",
-                        $"Operator '{op}' cannot be applied to operands of type '{lhsType.DisplayName}' and '{rhsType.DisplayName}'",
-                        node,
-                        model));
-                }
-            }
+            ResolveBinaryOperator(
+                op,
+                node.Left,
+                node.Right,
+                node,
+                "MIST_TC_0004",
+                model,
+                diagnostics);
         }
     }
 
@@ -1517,34 +1552,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             CheckMultiplicativeNode(node.Right, model, diagnostics);
 
-            var lhsType = model.GetTypeOf(node.Left);
-            var rhsType = model.GetTypeOf(node.Right);
+            // Route typing / error emission through overload resolution
+            // (Requirements 6.1, 6.4, 6.8). String concatenation flows
+            // from Standard.String's operator+ declaration — the old
+            // StringType-for-+ special case is removed.
             var op = node.Operator.Lexeme ?? "+";
-
-            if (lhsType is not null && rhsType is not null
-                && !IsUnknown(lhsType) && !IsUnknown(rhsType))
-            {
-                // + allows string concatenation.
-                if (op == "+")
-                {
-                    var lhsIsString = lhsType is StringType;
-                    var rhsIsString = rhsType is StringType;
-                    if (lhsIsString || rhsIsString)
-                    {
-                        // String concatenation is allowed.
-                        return;
-                    }
-                }
-
-                if (!IsNumeric(lhsType) || !IsNumeric(rhsType))
-                {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0003",
-                        $"Operator '{op}' cannot be applied to operands of type '{lhsType.DisplayName}' and '{rhsType.DisplayName}'",
-                        node,
-                        model));
-                }
-            }
+            ResolveBinaryOperator(
+                op,
+                node.Left,
+                node.Right,
+                node,
+                "MIST_TC_0003",
+                model,
+                diagnostics);
         }
     }
 
@@ -1556,22 +1576,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             CheckUnaryNode(node.Right, model, diagnostics);
 
-            var lhsType = model.GetTypeOf(node.Left);
-            var rhsType = model.GetTypeOf(node.Right);
+            // Route typing / error emission through overload resolution
+            // (Requirements 6.1, 6.4, 6.7). Multiplicative operators
+            // (*, /, %) are declared on each numeric stdlib type; the old
+            // NumericTypes / IsNumeric special case is removed.
             var op = node.Operator.Lexeme ?? "*";
-
-            if (lhsType is not null && rhsType is not null
-                && !IsUnknown(lhsType) && !IsUnknown(rhsType))
-            {
-                if (!IsNumeric(lhsType) || !IsNumeric(rhsType))
-                {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0003",
-                        $"Operator '{op}' cannot be applied to operands of type '{lhsType.DisplayName}' and '{rhsType.DisplayName}'",
-                        node,
-                        model));
-                }
-            }
+            ResolveBinaryOperator(
+                op,
+                node.Left,
+                node.Right,
+                node,
+                "MIST_TC_0003",
+                model,
+                diagnostics);
         }
     }
 
@@ -1581,36 +1598,38 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             case LogicalNotUnaryNode logicalNot:
             {
+                // Walk the operand first so its own operators / members
+                // still get analysed.
                 CheckUnaryNode(logicalNot.Operand, model, diagnostics);
-                var operandType = model.GetTypeOf(logicalNot.Operand);
-                if (operandType is not null && !IsUnknown(operandType))
-                {
-                    if (operandType != PrimitiveType.Bool)
-                    {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0006",
-                            "Operator '!' requires operands of type 'bool'",
-                            logicalNot,
-                            model));
-                    }
-                }
+
+                // Route typing / error emission through overload
+                // resolution (Requirements 6.2, 6.9). Boolean.operator!
+                // is declared on Standard.Boolean; the old
+                // PrimitiveType.Bool special case is removed.
+                ResolveUnaryOperator(
+                    "!",
+                    logicalNot.Operand,
+                    logicalNot,
+                    "MIST_TC_0006",
+                    model,
+                    diagnostics);
                 break;
             }
             case NegateUnaryNode negate:
             {
                 CheckUnaryNode(negate.Operand, model, diagnostics);
-                var operandType = model.GetTypeOf(negate.Operand);
-                if (operandType is not null && !IsUnknown(operandType))
-                {
-                    if (!IsNumeric(operandType))
-                    {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0003",
-                            $"Operator '-' cannot be applied to operands of type '{operandType.DisplayName}' and '{operandType.DisplayName}'",
-                            negate,
-                            model));
-                    }
-                }
+
+                // Route typing / error emission through overload
+                // resolution (Requirements 6.2, 6.7). Unary - is declared
+                // on each signed numeric stdlib type; the old IsNumeric
+                // special case is removed.
+                ResolveUnaryOperator(
+                    "-",
+                    negate.Operand,
+                    negate,
+                    "MIST_TC_0003",
+                    model,
+                    diagnostics);
                 break;
             }
             case PostfixExpressionUnaryNode postfix:
@@ -2761,7 +2780,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (ReferenceEquals(a, b))
             return true;
         // Fallback: compare by display name for types that may not be reference-equal.
-        return a.DisplayName == b.DisplayName;
+        if (a.DisplayName == b.DisplayName)
+            return true;
+        // Migration-window equivalence: legacy `int` matches stdlib `Int32`
+        // and so on for every primitive alias in KeywordAliases.Map.
+        return ArePrimitiveEquivalent(a, b);
     }
 
     /// <summary>
@@ -2863,6 +2886,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (source.DisplayName == target.DisplayName)
             return true;
 
+        // Migration-window shim: `bool` and `Standard.Boolean` (likewise
+        // `int`/`Int32`, `string`/`String`, …) can coexist within a
+        // single compilation when some sub-tree was resolved via the
+        // legacy PrimitiveType singletons and another via the stdlib
+        // types. Treat them as equivalent so assignability doesn't
+        // spuriously reject `int` to `Int32` (or vice versa).
+        if (ArePrimitiveEquivalent(source, target))
+            return true;
+
         // ConstructedType identity: same generic definition + same type arguments.
         if (source is ConstructedType sourceConstructed && target is ConstructedType targetConstructed)
         {
@@ -2898,7 +2930,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Numeric widening.
-        if (IsNumeric(source) && IsNumeric(target))
+        if (NumericDisplayNames.Contains(source.DisplayName)
+            && NumericDisplayNames.Contains(target.DisplayName))
             return HasImplicitNumericConversion(source, target);
 
         // Interface assignability:
@@ -2954,7 +2987,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (a is TypeParameterType aTp && b is TypeParameterType bTp)
             return aTp.Name == bTp.Name && aTp.Ordinal == bTp.Ordinal;
 
-        return a.DisplayName == b.DisplayName;
+        // DisplayName equality — the common fallback for non-reference-
+        // equal primitives within the same migration flavour.
+        if (a.DisplayName == b.DisplayName)
+            return true;
+
+        // Migration-window shim: legacy `int` and stdlib `Int32` denote
+        // the same Mist primitive.
+        return ArePrimitiveEquivalent(a, b);
     }
 
     /// <summary>
@@ -3192,10 +3232,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return true;
 
         // Both numeric.
-        if (IsNumeric(left) && IsNumeric(right))
+        if (NumericDisplayNames.Contains(left.DisplayName)
+            && NumericDisplayNames.Contains(right.DisplayName))
             return true;
 
         // Both reference types (class types) can be compared.
+        // The migration-window shim routes `Standard.String` through
+        // ClassType; the legacy StringType singleton is retained as a
+        // fallback match so pre-stdlib semantic models still behave
+        // correctly.
         if (left is ClassType or StringType or ArrayType
             && right is ClassType or StringType or ArrayType)
             return true;
@@ -3203,9 +3248,98 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         return false;
     }
 
-    private static bool IsNumeric(IType type)
+    /// <summary>
+    /// Accepts either the legacy <see cref="StringType"/> singleton or the
+    /// stdlib <c>Standard.String</c> <see cref="ClassType"/> instance
+    /// (identified by its backend-backed marker and simple name). The
+    /// migration-window shim can surface either flavour; operator type-
+    /// checking should treat them identically.
+    /// </summary>
+    private static bool IsStringLike(IType type)
     {
-        return NumericTypes.Contains(type);
+        if (type is StringType) return true;
+        if (type is ClassType ct
+            && ct.IsBackendBacked
+            && ct.ContainingNamespace == "Standard"
+            && ct.DisplayName == "String")
+        {
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Accepts either the legacy <see cref="PrimitiveType"/> singleton for
+    /// <c>bool</c> or the stdlib <c>Standard.Boolean</c>
+    /// <see cref="StructType"/> instance. Like
+    /// <see cref="IsStringLike(IType)"/>, this papers over the migration-
+    /// window ambiguity so conditional checks and logical operators
+    /// classify consistently regardless of which build populated the
+    /// shim registry.
+    /// </summary>
+    private static bool IsBoolLike(IType type)
+    {
+        if (type is PrimitiveType pt && pt.DisplayName == "bool") return true;
+        if (type is StructType st
+            && st.IsBackendBacked
+            && st.ContainingNamespace == "Standard"
+            && st.DisplayName == "Boolean")
+        {
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Maps a legacy Mist primitive keyword (the <c>DisplayName</c> of a
+    /// <see cref="PrimitiveType"/> / <see cref="StringType"/> singleton)
+    /// to the corresponding stdlib simple name, or vice versa. Used by
+    /// <see cref="ArePrimitiveEquivalent(IType, IType)"/> to treat the
+    /// legacy and stdlib flavours of a primitive as the same type during
+    /// the Task 32 migration window.
+    /// </summary>
+    private static readonly Dictionary<string, string> LegacyToStdlibName =
+        new(StringComparer.Ordinal)
+        {
+            ["int"] = "Int32",
+            ["uint"] = "UInt32",
+            ["long"] = "Int64",
+            ["ulong"] = "UInt64",
+            ["short"] = "Int16",
+            ["ushort"] = "UInt16",
+            ["byte"] = "Byte",
+            ["sbyte"] = "SByte",
+            ["float"] = "Single",
+            ["double"] = "Double",
+            ["decimal"] = "Decimal",
+            ["bool"] = "Boolean",
+            ["char"] = "Char",
+            ["string"] = "String",
+        };
+
+    /// <summary>
+    /// Returns true when <paramref name="a"/> and <paramref name="b"/>
+    /// denote the same Mist primitive type but were resolved via
+    /// different flavours of the migration-window shim — e.g., one was
+    /// the legacy <see cref="PrimitiveType"/> for <c>int</c> and the
+    /// other was the stdlib <c>Standard.Int32</c>
+    /// <see cref="StructType"/>. Covers every entry in
+    /// <see cref="KeywordAliases.Map"/>.
+    /// </summary>
+    private static bool ArePrimitiveEquivalent(IType a, IType b)
+    {
+        // Try both directions — a is legacy / b is stdlib, and vice versa.
+        if (LegacyToStdlibName.TryGetValue(a.DisplayName, out var aStdlib)
+            && aStdlib == b.DisplayName)
+        {
+            return true;
+        }
+        if (LegacyToStdlibName.TryGetValue(b.DisplayName, out var bStdlib)
+            && bStdlib == a.DisplayName)
+        {
+            return true;
+        }
+        return false;
     }
 
     private static bool IsUnknown(IType type)
@@ -3215,10 +3349,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Checks for implicit numeric widening conversions following C# rules.
+    /// Uses <see cref="NumericRank(IType)"/> for DisplayName-based matching
+    /// so the migration-window shim (<c>int</c> vs. <c>Int32</c>, …) does
+    /// not cause spurious conversion rejections.
     /// </summary>
     private static bool HasImplicitNumericConversion(IType source, IType target)
     {
-        // Simplified C# implicit numeric conversion table.
+        // Simplified C# implicit numeric conversion table keyed by
+        // DisplayName (covers both legacy `"int"` and stdlib `"Int32"`).
         // byte → short, ushort, int, uint, long, ulong, float, double, decimal
         // sbyte → short, int, long, float, double, decimal
         // short → int, long, float, double, decimal
@@ -3229,62 +3367,62 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ulong → float, double, decimal
         // float → double
         // char → ushort, int, uint, long, ulong, float, double, decimal
+        var src = CanonicalNumericName(source);
+        var tgt = CanonicalNumericName(target);
+        if (src is null || tgt is null) return false;
 
-        if (source == PrimitiveType.Byte)
-            return target == PrimitiveType.Short || target == PrimitiveType.Ushort
-                || target == PrimitiveType.Int || target == PrimitiveType.Uint
-                || target == PrimitiveType.Long || target == PrimitiveType.Ulong
-                || target == PrimitiveType.Float || target == PrimitiveType.Double
-                || target == PrimitiveType.Decimal;
+        return src switch
+        {
+            "byte" => tgt is "short" or "ushort" or "int" or "uint" or "long" or "ulong" or "float" or "double" or "decimal",
+            "sbyte" => tgt is "short" or "int" or "long" or "float" or "double" or "decimal",
+            "short" => tgt is "int" or "long" or "float" or "double" or "decimal",
+            "ushort" => tgt is "int" or "uint" or "long" or "ulong" or "float" or "double" or "decimal",
+            "int" => tgt is "long" or "float" or "double" or "decimal",
+            "uint" => tgt is "long" or "ulong" or "float" or "double" or "decimal",
+            "long" => tgt is "float" or "double" or "decimal",
+            "ulong" => tgt is "float" or "double" or "decimal",
+            "float" => tgt is "double",
+            "char" => tgt is "ushort" or "int" or "uint" or "long" or "ulong" or "float" or "double" or "decimal",
+            _ => false,
+        };
+    }
 
-        if (source == PrimitiveType.Sbyte)
-            return target == PrimitiveType.Short
-                || target == PrimitiveType.Int
-                || target == PrimitiveType.Long
-                || target == PrimitiveType.Float || target == PrimitiveType.Double
-                || target == PrimitiveType.Decimal;
+    /// <summary>
+    /// Returns the canonical legacy lexeme for a primitive type regardless
+    /// of whether the <see cref="IType"/> instance is a legacy
+    /// <see cref="PrimitiveType"/> singleton or the stdlib
+    /// <c>Standard.*</c> <see cref="StructType"/>. Returns <c>null</c>
+    /// when the type is not one of the 14 primitive aliases.
+    /// </summary>
+    private static string? CanonicalNumericName(IType type)
+    {
+        var name = type.DisplayName;
 
-        if (source == PrimitiveType.Short)
-            return target == PrimitiveType.Int
-                || target == PrimitiveType.Long
-                || target == PrimitiveType.Float || target == PrimitiveType.Double
-                || target == PrimitiveType.Decimal;
+        // Legacy lexemes are already canonical.
+        if (NumericDisplayNames.Contains(name))
+        {
+            // Convert stdlib simple names back to legacy lexemes.
+            return name switch
+            {
+                "Int32" => "int",
+                "UInt32" => "uint",
+                "Int64" => "long",
+                "UInt64" => "ulong",
+                "Int16" => "short",
+                "UInt16" => "ushort",
+                "Byte" => "byte",
+                "SByte" => "sbyte",
+                "Single" => "float",
+                "Double" => "double",
+                "Decimal" => "decimal",
+                _ => name,
+            };
+        }
 
-        if (source == PrimitiveType.Ushort)
-            return target == PrimitiveType.Int || target == PrimitiveType.Uint
-                || target == PrimitiveType.Long || target == PrimitiveType.Ulong
-                || target == PrimitiveType.Float || target == PrimitiveType.Double
-                || target == PrimitiveType.Decimal;
-
-        if (source == PrimitiveType.Int)
-            return target == PrimitiveType.Long
-                || target == PrimitiveType.Float || target == PrimitiveType.Double
-                || target == PrimitiveType.Decimal;
-
-        if (source == PrimitiveType.Uint)
-            return target == PrimitiveType.Long || target == PrimitiveType.Ulong
-                || target == PrimitiveType.Float || target == PrimitiveType.Double
-                || target == PrimitiveType.Decimal;
-
-        if (source == PrimitiveType.Long)
-            return target == PrimitiveType.Float || target == PrimitiveType.Double
-                || target == PrimitiveType.Decimal;
-
-        if (source == PrimitiveType.Ulong)
-            return target == PrimitiveType.Float || target == PrimitiveType.Double
-                || target == PrimitiveType.Decimal;
-
-        if (source == PrimitiveType.Float)
-            return target == PrimitiveType.Double;
-
-        // char → numeric widening
-        if (source == PrimitiveType.Char)
-            return target == PrimitiveType.Ushort || target == PrimitiveType.Int
-                || target == PrimitiveType.Uint || target == PrimitiveType.Long
-                || target == PrimitiveType.Ulong || target == PrimitiveType.Float
-                || target == PrimitiveType.Double || target == PrimitiveType.Decimal;
-
-        return false;
+        // `char` participates in the widening table but isn't in
+        // NumericDisplayNames. Accept both `char` and `Char`.
+        if (name == "char" || name == "Char") return "char";
+        return null;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

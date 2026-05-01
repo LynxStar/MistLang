@@ -19,6 +19,19 @@
     <ProjectReference Include="..\..\Source\Mist\Mist.csproj" />
   </ItemGroup>
 
+  <!--
+    Copy the Mist Standard Library next to the test assembly so that
+    CompilerDriver.Compile's call to StdlibLoader.LoadFor (which reads from
+    AppContext.BaseDirectory/Standard/) sees the stdlib files when tests run.
+    Mirrors the Content item in Source/Mist.CLI/Mist.CLI.csproj (Task 28).
+  -->
+  <ItemGroup>
+    <Content Include="..\..\Source\Standard\**\*.mist"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             TargetPath="Standard\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>

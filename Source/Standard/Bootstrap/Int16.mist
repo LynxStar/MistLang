@@ -1,0 +1,22 @@
+namespace Standard;
+
+intrinsic public struct Int16
+{
+    // Binary arithmetic operators — Requirement 3.1
+    intrinsic public static Int16 operator +(Int16 a, Int16 b);
+    intrinsic public static Int16 operator -(Int16 a, Int16 b);
+    intrinsic public static Int16 operator *(Int16 a, Int16 b);
+    intrinsic public static Int16 operator /(Int16 a, Int16 b);
+    intrinsic public static Int16 operator %(Int16 a, Int16 b);
+
+    // Comparison operators — Requirement 3.2
+    intrinsic public static Boolean operator <(Int16 a, Int16 b);
+    intrinsic public static Boolean operator >(Int16 a, Int16 b);
+    intrinsic public static Boolean operator <=(Int16 a, Int16 b);
+    intrinsic public static Boolean operator >=(Int16 a, Int16 b);
+    intrinsic public static Boolean operator ==(Int16 a, Int16 b);
+    intrinsic public static Boolean operator !=(Int16 a, Int16 b);
+
+    // Unary negation — Requirement 3.3
+    intrinsic public static Int16 operator -(Int16 a);
+}

@@ -1,0 +1,8 @@
+namespace Standard;
+
+intrinsic public class Array<T>
+{
+    // Length migrated from the former System.Array ambient type —
+    // Requirement 9.13. Modeled as a method for v1 simplicity.
+    intrinsic public Int32 Length();
+}

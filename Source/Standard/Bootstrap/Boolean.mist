@@ -1,0 +1,13 @@
+namespace Standard;
+
+intrinsic public struct Boolean
+{
+    // Logical operators — Requirement 3.5
+    intrinsic public static Boolean operator &&(Boolean a, Boolean b);
+    intrinsic public static Boolean operator ||(Boolean a, Boolean b);
+    intrinsic public static Boolean operator !(Boolean a);
+
+    // Equality operators — Requirement 3.6
+    intrinsic public static Boolean operator ==(Boolean a, Boolean b);
+    intrinsic public static Boolean operator !=(Boolean a, Boolean b);
+}

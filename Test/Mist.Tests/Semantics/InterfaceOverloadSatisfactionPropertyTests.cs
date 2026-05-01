@@ -181,16 +181,24 @@ public class InterfaceOverloadSatisfactionPropertyTests
     /// <summary>
     /// Pairs of distinct primitive types used for generating overloaded interface methods.
     /// Each pair represents two different parameter types for the same method name.
+    ///
+    /// After Task 32's compat shim, <see cref="PrimitiveType"/> accessors
+    /// (e.g. <c>PrimitiveType.Int</c>) may return stdlib <c>StructType</c>
+    /// instances whose <c>DisplayName</c> is the stdlib simple name
+    /// (<c>"Int32"</c>, <c>"Char"</c>, etc.) rather than the keyword
+    /// (<c>"int"</c>, <c>"char"</c>). The <see cref="PrimitiveTypeNodeFactory"/>
+    /// only maps keyword-form names, so we use the legacy singletons
+    /// directly to guarantee stable <c>DisplayName</c> values.
     /// </summary>
     private static readonly (IType First, IType Second)[] DistinctTypePairs =
     [
-        (PrimitiveType.Int, PrimitiveType.Bool),
-        (PrimitiveType.Bool, PrimitiveType.Double),
-        (PrimitiveType.Double, PrimitiveType.Float),
-        (PrimitiveType.Float, PrimitiveType.Char),
-        (PrimitiveType.Char, PrimitiveType.Long),
-        (PrimitiveType.Long, StringType.Instance),
-        (StringType.Instance, PrimitiveType.Int),
+        (PrimitiveType.LegacyInt, PrimitiveType.LegacyBool),
+        (PrimitiveType.LegacyBool, PrimitiveType.LegacyDouble),
+        (PrimitiveType.LegacyDouble, PrimitiveType.LegacyFloat),
+        (PrimitiveType.LegacyFloat, PrimitiveType.LegacyChar),
+        (PrimitiveType.LegacyChar, PrimitiveType.LegacyLong),
+        (PrimitiveType.LegacyLong, StringType.Instance),
+        (StringType.Instance, PrimitiveType.LegacyInt),
     ];
 
     /// <summary>

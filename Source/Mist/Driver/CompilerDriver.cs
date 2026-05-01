@@ -56,14 +56,14 @@ public sealed class CompilerDriver : ICompilerDriver
         }
 
         // Step 1: Load source files into CompilationUnits
-        var units = ImmutableArray.CreateBuilder<CompilationUnit>();
+        var userUnits = ImmutableArray.CreateBuilder<CompilationUnit>();
         foreach(var path in options.SourcePaths)
         {
             try
             {
                 var contents = File.ReadAllText(path);
                 var sourceText = new Common.Text.SourceText(path, contents);
-                units.Add(new CompilationUnit(sourceText));
+                userUnits.Add(new CompilationUnit(sourceText));
             }
             catch(Exception ex)
             {
@@ -78,7 +78,35 @@ public sealed class CompilerDriver : ICompilerDriver
             }
         }
 
-        var compilation = new MistCompilation(units.ToImmutable());
+        // Step 1b: Load Standard Library sources and prepend them to the
+        // user units (design § 8). The loader reads every *.mist file under
+        // AppContext.BaseDirectory/Standard and returns them as
+        // CompilationUnits with IsStdlib=true. If the loader emits any
+        // MIST_STDLIB_PARSE error, the compilation cannot proceed because
+        // primitive keyword resolution (Stage 4) and operator overload
+        // resolution depend on stdlib types being present.
+        var stdlibBag = new DiagnosticBag();
+        var stdlibUnits = StdlibLoader.LoadFor(backend, stdlibBag);
+
+        foreach(var d in stdlibBag.ToImmutableArray())
+        {
+            allDiagnostics.Add(d);
+        }
+
+        if(stdlibBag.HasErrors)
+        {
+            return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
+        }
+
+        // Stdlib units come first so SemanticModelBuilder registers the
+        // Standard namespace's types before user code tries to reference
+        // them (via primitive-keyword aliases or explicit lookups).
+        var combinedUnits = ImmutableArray.CreateBuilder<CompilationUnit>(
+            stdlibUnits.Length + userUnits.Count);
+        combinedUnits.AddRange(stdlibUnits);
+        combinedUnits.AddRange(userUnits);
+
+        var compilation = new MistCompilation(combinedUnits.ToImmutable());
 
         // Step 2: Lex each compilation unit
         var tokenStreams = new Dictionary<CompilationUnit, TokenStream>();

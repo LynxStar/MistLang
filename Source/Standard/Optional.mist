@@ -1,0 +1,27 @@
+namespace Standard;
+
+// Pure-Mist tier demo — Requirements 1.3, 1.5, 4.10.
+// No `intrinsic` markers: Optional<T> compiles like any user type. It exercises
+// the boundary between the bootstrap tier (generics over a bootstrap type
+// argument such as Int32, the `bool` keyword, and field/method/property
+// machinery) and ordinary Mist source.
+
+public class Optional<T>
+{
+    private T value;
+    private bool hasValue;
+
+    public Optional()
+    {
+        hasValue = false;
+    }
+
+    public Optional(T value)
+    {
+        this.value = value;
+        this.hasValue = true;
+    }
+
+    public bool HasValue => hasValue;
+    public T Value => value;
+}

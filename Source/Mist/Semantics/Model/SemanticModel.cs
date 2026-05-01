@@ -36,6 +36,14 @@ public sealed class SemanticModel : ISemanticModel
     public IReadOnlyList<CompilationUnit> Units { get; }
     public ImmutableArray<Storm.Runtime.SyntaxNode> Asts { get; }
 
+    /// <summary>
+    /// The symbol table that backs <see cref="AllSymbols"/>, exposed
+    /// internally for stdlib-lookup helpers such as
+    /// <c>SemanticModelBuilder.LookupQualifiedStdlibType</c> that need to
+    /// walk symbol metadata rather than flatten via <see cref="AllSymbols"/>.
+    /// </summary>
+    internal SymbolTable SymbolTable => _symbolTable;
+
     public ImmutableArray<ISymbol> AllSymbols => [.. _symbolTable.AllSymbols];
 
     public Storm.Runtime.SyntaxNode GetDeclaringNode(ISymbol symbol)

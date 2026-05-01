@@ -1,0 +1,12 @@
+namespace Standard;
+
+intrinsic public struct Char
+{
+    // Comparison and equality operators — Requirement 3.7
+    intrinsic public static Boolean operator ==(Char a, Char b);
+    intrinsic public static Boolean operator !=(Char a, Char b);
+    intrinsic public static Boolean operator <(Char a, Char b);
+    intrinsic public static Boolean operator >(Char a, Char b);
+    intrinsic public static Boolean operator <=(Char a, Char b);
+    intrinsic public static Boolean operator >=(Char a, Char b);
+}

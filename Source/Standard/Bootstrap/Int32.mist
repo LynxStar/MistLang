@@ -1,0 +1,22 @@
+namespace Standard;
+
+intrinsic public struct Int32
+{
+    // Binary arithmetic operators — Requirement 3.1
+    intrinsic public static Int32 operator +(Int32 a, Int32 b);
+    intrinsic public static Int32 operator -(Int32 a, Int32 b);
+    intrinsic public static Int32 operator *(Int32 a, Int32 b);
+    intrinsic public static Int32 operator /(Int32 a, Int32 b);
+    intrinsic public static Int32 operator %(Int32 a, Int32 b);
+
+    // Comparison operators — Requirement 3.2
+    intrinsic public static Boolean operator <(Int32 a, Int32 b);
+    intrinsic public static Boolean operator >(Int32 a, Int32 b);
+    intrinsic public static Boolean operator <=(Int32 a, Int32 b);
+    intrinsic public static Boolean operator >=(Int32 a, Int32 b);
+    intrinsic public static Boolean operator ==(Int32 a, Int32 b);
+    intrinsic public static Boolean operator !=(Int32 a, Int32 b);
+
+    // Unary negation — Requirement 3.3
+    intrinsic public static Int32 operator -(Int32 a);
+}

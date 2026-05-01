@@ -1,0 +1,21 @@
+namespace Standard;
+
+intrinsic public struct Byte
+{
+    // Binary arithmetic operators — Requirement 3.1
+    intrinsic public static Byte operator +(Byte a, Byte b);
+    intrinsic public static Byte operator -(Byte a, Byte b);
+    intrinsic public static Byte operator *(Byte a, Byte b);
+    intrinsic public static Byte operator /(Byte a, Byte b);
+    intrinsic public static Byte operator %(Byte a, Byte b);
+
+    // Comparison operators — Requirement 3.2
+    intrinsic public static Boolean operator <(Byte a, Byte b);
+    intrinsic public static Boolean operator >(Byte a, Byte b);
+    intrinsic public static Boolean operator <=(Byte a, Byte b);
+    intrinsic public static Boolean operator >=(Byte a, Byte b);
+    intrinsic public static Boolean operator ==(Byte a, Byte b);
+    intrinsic public static Boolean operator !=(Byte a, Byte b);
+
+    // No unary '-' on unsigned types — Requirement 3.4.
+}

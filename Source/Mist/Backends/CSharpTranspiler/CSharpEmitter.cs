@@ -27,6 +27,18 @@ public sealed class CSharpEmitter
         for (var i = 0; i < model.Units.Count; i++)
         {
             var unit = model.Units[i];
+
+            // Skip Standard Library units. Stdlib types are modelled as Mist
+            // `UserCode`-origin symbols (they go through the same semantic
+            // model construction as user code), but they MUST NOT be emitted
+            // as .cs — their storage and methods come from the backend's
+            // Backing_Type_Map / IntrinsicEmissionTable at call sites in
+            // user code, not from Mist bodies. Emitting them would produce
+            // invalid C# (intrinsic members have no body, backed types have
+            // no fields) and clash with the C# primitives they represent.
+            if (unit.IsStdlib)
+                continue;
+
             var csFileName = Path.ChangeExtension(
                 Path.GetFileName(unit.Source.Path), ".cs");
             var csPath = Path.Combine(outputDirectory, csFileName);

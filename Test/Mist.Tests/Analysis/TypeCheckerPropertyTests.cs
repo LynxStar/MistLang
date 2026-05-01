@@ -409,20 +409,18 @@ public class TypeCheckerPropertyTests
     }
 #pragma warning restore CA1034
 
+    // After Task 33, operator type checking flows exclusively through
+    // overload resolution against stdlib operator declarations
+    // (Requirements 6.7, 6.8, 6.9). These unit tests build ASTs manually
+    // without loading the stdlib, so PrimitiveType / StringType instances
+    // have no operator members. Operator-based scenarios (IntArithmetic,
+    // BoolLogical, IntComparison, LogicalNot) are therefore expected to
+    // produce diagnostics in this harness. They are excluded from the
+    // well-typed set and tested separately below as "expected error without
+    // stdlib" scenarios. The full-pipeline integration tests (Task 35)
+    // verify that these operations succeed when stdlib is loaded.
     private static readonly WellTypedScenario[] WellTypedScenarios =
     [
-        new("IntArithmetic", () => MakeWellTypedProgram(ImmutableArray.Create(
-            MakeIntVarDecl("a", "1"),
-            MakeIntVarDecl("b", "2"),
-            MakeExpressionStatement(MakeAdditiveExpression(
-                MakeIdentifierExpression("a"), MakeIdentifierExpression("b"), "+"))))),
-
-        new("BoolLogical", () => MakeWellTypedProgram(ImmutableArray.Create(
-            MakeBoolVarDecl("x", true),
-            MakeBoolVarDecl("y", false),
-            MakeExpressionStatement(MakeLogicalAndExpression(
-                MakeIdentifierExpression("x"), MakeIdentifierExpression("y")))))),
-
         new("BoolCondition_If", () => MakeWellTypedProgram(ImmutableArray.Create<StatementNode>(
             MakeBoolVarDecl("cond", true),
             new IfStatementStatementNode
@@ -459,17 +457,6 @@ public class TypeCheckerPropertyTests
         new("StringVariable", () => MakeWellTypedProgram(ImmutableArray.Create(
             MakeStringVarDecl("msg", "\"hello\"")))),
 
-        new("IntComparison", () => MakeWellTypedProgram(ImmutableArray.Create(
-            MakeIntVarDecl("a", "1"),
-            MakeIntVarDecl("b", "2"),
-            MakeExpressionStatement(MakeRelationalExpression(
-                MakeIdentifierExpression("a"), MakeIdentifierExpression("b"), "<"))))),
-
-        new("LogicalNot", () => MakeWellTypedProgram(ImmutableArray.Create(
-            MakeBoolVarDecl("flag", true),
-            MakeExpressionStatement(MakeLogicalNotExpression(
-                MakeIdentifierExpression("flag")))))),
-
         new("EmptyMain", () => MakeWellTypedProgram(ImmutableArray<StatementNode>.Empty)),
     ];
 
@@ -493,8 +480,11 @@ public class TypeCheckerPropertyTests
     // ─── Targeted well-typed tests ───────────────────────────────────────
 
     [Fact]
-    public void WellTyped_IntArithmetic_NoErrors()
+    public void WellTyped_IntArithmetic_WithoutStdlib_ProducesOperatorError()
     {
+        // After Task 33, operator type checking flows through overload
+        // resolution. Without stdlib loaded, PrimitiveType has no operator
+        // members, so int + int produces MIST_TC_0003.
         var ast = MakeWellTypedProgram(ImmutableArray.Create(
             MakeIntVarDecl("a", "1"),
             MakeIntVarDecl("b", "2"),
@@ -504,7 +494,8 @@ public class TypeCheckerPropertyTests
         var model = BuildModel(ast);
         var diagnostics = RunTypeChecker(model);
 
-        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(diagnostics, d => d.Severity == DiagnosticSeverity.Error
+                                          && d.Id.Value == "MIST_TC_0003");
     }
 
     [Fact]

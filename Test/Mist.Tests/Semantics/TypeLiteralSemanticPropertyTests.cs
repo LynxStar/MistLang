@@ -301,22 +301,27 @@ public class TypeLiteralSemanticPropertyTests
 
     /// <summary>
     /// Maps a primitive type keyword to its expected PrimitiveType instance.
+    /// Uses the Legacy* singletons directly to guarantee stable DisplayName
+    /// values regardless of whether PrimitiveTypeRegistry has been populated
+    /// by a parallel test that loaded stdlib. The shim accessors
+    /// (PrimitiveType.Int, etc.) may return stdlib StructType instances
+    /// with different DisplayName values (e.g., "Int32" instead of "int").
     /// </summary>
     private static IType? ExpectedPrimitiveType(string keyword) => keyword switch
     {
-        "int" => PrimitiveType.Int,
-        "uint" => PrimitiveType.Uint,
-        "long" => PrimitiveType.Long,
-        "ulong" => PrimitiveType.Ulong,
-        "short" => PrimitiveType.Short,
-        "ushort" => PrimitiveType.Ushort,
-        "byte" => PrimitiveType.Byte,
-        "sbyte" => PrimitiveType.Sbyte,
-        "float" => PrimitiveType.Float,
-        "double" => PrimitiveType.Double,
-        "decimal" => PrimitiveType.Decimal,
-        "bool" => PrimitiveType.Bool,
-        "char" => PrimitiveType.Char,
+        "int" => PrimitiveType.LegacyInt,
+        "uint" => PrimitiveType.LegacyUint,
+        "long" => PrimitiveType.LegacyLong,
+        "ulong" => PrimitiveType.LegacyUlong,
+        "short" => PrimitiveType.LegacyShort,
+        "ushort" => PrimitiveType.LegacyUshort,
+        "byte" => PrimitiveType.LegacyByte,
+        "sbyte" => PrimitiveType.LegacySbyte,
+        "float" => PrimitiveType.LegacyFloat,
+        "double" => PrimitiveType.LegacyDouble,
+        "decimal" => PrimitiveType.LegacyDecimal,
+        "bool" => PrimitiveType.LegacyBool,
+        "char" => PrimitiveType.LegacyChar,
         _ => null
     };
 
@@ -344,10 +349,13 @@ public class TypeLiteralSemanticPropertyTests
 
         // The inferred type of x must be the primitive type of the shadowing variable,
         // not TypeType (which would mean it resolved as a type literal).
+        // After Task 32's compat shim, PrimitiveType.* accessors may return
+        // stdlib StructType instances whose DisplayName differs from the
+        // keyword form. Compare by DisplayName to handle both cases.
         var expectedType = ExpectedPrimitiveType(testCase.VariableType);
-        if (expectedType is null) return false;
+        if (expectedType is null || xSymbol.DeclaredType is null) return false;
 
-        return xSymbol.DeclaredType == expectedType;
+        return xSymbol.DeclaredType.DisplayName == expectedType.DisplayName;
     }
 
     [Property(
@@ -372,8 +380,14 @@ public class TypeLiteralSemanticPropertyTests
         if (initExprType is TypeType) return false;
 
         // It should be the primitive type of the shadowing variable.
+        // After Task 32's compat shim, PrimitiveType.* accessors may return
+        // the stdlib StructType when the PrimitiveTypeRegistry is populated
+        // by a parallel test that loaded stdlib. The test's own model (built
+        // without stdlib) still uses legacy PrimitiveType singletons. Compare
+        // by DisplayName to handle both cases.
         var expectedType = ExpectedPrimitiveType(testCase.VariableType);
-        return initExprType == expectedType;
+        if (expectedType is null || initExprType is null) return false;
+        return initExprType.DisplayName == expectedType.DisplayName;
     }
 
     // ═════════════════════════════════════════════════════════════════════

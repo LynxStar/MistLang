@@ -16,4 +16,19 @@
     <ProjectReference Include="..\Mist\Mist.csproj" />
   </ItemGroup>
 
+  <!--
+    Package the Mist Standard Library alongside the compiler binary so that
+    StdlibLoader.LoadFor can resolve AppContext.BaseDirectory/Standard/ at
+    runtime. CopyToOutputDirectory ensures `dotnet build` (used by the test
+    suite) produces the layout too; CopyToPublishDirectory ensures
+    `dotnet publish` ships the files in production builds (Requirement 15.5).
+    TargetPath mirrors the source tree structure under a `Standard/` prefix.
+  -->
+  <ItemGroup>
+    <Content Include="..\..\Source\Standard\**\*.mist"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             TargetPath="Standard\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
 </Project>

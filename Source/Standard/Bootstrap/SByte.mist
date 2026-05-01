@@ -1,0 +1,22 @@
+namespace Standard;
+
+intrinsic public struct SByte
+{
+    // Binary arithmetic operators — Requirement 3.1
+    intrinsic public static SByte operator +(SByte a, SByte b);
+    intrinsic public static SByte operator -(SByte a, SByte b);
+    intrinsic public static SByte operator *(SByte a, SByte b);
+    intrinsic public static SByte operator /(SByte a, SByte b);
+    intrinsic public static SByte operator %(SByte a, SByte b);
+
+    // Comparison operators — Requirement 3.2
+    intrinsic public static Boolean operator <(SByte a, SByte b);
+    intrinsic public static Boolean operator >(SByte a, SByte b);
+    intrinsic public static Boolean operator <=(SByte a, SByte b);
+    intrinsic public static Boolean operator >=(SByte a, SByte b);
+    intrinsic public static Boolean operator ==(SByte a, SByte b);
+    intrinsic public static Boolean operator !=(SByte a, SByte b);
+
+    // Unary negation — Requirement 3.3
+    intrinsic public static SByte operator -(SByte a);
+}

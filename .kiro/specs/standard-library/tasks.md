@@ -142,11 +142,11 @@ Stages:
 
 ### Stage 3 — Stand up stdlib files and `StdlibLoader` (singletons still live)
 
-- [ ] 19. Create stdlib source tree and README
+- [x] 19. Create stdlib source tree and README
     Create the directory `Source/Standard/` with a `Bootstrap/` subdirectory. Add `Source/Standard/README.md` describing the tier layout per Requirement 1.3 and 1.6: `Bootstrap/` for Backend_Backed_Types (numeric primitives, `Boolean`, `Char`, `String`, `Array<T>`); files at the `Source/Standard/` root for Pure-Mist tier types. Mention the single `Standard` root namespace (Requirement 1.1).
     _Requirements: 1.1, 1.2, 1.3, 1.6_
 
-- [ ] 20. Write `Source/Standard/Bootstrap/Int32.mist` as the prototype bootstrap type
+- [x] 20. Write `Source/Standard/Bootstrap/Int32.mist` as the prototype bootstrap type
     Write the `Int32` type in Mist per Requirements 2.1, 3.1, 3.2, 3.3, 3.10, 5.11:
     - `namespace Standard;`
     - `intrinsic public struct Int32 { }` — type-level `intrinsic`, zero instance fields (permitted by Requirement 2.6).
@@ -156,16 +156,16 @@ Stages:
     Once this file lexes/parses/builds its semantic model without errors (validated by Task 27's smoke test), the other numerics in Task 21 follow the same shape.
     _Requirements: 2.1, 2.4, 2.6, 2.7, 3.1, 3.2, 3.3, 3.10, 5.11_
 
-- [ ] 21. Write the remaining numeric bootstrap types
+- [x] 21. Write the remaining numeric bootstrap types
     Write one `.mist` file per numeric primitive in `Source/Standard/Bootstrap/`: `UInt32.mist`, `Int64.mist`, `UInt64.mist`, `Int16.mist`, `UInt16.mist`, `Byte.mist`, `SByte.mist`, `Single.mist`, `Double.mist`, `Decimal.mist`. Each mirrors `Int32.mist`'s shape (Task 20), with the following Requirement 3.4 carve-out: `UInt32`, `UInt64`, `UInt16`, and `Byte` MUST NOT declare unary `-`. Comparison operators return `Standard.Boolean`.
     _Requirements: 2.1, 3.1, 3.2, 3.3, 3.4, 3.10, 5.11_
 
-- [ ] 22. Write `Source/Standard/Bootstrap/Boolean.mist` and `Char.mist`
+- [x] 22. Write `Source/Standard/Bootstrap/Boolean.mist` and `Char.mist`
     - `Boolean.mist`: `intrinsic public struct Boolean { }` with `intrinsic public static Boolean operator &&(Boolean a, Boolean b);`, `operator ||`, unary `operator !`, plus `operator ==` and `operator !=` (Requirement 3.5, 3.6).
     - `Char.mist`: `intrinsic public struct Char { }` with `operator ==`, `!=`, `<`, `>`, `<=`, `>=` (all returning `Standard.Boolean`) per Requirement 3.7.
     _Requirements: 2.1, 3.5, 3.6, 3.7, 3.10, 5.11_
 
-- [ ] 23. Write `Source/Standard/Bootstrap/String.mist`
+- [x] 23. Write `Source/Standard/Bootstrap/String.mist`
     Write `String` as a class (Requirement 2.2): `intrinsic public class String { }`. Include intrinsic members per Requirements 3.8, 3.9, 9.12:
     - `intrinsic public static String operator +(String a, String b);` (concat)
     - `intrinsic public static Boolean operator ==(String a, String b);`
@@ -175,15 +175,15 @@ Stages:
     - `intrinsic public Boolean Contains(String value);`
     _Requirements: 2.2, 3.8, 3.9, 3.10, 5.11, 9.1, 9.12_
 
-- [ ] 24. Write `Source/Standard/Bootstrap/Array.mist`
+- [x] 24. Write `Source/Standard/Bootstrap/Array.mist`
     Write `Array<T>` as a generic class (Requirement 2.3): `intrinsic public class Array<T> { }`. Include per Requirement 9.13: `intrinsic public Int32 Length();`.
     _Requirements: 2.3, 5.11, 9.2, 9.13_
 
-- [ ] 25. Write `Source/Standard/Optional.mist` as the pure-Mist tier demo
+- [x] 25. Write `Source/Standard/Optional.mist` as the pure-Mist tier demo
     Write `Optional<T>` per design § *Pure-Mist Tier for v1* — a pure-Mist generic class (no `intrinsic` markers anywhere) with a private `T value` field, a private `bool hasValue` field, two constructors (parameterless and `Optional(T value)`), and two expression-bodied properties (`HasValue`, `Value`). Path: `Source/Standard/Optional.mist` (directly under the root, visually distinct from `Bootstrap/`).
     _Requirements: 1.3, 1.5, 4.10_
 
-- [ ] 26. Add `IsStdlib` flag on `CompilationUnit` and implement `StdlibLoader`
+- [x] 26. Add `IsStdlib` flag on `CompilationUnit` and implement `StdlibLoader`
     - In `Source/Mist/Driver/Contracts/CompilationUnit.cs`, add `public bool IsStdlib { get; init; } = false;`.
     - Create `Source/Mist/Driver/StdlibLoader.cs` per design § 8 and § *Stdlib Loading Strategy*: a static class with `public static ImmutableArray<CompilationUnit> LoadFor(IBackend backend, DiagnosticBag diagnostics)` that:
         1. Computes the stdlib root as `Path.Combine(AppContext.BaseDirectory, "Standard")`.
@@ -192,37 +192,37 @@ Stages:
         4. Emits `MIST_STDLIB_PARSE` (severity Error) with the file path and underlying message on I/O failure.
         5. Returns an `ImmutableArray<CompilationUnit>`.
     Do NOT wire the loader into `CompilerDriver` yet — that happens in Task 28.
-    - [ ] 26.1 Unit test: `StdlibLoader.LoadFor` with a temp directory containing two `.mist` files returns both as `CompilationUnit`s with `IsStdlib == true`.
-    - [ ] 26.2 Unit test: `StdlibLoader.LoadFor` with a missing directory emits `MIST_STDLIB_PARSE`.
+    - [x] 26.1 Unit test: `StdlibLoader.LoadFor` with a temp directory containing two `.mist` files returns both as `CompilationUnit`s with `IsStdlib == true`.
+    - [x] 26.2 Unit test: `StdlibLoader.LoadFor` with a missing directory emits `MIST_STDLIB_PARSE`.
     _Requirements: 10.1, 10.2, 10.3, 10.9_
 
-- [ ] 27. Add stdlib compile smoke test
+- [x] 27. Add stdlib compile smoke test
     Add a new test `StdlibCompilesTest` in the existing unit test project. It constructs the same stdlib `CompilationUnit` list `StdlibLoader` would produce (by calling `StdlibLoader.LoadFor` against the repo's `Source/Standard/` directory directly, or by enumerating the files manually), runs lex → parse → `SemanticModelBuilder.Build` on them, and asserts that the resulting diagnostic bag contains zero diagnostics of severity `Error`. This catches any malformed stdlib file before it's wired into the driver. Requirement 1.4 and 1.5 naming conventions are verified implicitly (the test reads files from the prescribed paths).
     _Requirements: 1.4, 1.5, 2.4_
 
-- [ ] 28. Wire `StdlibLoader` into `CompilerDriver.Compile` and publish stdlib source
+- [x] 28. Wire `StdlibLoader` into `CompilerDriver.Compile` and publish stdlib source
     Modify `Source/Mist/Driver/CompilerDriver.cs` per design § 8: immediately after `var compilation = new MistCompilation(units.ToImmutable());` (current Step 1 end), call `StdlibLoader.LoadFor(backend, allDiagnostics)` and prepend the returned units to `compilation.Units`. If the loader produced any Error diagnostics, abort before lex (compilation fails with `MIST_STDLIB_PARSE`). If no Errors, proceed with the combined unit list through the existing Lex → Parse → SemanticModelBuilder pipeline.
     Edit `Source/Mist.CLI/Mist.CLI.csproj` (create it if needed) to add `<Content Include="..\..\Source\Standard\**\*.mist" CopyToPublishDirectory="PreserveNewest" TargetPath="Standard\%(RecursiveDir)%(Filename)%(Extension)" />` so `dotnet publish` packages the stdlib into `publish/Standard/` alongside the binary (resolves Requirement 15.5).
     At this point stdlib types coexist with the old `PrimitiveType.*` singletons — nothing routes primitive keywords to stdlib yet.
-    - [ ] 28.1 Integration test: compile a trivial user program (`namespace X; public class Y { public static void Main() { } }`) and assert the built semantic model contains `Standard.Int32` (discoverable via namespace lookup) in addition to the existing `PrimitiveType.Int`.
-    - [ ] 28.2 Unit test: `dotnet publish` output (or a simulation of `AppContext.BaseDirectory + Standard/`) contains every file from `Source/Standard/` (exercise with a test that invokes the publish target and enumerates the result, or asserts the MSBuild item group is correctly declared).
+    - [x] 28.1 Integration test: compile a trivial user program (`namespace X; public class Y { public static void Main() { } }`) and assert the built semantic model contains `Standard.Int32` (discoverable via namespace lookup) in addition to the existing `PrimitiveType.Int`.
+    - [x] 28.2 Unit test: `dotnet publish` output (or a simulation of `AppContext.BaseDirectory + Standard/`) contains every file from `Source/Standard/` (exercise with a test that invokes the publish target and enumerates the result, or asserts the MSBuild item group is correctly declared).
     _Requirements: 10.1, 10.2, 10.3, 10.4, 10.9, 15.5_
 
-- [ ] 29. Checkpoint — Stage 3 complete
+- [x] 29. Checkpoint — Stage 3 complete
     Ensure all tests pass. Stdlib source compiles in isolation (Task 27) and co-compiles alongside user source (Task 28.1). Primitive keyword resolution is unchanged; samples unchanged. Ask the user if questions arise.
     _Requirements: (none — gate)_
 
 ### Stage 4 — Flip primitive keyword resolution to stdlib
 
-- [ ] 30. Add `LookupQualifiedStdlibType` helper and implement `ResolvePrimitiveKeyword`
+- [x] 30. Add `LookupQualifiedStdlibType` helper and implement `ResolvePrimitiveKeyword`
     In `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`, add a new private helper per design § 3(b):
     - `private IType LookupQualifiedStdlibType(string qualifiedName)` — splits `"Standard.Int32"` into namespace + simple name, walks directly from the global scope to the `Standard` namespace scope, finds the type symbol by simple name, returns its `IType`. Throws a fatal `MIST_STDLIB_MISSING` diagnostic if the stdlib hasn't been loaded or the type isn't present.
     - `private IType ResolvePrimitiveKeyword(PrimitiveTypeNode keyword)` — extracts the keyword lexeme (e.g., `"int"`), looks it up in `KeywordAliases.Map`, passes the qualified name to `LookupQualifiedStdlibType`, returns the result.
     Crucially, `ResolvePrimitiveKeyword` bypasses all scope-chain, using-directive, and user-type machinery (Requirement 7.6).
-    - [ ] 30.1 Unit test: `LookupQualifiedStdlibType("Standard.Int32")` returns the stdlib `Standard.Int32` `StructType`; `LookupQualifiedStdlibType("Standard.NonExistent")` throws `MIST_STDLIB_MISSING`.
+    - [x] 30.1 Unit test: `LookupQualifiedStdlibType("Standard.Int32")` returns the stdlib `Standard.Int32` `StructType`; `LookupQualifiedStdlibType("Standard.NonExistent")` throws `MIST_STDLIB_MISSING`.
     _Requirements: 7.1, 7.6_
 
-- [ ] 31. Flip `Pass2_ResolveTypes` to use `ResolvePrimitiveKeyword` for primitive keyword references
+- [x] 31. Flip `Pass2_ResolveTypes` to use `ResolvePrimitiveKeyword` for primitive keyword references
     In `Source/Mist/Semantics/Model/SemanticModelBuilder.cs` Pass 2, when resolving a `TypeReference` whose grammar variant is `PrimitiveTypeRef` (the grammar rule that matches `int`, `string`, `bool`, etc.), call `ResolvePrimitiveKeyword` and return its result instead of `PrimitiveType.Int` / `StringType.Instance` / etc. Do NOT delete `PrimitiveType.cs` or `StringType.cs` yet — the compat shim (Task 32) preserves existing direct references.
     _Requirements: 7.1, 7.2, 7.6, 7.7_
 
@@ -232,10 +232,10 @@ Stages:
     - Similarly rewrite `Source/Mist/Semantics/Model/Types/StringType.cs` so `StringType.Instance` returns the stdlib `Standard.String` type.
     - The return type of these properties is widened to `IType` (not `PrimitiveType` / `StringType`) so the returned value is literally the stdlib type instance — preserving reference equality (Requirement 8.5).
     This keeps intermediate pipeline stages working while individual call sites are migrated in later stages. Existing direct references to `PrimitiveType.Int` continue to compile.
-    - [ ] 32.1 Unit test: `PrimitiveType.Int` and `KeywordAliases.Map["int"]`-lookup return reference-equal `IType` instances (Requirement 8.5). Two separate Mist source occurrences of `int` resolve to the same `IType` instance.
+    - [x] 32.1 Unit test: `PrimitiveType.Int` and `KeywordAliases.Map["int"]`-lookup return reference-equal `IType` instances (Requirement 8.5). Two separate Mist source occurrences of `int` resolve to the same `IType` instance.
     _Requirements: 8.3, 8.5, 15.3 (resolved)_
 
-- [ ] 33. Flip `TypeCheckerAnalyzer.UseOperatorOverloadResolution` to `true` and route existing check methods through the new helpers
+- [x] 33. Flip `TypeCheckerAnalyzer.UseOperatorOverloadResolution` to `true` and route existing check methods through the new helpers
     In `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`:
     - Change `UseOperatorOverloadResolution` default to `true`.
     - Rewrite `CheckAdditiveNode`, `CheckMultiplicativeNode`, `CheckRelationalNode`, `CheckEqualityNode` as three-line wrappers that call `ResolveBinaryOperator` with the appropriate operator lexeme and the appropriate `MIST_TC_*` ID for `NoApplicableCandidate`. Rewrite the `LogicalNotUnaryNode` and `NegateUnaryNode` cases of `CheckUnaryNode` to call `ResolveUnaryOperator`.
@@ -245,11 +245,11 @@ Stages:
     After this task lands, operator expressions are typed exclusively via overload resolution against stdlib operator declarations. Requirements 6.7, 6.8, 6.9 are enforced by the deletion itself.
     _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9_
 
-- [ ] 34. Capture sample output baselines
+- [x] 34. Capture sample output baselines
     Before Task 35 runs, capture a baseline: for every `.mist` file under `samples/` that compiles and runs today, save its stdout to `samples/__baselines__/<sample-path>.out` (or an equivalent location). This is a one-time data capture, not ongoing production code. This baseline is consumed by Task 35 and serves as the regression oracle for Requirement 11.2, 11.4, 12.6.
     _Requirements: 11.2, 11.4, 12.6_
 
-- [ ] 35. Sample regression guard — `SamplesCompileAndMatchBaselineTest`
+- [x] 35. Sample regression guard — `SamplesCompileAndMatchBaselineTest`
     Add an integration test that, for every `.mist` file under `samples/`:
     1. Invokes the real `CompilerDriver.Compile` against the sample.
     2. Runs the emitted artifact (for the C# backend: `dotnet run` on the emitted project) and captures stdout.
@@ -258,15 +258,15 @@ Stages:
     Covers Requirements 11.1, 11.2, 11.3, 11.4, 11.6 and Property-based Property 12.6.
     _Requirements: 11.1, 11.2, 11.3, 11.4, 11.6, 12.6_
 
-- [ ] 36. Property-based test: Property 1 — keyword-alias reference identity
+- [x] 36. Property-based test: Property 1 — keyword-alias reference identity
     Add an FsCheck property test per design § *Correctness Properties → Property 1*. The generator produces an arbitrary valid Mist program with one or more occurrences of primitive keywords. Assert: every occurrence of keyword `k` resolves to an `IType` reference-equal to `LookupQualifiedStdlibType(KeywordAliases.Map[k])`, and all occurrences of the same keyword in the same compilation resolve to the same instance. Runs ≥100 iterations.
     _Requirements: 7.1, 7.2, 8.5, 12.8_
 
-- [ ] 37. Property-based test: Property 2 — keyword bypasses scoping (adversarial user-declared `Int32`)
+- [x] 37. Property-based test: Property 2 — keyword bypasses scoping (adversarial user-declared `Int32`)
     Add an FsCheck property test per design § *Correctness Properties → Property 2* and Requirement 12.9. The generator produces an adversarial Mist program where the user declares `class Int32 { }` (or `String`, `Boolean`, etc.) in an arbitrary user namespace, with/without `using Standard;`, with/without user members that shadow stdlib members. Assert: every occurrence of the primitive keyword `int` in that program resolves to `Standard.Int32`, NEVER to the user's type. Also assert: the unqualified simple name `Int32` follows ordinary scoping (resolves to user's type when shadowed, to `Standard.Int32` when `using Standard;` without shadowing, and is an unresolved-type error otherwise). Runs ≥100 iterations.
     _Requirements: 7.6, 7.7, 7.8, 12.9, 12.8_
 
-- [ ] 38. Checkpoint — Stage 4 complete
+- [x] 38. Checkpoint — Stage 4 complete
     Ensure all tests pass. `SamplesCompileAndMatchBaselineTest` is green; property tests 1 and 2 pass. Primitive keywords now resolve to stdlib types; shim preserves existing direct references. Ask the user if questions arise.
     _Requirements: (none — gate)_
 

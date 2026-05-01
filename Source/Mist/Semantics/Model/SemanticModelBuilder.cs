@@ -85,6 +85,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var globalScope = new Scope(parent: null);
         var symbolTable = new SymbolTable();
 
+        // Reset the migration-window compat-shim registry so the previous
+        // build's stdlib instances never leak into this compilation. Task
+        // 32 populates the registry again in Pass 1e once the stdlib types
+        // for this build have been registered; if none are loaded (e.g.,
+        // a minimal unit-test harness), the registry stays empty and the
+        // legacy PrimitiveType / StringType singletons become the
+        // canonical IType instances for this build.
+        //
+        // Hold PrimitiveTypeRegistry.Lock while clearing so a test that
+        // asserts on registry state (see <see cref="PrimitiveTypeRegistry.Lock"/>)
+        // can serialise itself against parallel builds for the duration
+        // of its Build-plus-assertion critical section.
+        lock (PrimitiveTypeRegistry.Lock)
+        {
+            PrimitiveTypeRegistry.Reset();
+        }
+
         // Pass 1: Register user-defined types.
         // Walk each AST to discover namespaces, types, and members.
         for (var i = 0; i < asts.Length; i++)
@@ -132,6 +149,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         //   * MIST_SB_0035 — operator not declared `public static`
         //     (Requirement 4.2).
         Pass1e_ValidateOperatorShape(asts, symbolTable, compilation, diagnostics);
+
+        // Pass 1e (cont.): Populate PrimitiveTypeRegistry with the stdlib
+        // types for every primitive keyword that resolves inside the
+        // Standard namespace. Task 32 of the Mist Standard Library spec
+        // installs this compat shim so the legacy PrimitiveType /
+        // StringType accessors return the stdlib IType instance
+        // (preserving reference equality per Requirement 8.5). Keywords
+        // whose stdlib type has not yet been loaded are skipped — the
+        // accessors fall back to the legacy singletons. Runs as early as
+        // possible after type registration so every subsequent pass
+        // (including the base-type / interface-list resolution immediately
+        // below) sees the same stdlib instance for each primitive.
+        PopulatePrimitiveTypeRegistry(globalScope, symbolTable);
 
         // Pass 1b: Resolve base types for class inheritance.
         // This runs after all types are registered so that forward references
@@ -1155,9 +1185,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             };
 
             // MIST_SB_0031 (type-level): the 'intrinsic' modifier is reserved
-            // for the Standard Library. Until Task 26 lands
-            // CompilationUnit.IsStdlib, every unit is non-stdlib.
-            if (isBackendBacked && !IsStdlibSymbol(typeSymbol, asts, compilation))
+            // for the Standard Library. Units loaded via StdlibLoader carry
+            // IsStdlib=true; user-code units do not, so this fires only on
+            // user code.
+            if (isBackendBacked && !IsStdlibSymbol(typeSymbol, symbolTable, asts, compilation))
             {
                 var declaringNode = symbolTable.GetDeclaringNode(typeSymbol);
                 if (declaringNode is not null)
@@ -1213,7 +1244,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
 
                 // MIST_SB_0031 — member-level 'intrinsic' in user code.
-                if (!IsStdlibSymbol(typeSymbol, asts, compilation) && memberDeclaringNode is not null)
+                if (!IsStdlibSymbol(typeSymbol, symbolTable, asts, compilation) && memberDeclaringNode is not null)
                 {
                     diagnostics.Add(MakeDiagnosticWithLocation(
                         IntrinsicReservedForStdlib.Value,
@@ -1240,20 +1271,37 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Returns <c>true</c> if the type declared by <paramref name="typeSymbol"/>
-    /// resides in a Standard Library compilation unit. Task 26 will introduce
-    /// <c>CompilationUnit.IsStdlib</c>; until then this always returns
-    /// <c>false</c>, which matches the specification's current-state
-    /// requirement (every unit is treated as non-stdlib).
+    /// resides in a Standard Library compilation unit — i.e., the
+    /// <see cref="CompilationUnit"/> whose AST contains the symbol's declaring
+    /// node has <see cref="CompilationUnit.IsStdlib"/> set to <c>true</c>.
+    /// Units loaded via <see cref="StdlibLoader"/> carry this flag; user-code
+    /// units do not. Gates <c>MIST_SB_0031</c> (Requirements 5.6, 5.13) so the
+    /// diagnostic fires only on user code.
     /// </summary>
     private static bool IsStdlibSymbol(
         ISymbol typeSymbol,
+        SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation)
     {
-        // Placeholder — Task 26 will check CompilationUnit.IsStdlib here.
-        _ = typeSymbol;
-        _ = asts;
-        _ = compilation;
+        // Locate the declaring AST node for this type symbol, then walk the
+        // ASTs using reference-equality containment (the same mechanism that
+        // powers FindCompilationUnitPathForSymbol) to find the matching
+        // CompilationUnit and read its IsStdlib flag. Reference equality is
+        // reliable across files; span-based matching is not (every file's
+        // span starts at 0).
+        var declaringNode = symbolTable.GetDeclaringNode(typeSymbol);
+        if (declaringNode is null)
+            return false;
+
+        for (var i = 0; i < asts.Length; i++)
+        {
+            if (asts[i] is CompilationUnitNode cu && ContainsTypeDeclarationNode(cu, declaringNode))
+            {
+                return i < compilation.Units.Length && compilation.Units[i].IsStdlib;
+            }
+        }
+
         return false;
     }
 
@@ -4930,12 +4978,43 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         switch (typeRef)
         {
             case PrimitiveTypeRefTypeReferenceNode primitiveRef:
-                baseType = ResolvePrimitiveType(primitiveRef.PrimitiveType);
+                // Task 31 of the Mist Standard Library spec: primitive
+                // keyword references (`int`, `bool`, `string`, …) now
+                // resolve through ResolvePrimitiveKeyword, which walks
+                // directly to the Standard namespace scope and returns
+                // the stdlib IType instance. The resolution bypasses
+                // every scope-chain / using-directive / user-type lookup
+                // (Requirement 7.6): a user declaring `class Int32 { }`
+                // in their own namespace cannot intercept the keyword
+                // `int`.
+                //
+                // Fallback: when no stdlib has been loaded for this
+                // compilation (unit tests that build a semantic model
+                // from a minimal AST), LookupQualifiedStdlibType throws
+                // StdlibMissingException. We catch and fall back to the
+                // legacy PrimitiveType / StringType singletons
+                // (PrimitiveType.LegacyInt, StringType.LegacyInstance,
+                // …) — NOT the public property accessors (which read the
+                // global registry, whose state might reflect a previous
+                // compilation's stdlib). The direct-to-legacy fallback
+                // guarantees that a stdlib-less build never embeds
+                // another build's stdlib IType instances in its own
+                // expression-type map.
+                IType primBase;
+                try
+                {
+                    var primGlobalScope = FindGlobalScope(fileScope) ?? fileScope;
+                    primBase = ResolvePrimitiveKeyword(primGlobalScope, symbolTable, primitiveRef.PrimitiveType);
+                }
+                catch (StdlibMissingException)
+                {
+                    primBase = ResolveLegacyPrimitive(primitiveRef.PrimitiveType);
+                }
                 if (primitiveRef.ArrayRank.HasValue)
                 {
-                    return new ArrayType(baseType);
+                    return new ArrayType(primBase);
                 }
-                return baseType;
+                return primBase;
 
             case VoidTypeRefTypeReferenceNode:
                 return VoidType.Instance;
@@ -5002,6 +5081,211 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             StringTypePrimitiveTypeNode => StringType.Instance,
             _ => UnknownType.Instance,
         };
+    }
+
+    /// <summary>
+    /// Pass-2 fallback for a primitive keyword reference when no stdlib
+    /// has been loaded for the current compilation: returns the legacy
+    /// <see cref="PrimitiveType"/> / <see cref="StringType"/> singleton
+    /// DIRECTLY (bypassing the <see cref="PrimitiveTypeRegistry"/>-backed
+    /// public property accessors). Using the legacy singletons here
+    /// guarantees that a build without stdlib never embeds another
+    /// parallel build's stdlib <see cref="IType"/> instances in its own
+    /// expression-type map — a behaviour that would make reference-
+    /// equality assertions order-dependent under parallel test
+    /// execution.
+    /// </summary>
+    private static IType ResolveLegacyPrimitive(PrimitiveTypeNode node)
+    {
+        return node switch
+        {
+            IntTypePrimitiveTypeNode => PrimitiveType.LegacyInt,
+            UintTypePrimitiveTypeNode => PrimitiveType.LegacyUint,
+            LongTypePrimitiveTypeNode => PrimitiveType.LegacyLong,
+            UlongTypePrimitiveTypeNode => PrimitiveType.LegacyUlong,
+            ShortTypePrimitiveTypeNode => PrimitiveType.LegacyShort,
+            UshortTypePrimitiveTypeNode => PrimitiveType.LegacyUshort,
+            ByteTypePrimitiveTypeNode => PrimitiveType.LegacyByte,
+            SbyteTypePrimitiveTypeNode => PrimitiveType.LegacySbyte,
+            FloatTypePrimitiveTypeNode => PrimitiveType.LegacyFloat,
+            DoubleTypePrimitiveTypeNode => PrimitiveType.LegacyDouble,
+            DecimalTypePrimitiveTypeNode => PrimitiveType.LegacyDecimal,
+            BoolTypePrimitiveTypeNode => PrimitiveType.LegacyBool,
+            CharTypePrimitiveTypeNode => PrimitiveType.LegacyChar,
+            StringTypePrimitiveTypeNode => StringType.LegacyInstance,
+            _ => UnknownType.Instance,
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Stdlib type lookup — direct, scope-chain-bypassing resolution
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves a fully-qualified Standard Library type name (e.g.,
+    /// <c>"Standard.Int32"</c>) by walking directly from the global scope to
+    /// the target namespace scope and looking up the simple name among its
+    /// members. Does <b>not</b> consult any file scope, <c>using</c>
+    /// directive, or user-declared type — per Requirement 7.6 this path
+    /// intentionally bypasses all ordinary name-resolution machinery so that
+    /// a primitive keyword alias like <c>int</c> always reaches the stdlib
+    /// type and cannot be shadowed by user code.
+    ///
+    /// <para>
+    /// Throws <see cref="StdlibMissingException"/> (carrying diagnostic
+    /// <c>MIST_STDLIB_MISSING</c>) if the namespace scope is missing (the
+    /// stdlib has not been loaded into this compilation) or if the requested
+    /// simple name does not resolve to a type symbol inside the namespace.
+    /// </para>
+    /// </summary>
+    /// <param name="globalScope">
+    /// The compilation's global scope (returned by the running
+    /// <see cref="Build"/> invocation).
+    /// </param>
+    /// <param name="symbolTable">
+    /// The symbol table that <see cref="FindExistingNamespaceScope"/> uses to
+    /// locate namespace scopes.
+    /// </param>
+    /// <param name="qualifiedName">
+    /// The fully-qualified stdlib type name in <c>Namespace.SimpleName</c>
+    /// form (e.g., <c>"Standard.Int32"</c>).
+    /// </param>
+    internal static IType LookupQualifiedStdlibType(
+        Scope globalScope,
+        SymbolTable symbolTable,
+        string qualifiedName)
+    {
+        // Split "Namespace.SimpleName" into its two parts. The stdlib keeps a
+        // single-segment namespace ("Standard"); we intentionally split on
+        // the LAST '.' so multi-segment namespaces like
+        // "Standard.Collections.Generic" would still work if the stdlib ever
+        // grows them.
+        var lastDot = qualifiedName.LastIndexOf('.');
+        if (lastDot <= 0 || lastDot >= qualifiedName.Length - 1)
+        {
+            throw new StdlibMissingException(
+                qualifiedName,
+                $"MIST_STDLIB_MISSING: stdlib type name '{qualifiedName}' is not fully qualified.");
+        }
+
+        var namespaceName = qualifiedName.Substring(0, lastDot);
+        var simpleName = qualifiedName.Substring(lastDot + 1);
+
+        // Walk directly to the target namespace scope. No file scope, no
+        // using-directive, no scope chain.
+        var namespaceScope = FindExistingNamespaceScope(globalScope, symbolTable, namespaceName);
+        if (namespaceScope is null)
+        {
+            throw new StdlibMissingException(
+                qualifiedName,
+                $"MIST_STDLIB_MISSING: Standard Library namespace '{namespaceName}' is not present in the semantic model (stdlib not loaded?).");
+        }
+
+        // Look up the simple name among the namespace's direct members.
+        // `Scope.Lookup` would walk up to the parent on a miss; here we
+        // iterate members directly so a miss stays a miss (we must not fall
+        // through to an unrelated global-scope symbol).
+        foreach (var member in namespaceScope.Members)
+        {
+            if (member.Name != simpleName) continue;
+            if (member.Kind != SymbolKind.Class
+                && member.Kind != SymbolKind.Struct
+                && member.Kind != SymbolKind.Interface)
+            {
+                continue;
+            }
+
+            if (member.DeclaredType is IType declaredType)
+            {
+                return declaredType;
+            }
+        }
+
+        throw new StdlibMissingException(
+            qualifiedName,
+            $"MIST_STDLIB_MISSING: Standard Library type '{qualifiedName}' is not present in the semantic model.");
+    }
+
+    /// <summary>
+    /// Resolves a <see cref="PrimitiveTypeNode"/> (e.g., the AST node for the
+    /// <c>int</c> keyword) to its corresponding Standard Library type,
+    /// bypassing every scoping mechanism (file scope, <c>using</c> directives,
+    /// user-declared types with matching simple names). Per Requirement 7.6
+    /// this path is not overridable: the keyword <c>int</c> always resolves
+    /// to the type named by <see cref="KeywordAliases.Map"/>
+    /// (<c>Standard.Int32</c>), regardless of what else is in scope.
+    ///
+    /// <para>
+    /// Task 31 of the Mist Standard Library spec flipped the primitive-
+    /// type-reference path in <c>Pass2_ResolveTypes</c> to call this helper
+    /// (with a fallback to the legacy <see cref="ResolvePrimitiveType"/>
+    /// when no stdlib has been loaded, e.g., in unit tests that build a
+    /// semantic model from a minimal AST). The fallback returns the same
+    /// <see cref="IType"/> instance the compat-shim
+    /// <c>PrimitiveType.Int</c> property would return (Task 32), so
+    /// reference equality holds regardless of which path runs.
+    /// </para>
+    /// </summary>
+    /// <param name="globalScope">The compilation's global scope.</param>
+    /// <param name="symbolTable">The compilation's symbol table.</param>
+    /// <param name="keyword">The primitive-keyword AST node to resolve.</param>
+    internal static IType ResolvePrimitiveKeyword(
+        Scope globalScope,
+        SymbolTable symbolTable,
+        PrimitiveTypeNode keyword)
+    {
+        // Extract the keyword lexeme (e.g., "int") using the existing
+        // PrimitiveTypeNode → string mapping.
+        var keywordText = FormatPrimitiveType(keyword);
+
+        // Look it up in the single-source-of-truth Keyword_Alias_Mapping
+        // (Requirement 7.5, Task 7).
+        if (!KeywordAliases.Map.TryGetValue(keywordText, out var qualifiedName))
+        {
+            throw new StdlibMissingException(
+                keywordText,
+                $"MIST_STDLIB_MISSING: primitive keyword '{keywordText}' has no entry in KeywordAliases.Map.");
+        }
+
+        // Resolve the fully-qualified name directly against the stdlib
+        // namespace — never through any scope chain or using-directive.
+        return LookupQualifiedStdlibType(globalScope, symbolTable, qualifiedName);
+    }
+
+    /// <summary>
+    /// Populates <see cref="PrimitiveTypeRegistry"/> with the stdlib
+    /// <see cref="IType"/> instance for every primitive keyword whose
+    /// Standard Library type is present in the given global scope.
+    /// Keywords whose stdlib type is absent (e.g., when a unit-test
+    /// compilation skips loading stdlib) are left untouched — the
+    /// legacy <see cref="PrimitiveType"/> / <see cref="StringType"/>
+    /// accessors fall back to their private singletons in that case.
+    ///
+    /// <para>
+    /// Task 32 of the Mist Standard Library spec: this call runs at the
+    /// end of Pass 1 so that both Pass 2 (which looks stdlib types up
+    /// via <see cref="ResolvePrimitiveKeyword"/>) and every downstream
+    /// consumer of <c>PrimitiveType.Int</c> observe the same
+    /// <see cref="IType"/> instance (Requirement 8.5 — reference
+    /// equality).
+    /// </para>
+    /// </summary>
+    private static void PopulatePrimitiveTypeRegistry(Scope globalScope, SymbolTable symbolTable)
+    {
+        foreach (var (keyword, qualifiedName) in KeywordAliases.Map)
+        {
+            try
+            {
+                var type = LookupQualifiedStdlibType(globalScope, symbolTable, qualifiedName);
+                PrimitiveTypeRegistry.Register(keyword, type);
+            }
+            catch (StdlibMissingException)
+            {
+                // Stdlib type not loaded for this compilation; leave the
+                // registry entry as-is so downstream consumers fall back
+                // to the legacy PrimitiveType / StringType singletons.
+            }
+        }
     }
 
     /// <summary>

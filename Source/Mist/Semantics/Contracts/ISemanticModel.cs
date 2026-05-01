@@ -33,5 +33,29 @@ public interface ISemanticModel
     /// </summary>
     IType? GetTypeOf(Storm.Runtime.SyntaxNode node);
 
+    /// <summary>
+    /// Sets the type of the given AST node expression. Used by analyzers that
+    /// compute types for expressions after the semantic model is constructed
+    /// (e.g., operator overload resolution in <c>TypeCheckerAnalyzer</c>
+    /// resolves <c>a + b</c> to a user-defined operator and records the result
+    /// type on the enclosing expression node).
+    /// </summary>
+    void SetTypeOf(Storm.Runtime.SyntaxNode node, IType type);
+
+    /// <summary>
+    /// Records the operator symbol selected by overload resolution for the given
+    /// operator expression node. Called by the type checker after it resolves an
+    /// operator call (e.g., <c>a + b</c>) so that the emitter can later retrieve
+    /// which operator was chosen via <see cref="GetResolvedOperator"/>.
+    /// </summary>
+    void RecordResolvedOperator(Storm.Runtime.SyntaxNode node, ISymbol op);
+
+    /// <summary>
+    /// Returns the operator symbol previously recorded for the given AST node by
+    /// <see cref="RecordResolvedOperator"/>, or <c>null</c> if no operator has
+    /// been recorded for that node.
+    /// </summary>
+    ISymbol? GetResolvedOperator(Storm.Runtime.SyntaxNode node);
+
     ImmutableArray<ISymbol> AllSymbols { get; }
 }

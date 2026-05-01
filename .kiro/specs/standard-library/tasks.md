@@ -81,7 +81,7 @@ Stages:
 
 ### Stage 2 — Operator declarations and overload resolution (behind a feature flag)
 
-- [ ] 11. Register operator declarations as static methods during semantic model building
+- [x] 11. Register operator declarations as static methods during semantic model building
     In `Source/Mist/Semantics/Model/SemanticModelBuilder.cs` Pass 1 member-registration, handle `OperatorDeclaration` AST nodes by registering them as `Symbol` instances with:
     - `Kind = SymbolKind.Method`
     - `Name = "operator" + <op lexeme>` (e.g., `"operator+"`, `"operator=="`, `"operator-"` — unary `-` and binary `-` share the same name; overload resolution disambiguates by arity)
@@ -89,42 +89,42 @@ Stages:
     - `DeclaredType` set to the return type
     - Parameter signatures extracted like for methods
     Naming operators `operator+` prevents collision with user-defined methods named `plus`. See design § 3(c).
-    - [ ] 11.1 Unit test: an operator declaration on a user struct becomes a `Symbol` with `Name == "operator+"`, `Kind == Method`, the expected parameter types, and `IsIntrinsic == false`.
+    - [x] 11.1 Unit test: an operator declaration on a user struct becomes a `Symbol` with `Name == "operator+"`, `Kind == Method`, the expected parameter types, and `IsIntrinsic == false`.
     _Requirements: 4.6_
 
-- [ ] 12. Add operator-declaration shape diagnostics MIST_SB_0033–0035
+- [x] 12. Add operator-declaration shape diagnostics MIST_SB_0033–0035
     In `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`, validate operator declarations during Pass 1 and emit:
     - `MIST_SB_0033` — operator declared outside a class/struct body (Requirement 4.7). Message: `Operators must be declared as 'public static' members of a class or struct.`
     - `MIST_SB_0034` — binary operator without exactly 2 parameters OR unary operator without exactly 1 parameter (Requirements 4.8, 4.9). Message (binary): `Binary operator '{op}' must declare exactly 2 parameters; found {n}.` Message (unary): `Unary operator '{op}' must declare exactly 1 parameter; found {n}.`
     - `MIST_SB_0035` — operator not declared `public static` (Requirement 4.2). Message: `Operator '{op}' must be declared 'public static'.`
     Binary vs unary arity for each of the 14 operator symbols is fixed in the grammar (Requirement 4.3–4.4); `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `||` are binary; `!` is unary; `-` is overloaded between binary and unary based on declared parameter count.
-    - [ ] 12.1 Unit test: each diagnostic fires on the corresponding adversarial snippet and does NOT fire on the correct-usage counter-example.
+    - [x] 12.1 Unit test: each diagnostic fires on the corresponding adversarial snippet and does NOT fire on the correct-usage counter-example.
     _Requirements: 4.2, 4.7, 4.8, 4.9, 14.6, 14.7_
 
-- [ ] 13. Add `RecordResolvedOperator` / `GetResolvedOperator` to `ISemanticModel`
+- [x] 13. Add `RecordResolvedOperator` / `GetResolvedOperator` to `ISemanticModel`
     Extend `Source/Mist/Semantics/Contracts/ISemanticModel.cs` and `Source/Mist/Semantics/Model/SemanticModel.cs` with two methods:
     - `void RecordResolvedOperator(SyntaxNode node, ISymbol op)` — called by the type checker after overload resolution.
     - `ISymbol? GetResolvedOperator(SyntaxNode node)` — called by the emitter to retrieve which operator was selected.
     Backed by a private `Dictionary<SyntaxNode, ISymbol>`. See design § 4.
-    - [ ] 13.1 Unit test: `RecordResolvedOperator` then `GetResolvedOperator` round-trips the symbol; `GetResolvedOperator` on an unrecorded node returns `null`.
+    - [x] 13.1 Unit test: `RecordResolvedOperator` then `GetResolvedOperator` round-trips the symbol; `GetResolvedOperator` on an unrecorded node returns `null`.
     _Requirements: 6.1, 6.2_
 
-- [ ] 14. Add `ResolveBinaryOperator` and `ResolveUnaryOperator` helpers in `TypeCheckerAnalyzer`, gated by a feature flag
+- [x] 14. Add `ResolveBinaryOperator` and `ResolveUnaryOperator` helpers in `TypeCheckerAnalyzer`, gated by a feature flag
     In `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`, add two new private helpers per design § 4:
     - `ResolveBinaryOperator(string op, ExpressionNode left, ExpressionNode right, SyntaxNode surrounding, ISemanticModel model, DiagnosticBag diagnostics)` — gathers operator-member candidates from BOTH operand types, calls `OverloadResolver.Resolve`, emits `MIST_TC_0003`/`MIST_TC_0005`/`MIST_TC_0006` on `NoApplicableCandidate` (selecting the ID by which `Check*Node` wrapper is calling), emits `MIST_TC_0032` on `AmbiguousCall`, calls `RecordResolvedOperator` on `Success`, sets the expression type to the selected candidate's `DeclaredType`.
     - `ResolveUnaryOperator(string op, ExpressionNode operand, SyntaxNode surrounding, ISemanticModel model, DiagnosticBag diagnostics)` — analogous, one operand.
     Add a static boolean `internal static bool UseOperatorOverloadResolution = false;` at the top of `TypeCheckerAnalyzer`. The existing `CheckAdditiveNode`/`CheckMultiplicativeNode`/`CheckRelationalNode`/`CheckEqualityNode` methods and `CheckUnaryNode` cases (`LogicalNotUnaryNode`, `NegateUnaryNode`) are NOT modified yet — do not branch on the flag from them in this task. The flag controls a single new test in Task 16. Production traffic still uses the old path.
-    - [ ] 14.1 Unit test: `ResolveBinaryOperator` called with a user-declared `Vector3` type and its `operator +` returns `Success` with the correct symbol, sets the result type to `Vector3`, and populates `GetResolvedOperator`.
-    - [ ] 14.2 Unit test: `ResolveBinaryOperator` on types with no applicable operator emits `MIST_TC_0003` (or the appropriate ID).
-    - [ ] 14.3 Unit test: `ResolveBinaryOperator` on types with two equally-applicable operators emits `MIST_TC_0032`.
+    - [x] 14.1 Unit test: `ResolveBinaryOperator` called with a user-declared `Vector3` type and its `operator +` returns `Success` with the correct symbol, sets the result type to `Vector3`, and populates `GetResolvedOperator`.
+    - [x] 14.2 Unit test: `ResolveBinaryOperator` on types with no applicable operator emits `MIST_TC_0003` (or the appropriate ID).
+    - [x] 14.3 Unit test: `ResolveBinaryOperator` on types with two equally-applicable operators emits `MIST_TC_0032`.
     _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
 
-- [ ] 15. Extend `OverloadResolver` with left-operand precedence tiebreaker
+- [x] 15. Extend `OverloadResolver` with left-operand precedence tiebreaker
     In `Source/Mist/Analysis/Builtin/OverloadResolver.cs`, add a new overload of `Resolve` (or an optional parameter `IReadOnlyList<int>? candidateOrigin = null`) per design § 5. When `candidateOrigin` is provided (0 = left operand's type, 1 = right operand's type, `null` for non-operator calls), and `MoreSpecific` yields an otherwise-ambiguous result, prefer the lower-origin candidate. Existing method-call call sites pass `null` and preserve existing behavior. `ResolveBinaryOperator` (Task 14) passes the origin vector.
-    - [ ] 15.1 Unit test: with two candidates `A.operator+(A, B)` (origin 0) and `B.operator+(A, B)` (origin 1) and no specificity difference, the left-origin candidate wins. Reverse operand order: the right-hand type candidate (now origin 0) wins — confirming determinism across commutation.
+    - [x] 15.1 Unit test: with two candidates `A.operator+(A, B)` (origin 0) and `B.operator+(A, B)` (origin 1) and no specificity difference, the left-origin candidate wins. Reverse operand order: the right-hand type candidate (now origin 0) wins — confirming determinism across commutation.
     _Requirements: 12.5, 15.4 (resolved)_
 
-- [ ] 16. Integration test: compile a user-defined `Vector3` struct with `operator +` under the feature flag
+- [x] 16. Integration test: compile a user-defined `Vector3` struct with `operator +` under the feature flag
     Add an integration test that sets `TypeCheckerAnalyzer.UseOperatorOverloadResolution = true` for the duration of the test, compiles a Mist source defining `public struct Vector3 { public float x; public float y; public float z; public static Vector3 operator +(Vector3 a, Vector3 b) { ... } }` plus a call site `v1 + v2`, and asserts:
     - The semantic model records the user's operator as the resolved operator for the `+` expression.
     - The expression type is `Vector3`.
@@ -132,11 +132,11 @@ Stages:
     The production flag stays `false` — this test flips it locally. Other tests and the driver continue on the old path.
     _Requirements: 4.1, 4.6, 6.1, 6.3_
 
-- [ ] 17. Property-based test: operator overload resolution is deterministic
+- [x] 17. Property-based test: operator overload resolution is deterministic
     Add an FsCheck property test per design § *Correctness Properties → Property 4*. The generator produces an arbitrary set of operator-member candidates applicable to a fixed operand-type pair, plus an arbitrary permutation of the candidate list. Assert: for every permutation, `OverloadResolver.Resolve` (with origin vector) selects the same symbol. Runs ≥100 iterations (Requirement 12.8).
     _Requirements: 12.5, 12.8_
 
-- [ ] 18. Checkpoint — Stage 2 complete
+- [x] 18. Checkpoint — Stage 2 complete
     Ensure all tests pass. The feature flag is off by default; samples and all existing tests unchanged. User-defined operator resolution proven via Task 16. Ask the user if questions arise.
     _Requirements: (none — gate)_
 

@@ -12,6 +12,7 @@ public sealed class SemanticModel : ISemanticModel
 {
     private SymbolTable _symbolTable;
     private Dictionary<Storm.Runtime.SyntaxNode, IType> _expressionTypes;
+    private Dictionary<Storm.Runtime.SyntaxNode, ISymbol> _resolvedOperators;
 
     internal SemanticModel(
         MistCompilation compilation,
@@ -27,6 +28,7 @@ public sealed class SemanticModel : ISemanticModel
         GlobalScope = globalScope;
         _symbolTable = symbolTable;
         _expressionTypes = expressionTypes ?? new Dictionary<Storm.Runtime.SyntaxNode, IType>();
+        _resolvedOperators = new Dictionary<Storm.Runtime.SyntaxNode, ISymbol>();
     }
 
     public MistCompilation Compilation { get; }
@@ -58,5 +60,20 @@ public sealed class SemanticModel : ISemanticModel
         // Fallback: return the declared type of the symbol at this node, if any.
         var symbol = GetDeclaredSymbol(node);
         return symbol?.DeclaredType;
+    }
+
+    public void SetTypeOf(Storm.Runtime.SyntaxNode node, IType type)
+    {
+        _expressionTypes[node] = type;
+    }
+
+    public void RecordResolvedOperator(Storm.Runtime.SyntaxNode node, ISymbol op)
+    {
+        _resolvedOperators[node] = op;
+    }
+
+    public ISymbol? GetResolvedOperator(Storm.Runtime.SyntaxNode node)
+    {
+        return _resolvedOperators.TryGetValue(node, out var op) ? op : null;
     }
 }

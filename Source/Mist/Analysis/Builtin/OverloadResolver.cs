@@ -41,18 +41,40 @@ public static class OverloadResolver
     /// <param name="candidates">All symbols sharing the same name (the overload set).</param>
     /// <param name="argumentTypes">The resolved types of the arguments at the call site.</param>
     /// <param name="model">The semantic model, used to extract parameter signatures.</param>
+    /// <param name="candidateOrigin">
+    /// Optional origin-vector tiebreaker for operator overload resolution.
+    /// Must be <c>null</c> or have the same length as <paramref name="candidates"/>.
+    /// When provided, a lower origin value wins over a higher one in an
+    /// otherwise-ambiguous result (see design § 5). For binary operators
+    /// <c>ResolveBinaryOperator</c> uses <c>0</c> for candidates gathered from
+    /// the left operand's type and <c>1</c> for those gathered from the right.
+    /// Method-call call sites pass <c>null</c> and preserve the pre-tiebreaker
+    /// behavior. The tiebreaker resolves ambiguity only — it does not change
+    /// applicability filtering or the <see cref="MoreSpecific"/> relation.
+    /// </param>
     /// <returns>A resolution result indicating success, no match, or ambiguity.</returns>
     public static OverloadResolutionResult Resolve(
         IReadOnlyList<ISymbol> candidates,
         IReadOnlyList<IType> argumentTypes,
-        ISemanticModel model)
+        ISemanticModel model,
+        IReadOnlyList<int>? candidateOrigin = null)
     {
+        // Validate origin vector length — callers must supply one entry per
+        // candidate when they opt into the tiebreaker. Mismatched lengths are
+        // a caller bug; fall back to the null-origin path so behavior stays
+        // predictable.
+        if (candidateOrigin is not null && candidateOrigin.Count != candidates.Count)
+            candidateOrigin = null;
+
         // Step 1: Filter to applicable candidates — parameter count must match
         // and each argument type must be assignable to the corresponding parameter type.
-        var applicable = new List<(ISymbol Symbol, IReadOnlyList<IType> ParamTypes)>();
+        // Keep the candidate's index in the original list so that, if we need
+        // the origin-based tiebreaker later, we can look up its origin value.
+        var applicable = new List<(ISymbol Symbol, IReadOnlyList<IType> ParamTypes, int OriginalIndex)>();
 
-        foreach (var candidate in candidates)
+        for (var c = 0; c < candidates.Count; c++)
         {
+            var candidate = candidates[c];
             var paramTypes = ParameterSignature.Extract(candidate, model);
 
             if (paramTypes.Count != argumentTypes.Count)
@@ -69,7 +91,7 @@ public static class OverloadResolver
             }
 
             if (allAssignable)
-                applicable.Add((candidate, paramTypes));
+                applicable.Add((candidate, paramTypes, c));
         }
 
         // Step 2: No applicable candidates.
@@ -122,10 +144,7 @@ public static class OverloadResolver
                 if (!MoreSpecific(best.ParamTypes, other.ParamTypes))
                 {
                     // best is not more specific than this other candidate — ambiguous.
-                    return new OverloadResolutionResult(
-                        OverloadResolutionStatus.AmbiguousCall,
-                        BestCandidate: null,
-                        AmbiguousCandidates: applicable.Select(a => a.Symbol).ToList());
+                    return MakeAmbiguousOrTiebreak(applicable, candidateOrigin);
                 }
             }
 
@@ -135,7 +154,73 @@ public static class OverloadResolver
                 AmbiguousCandidates: null);
         }
 
-        // No single most-specific candidate — ambiguous call.
+        // No single most-specific candidate — either ambiguous or resolved by
+        // the origin-based tiebreaker.
+        return MakeAmbiguousOrTiebreak(applicable, candidateOrigin);
+    }
+
+    /// <summary>
+    /// Applies the left-operand precedence tiebreaker (design § 5) to a set
+    /// of otherwise-ambiguous applicable candidates.
+    ///
+    /// When <paramref name="candidateOrigin"/> is <c>null</c>, the result is
+    /// unconditionally <see cref="OverloadResolutionStatus.AmbiguousCall"/> —
+    /// preserving the pre-tiebreaker behavior for method-call call sites.
+    ///
+    /// When <paramref name="candidateOrigin"/> is provided, the applicable
+    /// candidates are partitioned by their origin value (looked up using the
+    /// original candidate-list index preserved in
+    /// <c>applicable[i].OriginalIndex</c>). If exactly one candidate has the
+    /// minimum origin, it wins and the call resolves to
+    /// <see cref="OverloadResolutionStatus.Success"/>. If two or more
+    /// candidates share the minimum origin, the tiebreaker cannot
+    /// disambiguate and the call remains <see cref="OverloadResolutionStatus.AmbiguousCall"/>.
+    /// </summary>
+    private static OverloadResolutionResult MakeAmbiguousOrTiebreak(
+        List<(ISymbol Symbol, IReadOnlyList<IType> ParamTypes, int OriginalIndex)> applicable,
+        IReadOnlyList<int>? candidateOrigin)
+    {
+        if (candidateOrigin is null)
+        {
+            return new OverloadResolutionResult(
+                OverloadResolutionStatus.AmbiguousCall,
+                BestCandidate: null,
+                AmbiguousCandidates: applicable.Select(a => a.Symbol).ToList());
+        }
+
+        // Find the minimum origin value across the applicable candidates.
+        var minOrigin = int.MaxValue;
+        foreach (var entry in applicable)
+        {
+            var origin = candidateOrigin[entry.OriginalIndex];
+            if (origin < minOrigin)
+                minOrigin = origin;
+        }
+
+        // Collect all candidates whose origin equals the minimum. If exactly
+        // one such candidate exists, it is the winner; otherwise ambiguity
+        // persists (the tiebreaker cannot disambiguate same-origin candidates).
+        ISymbol? sole = null;
+        var soleCount = 0;
+        foreach (var entry in applicable)
+        {
+            if (candidateOrigin[entry.OriginalIndex] != minOrigin)
+                continue;
+
+            sole = entry.Symbol;
+            soleCount++;
+            if (soleCount > 1)
+                break;
+        }
+
+        if (soleCount == 1 && sole is not null)
+        {
+            return new OverloadResolutionResult(
+                OverloadResolutionStatus.Success,
+                BestCandidate: sole,
+                AmbiguousCandidates: null);
+        }
+
         return new OverloadResolutionResult(
             OverloadResolutionStatus.AmbiguousCall,
             BestCandidate: null,

@@ -42,6 +42,38 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId MemberIntrinsicRequiresTypeIntrinsic = new("MIST_SB_0032");
 
+    // ── Operator-shape diagnostic IDs (Task 12, Requirements 4.2, 4.7, 4.8, 4.9) ──
+    /// <summary>
+    /// An <c>operator</c> declaration appeared outside a class or struct body
+    /// (Requirement 4.7). NOTE: the grammar already forbids operator
+    /// declarations outside a class/struct body (see <c>MemberDeclaration</c>
+    /// rule in <c>Mist.storm</c>), so this diagnostic is a defensive
+    /// safety net that currently has no triggerable path from parsed source.
+    /// It is registered here so the diagnostic ID is allocated and the
+    /// shape-validation logic would cover a future grammar change that
+    /// admitted top-level operator declarations.
+    /// </summary>
+    internal static readonly DiagnosticId OperatorOutsideTypeBody = new("MIST_SB_0033");
+
+    /// <summary>
+    /// An <c>operator</c> declaration's parameter count does not match the
+    /// arity required by its operator symbol (Requirements 4.8 &amp; 4.9).
+    /// Binary operators require exactly 2 parameters; unary operators require
+    /// exactly 1. The <c>-</c> symbol is overloaded binary/unary; its arity
+    /// is disambiguated by declared parameter count (2 = binary, 1 = unary;
+    /// anything else selects the closest-fitting error message).
+    /// </summary>
+    internal static readonly DiagnosticId OperatorArityMismatch = new("MIST_SB_0034");
+
+    /// <summary>
+    /// An <c>operator</c> declaration is missing the required
+    /// <c>public static</c> modifier combination (Requirement 4.2).
+    /// Every operator must be declared <c>public static</c> in v1; any
+    /// deviation (missing either modifier, or adding <c>private</c>) fires
+    /// this diagnostic.
+    /// </summary>
+    internal static readonly DiagnosticId OperatorMustBePublicStatic = new("MIST_SB_0035");
+
     public ISemanticModel Build(
         MistCompilation compilation,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
@@ -87,6 +119,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         //   * MIST_SB_0032 — member-level 'intrinsic' inside a non-intrinsic
         //     containing type (Requirement 5.15).
         Pass1e_ValidateIntrinsicMarkers(asts, symbolTable, compilation, diagnostics);
+
+        // Pass 1e (cont.): Validate operator-declaration shape (Task 12).
+        // Walks every operator symbol registered on class/struct member scopes
+        // to emit diagnostics for:
+        //   * MIST_SB_0033 — operator declared outside a class/struct body
+        //     (Requirement 4.7). Unreachable from parsed source because the
+        //     grammar already restricts OperatorDeclaration to MemberDeclaration;
+        //     registered defensively.
+        //   * MIST_SB_0034 — operator parameter count mismatches its required
+        //     arity (Requirements 4.8, 4.9).
+        //   * MIST_SB_0035 — operator not declared `public static`
+        //     (Requirement 4.2).
+        Pass1e_ValidateOperatorShape(asts, symbolTable, compilation, diagnostics);
 
         // Pass 1b: Resolve base types for class inheritance.
         // This runs after all types are registered so that forward references
@@ -577,9 +622,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// resolution in Task 14 can look it up by constructing the same key from
     /// an operator expression.
     ///
-    /// Task 8 propagates the <c>intrinsic</c> modifier and body-presence flag;
-    /// full operator registration (parameter signature extraction, shape
-    /// diagnostics, etc.) is Task 11's responsibility.
+    /// Pass 1 establishes only the symbol's identity (name, kind, modifiers,
+    /// body-presence). Parameter signature extraction and the operator's
+    /// return type are wired up in Pass 2's <see cref="ResolveOperatorDeclaration"/>,
+    /// which mirrors <see cref="ResolveMethodDeclaration"/> — operators are
+    /// treated as static methods for semantic-model purposes (Requirement 4.6),
+    /// and <see cref="ParameterSignature.Extract"/> reads the parameter list
+    /// from the <see cref="OperatorDeclarationNode"/> just like for methods.
     /// </summary>
     private static void RegisterOperatorDeclaration(OperatorDeclarationNode opDecl, Scope typeScope, SymbolTable symbolTable)
     {
@@ -1205,6 +1254,206 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         _ = typeSymbol;
         _ = asts;
         _ = compilation;
+        return false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Pass 1e — Validate operator-declaration shape (Task 12)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Binary operator symbols that require exactly 2 parameters
+    /// (Requirement 4.3, 4.5). The <c>-</c> symbol is omitted here because it
+    /// is overloaded binary/unary and disambiguated by parameter count below.
+    /// </summary>
+    private static readonly HashSet<string> BinaryOperatorSymbols = new()
+    {
+        "+", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", "&&", "||",
+    };
+
+    /// <summary>
+    /// Unary operator symbols that require exactly 1 parameter
+    /// (Requirement 4.4). The <c>-</c> symbol is omitted here because it is
+    /// overloaded binary/unary.
+    /// </summary>
+    private static readonly HashSet<string> UnaryOperatorSymbols = new()
+    {
+        "!",
+    };
+
+    /// <summary>
+    /// Validates the shape of every registered operator declaration and
+    /// emits diagnostics for:
+    /// <list type="bullet">
+    /// <item>
+    /// <description><c>MIST_SB_0033</c> — operator declared outside a class
+    /// or struct body (Requirement 4.7). This is currently unreachable from
+    /// parsed source because the grammar already restricts
+    /// <c>OperatorDeclaration</c> to appear only within
+    /// <c>MemberDeclaration</c>. The diagnostic ID is registered defensively
+    /// so a future grammar change that admits top-level operators inherits
+    /// the validation automatically.</description>
+    /// </item>
+    /// <item>
+    /// <description><c>MIST_SB_0034</c> — binary operator without exactly 2
+    /// parameters, or unary operator without exactly 1 parameter
+    /// (Requirements 4.8, 4.9). Arity rules: <c>+ * / % == != &lt; &gt; &lt;= &gt;= &amp;&amp; ||</c>
+    /// are binary; <c>!</c> is unary; <c>-</c> is overloaded (2 params → binary,
+    /// 1 param → unary, anything else treated as binary when count &gt; 1 or
+    /// unary when count ≤ 1).</description>
+    /// </item>
+    /// <item>
+    /// <description><c>MIST_SB_0035</c> — operator not declared
+    /// <c>public static</c> (Requirement 4.2). Both modifiers must be present
+    /// in the declaration's modifier list.</description>
+    /// </item>
+    /// </list>
+    /// </summary>
+    private static void Pass1e_ValidateOperatorShape(
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        SymbolTable symbolTable,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // Walk every registered symbol whose declaring node is an
+        // OperatorDeclarationNode. Operator symbols are registered with
+        // SymbolKind.Method and a mangled "operator<sym>" name, so filter by
+        // declaring-node shape rather than by name to avoid collisions with
+        // user methods that happen to start with "operator".
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbolTable.GetDeclaringNode(symbol) is not OperatorDeclarationNode opDecl)
+                continue;
+
+            var sourceText = FindSourceTextForNode(opDecl, asts, compilation);
+            var opLexeme = GetOperatorSymbolLexeme(opDecl.Symbol);
+
+            // Parameter count: the ParameterList rule is
+            // `Parameter (COMMA Parameter)*`, so count = 1 + Parameters.Length
+            // when non-null (one for the `Parameter` head, plus each COMMA-
+            // separated `Parameter` in the tail), or 0 when the list is absent.
+            var paramCount = opDecl.Parameters is null
+                ? 0
+                : 1 + opDecl.Parameters.Parameters.Length;
+
+            // Determine the operator's expected arity. For `-` (overloaded
+            // binary/unary), disambiguate by the declared parameter count:
+            // a count > 1 is diagnosed as a binary-arity mismatch (because
+            // the author was likely declaring subtraction), and a count ≤ 1
+            // is diagnosed as a unary-arity mismatch.
+            bool isBinary;
+            if (opLexeme == "-")
+            {
+                isBinary = paramCount > 1;
+            }
+            else if (BinaryOperatorSymbols.Contains(opLexeme))
+            {
+                isBinary = true;
+            }
+            else if (UnaryOperatorSymbols.Contains(opLexeme))
+            {
+                isBinary = false;
+            }
+            else
+            {
+                // Unknown operator symbol (grammar forbids this); skip shape
+                // validation so we don't produce a misleading diagnostic.
+                continue;
+            }
+
+            var expectedArity = isBinary ? 2 : 1;
+
+            // MIST_SB_0034 — arity mismatch (Requirements 4.8 & 4.9).
+            if (paramCount != expectedArity)
+            {
+                var message = isBinary
+                    ? $"Binary operator '{opLexeme}' must declare exactly 2 parameters; found {paramCount}."
+                    : $"Unary operator '{opLexeme}' must declare exactly 1 parameter; found {paramCount}.";
+
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    OperatorArityMismatch.Value,
+                    DiagnosticSeverity.Error,
+                    message,
+                    opDecl,
+                    sourceText));
+            }
+
+            // MIST_SB_0035 — operator must be declared `public static`
+            // (Requirement 4.2). Both modifiers must be present.
+            var hasPublic = false;
+            var hasStatic = false;
+            foreach (var modifier in opDecl.Modifiers)
+            {
+                if (modifier is PublicModifierModifierNode) hasPublic = true;
+                if (modifier is StaticModifierModifierNode) hasStatic = true;
+            }
+
+            if (!hasPublic || !hasStatic)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    OperatorMustBePublicStatic.Value,
+                    DiagnosticSeverity.Error,
+                    $"Operator '{opLexeme}' must be declared 'public static'.",
+                    opDecl,
+                    sourceText));
+            }
+
+            // MIST_SB_0033 — operator declared outside a class/struct body
+            // (Requirement 4.7). The grammar already restricts
+            // OperatorDeclaration to MemberDeclaration (see Mist.storm), so
+            // every operator reaches this pass inside a type's member scope
+            // and this check is unreachable from parsed source today. It is
+            // wired defensively so a future grammar change admitting top-
+            // level operators would inherit validation automatically. We
+            // detect a top-level operator by checking whether the symbol's
+            // containing scope is the member scope of a registered class or
+            // struct type. If no registered type claims this scope, the
+            // operator is not inside any type body.
+            if (!IsScopeInsideRegisteredType(symbol.ContainingScope, symbolTable))
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    OperatorOutsideTypeBody.Value,
+                    DiagnosticSeverity.Error,
+                    "Operators must be declared as 'public static' members of a class or struct.",
+                    opDecl,
+                    sourceText));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if <paramref name="scope"/> (or any of its
+    /// ancestor scopes) is the member scope of a class or struct type
+    /// registered in <paramref name="symbolTable"/>. Used by
+    /// <see cref="Pass1e_ValidateOperatorShape"/> as the trigger for
+    /// <c>MIST_SB_0033</c>. The grammar forbids operator declarations
+    /// outside a type body today, so every reachable operator symbol
+    /// satisfies this condition; the helper exists to guarantee the
+    /// diagnostic would still fire on a future grammar relaxation.
+    /// </summary>
+    private static bool IsScopeInsideRegisteredType(
+        IScope? scope,
+        SymbolTable symbolTable)
+    {
+        for (var s = scope; s is not null; s = s.Parent)
+        {
+            foreach (var typeSymbol in symbolTable.AllSymbols)
+            {
+                if (typeSymbol.Kind != SymbolKind.Class && typeSymbol.Kind != SymbolKind.Struct)
+                    continue;
+
+                var memberScope = typeSymbol.DeclaredType switch
+                {
+                    ClassType ct => ct.MemberScope,
+                    StructType st => st.MemberScope,
+                    _ => null,
+                };
+
+                if (memberScope is not null && ReferenceEquals(memberScope, s))
+                    return true;
+            }
+        }
+
         return false;
     }
 
@@ -4024,6 +4273,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case MethodMemberMemberDeclarationNode methodMember:
                 ResolveMethodDeclaration(methodMember.Method, typeScope, fileScope, enclosingType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
+            case OperatorMemberMemberDeclarationNode operatorMember:
+                ResolveOperatorDeclaration(operatorMember.Operator, typeScope, fileScope, enclosingType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
             case PropertyMemberMemberDeclarationNode propertyMember:
                 ResolvePropertyDeclaration(propertyMember.Property, typeScope, fileScope, enclosingType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
@@ -4135,6 +4387,56 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // has no statements to resolve.
         if (methodDecl.Body.GetBlock() is BlockNode methodBlock)
             ResolveBlock(methodBlock, methodScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    /// <summary>
+    /// Pass 2 counterpart to <see cref="RegisterOperatorDeclaration"/>. Resolves
+    /// the operator's return type (so <see cref="Symbol.DeclaredType"/> is set
+    /// to the operator's result type), registers its parameters into a method
+    /// scope (so <see cref="ParameterSignature.Extract"/> can retrieve parameter
+    /// types for overload resolution in Task 14), and — if the operator has a
+    /// body — resolves the body like a static method.
+    ///
+    /// An operator is treated as a static method for semantic-model purposes
+    /// (Requirement 4.2, 4.6): parameter and body resolution use
+    /// <c>isStatic = true</c>. Operators don't have type parameters in v1, so
+    /// no equivalent of <see cref="RegisterMethodTypeParameters"/> is needed.
+    /// </summary>
+    private static void ResolveOperatorDeclaration(
+        OperatorDeclarationNode opDecl,
+        Scope typeScope,
+        Scope fileScope,
+        IType enclosingType,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Resolve the return type and update the operator symbol.
+        var returnType = ResolveTypeReference(opDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        var opSymbol = symbolTable.GetDeclaredSymbol(opDecl) as Symbol;
+        if (opSymbol is not null)
+        {
+            opSymbol.DeclaredType = returnType;
+        }
+
+        // Create a method scope for parameters and the optional body.
+        var methodScope = new Scope(parent: typeScope);
+
+        // Register parameters so ParameterSignature.Extract can retrieve
+        // parameter types during overload resolution (Task 14).
+        if (opDecl.Parameters is not null)
+        {
+            RegisterParameters(opDecl.Parameters, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+        }
+
+        // Resolve the body. A no-body (;) form is accepted by the grammar
+        // (Requirement 5.2 for intrinsic operators) and has no statements to
+        // resolve; Pass 1e validates whether ; is permitted on this operator
+        // based on the intrinsic modifier.
+        if (opDecl.Body.GetBlock() is BlockNode opBlock)
+            ResolveBlock(opBlock, methodScope, fileScope, enclosingType, /* isStatic */ true, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
     }
 
     /// <summary>

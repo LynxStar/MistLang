@@ -22,6 +22,26 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     internal static readonly DiagnosticId NoApplicableOverload = new("MIST_TC_0031");
     internal static readonly DiagnosticId AmbiguousOverload = new("MIST_TC_0032");
 
+    /// <summary>
+    /// Feature flag gating the new operator overload-resolution path introduced by
+    /// Task 14 of the Mist Standard Library spec. When <c>false</c> (the default),
+    /// operator expressions (<c>+</c>, <c>-</c>, <c>==</c>, etc.) are typed by the
+    /// existing hardcoded <see cref="NumericTypes"/> / <see cref="IsNumeric"/> /
+    /// <c>StringType</c>-for-<c>+</c> rules in the <c>Check*Node</c> methods.
+    /// When <c>true</c>, operator expressions resolve through
+    /// <see cref="ResolveBinaryOperator"/> / <see cref="ResolveUnaryOperator"/>
+    /// against operator-member candidates collected from the operand types,
+    /// using <see cref="OverloadResolver.Resolve"/>.
+    ///
+    /// In Task 14 this flag is reserved for a future integration test (Task 16);
+    /// the existing <c>Check*Node</c> methods do not branch on it. Production traffic
+    /// continues on the old path until Stage 4 of the migration flips the default.
+    /// </summary>
+#pragma warning disable CA1805 // Flag default value is part of the contract — the migration plan
+                               // (design § Migration Plan) calls it out explicitly.
+    internal static bool UseOperatorOverloadResolution = false;
+#pragma warning restore CA1805
+
     // ── Numeric types for operator checking ──────────────────────────────
     private static readonly HashSet<IType> NumericTypes =
     [
@@ -3367,6 +3387,262 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         return results;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Operator overload resolution helpers (Task 14 — Mist Standard Library spec)
+    //
+    // These two helpers form the new operator-resolution path added by the
+    // Standard Library feature. They are invoked by whichever analyzer path
+    // is gated on <see cref="UseOperatorOverloadResolution"/>. In Task 14 the
+    // flag is default-<c>false</c> and these helpers are exercised only by
+    // targeted unit tests; the existing <c>Check*Node</c> methods are
+    // unchanged. Later migration stages will route the production traffic
+    // through these helpers.
+    //
+    // Both helpers follow the same three-step shape:
+    //   1. Gather candidate operator members (<c>operator+</c>, etc.) from
+    //      the operand type(s).
+    //   2. Call <see cref="OverloadResolver.Resolve"/> with the argument
+    //      types as a one- or two-element list.
+    //   3. On Success, call <see cref="ISemanticModel.RecordResolvedOperator"/>
+    //      and set the expression type. On NoApplicableCandidate emit the
+    //      caller-provided diagnostic ID; on AmbiguousCall emit
+    //      <c>MIST_TC_0032</c>.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves a binary operator expression (<c>left op right</c>) through
+    /// operator overload resolution. Gathers <c>"operator&lt;op&gt;"</c>
+    /// members from both operand types, invokes
+    /// <see cref="OverloadResolver.Resolve"/>, and either records the selected
+    /// symbol + expression type on the semantic model or emits a diagnostic.
+    /// </summary>
+    /// <param name="op">The operator lexeme (e.g. <c>"+"</c>, <c>"=="</c>, <c>"&lt;"</c>).</param>
+    /// <param name="left">The AST node for the left operand.</param>
+    /// <param name="right">The AST node for the right operand.</param>
+    /// <param name="surrounding">
+    /// The enclosing operator AST node used as the key for
+    /// <c>RecordResolvedOperator</c>, the target of <c>SetTypeOf</c>, and the
+    /// source-span carrier for diagnostic messages.
+    /// </param>
+    /// <param name="noApplicableDiagnosticId">
+    /// Diagnostic ID to emit when no candidate is applicable. Wrapper callers
+    /// pass <c>"MIST_TC_0003"</c> (additive / multiplicative),
+    /// <c>"MIST_TC_0005"</c> (relational), or <c>"MIST_TC_0006"</c> (equality)
+    /// to preserve the diagnostic codes the old hardcoded checks emitted.
+    /// </param>
+    /// <param name="model">The semantic model; used to read and set expression types.</param>
+    /// <param name="diagnostics">The diagnostic bag to append to.</param>
+    internal static void ResolveBinaryOperator(
+        string op,
+        SyntaxNode left,
+        SyntaxNode right,
+        SyntaxNode surrounding,
+        string noApplicableDiagnosticId,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var leftType = model.GetTypeOf(left);
+        var rightType = model.GetTypeOf(right);
+
+        // Suppress cascading errors — if either operand's type is unknown we
+        // rely on an earlier diagnostic to explain the real problem.
+        if (leftType is null || rightType is null
+            || IsUnknown(leftType) || IsUnknown(rightType))
+            return;
+
+        var opName = "operator" + op;
+
+        // Requirement 6.1: collect candidates from BOTH operand types.
+        // Deduplicate by symbol identity so that when leftType == rightType we
+        // do not enter the same candidate twice.
+        //
+        // Per design § 5, each candidate carries a parallel origin tag (0 for
+        // candidates gathered from the left operand's type, 1 for those from
+        // the right operand's type) so that OverloadResolver can apply the
+        // left-operand precedence tiebreaker when MoreSpecific would
+        // otherwise leave the call ambiguous. A symbol reachable from both
+        // scopes is gathered once with origin 0 — the left wins during
+        // deduplication, matching the tiebreaker's direction.
+        var candidates = new List<ISymbol>();
+        var candidateOrigin = new List<int>();
+
+        foreach (var candidate in GetOperatorMembers(leftType, opName))
+        {
+            candidates.Add(candidate);
+            candidateOrigin.Add(0);
+        }
+
+        if (!ReferenceEquals(leftType, rightType))
+        {
+            foreach (var candidate in GetOperatorMembers(rightType, opName))
+            {
+                if (!candidates.Any(existing => ReferenceEquals(existing, candidate)))
+                {
+                    candidates.Add(candidate);
+                    candidateOrigin.Add(1);
+                }
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                noApplicableDiagnosticId,
+                $"Operator '{op}' cannot be applied to operands of type '{leftType.DisplayName}' and '{rightType.DisplayName}'",
+                surrounding,
+                model));
+            return;
+        }
+
+        // Requirement 6.3: reuse the existing OverloadResolver for the
+        // two-argument case. Pass the origin vector so operator-specific
+        // ambiguity can fall back on left-operand precedence (Task 15).
+        var result = OverloadResolver.Resolve(
+            candidates,
+            argumentTypes: new[] { leftType, rightType },
+            model,
+            candidateOrigin);
+
+        switch (result.Status)
+        {
+            case OverloadResolutionStatus.Success:
+            {
+                var best = result.BestCandidate!;
+                model.RecordResolvedOperator(surrounding, best);
+                if (best.DeclaredType is not null)
+                    model.SetTypeOf(surrounding, best.DeclaredType);
+                break;
+            }
+
+            case OverloadResolutionStatus.NoApplicableCandidate:
+                diagnostics.Add(MakeDiagnostic(
+                    noApplicableDiagnosticId,
+                    $"Operator '{op}' cannot be applied to operands of type '{leftType.DisplayName}' and '{rightType.DisplayName}'",
+                    surrounding,
+                    model));
+                break;
+
+            case OverloadResolutionStatus.AmbiguousCall:
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0032",
+                    $"Ambiguous operator '{op}' between types '{leftType.DisplayName}' and '{rightType.DisplayName}'",
+                    surrounding,
+                    model));
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Resolves a unary operator expression (<c>op operand</c>) through
+    /// operator overload resolution. Analogous to
+    /// <see cref="ResolveBinaryOperator"/> with a single operand.
+    /// </summary>
+    /// <param name="op">The operator lexeme (e.g. <c>"-"</c>, <c>"!"</c>).</param>
+    /// <param name="operand">The AST node for the single operand.</param>
+    /// <param name="surrounding">
+    /// The enclosing unary operator AST node — key for
+    /// <c>RecordResolvedOperator</c> and the source-span carrier for
+    /// diagnostics.
+    /// </param>
+    /// <param name="noApplicableDiagnosticId">
+    /// Diagnostic ID to emit when no candidate is applicable. Wrapper callers
+    /// pass <c>"MIST_TC_0003"</c> for unary <c>-</c> and <c>"MIST_TC_0006"</c>
+    /// for unary <c>!</c> to preserve the diagnostic codes the existing
+    /// hardcoded checks emit.
+    /// </param>
+    /// <param name="model">The semantic model; used to read and set expression types.</param>
+    /// <param name="diagnostics">The diagnostic bag to append to.</param>
+    internal static void ResolveUnaryOperator(
+        string op,
+        SyntaxNode operand,
+        SyntaxNode surrounding,
+        string noApplicableDiagnosticId,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var operandType = model.GetTypeOf(operand);
+
+        if (operandType is null || IsUnknown(operandType))
+            return;
+
+        var opName = "operator" + op;
+
+        var candidates = new List<ISymbol>();
+        foreach (var candidate in GetOperatorMembers(operandType, opName))
+            candidates.Add(candidate);
+
+        if (candidates.Count == 0)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                noApplicableDiagnosticId,
+                $"Operator '{op}' cannot be applied to operand of type '{operandType.DisplayName}'",
+                surrounding,
+                model));
+            return;
+        }
+
+        var result = OverloadResolver.Resolve(
+            candidates,
+            argumentTypes: new[] { operandType },
+            model);
+
+        switch (result.Status)
+        {
+            case OverloadResolutionStatus.Success:
+            {
+                var best = result.BestCandidate!;
+                model.RecordResolvedOperator(surrounding, best);
+                if (best.DeclaredType is not null)
+                    model.SetTypeOf(surrounding, best.DeclaredType);
+                break;
+            }
+
+            case OverloadResolutionStatus.NoApplicableCandidate:
+                diagnostics.Add(MakeDiagnostic(
+                    noApplicableDiagnosticId,
+                    $"Operator '{op}' cannot be applied to operand of type '{operandType.DisplayName}'",
+                    surrounding,
+                    model));
+                break;
+
+            case OverloadResolutionStatus.AmbiguousCall:
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0032",
+                    $"Ambiguous operator '{op}' for operand type '{operandType.DisplayName}'",
+                    surrounding,
+                    model));
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Collects operator-member symbols named <paramref name="operatorName"/>
+    /// (e.g. <c>"operator+"</c>) from <paramref name="type"/>'s member scope.
+    /// Looks through <see cref="ConstructedType"/> to the generic definition's
+    /// scope. Returns an empty enumeration for types that do not own a
+    /// member scope (e.g. <see cref="PrimitiveType"/>, <see cref="ArrayType"/>).
+    /// </summary>
+    private static IEnumerable<ISymbol> GetOperatorMembers(IType type, string operatorName)
+    {
+        var scope = type switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            InterfaceType it => it.MemberScope,
+            ConstructedType cst => cst.MemberScope,
+            _ => null,
+        };
+
+        if (scope is null)
+            yield break;
+
+        foreach (var member in scope.Members)
+        {
+            if (member.Kind == SymbolKind.Method && member.Name == operatorName)
+                yield return member;
+        }
     }
 
     /// <summary>

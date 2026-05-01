@@ -94,10 +94,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var ast = asts[i];
             var sourceText = i < compilation.Units.Length ? compilation.Units[i].Source : null;
+            var unit = i < compilation.Units.Length ? compilation.Units[i] : null;
+
+            // Each unit can carry its own namespace root and project folder
+            // (e.g., stdlib units use "Standard" and the Standard/ directory).
+            // Fall back to the driver-level values for user units.
+            var effectiveNamespaceRoot = unit?.NamespaceRoot ?? namespaceRoot;
+            var effectiveProjectFolder = unit?.ProjectFolder ?? projectFolder;
 
             try
             {
-                Pass1_RegisterTypes(ast, globalScope, symbolTable, sourceText, namespaceRoot, projectFolder, diagnostics);
+                Pass1_RegisterTypes(ast, globalScope, symbolTable, sourceText, effectiveNamespaceRoot, effectiveProjectFolder, diagnostics);
             }
             catch (Exception ex)
             {

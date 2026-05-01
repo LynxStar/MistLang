@@ -9,5 +9,6 @@ public class Program
         var optional = new Optional<int>(7);
 
         Console.WriteLine($"HasValue: {optional.HasValue}");
+
     }
 }

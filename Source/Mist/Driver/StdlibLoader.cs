@@ -83,7 +83,12 @@ public static class StdlibLoader
             }
 
             var sourceText = new SourceText(path, contents);
-            units.Add(new CompilationUnit(sourceText) { IsStdlib = true });
+            units.Add(new CompilationUnit(sourceText)
+            {
+                IsStdlib = true,
+                NamespaceRoot = "Standard",
+                ProjectFolder = stdlibRoot,
+            });
         }
 
         return units.ToImmutable();

@@ -48,4 +48,13 @@ public readonly record struct DiagnosticId(string Value)
     /// <c>StdlibMissingException</c>.
     /// </summary>
     public static readonly DiagnosticId StdlibMissing = new("MIST_STDLIB_MISSING");
+
+    // ── Backend diagnostics ──────────────────────────────────────────────
+
+    /// <summary>
+    /// An intrinsic member was invoked but the backend has no emission
+    /// template registered for it. The compilation must fail with no output
+    /// artifact (Requirements 5.9, 5.10).
+    /// </summary>
+    public static readonly DiagnosticId MissingIntrinsicEmissionTemplate = new("MIST_BE_0002");
 }

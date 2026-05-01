@@ -163,9 +163,13 @@ public sealed class BugfixIntegrationTests : IDisposable
 
     private static MistCompilation MakeCompilation(params (string FileName, string Source)[] files)
     {
-        var units = files.Select(f => new CompilationUnit(new SourceText(f.FileName, f.Source)))
+        // After Task 42, String and Array are stdlib types (not ambient types),
+        // so tests that reference string.Length() or array.Length need the stdlib loaded.
+        var (stdlibUnits, _) = Helpers.StdlibTestHelper.LoadStdlib();
+        var userUnits = files.Select(f => new CompilationUnit(new SourceText(f.FileName, f.Source)))
             .ToImmutableArray();
-        return new MistCompilation(units);
+        var allUnits = stdlibUnits.AddRange(userUnits);
+        return new MistCompilation(allUnits);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -359,9 +363,13 @@ public sealed class BugfixIntegrationTests : IDisposable
         var builder = new SemanticModelBuilder();
         var diagnostics = new DiagnosticBag();
 
+        // Include stdlib ASTs so String/Array member lookup works (Task 42).
+        var (_, stdlibAsts) = Helpers.StdlibTestHelper.LoadStdlib();
+        var allAsts = stdlibAsts.AddRange(ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast1, ast2, ast3));
+
         var model = builder.Build(
             compilation,
-            ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast1, ast2, ast3),
+            allAsts,
             resolver,
             namespaceRoot: "TestProject",
             projectFolder: "/test",
@@ -570,9 +578,13 @@ public sealed class BugfixIntegrationTests : IDisposable
         var builder = new SemanticModelBuilder();
         var diagnostics = new DiagnosticBag();
 
+        // Include stdlib ASTs so String/Array member lookup works (Task 42).
+        var (_, stdlibAsts2) = Helpers.StdlibTestHelper.LoadStdlib();
+        var allAsts2 = stdlibAsts2.AddRange(ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast1, ast2, ast3));
+
         var model = builder.Build(
             compilation,
-            ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast1, ast2, ast3),
+            allAsts2,
             resolver,
             namespaceRoot: "TestProject",
             projectFolder: "/test",

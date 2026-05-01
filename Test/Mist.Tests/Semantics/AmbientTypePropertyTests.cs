@@ -33,8 +33,9 @@ public class AmbientTypePropertyTests
 
     /// <summary>
     /// All known ambient type names available in the System namespace via CSharpAmbientTypeResolver.
+    /// String and Array are no longer ambient types after Task 42 (Req 9.1, 9.2, 9.6).
     /// </summary>
-    private static readonly string[] KnownAmbientTypes = ["Console", "Math", "Convert", "Array", "String"];
+    private static readonly string[] KnownAmbientTypes = ["Console", "Math", "Convert"];
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -387,7 +388,6 @@ public class AmbientTypePropertyTests
         Assert.Contains("Console", tracker.ResolvedTypes);
         Assert.DoesNotContain("Math", tracker.ResolvedTypes);
         Assert.DoesNotContain("Convert", tracker.ResolvedTypes);
-        Assert.DoesNotContain("Array", tracker.ResolvedTypes);
     }
 
     /// <summary>

@@ -1,8 +1,10 @@
 using System.Collections.Immutable;
 using System.Text;
+using Mist.Backends.CSharpTranspiler.Intrinsics;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
+using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler;
@@ -46,7 +48,7 @@ public sealed class CSharpEmitter
             // Get the AST for this compilation unit (same index as the unit).
             if (i < model.Asts.Length && model.Asts[i] is CompilationUnitNode compilationUnit)
             {
-                var writer = new CSharpSourceWriter(model, backendNamespaces, unit.Source);
+                var writer = new CSharpSourceWriter(model, backendNamespaces, unit.Source, diagnostics);
                 var csContent = writer.EmitCompilationUnit(compilationUnit);
                 File.WriteAllText(csPath, csContent);
 
@@ -140,6 +142,8 @@ internal sealed class CSharpSourceWriter
     private readonly ISemanticModel _model;
     private readonly ImmutableArray<string> _backendNamespaces;
     private readonly Common.Text.SourceText _sourceText;
+    private readonly IIntrinsicEmissionRegistry _intrinsicRegistry;
+    private readonly DiagnosticBag _diagnostics;
     private int _indentLevel;
     private bool _needsMistVoidStruct;
     private bool _inValueReturningVoidMethod;
@@ -155,11 +159,14 @@ internal sealed class CSharpSourceWriter
     public CSharpSourceWriter(
         ISemanticModel model,
         ImmutableArray<string> backendNamespaces,
-        Common.Text.SourceText sourceText)
+        Common.Text.SourceText sourceText,
+        DiagnosticBag diagnostics)
     {
         _model = model;
         _backendNamespaces = backendNamespaces;
         _sourceText = sourceText;
+        _diagnostics = diagnostics;
+        _intrinsicRegistry = new IntrinsicEmissionTable();
     }
 
     public string EmitCompilationUnit(CompilationUnitNode cu)
@@ -1639,82 +1646,70 @@ internal sealed class CSharpSourceWriter
     {
         var left = EmitLogicalAnd(logicalOr.Left);
 
-        if (logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
-        {
-            var right = EmitLogicalAnd(logicalOr.Right);
-            return $"{left} || {right}";
-        }
+        if (logicalOr.Right is null || ReferenceEquals(logicalOr.Right, logicalOr.Left))
+            return left;
 
-        return left;
+        var right = EmitLogicalAnd(logicalOr.Right);
+        return EmitBinaryOperator(logicalOr, "||", left, right);
     }
 
     private string EmitLogicalAnd(LogicalAndNode logicalAnd)
     {
         var left = EmitEquality(logicalAnd.Left);
 
-        if (logicalAnd.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
-        {
-            var right = EmitEquality(logicalAnd.Right);
-            return $"{left} && {right}";
-        }
+        if (logicalAnd.Right is null || ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+            return left;
 
-        return left;
+        var right = EmitEquality(logicalAnd.Right);
+        return EmitBinaryOperator(logicalAnd, "&&", left, right);
     }
 
     private string EmitEquality(EqualityNode equality)
     {
         var left = EmitRelational(equality.Left);
 
-        if (equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
-        {
-            var op = equality.Operator.Lexeme;
-            var right = EmitRelational(equality.Right);
-            return $"{left} {op} {right}";
-        }
+        if (equality.Right is null || ReferenceEquals(equality.Right, equality.Left))
+            return left;
 
-        return left;
+        var op = equality.Operator.Lexeme;
+        var right = EmitRelational(equality.Right);
+        return EmitBinaryOperator(equality, op, left, right);
     }
 
     private string EmitRelational(RelationalNode relational)
     {
         var left = EmitAdditive(relational.Left);
 
-        if (relational.Right is not null && !ReferenceEquals(relational.Right, relational.Left))
-        {
-            var op = relational.Operator.Lexeme;
-            var right = EmitAdditive(relational.Right);
-            return $"{left} {op} {right}";
-        }
+        if (relational.Right is null || ReferenceEquals(relational.Right, relational.Left))
+            return left;
 
-        return left;
+        var op = relational.Operator.Lexeme;
+        var right = EmitAdditive(relational.Right);
+        return EmitBinaryOperator(relational, op, left, right);
     }
 
     private string EmitAdditive(AdditiveNode additive)
     {
         var left = EmitMultiplicative(additive.Left);
 
-        if (additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
-        {
-            var op = additive.Operator.Lexeme;
-            var right = EmitMultiplicative(additive.Right);
-            return $"{left} {op} {right}";
-        }
+        if (additive.Right is null || ReferenceEquals(additive.Right, additive.Left))
+            return left;
 
-        return left;
+        var op = additive.Operator.Lexeme;
+        var right = EmitMultiplicative(additive.Right);
+        return EmitBinaryOperator(additive, op, left, right);
     }
 
     private string EmitMultiplicative(MultiplicativeNode multiplicative)
     {
         var left = EmitUnary(multiplicative.Left);
 
-        if (multiplicative.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
-        {
-            var op = multiplicative.Operator.Lexeme;
-            var right = EmitUnary(multiplicative.Right);
-            return $"{left} {op} {right}";
-        }
+        if (multiplicative.Right is null || ReferenceEquals(multiplicative.Right, multiplicative.Left))
+            return left;
 
-        return left;
+        var op = multiplicative.Operator.Lexeme;
+        var right = EmitUnary(multiplicative.Right);
+        return EmitBinaryOperator(multiplicative, op, left, right);
     }
 
     private string EmitUnary(UnaryNode unary)
@@ -1722,15 +1717,201 @@ internal sealed class CSharpSourceWriter
         switch (unary)
         {
             case LogicalNotUnaryNode logicalNot:
-                return $"!{EmitUnary(logicalNot.Operand)}";
+            {
+                var operand = EmitUnary(logicalNot.Operand);
+                return EmitUnaryOperator(logicalNot, "!", operand);
+            }
             case NegateUnaryNode negate:
-                return $"-{EmitUnary(negate.Operand)}";
+            {
+                var operand = EmitUnary(negate.Operand);
+                return EmitUnaryOperator(negate, "-", operand);
+            }
             case PostfixExpressionUnaryNode postfix:
                 return EmitPostfix(postfix.Primary);
             default:
                 return "";
         }
     }
+
+    // ── Operator dispatch helpers ────────────────────────────────────────
+
+    /// <summary>
+    /// Dispatches a binary operator expression through the resolved-operator symbol.
+    /// If the resolved operator is intrinsic, emits via the emission template registry.
+    /// If the resolved operator is user-defined, emits as a static method call.
+    /// If no resolved operator is found, falls back to direct operator emission.
+    /// </summary>
+    private string EmitBinaryOperator(Storm.Runtime.SyntaxNode node, string op, string left, string right)
+    {
+        var resolved = _model.GetResolvedOperator(node);
+
+        if (resolved is null)
+        {
+            // No resolved operator — backward compatibility fallback.
+            return $"{left} {op} {right}";
+        }
+
+        if (resolved is Symbol { IsIntrinsic: true } intrinsicSymbol)
+        {
+            // Intrinsic operator: look up the emission template.
+            var declaringType = GetQualifiedTypeName(intrinsicSymbol);
+            var template = _intrinsicRegistry.TryGetBinaryOperator(declaringType, op);
+            if (template is not null)
+                return string.Format(template.Template, left, right);
+
+            // Template not found — emit MIST_BE_0002 hard error (Requirements 5.9, 5.10).
+            var memberSig = $"{declaringType}.operator{op}";
+            _diagnostics.Add(new Diagnostic(
+                DiagnosticId.MissingIntrinsicEmissionTemplate,
+                DiagnosticSeverity.Error,
+                PipelineStage.Backend,
+                $"No emission template found for intrinsic '{memberSig}' in backend 'CSharp'.",
+                Location: null,
+                CompilationUnitPath: _sourceText.Path,
+                AnalyzerName: null));
+            return "";
+        }
+
+        if (resolved is Symbol nonIntrinsicSymbol)
+        {
+            // User-defined operator: emit as a static method call.
+            var declaringType = GetEmittedDeclaringTypeName(nonIntrinsicSymbol);
+            var methodName = CSharpOperatorName(op);
+            return $"{declaringType}.{methodName}({left}, {right})";
+        }
+
+        // Fallback for any other ISymbol implementation.
+        return $"{left} {op} {right}";
+    }
+
+    /// <summary>
+    /// Dispatches a unary operator expression through the resolved-operator symbol.
+    /// If the resolved operator is intrinsic, emits via the emission template registry.
+    /// If the resolved operator is user-defined, emits as a static method call.
+    /// If no resolved operator is found, falls back to direct operator emission.
+    /// </summary>
+    private string EmitUnaryOperator(Storm.Runtime.SyntaxNode node, string op, string operand)
+    {
+        var resolved = _model.GetResolvedOperator(node);
+
+        if (resolved is null)
+        {
+            // No resolved operator — backward compatibility fallback.
+            return op == "!" ? $"!{operand}" : $"-{operand}";
+        }
+
+        if (resolved is Symbol { IsIntrinsic: true } intrinsicSymbol)
+        {
+            // Intrinsic operator: look up the emission template.
+            var declaringType = GetQualifiedTypeName(intrinsicSymbol);
+            var template = _intrinsicRegistry.TryGetUnaryOperator(declaringType, op);
+            if (template is not null)
+                return string.Format(template.Template, operand);
+
+            // Template not found — emit MIST_BE_0002 hard error (Requirements 5.9, 5.10).
+            var memberSig = $"{declaringType}.operator{op}";
+            _diagnostics.Add(new Diagnostic(
+                DiagnosticId.MissingIntrinsicEmissionTemplate,
+                DiagnosticSeverity.Error,
+                PipelineStage.Backend,
+                $"No emission template found for intrinsic '{memberSig}' in backend 'CSharp'.",
+                Location: null,
+                CompilationUnitPath: _sourceText.Path,
+                AnalyzerName: null));
+            return "";
+        }
+
+        if (resolved is Symbol nonIntrinsicSymbol)
+        {
+            // User-defined operator: emit as a static method call.
+            var declaringType = GetEmittedDeclaringTypeName(nonIntrinsicSymbol);
+            var methodName = CSharpOperatorName(op);
+            return $"{declaringType}.{methodName}({operand})";
+        }
+
+        return op == "!" ? $"!{operand}" : $"-{operand}";
+    }
+
+    /// <summary>
+    /// Returns the fully-qualified Mist type name for an operator symbol's declaring type.
+    /// Used for looking up intrinsic emission templates in the registry.
+    /// E.g., for <c>Standard.Int32.operator+</c>, returns <c>"Standard.Int32"</c>.
+    /// </summary>
+    private static string GetQualifiedTypeName(Symbol operatorSymbol)
+    {
+        // The operator symbol's ContainingScope is the type's member scope.
+        // Walk up to find the type symbol in the parent scope.
+        var memberScope = operatorSymbol.ContainingScope;
+        if (memberScope?.Parent is not null)
+        {
+            // Look for a type symbol whose MemberScope is the operator's ContainingScope.
+            foreach (var sibling in memberScope.Parent.Members)
+            {
+                if (sibling.DeclaredType is ClassType ct && ct.MemberScope == memberScope)
+                {
+                    return ct.ContainingNamespace is not null
+                        ? $"{ct.ContainingNamespace}.{ct.DisplayName}"
+                        : ct.DisplayName;
+                }
+
+                if (sibling.DeclaredType is StructType st && st.MemberScope == memberScope)
+                {
+                    return st.ContainingNamespace is not null
+                        ? $"{st.ContainingNamespace}.{st.DisplayName}"
+                        : st.DisplayName;
+                }
+            }
+        }
+
+        // Fallback: extract from the symbol name.
+        return "Unknown";
+    }
+
+    /// <summary>
+    /// Returns the C# emitted type name for a user-defined operator's declaring type.
+    /// For user types, this is the simple DisplayName (e.g., "Vector3").
+    /// For stdlib types, this goes through the Backing_Type_Map.
+    /// </summary>
+    private static string GetEmittedDeclaringTypeName(Symbol operatorSymbol)
+    {
+        var memberScope = operatorSymbol.ContainingScope;
+        if (memberScope?.Parent is not null)
+        {
+            foreach (var sibling in memberScope.Parent.Members)
+            {
+                if (sibling.DeclaredType is ClassType ct && ct.MemberScope == memberScope)
+                    return CSharpTypeMap.GetTypeName(ct);
+
+                if (sibling.DeclaredType is StructType st && st.MemberScope == memberScope)
+                    return CSharpTypeMap.GetTypeName(st);
+            }
+        }
+
+        return "Unknown";
+    }
+
+    /// <summary>
+    /// Maps a Mist operator symbol to its C# operator method name per the
+    /// .NET Common Language Specification naming convention.
+    /// </summary>
+    private static string CSharpOperatorName(string op) => op switch
+    {
+        "+" => "op_Addition",
+        "-" => "op_Subtraction",
+        "*" => "op_Multiply",
+        "/" => "op_Division",
+        "%" => "op_Modulus",
+        "==" => "op_Equality",
+        "!=" => "op_Inequality",
+        "<" => "op_LessThan",
+        ">" => "op_GreaterThan",
+        "<=" => "op_LessThanOrEqual",
+        ">=" => "op_GreaterThanOrEqual",
+        "&&" => "op_LogicalAnd",
+        "||" => "op_LogicalOr",
+        "!" => "op_LogicalNot",
+        _ => $"op_Unknown_{op}",
+    };
 
     private string EmitPostfix(PostfixNode postfix)
     {

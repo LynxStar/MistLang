@@ -25,6 +25,11 @@ public sealed class CSharpTranspilerBackend : IBackend
 
             if(bag.HasErrors)
             {
+                // Requirement 5.10: if MIST_BE_0002 (or any backend error)
+                // was raised during emission, produce no output artifact.
+                // Clean up any partially-emitted files.
+                CleanOutputDirectory(outputDirectory);
+
                 return new BackendResult(
                     Succeeded: false,
                     PrimaryArtifactPath: null,
@@ -51,6 +56,27 @@ public sealed class CSharpTranspilerBackend : IBackend
                 Succeeded: false,
                 PrimaryArtifactPath: null,
                 Diagnostics: bag.ToImmutableArray());
+        }
+    }
+
+    /// <summary>
+    /// Removes all emitted files from the output directory to ensure no
+    /// output artifact is produced when the backend encounters errors
+    /// (Requirement 5.10).
+    /// </summary>
+    private static void CleanOutputDirectory(string outputDirectory)
+    {
+        try
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                foreach (var file in Directory.GetFiles(outputDirectory))
+                    File.Delete(file);
+            }
+        }
+        catch
+        {
+            // Best-effort cleanup; the compilation already failed.
         }
     }
 }

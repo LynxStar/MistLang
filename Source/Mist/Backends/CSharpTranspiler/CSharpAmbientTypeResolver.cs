@@ -9,6 +9,22 @@ namespace Mist.Backends.CSharpTranspiler;
 /// Provides lazy, on-demand resolution of well-known .NET types for the C# backend.
 /// Types are materialized only when user code references them, and results are cached
 /// so that subsequent queries return the same instance.
+///
+/// <para>
+/// After Task 42 of the Mist Standard Library spec, this resolver no longer
+/// exposes <c>System.String</c> or <c>System.Array</c> as ambient types —
+/// those are now stdlib types (<c>Standard.String</c>, <c>Standard.Array&lt;T&gt;</c>)
+/// per Requirements 9.1, 9.2, 9.6. The resolver continues to expose
+/// <c>Console</c>, <c>Math</c>, and <c>Convert</c> as ambient types per
+/// Requirements 9.3, 9.4, 9.5.
+/// </para>
+///
+/// <para>
+/// All member signatures produced by this resolver reference Mist stdlib
+/// types (via <see cref="IStdlibTypeProvider"/>) rather than legacy
+/// <c>PrimitiveType.*</c> / <c>StringType.Instance</c> singletons,
+/// satisfying Requirements 9.9 and 9.10.
+/// </para>
 /// </summary>
 public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
 {
@@ -21,12 +37,30 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
     /// <summary>Materialized cache of resolved types and their members.</summary>
     private readonly Dictionary<(string Namespace, string TypeName), (IType Type, ImmutableArray<ISymbol> Members)> _cache = new();
 
-    public CSharpAmbientTypeResolver()
+    /// <summary>
+    /// The stdlib type provider used to look up Mist types for member
+    /// signatures (e.g., <c>Int32</c>, <c>String</c>, <c>Boolean</c>).
+    /// </summary>
+    private readonly IStdlibTypeProvider _stdlib;
+
+    /// <summary>
+    /// Creates a new ambient type resolver that references stdlib types
+    /// via the given provider.
+    /// </summary>
+    /// <param name="stdlib">
+    /// The stdlib type provider. When <c>null</c>, falls back to
+    /// <see cref="FallbackStdlibTypeProvider"/> (legacy singletons),
+    /// keeping tests that don't load stdlib working.
+    /// </param>
+    public CSharpAmbientTypeResolver(IStdlibTypeProvider? stdlib = null)
     {
+        _stdlib = stdlib ?? FallbackStdlibTypeProvider.Instance;
+
+        // Per Requirements 9.3, 9.4, 9.5: Console, Math, Convert remain
+        // ambient types. Per Requirements 9.1, 9.2, 9.6: String and Array
+        // are no longer exposed as ambient types — they are stdlib types.
         RegisterType("System", "Console", BuildConsole);
-        RegisterType("System", "String", BuildString);
         RegisterType("System", "Math", BuildMath);
-        RegisterType("System", "Array", BuildArray);
         RegisterType("System", "Convert", BuildConvert);
     }
 
@@ -106,7 +140,7 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
             declarationSpan: null);
     }
 
-    private static (IType, ImmutableArray<ISymbol>) BuildConsole()
+    private (IType, ImmutableArray<ISymbol>) BuildConsole()
     {
         var consoleScope = new Scope(parent: null);
         var consoleType = new ClassType("Console", consoleScope, "System");
@@ -125,8 +159,8 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
         members.Add(BuildMethodSymbol("WriteLine", VoidType.Instance,
             isStatic: true, consoleScope));
 
-        // string ReadLine() — static
-        members.Add(BuildMethodSymbol("ReadLine", StringType.Instance,
+        // string ReadLine() — static (returns stdlib String)
+        members.Add(BuildMethodSymbol("ReadLine", _stdlib.LookupStandardType("String"),
             isStatic: true, consoleScope));
 
         // void Write(string value) — static
@@ -136,77 +170,41 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
         return (consoleType, members.ToImmutable());
     }
 
-    private static (IType, ImmutableArray<ISymbol>) BuildString()
-    {
-        var stringScope = new Scope(parent: null);
-        var stringType = new ClassType("String", stringScope, "System");
-
-        var members = ImmutableArray.CreateBuilder<ISymbol>();
-
-        // int Length — instance (modeled as a method for v1 simplicity)
-        members.Add(BuildMethodSymbol("Length", PrimitiveType.Int,
-            isStatic: false, stringScope));
-
-        // string Substring(int startIndex) — instance
-        members.Add(BuildMethodSymbol("Substring", StringType.Instance,
-            isStatic: false, stringScope));
-
-        // bool Contains(string value) — instance
-        members.Add(BuildMethodSymbol("Contains", PrimitiveType.Bool,
-            isStatic: false, stringScope));
-
-        return (stringType, members.ToImmutable());
-    }
-
-    private static (IType, ImmutableArray<ISymbol>) BuildMath()
+    private (IType, ImmutableArray<ISymbol>) BuildMath()
     {
         var mathScope = new Scope(parent: null);
         var mathType = new ClassType("Math", mathScope, "System");
 
         var members = ImmutableArray.CreateBuilder<ISymbol>();
 
-        // int Abs(int value) — static
-        members.Add(BuildMethodSymbol("Abs", PrimitiveType.Int,
+        // int Abs(int value) — static (returns stdlib Int32)
+        members.Add(BuildMethodSymbol("Abs", _stdlib.LookupStandardType("Int32"),
             isStatic: true, mathScope));
 
         // int Max(int val1, int val2) — static
-        members.Add(BuildMethodSymbol("Max", PrimitiveType.Int,
+        members.Add(BuildMethodSymbol("Max", _stdlib.LookupStandardType("Int32"),
             isStatic: true, mathScope));
 
         // int Min(int val1, int val2) — static
-        members.Add(BuildMethodSymbol("Min", PrimitiveType.Int,
+        members.Add(BuildMethodSymbol("Min", _stdlib.LookupStandardType("Int32"),
             isStatic: true, mathScope));
 
         return (mathType, members.ToImmutable());
     }
 
-    private static (IType, ImmutableArray<ISymbol>) BuildArray()
-    {
-        var arrayScope = new Scope(parent: null);
-        var arrayType = new ClassType("Array", arrayScope, "System");
-
-        var members = ImmutableArray.CreateBuilder<ISymbol>();
-
-        // int Length — instance
-        members.Add(BuildMethodSymbol("Length", PrimitiveType.Int,
-            isStatic: false, arrayScope));
-
-        return (arrayType, members.ToImmutable());
-    }
-
-    private static (IType, ImmutableArray<ISymbol>) BuildConvert()
+    private (IType, ImmutableArray<ISymbol>) BuildConvert()
     {
         var convertScope = new Scope(parent: null);
         var convertType = new ClassType("Convert", convertScope, "System");
 
         var members = ImmutableArray.CreateBuilder<ISymbol>();
 
-        // int ToInt32(string value) — static
-        members.Add(BuildMethodSymbol("ToInt32", PrimitiveType.Int,
+        // int ToInt32(string value) — static (returns stdlib Int32)
+        members.Add(BuildMethodSymbol("ToInt32", _stdlib.LookupStandardType("Int32"),
             isStatic: true, convertScope));
 
-        // string ToString(int value) — static
-        members.Add(BuildMethodSymbol("ToString", StringType.Instance,
+        // string ToString(int value) — static (returns stdlib String)
+        members.Add(BuildMethodSymbol("ToString", _stdlib.LookupStandardType("String"),
             isStatic: true, convertScope));
 
         return (convertType, members.ToImmutable());

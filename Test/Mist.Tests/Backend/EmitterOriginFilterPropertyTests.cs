@@ -95,8 +95,9 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
 
     /// <summary>
     /// Known ambient type names from CSharpAmbientTypeResolver.
+    /// String and Array are no longer ambient types after Task 42 (Req 9.1, 9.2, 9.6).
     /// </summary>
-    private static readonly string[] KnownAmbientTypes = ["Console", "Math", "Convert", "Array", "String"];
+    private static readonly string[] KnownAmbientTypes = ["Console", "Math", "Convert"];
 
     /// <summary>
     /// Builds a program that references the given ambient types via field declarations

@@ -50,11 +50,9 @@ public class StringLengthPropertyTests
         IAmbientTypeResolver? ambientTypeResolver = null,
         string source = "")
     {
-        var compilation = MakeCompilation(source);
-        var diagnostics = new DiagnosticBag();
-        var builder = new SemanticModelBuilder();
-        var model = builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
-        return (model, diagnostics.ToImmutableArray());
+        // After Task 42, String and Array are stdlib types (not ambient types),
+        // so tests that reference string.Length() or array.Length need the stdlib loaded.
+        return Helpers.StdlibTestHelper.BuildModelWithStdlib(ast, ambientTypeResolver, source);
     }
 
     private static UsingDeclarationNode MakeUsingDeclaration(string namespaceName)

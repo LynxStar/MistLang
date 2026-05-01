@@ -32,14 +32,22 @@ public class AmbientTypeResolverTests
 
     [Theory]
     [InlineData("System", "Console")]
-    [InlineData("System", "String")]
     [InlineData("System", "Math")]
-    [InlineData("System", "Array")]
     [InlineData("System", "Convert")]
     public void ResolveType_ReturnsNonNull_ForKnownTypes(string ns, string typeName)
     {
         var type = _resolver.ResolveType(ns, typeName);
         Assert.NotNull(type);
+    }
+
+    // String and Array are no longer ambient types (Req 9.1, 9.2, 9.6)
+    [Theory]
+    [InlineData("System", "String")]
+    [InlineData("System", "Array")]
+    public void ResolveType_ReturnsNull_ForRemovedAmbientTypes(string ns, string typeName)
+    {
+        var type = _resolver.ResolveType(ns, typeName);
+        Assert.Null(type);
     }
 
     [Fact]
@@ -58,9 +66,7 @@ public class AmbientTypeResolverTests
 
     [Theory]
     [InlineData("System", "Console", "Console")]
-    [InlineData("System", "String", "String")]
     [InlineData("System", "Math", "Math")]
-    [InlineData("System", "Array", "Array")]
     [InlineData("System", "Convert", "Convert")]
     public void ResolveType_ReturnsCorrectDisplayName(string ns, string typeName, string expectedDisplayName)
     {
@@ -71,9 +77,7 @@ public class AmbientTypeResolverTests
 
     [Theory]
     [InlineData("System", "Console")]
-    [InlineData("System", "String")]
     [InlineData("System", "Math")]
-    [InlineData("System", "Array")]
     [InlineData("System", "Convert")]
     public void ResolveType_ReturnsClassType(string ns, string typeName)
     {
@@ -97,15 +101,11 @@ public class AmbientTypeResolverTests
     }
 
     [Fact]
-    public void GetMembers_ReturnsExpectedMembers_ForString()
+    public void GetMembers_ReturnsExpectedMembers_ForString_NoLongerExposed()
     {
-        var type = _resolver.ResolveType("System", "String")!;
-        var members = _resolver.GetMembers(type);
-
-        Assert.NotEmpty(members);
-        Assert.Contains(members, m => m.Name == "Length");
-        Assert.Contains(members, m => m.Name == "Substring");
-        Assert.Contains(members, m => m.Name == "Contains");
+        // String is no longer an ambient type (Req 9.1, 9.6).
+        var type = _resolver.ResolveType("System", "String");
+        Assert.Null(type);
     }
 
     [Fact]
@@ -168,11 +168,12 @@ public class AmbientTypeResolverTests
         var names = _resolver.GetTypeNamesInNamespace("System");
 
         Assert.Contains("Console", names);
-        Assert.Contains("String", names);
         Assert.Contains("Math", names);
-        Assert.Contains("Array", names);
         Assert.Contains("Convert", names);
-        Assert.Equal(5, names.Length);
+        // String and Array are no longer ambient types (Req 9.1, 9.2, 9.6)
+        Assert.DoesNotContain("String", names);
+        Assert.DoesNotContain("Array", names);
+        Assert.Equal(3, names.Length);
     }
 
     [Fact]
@@ -186,9 +187,7 @@ public class AmbientTypeResolverTests
 
     [Theory]
     [InlineData("System", "Console")]
-    [InlineData("System", "String")]
     [InlineData("System", "Math")]
-    [InlineData("System", "Array")]
     [InlineData("System", "Convert")]
     public void ResolveType_ReturnsSameInstance_WhenCalledTwice(string ns, string typeName)
     {

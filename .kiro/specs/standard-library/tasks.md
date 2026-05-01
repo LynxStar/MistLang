@@ -272,7 +272,7 @@ Stages:
 
 ### Stage 5 — Migrate the C# backend
 
-- [ ] 39. Rewrite `CSharpTypeMap.cs` into the Backing_Type_Map form
+- [x] 39. Rewrite `CSharpTypeMap.cs` into the Backing_Type_Map form
     Rewrite `Source/Mist/Backends/CSharpTranspiler/CSharpTypeMap.cs` per design § 7. Replace the `PrimitiveType`-keyed dictionary with a `Dictionary<string, string>` keyed on fully-qualified stdlib type name (`"Standard.Int32" → "int"`, `"Standard.String" → "string"`, etc. — all 14 entries from design § 7). Rewrite `GetTypeName(IType type, bool isValueContext)` so its `switch` handles:
     - `ClassType ct when ct.IsBackendBacked && ct.ContainingNamespace == "Standard"` → look up `"Standard." + ct.DisplayName` in the dictionary; return the C# source keyword.
     - `StructType st when st.IsBackendBacked && st.ContainingNamespace == "Standard"` → same.
@@ -280,10 +280,10 @@ Stages:
     - `ArrayType` → recursive call on `ElementType` plus `"[]"` (kept structural per design § 2; `Array<T>` is not a dictionary entry because the element type is generic).
     - `ConstructedType`, `TypeParameterType`, generic `ClassType`/`StructType` → unchanged.
     The file remains `internal` and lives in `Source/Mist/Backends/CSharpTranspiler/` (Requirement 9.11).
-    - [ ] 39.1 Unit test: `CSharpTypeMap.GetTypeName(standardInt32Type)` returns `"int"`; `CSharpTypeMap.GetTypeName(standardStringType)` returns `"string"`; `CSharpTypeMap.GetTypeName(new ArrayType(standardInt32Type))` returns `"int[]"`.
+    - [x] 39.1 Unit test: `CSharpTypeMap.GetTypeName(standardInt32Type)` returns `"int"`; `CSharpTypeMap.GetTypeName(standardStringType)` returns `"string"`; `CSharpTypeMap.GetTypeName(new ArrayType(standardInt32Type))` returns `"int[]"`.
     _Requirements: 9.7, 9.8, 9.11_
 
-- [ ] 40. Implement `IIntrinsicEmissionRegistry` and `IntrinsicEmissionTable`
+- [x] 40. Implement `IIntrinsicEmissionRegistry` and `IntrinsicEmissionTable`
     Create `Source/Mist/Backends/CSharpTranspiler/Intrinsics/IntrinsicEmission.cs` with the internal `IntrinsicEmissionTemplate` record and `IIntrinsicEmissionRegistry` interface per design § 6:
     - `TryGetBinaryOperator(string declaringType, string op)`
     - `TryGetUnaryOperator(string declaringType, string op)`
@@ -297,10 +297,10 @@ Stages:
     - `Standard.String`: `+` as `{0} + {1}`, `==` as `{0} == {1}`, `!=`, `Length` as `{0}.Length`, `Substring(Int32)` as `{0}.Substring({1})`, `Contains(String)` as `{0}.Contains({1})`.
     - `Standard.Array`: `Length` as `{0}.Length`.
     - Unary `-` on signed numerics: `-{0}` (keyed with a distinct mangled name like `"negate"` to distinguish from binary `-`).
-    - [ ] 40.1 Unit test: the registry returns the expected template for a representative sample (e.g., `TryGetBinaryOperator("Standard.Int32", "+")` returns `"{0} + {1}"`; `TryGetInstanceMethod("Standard.String", "Substring", ["Standard.Int32"])` returns `"{0}.Substring({1})"`).
+    - [x] 40.1 Unit test: the registry returns the expected template for a representative sample (e.g., `TryGetBinaryOperator("Standard.Int32", "+")` returns `"{0} + {1}"`; `TryGetInstanceMethod("Standard.String", "Substring", ["Standard.Int32"])` returns `"{0}.Substring({1})"`).
     _Requirements: 5.7, 5.8_
 
-- [ ] 41. Rewrite `CSharpEmitter` operator emission to dispatch through the resolved-operator symbol
+- [x] 41. Rewrite `CSharpEmitter` operator emission to dispatch through the resolved-operator symbol
     Modify `Source/Mist/Backends/CSharpTranspiler/CSharpEmitter.cs` per design § 7. Rewrite the following methods so they:
     1. Look up `model.GetResolvedOperator(node)` to retrieve the `ISymbol` selected by the type checker.
     2. If the symbol has `IsIntrinsic == true`, look up the emission template via the registry (`TryGetBinaryOperator` / `TryGetUnaryOperator`) and emit via `string.Format(template, left, right)`.
@@ -308,11 +308,11 @@ Stages:
     4. If the template lookup fails on an intrinsic, throw `MIST_BE_0002` per Task 43 and emit no output.
     Methods to rewrite: `EmitAdditive` (lines ~1663), `EmitMultiplicative` (~1672), `EmitRelational`, `EmitEquality`, and the `LogicalNotUnaryNode`/`NegateUnaryNode` cases of `EmitUnary`.
     Also rewrite method-call and member-access emission (e.g., `x.Substring(0)`, `s.Length`, `arr.Length`) to consult the registry when the resolved member has `IsIntrinsic == true`, so stdlib member calls emit `{receiver}.Substring(...)` rather than a Mist static-method dispatch.
-    - [ ] 41.1 Unit test: emitted C# for `int a = 1; int b = 2; int c = a + b;` equals `int a = 1; int b = 2; int c = a + b;` (the intrinsic template produces byte-identical output; Requirement 11.5).
-    - [ ] 41.2 Unit test: emitted C# for a user-defined `Vector3.operator+` call emits `Vector3.op_Addition(a, b)`.
+    - [x] 41.1 Unit test: emitted C# for `int a = 1; int b = 2; int c = a + b;` equals `int a = 1; int b = 2; int c = a + b;` (the intrinsic template produces byte-identical output; Requirement 11.5).
+    - [x] 41.2 Unit test: emitted C# for a user-defined `Vector3.operator+` call emits `Vector3.op_Addition(a, b)`.
     _Requirements: 5.7, 5.8, 6.10, 11.5_
 
-- [ ] 42. Rewrite `CSharpAmbientTypeResolver` to consume an `IStdlibTypeProvider`
+- [x] 42. Rewrite `CSharpAmbientTypeResolver` to consume an `IStdlibTypeProvider`
     Per design § 7 and Requirements 9.3, 9.4, 9.5, 9.6, 9.9, 9.10, 9.12, 9.13:
     - Add a new public interface `IStdlibTypeProvider` in `Source/Mist/Semantics/Contracts/` with one method: `IType LookupStandardType(string simpleName)`.
     - Have `SemanticModel` (or a small adapter) implement `IStdlibTypeProvider` by walking into the `Standard` namespace scope.
@@ -321,36 +321,36 @@ Stages:
         2. Delete `BuildString()` (lines ~140–160) and `BuildArray()` (lines ~185–200) entirely — per Requirement 9.1, 9.2, `String` and `Array<T>` are stdlib types now. Remove their `RegisterType` registrations from the constructor.
         3. Rewrite `BuildConsole`, `BuildMath`, `BuildConvert` to reference stdlib types: every `PrimitiveType.Int` becomes `stdlib.LookupStandardType("Int32")`; every `StringType.Instance` becomes `stdlib.LookupStandardType("String")`; every `PrimitiveType.Bool` becomes `stdlib.LookupStandardType("Boolean")`.
     - Update `CompilerDriver` constructor order so the semantic model is constructed first (giving the stdlib type provider), then the ambient resolver is built with the provider, then the full `SemanticModelBuilder.Build` re-runs with the resolver in place. (Alternative: two-phase build where stdlib ASTs are registered first, ambient resolver is constructed, then user ASTs are built on top. Implementor chooses; design § 7 and § 8 lay out the order.)
-    - [ ] 42.1 Unit test: `CSharpAmbientTypeResolver.ResolveType("System", "Console")` returns a type whose `WriteLine(string)` member has parameter type equal to `stdlib.LookupStandardType("String")` (reference equality).
-    - [ ] 42.2 Unit test: `CSharpAmbientTypeResolver.ResolveType("System", "String")` returns `null` (no longer exposed per Requirement 9.6).
+    - [x] 42.1 Unit test: `CSharpAmbientTypeResolver.ResolveType("System", "Console")` returns a type whose `WriteLine(string)` member has parameter type equal to `stdlib.LookupStandardType("String")` (reference equality).
+    - [x] 42.2 Unit test: `CSharpAmbientTypeResolver.ResolveType("System", "String")` returns `null` (no longer exposed per Requirement 9.6).
     _Requirements: 9.3, 9.4, 9.5, 9.6, 9.9, 9.10, 9.12, 9.13_
 
-- [ ] 43. Emit `MIST_BE_0002` on missing intrinsic emission template
+- [x] 43. Emit `MIST_BE_0002` on missing intrinsic emission template
     Per Requirement 5.9 and 5.10, the backend MUST emit a hard error when an intrinsic is invoked but the registry has no template, MUST NOT emit any fallback or stub, and MUST produce no output artifact.
     - Add diagnostic ID `MIST_BE_0002` to the backend diagnostic catalog with message template: `No emission template found for intrinsic '{type}.{member}' in backend '{backend}'.` (design § *Error Handling*).
     - In `CSharpEmitter` (Task 41), when an intrinsic template lookup returns null, create a `MIST_BE_0002` diagnostic (severity Error) with the call-site source span (resolved open question — include the AST node's source span) and add it to the backend's `DiagnosticBag`. Abort emission of the current compilation unit; do NOT write any `.cs` file.
     - In `CSharpTranspilerBackend.Emit`, if any `MIST_BE_0002` is in the bag, return a `BackendResult(Succeeded: false, PrimaryArtifactPath: null, ...)` with the diagnostic, ensuring no output artifact is produced.
-    - [ ] 43.1 Unit test: construct a stdlib file with an intrinsic whose key is intentionally absent from `IntrinsicEmissionTable`. Compile a user program that calls it. Assert: `MIST_BE_0002` is emitted, and the `BackendResult.Succeeded == false`, and no `.cs` file is written.
-    - [ ] 43.2 Unit test: at test-project startup, iterate every `Symbol` with `IsIntrinsic == true` in the stdlib semantic model and assert the registry has a matching template. Ensures no stdlib intrinsic ships without its template.
+    - [x] 43.1 Unit test: construct a stdlib file with an intrinsic whose key is intentionally absent from `IntrinsicEmissionTable`. Compile a user program that calls it. Assert: `MIST_BE_0002` is emitted, and the `BackendResult.Succeeded == false`, and no `.cs` file is written.
+    - [x] 43.2 Unit test: at test-project startup, iterate every `Symbol` with `IsIntrinsic == true` in the stdlib semantic model and assert the registry has a matching template. Ensures no stdlib intrinsic ships without its template.
     _Requirements: 5.9, 5.10_
 
-- [ ] 44. Property-based test: Property 5 — bootstrap numeric operators match C# semantics
+- [x] 44. Property-based test: Property 5 — bootstrap numeric operators match C# semantics
     Add an FsCheck property test per design § *Correctness Properties → Property 5* and Requirements 12.1, 12.2, 12.3. For each bootstrap numeric type `N` and each operator `op ∈ {+, -, *, /, %, <, >, <=, >=, ==, !=}` legal on `N`, the generator produces operand pairs `(a, b)` (filtering `b == 0` for `/` and `%`). The test compiles and executes a Mist program that evaluates `a op b` and compares the output to the C# evaluation of the equivalent expression on the backing type. Covers at least `Int32`, `Int64`, `UInt32`, `UInt64`, `Double`, `Decimal` at ≥100 iterations each.
     _Requirements: 12.1, 12.2, 12.3, 12.8_
 
-- [ ] 45. Property-based test: Property 3 — every operator expression is typed via OverloadResolver
+- [x] 45. Property-based test: Property 3 — every operator expression is typed via OverloadResolver
     Add an FsCheck property test per design § *Correctness Properties → Property 3* and Requirements 6.1, 6.2, 6.3, 6.7, 6.8, 6.9. The generator produces an arbitrary well-typed operator expression (binary or unary, user-defined or stdlib-intrinsic). Assert: the symbol recorded via `RecordResolvedOperator` equals the symbol returned by a direct call to `OverloadResolver.Resolve` on the same candidate set and argument types. Confirms the type checker contains no special-case operator logic that bypasses `OverloadResolver`.
     _Requirements: 6.1, 6.2, 6.3, 6.7, 6.8, 6.9, 12.8_
 
-- [ ] 46. Property-based test: Property 6 — operator round-trip inverse
+- [x] 46. Property-based test: Property 6 — operator round-trip inverse
     Add an FsCheck property test per design § *Correctness Properties → Property 6* and Requirement 12.7. For each bootstrap numeric type `N` with both `+` and `-` declared, generator produces operand pairs `(a, b)` filtered so that `a + b` does not overflow. Assert: Mist expression `(a + b) - b` evaluates to `a`. Covers `Int32`, `Int64`, `UInt32`, `UInt64`, `Double`, `Decimal`.
     _Requirements: 12.7, 12.8_
 
-- [ ] 47. Property-based test: Property 7 — no backing type leak into the semantic model
+- [x] 47. Property-based test: Property 7 — no backing type leak into the semantic model
     Add an FsCheck property test per design § *Correctness Properties → Property 7* and Requirement 12.10. The generator produces Mist source that exercises `Console.WriteLine("hi")`, `Math.Abs(-1)`, `array.Length`, string literals, numeric literals, member access on primitives (`x.ToString()` where `ToString` is ambient-exposed), and calls whose CLR signatures reference `System.String` / `System.Array` / CLR primitives. The test builds the `ISemanticModel`, then traverses every reachable `IType` (parameter types, return types, local variable types, field types, expression types via `GetTypeOf`, generic type arguments, members produced by every `IAmbientTypeResolver`) and asserts each is either (a) a user-declared Mist type, (b) a `Standard.*` type, or (c) an ambient synthesized type whose own member signatures recursively satisfy the property. Failure if any reachable `IType`'s `DisplayName` or `ContainingNamespace` matches a CLR-type pattern (`System.*`).
     _Requirements: 9.6, 9.9, 9.10, 12.10, 12.8_
 
-- [ ] 48. Checkpoint — Stage 5 complete
+- [x] 48. Checkpoint — Stage 5 complete
     Ensure all tests pass. Samples produce byte-identical output vs baseline. Property tests 1–7 all green. The backend now fully uses the Backing_Type_Map and emission registry; no target-language type leaks into the semantic model. Ask the user if questions arise.
     _Requirements: (none — gate)_
 

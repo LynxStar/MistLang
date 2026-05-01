@@ -6400,35 +6400,90 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             _ => null,
         };
 
-        // For string type, look up members via the ambient resolver.
-        if (targetType is StringType && ambientTypeResolver is not null)
+        // For string type, look up members via the stdlib Standard.String type.
+        // After Task 42, String is no longer an ambient type — it's a stdlib type.
+        // The legacy StringType fallback (used when stdlib isn't loaded) has no
+        // members, so we look up Standard.String from the stdlib and search its
+        // member scope. When the stdlib IS loaded, the compat shim means
+        // StringType.Instance returns the stdlib ClassType, so this path only
+        // fires for the legacy StringType singleton in tests without stdlib.
+        if (targetType is StringType)
         {
-            var stringType = ambientTypeResolver.ResolveType("System", "String");
-            if (stringType is not null)
+            var globalScope = FindGlobalScope(fileScope);
+            if (globalScope is not null)
             {
-                var members = ambientTypeResolver.GetMembers(stringType);
-                foreach (var member in members)
+                try
                 {
-                    if (member.Name == memberName)
+                    var stdlibString = LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.String");
+                    if (stdlibString is ClassType stdlibStringClass)
                     {
-                        return member.DeclaredType ?? UnknownType.Instance;
+                        foreach (var m in stdlibStringClass.MemberScope.Members)
+                        {
+                            if (m.Name == memberName)
+                                return m.DeclaredType ?? UnknownType.Instance;
+                        }
+                    }
+                }
+                catch (StdlibMissingException)
+                {
+                    // Stdlib not loaded — fall through to ambient resolver fallback below.
+                }
+            }
+
+            // Legacy fallback: try the ambient resolver (for backward compat
+            // with tests that don't load stdlib).
+            if (ambientTypeResolver is not null)
+            {
+                var stringType = ambientTypeResolver.ResolveType("System", "String");
+                if (stringType is not null)
+                {
+                    var members = ambientTypeResolver.GetMembers(stringType);
+                    foreach (var member in members)
+                    {
+                        if (member.Name == memberName)
+                            return member.DeclaredType ?? UnknownType.Instance;
                     }
                 }
             }
         }
 
-        // For array types, look up Length via the ambient resolver.
-        if (targetType is ArrayType && ambientTypeResolver is not null)
+        // For array types, look up Length via the stdlib Standard.Array<T> type.
+        // After Task 42, Array is no longer an ambient type — it's a stdlib type.
+        if (targetType is ArrayType)
         {
-            var arrayBaseType = ambientTypeResolver.ResolveType("System", "Array");
-            if (arrayBaseType is not null)
+            var globalScope = FindGlobalScope(fileScope);
+            if (globalScope is not null)
             {
-                var members = ambientTypeResolver.GetMembers(arrayBaseType);
-                foreach (var member in members)
+                try
                 {
-                    if (member.Name == memberName)
+                    var stdlibArray = LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.Array");
+                    if (stdlibArray is ClassType stdlibArrayClass)
                     {
-                        return member.DeclaredType ?? UnknownType.Instance;
+                        foreach (var m in stdlibArrayClass.MemberScope.Members)
+                        {
+                            if (m.Name == memberName)
+                                return m.DeclaredType ?? UnknownType.Instance;
+                        }
+                    }
+                }
+                catch (StdlibMissingException)
+                {
+                    // Stdlib not loaded — fall through to ambient resolver fallback below.
+                }
+            }
+
+            // Legacy fallback: try the ambient resolver (for backward compat
+            // with tests that don't load stdlib).
+            if (ambientTypeResolver is not null)
+            {
+                var arrayBaseType = ambientTypeResolver.ResolveType("System", "Array");
+                if (arrayBaseType is not null)
+                {
+                    var members = ambientTypeResolver.GetMembers(arrayBaseType);
+                    foreach (var member in members)
+                    {
+                        if (member.Name == memberName)
+                            return member.DeclaredType ?? UnknownType.Instance;
                     }
                 }
             }

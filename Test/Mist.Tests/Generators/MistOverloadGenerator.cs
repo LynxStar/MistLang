@@ -34,13 +34,13 @@ public static class MistOverloadGenerator
     /// </summary>
     private static readonly IType[] DistinctPrimitiveTypes =
     [
-        PrimitiveType.Int,
-        PrimitiveType.Bool,
-        PrimitiveType.Double,
-        PrimitiveType.Float,
-        PrimitiveType.Char,
-        PrimitiveType.Long,
-        StringType.Instance,
+        LegacyPrimitiveTypes.Int,
+        LegacyPrimitiveTypes.Bool,
+        LegacyPrimitiveTypes.Double,
+        LegacyPrimitiveTypes.Float,
+        LegacyPrimitiveTypes.Char,
+        LegacyPrimitiveTypes.Long,
+        LegacyPrimitiveTypes.String,
     ];
 
     /// <summary>
@@ -65,10 +65,10 @@ public static class MistOverloadGenerator
     /// </summary>
     private static readonly (IType Param1, IType Param2, IType Arg)[] AmbiguousTuples =
     [
-        (PrimitiveType.Float, PrimitiveType.Decimal, PrimitiveType.Int),
-        (PrimitiveType.Double, PrimitiveType.Decimal, PrimitiveType.Int),
-        (PrimitiveType.Float, PrimitiveType.Decimal, PrimitiveType.Short),
-        (PrimitiveType.Double, PrimitiveType.Decimal, PrimitiveType.Short),
+        (LegacyPrimitiveTypes.Float, LegacyPrimitiveTypes.Decimal, LegacyPrimitiveTypes.Int),
+        (LegacyPrimitiveTypes.Double, LegacyPrimitiveTypes.Decimal, LegacyPrimitiveTypes.Int),
+        (LegacyPrimitiveTypes.Float, LegacyPrimitiveTypes.Decimal, LegacyPrimitiveTypes.Short),
+        (LegacyPrimitiveTypes.Double, LegacyPrimitiveTypes.Decimal, LegacyPrimitiveTypes.Short),
     ];
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -411,13 +411,13 @@ public static class MistOverloadGenerator
         // Pairs of distinct types for base and derived methods
         var distinctPairs = new (IType Base, IType Derived)[]
         {
-            (PrimitiveType.Int, PrimitiveType.Bool),
-            (PrimitiveType.Bool, PrimitiveType.Int),
-            (PrimitiveType.Int, PrimitiveType.Double),
-            (PrimitiveType.Double, PrimitiveType.Float),
-            (PrimitiveType.Char, PrimitiveType.Long),
-            (PrimitiveType.Long, StringType.Instance),
-            (StringType.Instance, PrimitiveType.Int),
+            (LegacyPrimitiveTypes.Int, LegacyPrimitiveTypes.Bool),
+            (LegacyPrimitiveTypes.Bool, LegacyPrimitiveTypes.Int),
+            (LegacyPrimitiveTypes.Int, LegacyPrimitiveTypes.Double),
+            (LegacyPrimitiveTypes.Double, LegacyPrimitiveTypes.Float),
+            (LegacyPrimitiveTypes.Char, LegacyPrimitiveTypes.Long),
+            (LegacyPrimitiveTypes.Long, LegacyPrimitiveTypes.String),
+            (LegacyPrimitiveTypes.String, LegacyPrimitiveTypes.Int),
         };
 
         return Gen.Choose(0, distinctPairs.Length - 1)

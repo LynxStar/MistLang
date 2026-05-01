@@ -1286,16 +1286,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (condType is null || IsUnknown(condType))
             return;
 
-        // Compare against PrimitiveType.Bool via reference equality rather
-        // than a `is PrimitiveType` pattern match: after Task 32 lands the
-        // compat shim, PrimitiveType.Bool is a property whose return type
-        // is IType, and a post-Task-31 semantic model yields the stdlib
-        // Standard.Boolean StructType instance — not a legacy PrimitiveType.
-        // Reference equality still holds (Requirement 8.5) within a single
-        // build that resolved its bool keyword via PrimitiveType.Bool; the
-        // IsBoolLike fallback accepts either flavour so parallel builds
-        // that end up with a stale registry still classify correctly.
-        if (!ReferenceEquals(condType, PrimitiveType.Bool) && !IsBoolLike(condType))
+        if (!IsBoolLike(condType))
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0007",
@@ -1499,7 +1490,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var rhsType = model.GetTypeOf(node.Right);
             if (lhsType is VoidType && rhsType is VoidType)
             {
-                model.SetTypeOf(node, PrimitiveType.Bool);
+                model.SetTypeOf(node, LegacyPrimitiveTypes.Bool);
                 return;
             }
 
@@ -2222,20 +2213,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         return primitiveType switch
         {
-            IntTypePrimitiveTypeNode => PrimitiveType.Int,
-            LongTypePrimitiveTypeNode => PrimitiveType.Long,
-            ShortTypePrimitiveTypeNode => PrimitiveType.Short,
-            ByteTypePrimitiveTypeNode => PrimitiveType.Byte,
-            FloatTypePrimitiveTypeNode => PrimitiveType.Float,
-            DoubleTypePrimitiveTypeNode => PrimitiveType.Double,
-            BoolTypePrimitiveTypeNode => PrimitiveType.Bool,
-            CharTypePrimitiveTypeNode => PrimitiveType.Char,
-            StringTypePrimitiveTypeNode => StringType.Instance,
-            DecimalTypePrimitiveTypeNode => PrimitiveType.Decimal,
-            UintTypePrimitiveTypeNode => PrimitiveType.Uint,
-            UlongTypePrimitiveTypeNode => PrimitiveType.Ulong,
-            UshortTypePrimitiveTypeNode => PrimitiveType.Ushort,
-            SbyteTypePrimitiveTypeNode => PrimitiveType.Sbyte,
+            IntTypePrimitiveTypeNode => LegacyPrimitiveTypes.Int,
+            LongTypePrimitiveTypeNode => LegacyPrimitiveTypes.Long,
+            ShortTypePrimitiveTypeNode => LegacyPrimitiveTypes.Short,
+            ByteTypePrimitiveTypeNode => LegacyPrimitiveTypes.Byte,
+            FloatTypePrimitiveTypeNode => LegacyPrimitiveTypes.Float,
+            DoubleTypePrimitiveTypeNode => LegacyPrimitiveTypes.Double,
+            BoolTypePrimitiveTypeNode => LegacyPrimitiveTypes.Bool,
+            CharTypePrimitiveTypeNode => LegacyPrimitiveTypes.Char,
+            StringTypePrimitiveTypeNode => LegacyPrimitiveTypes.String,
+            DecimalTypePrimitiveTypeNode => LegacyPrimitiveTypes.Decimal,
+            UintTypePrimitiveTypeNode => LegacyPrimitiveTypes.Uint,
+            UlongTypePrimitiveTypeNode => LegacyPrimitiveTypes.Ulong,
+            UshortTypePrimitiveTypeNode => LegacyPrimitiveTypes.Ushort,
+            SbyteTypePrimitiveTypeNode => LegacyPrimitiveTypes.Sbyte,
             _ => null,
         };
     }
@@ -2275,7 +2266,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var sizeType = model.GetTypeOf(arrayCreation.Size);
         if (sizeType is not null && !IsUnknown(sizeType))
         {
-            if (sizeType != PrimitiveType.Int)
+            if (!IsIntLike(sizeType))
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0012",
@@ -2298,7 +2289,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var indexType = model.GetTypeOf(indexSuffix.Index);
         if (indexType is not null && !IsUnknown(indexType))
         {
-            if (indexType != PrimitiveType.Int)
+            if (!IsIntLike(indexType))
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0010",
@@ -3237,33 +3228,40 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return true;
 
         // Both reference types (class types) can be compared.
-        // The migration-window shim routes `Standard.String` through
-        // ClassType; the legacy StringType singleton is retained as a
-        // fallback match so pre-stdlib semantic models still behave
-        // correctly.
-        if (left is ClassType or StringType or ArrayType
-            && right is ClassType or StringType or ArrayType)
+        // After Task 50, StringType has been deleted. The stdlib
+        // Standard.String is a ClassType, so it's already covered by
+        // the ClassType branch. LegacyPrimitiveTypes.String is also a
+        // ClassType.
+        if (left is ClassType or ArrayType
+            && right is ClassType or ArrayType)
             return true;
 
         return false;
     }
 
     /// <summary>
-    /// Accepts either the legacy <see cref="StringType"/> singleton or the
-    /// stdlib <c>Standard.String</c> <see cref="ClassType"/> instance
-    /// (identified by its backend-backed marker and simple name). The
-    /// migration-window shim can surface either flavour; operator type-
-    /// checking should treat them identically.
+    /// Accepts the stdlib <c>Standard.String</c> <see cref="ClassType"/>
+    /// instance (identified by its backend-backed marker and simple name),
+    /// or the legacy <see cref="LegacyPrimitiveTypes.String"/> fallback
+    /// <see cref="ClassType"/> (identified by DisplayName). After Task 50,
+    /// <c>StringType</c> has been deleted — all string representations are
+    /// now <see cref="ClassType"/> instances.
     /// </summary>
     private static bool IsStringLike(IType type)
     {
-        if (type is StringType) return true;
-        if (type is ClassType ct
-            && ct.IsBackendBacked
-            && ct.ContainingNamespace == "Standard"
-            && ct.DisplayName == "String")
+        if (type is ClassType ct)
         {
-            return true;
+            if (ct.IsBackendBacked
+                && ct.ContainingNamespace == "Standard"
+                && ct.DisplayName == "String")
+            {
+                return true;
+            }
+            // Legacy fallback: LegacyPrimitiveTypes.String has DisplayName "string"
+            if (ct.DisplayName == "string")
+            {
+                return true;
+            }
         }
         return false;
     }
@@ -3279,7 +3277,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsBoolLike(IType type)
     {
-        if (type is PrimitiveType pt && pt.DisplayName == "bool") return true;
+        var name = type.DisplayName;
+        if (name == "bool" || name == "Boolean") return true;
         if (type is StructType st
             && st.IsBackendBacked
             && st.ContainingNamespace == "Standard"
@@ -3291,8 +3290,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
+    /// Returns true when <paramref name="type"/> represents the Mist
+    /// <c>int</c> / <c>Standard.Int32</c> type, regardless of whether
+    /// the instance is a legacy fallback or the stdlib type.
+    /// </summary>
+    private static bool IsIntLike(IType type)
+    {
+        var name = type.DisplayName;
+        if (name == "int" || name == "Int32") return true;
+        if (type is StructType st
+            && st.IsBackendBacked
+            && st.ContainingNamespace == "Standard"
+            && st.DisplayName == "Int32")
+        {
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// Maps a legacy Mist primitive keyword (the <c>DisplayName</c> of a
-    /// <see cref="PrimitiveType"/> / <see cref="StringType"/> singleton)
+    /// legacy fallback type singleton)
     /// to the corresponding stdlib simple name, or vice versa. Used by
     /// <see cref="ArePrimitiveEquivalent(IType, IType)"/> to treat the
     /// legacy and stdlib flavours of a primitive as the same type during

@@ -253,7 +253,6 @@ public class OperatorResolutionConsistencyPropertyTests
     public Property OperatorExpressions_TypedViaOverloadResolver(
         OperatorScenario scenario)
     {
-        lock (PrimitiveTypeRegistry.Lock)
         {
             var source = GenerateSource(scenario);
             var (model, diagnostics) = BuildAndTypeCheck(source);

@@ -85,22 +85,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var globalScope = new Scope(parent: null);
         var symbolTable = new SymbolTable();
 
-        // Reset the migration-window compat-shim registry so the previous
-        // build's stdlib instances never leak into this compilation. Task
-        // 32 populates the registry again in Pass 1e once the stdlib types
-        // for this build have been registered; if none are loaded (e.g.,
-        // a minimal unit-test harness), the registry stays empty and the
-        // legacy PrimitiveType / StringType singletons become the
-        // canonical IType instances for this build.
-        //
-        // Hold PrimitiveTypeRegistry.Lock while clearing so a test that
-        // asserts on registry state (see <see cref="PrimitiveTypeRegistry.Lock"/>)
-        // can serialise itself against parallel builds for the duration
-        // of its Build-plus-assertion critical section.
-        lock (PrimitiveTypeRegistry.Lock)
-        {
-            PrimitiveTypeRegistry.Reset();
-        }
+        // (Task 49: PrimitiveTypeRegistry and PrimitiveType have been
+        // deleted. No migration-window registry reset is needed.)
 
         // Pass 1: Register user-defined types.
         // Walk each AST to discover namespaces, types, and members.
@@ -150,18 +136,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         //     (Requirement 4.2).
         Pass1e_ValidateOperatorShape(asts, symbolTable, compilation, diagnostics);
 
-        // Pass 1e (cont.): Populate PrimitiveTypeRegistry with the stdlib
-        // types for every primitive keyword that resolves inside the
-        // Standard namespace. Task 32 of the Mist Standard Library spec
-        // installs this compat shim so the legacy PrimitiveType /
-        // StringType accessors return the stdlib IType instance
-        // (preserving reference equality per Requirement 8.5). Keywords
-        // whose stdlib type has not yet been loaded are skipped — the
-        // accessors fall back to the legacy singletons. Runs as early as
-        // possible after type registration so every subsequent pass
-        // (including the base-type / interface-list resolution immediately
-        // below) sees the same stdlib instance for each primitive.
-        PopulatePrimitiveTypeRegistry(globalScope, symbolTable);
+        // (Task 49: PrimitiveTypeRegistry has been deleted. Stdlib types
+        // are resolved directly via ResolvePrimitiveKeyword in Pass 2.)
 
         // Pass 1b: Resolve base types for class inheritance.
         // This runs after all types are registered so that forward references
@@ -196,6 +172,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // If a base class has explicit constructors that require parameters,
         // the derived class must provide a constructor with `: base(args)`.
         Pass1_CheckBaseConstructorSatisfied(symbolTable, asts, compilation, diagnostics);
+
+        // Upgrade the ambient type resolver's stdlib provider so that
+        // lazy type factories (e.g., Math.Abs returning Int32) reference
+        // the real stdlib IType instances registered in Pass 1 instead of
+        // the FallbackStdlibTypeProvider singletons (which have empty
+        // member scopes and therefore no operator members).
+        if (ambientTypeResolver is Backends.CSharpTranspiler.CSharpAmbientTypeResolver csharpResolver)
+        {
+            csharpResolver.UpdateStdlibProvider(
+                new ScopeBasedStdlibTypeProvider(globalScope, symbolTable));
+        }
 
         // Pass 2: Resolve types and build expression types.
         var expressionTypes = new Dictionary<Storm.Runtime.SyntaxNode, IType>();
@@ -4992,8 +4979,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // compilation (unit tests that build a semantic model
                 // from a minimal AST), LookupQualifiedStdlibType throws
                 // StdlibMissingException. We catch and fall back to the
-                // legacy PrimitiveType / StringType singletons
-                // (PrimitiveType.LegacyInt, StringType.LegacyInstance,
+                // legacy LegacyPrimitiveTypes singletons
+                // (LegacyPrimitiveTypes.Int, LegacyPrimitiveTypes.String,
                 // …) — NOT the public property accessors (which read the
                 // global registry, whose state might reflect a previous
                 // compilation's stdlib). The direct-to-legacy fallback
@@ -5059,26 +5046,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Maps a PrimitiveTypeNode to its well-known PrimitiveType or StringType.
+    /// Maps a PrimitiveTypeNode to its well-known legacy fallback type.
+    /// Used only when stdlib is not loaded (the primary path goes through
+    /// ResolvePrimitiveKeyword). Post-Task 49: uses LegacyPrimitiveTypes
+    /// instead of the deleted PrimitiveType singletons.
     /// </summary>
     private static IType ResolvePrimitiveType(PrimitiveTypeNode node)
     {
         return node switch
         {
-            IntTypePrimitiveTypeNode => PrimitiveType.Int,
-            UintTypePrimitiveTypeNode => PrimitiveType.Uint,
-            LongTypePrimitiveTypeNode => PrimitiveType.Long,
-            UlongTypePrimitiveTypeNode => PrimitiveType.Ulong,
-            ShortTypePrimitiveTypeNode => PrimitiveType.Short,
-            UshortTypePrimitiveTypeNode => PrimitiveType.Ushort,
-            ByteTypePrimitiveTypeNode => PrimitiveType.Byte,
-            SbyteTypePrimitiveTypeNode => PrimitiveType.Sbyte,
-            FloatTypePrimitiveTypeNode => PrimitiveType.Float,
-            DoubleTypePrimitiveTypeNode => PrimitiveType.Double,
-            DecimalTypePrimitiveTypeNode => PrimitiveType.Decimal,
-            BoolTypePrimitiveTypeNode => PrimitiveType.Bool,
-            CharTypePrimitiveTypeNode => PrimitiveType.Char,
-            StringTypePrimitiveTypeNode => StringType.Instance,
+            IntTypePrimitiveTypeNode => LegacyPrimitiveTypes.Int,
+            UintTypePrimitiveTypeNode => LegacyPrimitiveTypes.Uint,
+            LongTypePrimitiveTypeNode => LegacyPrimitiveTypes.Long,
+            UlongTypePrimitiveTypeNode => LegacyPrimitiveTypes.Ulong,
+            ShortTypePrimitiveTypeNode => LegacyPrimitiveTypes.Short,
+            UshortTypePrimitiveTypeNode => LegacyPrimitiveTypes.Ushort,
+            ByteTypePrimitiveTypeNode => LegacyPrimitiveTypes.Byte,
+            SbyteTypePrimitiveTypeNode => LegacyPrimitiveTypes.Sbyte,
+            FloatTypePrimitiveTypeNode => LegacyPrimitiveTypes.Float,
+            DoubleTypePrimitiveTypeNode => LegacyPrimitiveTypes.Double,
+            DecimalTypePrimitiveTypeNode => LegacyPrimitiveTypes.Decimal,
+            BoolTypePrimitiveTypeNode => LegacyPrimitiveTypes.Bool,
+            CharTypePrimitiveTypeNode => LegacyPrimitiveTypes.Char,
+            StringTypePrimitiveTypeNode => LegacyPrimitiveTypes.String,
             _ => UnknownType.Instance,
         };
     }
@@ -5086,8 +5076,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// Pass-2 fallback for a primitive keyword reference when no stdlib
     /// has been loaded for the current compilation: returns the legacy
-    /// <see cref="PrimitiveType"/> / <see cref="StringType"/> singleton
-    /// DIRECTLY (bypassing the <see cref="PrimitiveTypeRegistry"/>-backed
+    /// fallback singleton DIRECTLY (bypassing the
+    /// <see cref="PrimitiveTypeRegistry"/>-backed
     /// public property accessors). Using the legacy singletons here
     /// guarantees that a build without stdlib never embeds another
     /// parallel build's stdlib <see cref="IType"/> instances in its own
@@ -5099,20 +5089,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         return node switch
         {
-            IntTypePrimitiveTypeNode => PrimitiveType.LegacyInt,
-            UintTypePrimitiveTypeNode => PrimitiveType.LegacyUint,
-            LongTypePrimitiveTypeNode => PrimitiveType.LegacyLong,
-            UlongTypePrimitiveTypeNode => PrimitiveType.LegacyUlong,
-            ShortTypePrimitiveTypeNode => PrimitiveType.LegacyShort,
-            UshortTypePrimitiveTypeNode => PrimitiveType.LegacyUshort,
-            ByteTypePrimitiveTypeNode => PrimitiveType.LegacyByte,
-            SbyteTypePrimitiveTypeNode => PrimitiveType.LegacySbyte,
-            FloatTypePrimitiveTypeNode => PrimitiveType.LegacyFloat,
-            DoubleTypePrimitiveTypeNode => PrimitiveType.LegacyDouble,
-            DecimalTypePrimitiveTypeNode => PrimitiveType.LegacyDecimal,
-            BoolTypePrimitiveTypeNode => PrimitiveType.LegacyBool,
-            CharTypePrimitiveTypeNode => PrimitiveType.LegacyChar,
-            StringTypePrimitiveTypeNode => StringType.LegacyInstance,
+            IntTypePrimitiveTypeNode => LegacyPrimitiveTypes.Int,
+            UintTypePrimitiveTypeNode => LegacyPrimitiveTypes.Uint,
+            LongTypePrimitiveTypeNode => LegacyPrimitiveTypes.Long,
+            UlongTypePrimitiveTypeNode => LegacyPrimitiveTypes.Ulong,
+            ShortTypePrimitiveTypeNode => LegacyPrimitiveTypes.Short,
+            UshortTypePrimitiveTypeNode => LegacyPrimitiveTypes.Ushort,
+            ByteTypePrimitiveTypeNode => LegacyPrimitiveTypes.Byte,
+            SbyteTypePrimitiveTypeNode => LegacyPrimitiveTypes.Sbyte,
+            FloatTypePrimitiveTypeNode => LegacyPrimitiveTypes.Float,
+            DoubleTypePrimitiveTypeNode => LegacyPrimitiveTypes.Double,
+            DecimalTypePrimitiveTypeNode => LegacyPrimitiveTypes.Decimal,
+            BoolTypePrimitiveTypeNode => LegacyPrimitiveTypes.Bool,
+            CharTypePrimitiveTypeNode => LegacyPrimitiveTypes.Char,
+            StringTypePrimitiveTypeNode => LegacyPrimitiveTypes.String,
             _ => UnknownType.Instance,
         };
     }
@@ -5252,41 +5242,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         return LookupQualifiedStdlibType(globalScope, symbolTable, qualifiedName);
     }
 
-    /// <summary>
-    /// Populates <see cref="PrimitiveTypeRegistry"/> with the stdlib
-    /// <see cref="IType"/> instance for every primitive keyword whose
-    /// Standard Library type is present in the given global scope.
-    /// Keywords whose stdlib type is absent (e.g., when a unit-test
-    /// compilation skips loading stdlib) are left untouched — the
-    /// legacy <see cref="PrimitiveType"/> / <see cref="StringType"/>
-    /// accessors fall back to their private singletons in that case.
-    ///
-    /// <para>
-    /// Task 32 of the Mist Standard Library spec: this call runs at the
-    /// end of Pass 1 so that both Pass 2 (which looks stdlib types up
-    /// via <see cref="ResolvePrimitiveKeyword"/>) and every downstream
-    /// consumer of <c>PrimitiveType.Int</c> observe the same
-    /// <see cref="IType"/> instance (Requirement 8.5 — reference
-    /// equality).
-    /// </para>
-    /// </summary>
-    private static void PopulatePrimitiveTypeRegistry(Scope globalScope, SymbolTable symbolTable)
-    {
-        foreach (var (keyword, qualifiedName) in KeywordAliases.Map)
-        {
-            try
-            {
-                var type = LookupQualifiedStdlibType(globalScope, symbolTable, qualifiedName);
-                PrimitiveTypeRegistry.Register(keyword, type);
-            }
-            catch (StdlibMissingException)
-            {
-                // Stdlib type not loaded for this compilation; leave the
-                // registry entry as-is so downstream consumers fall back
-                // to the legacy PrimitiveType / StringType singletons.
-            }
-        }
-    }
+    // (Task 49: PopulatePrimitiveTypeRegistry has been deleted along with
+    // PrimitiveTypeRegistry. Stdlib types are resolved directly via
+    // ResolvePrimitiveKeyword in Pass 2.)
 
     /// <summary>
     /// Resolves a named type by searching the scope chain and imported namespaces.
@@ -5586,20 +5544,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         return name switch
         {
-            "int" => PrimitiveType.Int,
-            "uint" => PrimitiveType.Uint,
-            "long" => PrimitiveType.Long,
-            "ulong" => PrimitiveType.Ulong,
-            "short" => PrimitiveType.Short,
-            "ushort" => PrimitiveType.Ushort,
-            "byte" => PrimitiveType.Byte,
-            "sbyte" => PrimitiveType.Sbyte,
-            "float" => PrimitiveType.Float,
-            "double" => PrimitiveType.Double,
-            "decimal" => PrimitiveType.Decimal,
-            "bool" => PrimitiveType.Bool,
-            "char" => PrimitiveType.Char,
-            "string" => StringType.Instance,
+            "int" => LegacyPrimitiveTypes.Int,
+            "uint" => LegacyPrimitiveTypes.Uint,
+            "long" => LegacyPrimitiveTypes.Long,
+            "ulong" => LegacyPrimitiveTypes.Ulong,
+            "short" => LegacyPrimitiveTypes.Short,
+            "ushort" => LegacyPrimitiveTypes.Ushort,
+            "byte" => LegacyPrimitiveTypes.Byte,
+            "sbyte" => LegacyPrimitiveTypes.Sbyte,
+            "float" => LegacyPrimitiveTypes.Float,
+            "double" => LegacyPrimitiveTypes.Double,
+            "decimal" => LegacyPrimitiveTypes.Decimal,
+            "bool" => LegacyPrimitiveTypes.Bool,
+            "char" => LegacyPrimitiveTypes.Char,
+            "string" => LegacyPrimitiveTypes.String,
             "void" => VoidType.Instance,
             "Void" => VoidType.Instance,
             _ => null,
@@ -5763,7 +5721,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (node.Right is not null && !ReferenceEquals(node.Right, node.Left))
         {
             ResolveLogicalAnd(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-            var result = PrimitiveType.Bool;
+            var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
             expressionTypes[node] = result;
             return result;
         }
@@ -5789,7 +5747,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (node.Right is not null && !ReferenceEquals(node.Right, node.Left))
         {
             ResolveEquality(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-            var result = PrimitiveType.Bool;
+            var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
             expressionTypes[node] = result;
             return result;
         }
@@ -5815,7 +5773,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (node.Right is not null && !ReferenceEquals(node.Right, node.Left))
         {
             ResolveRelational(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-            var result = PrimitiveType.Bool;
+            var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
             expressionTypes[node] = result;
             return result;
         }
@@ -5841,7 +5799,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (node.Right is not null && !ReferenceEquals(node.Right, node.Left))
         {
             ResolveAdditive(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-            var result = PrimitiveType.Bool;
+            var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
             expressionTypes[node] = result;
             return result;
         }
@@ -5869,10 +5827,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var rightType = ResolveMultiplicative(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
             // String concatenation: if either operand is string, result is string.
-            if (leftType is StringType || rightType is StringType)
+            // After Task 50, StringType has been deleted. String is now either
+            // the stdlib Standard.String ClassType or the legacy
+            // LegacyPrimitiveTypes.String ClassType fallback.
+            if (IsStringLikeType(leftType) || IsStringLikeType(rightType))
             {
-                expressionTypes[node] = StringType.Instance;
-                return StringType.Instance;
+                // Return whichever string-like type we found (prefer left).
+                var stringType = IsStringLikeType(leftType) ? leftType : rightType;
+                expressionTypes[node] = stringType;
+                return stringType;
             }
 
             var result = GetCommonNumericType(leftType, rightType);
@@ -5927,7 +5890,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case LogicalNotUnaryNode logicalNot:
             {
                 ResolveUnary(logicalNot.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-                var result = PrimitiveType.Bool;
+                var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
                 expressionTypes[node] = result;
                 return result;
             }
@@ -6104,19 +6067,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         switch (node)
         {
             case IntegerLiteralExpressionPrimaryNode intLit:
-                result = ResolveIntegerLiteralType(intLit.IntegerLiteral.Lexeme);
+                result = ResolveIntegerLiteralType(intLit.IntegerLiteral.Lexeme, fileScope, symbolTable);
                 break;
 
             case HexLiteralExpressionPrimaryNode hexLit:
-                result = ResolveIntegerLiteralType(hexLit.HexLiteral.Lexeme);
+                result = ResolveIntegerLiteralType(hexLit.HexLiteral.Lexeme, fileScope, symbolTable);
                 break;
 
             case FloatLiteralExpressionPrimaryNode floatLit:
-                result = ResolveFloatLiteralType(floatLit.FloatLiteral.Lexeme);
+                result = ResolveFloatLiteralType(floatLit.FloatLiteral.Lexeme, fileScope, symbolTable);
                 break;
 
             case StringLiteralExpressionPrimaryNode:
-                result = StringType.Instance;
+                result = ResolvePrimitiveByKeyword("string", fileScope, symbolTable);
                 break;
 
             case InterpolatedStringExpressionPrimaryNode interpolated:
@@ -6128,19 +6091,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         ResolveExpression(exprPart.Expression, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     }
                 }
-                result = StringType.Instance;
+                result = ResolvePrimitiveByKeyword("string", fileScope, symbolTable);
                 break;
 
             case CharLiteralExpressionPrimaryNode:
-                result = PrimitiveType.Char;
+                result = ResolvePrimitiveByKeyword("char", fileScope, symbolTable);
                 break;
 
             case TrueLiteralExpressionPrimaryNode:
-                result = PrimitiveType.Bool;
+                result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
                 break;
 
             case FalseLiteralExpressionPrimaryNode:
-                result = PrimitiveType.Bool;
+                result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
                 break;
 
             case ThisExpressionPrimaryNode:
@@ -6396,18 +6359,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             StructType st => st.MemberScope,
             InterfaceType it => it.MemberScope,
             ArrayType => null, // Arrays use special handling.
-            StringType => null, // String uses ambient type resolution.
             _ => null,
         };
 
-        // For string type, look up members via the stdlib Standard.String type.
-        // After Task 42, String is no longer an ambient type — it's a stdlib type.
-        // The legacy StringType fallback (used when stdlib isn't loaded) has no
-        // members, so we look up Standard.String from the stdlib and search its
-        // member scope. When the stdlib IS loaded, the compat shim means
-        // StringType.Instance returns the stdlib ClassType, so this path only
-        // fires for the legacy StringType singleton in tests without stdlib.
-        if (targetType is StringType)
+        // For string type with no members in its scope (legacy fallback
+        // ClassType from LegacyPrimitiveTypes.String), look up members
+        // via the stdlib Standard.String type or the ambient resolver.
+        // When stdlib IS loaded, the string type is the stdlib ClassType
+        // with a populated member scope, so this path only fires for the
+        // legacy fallback in tests without stdlib.
+        if (IsStringLikeType(targetType) && (memberScope is null || !memberScope.Members.Any(m => m.Name == memberName)))
         {
             var globalScope = FindGlobalScope(fileScope);
             if (globalScope is not null)
@@ -6434,10 +6395,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // with tests that don't load stdlib).
             if (ambientTypeResolver is not null)
             {
-                var stringType = ambientTypeResolver.ResolveType("System", "String");
-                if (stringType is not null)
+                var resolvedStringType = ambientTypeResolver.ResolveType("System", "String");
+                if (resolvedStringType is not null)
                 {
-                    var members = ambientTypeResolver.GetMembers(stringType);
+                    var members = ambientTypeResolver.GetMembers(resolvedStringType);
                     foreach (var member in members)
                     {
                         if (member.Name == memberName)
@@ -6741,33 +6702,85 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// Determines the type of an integer literal based on its suffix.
     /// </summary>
-    private static IType ResolveIntegerLiteralType(string lexeme)
+    private static IType ResolveIntegerLiteralType(string lexeme, Scope fileScope, SymbolTable symbolTable)
     {
         var upper = lexeme.ToUpperInvariant();
 
         if (upper.EndsWith("UL") || upper.EndsWith("LU"))
-            return PrimitiveType.Ulong;
+            return ResolvePrimitiveByKeyword("ulong", fileScope, symbolTable);
         if (upper.EndsWith("L"))
-            return PrimitiveType.Long;
+            return ResolvePrimitiveByKeyword("long", fileScope, symbolTable);
         if (upper.EndsWith("U"))
-            return PrimitiveType.Uint;
+            return ResolvePrimitiveByKeyword("uint", fileScope, symbolTable);
 
-        return PrimitiveType.Int;
+        return ResolvePrimitiveByKeyword("int", fileScope, symbolTable);
     }
 
     /// <summary>
     /// Determines the type of a float literal based on its suffix.
     /// </summary>
-    private static IType ResolveFloatLiteralType(string lexeme)
+    private static IType ResolveFloatLiteralType(string lexeme, Scope fileScope, SymbolTable symbolTable)
     {
         var upper = lexeme.ToUpperInvariant();
 
         if (upper.EndsWith("F"))
-            return PrimitiveType.Float;
+            return ResolvePrimitiveByKeyword("float", fileScope, symbolTable);
         if (upper.EndsWith("M"))
-            return PrimitiveType.Decimal;
+            return ResolvePrimitiveByKeyword("decimal", fileScope, symbolTable);
 
-        return PrimitiveType.Double;
+        return ResolvePrimitiveByKeyword("double", fileScope, symbolTable);
+    }
+
+    /// <summary>
+    /// Resolves a primitive keyword to its stdlib type when the Standard
+    /// Library is loaded, falling back to the legacy
+    /// <see cref="LegacyPrimitiveTypes"/> singleton otherwise. This
+    /// replaces the deleted <c>PrimitiveType.Int</c> etc. property
+    /// accessors that used to consult <c>PrimitiveTypeRegistry</c>.
+    /// </summary>
+    private static IType ResolvePrimitiveByKeyword(string keyword, Scope fileScope, SymbolTable symbolTable)
+    {
+        if (!KeywordAliases.Map.TryGetValue(keyword, out var qualifiedName))
+        {
+            // Not a primitive keyword — return legacy fallback.
+            return TryResolveWellKnownType(keyword) ?? UnknownType.Instance;
+        }
+
+        try
+        {
+            var globalScope = FindGlobalScope(fileScope) ?? fileScope;
+            return LookupQualifiedStdlibType(globalScope, symbolTable, qualifiedName);
+        }
+        catch (StdlibMissingException)
+        {
+            // Stdlib not loaded — return legacy fallback.
+            return TryResolveWellKnownType(keyword) ?? UnknownType.Instance;
+        }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> represents the
+    /// Mist <c>string</c> / <c>Standard.String</c> type, regardless of
+    /// whether the instance is the legacy <see cref="LegacyPrimitiveTypes.String"/>
+    /// fallback or the stdlib <see cref="ClassType"/>.
+    /// </summary>
+    private static bool IsStringLikeType(IType type)
+    {
+        if (type is ClassType ct)
+        {
+            if (ct.IsBackendBacked
+                && ct.ContainingNamespace == "Standard"
+                && ct.DisplayName == "String")
+            {
+                return true;
+            }
+            // Legacy fallback: LegacyPrimitiveTypes.String has DisplayName "string"
+            if (ct.DisplayName == "string")
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>
@@ -6780,22 +6793,28 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return UnknownType.Instance;
 
         // Numeric widening: decimal > double > float > ulong > long > uint > int > smaller types.
-        var numericRank = new Dictionary<IType, int>(ReferenceEqualityComparer.Instance)
+        // Use DisplayName-based ranking to handle both legacy (e.g., "int")
+        // and stdlib (e.g., "Int32") type instances.
+        static int NumericRank(IType t) => t.DisplayName switch
         {
-            [PrimitiveType.Sbyte] = 1,
-            [PrimitiveType.Byte] = 2,
-            [PrimitiveType.Short] = 3,
-            [PrimitiveType.Ushort] = 4,
-            [PrimitiveType.Int] = 5,
-            [PrimitiveType.Uint] = 6,
-            [PrimitiveType.Long] = 7,
-            [PrimitiveType.Ulong] = 8,
-            [PrimitiveType.Float] = 9,
-            [PrimitiveType.Double] = 10,
-            [PrimitiveType.Decimal] = 11,
+            "sbyte" or "SByte" => 1,
+            "byte" or "Byte" => 2,
+            "short" or "Int16" => 3,
+            "ushort" or "UInt16" => 4,
+            "int" or "Int32" => 5,
+            "uint" or "UInt32" => 6,
+            "long" or "Int64" => 7,
+            "ulong" or "UInt64" => 8,
+            "float" or "Single" => 9,
+            "double" or "Double" => 10,
+            "decimal" or "Decimal" => 11,
+            _ => -1,
         };
 
-        if (numericRank.TryGetValue(left, out var leftRank) && numericRank.TryGetValue(right, out var rightRank))
+        var leftRank = NumericRank(left);
+        var rightRank = NumericRank(right);
+
+        if (leftRank >= 0 && rightRank >= 0)
         {
             return leftRank >= rightRank ? left : right;
         }

@@ -21,7 +21,7 @@ namespace Mist.Tests.Driver;
 /// 1. The driver prepends every stdlib compilation unit (as loaded by
 ///    <see cref="StdlibLoader.LoadFor"/>) so the semantic model contains the
 ///    stdlib type <c>Standard.Int32</c> alongside the user's types.
-/// 2. After Task 32 landed the compat shim, <see cref="PrimitiveType.Int"/>
+/// 2. After Task 32 landed the compat shim, <see cref="LegacyPrimitiveTypes.Int"/>
 ///    returns the stdlib <c>Standard.Int32</c> <see cref="StructType"/>
 ///    instance (registered into <c>PrimitiveTypeRegistry</c> at the end
 ///    of <see cref="SemanticModelBuilder"/> Pass 1). Reference equality is
@@ -98,17 +98,9 @@ public sealed class CompilerDriverStdlibIntegrationTest : IDisposable
     }
 
     [Fact]
-    public void Compile_TrivialUserProgram_SemanticModelContainsStandardInt32_AndPrimitiveTypeIntStillExists()
+    public void Compile_TrivialUserProgram_SemanticModelContainsStandardInt32()
     {
-        // The final assertions reach into the migration-window
-        // PrimitiveTypeRegistry via PrimitiveType.Int. Hold
-        // PrimitiveTypeRegistry.Lock for the duration of the Compile-plus-
-        // assertion critical section so a parallel Build() does not clear
-        // the registry between the model being built and the final
-        // reference-equality assertion.
-        lock (PrimitiveTypeRegistry.Lock)
-        {
-            // Arrange — a minimal user program in a distinct namespace so no name
+        // Arrange — a minimal user program in a distinct namespace so no name
         // clash with anything the stdlib declares.
         var userSource = "namespace X;\npublic class Y {\n    public static void Main() { }\n}\n";
         var userPath = Path.Combine(_scratchDir, "Program.mist");
@@ -178,19 +170,5 @@ public sealed class CompilerDriverStdlibIntegrationTest : IDisposable
         // The Int32 symbol must be declared directly inside a scope whose
         // parent is the global scope (i.e., the Standard namespace scope).
         Assert.Same(model.GlobalScope, standardInt32Symbol.ContainingScope.Parent);
-
-        // Requirements 8.3, 8.5: Stage 4 has landed the compat shim
-        // (Task 32). PrimitiveType.Int is now a property returning the
-        // stdlib Standard.Int32 StructType after it has been registered
-        // into PrimitiveTypeRegistry at the end of SemanticModelBuilder
-        // Pass 1. Reference equality with the model's stdlib Int32
-        // instance confirms the shim routes every call through the same
-        // IType instance.
-        Assert.NotNull(PrimitiveType.Int);
-        // DisplayName is now the stdlib simple name — "Int32" — because
-        // PrimitiveType.Int returns the stdlib StructType.
-        Assert.Equal("Int32", PrimitiveType.Int.DisplayName);
-        Assert.Same(int32Type, PrimitiveType.Int);
-        }
     }
 }

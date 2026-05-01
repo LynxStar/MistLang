@@ -228,7 +228,7 @@ public class StringLengthTests
 
         Assert.NotNull(resultSymbol);
         Assert.NotNull(resultSymbol!.DeclaredType);
-        // After the stdlib migration, PrimitiveType.Int returns the stdlib
+        // After the stdlib migration, LegacyPrimitiveTypes.Int returns the stdlib
         // Standard.Int32 StructType. In parallel test execution, the
         // PrimitiveTypeRegistry may be in different states, so we check
         // the display name rather than reference equality.

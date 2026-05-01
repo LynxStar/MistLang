@@ -304,24 +304,24 @@ public class TypeLiteralSemanticPropertyTests
     /// Uses the Legacy* singletons directly to guarantee stable DisplayName
     /// values regardless of whether PrimitiveTypeRegistry has been populated
     /// by a parallel test that loaded stdlib. The shim accessors
-    /// (PrimitiveType.Int, etc.) may return stdlib StructType instances
+    /// (LegacyPrimitiveTypes.Int, etc.) may return stdlib StructType instances
     /// with different DisplayName values (e.g., "Int32" instead of "int").
     /// </summary>
     private static IType? ExpectedPrimitiveType(string keyword) => keyword switch
     {
-        "int" => PrimitiveType.LegacyInt,
-        "uint" => PrimitiveType.LegacyUint,
-        "long" => PrimitiveType.LegacyLong,
-        "ulong" => PrimitiveType.LegacyUlong,
-        "short" => PrimitiveType.LegacyShort,
-        "ushort" => PrimitiveType.LegacyUshort,
-        "byte" => PrimitiveType.LegacyByte,
-        "sbyte" => PrimitiveType.LegacySbyte,
-        "float" => PrimitiveType.LegacyFloat,
-        "double" => PrimitiveType.LegacyDouble,
-        "decimal" => PrimitiveType.LegacyDecimal,
-        "bool" => PrimitiveType.LegacyBool,
-        "char" => PrimitiveType.LegacyChar,
+        "int" => LegacyPrimitiveTypes.Int,
+        "uint" => LegacyPrimitiveTypes.Uint,
+        "long" => LegacyPrimitiveTypes.Long,
+        "ulong" => LegacyPrimitiveTypes.Ulong,
+        "short" => LegacyPrimitiveTypes.Short,
+        "ushort" => LegacyPrimitiveTypes.Ushort,
+        "byte" => LegacyPrimitiveTypes.Byte,
+        "sbyte" => LegacyPrimitiveTypes.Sbyte,
+        "float" => LegacyPrimitiveTypes.Float,
+        "double" => LegacyPrimitiveTypes.Double,
+        "decimal" => LegacyPrimitiveTypes.Decimal,
+        "bool" => LegacyPrimitiveTypes.Bool,
+        "char" => LegacyPrimitiveTypes.Char,
         _ => null
     };
 

@@ -32,13 +32,13 @@ public class DuplicateSignaturePropertyTests
     /// </summary>
     private static readonly IType[] PrimitiveTypes =
     [
-        PrimitiveType.Int,
-        PrimitiveType.Bool,
-        PrimitiveType.Double,
-        PrimitiveType.Float,
-        PrimitiveType.Char,
-        PrimitiveType.Long,
-        StringType.Instance,
+        LegacyPrimitiveTypes.Int,
+        LegacyPrimitiveTypes.Bool,
+        LegacyPrimitiveTypes.Double,
+        LegacyPrimitiveTypes.Float,
+        LegacyPrimitiveTypes.Char,
+        LegacyPrimitiveTypes.Long,
+        LegacyPrimitiveTypes.String,
     ];
 
     /// <summary>

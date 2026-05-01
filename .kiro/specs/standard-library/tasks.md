@@ -356,23 +356,23 @@ Stages:
 
 ### Stage 6 — Remove the shim and the ghost singletons
 
-- [ ] 49. Delete `PrimitiveType.cs` and fix all fallout
+- [x] 49. Delete `PrimitiveType.cs` and fix all fallout
     Delete `Source/Mist/Semantics/Model/Types/PrimitiveType.cs`. Compile; for each reference that breaks, replace the direct `PrimitiveType.*` reference with a call into the stdlib type lookup (`semanticModel.LookupStandardType("Int32")` or the equivalent helper), or — where the caller already has access to an `IType` via normal type resolution — drop the indirection entirely. This flushes out any call site that was silently riding the compat shim.
     _Requirements: 8.1, 8.2, 8.4_
 
-- [ ] 50. Delete `StringType.cs` and fix all fallout
+- [x] 50. Delete `StringType.cs` and fix all fallout
     Delete `Source/Mist/Semantics/Model/Types/StringType.cs`. Compile; for each reference to `StringType.Instance` that breaks, replace with a stdlib lookup for `Standard.String`. Verify `CSharpAmbientTypeResolver` has no remaining `StringType` references after Task 42 — if any slipped through, fix them here.
     _Requirements: 8.1, 8.2, 8.4, 9.1, 9.6_
 
-- [ ] 51. Audit `ArrayType` and decide: keep structural or fold into `ConstructedType(Standard.Array<T>)`
+- [x] 51. Audit `ArrayType` and decide: keep structural or fold into `ConstructedType(Standard.Array<T>)`
     Per design § 2, `ArrayType` is kept as a structural marker representing `Standard.Array<T>`. No deletion is required for v1. Perform an audit: search the codebase for any reference that treats `ArrayType` as a target-language type rather than a Mist stdlib type (e.g., any code that maps `ArrayType` straight to `T[]` without consulting the Backing_Type_Map). Any such reference should route through `CSharpTypeMap`. Document the decision to defer folding to v1.x in a comment on the `ArrayType` class.
     _Requirements: 8.1, 9.2_
 
-- [ ] 52. Final grep for orphaned primitive-singleton references
+- [x] 52. Final grep for orphaned primitive-singleton references
     Run `grepSearch` across the entire `Source/` tree for `PrimitiveType\.`, `StringType\.Instance`, `PrimitiveType_Singleton`, `NumericTypes`, `IsNumeric`. Expected count: zero (after Tasks 49, 50, and the Stage 4 deletions in Task 33). Any remaining hit is a missed reference — fix it here, not in a follow-up.
     _Requirements: 8.4_
 
-- [ ] 53. Final end-to-end validation checkpoint
+- [x] 53. Final end-to-end validation checkpoint
     Run the full test suite. Verify:
     - `StdlibCompilesTest` (Task 27) passes.
     - `SamplesCompileAndMatchBaselineTest` (Task 35) passes — every sample compiles and produces byte-identical stdout vs baseline.

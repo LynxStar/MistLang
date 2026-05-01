@@ -376,7 +376,6 @@ public class NoBackingTypeLeakPropertyTests
         Arbitrary = new[] { typeof(NoBackingTypeLeakPropertyTests) })]
     public Property NoBackingTypeLeak_InSemanticModel(LeakScenario scenario)
     {
-        lock (PrimitiveTypeRegistry.Lock)
         {
             var source = GenerateSource(scenario);
             var (model, diagnostics) = BuildAndTypeCheck(source);

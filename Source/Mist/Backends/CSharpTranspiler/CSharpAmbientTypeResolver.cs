@@ -22,7 +22,7 @@ namespace Mist.Backends.CSharpTranspiler;
 /// <para>
 /// All member signatures produced by this resolver reference Mist stdlib
 /// types (via <see cref="IStdlibTypeProvider"/>) rather than legacy
-/// <c>PrimitiveType.*</c> / <c>StringType.Instance</c> singletons,
+/// fallback singletons,
 /// satisfying Requirements 9.9 and 9.10.
 /// </para>
 /// </summary>
@@ -40,8 +40,11 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
     /// <summary>
     /// The stdlib type provider used to look up Mist types for member
     /// signatures (e.g., <c>Int32</c>, <c>String</c>, <c>Boolean</c>).
+    /// Starts as <see cref="FallbackStdlibTypeProvider"/> and is upgraded
+    /// to a model-backed provider by <see cref="SemanticModelBuilder"/>
+    /// after Pass 1 registers all stdlib types.
     /// </summary>
-    private readonly IStdlibTypeProvider _stdlib;
+    private IStdlibTypeProvider _stdlib;
 
     /// <summary>
     /// Creates a new ambient type resolver that references stdlib types
@@ -66,6 +69,21 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
 
     /// <inheritdoc />
     public bool HasNamespace(string namespaceName) => _namespaceTypes.ContainsKey(namespaceName);
+
+    /// <summary>
+    /// Upgrades the stdlib type provider used by lazy type factories.
+    /// Called by <see cref="Mist.Semantics.Model.SemanticModelBuilder"/>
+    /// after Pass 1 registers all stdlib types so that ambient-type member
+    /// signatures (e.g., <c>Math.Abs</c> returning <c>Int32</c>) reference
+    /// the real stdlib <see cref="IType"/> instances instead of the
+    /// <see cref="FallbackStdlibTypeProvider"/> singletons. Only factories
+    /// that have not yet been materialized benefit from the upgrade; already-
+    /// cached types keep their original provider's instances.
+    /// </summary>
+    internal void UpdateStdlibProvider(IStdlibTypeProvider provider)
+    {
+        _stdlib = provider;
+    }
 
     /// <inheritdoc />
     public IType? ResolveType(string namespaceName, string typeName)

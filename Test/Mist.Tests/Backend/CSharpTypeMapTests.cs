@@ -90,14 +90,14 @@ public class CSharpTypeMapTests
     [Fact]
     public void GetTypeName_LegacyPrimitiveTypeInt_ReturnsInt()
     {
-        // PrimitiveType.LegacyInt has DisplayName = "int"
-        Assert.Equal("int", CSharpTypeMap.GetTypeName(PrimitiveType.LegacyInt));
+        // LegacyPrimitiveTypes.Int has DisplayName = "int"
+        Assert.Equal("int", CSharpTypeMap.GetTypeName(LegacyPrimitiveTypes.Int));
     }
 
     [Fact]
     public void GetTypeName_LegacyStringType_ReturnsString()
     {
-        Assert.Equal("string", CSharpTypeMap.GetTypeName(StringType.LegacyInstance));
+        Assert.Equal("string", CSharpTypeMap.GetTypeName(LegacyPrimitiveTypes.String));
     }
 
     // ── VoidType ─────────────────────────────────────────────────────────

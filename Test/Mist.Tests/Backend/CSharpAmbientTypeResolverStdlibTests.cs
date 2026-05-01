@@ -175,7 +175,7 @@ public sealed class CSharpAmbientTypeResolverStdlibTests
     public void NullStdlibProvider_FallsBackToLegacySingletons()
     {
         // When no stdlib provider is given, the resolver uses
-        // FallbackStdlibTypeProvider which returns PrimitiveType.* / StringType.Instance.
+        // FallbackStdlibTypeProvider which returns legacy fallback types.
         var fallbackResolver = new CSharpAmbientTypeResolver(null);
         var mathType = fallbackResolver.ResolveType("System", "Math");
         Assert.NotNull(mathType);
@@ -183,7 +183,7 @@ public sealed class CSharpAmbientTypeResolverStdlibTests
         var members = fallbackResolver.GetMembers(mathType!);
         var abs = members.FirstOrDefault(m => m.Name == "Abs");
         Assert.NotNull(abs);
-        // The return type should be PrimitiveType.Int (or its registry-backed equivalent)
+        // The return type should be LegacyPrimitiveTypes.Int (or its registry-backed equivalent)
         Assert.NotNull(abs!.DeclaredType);
     }
 

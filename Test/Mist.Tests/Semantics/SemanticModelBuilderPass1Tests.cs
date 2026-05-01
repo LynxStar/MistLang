@@ -260,7 +260,9 @@ public class SemanticModelBuilderPass1Tests
         Assert.Equal(SymbolKind.Field, fieldSymbol!.Kind);
         Assert.Equal(SymbolOrigin.UserCode, fieldSymbol.Origin);
         // Pass 2 resolves the field type from the TypeReference.
-        Assert.IsType<PrimitiveType>(fieldSymbol.DeclaredType);
+        // Post-Task 49: PrimitiveType has been deleted; the fallback
+        // produces a StructType with DisplayName "int".
+        Assert.IsType<StructType>(fieldSymbol.DeclaredType);
         Assert.Equal("int", fieldSymbol.DeclaredType!.DisplayName);
     }
 

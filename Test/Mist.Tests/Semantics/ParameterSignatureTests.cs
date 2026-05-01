@@ -85,8 +85,8 @@ public class ParameterSignatureTests
     [Fact]
     public void AreEqual_IdenticalSingleType_ReturnsTrue()
     {
-        var a = new IType[] { PrimitiveType.Int };
-        var b = new IType[] { PrimitiveType.Int };
+        var a = new IType[] { LegacyPrimitiveTypes.Int };
+        var b = new IType[] { LegacyPrimitiveTypes.Int };
 
         Assert.True(ParameterSignature.AreEqual(a, b));
     }
@@ -94,8 +94,8 @@ public class ParameterSignatureTests
     [Fact]
     public void AreEqual_IdenticalMultipleTypes_ReturnsTrue()
     {
-        var a = new IType[] { PrimitiveType.Int, StringType.Instance, PrimitiveType.Bool };
-        var b = new IType[] { PrimitiveType.Int, StringType.Instance, PrimitiveType.Bool };
+        var a = new IType[] { LegacyPrimitiveTypes.Int, LegacyPrimitiveTypes.String, LegacyPrimitiveTypes.Bool };
+        var b = new IType[] { LegacyPrimitiveTypes.Int, LegacyPrimitiveTypes.String, LegacyPrimitiveTypes.Bool };
 
         Assert.True(ParameterSignature.AreEqual(a, b));
     }
@@ -103,8 +103,8 @@ public class ParameterSignatureTests
     [Fact]
     public void AreEqual_DifferentTypes_ReturnsFalse()
     {
-        var a = new IType[] { PrimitiveType.Int };
-        var b = new IType[] { PrimitiveType.Bool };
+        var a = new IType[] { LegacyPrimitiveTypes.Int };
+        var b = new IType[] { LegacyPrimitiveTypes.Bool };
 
         Assert.False(ParameterSignature.AreEqual(a, b));
     }
@@ -112,8 +112,8 @@ public class ParameterSignatureTests
     [Fact]
     public void AreEqual_DifferentLengths_ReturnsFalse()
     {
-        var a = new IType[] { PrimitiveType.Int };
-        var b = new IType[] { PrimitiveType.Int, PrimitiveType.Bool };
+        var a = new IType[] { LegacyPrimitiveTypes.Int };
+        var b = new IType[] { LegacyPrimitiveTypes.Int, LegacyPrimitiveTypes.Bool };
 
         Assert.False(ParameterSignature.AreEqual(a, b));
     }
@@ -122,7 +122,7 @@ public class ParameterSignatureTests
     public void AreEqual_EmptyVsNonEmpty_ReturnsFalse()
     {
         var a = Array.Empty<IType>();
-        var b = new IType[] { PrimitiveType.Int };
+        var b = new IType[] { LegacyPrimitiveTypes.Int };
 
         Assert.False(ParameterSignature.AreEqual(a, b));
     }
@@ -130,8 +130,8 @@ public class ParameterSignatureTests
     [Fact]
     public void AreEqual_SameTypesDifferentOrder_ReturnsFalse()
     {
-        var a = new IType[] { PrimitiveType.Int, StringType.Instance };
-        var b = new IType[] { StringType.Instance, PrimitiveType.Int };
+        var a = new IType[] { LegacyPrimitiveTypes.Int, LegacyPrimitiveTypes.String };
+        var b = new IType[] { LegacyPrimitiveTypes.String, LegacyPrimitiveTypes.Int };
 
         Assert.False(ParameterSignature.AreEqual(a, b));
     }

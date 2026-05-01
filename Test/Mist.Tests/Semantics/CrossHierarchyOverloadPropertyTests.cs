@@ -34,13 +34,13 @@ public class CrossHierarchyOverloadPropertyTests
     /// </summary>
     private static readonly (IType BaseType, IType DerivedType)[] DistinctTypePairs =
     [
-        (PrimitiveType.Int, PrimitiveType.Bool),
-        (PrimitiveType.Bool, PrimitiveType.Int),
-        (PrimitiveType.Int, PrimitiveType.Double),
-        (PrimitiveType.Double, PrimitiveType.Float),
-        (PrimitiveType.Char, PrimitiveType.Long),
-        (PrimitiveType.Long, StringType.Instance),
-        (StringType.Instance, PrimitiveType.Int),
+        (LegacyPrimitiveTypes.Int, LegacyPrimitiveTypes.Bool),
+        (LegacyPrimitiveTypes.Bool, LegacyPrimitiveTypes.Int),
+        (LegacyPrimitiveTypes.Int, LegacyPrimitiveTypes.Double),
+        (LegacyPrimitiveTypes.Double, LegacyPrimitiveTypes.Float),
+        (LegacyPrimitiveTypes.Char, LegacyPrimitiveTypes.Long),
+        (LegacyPrimitiveTypes.Long, LegacyPrimitiveTypes.String),
+        (LegacyPrimitiveTypes.String, LegacyPrimitiveTypes.Int),
     ];
 
     /// <summary>
@@ -48,13 +48,13 @@ public class CrossHierarchyOverloadPropertyTests
     /// </summary>
     private static readonly IType[] PrimitiveTypes =
     [
-        PrimitiveType.Int,
-        PrimitiveType.Bool,
-        PrimitiveType.Double,
-        PrimitiveType.Float,
-        PrimitiveType.Char,
-        PrimitiveType.Long,
-        StringType.Instance,
+        LegacyPrimitiveTypes.Int,
+        LegacyPrimitiveTypes.Bool,
+        LegacyPrimitiveTypes.Double,
+        LegacyPrimitiveTypes.Float,
+        LegacyPrimitiveTypes.Char,
+        LegacyPrimitiveTypes.Long,
+        LegacyPrimitiveTypes.String,
     ];
 
     /// <summary>

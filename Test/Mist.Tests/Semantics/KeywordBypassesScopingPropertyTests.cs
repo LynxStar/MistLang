@@ -333,7 +333,6 @@ public class KeywordBypassesScopingPropertyTests
     public Property KeywordBypassesScoping_AdversarialUserDeclaredType(
         AdversarialScenario scenario)
     {
-        lock (PrimitiveTypeRegistry.Lock)
         {
             var source = GenerateSource(scenario);
             var (model, diagnostics) = BuildModelForScenario(source, scenario.UserNamespace);

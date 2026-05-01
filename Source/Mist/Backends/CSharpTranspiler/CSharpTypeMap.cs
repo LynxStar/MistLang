@@ -9,16 +9,6 @@ namespace Mist.Backends.CSharpTranspiler;
 /// keyed on fully-qualified stdlib type name that maps each bootstrap type to
 /// its C# source keyword. The map is internal to the C# backend and never
 /// exposed to the semantic model or analysis layers (Requirement 9.11).
-///
-/// <para>
-/// During the migration window, legacy <see cref="PrimitiveType"/> /
-/// <see cref="StringType"/> singletons coexist with the stdlib
-/// <c>Standard.*</c> <see cref="StructType"/> / <see cref="ClassType"/>
-/// instances. The dictionary carries both fully-qualified stdlib keys
-/// (e.g., <c>"Standard.Int32"</c>) and legacy keyword keys (e.g.,
-/// <c>"int"</c>) so both paths resolve to the correct C# keyword.
-/// Stage 6 (Tasks 49–50) removes the legacy entries.
-/// </para>
 /// </summary>
 internal static class CSharpTypeMap
 {
@@ -26,7 +16,7 @@ internal static class CSharpTypeMap
     /// Backing_Type_Map (Requirement 9.7). Primary keys are fully-qualified
     /// stdlib type names (e.g., <c>"Standard.Int32" → "int"</c>). Legacy
     /// Mist-primitive keyword entries (e.g., <c>"int" → "int"</c>) are
-    /// retained for backward compatibility during the migration window.
+    /// retained for backward compatibility with tests that don't load stdlib.
     /// </summary>
     private static readonly Dictionary<string, string> BackingTypes = new(StringComparer.Ordinal)
     {
@@ -46,10 +36,11 @@ internal static class CSharpTypeMap
         ["Standard.Char"] = "char",
         ["Standard.String"] = "string",
 
-        // ── Legacy Mist-primitive keyword lexemes (migration compat) ─────
-        // Kept so that PrimitiveType singletons (DisplayName = "int") and
-        // StringType (DisplayName = "string") continue to resolve during
-        // the migration window. Removed in Stage 6.
+        // ── Legacy Mist-primitive keyword lexemes (test compat) ──────────
+        // Kept so that tests that build a semantic model without loading
+        // stdlib (producing StructType instances with legacy DisplayNames
+        // like "int") continue to resolve. Task 50 removes StringType;
+        // these entries may be cleaned up at that point.
         ["int"] = "int",
         ["uint"] = "uint",
         ["long"] = "long",
@@ -85,7 +76,7 @@ internal static class CSharpTypeMap
         if (qualifiedKey is not null && BackingTypes.TryGetValue(qualifiedKey, out var keyword))
             return keyword;
 
-        // Fallback: legacy DisplayName lookup (PrimitiveType / StringType).
+        // Fallback: legacy DisplayName lookup (tests without stdlib).
         if (BackingTypes.TryGetValue(type.DisplayName, out var legacyKeyword))
             return legacyKeyword;
 
@@ -110,20 +101,25 @@ internal static class CSharpTypeMap
         ClassType ct when ct.IsBackendBacked && ct.ContainingNamespace == "Standard"
             => GetKeyword(ct),
 
-        // Legacy singleton branches — still reachable from test harnesses
-        // and from any code path that resolves primitives before the
-        // stdlib is registered into PrimitiveTypeRegistry.
-        PrimitiveType p => GetKeyword(p),
-        StringType => "string",
-
         VoidType => isValueContext ? "MistVoid" : "void",
         ArrayType a => $"{GetTypeName(a.ElementType, isValueContext)}[]",
         TypeType => "System.Type",
         TypeParameterType tp => tp.Name,
         ConstructedType ct => $"{GetTypeName(ct.GenericDefinition, isValueContext)}<{string.Join(", ", ct.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
         ClassType c => c.DisplayName,
-        StructType s => s.DisplayName,
+        StructType s => GetKeywordOrDisplayName(s),
         InterfaceType i => i.DisplayName,
         _ => throw new ArgumentException($"Cannot map type to C#: {type.DisplayName}"),
     };
+
+    /// <summary>
+    /// For a StructType, check if its DisplayName maps to a C# keyword
+    /// (handles legacy fallback StructTypes with names like "int", "bool").
+    /// </summary>
+    private static string GetKeywordOrDisplayName(StructType s)
+    {
+        if (BackingTypes.TryGetValue(s.DisplayName, out var keyword))
+            return keyword;
+        return s.DisplayName;
+    }
 }

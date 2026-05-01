@@ -44,13 +44,13 @@ public class OverloadResolverPropertyTests
     /// </summary>
     private static readonly IType[] DistinctPrimitiveTypes =
     [
-        PrimitiveType.Int,
-        PrimitiveType.Bool,
-        PrimitiveType.Double,
-        PrimitiveType.Float,
-        PrimitiveType.Char,
-        PrimitiveType.Long,
-        StringType.Instance,
+        LegacyPrimitiveTypes.Int,
+        LegacyPrimitiveTypes.Bool,
+        LegacyPrimitiveTypes.Double,
+        LegacyPrimitiveTypes.Float,
+        LegacyPrimitiveTypes.Char,
+        LegacyPrimitiveTypes.Long,
+        LegacyPrimitiveTypes.String,
     ];
 
     private static Storm.Runtime.Token MakeToken(string lexeme)
@@ -271,12 +271,12 @@ public class OverloadResolverPropertyTests
         // but broad is NOT assignable to specific.
         var wideningPairs = new (IType specific, IType broad)[]
         {
-            (PrimitiveType.Int, PrimitiveType.Long),
-            (PrimitiveType.Int, PrimitiveType.Double),
-            (PrimitiveType.Float, PrimitiveType.Double),
-            (PrimitiveType.Int, PrimitiveType.Float),
-            (PrimitiveType.Short, PrimitiveType.Int),
-            (PrimitiveType.Short, PrimitiveType.Long),
+            (LegacyPrimitiveTypes.Int, LegacyPrimitiveTypes.Long),
+            (LegacyPrimitiveTypes.Int, LegacyPrimitiveTypes.Double),
+            (LegacyPrimitiveTypes.Float, LegacyPrimitiveTypes.Double),
+            (LegacyPrimitiveTypes.Int, LegacyPrimitiveTypes.Float),
+            (LegacyPrimitiveTypes.Short, LegacyPrimitiveTypes.Int),
+            (LegacyPrimitiveTypes.Short, LegacyPrimitiveTypes.Long),
         };
 
         var gen = from pairIndex in Gen.Choose(0, wideningPairs.Length - 1)
@@ -300,7 +300,7 @@ public class OverloadResolverPropertyTests
                 .Where(indices => indices.Distinct().Count() == indices.Length)
             let paramTypes = paramTypeIndices.Select(i => DistinctPrimitiveTypes[i]).ToList()
             // Use string as argument — not assignable to int, bool, or double
-            let argTypes = (IReadOnlyList<IType>)new[] { StringType.Instance }
+            let argTypes = (IReadOnlyList<IType>)new[] { LegacyPrimitiveTypes.String }
             where paramTypes.All(t => t.DisplayName != "string")
             select new NoMatchScenario(paramTypes, argTypes, "type mismatch");
 
@@ -333,10 +333,10 @@ public class OverloadResolverPropertyTests
         // short → float (yes), short → decimal (yes), float → decimal (no), decimal → float (no)
         var ambiguousPairs = new (IType param1, IType param2, IType arg)[]
         {
-            (PrimitiveType.Float, PrimitiveType.Decimal, PrimitiveType.Int),
-            (PrimitiveType.Double, PrimitiveType.Decimal, PrimitiveType.Int),
-            (PrimitiveType.Float, PrimitiveType.Decimal, PrimitiveType.Short),
-            (PrimitiveType.Double, PrimitiveType.Decimal, PrimitiveType.Short),
+            (LegacyPrimitiveTypes.Float, LegacyPrimitiveTypes.Decimal, LegacyPrimitiveTypes.Int),
+            (LegacyPrimitiveTypes.Double, LegacyPrimitiveTypes.Decimal, LegacyPrimitiveTypes.Int),
+            (LegacyPrimitiveTypes.Float, LegacyPrimitiveTypes.Decimal, LegacyPrimitiveTypes.Short),
+            (LegacyPrimitiveTypes.Double, LegacyPrimitiveTypes.Decimal, LegacyPrimitiveTypes.Short),
         };
 
         var gen = from pairIndex in Gen.Choose(0, ambiguousPairs.Length - 1)

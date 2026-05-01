@@ -36,13 +36,13 @@ public class InheritedMethodOverloadPropertyTests
     /// </summary>
     private static readonly (IType BaseParamType, IType DerivedParamType)[] DistinctTypePairs =
     [
-        (PrimitiveType.Int, PrimitiveType.Bool),
-        (PrimitiveType.Bool, PrimitiveType.Int),
-        (PrimitiveType.Double, PrimitiveType.Bool),
-        (PrimitiveType.Char, PrimitiveType.Long),
-        (PrimitiveType.Long, PrimitiveType.Bool),
-        (StringType.Instance, PrimitiveType.Int),
-        (PrimitiveType.Float, PrimitiveType.Bool),
+        (LegacyPrimitiveTypes.Int, LegacyPrimitiveTypes.Bool),
+        (LegacyPrimitiveTypes.Bool, LegacyPrimitiveTypes.Int),
+        (LegacyPrimitiveTypes.Double, LegacyPrimitiveTypes.Bool),
+        (LegacyPrimitiveTypes.Char, LegacyPrimitiveTypes.Long),
+        (LegacyPrimitiveTypes.Long, LegacyPrimitiveTypes.Bool),
+        (LegacyPrimitiveTypes.String, LegacyPrimitiveTypes.Int),
+        (LegacyPrimitiveTypes.Float, LegacyPrimitiveTypes.Bool),
     ];
 
     private static Storm.Runtime.Token MakeToken(string lexeme)

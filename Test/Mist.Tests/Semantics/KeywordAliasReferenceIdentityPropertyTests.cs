@@ -308,9 +308,6 @@ public class KeywordAliasReferenceIdentityPropertyTests
     public Property KeywordAliases_ResolveToReferenceEqualStdlibTypes(
         KeywordScenario scenario)
     {
-        // Hold PrimitiveTypeRegistry.Lock so parallel builds don't
-        // interfere with the stdlib type registry during our assertions.
-        lock (PrimitiveTypeRegistry.Lock)
         {
             var source = GenerateSource(scenario);
             var (model, diagnostics) = BuildModel(source);

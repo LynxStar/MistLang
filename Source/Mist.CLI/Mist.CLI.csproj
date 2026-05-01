@@ -28,6 +28,7 @@
     <Content Include="..\..\Source\Standard\**\*.mist"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true"
              TargetPath="Standard\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 

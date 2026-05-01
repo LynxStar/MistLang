@@ -70,6 +70,19 @@ if ! cp "$BINARY_SRC" "$BINARY_DST"; then
     exit 1
 fi
 
+# Copy the Standard Library source files alongside the binary so that
+# StdlibLoader can find them at AppContext.BaseDirectory/Standard/.
+STDLIB_SRC="${PUBLISH_DIR}/Standard"
+STDLIB_DST="${INSTALL_DIR}/Standard"
+
+if [[ -d "$STDLIB_SRC" ]]; then
+    rm -rf "$STDLIB_DST"
+    cp -R "$STDLIB_SRC" "$STDLIB_DST"
+    echo "Installed Standard Library to ${STDLIB_DST}/"
+else
+    echo "Warning: Standard Library not found at ${STDLIB_SRC} — stdlib will not be available." >&2
+fi
+
 # ---------------------------------------------------------------------------
 # Task 3.6: PATH configuration with shell profile detection
 # ---------------------------------------------------------------------------

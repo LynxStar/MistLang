@@ -20,7 +20,8 @@ public sealed class SemanticModel : ISemanticModel
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         Scope globalScope,
         SymbolTable symbolTable,
-        Dictionary<Storm.Runtime.SyntaxNode, IType>? expressionTypes = null)
+        Dictionary<Storm.Runtime.SyntaxNode, IType>? expressionTypes = null,
+        TraitSatisfactionMap? traitSatisfactionMap = null)
     {
         Compilation = compilation;
         Units = units;
@@ -29,12 +30,14 @@ public sealed class SemanticModel : ISemanticModel
         _symbolTable = symbolTable;
         _expressionTypes = expressionTypes ?? new Dictionary<Storm.Runtime.SyntaxNode, IType>();
         _resolvedOperators = new Dictionary<Storm.Runtime.SyntaxNode, ISymbol>();
+        TraitSatisfactionMap = traitSatisfactionMap ?? new TraitSatisfactionMap();
     }
 
     public MistCompilation Compilation { get; }
     public IScope GlobalScope { get; }
     public IReadOnlyList<CompilationUnit> Units { get; }
     public ImmutableArray<Storm.Runtime.SyntaxNode> Asts { get; }
+    public TraitSatisfactionMap TraitSatisfactionMap { get; }
 
     /// <summary>
     /// The symbol table that backs <see cref="AllSymbols"/>, exposed

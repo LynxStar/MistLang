@@ -9,6 +9,7 @@ public enum TypeKind
     Class,
     Struct,
     Interface,
+    Trait,
 }
 
 /// <summary>

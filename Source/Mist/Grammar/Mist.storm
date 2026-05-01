@@ -83,6 +83,7 @@ rule CompilationUnit = usings:UsingDeclaration* items:TopLevelItem*;
 rule TopLevelItem
     = namespaceDeclaration:NamespaceDeclaration  as NamespaceItem
     | typeDeclaration:TypeDeclaration            as TypeItem
+    | withDeclaration:WithDeclaration            as WithItem
     ;
 
 rule UsingDeclaration = USING name:QualifiedIdentifier SEMICOLON;
@@ -98,6 +99,7 @@ rule TypeDeclaration
     = classDeclaration:ClassDeclaration           as ClassType
     | structDeclaration:StructDeclaration         as StructType
     | interfaceDeclaration:InterfaceDeclaration   as InterfaceType
+    | traitDeclaration:TraitDeclaration           as TraitType
     ;
 
 // ─── Parser Rules — Type Parameter and Type Argument Lists ───────────────────
@@ -147,6 +149,32 @@ rule InterfaceAccessorDeclaration
     = GET SEMICOLON   as InterfaceGetAccessor
     | SET SEMICOLON   as InterfaceSetAccessor
     ;
+
+// ─── Parser Rules — Trait Declarations ───────────────────────────────────────
+
+rule TraitDeclaration = TRAIT name:IDENTIFIER
+    LEFT_BRACE members:TraitMemberDeclaration* RIGHT_BRACE;
+
+rule TraitMemberDeclaration
+    = field:TraitFieldDeclaration       as TraitFieldMember
+    | method:TraitMethodDeclaration     as TraitMethodMember
+    | property:TraitPropertyDeclaration as TraitPropertyMember
+    ;
+
+rule TraitFieldDeclaration = type:TypeReference name:IDENTIFIER SEMICOLON;
+
+rule TraitMethodDeclaration = returnType:TypeReference name:IDENTIFIER
+    LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS SEMICOLON;
+
+rule TraitPropertyDeclaration = type:TypeReference name:IDENTIFIER
+    LEFT_BRACE accessors:InterfaceAccessorDeclaration+ RIGHT_BRACE;
+
+// ─── Parser Rules — With Declarations ────────────────────────────────────────
+
+rule WithDeclaration = WITH typeName:IDENTIFIER COLON traitName:IDENTIFIER
+    LEFT_BRACE mappings:MemberMapping+ RIGHT_BRACE;
+
+rule MemberMapping = sourceName:IDENTIFIER AS targetName:IDENTIFIER SEMICOLON;
 
 rule Modifier
     = PUBLIC    as PublicModifier

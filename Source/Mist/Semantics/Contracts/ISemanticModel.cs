@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Driver.Contracts;
+using Mist.Semantics.Model;
 
 namespace Mist.Semantics.Contracts;
 
@@ -58,4 +59,11 @@ public interface ISemanticModel
     ISymbol? GetResolvedOperator(Storm.Runtime.SyntaxNode node);
 
     ImmutableArray<ISymbol> AllSymbols { get; }
+
+    /// <summary>
+    /// The trait satisfaction map recording which types satisfy which traits
+    /// (structurally or via <c>with</c> blocks). Populated during
+    /// <c>Pass1_ResolveTraitSatisfaction</c>.
+    /// </summary>
+    TraitSatisfactionMap TraitSatisfactionMap { get; }
 }

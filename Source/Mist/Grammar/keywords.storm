@@ -26,6 +26,11 @@ token FALSE     = "false";
 token THIS      = "this";
 token BASE      = "base";
 
+// Trait-related keywords
+token TRAIT = "trait";
+token WITH  = "with";
+token AS    = "as";
+
 // Property-related keywords
 token GET   = "get";
 token SET   = "set";

@@ -2357,7 +2357,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // When multiple constructors exist, use overload resolution.
         if (constructors.Count > 1)
         {
-            var result = OverloadResolver.Resolve(constructors, argTypes, model);
+            // When the created type is a ConstructedType (e.g., Optional<int>),
+            // pass the type substitution context so the resolver maps T → Int32
+            // in constructor parameter types before the applicability check.
+            (IReadOnlyList<TypeParameterType> TypeParams, IReadOnlyList<IType> TypeArgs)? typeSubstitution = null;
+            if (createdType is ConstructedType ctForSubst)
+            {
+                var tp = GetTypeParameters(ctForSubst.GenericDefinition);
+                if (tp is not null)
+                    typeSubstitution = (tp, ctForSubst.TypeArguments);
+            }
+
+            var result = OverloadResolver.Resolve(constructors, argTypes, model, typeSubstitution: typeSubstitution);
             var typeName = createdType.DisplayName;
 
             switch (result.Status)
@@ -3110,7 +3121,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// - If <paramref name="type"/> is a <see cref="ConstructedType"/>, recursively substitutes its type arguments.
     /// - Otherwise, returns the type unchanged.
     /// </summary>
-    private static IType SubstituteType(IType type, IReadOnlyList<TypeParameterType> typeParams, IReadOnlyList<IType> typeArgs)
+    internal static IType SubstituteType(IType type, IReadOnlyList<TypeParameterType> typeParams, IReadOnlyList<IType> typeArgs)
     {
         if (type is TypeParameterType tpt)
         {

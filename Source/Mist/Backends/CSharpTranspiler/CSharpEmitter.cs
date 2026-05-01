@@ -30,16 +30,11 @@ public sealed class CSharpEmitter
         {
             var unit = model.Units[i];
 
-            // Skip Standard Library units. Stdlib types are modelled as Mist
-            // `UserCode`-origin symbols (they go through the same semantic
-            // model construction as user code), but they MUST NOT be emitted
-            // as .cs — their storage and methods come from the backend's
-            // Backing_Type_Map / IntrinsicEmissionTable at call sites in
-            // user code, not from Mist bodies. Emitting them would produce
-            // invalid C# (intrinsic members have no body, backed types have
-            // no fields) and clash with the C# primitives they represent.
-            if (unit.IsStdlib)
-                continue;
+            // Stdlib units are processed normally — pure-Mist stdlib types
+            // like Optional<T> need to be emitted as C#. Backend-backed
+            // types (Int32, String, etc.) are skipped at the per-type level
+            // in EmitClassDeclaration / EmitStructDeclaration via the
+            // IsBackendBacked flag.
 
             var csFileName = Path.ChangeExtension(
                 Path.GetFileName(unit.Source.Path), ".cs");
@@ -713,6 +708,16 @@ internal sealed class CSharpSourceWriter
             return;
         }
 
+        // Skip intrinsic backend-backed stdlib types (e.g., Standard.String,
+        // Standard.Array<T>). Their storage and methods come from the
+        // Backing_Type_Map / IntrinsicEmissionTable, not from Mist bodies.
+        // Pure-Mist stdlib types like Optional<T> are NOT backend-backed
+        // and must be emitted normally.
+        if (symbol?.DeclaredType is ClassType ct && ct.IsBackendBacked)
+        {
+            return;
+        }
+
         var modifiers = EmitModifiers(classDecl.Modifiers);
         var name = classDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(classDecl.TypeParams);
@@ -827,6 +832,14 @@ internal sealed class CSharpSourceWriter
     {
         var symbol = _model.GetDeclaredSymbol(structDecl);
         if (symbol is not null && symbol.Origin == SymbolOrigin.Backend)
+        {
+            return;
+        }
+
+        // Skip intrinsic backend-backed stdlib types (e.g., Standard.Int32,
+        // Standard.Boolean). Their storage and methods come from the
+        // Backing_Type_Map / IntrinsicEmissionTable, not from Mist bodies.
+        if (symbol?.DeclaredType is StructType st && st.IsBackendBacked)
         {
             return;
         }

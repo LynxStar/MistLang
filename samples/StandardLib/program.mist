@@ -1,0 +1,13 @@
+using System;
+using Standard;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+
+        var optional = new Optional<int>(7);
+
+        Console.WriteLine($"HasValue: {optional.HasValue}");
+    }
+}

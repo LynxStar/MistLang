@@ -57,7 +57,8 @@ public static class OverloadResolver
         IReadOnlyList<ISymbol> candidates,
         IReadOnlyList<IType> argumentTypes,
         ISemanticModel model,
-        IReadOnlyList<int>? candidateOrigin = null)
+        IReadOnlyList<int>? candidateOrigin = null,
+        (IReadOnlyList<Mist.Semantics.Model.Types.TypeParameterType> TypeParams, IReadOnlyList<IType> TypeArgs)? typeSubstitution = null)
     {
         // Validate origin vector length — callers must supply one entry per
         // candidate when they opt into the tiebreaker. Mismatched lengths are
@@ -79,6 +80,20 @@ public static class OverloadResolver
 
             if (paramTypes.Count != argumentTypes.Count)
                 continue;
+
+            // When a type substitution context is provided (e.g., for
+            // constructors of ConstructedType like Optional<int>),
+            // substitute type parameters in the extracted parameter types
+            // before the applicability check. This maps T → Int32 so that
+            // Optional(T value) becomes Optional(Int32 value).
+            if (typeSubstitution is var (typeParams, typeArgs))
+            {
+                var substituted = new IType[paramTypes.Count];
+                for (var i = 0; i < paramTypes.Count; i++)
+                    substituted[i] = TypeCheckerAnalyzer.SubstituteType(
+                        paramTypes[i], typeParams, typeArgs);
+                paramTypes = substituted;
+            }
 
             var allAssignable = true;
             for (var i = 0; i < argumentTypes.Count; i++)

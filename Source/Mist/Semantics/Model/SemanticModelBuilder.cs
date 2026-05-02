@@ -4312,7 +4312,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait)
                 && symbol.Name == typeName)
             {
                 return FindCompilationUnitPathForSymbol(symbol, symbolTable, asts, compilation);
@@ -4332,7 +4332,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait)
                 && symbol.Name == typeName)
             {
                 return FindSourceTextForSymbol(symbol, symbolTable, asts, compilation);
@@ -4350,7 +4350,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait)
                 && symbol.Name == typeName)
             {
                 return symbolTable.GetDeclaringNode(symbol);
@@ -5019,7 +5019,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // belongs to the target namespace.
         foreach (var member in globalScope.Members)
         {
-            if (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface)
+            if (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait)
             {
                 // Top-level types (no namespace) — skip.
                 continue;
@@ -5029,7 +5029,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Walk all registered symbols to find a type in this namespace.
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait)
                 && symbol.ContainingScope is Scope parentScope
                 && parentScope.Parent == globalScope)
             {
@@ -5043,6 +5043,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     return parentScope;
                 }
                 if (symbol.DeclaredType is InterfaceType it && it.ContainingNamespace == namespaceName)
+                {
+                    return parentScope;
+                }
+                if (symbol.DeclaredType is TraitType tt && tt.ContainingNamespace == namespaceName)
                 {
                     return parentScope;
                 }
@@ -5071,6 +5075,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             case InterfaceTypeTypeDeclarationNode interfaceTypeNode:
                 ResolveInterfaceDeclaration(interfaceTypeNode.InterfaceDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case TraitTypeTypeDeclarationNode traitTypeNode:
+                ResolveTraitDeclaration(traitTypeNode.TraitDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 break;
         }
     }
@@ -5165,6 +5172,66 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
                 }
                 case InterfacePropertyMemberInterfaceMemberDeclarationNode propertyMember:
+                {
+                    var propDecl = propertyMember.Property;
+                    var propType = ResolveTypeReference(propDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                    var propSymbol = symbolTable.GetDeclaredSymbol(propDecl) as Symbol;
+                    if (propSymbol is not null)
+                    {
+                        propSymbol.DeclaredType = propType;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    private static void ResolveTraitDeclaration(
+        TraitDeclarationNode traitDecl,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var traitSymbol = symbolTable.GetDeclaredSymbol(traitDecl);
+        if (traitSymbol?.DeclaredType is not TraitType traitType) return;
+
+        // Resolve types for each trait member.
+        foreach (var member in traitDecl.Members)
+        {
+            switch (member)
+            {
+                case TraitFieldMemberTraitMemberDeclarationNode fieldMember:
+                {
+                    var fieldDecl = fieldMember.Field;
+                    var fieldType = ResolveTypeReference(fieldDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                    var fieldSymbol = symbolTable.GetDeclaredSymbol(fieldDecl) as Symbol;
+                    if (fieldSymbol is not null)
+                    {
+                        fieldSymbol.DeclaredType = fieldType;
+                    }
+                    break;
+                }
+                case TraitMethodMemberTraitMemberDeclarationNode methodMember:
+                {
+                    var methodDecl = methodMember.Method;
+                    var returnType = ResolveTypeReference(methodDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                    var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
+                    if (methodSymbol is not null)
+                    {
+                        methodSymbol.DeclaredType = returnType;
+                    }
+
+                    // Register parameters so parameter types can be resolved.
+                    if (methodDecl.Parameters is not null)
+                    {
+                        var methodScope = new Scope(parent: fileScope);
+                        RegisterParameters(methodDecl.Parameters, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                    }
+                    break;
+                }
+                case TraitPropertyMemberTraitMemberDeclarationNode propertyMember:
                 {
                     var propDecl = propertyMember.Property;
                     var propType = ResolveTypeReference(propDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
@@ -6156,7 +6223,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // 2. Search current scope → parent scopes (local → file → namespace → global).
         var symbol = fileScope.Lookup(typeName);
-        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface))
+        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait))
         {
             return symbol.DeclaredType ?? UnknownType.Instance;
         }
@@ -6184,7 +6251,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach (var member in nsScope.Members)
                 {
                     if (member.Name == typeName &&
-                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface))
+                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait))
                     {
                         if (userResolvedType is not null)
                         {
@@ -6372,7 +6439,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (wellKnown is null)
             {
                 var symbol = fileScope.Lookup(argName);
-                if (symbol is null || (symbol.Kind != SymbolKind.Class && symbol.Kind != SymbolKind.Struct && symbol.Kind != SymbolKind.Interface))
+                if (symbol is null || (symbol.Kind != SymbolKind.Class && symbol.Kind != SymbolKind.Struct && symbol.Kind != SymbolKind.Interface && symbol.Kind != SymbolKind.Trait))
                 {
                     // Check user-defined namespace scopes first.
                     var importedNamespaces = CollectImportedNamespaces(fileScope);
@@ -6390,7 +6457,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             foreach (var member in nsScope.Members)
                             {
                                 if (member.Name == argName &&
-                                    (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface))
+                                    (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait))
                                 {
                                     userResolved = true;
                                     break;
@@ -6512,13 +6579,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Check if already registered in the scope.
         var existing = fileScope.Lookup(typeName);
-        if (existing is not null && (existing.Kind == SymbolKind.Class || existing.Kind == SymbolKind.Struct || existing.Kind == SymbolKind.Interface))
+        if (existing is not null && (existing.Kind == SymbolKind.Class || existing.Kind == SymbolKind.Struct || existing.Kind == SymbolKind.Interface || existing.Kind == SymbolKind.Trait))
         {
             return; // Already registered.
         }
 
         // Create a type symbol with SymbolOrigin.Backend.
-        var kind = type is ClassType ? SymbolKind.Class : type is InterfaceType ? SymbolKind.Interface : SymbolKind.Struct;
+        var kind = type is ClassType ? SymbolKind.Class : type is InterfaceType ? SymbolKind.Interface : type is TraitType ? SymbolKind.Trait : SymbolKind.Struct;
         var typeSymbol = new Symbol(typeName, kind, SymbolOrigin.Backend, fileScope, type, declarationSpan: null);
         fileScope.AddMember(typeSymbol);
 
@@ -7162,7 +7229,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Check scope chain for type symbols (local → file → namespace → global).
         var symbol = fileScope.Lookup(name);
-        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface))
+        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait))
         {
             return symbol.DeclaredType;
         }
@@ -7183,7 +7250,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach (var member in nsScope.Members)
                 {
                     if (member.Name == name &&
-                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface))
+                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait))
                     {
                         return member.DeclaredType;
                     }
@@ -7251,6 +7318,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
             InterfaceType it => it.MemberScope,
+            TraitType tt => tt.MemberScope,
             ArrayType => null, // Arrays use special handling.
             _ => null,
         };

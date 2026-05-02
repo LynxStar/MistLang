@@ -75,7 +75,7 @@ Add traits — a structural typing mechanism — to the Mist programming languag
     - **Property 4: With-block validation diagnostics**
     - **Validates: Requirements 6.2, 6.3, 6.4, 6.5, 6.6, 6.9, 10.2, 10.3, 10.4**
 
-- [ ] 5. Implement structural match resolution and trait satisfaction
+- [x] 5. Implement structural match resolution and trait satisfaction
   - [x] 5.1 Implement `Pass1_ResolveTraitSatisfaction` sub-pass
     - Add new sub-pass after `with` block resolution
     - Create `TraitSatisfactionMap` and `TraitSatisfaction` data structures
@@ -91,33 +91,33 @@ Add traits — a structural typing mechanism — to the Mist programming languag
     - Store the `TraitSatisfactionMap` on the `SemanticModel` and expose via `ISemanticModel`
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 6.7, 6.8, 10.5_
 
-  - [ ] 5.2 Write property test for structural match correctness
+  - [x] 5.2 Write property test for structural match correctness
     - **Property 3: Structural match correctness**
     - **Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7**
 
-  - [ ] 5.3 Write property test for with-block satisfaction
+  - [x] 5.3 Write property test for with-block satisfaction
     - **Property 5: Trait satisfaction via with-block**
     - **Validates: Requirements 6.1, 6.7, 6.8**
 
-- [ ] 6. Checkpoint — Ensure all tests pass
+- [x] 6. Checkpoint — Ensure all tests pass
   - Run `dotnet test` and verify all existing and new tests pass. Ask the user if questions arise.
 
 - [ ] 7. Extend Pass 2 type resolution and type checker for trait assignability
-  - [ ] 7.1 Extend Pass 2 to resolve `TraitType` references
+  - [x] 7.1 Extend Pass 2 to resolve `TraitType` references
     - In `SemanticModelBuilder` Pass 2, extend type reference resolution to handle `SymbolKind.Trait` symbols, returning their `TraitType`
     - Ensure `TraitType` is handled in scope lookups and `FindDeclaringType`
     - _Requirements: 4.1_
 
-  - [ ] 7.2 Extend `LookupMemberType` to handle `TraitType`
+  - [x] 7.2 Extend `LookupMemberType` to handle `TraitType`
     - Add `TraitType tt => tt.MemberScope` to the `memberScope` switch in `LookupMemberType`
     - This enables member access on trait-typed variables
     - _Requirements: 8.1, 8.2, 8.3_
 
-  - [ ] 7.3 Write property test for trait member access
+  - [x] 7.3 Write property test for trait member access
     - **Property 7: Trait member access**
     - **Validates: Requirements 8.1, 8.2, 8.3**
 
-  - [ ] 7.4 Extend `TypeCheckerAnalyzer.IsAssignable` for trait assignability
+  - [x] 7.4 Extend `TypeCheckerAnalyzer.IsAssignable` for trait assignability
     - Add trait assignability logic: when target is `TraitType`, check if source satisfies it via `TraitSatisfactionMap`
     - Implement `SatisfiesTrait` helper that queries the `TraitSatisfactionMap` on the semantic model
     - Extend `CheckAssignability` to emit `MIST_TRAIT_UNSATISFIED` diagnostic with trait name, type name, and unsatisfied member list when assignment fails

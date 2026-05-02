@@ -2852,18 +2852,61 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Checks if <paramref name="source"/> is assignable to <paramref name="target"/>.
-    /// Emits MIST_TC_0001 if not.
+    /// Emits MIST_TC_0001 if not, or MIST_TRAIT_UNSATISFIED when the target is a
+    /// <see cref="TraitType"/> and the source does not satisfy it.
     /// </summary>
     private static void CheckAssignability(IType source, IType target, SyntaxNode node, DiagnosticBag diagnostics, ISemanticModel model)
     {
-        if (!IsAssignable(source, target))
+        if (!IsAssignable(source, target, model))
         {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0001",
-                $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}'",
-                node,
-                model));
+            // Emit a trait-specific diagnostic when the target is a TraitType.
+            if (target is TraitType targetTrait)
+            {
+                var unsatisfiedMembers = GetUnsatisfiedTraitMembers(source, targetTrait, model);
+                var memberList = unsatisfiedMembers.Count > 0
+                    ? string.Join(", ", unsatisfiedMembers)
+                    : "(unknown)";
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TRAIT_UNSATISFIED",
+                    $"Type '{source.DisplayName}' does not satisfy trait '{targetTrait.DisplayName}'. Missing members: {memberList}.",
+                    node,
+                    model));
+            }
+            else
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0001",
+                    $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}'",
+                    node,
+                    model));
+            }
         }
+    }
+
+    /// <summary>
+    /// Returns the list of trait member names that the source type does not satisfy
+    /// (neither structurally nor via a <c>with</c> block).
+    /// </summary>
+    private static List<string> GetUnsatisfiedTraitMembers(IType source, TraitType trait, ISemanticModel model)
+    {
+        var unsatisfied = new List<string>();
+        var satisfaction = model.TraitSatisfactionMap.GetSatisfaction(source, trait);
+
+        foreach (var member in trait.MemberScope.Members)
+        {
+            var name = member.Name;
+            if (satisfaction is not null)
+            {
+                // If there's a partial satisfaction record, check which members are covered.
+                if (satisfaction.StructuralMatches.ContainsKey(name))
+                    continue;
+                if (satisfaction.WithMappings.ContainsKey(name))
+                    continue;
+            }
+            unsatisfied.Add(name);
+        }
+
+        return unsatisfied;
     }
 
     /// <summary>
@@ -2875,6 +2918,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// - Subtype assignability: derived class assignable to any ancestor class
     /// </summary>
     internal static bool IsAssignable(IType source, IType target)
+    {
+        return IsAssignable(source, target, model: null);
+    }
+
+    /// <summary>
+    /// Returns true if <paramref name="source"/> is assignable to <paramref name="target"/>.
+    /// When <paramref name="model"/> is provided, also checks trait assignability via
+    /// the <see cref="TraitSatisfactionMap"/>.
+    /// </summary>
+    internal static bool IsAssignable(IType source, IType target, ISemanticModel? model)
     {
         // UnknownType suppresses cascading errors.
         if (IsUnknown(source) || IsUnknown(target))
@@ -2958,7 +3011,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
+        // Trait assignability:
+        // A class/struct satisfying a trait (structurally or via with block)
+        // is assignable to that trait.
+        if (target is TraitType targetTrait && model is not null)
+        {
+            if (SatisfiesTrait(source, targetTrait, model))
+                return true;
+        }
+
         return false;
+    }
+
+    /// <summary>
+    /// Checks whether <paramref name="source"/> satisfies the given <paramref name="trait"/>
+    /// by querying the <see cref="TraitSatisfactionMap"/> on the semantic model.
+    /// </summary>
+    private static bool SatisfiesTrait(IType source, TraitType trait, ISemanticModel model)
+    {
+        return model.TraitSatisfactionMap.Satisfies(source, trait);
     }
 
     /// <summary>

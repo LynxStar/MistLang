@@ -85,4 +85,14 @@ DescribeVoid: received void
 Result of void: Result(Ok: Void)
 IsSuccess: True
 GenericBox of void: GenericBox(Void)
+=== Cast Operators Sample ===
+--- Implicit cast (assignment) ---
+  100 C = 212 F
+--- Implicit cast (argument) ---
+  Temperature: 32 F
+--- Explicit cast ---
+  37 C = 310.15 K
+--- Explicit cast on derived type ---
+  Weight 72.5 as Kelvin: 72.5 K
+Done!
 === Done! ===

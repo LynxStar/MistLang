@@ -1,5 +1,4 @@
 name = "AllFeatures"
-namespace_root = "AllFeatures"
 
 [[references]]
 path = "../Primitives"
@@ -21,3 +20,6 @@ path = "../Overloading"
 
 [[references]]
 path = "../VoidType"
+
+[[references]]
+path = "../CastOperators"

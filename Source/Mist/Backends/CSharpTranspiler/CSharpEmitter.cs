@@ -1214,6 +1214,9 @@ internal sealed class CSharpSourceWriter
             case IndexerMemberMemberDeclarationNode indexerMember:
                 EmitIndexerDeclaration(indexerMember.Indexer);
                 break;
+            case CastOperatorMemberMemberDeclarationNode castOpMember:
+                EmitCastOperatorDeclaration(castOpMember.CastOperator);
+                break;
         }
     }
 
@@ -1232,6 +1235,27 @@ internal sealed class CSharpSourceWriter
         else
         {
             AppendLine($"{modifiers}{type} {name};");
+        }
+    }
+
+    private void EmitCastOperatorDeclaration(CastOperatorDeclarationNode castOpDecl)
+    {
+        var modifiers = EmitModifiers(castOpDecl.Modifiers);
+        var castKind = castOpDecl.CastKind is ImplicitCastCastOperatorKindNode
+            ? "implicit" : "explicit";
+        var targetType = EmitTypeReference(castOpDecl.TargetType);
+        var parameters = EmitParameterList(castOpDecl.Parameters);
+
+        AppendLine($"{modifiers}{castKind} operator {targetType}({parameters})");
+
+        if (castOpDecl.Body is OperatorBlockBodyOperatorBodyNode blockBody)
+        {
+            EmitBlock(blockBody.Block);
+        }
+        else
+        {
+            // Intrinsic — should not reach here for user code.
+            AppendLine(";");
         }
     }
 
@@ -1530,7 +1554,9 @@ internal sealed class CSharpSourceWriter
             {
                 if (returnStmt.ReturnStatement.Value is not null)
                 {
-                    return $"return {EmitExpression(returnStmt.ReturnStatement.Value)};";
+                    var value = EmitExpression(returnStmt.ReturnStatement.Value);
+                    value = WrapWithImplicitCastIfNeeded(returnStmt.ReturnStatement, value);
+                    return $"return {value};";
                 }
                 return "return;";
             }
@@ -1545,6 +1571,7 @@ internal sealed class CSharpSourceWriter
                         var type = EmitTypeReference(typed.Type, isValueContext: true);
                         var name = typed.Name.Lexeme;
                         var init = EmitExpression(typed.Initializer);
+                        init = WrapWithImplicitCastIfNeeded(typed.Initializer, init);
                         return $"{type} {name} = {init};";
                     }
                     case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
@@ -1692,9 +1719,40 @@ internal sealed class CSharpSourceWriter
     {
         if (argList is null) return "";
 
-        // The Storm generator only stores the first expression as a named property;
-        // additional comma-separated arguments are parsed but discarded from the AST.
-        // Use the source span to faithfully reproduce the full argument list,
+        // Collect all argument expressions from the AST.
+        var argExprs = new List<ExpressionNode> { argList.Expression };
+        foreach (var child in argList.Children())
+        {
+            if (child is ExpressionNode expr && !ReferenceEquals(expr, argList.Expression))
+                argExprs.Add(expr);
+        }
+
+        // Check if any argument has a resolved implicit cast operator.
+        var hasImplicitCast = false;
+        foreach (var argExpr in argExprs)
+        {
+            var resolved = _model.GetResolvedOperator(argExpr);
+            if (resolved is Symbol sym && sym.Name.StartsWith("operator_implicit_"))
+            {
+                hasImplicitCast = true;
+                break;
+            }
+        }
+
+        // If any argument needs implicit cast wrapping, emit all arguments
+        // through the expression emitter so we can wrap the ones that need it.
+        if (hasImplicitCast)
+        {
+            var emitted = new List<string>();
+            foreach (var argExpr in argExprs)
+            {
+                var emittedArg = EmitExpression(argExpr);
+                emitted.Add(WrapWithImplicitCastIfNeeded(argExpr, emittedArg));
+            }
+            return string.Join(", ", emitted);
+        }
+
+        // No implicit casts needed — use the source span for faithful reproduction,
         // applying Void.Void → MistVoid.Instance substitution if needed.
         var span = argList.Span;
         if (span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
@@ -1835,6 +1893,7 @@ internal sealed class CSharpSourceWriter
                 var type = EmitTypeReference(typed.Type, isValueContext: true);
                 var name = typed.Name.Lexeme;
                 var init = EmitExpression(typed.Initializer);
+                init = WrapWithImplicitCastIfNeeded(typed.Initializer, init);
                 AppendLine($"{type} {name} = {init};");
                 break;
             }
@@ -1852,7 +1911,9 @@ internal sealed class CSharpSourceWriter
     {
         if (returnStmt.Value is not null)
         {
-            AppendLine($"return {EmitExpression(returnStmt.Value)};");
+            var value = EmitExpression(returnStmt.Value);
+            value = WrapWithImplicitCastIfNeeded(returnStmt, value);
+            AppendLine($"return {value};");
         }
         else if (_inValueReturningVoidMethod)
         {
@@ -1960,6 +2021,7 @@ internal sealed class CSharpSourceWriter
         if (assignment.Value is not null)
         {
             var value = EmitAssignment(assignment.Value);
+            value = WrapWithImplicitCastIfNeeded(assignment, value);
             return $"{target} = {value}";
         }
 
@@ -2040,6 +2102,8 @@ internal sealed class CSharpSourceWriter
     {
         switch (unary)
         {
+            case CastExpressionUnaryNode castExpr:
+                return EmitCastExpression(castExpr);
             case LogicalNotUnaryNode logicalNot:
             {
                 var operand = EmitUnary(logicalNot.Operand);
@@ -2055,6 +2119,65 @@ internal sealed class CSharpSourceWriter
             default:
                 return "";
         }
+    }
+
+    /// <summary>
+    /// Emits a cast expression. For user-defined cast operators, emits as a standard
+    /// C# cast expression <c>((TargetType)operand)</c> which lets the C# compiler
+    /// invoke the user-defined implicit/explicit operator. For intrinsic operators,
+    /// looks up the emission template. For identity/subtype casts (no resolved
+    /// operator), emits a standard C# cast <c>((TargetType)expr)</c>.
+    /// </summary>
+    private string EmitCastExpression(CastExpressionUnaryNode castExpr)
+    {
+        var targetType = EmitTypeReference(castExpr.TargetType);
+        var operand = EmitUnary(castExpr.Operand);
+
+        var resolved = _model.GetResolvedOperator(castExpr);
+
+        if (resolved is null)
+        {
+            // Identity/subtype cast — emit standard C# cast.
+            return $"(({targetType}){operand})";
+        }
+
+        if (resolved is Symbol { IsIntrinsic: true } intrinsicSymbol)
+        {
+            // Intrinsic cast operator — look up emission template.
+            // Note: TryGetCastOperator is added in task 8.4; for now, fall back to standard cast.
+            var declaringType = GetQualifiedTypeName(intrinsicSymbol);
+            var template = _intrinsicRegistry.TryGetCastOperator(declaringType, targetType);
+            if (template is not null)
+                return string.Format(template.Template, operand);
+
+            // Fallback to standard C# cast if no template found.
+            return $"(({targetType}){operand})";
+        }
+
+        // User-defined cast operator — emit as standard C# cast expression.
+        // The C# compiler will resolve the implicit/explicit operator automatically.
+        return $"(({targetType}){operand})";
+    }
+
+    /// <summary>
+    /// If the given AST node has a resolved implicit cast operator recorded by the type checker,
+    /// wraps the emitted expression in a C# cast to the target type so the C# compiler
+    /// invokes the user-defined implicit operator. Otherwise returns the expression unchanged.
+    /// </summary>
+    private string WrapWithImplicitCastIfNeeded(Storm.Runtime.SyntaxNode node, string expression)
+    {
+        var resolved = _model.GetResolvedOperator(node);
+        if (resolved is Symbol resolvedSymbol && resolvedSymbol.Name.StartsWith("operator_implicit_"))
+        {
+            // Extract the target type name from the operator's declared type.
+            var targetTypeName = resolvedSymbol.DeclaredType?.DisplayName;
+            if (targetTypeName is not null)
+            {
+                var emittedTypeName = CSharpTypeMap.GetTypeName(resolvedSymbol.DeclaredType!);
+                return $"(({emittedTypeName}){expression})";
+            }
+        }
+        return expression;
     }
 
     // ── Operator dispatch helpers ────────────────────────────────────────

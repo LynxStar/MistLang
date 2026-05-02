@@ -187,6 +187,7 @@ rule MemberDeclaration
     = constructor:ConstructorDeclaration as ConstructorMember
     | method:MethodDeclaration           as MethodMember
     | operator:OperatorDeclaration       as OperatorMember
+    | castOperator:CastOperatorDeclaration as CastOperatorMember
     | property:PropertyDeclaration       as PropertyMember
     | indexer:IndexerDeclaration         as IndexerMember
     | field:FieldDeclaration             as FieldMember
@@ -249,6 +250,18 @@ rule OperatorDeclaration = modifiers:Modifier*
 rule OperatorBody
     = block:Block as OperatorBlockBody
     | SEMICOLON   as OperatorNoBody
+    ;
+
+rule CastOperatorDeclaration = modifiers:Modifier*
+                               castKind:CastOperatorKind
+                               OPERATOR
+                               targetType:TypeReference
+                               LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
+                               body:OperatorBody;
+
+rule CastOperatorKind
+    = IMPLICIT as ImplicitCast
+    | EXPLICIT as ExplicitCast
     ;
 
 rule OperatorSymbol
@@ -355,7 +368,8 @@ rule Additive   = left:Multiplicative (operator:(PLUS | MINUS) right:Multiplicat
 rule Multiplicative = left:Unary (operator:(STAR | SLASH | MODULO) right:Unary)*;
 
 rule Unary
-    = EXCLAMATION operand:Unary    as LogicalNot
+    = LEFT_PARENTHESIS targetType:TypeReference RIGHT_PARENTHESIS operand:Unary  as CastExpression
+    | EXCLAMATION operand:Unary    as LogicalNot
     | MINUS operand:Unary          as Negate
     | primary:Postfix              as PostfixExpression
     ;

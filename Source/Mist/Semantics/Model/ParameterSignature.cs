@@ -99,7 +99,7 @@ public static class ParameterSignature
     /// <summary>
     /// Extracts the ParameterListNode from a declaring AST node,
     /// handling MethodDeclarationNode, ConstructorDeclarationNode,
-    /// InterfaceMethodDeclarationNode, and OperatorDeclarationNode.
+    /// InterfaceMethodDeclarationNode, OperatorDeclarationNode, and CastOperatorDeclarationNode.
     /// </summary>
     private static ParameterListNode? GetParameterList(Storm.Runtime.SyntaxNode declaringNode)
     {
@@ -109,6 +109,7 @@ public static class ParameterSignature
             ConstructorDeclarationNode ctor => ctor.Parameters,
             InterfaceMethodDeclarationNode interfaceMethod => interfaceMethod.Parameters,
             OperatorDeclarationNode op => op.Parameters,
+            CastOperatorDeclarationNode castOp => castOp.Parameters,
             _ => null,
         };
     }

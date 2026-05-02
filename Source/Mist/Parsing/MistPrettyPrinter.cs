@@ -254,6 +254,12 @@ public sealed class MistPrettyPrinter
             case IndexerMemberMemberDeclarationNode indexerMember:
                 EmitIndexerDeclaration(indexerMember.Indexer);
                 break;
+            case OperatorMemberMemberDeclarationNode operatorMember:
+                EmitOperatorDeclaration(operatorMember.Operator);
+                break;
+            case CastOperatorMemberMemberDeclarationNode castOpMember:
+                EmitCastOperatorDeclaration(castOpMember.CastOperator);
+                break;
         }
     }
 
@@ -554,6 +560,78 @@ public sealed class MistPrettyPrinter
 
         var accessorBody = string.Join(" ", accessorParts);
         AppendLine($"{modifiers}{type} this[{parameters}] {{ {accessorBody} }}");
+    }
+
+    // ─── Operator Declarations ───────────────────────────────────────────
+
+    private void EmitOperatorDeclaration(OperatorDeclarationNode opDecl)
+    {
+        var modifiers = EmitModifiers(opDecl.Modifiers);
+        var returnType = EmitTypeReference(opDecl.ReturnType);
+        var symbol = opDecl.Symbol switch
+        {
+            PlusOpOperatorSymbolNode => "+",
+            MinusOpOperatorSymbolNode => "-",
+            StarOpOperatorSymbolNode => "*",
+            SlashOpOperatorSymbolNode => "/",
+            ModuloOpOperatorSymbolNode => "%",
+            EqualEqualOpOperatorSymbolNode => "==",
+            NotEqualOpOperatorSymbolNode => "!=",
+            LessThanOpOperatorSymbolNode => "<",
+            GreaterThanOpOperatorSymbolNode => ">",
+            LessThanOrEqualOpOperatorSymbolNode => "<=",
+            GreaterThanOrEqualOpOperatorSymbolNode => ">=",
+            LogicalAndOpOperatorSymbolNode => "&&",
+            LogicalOrOpOperatorSymbolNode => "||",
+            ExclamationOpOperatorSymbolNode => "!",
+            _ => "?",
+        };
+        var parameters = EmitParameterList(opDecl.Parameters);
+
+        if (opDecl.Body is OperatorBlockBodyOperatorBodyNode blockBody)
+        {
+            AppendLine($"{modifiers}{returnType} operator {symbol}({parameters}) {{");
+            _indentLevel++;
+
+            foreach (var stmt in blockBody.Block.Statements)
+            {
+                EmitStatement(stmt);
+            }
+
+            _indentLevel--;
+            AppendLine("}");
+        }
+        else
+        {
+            AppendLine($"{modifiers}{returnType} operator {symbol}({parameters});");
+        }
+    }
+
+    private void EmitCastOperatorDeclaration(CastOperatorDeclarationNode castOpDecl)
+    {
+        var modifiers = EmitModifiers(castOpDecl.Modifiers);
+        var castKind = castOpDecl.CastKind is ImplicitCastCastOperatorKindNode
+            ? "implicit" : "explicit";
+        var targetType = EmitTypeReference(castOpDecl.TargetType);
+        var parameters = EmitParameterList(castOpDecl.Parameters);
+
+        if (castOpDecl.Body is OperatorBlockBodyOperatorBodyNode blockBody)
+        {
+            AppendLine($"{modifiers}{castKind} operator {targetType}({parameters}) {{");
+            _indentLevel++;
+
+            foreach (var stmt in blockBody.Block.Statements)
+            {
+                EmitStatement(stmt);
+            }
+
+            _indentLevel--;
+            AppendLine("}");
+        }
+        else
+        {
+            AppendLine($"{modifiers}{castKind} operator {targetType}({parameters});");
+        }
     }
 
     // ─── Interface Property Declarations ─────────────────────────────────
@@ -1098,6 +1176,8 @@ public sealed class MistPrettyPrinter
     {
         switch (unary)
         {
+            case CastExpressionUnaryNode castExpr:
+                return $"({EmitTypeReference(castExpr.TargetType)}){EmitUnary(castExpr.Operand)}";
             case LogicalNotUnaryNode logicalNot:
                 return $"!{EmitUnary(logicalNot.Operand)}";
             case NegateUnaryNode negate:
@@ -1243,6 +1323,9 @@ public sealed class MistPrettyPrinter
                     break;
                 case StaticModifierModifierNode:
                     parts.Add("static");
+                    break;
+                case IntrinsicModifierModifierNode:
+                    parts.Add("intrinsic");
                     break;
             }
         }

@@ -17,6 +17,7 @@ public class Program
         GenericTypes.Program.RunDemo();
         Overloading.Program.RunDemo();
         VoidType.Program.RunDemo();
+        CastOperators.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

@@ -98,6 +98,10 @@ public sealed class CSharpEmitter
                 {
                     namespaces.Add(it.ContainingNamespace);
                 }
+                else if (symbol.DeclaredType is TraitType tt && tt.ContainingNamespace is not null)
+                {
+                    namespaces.Add(tt.ContainingNamespace);
+                }
                 else if (symbol.Kind == SymbolKind.Namespace)
                 {
                     namespaces.Add(symbol.Name);
@@ -631,6 +635,7 @@ internal sealed class CSharpSourceWriter
             ClassTypeTypeDeclarationNode classType => classType.ClassDeclaration,
             StructTypeTypeDeclarationNode structType => structType.StructDeclaration,
             InterfaceTypeTypeDeclarationNode interfaceType => interfaceType.InterfaceDeclaration,
+            TraitTypeTypeDeclarationNode traitType => traitType.TraitDeclaration,
             _ => null,
         };
 
@@ -644,6 +649,7 @@ internal sealed class CSharpSourceWriter
             ClassType ct => ct.ContainingNamespace,
             StructType st => st.ContainingNamespace,
             InterfaceType it => it.ContainingNamespace,
+            TraitType tt => tt.ContainingNamespace,
             _ => null,
         };
     }
@@ -693,6 +699,9 @@ internal sealed class CSharpSourceWriter
             case StructTypeTypeDeclarationNode structType:
                 EmitStructDeclaration(structType.StructDeclaration);
                 break;
+            case TraitTypeTypeDeclarationNode traitType:
+                EmitTraitDeclaration(traitType.TraitDeclaration);
+                break;
             case InterfaceTypeTypeDeclarationNode interfaceType:
                 EmitInterfaceDeclaration(interfaceType.InterfaceDeclaration);
                 break;
@@ -724,7 +733,22 @@ internal sealed class CSharpSourceWriter
         var baseClause = "";
         if (classDecl.BaseList is not null)
         {
-            baseClause = $" : {EmitBaseListWithTypeArgs(classDecl.BaseList)}";
+            var baseParts = EmitBaseListWithTypeArgs(classDecl.BaseList);
+
+            // Append trait interfaces for this class
+            var traitNames = new List<string>();
+            if (symbol?.DeclaredType is ClassType classTypeFromBase)
+            {
+                foreach (var (_, trait, _) in _model.TraitSatisfactionMap.All()
+                    .Where(s => ReferenceEquals(s.Type, classTypeFromBase)))
+                {
+                    traitNames.Add(trait.DisplayName);
+                }
+            }
+
+            baseClause = traitNames.Count > 0
+                ? $" : {baseParts}, {string.Join(", ", traitNames)}"
+                : $" : {baseParts}";
         }
         else if (symbol?.DeclaredType is ClassType classType)
         {
@@ -740,6 +764,13 @@ internal sealed class CSharpSourceWriter
             foreach (var iface in classType.Interfaces)
             {
                 parts.Add(CSharpTypeMap.GetTypeName(iface));
+            }
+
+            // Trait interfaces
+            foreach (var (_, trait, _) in _model.TraitSatisfactionMap.All()
+                .Where(s => ReferenceEquals(s.Type, classType)))
+            {
+                parts.Add(trait.DisplayName);
             }
 
             if (parts.Count > 0)
@@ -761,6 +792,12 @@ internal sealed class CSharpSourceWriter
                 AppendLine();
             }
             EmitMemberDeclaration(classDecl.Members[i]);
+        }
+
+        // Emit explicit interface implementations for with-mapped trait members.
+        if (symbol?.DeclaredType is ClassType classTypeForTraits)
+        {
+            EmitExplicitTraitImplementations(classTypeForTraits, classDecl.Members.Length > 0);
         }
 
         _indentLevel--;
@@ -828,6 +865,214 @@ internal sealed class CSharpSourceWriter
         AppendLine($"{type} {name} {{ {string.Join(" ", accessors)} }}");
     }
 
+    // ─── Trait Declarations ─────────────────────────────────────────────
+
+    private void EmitTraitDeclaration(TraitDeclarationNode traitDecl)
+    {
+        var name = traitDecl.Name.Lexeme;
+        AppendLine($"interface {name}");
+        AppendLine("{");
+        _indentLevel++;
+
+        foreach (var member in traitDecl.Members)
+        {
+            switch (member)
+            {
+                case TraitFieldMemberTraitMemberDeclarationNode fieldMember:
+                    EmitTraitFieldAsProperty(fieldMember.Field);
+                    break;
+                case TraitMethodMemberTraitMemberDeclarationNode methodMember:
+                    EmitTraitMethodDeclaration(methodMember.Method);
+                    break;
+                case TraitPropertyMemberTraitMemberDeclarationNode propertyMember:
+                    EmitTraitPropertyDeclaration(propertyMember.Property);
+                    break;
+            }
+        }
+
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    private void EmitTraitFieldAsProperty(TraitFieldDeclarationNode fieldDecl)
+    {
+        var type = EmitTypeReference(fieldDecl.Type);
+        var name = fieldDecl.Name.Lexeme;
+        AppendLine($"{type} {name} {{ get; }}");
+    }
+
+    private void EmitTraitMethodDeclaration(TraitMethodDeclarationNode methodDecl)
+    {
+        var returnType = EmitTypeReference(methodDecl.ReturnType);
+        var name = methodDecl.Name.Lexeme;
+        var parameters = EmitParameterList(methodDecl.Parameters);
+        AppendLine($"{returnType} {name}({parameters});");
+    }
+
+    private void EmitTraitPropertyDeclaration(TraitPropertyDeclarationNode propertyDecl)
+    {
+        var type = EmitTypeReference(propertyDecl.Type);
+        var name = propertyDecl.Name.Lexeme;
+
+        var accessors = new List<string>();
+        foreach (var accessor in propertyDecl.Accessors)
+        {
+            switch (accessor)
+            {
+                case InterfaceGetAccessorInterfaceAccessorDeclarationNode:
+                    accessors.Add("get;");
+                    break;
+                case InterfaceSetAccessorInterfaceAccessorDeclarationNode:
+                    accessors.Add("set;");
+                    break;
+            }
+        }
+
+        AppendLine($"{type} {name} {{ {string.Join(" ", accessors)} }}");
+    }
+
+    // ─── Explicit Trait Interface Implementations ────────────────────────
+
+    /// <summary>
+    /// Emits explicit interface implementations for all <c>with</c>-mapped members
+    /// on the given type. Only <c>with</c>-mapped members get explicit implementations;
+    /// structurally matched members are already compatible by name.
+    /// </summary>
+    private void EmitExplicitTraitImplementations(IType type, bool hasExistingMembers)
+    {
+        foreach (var (_, trait, satisfaction) in _model.TraitSatisfactionMap.All()
+            .Where(s => ReferenceEquals(s.Type, type)))
+        {
+            if (satisfaction.WithMappings.Count == 0)
+                continue;
+
+            var traitName = trait.DisplayName;
+
+            foreach (var (traitMemberName, sourceMemberSymbol) in satisfaction.WithMappings)
+            {
+                // Look up the trait member symbol from the trait's member scope.
+                var traitMemberSymbol = trait.MemberScope.Lookup(traitMemberName);
+                if (traitMemberSymbol is null)
+                    continue;
+
+                // Get the declaring node of the trait member to determine its kind.
+                var declaringNode = _model.GetDeclaringNode(traitMemberSymbol);
+                var sourceName = sourceMemberSymbol.Name;
+
+                if (hasExistingMembers)
+                {
+                    AppendLine();
+                }
+                hasExistingMembers = true;
+
+                switch (declaringNode)
+                {
+                    case TraitFieldDeclarationNode fieldDecl:
+                    {
+                        // Field mapping: emit as property with expression body.
+                        // int ITraitName.x => this.a;
+                        var fieldType = EmitTypeReference(fieldDecl.Type);
+                        AppendLine($"{fieldType} {traitName}.{traitMemberName} => this.{sourceName};");
+                        break;
+                    }
+                    case TraitMethodDeclarationNode methodDecl:
+                    {
+                        // Method mapping: emit as method with expression body delegating to source.
+                        // int ITraitName.calculate(int a) => this.compute(a);
+                        var returnType = EmitTypeReference(methodDecl.ReturnType);
+                        var parameters = EmitTraitMethodParameters(methodDecl.Parameters);
+                        var arguments = EmitTraitMethodArguments(methodDecl.Parameters);
+                        AppendLine($"{returnType} {traitName}.{traitMemberName}({parameters}) => this.{sourceName}({arguments});");
+                        break;
+                    }
+                    case TraitPropertyDeclarationNode propertyDecl:
+                    {
+                        // Property mapping: emit as property delegating to source.
+                        // int ITraitName.x => this.a;  (for get-only)
+                        // or with get/set accessors
+                        var propType = EmitTypeReference(propertyDecl.Type);
+                        var hasGet = false;
+                        var hasSet = false;
+                        foreach (var accessor in propertyDecl.Accessors)
+                        {
+                            switch (accessor)
+                            {
+                                case InterfaceGetAccessorInterfaceAccessorDeclarationNode:
+                                    hasGet = true;
+                                    break;
+                                case InterfaceSetAccessorInterfaceAccessorDeclarationNode:
+                                    hasSet = true;
+                                    break;
+                            }
+                        }
+
+                        if (hasGet && !hasSet)
+                        {
+                            // Get-only property: use expression body.
+                            AppendLine($"{propType} {traitName}.{traitMemberName} => this.{sourceName};");
+                        }
+                        else
+                        {
+                            // Property with get and/or set: use block body.
+                            AppendLine($"{propType} {traitName}.{traitMemberName}");
+                            AppendLine("{");
+                            _indentLevel++;
+                            if (hasGet)
+                                AppendLine($"get => this.{sourceName};");
+                            if (hasSet)
+                                AppendLine($"set => this.{sourceName} = value;");
+                            _indentLevel--;
+                            AppendLine("}");
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Emits the parameter declarations for a trait method (type + name pairs).
+    /// Used when generating explicit interface implementations.
+    /// </summary>
+    private string EmitTraitMethodParameters(ParameterListNode? paramList)
+    {
+        if (paramList is null) return "";
+
+        var parts = new List<string>();
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode param)
+            {
+                var type = EmitTypeReference(param.Type);
+                var name = param.Name.Lexeme;
+                parts.Add($"{type} {name}");
+            }
+        }
+
+        return string.Join(", ", parts);
+    }
+
+    /// <summary>
+    /// Emits the argument names for forwarding a trait method call to the source method.
+    /// Used when generating explicit interface implementations.
+    /// </summary>
+    private static string EmitTraitMethodArguments(ParameterListNode? paramList)
+    {
+        if (paramList is null) return "";
+
+        var names = new List<string>();
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode param)
+            {
+                names.Add(param.Name.Lexeme);
+            }
+        }
+
+        return string.Join(", ", names);
+    }
+
     private void EmitStructDeclaration(StructDeclarationNode structDecl)
     {
         var symbol = _model.GetDeclaredSymbol(structDecl);
@@ -850,12 +1095,44 @@ internal sealed class CSharpSourceWriter
         var interfaceList = "";
         if (structDecl.Interfaces is not null)
         {
-            interfaceList = $" : {EmitBaseListWithTypeArgs(structDecl.Interfaces)}";
+            var baseParts = EmitBaseListWithTypeArgs(structDecl.Interfaces);
+
+            // Append trait interfaces for this struct
+            var traitNames = new List<string>();
+            if (symbol?.DeclaredType is StructType structTypeFromBase)
+            {
+                foreach (var (_, trait, _) in _model.TraitSatisfactionMap.All()
+                    .Where(s => ReferenceEquals(s.Type, structTypeFromBase)))
+                {
+                    traitNames.Add(trait.DisplayName);
+                }
+            }
+
+            interfaceList = traitNames.Count > 0
+                ? $" : {baseParts}, {string.Join(", ", traitNames)}"
+                : $" : {baseParts}";
         }
-        else if (symbol?.DeclaredType is StructType structType && structType.Interfaces.Count > 0)
+        else if (symbol?.DeclaredType is StructType structType)
         {
-            var names = structType.Interfaces.Select(i => CSharpTypeMap.GetTypeName(i));
-            interfaceList = $" : {string.Join(", ", names)}";
+            var parts = new List<string>();
+
+            // Interfaces
+            foreach (var iface in structType.Interfaces)
+            {
+                parts.Add(CSharpTypeMap.GetTypeName(iface));
+            }
+
+            // Trait interfaces
+            foreach (var (_, trait, _) in _model.TraitSatisfactionMap.All()
+                .Where(s => ReferenceEquals(s.Type, structType)))
+            {
+                parts.Add(trait.DisplayName);
+            }
+
+            if (parts.Count > 0)
+            {
+                interfaceList = $" : {string.Join(", ", parts)}";
+            }
         }
         AppendLine($"{modifiers}struct {name}{typeParams}{interfaceList}");
         AppendLine("{");
@@ -871,6 +1148,12 @@ internal sealed class CSharpSourceWriter
                 AppendLine();
             }
             EmitMemberDeclaration(structDecl.Members[i]);
+        }
+
+        // Emit explicit interface implementations for with-mapped trait members.
+        if (symbol?.DeclaredType is StructType structTypeForTraits)
+        {
+            EmitExplicitTraitImplementations(structTypeForTraits, structDecl.Members.Length > 0);
         }
 
         _indentLevel--;

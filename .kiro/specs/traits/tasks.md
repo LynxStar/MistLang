@@ -102,7 +102,7 @@ Add traits — a structural typing mechanism — to the Mist programming languag
 - [x] 6. Checkpoint — Ensure all tests pass
   - Run `dotnet test` and verify all existing and new tests pass. Ask the user if questions arise.
 
-- [ ] 7. Extend Pass 2 type resolution and type checker for trait assignability
+- [x] 7. Extend Pass 2 type resolution and type checker for trait assignability
   - [x] 7.1 Extend Pass 2 to resolve `TraitType` references
     - In `SemanticModelBuilder` Pass 2, extend type reference resolution to handle `SymbolKind.Trait` symbols, returning their `TraitType`
     - Ensure `TraitType` is handled in scope lookups and `FindDeclaringType`
@@ -123,12 +123,12 @@ Add traits — a structural typing mechanism — to the Mist programming languag
     - Extend `CheckAssignability` to emit `MIST_TRAIT_UNSATISFIED` diagnostic with trait name, type name, and unsatisfied member list when assignment fails
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 10.1_
 
-  - [ ] 7.5 Write property test for trait assignability
+  - [x] 7.5 Write property test for trait assignability
     - **Property 6: Trait assignability**
     - **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5**
 
-- [ ] 8. Extend C# emitter for trait code generation
-  - [ ] 8.1 Add trait emission to `CSharpSourceWriter`
+- [x] 8. Extend C# emitter for trait code generation
+  - [x] 8.1 Add trait emission to `CSharpSourceWriter`
     - Add `TraitTypeTypeDeclarationNode` case to `EmitTypeDeclaration`
     - Implement `EmitTraitDeclaration` to emit C# interface: field members as properties with getters (`int X { get; }`), method members as method signatures, property members as property signatures with matching accessors
     - Extend `CSharpTypeMap.GetTypeName` to handle `TraitType`
@@ -136,45 +136,45 @@ Add traits — a structural typing mechanism — to the Mist programming languag
     - Extend `CollectBackendNamespaces` to handle `TraitType`
     - _Requirements: 9.1, 9.2, 9.3, 9.4_
 
-  - [ ] 8.2 Add trait interface to satisfying types' inheritance lists
+  - [x] 8.2 Add trait interface to satisfying types' inheritance lists
     - Extend `EmitClassDeclaration` to consult `TraitSatisfactionMap` and append trait interface names to the inheritance list
     - Extend `EmitStructDeclaration` similarly
     - _Requirements: 9.5_
 
-  - [ ] 8.3 Generate explicit interface implementations for `with` mappings
+  - [x] 8.3 Generate explicit interface implementations for `with` mappings
     - For each `with`-mapped member on a satisfying type, emit explicit interface implementations inside the class/struct body
     - Field/property mappings: `int ITraitName.x => this.a;`
     - Method mappings: `int ITraitName.calculate(int a) => this.compute(a);`
     - Only emit explicit implementations for `with`-mapped members, not structurally matched ones
     - _Requirements: 9.6, 9.7_
 
-  - [ ] 8.4 Write property test for trait C# emission correctness
+  - [x] 8.4 Write property test for trait C# emission correctness
     - **Property 8: Trait C# emission correctness**
     - **Validates: Requirements 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7**
 
-- [ ] 9. Write property test for trait and interface coexistence
-  - [ ] 9.1 Write property test for coexistence
+- [x] 9. Write property test for trait and interface coexistence
+  - [x] 9.1 Write property test for coexistence
     - **Property 9: Trait and interface coexistence**
     - **Validates: Requirements 11.1, 11.2, 11.3**
 
-- [ ] 10. Checkpoint — Ensure all tests pass
+- [x] 10. Checkpoint — Ensure all tests pass
   - Run `dotnet test` and verify all existing and new tests pass. Ask the user if questions arise.
 
-- [ ] 11. Update syntax highlighting and documentation
-  - [ ] 11.1 Update TextMate grammar for `trait`, `with`, and `as` keywords
+- [x] 11. Update syntax highlighting and documentation
+  - [x] 11.1 Update TextMate grammar for `trait`, `with`, and `as` keywords
     - Add `trait` to the `keyword.declaration.mist` pattern in `Editor/mist-syntax-highlighting/syntaxes/mist.tmLanguage.json` alongside `class`, `struct`, and `interface`
     - Add a `declaration-names` pattern matching `trait` followed by an identifier with scope `entity.name.type.trait.mist`
     - Add `with` and `as` to keyword patterns so they are highlighted as keywords
     - _Requirements: 12.1, 12.2, 12.3, 12.4_
 
-  - [ ] 11.2 Update `CSHARP_FEATURES.md`
+  - [x] 11.2 Update `CSHARP_FEATURES.md`
     - Add `Traits (structural typing)` entry marked as ✅ Implemented in the `Type Declarations` section
     - Add a `Structural Typing` section documenting trait declarations, structural matching, and `with` blocks
     - Update the `Summary` table counts to reflect the new implementations
     - _Requirements: 13.1, 13.2, 13.3_
 
-- [ ] 12. Create trait sample application
-  - [ ] 12.1 Create `samples/Traits/` with Mist source files
+- [x] 12. Create trait sample application
+  - [x] 12.1 Create `samples/Traits/` with Mist source files
     - Demonstrate declaring a trait with field members
     - Demonstrate a type that structurally satisfies a trait without any explicit declaration
     - Demonstrate a `with` block that maps a type's members to a trait when the names differ
@@ -183,7 +183,7 @@ Add traits — a structural typing mechanism — to the Mist programming languag
     - Include a `static void Main` entry point that exercises all features and prints output via `Console.WriteLine`
     - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6, 14.7, 14.8_
 
-- [ ] 13. Final checkpoint — Ensure all tests pass
+- [x] 13. Final checkpoint — Ensure all tests pass
   - Run `dotnet test` and verify all existing and new tests pass. Ask the user if questions arise.
 
 ## Notes

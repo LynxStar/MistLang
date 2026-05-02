@@ -79,7 +79,7 @@
         },
         {
           "name": "keyword.declaration.mist",
-          "match": "\\b(namespace|using|class|struct|interface)\\b"
+          "match": "\\b(namespace|using|class|struct|interface|trait)\\b"
         },
         {
           "name": "storage.modifier.mist",
@@ -87,7 +87,7 @@
         },
         {
           "name": "keyword.other.mist",
-          "match": "\\b(new|var|this|get|set|init|field|operator)\\b"
+          "match": "\\b(new|var|this|get|set|init|field|operator|with|as)\\b"
         }
       ]
     },
@@ -157,6 +157,13 @@
           "captures": {
             "1": { "name": "keyword.declaration.mist" },
             "2": { "name": "entity.name.type.interface.mist" }
+          }
+        },
+        {
+          "match": "\\b(trait)\\s+([a-zA-Z_]\\w*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.mist" },
+            "2": { "name": "entity.name.type.trait.mist" }
           }
         },
         {

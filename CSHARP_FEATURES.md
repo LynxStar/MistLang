@@ -64,6 +64,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | Static classes | 🔲 | |
 | Partial classes | 🔲 | |
 | Nested types | 🔲 | |
+| Traits (structural typing) | ✅ | Structural typing via `trait` declarations |
 | Generic type declarations | ✅ | |
 | Generic constraints (`where T : ...`) | 🔲 | |
 
@@ -375,6 +376,50 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 
 ---
 
+## Structural Typing
+
+Mist introduces traits as a structural typing mechanism. Unlike interfaces (nominal typing), traits use late-bound structural matching: any type whose public members match the trait's declared members automatically satisfies the trait, with no explicit declaration required.
+
+### Trait Declarations
+
+| Feature | Status | Notes |
+|---|---|---|
+| `trait` keyword | ✅ | `trait Name { ... }` |
+| Trait field members | ✅ | `type name;` — matched by public fields or properties |
+| Trait method members | ✅ | `returnType name(params);` — matched by name, return type, and parameter types |
+| Trait property members | ✅ | `type name { get; set; }` — matched by name, type, and accessors |
+| Empty traits | ✅ | Traits with no members |
+
+### Structural Matching
+
+| Feature | Status | Notes |
+|---|---|---|
+| Automatic satisfaction | ✅ | Types satisfy traits by having matching public members |
+| Field-to-property matching | ✅ | Trait fields can be matched by public properties |
+| Visibility constraint | ✅ | Only public members participate in matching |
+| Trait assignability | ✅ | Trait-typed variables accept any satisfying type |
+| Trait member access | ✅ | Member access on trait-typed variables resolves against trait scope |
+
+### `with` Blocks
+
+| Feature | Status | Notes |
+|---|---|---|
+| `with` declarations | ✅ | `with TypeName : TraitName { ... }` |
+| Member mapping (`as`) | ✅ | `sourceName as targetName;` |
+| Combined satisfaction | ✅ | Structural match + `with` mappings |
+| Validation diagnostics | ✅ | Undefined types/members, type mismatches, duplicates |
+
+### C# Lowering
+
+| Feature | Status | Notes |
+|---|---|---|
+| Traits as C# interfaces | ✅ | Each trait emits a C# interface |
+| Trait fields as properties | ✅ | `int x;` → `int x { get; }` |
+| Inheritance list injection | ✅ | Satisfying types get trait interface added |
+| Explicit implementations | ✅ | `with` mappings emit `int ITraitName.x => this.a;` |
+
+---
+
 ## Pattern Matching
 
 | Feature | Status | Notes |
@@ -522,7 +567,7 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 |---|---|---|---|
 | Value Types | 14 | 4 | 0 |
 | Reference Types | 4 | 6 | 1 |
-| Type Declarations | 4 | 10 | 0 |
+| Type Declarations | 5 | 10 | 0 |
 | Members — Fields | 3 | 3 | 1 |
 | Members — Properties | 10 | 1 | 0 |
 | Members — Methods | 5 | 12 | 0 |
@@ -543,6 +588,10 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 | Expressions — Object Creation | 2 | 5 | 0 |
 | Expressions — Other | 2 | 14 | 2 |
 | Inheritance | 3 | 8 | 0 |
+| Structural Typing — Traits | 5 | 0 | 0 |
+| Structural Typing — Matching | 5 | 0 | 0 |
+| Structural Typing — With Blocks | 4 | 0 | 0 |
+| Structural Typing — C# Lowering | 4 | 0 | 0 |
 | Pattern Matching | 0 | 8 | 0 |
 | Generics | 3 | 3 | 0 |
 | Async | 0 | 5 | 1 |

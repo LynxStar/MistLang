@@ -1,0 +1,53 @@
+using System;
+
+namespace Traits;
+
+public class Program
+{
+    // This function accepts any type that satisfies the Printable trait.
+    // Both structurally matched types and with-mapped types can be passed here.
+    private static void PrintItem(Printable item)
+    {
+        Console.WriteLine($"  Name: {item.Name}, Id: {item.Id}");
+    }
+
+    public static void Main(string[] args)
+    {
+        // --- Structural match: User satisfies Printable by having matching public members ---
+        Console.WriteLine("=== Structural trait satisfaction ===");
+        var user = new User("Alice", 42);
+        Console.WriteLine($"User created: {user.Name}, id {user.Id}");
+
+        // --- With-block mapping: Product satisfies Printable via explicit member mapping ---
+        Console.WriteLine("=== With-block trait satisfaction ===");
+        var product = new Product("Widget", 1001);
+        Console.WriteLine($"Product created: {product.Title}, sku {product.Sku}");
+
+        // --- Assign to trait-typed variables ---
+        Console.WriteLine("=== Trait-typed variables ===");
+        Printable p1 = new User("Bob", 7);
+        Console.WriteLine($"  Assigned User to Printable: Name={p1.Name}, Id={p1.Id}");
+
+        Printable p2 = new Product("Gadget", 2002);
+        Console.WriteLine($"  Assigned Product to Printable: Name={p2.Name}, Id={p2.Id}");
+
+        // --- Pass both types to a function accepting a trait-typed parameter ---
+        Console.WriteLine("=== Passing to trait-typed parameter ===");
+        PrintItem(user);
+        PrintItem(product);
+
+        // --- Compile-time error case (uncomment to see the error) ---
+        // The following type does NOT satisfy Printable because it is
+        // missing the `Id` field. Uncommenting the assignment would produce:
+        //   error MIST_TRAIT_UNSATISFIED: Type 'Incomplete' does not satisfy
+        //   trait 'Printable'. Missing members: Id.
+        //
+        // class Incomplete
+        // {
+        //     public string Name;
+        // }
+        // Printable bad = new Incomplete();
+
+        Console.WriteLine("Done!");
+    }
+}

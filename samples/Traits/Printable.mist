@@ -1,0 +1,12 @@
+using System;
+
+namespace Traits;
+
+// A trait declares a structural contract.
+// Any type whose public members match these signatures
+// automatically satisfies the trait — no explicit declaration needed.
+trait Printable
+{
+    string Name;
+    int Id;
+}

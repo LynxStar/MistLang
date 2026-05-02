@@ -1,0 +1,26 @@
+using System;
+
+namespace Traits;
+
+// Product has the right types but different member names:
+// `Title` instead of `Name`, and `Sku` instead of `Id`.
+// A `with` block maps these members to the Printable trait.
+public class Product
+{
+    public string Title { get; set; }
+    public int Sku { get; set; }
+
+    public Product(string title, int sku)
+    {
+        this.Title = title;
+        this.Sku = sku;
+    }
+}
+
+// The `with` block maps Product's members to Printable's members.
+// This is a top-level declaration, separate from the class body.
+with Product : Printable
+{
+    Title as Name;
+    Sku as Id;
+}

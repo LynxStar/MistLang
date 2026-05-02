@@ -5,6 +5,7 @@ using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
+using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;
@@ -27,6 +28,7 @@ namespace Mist.Tests.Semantics;
 public class TraitAssignabilityPropertyTests
 {
     private readonly SemanticModelBuilder _builder = new();
+    private readonly TypeCheckerAnalyzer _analyzer = new();
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -53,6 +55,17 @@ public class TraitAssignabilityPropertyTests
             projectFolder: "/test",
             diagnostics);
         return (model, diagnostics.ToImmutableArray());
+    }
+
+    private (ISemanticModel Model, ImmutableArray<Diagnostic> AllDiagnostics) BuildAndAnalyze(
+        Storm.Runtime.SyntaxNode ast,
+        string source = "")
+    {
+        var (model, modelDiags) = BuildModelWithDiagnostics(ast, source);
+        var analyzerBag = new DiagnosticBag();
+        _analyzer.Analyze(model, analyzerBag);
+        var allDiags = modelDiags.AddRange(analyzerBag.ToImmutableArray());
+        return (model, allDiags);
     }
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string typeName)
@@ -749,7 +762,7 @@ public class TraitAssignabilityPropertyTests
             scenario =>
             {
                 var ast = BuildStructuralAssignAst(scenario);
-                var (model, diagnostics) = BuildModelWithDiagnostics(ast);
+                var (model, diagnostics) = BuildAndAnalyze(ast);
 
                 var traitUnsatisfiedDiags = diagnostics
                     .Where(d => d.Id.Value == "MIST_TRAIT_UNSATISFIED"
@@ -762,7 +775,7 @@ public class TraitAssignabilityPropertyTests
                     .Label($"Expected no MIST_TRAIT_UNSATISFIED for {scenario.ClassName} -> {scenario.TraitName}");
             });
 
-        property.Check(Config.Default.WithMaxTest(100));
+        property.QuickCheckThrowOnFailure();
     }
 
     /// <summary>
@@ -780,7 +793,7 @@ public class TraitAssignabilityPropertyTests
             scenario =>
             {
                 var ast = BuildWithBlockAssignAst(scenario);
-                var (model, diagnostics) = BuildModelWithDiagnostics(ast);
+                var (model, diagnostics) = BuildAndAnalyze(ast);
 
                 var traitUnsatisfiedDiags = diagnostics
                     .Where(d => d.Id.Value == "MIST_TRAIT_UNSATISFIED"
@@ -793,7 +806,7 @@ public class TraitAssignabilityPropertyTests
                     .Label($"Expected no MIST_TRAIT_UNSATISFIED for {scenario.ClassName} -> {scenario.TraitName} via with-block");
             });
 
-        property.Check(Config.Default.WithMaxTest(100));
+        property.QuickCheckThrowOnFailure();
     }
 
     /// <summary>
@@ -811,7 +824,7 @@ public class TraitAssignabilityPropertyTests
             scenario =>
             {
                 var ast = BuildUnsatisfiedAssignAst(scenario);
-                var (model, diagnostics) = BuildModelWithDiagnostics(ast);
+                var (model, diagnostics) = BuildAndAnalyze(ast);
 
                 var traitUnsatisfiedDiags = diagnostics
                     .Where(d => d.Id.Value == "MIST_TRAIT_UNSATISFIED"
@@ -824,7 +837,7 @@ public class TraitAssignabilityPropertyTests
                     .Label($"Expected MIST_TRAIT_UNSATISFIED for {scenario.ClassName} -> {scenario.TraitName}");
             });
 
-        property.Check(Config.Default.WithMaxTest(100));
+        property.QuickCheckThrowOnFailure();
     }
 
     /// <summary>
@@ -842,7 +855,7 @@ public class TraitAssignabilityPropertyTests
             scenario =>
             {
                 var ast = BuildParameterPassingAst(scenario);
-                var (model, diagnostics) = BuildModelWithDiagnostics(ast);
+                var (model, diagnostics) = BuildAndAnalyze(ast);
 
                 var traitUnsatisfiedDiags = diagnostics
                     .Where(d => d.Id.Value == "MIST_TRAIT_UNSATISFIED"
@@ -855,7 +868,7 @@ public class TraitAssignabilityPropertyTests
                     .Label($"Expected no MIST_TRAIT_UNSATISFIED for parameter passing {scenario.ClassName} -> {scenario.TraitName}");
             });
 
-        property.Check(Config.Default.WithMaxTest(100));
+        property.QuickCheckThrowOnFailure();
     }
 
     /// <summary>
@@ -873,7 +886,7 @@ public class TraitAssignabilityPropertyTests
             scenario =>
             {
                 var ast = BuildReturnTypeAst(scenario);
-                var (model, diagnostics) = BuildModelWithDiagnostics(ast);
+                var (model, diagnostics) = BuildAndAnalyze(ast);
 
                 var traitUnsatisfiedDiags = diagnostics
                     .Where(d => d.Id.Value == "MIST_TRAIT_UNSATISFIED"
@@ -886,6 +899,6 @@ public class TraitAssignabilityPropertyTests
                     .Label($"Expected no MIST_TRAIT_UNSATISFIED for return type {scenario.ClassName} -> {scenario.TraitName}");
             });
 
-        property.Check(Config.Default.WithMaxTest(100));
+        property.QuickCheckThrowOnFailure();
     }
 }

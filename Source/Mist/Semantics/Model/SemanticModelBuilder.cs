@@ -7053,6 +7053,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 result = ResolveIntegerLiteralType(hexLit.HexLiteral.Lexeme, fileScope, symbolTable);
                 break;
 
+            case BinaryLiteralExpressionPrimaryNode binLit:
+                result = ResolveIntegerLiteralType(binLit.BinaryLiteral.Lexeme, fileScope, symbolTable);
+                break;
+
             case FloatLiteralExpressionPrimaryNode floatLit:
                 result = ResolveFloatLiteralType(floatLit.FloatLiteral.Lexeme, fileScope, symbolTable);
                 break;

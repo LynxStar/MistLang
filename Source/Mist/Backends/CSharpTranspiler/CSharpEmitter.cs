@@ -2330,6 +2330,8 @@ internal sealed class CSharpSourceWriter
                 return intLit.IntegerLiteral.Lexeme;
             case HexLiteralExpressionPrimaryNode hexLit:
                 return hexLit.HexLiteral.Lexeme;
+            case BinaryLiteralExpressionPrimaryNode binLit:
+                return binLit.BinaryLiteral.Lexeme;
             case FloatLiteralExpressionPrimaryNode floatLit:
                 return floatLit.FloatLiteral.Lexeme;
             case StringLiteralExpressionPrimaryNode stringLit:

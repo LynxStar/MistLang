@@ -110,16 +110,20 @@
     "literals": {
       "patterns": [
         {
+          "name": "constant.numeric.binary.mist",
+          "match": "\\b0[bB][01](?:_?[01])*([lLuU]|UL|ul|Ul|uL|Lu|lU|LU|lu)?\\b"
+        },
+        {
           "name": "constant.numeric.hex.mist",
-          "match": "\\b0[xX][0-9a-fA-F]+([lLuU]|UL|ul|Ul|uL|Lu|lU|LU|lu)?\\b"
+          "match": "\\b0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*([lLuU]|UL|ul|Ul|uL|Lu|lU|LU|lu)?\\b"
         },
         {
           "name": "constant.numeric.float.mist",
-          "match": "\\b[0-9]+\\.[0-9]+[fFdDmM]?\\b|\\b[0-9]+[fFdDmM]\\b"
+          "match": "\\b[0-9](?:_?[0-9])*\\.[0-9](?:_?[0-9])*[fFdDmM]?\\b|\\b[0-9](?:_?[0-9])*[fFdDmM]\\b"
         },
         {
           "name": "constant.numeric.integer.mist",
-          "match": "\\b[0-9]+([lLuU]|UL|ul|Ul|uL|Lu|lU|LU|lu)?\\b"
+          "match": "\\b[0-9](?:_?[0-9])*([lLuU]|UL|ul|Ul|uL|Lu|lU|LU|lu)?\\b"
         },
         {
           "name": "constant.language.boolean.mist",

@@ -158,11 +158,11 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | `internal` | 🔲 | |
 | `protected internal` | 🔲 | |
 | `private protected` | 🔲 | |
-| `abstract` | 🔲 | |
-| `virtual` | 🔲 | |
-| `override` | 🔲 | |
-| `sealed` | 🔲 | |
-| `new` (member hiding) | 🔲 | |
+| `abstract` | ⛔ | |
+| `virtual` | ⛔ | |
+| `override` | ⛔ | |
+| `sealed` | ⛔ | |
+| `new` (member hiding) | ⛔ | |
 | `extern` | ⛔ | P/Invoke, out of scope |
 | `unsafe` | ⛔ | Pointer operations, out of scope |
 | `readonly` (on members) | 🔲 | |
@@ -179,7 +179,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 |---|---|---|
 | Typed variable declarations | ✅ | `int x = 5;` |
 | `var` (type inference) | ✅ | `var x = 5;` |
-| Multiple declarators (`int x, y;`) | 🔲 | |
+| Multiple declarators (`int x, y;`) | ⛔ | |
 | `const` locals | 🔲 | |
 | Ref locals (`ref int x = ...`) | 🔲 | |
 | Pattern-based declarations | 🔲 | |
@@ -236,7 +236,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 |---|---|---|
 | Integer literals | ✅ | With suffixes (L, U, UL, etc.) |
 | Hex literals (`0xFF`) | ✅ | |
-| Binary literals (`0b1010`) | 🔲 | C# 7 |
+| Binary literals (`0b1010`) | ✅ | C# 7; with digit separators |
 | Float/double/decimal literals | ✅ | With suffixes (f, d, m) |
 | String literals | ✅ | With escape sequences |
 | Interpolated strings (`$"..."`) | ✅ | With expression holes |
@@ -249,7 +249,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | `typeof(T)` | ⛔ | |
 | `nameof(x)` | 🔲 | C# 6 |
 | `sizeof(T)` | ⛔ | Low-level, out of scope |
-| Digit separators (`1_000_000`) | 🔲 | C# 7 |
+| Digit separators (`1_000_000`) | ✅ | C# 7; in all numeric literal types |
 | UTF-8 string literals (`"..."u8`) | ⛔ | C# 11, low-level |
 
 ### Arithmetic Operators
@@ -578,7 +578,7 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 | Statements — Control Flow | 6 | 7 | 1 |
 | Statements — Exceptions | 0 | 4 | 0 |
 | Statements — Other | 1 | 5 | 2 |
-| Expressions — Literals | 7 | 7 | 2 |
+| Expressions — Literals | 9 | 5 | 2 |
 | Expressions — Arithmetic | 6 | 2 | 0 |
 | Expressions — Comparison | 6 | 0 | 0 |
 | Expressions — Logical | 3 | 0 | 0 |

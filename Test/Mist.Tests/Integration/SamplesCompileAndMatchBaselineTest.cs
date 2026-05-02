@@ -50,7 +50,7 @@ public sealed class SamplesCompileAndMatchBaselineTest
             StartInfo = new ProcessStartInfo
             {
                 FileName = "dotnet",
-                Arguments = $"run --project \"{cliProjectPath}\" -- run \"{sampleDir}\"",
+                Arguments = $"run --project \"{cliProjectPath}\" -v q -- run \"{sampleDir}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,

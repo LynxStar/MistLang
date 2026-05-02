@@ -79,17 +79,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// DisplayName-based numeric classification set — covers both the
-    /// legacy <see cref="PrimitiveType"/> singletons (DisplayName
-    /// <c>"int"</c>, <c>"double"</c>, etc.) and the stdlib
-    /// <c>Standard.*</c> <see cref="StructType"/> instances (DisplayName
-    /// <c>"Int32"</c>, <c>"Double"</c>, etc.). Consulted by helpers that
-    /// still need numeric classification after Task 33 — variable
-    /// narrowing (<see cref="CheckAssignability"/> callers), numeric
-    /// widening in <see cref="HasImplicitNumericConversion"/>, and
-    /// equality compatibility in <see cref="AreEqualityCompatible"/>.
-    /// Operator type-checking no longer consults this set; operator
-    /// applicability flows from Operator_Declarations via overload
-    /// resolution (Requirement 6.7).
+    /// legacy keyword display names (<c>"int"</c>, <c>"double"</c>, etc.)
+    /// and the stdlib type names (<c>"Int32"</c>, <c>"Double"</c>, etc.).
+    /// Used for equality compatibility checks and variable declaration
+    /// narrowing suppression. Numeric widening conversions are now handled
+    /// by implicit cast operators declared on the stdlib bootstrap types.
     /// </summary>
     private static readonly HashSet<string> NumericDisplayNames = new(StringComparer.Ordinal)
     {
@@ -616,8 +610,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <summary>
     /// Checks whether <paramref name="source"/> is directly assignable to
     /// <paramref name="target"/> via identity, subtype, interface, trait,
-    /// numeric widening, or constructed type relationships — but <b>not</b>
-    /// via implicit cast operators. This is the subset of
+    /// or constructed type relationships — but <b>not</b>
+    /// via implicit cast operators (including numeric widening, which is
+    /// now expressed as implicit cast operators on stdlib types). This is the subset of
     /// <see cref="IsAssignable(IType, IType, ISemanticModel?)"/> used by
     /// <see cref="CheckCastExpression"/> to determine whether a cast is
     /// trivially valid without requiring a cast operator.
@@ -674,10 +669,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
         }
 
-        // Numeric widening.
-        if (NumericDisplayNames.Contains(source.DisplayName)
-            && NumericDisplayNames.Contains(target.DisplayName))
-            return HasImplicitNumericConversion(source, target);
+        // Numeric widening is now handled by implicit cast operators
+        // declared on the stdlib bootstrap types (e.g., Int32 has
+        // `implicit operator Int64`). The implicit cast operator fallback
+        // at the end of IsAssignable handles this. IsDirectlyAssignable
+        // intentionally does NOT check implicit cast operators.
 
         // Interface assignability.
         if (target is InterfaceType targetInterface)
@@ -3548,10 +3544,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
         }
 
-        // Numeric widening.
-        if (NumericDisplayNames.Contains(source.DisplayName)
-            && NumericDisplayNames.Contains(target.DisplayName))
-            return HasImplicitNumericConversion(source, target);
+        // Numeric widening is now handled by implicit cast operators
+        // declared on the stdlib bootstrap types. The implicit cast
+        // operator fallback at the end of this method handles it.
 
         // Interface assignability:
         // A class/struct implementing an interface (directly or transitively) is assignable to that interface.
@@ -4014,84 +4009,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsUnknown(IType type)
     {
         return type is UnknownType;
-    }
-
-    /// <summary>
-    /// Checks for implicit numeric widening conversions following C# rules.
-    /// Uses <see cref="NumericRank(IType)"/> for DisplayName-based matching
-    /// so the migration-window shim (<c>int</c> vs. <c>Int32</c>, …) does
-    /// not cause spurious conversion rejections.
-    /// </summary>
-    private static bool HasImplicitNumericConversion(IType source, IType target)
-    {
-        // Simplified C# implicit numeric conversion table keyed by
-        // DisplayName (covers both legacy `"int"` and stdlib `"Int32"`).
-        // byte → short, ushort, int, uint, long, ulong, float, double, decimal
-        // sbyte → short, int, long, float, double, decimal
-        // short → int, long, float, double, decimal
-        // ushort → int, uint, long, ulong, float, double, decimal
-        // int → long, float, double, decimal
-        // uint → long, ulong, float, double, decimal
-        // long → float, double, decimal
-        // ulong → float, double, decimal
-        // float → double
-        // char → ushort, int, uint, long, ulong, float, double, decimal
-        var src = CanonicalNumericName(source);
-        var tgt = CanonicalNumericName(target);
-        if (src is null || tgt is null) return false;
-
-        return src switch
-        {
-            "byte" => tgt is "short" or "ushort" or "int" or "uint" or "long" or "ulong" or "float" or "double" or "decimal",
-            "sbyte" => tgt is "short" or "int" or "long" or "float" or "double" or "decimal",
-            "short" => tgt is "int" or "long" or "float" or "double" or "decimal",
-            "ushort" => tgt is "int" or "uint" or "long" or "ulong" or "float" or "double" or "decimal",
-            "int" => tgt is "long" or "float" or "double" or "decimal",
-            "uint" => tgt is "long" or "ulong" or "float" or "double" or "decimal",
-            "long" => tgt is "float" or "double" or "decimal",
-            "ulong" => tgt is "float" or "double" or "decimal",
-            "float" => tgt is "double",
-            "char" => tgt is "ushort" or "int" or "uint" or "long" or "ulong" or "float" or "double" or "decimal",
-            _ => false,
-        };
-    }
-
-    /// <summary>
-    /// Returns the canonical legacy lexeme for a primitive type regardless
-    /// of whether the <see cref="IType"/> instance is a legacy
-    /// <see cref="PrimitiveType"/> singleton or the stdlib
-    /// <c>Standard.*</c> <see cref="StructType"/>. Returns <c>null</c>
-    /// when the type is not one of the 14 primitive aliases.
-    /// </summary>
-    private static string? CanonicalNumericName(IType type)
-    {
-        var name = type.DisplayName;
-
-        // Legacy lexemes are already canonical.
-        if (NumericDisplayNames.Contains(name))
-        {
-            // Convert stdlib simple names back to legacy lexemes.
-            return name switch
-            {
-                "Int32" => "int",
-                "UInt32" => "uint",
-                "Int64" => "long",
-                "UInt64" => "ulong",
-                "Int16" => "short",
-                "UInt16" => "ushort",
-                "Byte" => "byte",
-                "SByte" => "sbyte",
-                "Single" => "float",
-                "Double" => "double",
-                "Decimal" => "decimal",
-                _ => name,
-            };
-        }
-
-        // `char` participates in the widening table but isn't in
-        // NumericDisplayNames. Accept both `char` and `Char`.
-        if (name == "char" || name == "Char") return "char";
-        return null;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

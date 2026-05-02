@@ -19,4 +19,9 @@ intrinsic public struct Int64
 
     // Unary negation — Requirement 3.3
     intrinsic public static Int64 operator -(Int64 a);
+
+    // Implicit widening conversions
+    intrinsic public static implicit operator Single(Int64 value);
+    intrinsic public static implicit operator Double(Int64 value);
+    intrinsic public static implicit operator Decimal(Int64 value);
 }

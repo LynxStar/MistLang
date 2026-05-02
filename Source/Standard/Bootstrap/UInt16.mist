@@ -18,4 +18,13 @@ intrinsic public struct UInt16
     intrinsic public static Boolean operator !=(UInt16 a, UInt16 b);
 
     // No unary '-' on unsigned types — Requirement 3.4.
+
+    // Implicit widening conversions
+    intrinsic public static implicit operator Int32(UInt16 value);
+    intrinsic public static implicit operator UInt32(UInt16 value);
+    intrinsic public static implicit operator Int64(UInt16 value);
+    intrinsic public static implicit operator UInt64(UInt16 value);
+    intrinsic public static implicit operator Single(UInt16 value);
+    intrinsic public static implicit operator Double(UInt16 value);
+    intrinsic public static implicit operator Decimal(UInt16 value);
 }

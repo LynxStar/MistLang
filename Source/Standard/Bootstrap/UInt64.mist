@@ -18,4 +18,9 @@ intrinsic public struct UInt64
     intrinsic public static Boolean operator !=(UInt64 a, UInt64 b);
 
     // No unary '-' on unsigned types — Requirement 3.4.
+
+    // Implicit widening conversions
+    intrinsic public static implicit operator Single(UInt64 value);
+    intrinsic public static implicit operator Double(UInt64 value);
+    intrinsic public static implicit operator Decimal(UInt64 value);
 }

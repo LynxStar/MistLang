@@ -18,4 +18,15 @@ intrinsic public struct Byte
     intrinsic public static Boolean operator !=(Byte a, Byte b);
 
     // No unary '-' on unsigned types — Requirement 3.4.
+
+    // Implicit widening conversions
+    intrinsic public static implicit operator Int16(Byte value);
+    intrinsic public static implicit operator UInt16(Byte value);
+    intrinsic public static implicit operator Int32(Byte value);
+    intrinsic public static implicit operator UInt32(Byte value);
+    intrinsic public static implicit operator Int64(Byte value);
+    intrinsic public static implicit operator UInt64(Byte value);
+    intrinsic public static implicit operator Single(Byte value);
+    intrinsic public static implicit operator Double(Byte value);
+    intrinsic public static implicit operator Decimal(Byte value);
 }

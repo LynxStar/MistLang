@@ -25,9 +25,6 @@ public static class StormDiagnosticIds
     /// <summary>An alternative is statically unreachable under PEG ordered-choice semantics.</summary>
     public static string STORM_UNREACHABLE_ALTERNATIVE { get; } = "STORM0006";
 
-    /// <summary>A grammar ambiguity that cannot be resolved via bounded lookahead.</summary>
-    public static string STORM_AMBIGUOUS_RULE { get; } = "STORM0007";
-
     /// <summary>A grammar construct that the source generator cannot lower to C#.</summary>
     public static string STORM_UNSUPPORTED_CONSTRUCT { get; } = "STORM0008";
 

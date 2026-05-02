@@ -8,19 +8,38 @@ namespace Storm.SourceGenerator.Validate;
 
 /// <summary>
 /// Checks each rule's alternatives for unreachable alternatives under PEG ordered-choice
-/// semantics. Uses FIRST set analysis: if alternative k's FIRST set is a subset of the
-/// union of alternatives 1..k-1's FIRST sets, alternative k is unreachable.
-/// Emits STORM_UNREACHABLE_ALTERNATIVE warnings (not errors).
+/// semantics with backtracking.
+///
+/// The generated parser tries each alternative in order, saving and restoring position
+/// on failure. An alternative is only truly unreachable if an earlier alternative will
+/// always succeed on any input that the later alternative would match.
+///
+/// This pass uses FIRST-k sequence analysis (bounded lookahead depth) rather than
+/// single-token FIRST sets. Two alternatives that share the same first token but differ
+/// on subsequent tokens are distinguishable via backtracking and are NOT flagged.
+///
+/// An alternative k is flagged as unreachable only if every token sequence it can start
+/// with is also a prefix of an earlier alternative's token sequences — meaning the
+/// earlier alternative will always be tried first and will match the same input.
+///
+/// Emits STORM_UNREACHABLE_ALTERNATIVE warnings.
 /// </summary>
 public static class ReachabilityPass
 {
+    /// <summary>
+    /// Maximum lookahead depth for FIRST-k sequence computation.
+    /// Deeper lookahead catches more cases but is more expensive.
+    /// A depth of 3 handles the vast majority of grammar patterns.
+    /// </summary>
+    private const int MaxLookahead = 3;
+
     public static List<StormDiagnostic> Run(StormGrammar grammar)
     {
         var diagnostics = new List<StormDiagnostic>();
 
-        foreach(var decl in grammar.Declarations)
+        foreach (var decl in grammar.Declarations)
         {
-            if(decl is StormRuleDecl ruleDecl)
+            if (decl is StormRuleDecl ruleDecl)
             {
                 CheckRule(ruleDecl, grammar, diagnostics);
             }
@@ -34,38 +53,39 @@ public static class ReachabilityPass
         StormGrammar grammar,
         List<StormDiagnostic> diagnostics)
     {
-        // Only check rules with alternation at the top level
         var alternatives = GetTopLevelAlternatives(rule.Body);
-        if(alternatives.Count <= 1)
+        if (alternatives.Count <= 1)
         {
             return;
         }
 
-        // Compute FIRST sets for each alternative
-        var firstSets = new List<HashSet<string>>();
-        foreach(var alt in alternatives)
+        // Compute FIRST-k sequence sets for each alternative
+        var sequenceSets = new List<HashSet<string>>();
+        foreach (var alt in alternatives)
         {
-            firstSets.Add(ComputeFirstSet(alt, grammar));
+            sequenceSets.Add(ComputeFirstKSequences(alt, grammar, MaxLookahead));
         }
 
         // Check each alternative k against the union of 1..k-1
+        // An alternative is unreachable only if ALL of its FIRST-k sequences
+        // are also present in the union of earlier alternatives' sequences.
         var unionSoFar = new HashSet<string>();
-        for(var i = 0; i < alternatives.Count; i++)
+        for (var i = 0; i < alternatives.Count; i++)
         {
-            if(i > 0 && firstSets[i].Count > 0 && firstSets[i].IsSubsetOf(unionSoFar))
+            if (i > 0 && sequenceSets[i].Count > 0 && sequenceSets[i].IsSubsetOf(unionSoFar))
             {
                 diagnostics.Add(new StormDiagnostic(
                     StormDiagnosticIds.STORM_UNREACHABLE_ALTERNATIVE,
                     StormDiagnosticSeverity.Warning,
-                    $"Alternative {i + 1} in rule '{rule.Name}' is unreachable; its FIRST set is covered by earlier alternatives",
+                    $"Alternative {i + 1} in rule '{rule.Name}' is unreachable; its lookahead sequences are covered by earlier alternatives",
                     null,
                     rule.Line,
                     rule.Column));
             }
 
-            foreach(var token in firstSets[i])
+            foreach (var seq in sequenceSets[i])
             {
-                _ = unionSoFar.Add(token);
+                _ = unionSoFar.Add(seq);
             }
         }
     }
@@ -79,8 +99,7 @@ public static class ReachabilityPass
     {
         return body is StormAlternationExpr altExpr
             ? altExpr.Alternatives
-            : [body]
-            ;
+            : new List<StormExpression> { body };
     }
 
     /// <summary>
@@ -95,13 +114,195 @@ public static class ReachabilityPass
         return result;
     }
 
+    /// <summary>
+    /// Computes FIRST-k sequences for an expression — the set of token sequences
+    /// (up to length k) that can appear at the start of a match. Each sequence is
+    /// represented as a string of space-separated token identifiers.
+    /// </summary>
+    internal static HashSet<string> ComputeFirstKSequences(StormExpression expr, StormGrammar grammar, int k)
+    {
+        var prefixes = ComputePrefixes(expr, grammar, k, new HashSet<string>());
+        var result = new HashSet<string>();
+        foreach (var prefix in prefixes)
+        {
+            result.Add(string.Join(" ", prefix));
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Computes all possible token-sequence prefixes of length up to k for an expression.
+    /// Returns a set of lists, where each list is a sequence of token identifiers.
+    /// </summary>
+    private static List<List<string>> ComputePrefixes(
+        StormExpression expr,
+        StormGrammar grammar,
+        int k,
+        HashSet<string> visited)
+    {
+        if (k <= 0)
+        {
+            return new List<List<string>> { new List<string>() };
+        }
+
+        switch (expr)
+        {
+            case StormStringLiteralExpr strLit:
+                return new List<List<string>> { new List<string> { "str:" + strLit.Value } };
+
+            case StormCharClassExpr charClass:
+                return new List<List<string>> { new List<string> { "cc:" + charClass.Text } };
+
+            case StormReferenceExpr refExpr:
+            {
+                var resolved = grammar.LookupByName(refExpr.Name);
+                if (resolved is StormTokenDecl or StormHiddenTokenDecl)
+                {
+                    return new List<List<string>> { new List<string> { "tok:" + refExpr.Name } };
+                }
+                if (resolved is StormFragmentDecl)
+                {
+                    return new List<List<string>> { new List<string> { "frag:" + refExpr.Name } };
+                }
+                if (resolved is StormRuleDecl ruleDecl && visited.Add(refExpr.Name))
+                {
+                    var result = ComputePrefixes(ruleDecl.Body, grammar, k, visited);
+                    visited.Remove(refExpr.Name);
+                    return result;
+                }
+                return new List<List<string>> { new List<string>() };
+            }
+
+            case StormQualifiedReferenceExpr qualRef:
+            {
+                var qualName = qualRef.Qualifier + "." + qualRef.Name;
+                var qualResolved = grammar.LookupByName(qualName);
+                if (qualResolved is StormTokenDecl or StormHiddenTokenDecl)
+                {
+                    return new List<List<string>> { new List<string> { "tok:" + qualName } };
+                }
+                if (qualResolved is StormFragmentDecl)
+                {
+                    return new List<List<string>> { new List<string> { "frag:" + qualName } };
+                }
+                if (qualResolved is StormRuleDecl qualRuleDecl && visited.Add(qualName))
+                {
+                    var result = ComputePrefixes(qualRuleDecl.Body, grammar, k, visited);
+                    visited.Remove(qualName);
+                    return result;
+                }
+                return new List<List<string>> { new List<string>() };
+            }
+
+            case StormSequenceExpr seqExpr:
+                return ComputeSequencePrefixes(seqExpr.Elements, grammar, k, visited);
+
+            case StormAlternationExpr altExpr:
+            {
+                var result = new List<List<string>>();
+                foreach (var alt in altExpr.Alternatives)
+                {
+                    result.AddRange(ComputePrefixes(alt, grammar, k, visited));
+                }
+                return result;
+            }
+
+            case StormOptionalExpr optExpr:
+            {
+                var result = new List<List<string>> { new List<string>() };
+                result.AddRange(ComputePrefixes(optExpr.Inner, grammar, k, visited));
+                return result;
+            }
+
+            case StormZeroOrMoreExpr zomExpr:
+            {
+                var result = new List<List<string>> { new List<string>() };
+                result.AddRange(ComputePrefixes(zomExpr.Inner, grammar, k, visited));
+                return result;
+            }
+
+            case StormOneOrMoreExpr oomExpr:
+                return ComputePrefixes(oomExpr.Inner, grammar, k, visited);
+
+            case StormGroupExpr groupExpr:
+                return ComputePrefixes(groupExpr.Inner, grammar, k, visited);
+
+            case StormLabeledExpr labeledExpr:
+                return ComputePrefixes(labeledExpr.Element, grammar, k, visited);
+
+            case StormNamedAlternative namedAlt:
+                return ComputePrefixes(namedAlt.Expression, grammar, k, visited);
+
+            default:
+                return new List<List<string>> { new List<string>() };
+        }
+    }
+
+    /// <summary>
+    /// Computes prefixes for a sequence of elements by concatenating the prefixes
+    /// of each element in order, respecting nullable elements.
+    /// </summary>
+    private static List<List<string>> ComputeSequencePrefixes(
+        IReadOnlyList<StormExpression> elements,
+        StormGrammar grammar,
+        int k,
+        HashSet<string> visited)
+    {
+        // Start with a single empty prefix
+        var current = new List<List<string>> { new List<string>() };
+
+        foreach (var element in elements)
+        {
+            // If all current prefixes have reached length k, stop
+            if (current.All(p => p.Count >= k))
+            {
+                break;
+            }
+
+            var next = new List<List<string>>();
+
+            foreach (var prefix in current)
+            {
+                if (prefix.Count >= k)
+                {
+                    // This prefix is already at max length, keep it as-is
+                    next.Add(prefix);
+                    continue;
+                }
+
+                var remaining = k - prefix.Count;
+                var elementPrefixes = ComputePrefixes(element, grammar, remaining, visited);
+
+                foreach (var ep in elementPrefixes)
+                {
+                    var combined = new List<string>(prefix);
+                    combined.AddRange(ep);
+                    // Truncate to k
+                    if (combined.Count > k)
+                    {
+                        combined = combined.Take(k).ToList();
+                    }
+                    next.Add(combined);
+                }
+            }
+
+            current = next;
+
+            // If the element is not nullable, we don't continue past it
+            // (the nullable case is already handled by ComputePrefixes returning
+            // empty-list prefixes for optional/zero-or-more elements)
+        }
+
+        return current;
+    }
+
     private static void ComputeFirst(
         StormExpression expr,
         StormGrammar grammar,
         HashSet<string> result,
         HashSet<string> visited)
     {
-        switch(expr)
+        switch (expr)
         {
             case StormStringLiteralExpr strLit:
                 _ = result.Add("str:" + strLit.Value);
@@ -113,64 +314,59 @@ public static class ReachabilityPass
 
             case StormReferenceExpr refExpr:
                 var resolved = grammar.LookupByName(refExpr.Name);
-                if(resolved is StormTokenDecl or StormHiddenTokenDecl)
+                if (resolved is StormTokenDecl or StormHiddenTokenDecl)
                 {
                     _ = result.Add("tok:" + refExpr.Name);
                 }
-                else if(resolved is StormFragmentDecl)
+                else if (resolved is StormFragmentDecl)
                 {
                     _ = result.Add("frag:" + refExpr.Name);
                 }
-                else if(resolved is StormRuleDecl ruleDecl)
+                else if (resolved is StormRuleDecl ruleDecl)
                 {
-                    // Expand through the rule's body to get its FIRST set
-                    if(visited.Add(refExpr.Name))
+                    if (visited.Add(refExpr.Name))
                     {
                         ComputeFirst(ruleDecl.Body, grammar, result, visited);
                     }
                 }
-
                 break;
 
             case StormQualifiedReferenceExpr qualRef:
                 var qualName = qualRef.Qualifier + "." + qualRef.Name;
                 var qualResolved = grammar.LookupByName(qualName);
-                if(qualResolved is StormTokenDecl or StormHiddenTokenDecl)
+                if (qualResolved is StormTokenDecl or StormHiddenTokenDecl)
                 {
                     _ = result.Add("tok:" + qualName);
                 }
-                else if(qualResolved is StormFragmentDecl)
+                else if (qualResolved is StormFragmentDecl)
                 {
                     _ = result.Add("frag:" + qualName);
                 }
-                else if(qualResolved is StormRuleDecl qualRuleDecl)
+                else if (qualResolved is StormRuleDecl qualRuleDecl)
                 {
-                    if(visited.Add(qualName))
+                    if (visited.Add(qualName))
                     {
                         ComputeFirst(qualRuleDecl.Body, grammar, result, visited);
                     }
                 }
-
                 break;
 
             case StormSequenceExpr seqExpr:
-                foreach(var element in seqExpr.Elements)
+                foreach (var element in seqExpr.Elements)
                 {
                     ComputeFirst(element, grammar, result, visited);
-                    if(!IsNullable(element))
+                    if (!IsNullable(element))
                     {
                         break;
                     }
                 }
-
                 break;
 
             case StormAlternationExpr altExpr:
-                foreach(var alt in altExpr.Alternatives)
+                foreach (var alt in altExpr.Alternatives)
                 {
                     ComputeFirst(alt, grammar, result, visited);
                 }
-
                 break;
 
             case StormOptionalExpr optExpr:
@@ -202,7 +398,7 @@ public static class ReachabilityPass
     /// <summary>
     /// Determines if an expression can match the empty string.
     /// </summary>
-    private static bool IsNullable(StormExpression expr)
+    internal static bool IsNullable(StormExpression expr)
     {
         return expr switch
         {

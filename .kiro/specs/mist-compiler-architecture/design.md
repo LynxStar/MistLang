@@ -482,8 +482,8 @@ Over the effective grammar (R7):
 
 1. **Name resolution** — every reference to a rule/token/fragment resolves to a declaration, including via qualified names for namespaced imports. Unresolved → `STORM_UNDEFINED_REFERENCE` (R7.1). Fragments referenced from `RuleExpr` is rejected here too (fragments are lexer-only; R4.5).
 2. **Left-recursion check** — build the rule-call graph. Detect direct and indirect left-recursion. If found and not expressible as the generator's supported left-recursion-elimination form (see "Generated parser architecture"), emit `STORM_LEFT_RECURSION` with the cycle path and fail (R7.3).
-3. **Reachability / unreachable-alternative check** — for each `rule`, statically check that no alternative is shadowed by an earlier alternative under PEG ordered-choice semantics (R7.2, R5.2). This uses the LL(*) lookahead sets computed for code generation; if alternative *k*'s lookahead set is a subset of the union of alternatives *1..k-1*'s lookahead sets, alternative *k* is unreachable. Emit `STORM_UNREACHABLE_ALTERNATIVE` (Warning severity).
-4. **Ambiguity check** — for each rule, check that alternatives' LL(*) lookahead sets are distinguishable within the bounded lookahead the generator uses. If not, emit `STORM_AMBIGUOUS_RULE` with at least Warning severity (R7.4). Not a build failure; v1 resolves ambiguity via PEG order.
+3. **Reachability / unreachable-alternative check** — for each `rule`, statically check that no alternative is shadowed by an earlier alternative under PEG ordered-choice semantics (R7.2, R5.2). This uses the LL(*) lookahead sets computed for code generation; if alternative *k*'s lookahead set is a subset of the union of alternatives *1..k-1*'s lookahead sets, alternative *k* is unreachable. Emit `STORM_UNREACHABLE_ALTERNATIVE` with Error severity and fail the build.
+4. ~~**Ambiguity check** — Removed. Overlapping FIRST sets are expected and correct under PEG ordered-choice semantics. The former `STORM_AMBIGUOUS_RULE` (STORM0007) diagnostic has been removed.~~
 
 ### Diagnostic ID summary
 
@@ -493,8 +493,8 @@ Over the effective grammar (R7):
 | STORM0002 | `STORM_DUPLICATE_NAME` | Duplicate unnamespaced declaration name (R6.5) |
 | STORM0003 | `STORM_UNDEFINED_REFERENCE` | Reference to undefined rule/token/fragment (R7.1) |
 | STORM0004 | `STORM_LEFT_RECURSION` | Unresolvable left-recursion detected (R7.3) |
-| STORM0005 | `STORM_UNREACHABLE_ALTERNATIVE` | Alternative shadowed by earlier alternative (R7.2) |
-| STORM0006 | `STORM_AMBIGUOUS_RULE` | Ambiguous alternatives within bounded lookahead (R7.4) |
+| STORM0005 | `STORM_UNREACHABLE_ALTERNATIVE` | Alternative shadowed by earlier alternative (R7.2) — Error |
+| ~~STORM0006~~ | ~~`STORM_AMBIGUOUS_RULE`~~ | ~~Removed — overlapping FIRST sets are expected in PEG parsers~~ |
 | STORM0009 | `STORM_NO_ROOT_GRAMMAR` | No file declares a `grammar` directive |
 | STORM0010 | `STORM_MULTIPLE_ROOT_GRAMMARS` | Multiple files declare a `grammar` directive |
 

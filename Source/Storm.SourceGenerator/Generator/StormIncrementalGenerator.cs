@@ -238,10 +238,6 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
         var reachDiags = ReachabilityPass.Run(grammar);
         diagnostics.AddRange(reachDiags);
 
-        // Pass 5: Ambiguity check
-        var ambigDiags = AmbiguityPass.Run(grammar);
-        diagnostics.AddRange(ambigDiags);
-
         return diagnostics;
     }
 }

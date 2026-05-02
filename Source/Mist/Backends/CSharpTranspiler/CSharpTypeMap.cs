@@ -35,6 +35,8 @@ internal static class CSharpTypeMap
         ["Standard.Boolean"] = "bool",
         ["Standard.Char"] = "char",
         ["Standard.String"] = "string",
+        ["Standard.Void"] = "void",
+        ["Standard.Type"] = "System.Type",
 
         // ── Legacy Mist-primitive keyword lexemes (test compat) ──────────
         // Kept so that tests that build a semantic model without loading
@@ -55,6 +57,8 @@ internal static class CSharpTypeMap
         ["bool"] = "bool",
         ["char"] = "char",
         ["string"] = "string",
+        ["void"] = "void",
+        ["Type"] = "System.Type",
     };
 
     /// <summary>
@@ -96,14 +100,19 @@ internal static class CSharpTypeMap
         // not fall through to the generic ClassType / StructType branches
         // below (which would emit the Mist simple name — e.g., "Int32" —
         // instead of the C# keyword).
+        StructType st when st.IsBackendBacked && st.ContainingNamespace == "Standard" && st.IsVoid()
+            => isValueContext ? "MistVoid" : "void",
         StructType st when st.IsBackendBacked && st.ContainingNamespace == "Standard"
             => GetKeyword(st),
         ClassType ct when ct.IsBackendBacked && ct.ContainingNamespace == "Standard"
             => GetKeyword(ct),
 
-        VoidType => isValueContext ? "MistVoid" : "void",
+        // Legacy fallback void (tests without stdlib)
+        StructType st when st.IsVoid() => isValueContext ? "MistVoid" : "void",
+        // Legacy fallback Type (tests without stdlib)
+        ClassType ct when ct.IsTypeType() => "System.Type",
+
         ArrayType a => $"{GetTypeName(a.ElementType, isValueContext)}[]",
-        TypeType => "System.Type",
         TypeParameterType tp => tp.Name,
         ConstructedType ct => $"{GetTypeName(ct.GenericDefinition, isValueContext)}<{string.Join(", ", ct.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
         ClassType c => c.DisplayName,

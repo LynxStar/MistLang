@@ -181,7 +181,7 @@ public class TypeLiteralSemanticPropertyTests
         foreach (var typeLiteral in typeLiterals)
         {
             var exprType = model.GetTypeOf(typeLiteral);
-            if (exprType is not TypeType) return false;
+            if (exprType is null || !exprType.IsTypeType()) return false;
         }
 
         return true;
@@ -207,7 +207,7 @@ public class TypeLiteralSemanticPropertyTests
             // The symbol for this var declaration should have TypeType as its declared type
             var symbol = model.GetDeclaredSymbol(varDecl);
             if (symbol is null) return false;
-            if (symbol.DeclaredType is not TypeType) return false;
+            if (symbol.DeclaredType is null || !symbol.DeclaredType.IsTypeType()) return false;
         }
 
         return true;
@@ -377,7 +377,7 @@ public class TypeLiteralSemanticPropertyTests
         // The initializer expression (the IdentifierExpression for "TypeName") should
         // resolve to the variable's type, not TypeType.
         var initExprType = model.GetTypeOf(xDecl.Initializer);
-        if (initExprType is TypeType) return false;
+        if (initExprType is not null && initExprType.IsTypeType()) return false;
 
         // It should be the primitive type of the shadowing variable.
         // After Task 32's compat shim, PrimitiveType.* accessors may return

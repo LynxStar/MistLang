@@ -243,8 +243,8 @@ public class NoBackingTypeLeakPropertyTests
     /// </summary>
     private static bool IsClrLeak(IType type)
     {
-        // VoidType, UnknownType, TypeParameterType, ArrayType are fine
-        if (type is VoidType or UnknownType or TypeParameterType or ArrayType)
+        // Void, UnknownType, TypeParameterType, ArrayType are fine
+        if (type.IsVoid() || type is UnknownType or TypeParameterType or ArrayType)
             return false;
 
         string? containingNamespace = null;

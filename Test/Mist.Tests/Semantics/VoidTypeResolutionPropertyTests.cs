@@ -22,7 +22,7 @@ namespace Mist.Tests.Semantics;
 /// Property 1: For any Mist program containing a type reference to `void` (keyword) or
 /// `Void` (identifier) in any valid position (return type, variable type, parameter type,
 /// generic type argument), the semantic model builder SHALL resolve the type reference to
-/// `VoidType.Instance`.
+/// the void type (identified via <c>IsVoid()</c>).
 /// </summary>
 public class VoidTypeResolutionPropertyTests
 {
@@ -218,7 +218,7 @@ public class VoidTypeResolutionPropertyTests
 
     /// <summary>
     /// Builds a program with void as a method return type and verifies the method's
-    /// declared return type resolves to VoidType.Instance.
+    /// declared return type resolves to the void type.
     /// </summary>
     private bool VerifyReturnType(VoidTypeRefScenario scenario)
     {
@@ -262,13 +262,12 @@ public class VoidTypeResolutionPropertyTests
         if (methodSymbol is null)
             return false;
 
-        return methodSymbol.DeclaredType is VoidType
-            && ReferenceEquals(methodSymbol.DeclaredType, VoidType.Instance);
+        return methodSymbol.DeclaredType?.IsVoid() == true;
     }
 
     /// <summary>
     /// Builds a program with void as a variable type and verifies the variable's
-    /// declared type resolves to VoidType.Instance.
+    /// declared type resolves to the void type.
     /// </summary>
     private bool VerifyVariableType(VoidTypeRefScenario scenario)
     {
@@ -319,13 +318,12 @@ public class VoidTypeResolutionPropertyTests
         if (varSymbol is null)
             return false;
 
-        return varSymbol.DeclaredType is VoidType
-            && ReferenceEquals(varSymbol.DeclaredType, VoidType.Instance);
+        return varSymbol.DeclaredType?.IsVoid() == true;
     }
 
     /// <summary>
     /// Builds a program with void as a parameter type and verifies the parameter's
-    /// declared type resolves to VoidType.Instance.
+    /// declared type resolves to the void type.
     /// </summary>
     private bool VerifyParameterType(VoidTypeRefScenario scenario)
     {
@@ -378,13 +376,12 @@ public class VoidTypeResolutionPropertyTests
         if (paramSymbol is null)
             return false;
 
-        return paramSymbol.DeclaredType is VoidType
-            && ReferenceEquals(paramSymbol.DeclaredType, VoidType.Instance);
+        return paramSymbol.DeclaredType?.IsVoid() == true;
     }
 
     /// <summary>
     /// Builds a program with void as a generic type argument and verifies the type argument
-    /// resolves to VoidType.Instance within the constructed type.
+    /// resolves to the void type within the constructed type.
     /// </summary>
     private bool VerifyGenericTypeArgument(VoidTypeRefScenario scenario)
     {
@@ -439,8 +436,7 @@ public class VoidTypeResolutionPropertyTests
         if (constructedType.TypeArguments.Count != 1)
             return false;
 
-        return constructedType.TypeArguments[0] is VoidType
-            && ReferenceEquals(constructedType.TypeArguments[0], VoidType.Instance);
+        return constructedType.TypeArguments[0].IsVoid();
     }
 
     // ─── Property tests ──────────────────────────────────────────────────
@@ -448,7 +444,7 @@ public class VoidTypeResolutionPropertyTests
     /// <summary>
     /// Property 1: For any Mist program containing a type reference to `void` or `Void`
     /// in any valid position (return type, variable type, parameter type, generic type argument),
-    /// the semantic model builder resolves the type reference to `VoidType.Instance`.
+    /// the semantic model builder resolves the type reference to the void type.
     ///
     /// **Validates: Requirements 1.4, 1.5, 3.1, 4.1, 5.1, 6.1**
     /// </summary>

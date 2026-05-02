@@ -166,15 +166,15 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
         var members = ImmutableArray.CreateBuilder<ISymbol>();
 
         // void WriteLine() — static
-        members.Add(BuildMethodSymbol("WriteLine", VoidType.Instance,
+        members.Add(BuildMethodSymbol("WriteLine", _stdlib.LookupStandardType("Void"),
             isStatic: true, consoleScope));
 
         // void WriteLine(string value) — static
-        members.Add(BuildMethodSymbol("WriteLine", VoidType.Instance,
+        members.Add(BuildMethodSymbol("WriteLine", _stdlib.LookupStandardType("Void"),
             isStatic: true, consoleScope));
 
         // void WriteLine(int value) — static
-        members.Add(BuildMethodSymbol("WriteLine", VoidType.Instance,
+        members.Add(BuildMethodSymbol("WriteLine", _stdlib.LookupStandardType("Void"),
             isStatic: true, consoleScope));
 
         // string ReadLine() — static (returns stdlib String)
@@ -182,7 +182,7 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
             isStatic: true, consoleScope));
 
         // void Write(string value) — static
-        members.Add(BuildMethodSymbol("Write", VoidType.Instance,
+        members.Add(BuildMethodSymbol("Write", _stdlib.LookupStandardType("Void"),
             isStatic: true, consoleScope));
 
         return (consoleType, members.ToImmutable());

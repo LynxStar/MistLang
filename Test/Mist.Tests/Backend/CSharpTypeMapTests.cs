@@ -105,13 +105,13 @@ public class CSharpTypeMapTests
     [Fact]
     public void GetTypeName_VoidType_ReturnsVoid()
     {
-        Assert.Equal("void", CSharpTypeMap.GetTypeName(VoidType.Instance));
+        Assert.Equal("void", CSharpTypeMap.GetTypeName(LegacyPrimitiveTypes.Void));
     }
 
     [Fact]
     public void GetTypeName_VoidType_InValueContext_ReturnsMistVoid()
     {
-        Assert.Equal("MistVoid", CSharpTypeMap.GetTypeName(VoidType.Instance, isValueContext: true));
+        Assert.Equal("MistVoid", CSharpTypeMap.GetTypeName(LegacyPrimitiveTypes.Void, isValueContext: true));
     }
 
     // ── ArrayType ────────────────────────────────────────────────────────
@@ -180,6 +180,6 @@ public class CSharpTypeMapTests
     [Fact]
     public void GetTypeName_TypeType_ReturnsSystemType()
     {
-        Assert.Equal("System.Type", CSharpTypeMap.GetTypeName(TypeType.Instance));
+        Assert.Equal("System.Type", CSharpTypeMap.GetTypeName(LegacyPrimitiveTypes.Type));
     }
 }

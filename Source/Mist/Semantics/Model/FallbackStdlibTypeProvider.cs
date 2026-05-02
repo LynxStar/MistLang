@@ -37,6 +37,8 @@ internal sealed class FallbackStdlibTypeProvider : IStdlibTypeProvider
     private static readonly StructType FallbackBool = new("bool", new Scope(null), containingNamespace: null);
     private static readonly StructType FallbackChar = new("char", new Scope(null), containingNamespace: null);
     private static readonly ClassType FallbackString = new("string", new Scope(null), containingNamespace: null);
+    private static readonly StructType FallbackVoid = new("void", new Scope(null), containingNamespace: null);
+    private static readonly ClassType FallbackType = new("Type", new Scope(null), containingNamespace: null);
 
     private FallbackStdlibTypeProvider() { }
 
@@ -58,6 +60,8 @@ internal sealed class FallbackStdlibTypeProvider : IStdlibTypeProvider
             "Boolean" => FallbackBool,
             "Char" => FallbackChar,
             "String" => FallbackString,
+            "Void" => FallbackVoid,
+            "Type" => FallbackType,
             _ => throw new InvalidOperationException(
                 $"No fallback stdlib type for '{simpleName}'. " +
                 "The Standard Library may not be loaded.")

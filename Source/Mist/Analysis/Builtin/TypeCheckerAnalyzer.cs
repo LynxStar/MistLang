@@ -369,7 +369,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         if (ctorDecl.Body.GetBlock() is BlockNode ctorBlock)
-            CheckBlock(ctorBlock, VoidType.Instance, model, diagnostics);
+            CheckBlock(ctorBlock, LegacyPrimitiveTypes.Void, model, diagnostics);
         _insideConstructor = false;
     }
 
@@ -538,7 +538,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 // Block set accessor — check body statements (return type is void).
                 case BlockSetAccessorAccessorDeclarationNode blockSet:
-                    CheckBlock(blockSet.Body, VoidType.Instance, model, diagnostics);
+                    CheckBlock(blockSet.Body, LegacyPrimitiveTypes.Void, model, diagnostics);
                     break;
 
                 // Expression set accessor — check expression.
@@ -548,7 +548,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 // Block init accessor — check body statements (return type is void).
                 case BlockInitAccessorAccessorDeclarationNode blockInit:
-                    CheckBlock(blockInit.Body, VoidType.Instance, model, diagnostics);
+                    CheckBlock(blockInit.Body, LegacyPrimitiveTypes.Void, model, diagnostics);
                     break;
 
                 // Expression init accessor — check expression.
@@ -1163,7 +1163,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 declaredType ??= model.GetDeclaredSymbol(typed)?.DeclaredType;
 
                 // Check for void[] variable declarations (MIST_TC_0034).
-                if (declaredType is ArrayType arrayType && arrayType.ElementType is VoidType)
+                if (declaredType is ArrayType arrayType && arrayType.ElementType.IsVoid())
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0034",
@@ -1227,10 +1227,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             CheckExpression(returnStmt.Value, model, diagnostics);
             var valueType = model.GetTypeOf(returnStmt.Value);
 
-            if (methodReturnType is VoidType)
+            if (methodReturnType.IsVoid())
             {
-                // Void methods: reject return values UNLESS the value is VoidType
-                if (valueType is not null && !IsUnknown(valueType) && valueType is not VoidType)
+                // Void methods: reject return values UNLESS the value is void
+                if (valueType is not null && !IsUnknown(valueType) && !valueType.IsVoid())
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0008",
@@ -1254,7 +1254,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         else
         {
             // return; — only valid in void methods.
-            if (methodReturnType is not VoidType)
+            if (!methodReturnType.IsVoid())
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0008",
@@ -1541,7 +1541,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // remain well-typed.
             var lhsType = model.GetTypeOf(node.Left);
             var rhsType = model.GetTypeOf(node.Right);
-            if (lhsType is VoidType && rhsType is VoidType)
+            if (lhsType is not null && lhsType.IsVoid() && rhsType is not null && rhsType.IsVoid())
             {
                 model.SetTypeOf(node, LegacyPrimitiveTypes.Bool);
                 return;
@@ -2253,7 +2253,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return UnknownType.Instance;
             }
             case VoidTypeRefTypeReferenceNode:
-                return VoidType.Instance;
+                return LegacyPrimitiveTypes.Void;
             default:
                 return UnknownType.Instance;
         }
@@ -2306,7 +2306,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Check element type is not void (MIST_TC_0034).
         var elementType = model.GetTypeOf(arrayCreation);
-        if (elementType is ArrayType at && at.ElementType is VoidType)
+        if (elementType is ArrayType at && at.ElementType.IsVoid())
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0034",

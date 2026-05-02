@@ -1864,7 +1864,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return baseType;
 
             case VoidTypeRefTypeReferenceNode:
-                return VoidType.Instance;
+                return LegacyPrimitiveTypes.Void;
 
             case NamedTypeRefTypeReferenceNode namedRef:
             {
@@ -5983,7 +5983,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return primBase;
 
             case VoidTypeRefTypeReferenceNode:
-                return VoidType.Instance;
+                // Resolve void through the stdlib path, same as primitives.
+                try
+                {
+                    var voidGlobalScope = FindGlobalScope(fileScope) ?? fileScope;
+                    return ResolveVoidKeyword(voidGlobalScope, symbolTable);
+                }
+                catch (StdlibMissingException)
+                {
+                    return LegacyPrimitiveTypes.Void;
+                }
 
             case NamedTypeRefTypeReferenceNode namedRef:
                 var typeName = ExtractQualifiedName(namedRef.Name, sourceText);
@@ -6219,6 +6228,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Resolve the fully-qualified name directly against the stdlib
         // namespace — never through any scope chain or using-directive.
         return LookupQualifiedStdlibType(globalScope, symbolTable, qualifiedName);
+    }
+
+    /// <summary>
+    /// Resolves the <c>void</c> keyword to its Standard Library type
+    /// (<c>Standard.Void</c>), following the same pattern as
+    /// <see cref="ResolvePrimitiveKeyword"/>. Bypasses all scoping.
+    /// </summary>
+    internal static IType ResolveVoidKeyword(Scope globalScope, SymbolTable symbolTable)
+    {
+        return LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.Void");
+    }
+
+    /// <summary>
+    /// Resolves the metatype <c>Type</c> to its Standard Library type
+    /// (<c>Standard.Type</c>), following the same pattern as
+    /// <see cref="ResolvePrimitiveKeyword"/>. Bypasses all scoping.
+    /// </summary>
+    internal static IType ResolveTypeKeyword(Scope globalScope, SymbolTable symbolTable)
+    {
+        return LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.Type");
     }
 
     // (Task 49: PopulatePrimitiveTypeRegistry has been deleted along with
@@ -6537,8 +6566,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             "bool" => LegacyPrimitiveTypes.Bool,
             "char" => LegacyPrimitiveTypes.Char,
             "string" => LegacyPrimitiveTypes.String,
-            "void" => VoidType.Instance,
-            "Void" => VoidType.Instance,
+            "void" => LegacyPrimitiveTypes.Void,
+            "Void" => LegacyPrimitiveTypes.Void,
             _ => null,
         };
     }
@@ -6984,11 +7013,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var memberName = memberAccess.Name.Lexeme;
 
-                // Special case: Void.Void → VoidType instance expression
-                if (targetType is VoidType && memberName == "Void")
+                // Special case: Void.Void → void type instance expression.
+                // The identifier "Void" resolves to the void type via
+                // TryResolveWellKnownType, but the legacy fallback type has
+                // no members. Until the Standard namespace is implicitly
+                // imported, this special case bridges the gap.
+                // We resolve through the stdlib path to get the same type
+                // instance that the `void` keyword resolves to.
+                if (targetType.IsVoid() && memberName == "Void")
                 {
-                    expressionTypes[suffix] = VoidType.Instance;
-                    return VoidType.Instance;
+                    IType voidType;
+                    try
+                    {
+                        var voidGlobalScope = FindGlobalScope(fileScope) ?? fileScope;
+                        voidType = ResolveVoidKeyword(voidGlobalScope, symbolTable);
+                    }
+                    catch (StdlibMissingException)
+                    {
+                        voidType = targetType;
+                    }
+                    expressionTypes[suffix] = voidType;
+                    return voidType;
                 }
 
                 var memberType = LookupMemberType(targetType, memberName, ambientTypeResolver, fileScope, symbolTable, sourceText, diagnostics);
@@ -7217,8 +7262,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var referencedType = ResolveTypeReference(
                     typeLiteral.TypeRef, fileScope, ambientTypeResolver,
                     symbolTable, sourceText, diagnostics);
-                // The expression type of a type literal is always TypeType.
-                result = TypeType.Instance;
+                // The expression type of a type literal is always the metatype Type.
+                try
+                {
+                    var typeGlobalScope = FindGlobalScope(fileScope) ?? fileScope;
+                    result = ResolveTypeKeyword(typeGlobalScope, symbolTable);
+                }
+                catch (StdlibMissingException)
+                {
+                    result = LegacyPrimitiveTypes.Type;
+                }
                 break;
             }
 

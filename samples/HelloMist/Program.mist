@@ -23,7 +23,7 @@ public class Program
         return total;
     }
 
-    public static void Main(string[] args)
+    public static void RunDemo()
     {
         // Demonstrate class instantiation and method calls
         var origin = new Point();
@@ -130,5 +130,10 @@ public class Program
         }
 
         Console.WriteLine("Done!");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
     }
 }

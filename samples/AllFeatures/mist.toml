@@ -1,1 +1,23 @@
 name = "AllFeatures"
+namespace_root = "AllFeatures"
+
+[[references]]
+path = "../Primitives"
+
+[[references]]
+path = "../Classes"
+
+[[references]]
+path = "../AmbientTypes"
+
+[[references]]
+path = "../ShapeInterfaces"
+
+[[references]]
+path = "../GenericTypes"
+
+[[references]]
+path = "../Overloading"
+
+[[references]]
+path = "../VoidType"

@@ -1,9 +1,8 @@
-// GenericBox<T> — Demonstrates a generic class implementing a generic interface
-// in the AllFeatures sample.
+// GenericBox<T> — Demonstrates a generic class implementing a generic interface.
 
 using System;
 
-namespace AllFeatures;
+namespace GenericTypes;
 
 public class GenericBox<T> : IGenericContainer<T>
 {

@@ -1,0 +1,13 @@
+// VoidType — Covers the void unit type feature.
+
+using System;
+
+namespace VoidType;
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        VoidDemo.RunDemo();
+    }
+}

@@ -105,13 +105,19 @@ public sealed class CSharpCompilationDriver
         if (!string.IsNullOrEmpty(envRoot) && Directory.Exists(envRoot))
             return envRoot;
 
-        // Common locations on macOS/Linux.
-        var candidates = new[]
-        {
-            "/usr/local/share/dotnet",
-            "/usr/share/dotnet",
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".dotnet"),
-        };
+        // Common locations per platform.
+        var candidates = OperatingSystem.IsWindows()
+            ? new[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "dotnet"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".dotnet"),
+            }
+            : new[]
+            {
+                "/usr/local/share/dotnet",
+                "/usr/share/dotnet",
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".dotnet"),
+            };
 
         foreach (var candidate in candidates)
         {
@@ -133,7 +139,7 @@ public sealed class CSharpCompilationDriver
             Directory.CreateDirectory(binDirectory);
 
         // Collect all emitted .cs files
-        var csFiles = Directory.GetFiles(projectDirectory, "*.cs", SearchOption.TopDirectoryOnly);
+        var csFiles = Directory.GetFiles(projectDirectory, "*.cs", SearchOption.AllDirectories);
         if (csFiles.Length == 0)
         {
             diagnostics.Add(new Diagnostic(

@@ -2,7 +2,7 @@
 
 using System;
 
-namespace AllFeatures;
+namespace ShapeInterfaces;
 
 public class Circle : IShape
 {

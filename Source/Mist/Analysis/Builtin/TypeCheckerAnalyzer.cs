@@ -159,9 +159,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Verifies that exactly one class contains a valid entry point:
     /// <c>static void Main()</c> or <c>static void Main(string[] args)</c>.
     /// Emits MIST_TC_0017 if no entry point is found, MIST_TC_0018 if multiple are found.
+    /// Entry points from referenced projects (OriginProjectPath != null) are excluded.
     /// </summary>
     private static void CheckEntryPoint(ISemanticModel model, DiagnosticBag diagnostics)
     {
+        // Build a set of source file paths from referenced project units
+        // so we can skip their Main methods during entry point detection.
+        var referencedSourcePaths = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var unit in model.Units)
+        {
+            if (unit.OriginProjectPath is not null)
+            {
+                referencedSourcePaths.Add(unit.Source.Path);
+            }
+        }
+
         var entryPoints = new List<(ISymbol Symbol, SyntaxNode Node)>();
 
         foreach (var symbol in model.AllSymbols)
@@ -178,6 +190,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             catch { continue; }
 
             if (declaringNode is not MethodDeclarationNode methodDecl)
+                continue;
+
+            // Skip entry points from referenced projects — only the root
+            // project's Main methods count as entry points.
+            if (IsFromReferencedProject(declaringNode, model, referencedSourcePaths))
                 continue;
 
             // Must be static.
@@ -267,6 +284,42 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // string[] could also appear as a named type ref (unlikely but handle it).
         // In practice, the grammar parses "string" as a PrimitiveType keyword,
         // so this case shouldn't occur for valid Mist code.
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether the given AST node belongs to a referenced project
+    /// by checking span containment against the model's ASTs and units.
+    /// </summary>
+    private static bool IsFromReferencedProject(
+        SyntaxNode node,
+        ISemanticModel model,
+        HashSet<string> referencedSourcePaths)
+    {
+        if (referencedSourcePaths.Count == 0)
+            return false;
+
+        var span = node.Span;
+        if (span.Length == 0)
+            return false;
+
+        // Find which AST root contains this node by checking span containment.
+        var asts = model.Asts;
+        var units = model.Units;
+
+        for (var i = 0; i < asts.Length; i++)
+        {
+            var astSpan = asts[i].Span;
+            if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
+            {
+                if (i < units.Count)
+                {
+                    return referencedSourcePaths.Contains(units[i].Source.Path);
+                }
+                break;
+            }
+        }
+
         return false;
     }
 

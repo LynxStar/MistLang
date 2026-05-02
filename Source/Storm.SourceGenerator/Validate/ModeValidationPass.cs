@@ -164,13 +164,37 @@ public static class ModeValidationPass
 
     /// <summary>
     /// Reports STORM0014 (warning) if a pop action is on a token in the default mode
-    /// (i.e., not inside any mode block).
+    /// and no other mode pushes to default. If another mode pushes to default, the pop
+    /// is meaningful — it returns the lexer to the mode that pushed.
     /// </summary>
     private static void ValidatePopFromDefault(
         IReadOnlyList<StormDeclaration> topLevelDecls,
         List<StormModeDecl> modeDecls,
         List<StormDiagnostic> diagnostics)
     {
+        // Check whether any token in any mode pushes to "default".
+        // If so, a pop from default is valid — it returns to the pushing mode.
+        var anyPushToDefault = false;
+        foreach (var modeDecl in modeDecls)
+        {
+            foreach (var innerDecl in modeDecl.Declarations)
+            {
+                var action = GetModeAction(innerDecl);
+                if (action is StormPushAction pushAction && pushAction.ModeName == "default")
+                {
+                    anyPushToDefault = true;
+                    break;
+                }
+            }
+            if (anyPushToDefault) break;
+        }
+
+        if (anyPushToDefault)
+        {
+            // Pop from default is valid — another mode pushes to default.
+            return;
+        }
+
         // Only top-level declarations are in the default mode.
         // Declarations inside StormModeDecl are in their enclosing mode.
         foreach (var decl in topLevelDecls)

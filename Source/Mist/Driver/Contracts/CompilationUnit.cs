@@ -28,4 +28,14 @@ public sealed record CompilationUnit(Common.Text.SourceText Source)
     /// When <c>null</c>, the driver-level <c>projectFolder</c> is used.
     /// </summary>
     public string? ProjectFolder { get; init; }
+
+    /// <summary>
+    /// The canonical path of the project that directly declared this unit as a
+    /// reference. <c>null</c> for stdlib units and for the top-level user
+    /// project's own units. Used by the semantic model to enforce transitive
+    /// visibility rules: a unit is directly visible to project P only if P's
+    /// canonical path matches this value, or if this value is <c>null</c>
+    /// (stdlib / user's own units).
+    /// </summary>
+    public string? OriginProjectPath { get; init; }
 }

@@ -1,0 +1,5 @@
+name = "MyApp"
+namespace_root = "MyApp"
+
+[[references]]
+path = "../SharedLib"

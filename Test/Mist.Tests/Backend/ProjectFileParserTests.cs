@@ -137,4 +137,216 @@ public sealed class ProjectFileParserTests
             Directory.Delete(projectDir, recursive: true);
         }
     }
+
+    // ─── Reference-parsing tests ─────────────────────────────────────────
+
+    [Fact]
+    public void ReferenceMissingPath_ReportsMissingPath()
+    {
+        var projectDir = CreateTempProjectDir();
+        try
+        {
+            WriteToml(projectDir, """
+                name = "MyApp"
+
+                [[references]]
+                description = "no path here"
+                """);
+
+            var diagnostics = new DiagnosticBag();
+            var result = ProjectFileParser.Parse(projectDir, diagnostics);
+
+            Assert.Null(result);
+            var diags = diagnostics.ToImmutableArray();
+            Assert.Single(diags);
+            Assert.Equal("MIST_PROJECT_REFERENCE_MISSING_PATH", diags[0].Id.Value);
+            Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
+            Assert.Contains("mist.toml", diags[0].Message);
+        }
+        finally
+        {
+            Directory.Delete(projectDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ReferenceEmptyPath_ReportsEmptyPath()
+    {
+        var projectDir = CreateTempProjectDir();
+        try
+        {
+            WriteToml(projectDir, """
+                name = "MyApp"
+
+                [[references]]
+                path = ""
+                """);
+
+            var diagnostics = new DiagnosticBag();
+            var result = ProjectFileParser.Parse(projectDir, diagnostics);
+
+            Assert.Null(result);
+            var diags = diagnostics.ToImmutableArray();
+            Assert.Single(diags);
+            Assert.Equal("MIST_PROJECT_REFERENCE_EMPTY_PATH", diags[0].Id.Value);
+            Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
+            Assert.Contains("mist.toml", diags[0].Message);
+        }
+        finally
+        {
+            Directory.Delete(projectDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void NoReferencesSection_ReturnsEmptyReferences()
+    {
+        var projectDir = CreateTempProjectDir();
+        try
+        {
+            WriteToml(projectDir, """
+                name = "MyApp"
+                namespace_root = "MyApp"
+                """);
+
+            var diagnostics = new DiagnosticBag();
+            var result = ProjectFileParser.Parse(projectDir, diagnostics);
+
+            Assert.NotNull(result);
+            Assert.False(diagnostics.HasErrors);
+            Assert.Equal("MyApp", result.Name);
+            Assert.Empty(result.References);
+        }
+        finally
+        {
+            Directory.Delete(projectDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ReferenceWithDirectMistTomlPath_StoredAsIs()
+    {
+        var projectDir = CreateTempProjectDir();
+        try
+        {
+            WriteToml(projectDir, """
+                name = "MyApp"
+
+                [[references]]
+                path = "libs/SharedLib/mist.toml"
+                """);
+
+            var diagnostics = new DiagnosticBag();
+            var result = ProjectFileParser.Parse(projectDir, diagnostics);
+
+            Assert.NotNull(result);
+            Assert.False(diagnostics.HasErrors);
+            Assert.Single(result.References);
+
+            var expected = Path.GetFullPath(Path.Combine(projectDir, "libs", "SharedLib", "mist.toml"));
+            Assert.Equal(expected, result.References[0].Path);
+        }
+        finally
+        {
+            Directory.Delete(projectDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ReferenceWithDirectoryPath_AppendsMistToml()
+    {
+        var projectDir = CreateTempProjectDir();
+        try
+        {
+            WriteToml(projectDir, """
+                name = "MyApp"
+
+                [[references]]
+                path = "libs/SharedLib"
+                """);
+
+            var diagnostics = new DiagnosticBag();
+            var result = ProjectFileParser.Parse(projectDir, diagnostics);
+
+            Assert.NotNull(result);
+            Assert.False(diagnostics.HasErrors);
+            Assert.Single(result.References);
+
+            var expected = Path.GetFullPath(
+                Path.Combine(projectDir, "libs", "SharedLib", "mist.toml"));
+            Assert.Equal(expected, result.References[0].Path);
+        }
+        finally
+        {
+            Directory.Delete(projectDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ReferenceWithAbsolutePath_UsedDirectlyAfterCanonicalization()
+    {
+        var projectDir = CreateTempProjectDir();
+        var targetDir = CreateTempProjectDir();
+        try
+        {
+            var absolutePath = Path.Combine(targetDir, "mist.toml");
+            // Escape backslashes for TOML string on Windows
+            var tomlPath = absolutePath.Replace("\\", "/");
+
+            WriteToml(projectDir, $"""
+                name = "MyApp"
+
+                [[references]]
+                path = "{tomlPath}"
+                """);
+
+            var diagnostics = new DiagnosticBag();
+            var result = ProjectFileParser.Parse(projectDir, diagnostics);
+
+            Assert.NotNull(result);
+            Assert.False(diagnostics.HasErrors);
+            Assert.Single(result.References);
+
+            var expected = Path.GetFullPath(absolutePath);
+            Assert.Equal(expected, result.References[0].Path);
+        }
+        finally
+        {
+            Directory.Delete(projectDir, recursive: true);
+            Directory.Delete(targetDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ReferenceWithDotDotSegments_CanonicalizesCorrectly()
+    {
+        var projectDir = CreateTempProjectDir();
+        try
+        {
+            WriteToml(projectDir, """
+                name = "MyApp"
+
+                [[references]]
+                path = "../sibling/sub/../SharedLib"
+                """);
+
+            var diagnostics = new DiagnosticBag();
+            var result = ProjectFileParser.Parse(projectDir, diagnostics);
+
+            Assert.NotNull(result);
+            Assert.False(diagnostics.HasErrors);
+            Assert.Single(result.References);
+
+            // The path should be canonicalized: ".." and "sub/.." resolved
+            var expected = Path.GetFullPath(
+                Path.Combine(projectDir, "..", "sibling", "SharedLib", "mist.toml"));
+            Assert.Equal(expected, result.References[0].Path);
+            // Verify no ".." segments remain in the resolved path
+            Assert.DoesNotContain("..", result.References[0].Path);
+        }
+        finally
+        {
+            Directory.Delete(projectDir, recursive: true);
+        }
+    }
 }

@@ -1,0 +1,36 @@
+// Result<T> — A generic Result type. When T is void, it represents success with no value.
+
+using System;
+
+namespace VoidType;
+
+public class Result<T>
+{
+    private T value;
+    private bool success;
+
+    public Result(T value, bool success)
+    {
+        this.value = value;
+        this.success = success;
+    }
+
+    public T GetValue()
+    {
+        return value;
+    }
+
+    public bool IsSuccess()
+    {
+        return success;
+    }
+
+    public string Describe()
+    {
+        if (success)
+        {
+            return $"Result(Ok: {value})";
+        }
+        return "Result(Error)";
+    }
+}

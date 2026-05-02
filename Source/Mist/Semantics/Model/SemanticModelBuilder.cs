@@ -163,9 +163,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IAmbientTypeResolver? ambientTypeResolver,
         string namespaceRoot,
         string projectFolder,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        ImmutableHashSet<string>? directReferencePaths = null)
     {
         var globalScope = new Scope(parent: null);
+        var transitiveScope = new Scope(parent: null);
         var symbolTable = new SymbolTable();
 
         // (Task 49: PrimitiveTypeRegistry and PrimitiveType have been
@@ -173,6 +175,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Pass 1: Register user-defined types.
         // Walk each AST to discover namespaces, types, and members.
+        // Units from transitive-only references are registered in a separate
+        // scope that is not searched during name resolution for the user
+        // project, enforcing transitive visibility rules (Requirements 6.1,
+        // 6.2, 6.4).
         var withDeclarations = new List<WithDeclarationNode>();
         for (var i = 0; i < asts.Length; i++)
         {
@@ -186,9 +192,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var effectiveNamespaceRoot = unit?.NamespaceRoot ?? namespaceRoot;
             var effectiveProjectFolder = unit?.ProjectFolder ?? projectFolder;
 
+            // Determine whether this unit is directly visible to the user
+            // project. A unit is directly visible if:
+            //   - OriginProjectPath is null (stdlib or user's own code), OR
+            //   - OriginProjectPath is in the set of direct reference paths.
+            // Units from transitive-only references are registered in a
+            // separate scope so their symbols are not found during name
+            // resolution for the user project.
+            var isTransitiveOnly = directReferencePaths is not null
+                && unit?.OriginProjectPath is not null
+                && !directReferencePaths.Contains(unit.OriginProjectPath);
+
+            var targetScope = isTransitiveOnly ? transitiveScope : globalScope;
+
             try
             {
-                Pass1_RegisterTypes(ast, globalScope, symbolTable, sourceText, effectiveNamespaceRoot, effectiveProjectFolder, diagnostics, withDeclarations);
+                Pass1_RegisterTypes(ast, targetScope, symbolTable, sourceText, effectiveNamespaceRoot, effectiveProjectFolder, diagnostics, withDeclarations);
             }
             catch (Exception ex)
             {

@@ -79,9 +79,10 @@ public sealed class CompilerDriverStdlibIntegrationTest : IDisposable
             IAmbientTypeResolver? ambientTypeResolver,
             string namespaceRoot,
             string projectFolder,
-            DiagnosticBag diagnostics)
+            DiagnosticBag diagnostics,
+            ImmutableHashSet<string>? directReferencePaths = null)
         {
-            var model = _inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics);
+            var model = _inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
             Captured = model;
             return model;
         }

@@ -18,6 +18,18 @@ Grade B
 Sum 1..10 = 55
 Squares: 1 4 9 16 25 36 
 Break at j=5
+Fib: 0 1 1 2 3 5 8 13 21 34 
+FindFirst(30)=2
+FindFirst(99)=-1
+DigitSum(12345)=15
+concat=MistLang
+1 2 3 
+2 4 6 
+3 6 9 
+isGreeting=True
+bracket=[]
+doubled=42
+length=5
 p1=Point(3, 4) p2=Point(0, 0)
 dist=7
 translated=Point(13, 24)
@@ -31,18 +43,6 @@ contains=True
 sub=Mist World
 abs=42 max=25 min=10
 parsed=42 back=42
-Fib: 0 1 1 2 3 5 8 13 21 34 
-FindFirst(30)=2
-FindFirst(99)=-1
-DigitSum(12345)=15
-concat=MistLang
-1 2 3 
-2 4 6 
-3 6 9 
-isGreeting=True
-bracket=[]
-doubled=42
-length=5
 circle=Circle(radius=5) area=25
 rect=Rectangle(width=3, height=4) area=12
 shape1=Circle(radius=5) area=25

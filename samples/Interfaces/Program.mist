@@ -9,7 +9,7 @@ public class Program
         Console.WriteLine($"  Describable received");
     }
 
-    public static void Main(string[] args)
+    public static void RunDemo()
     {
         // --- Class implementing single interface (IDescribable) ---
         Console.WriteLine("=== Class implementing single interface ===");
@@ -39,5 +39,10 @@ public class Program
         PrintDescribable(robot);
 
         Console.WriteLine("Done!");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
     }
 }

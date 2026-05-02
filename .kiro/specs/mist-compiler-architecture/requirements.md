@@ -143,9 +143,9 @@ For the same time-to-value reason, v1 collapses the compiler into a single `Mist
 #### Acceptance Criteria
 
 1. IF a Storm_Rule, Storm_Token, or Storm_Fragment references an undefined name, THEN THE Storm_Source_Generator SHALL emit a build-time Diagnostic identifying the reference's source location and the undefined name, and SHALL fail the build.
-2. IF a Storm_Rule contains an alternative that is statically unreachable given ordered-choice semantics, THEN THE Storm_Source_Generator SHALL emit a build-time Diagnostic identifying the unreachable alternative.
+2. IF a Storm_Rule contains an alternative that is statically unreachable given ordered-choice semantics, THEN THE Storm_Source_Generator SHALL emit a build-time Error diagnostic identifying the unreachable alternative, and SHALL fail the build.
 3. IF the Storm_Source_Generator detects direct or indirect left-recursion that it cannot lower to LL(*), THEN THE Storm_Source_Generator SHALL emit a build-time Diagnostic identifying the offending Storm_Rule and its recursion path, and SHALL fail the build.
-4. IF the Storm_Source_Generator detects a grammar ambiguity it cannot resolve via lookahead, THEN THE Storm_Source_Generator SHALL emit a build-time Diagnostic of at least Warning severity identifying the ambiguous Storm_Rule and the ambiguous alternatives.
+4. ~~REMOVED — Overlapping FIRST sets are expected and correct under PEG ordered-choice semantics. The former STORM0007 ambiguity check has been removed.~~
 
 ### Requirement 8: Storm Bootstrap
 

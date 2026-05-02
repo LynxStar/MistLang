@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Reflection;
 using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
 using MistDiagnosticSeverity = Mist.Common.Diagnostics.DiagnosticSeverity;
@@ -23,7 +22,9 @@ public sealed class CSharpCompilationDriver
     private static ImmutableArray<RoslynApi.MetadataReference> BuildCoreReferences()
     {
         // Locate the runtime directory so we can reference the core assemblies.
-        var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+        // In single-file publish mode, Assembly.Location returns "" so we fall
+        // back to the shared framework directory discovered via RuntimeEnvironment.
+        var runtimeDir = GetRuntimeDirectory();
 
         var refs = new List<RoslynApi.MetadataReference>();
 
@@ -37,6 +38,8 @@ public sealed class CSharpCompilationDriver
             "System.Text.RegularExpressions.dll",
             "System.Threading.dll",
             "netstandard.dll",
+            "System.Private.CoreLib.dll",
+            "System.Runtime.Extensions.dll",
         })
         {
             var path = Path.Combine(runtimeDir, name);
@@ -44,15 +47,80 @@ public sealed class CSharpCompilationDriver
                 refs.Add(RoslynApi.MetadataReference.CreateFromFile(path));
         }
 
-        // mscorlib / System.Private.CoreLib
-        refs.Add(RoslynApi.MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
-
-        // System.Runtime.Extensions (Convert, Math, etc.)
-        var sre = Assembly.Load("System.Runtime.Extensions");
-        if (sre is not null)
-            refs.Add(RoslynApi.MetadataReference.CreateFromFile(sre.Location));
-
         return [.. refs];
+    }
+
+    /// <summary>
+    /// Resolves the .NET runtime directory containing the core framework assemblies.
+    /// Handles both normal execution (Assembly.Location available) and single-file
+    /// publish mode (Assembly.Location is empty, must discover shared framework path).
+    /// </summary>
+    private static string GetRuntimeDirectory()
+    {
+        // Try Assembly.Location first (works in non-single-file scenarios).
+        var assemblyLocation = typeof(object).Assembly.Location;
+        if (!string.IsNullOrEmpty(assemblyLocation))
+        {
+            var dir = Path.GetDirectoryName(assemblyLocation);
+            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+                return dir;
+        }
+
+        // Single-file publish: discover the shared framework directory.
+        // The runtime is at: <dotnet-root>/shared/Microsoft.NETCore.App/<version>/
+        var dotnetRoot = GetDotnetRoot();
+        if (dotnetRoot is not null)
+        {
+            var sharedDir = Path.Combine(dotnetRoot, "shared", "Microsoft.NETCore.App");
+            if (Directory.Exists(sharedDir))
+            {
+                // Pick the highest version directory that exists.
+                var versionDirs = Directory.GetDirectories(sharedDir)
+                    .OrderByDescending(d => Path.GetFileName(d))
+                    .ToArray();
+
+                // Prefer the version matching our runtime.
+                var runtimeVersion = Environment.Version.ToString();
+                var exactMatch = versionDirs.FirstOrDefault(d =>
+                    Path.GetFileName(d).StartsWith($"{Environment.Version.Major}.{Environment.Version.Minor}."));
+
+                var selectedDir = exactMatch ?? versionDirs.FirstOrDefault();
+                if (selectedDir is not null && Directory.Exists(selectedDir))
+                    return selectedDir;
+            }
+        }
+
+        // Last resort: use RuntimeEnvironment.GetRuntimeDirectory() which
+        // should work in all scenarios but may not be available in trimmed apps.
+        return System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
+    }
+
+    /// <summary>
+    /// Discovers the .NET root directory (e.g., /usr/local/share/dotnet).
+    /// </summary>
+    private static string? GetDotnetRoot()
+    {
+        // Check DOTNET_ROOT environment variable first.
+        var envRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
+        if (!string.IsNullOrEmpty(envRoot) && Directory.Exists(envRoot))
+            return envRoot;
+
+        // Common locations on macOS/Linux.
+        var candidates = new[]
+        {
+            "/usr/local/share/dotnet",
+            "/usr/share/dotnet",
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".dotnet"),
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (Directory.Exists(candidate) &&
+                Directory.Exists(Path.Combine(candidate, "shared", "Microsoft.NETCore.App")))
+                return candidate;
+        }
+
+        return null;
     }
 
     public static BackendResult Compile(

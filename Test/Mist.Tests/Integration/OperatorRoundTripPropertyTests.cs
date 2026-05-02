@@ -9,65 +9,71 @@
 //
 // **Validates: Requirements 12.7, 12.8**
 
+using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Text;
 using FsCheck;
 using FsCheck.Fluent;
-using FsCheck.Xunit;
+using Mist.Analysis.Builtin;
+using Mist.Backends.CSharpTranspiler;
+using Mist.Backends.Contracts;
+using Mist.Common.Diagnostics;
+using Mist.Driver;
+using Mist.Driver.Contracts;
+using Mist.Semantics.Model;
 
 namespace Mist.Tests.Integration;
 
 /// <summary>
-/// Property-based tests for Task 46 of the Mist Standard Library spec:
+/// Batched property-based tests for Task 46 of the Mist Standard Library spec:
 /// operator round-trip inverse.
 ///
 /// Design § *Correctness Properties → Property 6*.
 ///
-/// For each generated test case the property test:
-/// <list type="number">
-///   <item>Picks a numeric type (Int32 or Int64) and operand pair (a, b)
-///         filtered so a + b does not overflow.</item>
-///   <item>Creates a Mist program that prints (a + b) - b.</item>
-///   <item>Compiles and runs the Mist program via the CLI.</item>
-///   <item>Asserts the output equals a.</item>
-/// </list>
+/// Each test generates 100 random scenarios, builds a single Mist program
+/// that prints all 100 results (one per line), compiles once, runs once,
+/// and compares each output line to the expected value.
 ///
-/// Runs with <c>MaxTest = 100</c> per Requirement 12.8.
+/// **Validates: Requirements 12.7, 12.8**
 /// </summary>
-public class OperatorRoundTripPropertyTests
+public sealed class OperatorRoundTripPropertyTests : IDisposable
 {
-    // ─── Repo root discovery ─────────────────────────────────────────────
+    private const int IterationCount = 100;
 
-    private static readonly Lazy<string> RepoRoot = new(() =>
+    // ─── Shared driver (reused across tests) ─────────────────────────────
+
+    private static readonly CompilerDriver SharedDriver = new(
+        new Mist.Lexing.MistLexer(),
+        new Mist.Parsing.MistParser(),
+        new SemanticModelBuilder(),
+        ImmutableArray.Create<Mist.Analysis.Contracts.IAnalyzer>(new TypeCheckerAnalyzer()),
+        ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
+
+    private readonly string _outputDir;
+
+    public OperatorRoundTripPropertyTests()
     {
-        var dir = AppContext.BaseDirectory;
-        while (dir is not null)
+        _outputDir = Path.Combine(Path.GetTempPath(), "mist_pbt_rt_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_outputDir);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_outputDir))
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
-                return dir;
-            dir = Directory.GetParent(dir)?.FullName;
+            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
-
-        throw new InvalidOperationException(
-            "Could not find repository root (Mist.slnx) from AppContext.BaseDirectory.");
-    });
-
-    private static string CliProjectPath =>
-        Path.Combine(RepoRoot.Value, "Source", "Mist.CLI", "Mist.CLI.csproj");
+        GC.SuppressFinalize(this);
+    }
 
     // ─── Scenario records ────────────────────────────────────────────────
 
-    /// <summary>
-    /// A single generated scenario for Int32 round-trip.
-    /// </summary>
 #pragma warning disable CA1034
     public record Int32RoundTripScenario(int A, int B)
     {
         public override string ToString() => $"Int32: ({A} + {B}) - {B} == {A}";
     }
 
-    /// <summary>
-    /// A single generated scenario for Int64 round-trip.
-    /// </summary>
     public record Int64RoundTripScenario(long A, long B)
     {
         public override string ToString() => $"Int64: ({A} + {B}) - {B} == {A}";
@@ -76,47 +82,38 @@ public class OperatorRoundTripPropertyTests
 
     // ─── Generators ──────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Generates <see cref="Int32RoundTripScenario"/> instances with small
-    /// values that won't overflow when added.
-    /// </summary>
-    public static Arbitrary<Int32RoundTripScenario> ArbitraryInt32RoundTripScenarios()
-    {
-        // Use values in [-10000, 10000] to ensure a + b stays within int range
-        var gen =
-            from a in Gen.Choose(-10000, 10000)
-            from b in Gen.Choose(-10000, 10000)
-            select new Int32RoundTripScenario(a, b);
+    private static Gen<Int32RoundTripScenario> Int32ScenarioGen =>
+        from a in Gen.Choose(-10000, 10000)
+        from b in Gen.Choose(-10000, 10000)
+        select new Int32RoundTripScenario(a, b);
 
-        return gen.ToArbitrary();
-    }
+    private static Gen<Int64RoundTripScenario> Int64ScenarioGen =>
+        from a in Gen.Choose(-10000, 10000)
+        from b in Gen.Choose(-10000, 10000)
+        select new Int64RoundTripScenario((long)a, (long)b);
 
-    /// <summary>
-    /// Generates <see cref="Int64RoundTripScenario"/> instances with small
-    /// values that won't overflow when added.
-    /// </summary>
-    public static Arbitrary<Int64RoundTripScenario> ArbitraryInt64RoundTripScenarios()
-    {
-        // Use values in [-10000, 10000] to ensure a + b stays within long range
-        var gen =
-            from a in Gen.Choose(-10000, 10000)
-            from b in Gen.Choose(-10000, 10000)
-            select new Int64RoundTripScenario((long)a, (long)b);
+    // ─── Helpers ─────────────────────────────────────────────────────────
 
-        return gen.ToArbitrary();
-    }
-
-    // ─── Mist program generation ─────────────────────────────────────────
+    private static string FormatLiteral(long value) =>
+        value < 0 ? $"(0 - {-value})" : value.ToString();
 
     /// <summary>
-    /// Generates a Mist program that computes (a + b) - b and prints the result.
-    /// Uses explicit variable declarations to avoid parse ambiguity with
-    /// negative literals.
+    /// Builds a single Mist program whose Main prints one result per
+    /// scenario, one per line.
     /// </summary>
-    private static string GenerateInt32Program(Int32RoundTripScenario scenario)
+    private static string BuildBatchedInt32Program(IReadOnlyList<Int32RoundTripScenario> scenarios)
     {
-        var aLiteral = scenario.A < 0 ? $"(0 - {-scenario.A})" : scenario.A.ToString();
-        var bLiteral = scenario.B < 0 ? $"(0 - {-scenario.B})" : scenario.B.ToString();
+        var body = new StringBuilder();
+        for (var i = 0; i < scenarios.Count; i++)
+        {
+            var s = scenarios[i];
+            var a = FormatLiteral(s.A);
+            var b = FormatLiteral(s.B);
+            body.AppendLine($"        int a{i} = {a};");
+            body.AppendLine($"        int b{i} = {b};");
+            body.AppendLine($"        int s{i} = a{i} + b{i};");
+            body.AppendLine($"        Console.WriteLine(s{i} - b{i});");
+        }
 
         return $$"""
             using System;
@@ -127,23 +124,24 @@ public class OperatorRoundTripPropertyTests
             {
                 public static void Main(string[] args)
                 {
-                    int a = {{aLiteral}};
-                    int b = {{bLiteral}};
-                    int sum = a + b;
-                    int result = sum - b;
-                    Console.WriteLine(result);
-                }
+            {{body}}    }
             }
             """;
     }
 
-    /// <summary>
-    /// Generates a Mist program that computes (a + b) - b for long values.
-    /// </summary>
-    private static string GenerateInt64Program(Int64RoundTripScenario scenario)
+    private static string BuildBatchedInt64Program(IReadOnlyList<Int64RoundTripScenario> scenarios)
     {
-        var aLiteral = scenario.A < 0 ? $"(0 - {-scenario.A})" : scenario.A.ToString();
-        var bLiteral = scenario.B < 0 ? $"(0 - {-scenario.B})" : scenario.B.ToString();
+        var body = new StringBuilder();
+        for (var i = 0; i < scenarios.Count; i++)
+        {
+            var s = scenarios[i];
+            var a = FormatLiteral(s.A);
+            var b = FormatLiteral(s.B);
+            body.AppendLine($"        long a{i} = {a};");
+            body.AppendLine($"        long b{i} = {b};");
+            body.AppendLine($"        long s{i} = a{i} + b{i};");
+            body.AppendLine($"        Console.WriteLine(s{i} - b{i});");
+        }
 
         return $$"""
             using System;
@@ -154,148 +152,139 @@ public class OperatorRoundTripPropertyTests
             {
                 public static void Main(string[] args)
                 {
-                    long a = {{aLiteral}};
-                    long b = {{bLiteral}};
-                    long sum = a + b;
-                    long result = sum - b;
-                    Console.WriteLine(result);
-                }
+            {{body}}    }
             }
             """;
     }
 
-    // ─── CLI invocation ──────────────────────────────────────────────────
-
     /// <summary>
-    /// Creates a temp directory with a mist.toml and Program.mist, invokes
-    /// the Mist CLI to compile and run, and returns (exitCode, stdout, stderr).
+    /// Compiles a Mist source in-process via CompilerDriver, then runs the
+    /// produced DLL with <c>dotnet</c> to capture stdout.
     /// </summary>
-    private static (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
+    private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "mist_pbt_rt_" + Guid.NewGuid().ToString("N"));
+        var iterDir = Path.Combine(_outputDir, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(iterDir);
+
         try
         {
-            Directory.CreateDirectory(tempDir);
+            var sourcePath = Path.Combine(iterDir, "Program.mist");
+            File.WriteAllText(sourcePath, mistSource);
 
-            File.WriteAllText(
-                Path.Combine(tempDir, "mist.toml"),
-                "name = \"TestProgram\"\n");
+            var binDir = Path.Combine(iterDir, "bin");
+            var options = new CompilerOptions(
+                ProjectFolder: iterDir,
+                SourcePaths: ImmutableArray.Create(sourcePath),
+                Backend: new BackendId("csharp"),
+                OutputDirectory: iterDir,
+                BinDirectory: binDir,
+                ProjectName: "TestProgram",
+                NamespaceRoot: "TestProgram",
+                EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
-            File.WriteAllText(
-                Path.Combine(tempDir, "Program.mist"),
-                mistSource);
+            var result = SharedDriver.Compile(options);
 
-            var process = new Process
+            if (!result.Succeeded || result.PrimaryOutputArtifactPath is null)
             {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "dotnet",
-                    Arguments = $"run --project \"{CliProjectPath}\" -- run \"{tempDir}\"",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                }
+                var diagnosticText = string.Join("\n",
+                    result.Diagnostics.Select(d => $"  {d.Severity} {d.Id.Value}: {d.Message}"));
+                return (-1, "", $"Compilation failed:\n{diagnosticText}");
+            }
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = result.PrimaryOutputArtifactPath,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
             };
 
-            process.Start();
+            using var process = Process.Start(psi);
+            if (process is null)
+                return (-1, "", "Failed to start dotnet process");
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             var stderrTask = process.StandardError.ReadToEndAsync();
 
-            if (!process.WaitForExit(60_000))
+            if (!process.WaitForExit(30_000))
             {
                 try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
-                return (-1, "", "Process timed out after 60 seconds");
+                return (-1, "", "Process timed out after 30 seconds");
             }
 
             return (process.ExitCode, stdoutTask.Result, stderrTask.Result);
         }
         finally
         {
-            try { Directory.Delete(tempDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(iterDir, recursive: true); } catch { /* best effort */ }
         }
     }
 
-    // ─── Properties ──────────────────────────────────────────────────────
+    // ─── Tests ───────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Property 6 (Int32): (a + b) - b == a for Int32 operands.
-    ///
-    /// Runs ≥100 iterations per Requirement 12.8.
+    /// Property 6 (Int32): (a + b) - b == a for 100 random Int32 operand pairs.
+    /// Batched into a single compile + single run.
     ///
     /// **Validates: Requirements 12.7, 12.8**
     /// </summary>
-    [Property(
-        MaxTest = 100,
-        Arbitrary = new[] { typeof(OperatorRoundTripPropertyTests) })]
-    public Property Int32_AddSubtract_RoundTrip(Int32RoundTripScenario scenario)
+    [Fact]
+    public void Int32_AddSubtract_RoundTrip()
     {
-        var mistSource = GenerateInt32Program(scenario);
-        var expected = scenario.A.ToString();
+        var scenarios = Int32ScenarioGen
+            .Sample(IterationCount)
+            .ToList();
 
+        var mistSource = BuildBatchedInt32Program(scenarios);
         var (exitCode, stdout, stderr) = CompileAndRun(mistSource);
 
-        if (exitCode != 0)
+        Assert.True(exitCode == 0,
+            $"Mist program failed (exit code {exitCode}).\nStderr:\n{stderr}");
+
+        var lines = stdout.TrimEnd().Split('\n', StringSplitOptions.None);
+        Assert.Equal(scenarios.Count, lines.Length);
+
+        for (var i = 0; i < scenarios.Count; i++)
         {
-            return false.ToProperty()
-                .Label($"Mist program failed (exit code {exitCode}).\n" +
-                       $"Scenario: {scenario}\n" +
-                       $"Stderr:\n{stderr}\n" +
-                       $"Source:\n{mistSource}");
+            var expected = scenarios[i].A.ToString();
+            var actual = lines[i].TrimEnd('\r');
+            Assert.True(expected == actual,
+                $"Scenario {i} failed: {scenarios[i]}\n" +
+                $"Expected: '{expected}'\nActual:   '{actual}'");
         }
-
-        var actual = stdout.Trim().Replace("\r\n", "\n");
-
-        if (actual != expected)
-        {
-            return false.ToProperty()
-                .Label($"Round-trip failed for {scenario}.\n" +
-                       $"Expected: '{expected}'\n" +
-                       $"Actual:   '{actual}'");
-        }
-
-        return true.ToProperty()
-            .Label($"Verified: {scenario}");
     }
 
     /// <summary>
-    /// Property 6 (Int64): (a + b) - b == a for Int64 operands.
-    ///
-    /// Runs ≥100 iterations per Requirement 12.8.
+    /// Property 6 (Int64): (a + b) - b == a for 100 random Int64 operand pairs.
+    /// Batched into a single compile + single run.
     ///
     /// **Validates: Requirements 12.7, 12.8**
     /// </summary>
-    [Property(
-        MaxTest = 100,
-        Arbitrary = new[] { typeof(OperatorRoundTripPropertyTests) })]
-    public Property Int64_AddSubtract_RoundTrip(Int64RoundTripScenario scenario)
+    [Fact]
+    public void Int64_AddSubtract_RoundTrip()
     {
-        var mistSource = GenerateInt64Program(scenario);
-        var expected = scenario.A.ToString();
+        var scenarios = Int64ScenarioGen
+            .Sample(IterationCount)
+            .ToList();
 
+        var mistSource = BuildBatchedInt64Program(scenarios);
         var (exitCode, stdout, stderr) = CompileAndRun(mistSource);
 
-        if (exitCode != 0)
+        Assert.True(exitCode == 0,
+            $"Mist program failed (exit code {exitCode}).\nStderr:\n{stderr}");
+
+        var lines = stdout.TrimEnd().Split('\n', StringSplitOptions.None);
+        Assert.Equal(scenarios.Count, lines.Length);
+
+        for (var i = 0; i < scenarios.Count; i++)
         {
-            return false.ToProperty()
-                .Label($"Mist program failed (exit code {exitCode}).\n" +
-                       $"Scenario: {scenario}\n" +
-                       $"Stderr:\n{stderr}\n" +
-                       $"Source:\n{mistSource}");
+            var expected = scenarios[i].A.ToString();
+            var actual = lines[i].TrimEnd('\r');
+            Assert.True(expected == actual,
+                $"Scenario {i} failed: {scenarios[i]}\n" +
+                $"Expected: '{expected}'\nActual:   '{actual}'");
         }
-
-        var actual = stdout.Trim().Replace("\r\n", "\n");
-
-        if (actual != expected)
-        {
-            return false.ToProperty()
-                .Label($"Round-trip failed for {scenario}.\n" +
-                       $"Expected: '{expected}'\n" +
-                       $"Actual:   '{actual}'");
-        }
-
-        return true.ToProperty()
-            .Label($"Verified: {scenario}");
     }
 }

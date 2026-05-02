@@ -10,53 +10,63 @@
 //
 // **Validates: Requirements 12.1, 12.2, 12.3, 12.8**
 
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Globalization;
+using System.Text;
 using FsCheck;
 using FsCheck.Fluent;
-using FsCheck.Xunit;
+using Mist.Analysis.Builtin;
+using Mist.Backends.CSharpTranspiler;
+using Mist.Backends.Contracts;
+using Mist.Common.Diagnostics;
+using Mist.Driver;
+using Mist.Driver.Contracts;
+using Mist.Semantics.Model;
 
 namespace Mist.Tests.Integration;
 
 /// <summary>
-/// Property-based tests for Task 44 of the Mist Standard Library spec:
+/// Batched property-based tests for Task 44 of the Mist Standard Library spec:
 /// bootstrap numeric operators match C# semantics.
 ///
 /// Design § *Correctness Properties → Property 5*.
 ///
-/// For each generated test case the property test:
-/// <list type="number">
-///   <item>Picks a numeric type (Int32) and an operator.</item>
-///   <item>Generates operand pairs (a, b) with small values to avoid
-///         overflow, filtering b == 0 for / and %.</item>
-///   <item>Creates a Mist program that prints the result of a op b.</item>
-///   <item>Compiles and runs the Mist program via the CLI.</item>
-///   <item>Compares the output to the C# evaluation of the same
-///         expression.</item>
-/// </list>
+/// The test generates 100 random (a, b, op) scenarios, builds a single Mist
+/// program that prints all 100 results (one per line), compiles once, runs
+/// once, and compares each output line to the C# reference evaluation.
 ///
-/// Runs with <c>MaxTest = 100</c> per Requirement 12.8.
+/// **Validates: Requirements 12.1, 12.2, 12.3, 12.8**
 /// </summary>
-public class BootstrapNumericOperatorPropertyTests
+public sealed class BootstrapNumericOperatorPropertyTests : IDisposable
 {
-    // ─── Repo root discovery ─────────────────────────────────────────────
+    private const int IterationCount = 100;
 
-    private static readonly Lazy<string> RepoRoot = new(() =>
+    // ─── Shared driver (reused across tests) ─────────────────────────────
+
+    private static readonly CompilerDriver SharedDriver = new(
+        new Mist.Lexing.MistLexer(),
+        new Mist.Parsing.MistParser(),
+        new SemanticModelBuilder(),
+        ImmutableArray.Create<Mist.Analysis.Contracts.IAnalyzer>(new TypeCheckerAnalyzer()),
+        ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
+
+    private readonly string _outputDir;
+
+    public BootstrapNumericOperatorPropertyTests()
     {
-        var dir = AppContext.BaseDirectory;
-        while (dir is not null)
+        _outputDir = Path.Combine(Path.GetTempPath(), "mist_pbt_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_outputDir);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_outputDir))
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
-                return dir;
-            dir = Directory.GetParent(dir)?.FullName;
+            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
-
-        throw new InvalidOperationException(
-            "Could not find repository root (Mist.slnx) from AppContext.BaseDirectory.");
-    });
-
-    private static string CliProjectPath =>
-        Path.Combine(RepoRoot.Value, "Source", "Mist.CLI", "Mist.CLI.csproj");
+        GC.SuppressFinalize(this);
+    }
 
     // ─── Operator definitions ────────────────────────────────────────────
 
@@ -66,9 +76,6 @@ public class BootstrapNumericOperatorPropertyTests
 
     // ─── Scenario record ─────────────────────────────────────────────────
 
-    /// <summary>
-    /// A single generated scenario: two Int32 operands and an operator.
-    /// </summary>
 #pragma warning disable CA1034
     public record NumericOpScenario(int A, int B, string Op)
     {
@@ -78,28 +85,15 @@ public class BootstrapNumericOperatorPropertyTests
 
     // ─── Generator ───────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Generates <see cref="NumericOpScenario"/> instances with small
-    /// operand values (-100 to 100) and filters b == 0 for / and %.
-    /// </summary>
-    public static Arbitrary<NumericOpScenario> ArbitraryNumericOpScenarios()
-    {
-        var gen =
-            from op in Gen.Elements(AllOps)
-            from a in Gen.Choose(-100, 100)
-            from b in Gen.Choose(-100, 100)
-            where !(op is "/" or "%" && b == 0)
-            select new NumericOpScenario(a, b, op);
-
-        return gen.ToArbitrary();
-    }
+    private static Gen<NumericOpScenario> ScenarioGen =>
+        from op in Gen.Elements(AllOps)
+        from a in Gen.Choose(-100, 100)
+        from b in Gen.Choose(-100, 100)
+        where !(op is "/" or "%" && b == 0)
+        select new NumericOpScenario(a, b, op);
 
     // ─── C# reference evaluation ─────────────────────────────────────────
 
-    /// <summary>
-    /// Evaluates the expression in C# and returns the expected output
-    /// string (what Console.WriteLine would print).
-    /// </summary>
     private static string EvaluateInCSharp(int a, int b, string op)
     {
         return op switch
@@ -119,23 +113,31 @@ public class BootstrapNumericOperatorPropertyTests
         };
     }
 
-    // ─── Mist program generation ─────────────────────────────────────────
+    // ─── Helpers ─────────────────────────────────────────────────────────
+
+    private static string FormatLiteral(int value) =>
+        value < 0 ? $"(0 - {-value})" : value.ToString();
 
     /// <summary>
-    /// Generates a Mist program that evaluates a op b and prints the result.
-    /// For comparison operators, the result is a bool printed via
-    /// Console.WriteLine. For arithmetic operators, the result is an int.
+    /// Builds a single Mist program whose Main evaluates all scenarios
+    /// and prints one result per line.
     /// </summary>
-    private static string GenerateMistProgram(NumericOpScenario scenario)
+    private static string BuildBatchedProgram(IReadOnlyList<NumericOpScenario> scenarios)
     {
-        var isComparison = ComparisonOps.Contains(scenario.Op);
-        var resultType = isComparison ? "bool" : "int";
+        var body = new StringBuilder();
+        for (var i = 0; i < scenarios.Count; i++)
+        {
+            var s = scenarios[i];
+            var isComparison = ComparisonOps.Contains(s.Op);
+            var resultType = isComparison ? "bool" : "int";
+            var a = FormatLiteral(s.A);
+            var b = FormatLiteral(s.B);
 
-        // Use explicit variable declarations to avoid any ambiguity.
-        // Negative literals need parentheses to avoid parse issues with
-        // unary minus on the literal vs binary minus.
-        var aLiteral = scenario.A < 0 ? $"(0 - {-scenario.A})" : scenario.A.ToString();
-        var bLiteral = scenario.B < 0 ? $"(0 - {-scenario.B})" : scenario.B.ToString();
+            body.AppendLine($"        int a{i} = {a};");
+            body.AppendLine($"        int b{i} = {b};");
+            body.AppendLine($"        {resultType} r{i} = a{i} {s.Op} b{i};");
+            body.AppendLine($"        Console.WriteLine(r{i});");
+        }
 
         return $$"""
             using System;
@@ -146,115 +148,108 @@ public class BootstrapNumericOperatorPropertyTests
             {
                 public static void Main(string[] args)
                 {
-                    int a = {{aLiteral}};
-                    int b = {{bLiteral}};
-                    {{resultType}} result = a {{scenario.Op}} b;
-                    Console.WriteLine(result);
-                }
+            {{body}}    }
             }
             """;
     }
 
-    // ─── CLI invocation ──────────────────────────────────────────────────
-
     /// <summary>
-    /// Creates a temp directory with a mist.toml and Program.mist, invokes
-    /// the Mist CLI to compile and run, and returns (exitCode, stdout, stderr).
+    /// Compiles a Mist source in-process via CompilerDriver, then runs the
+    /// produced DLL with <c>dotnet</c> to capture stdout.
     /// </summary>
-    private static (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
+    private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "mist_pbt_" + Guid.NewGuid().ToString("N"));
+        var iterDir = Path.Combine(_outputDir, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(iterDir);
+
         try
         {
-            Directory.CreateDirectory(tempDir);
+            var sourcePath = Path.Combine(iterDir, "Program.mist");
+            File.WriteAllText(sourcePath, mistSource);
 
-            // Write mist.toml
-            File.WriteAllText(
-                Path.Combine(tempDir, "mist.toml"),
-                "name = \"TestProgram\"\n");
+            var binDir = Path.Combine(iterDir, "bin");
+            var options = new CompilerOptions(
+                ProjectFolder: iterDir,
+                SourcePaths: ImmutableArray.Create(sourcePath),
+                Backend: new BackendId("csharp"),
+                OutputDirectory: iterDir,
+                BinDirectory: binDir,
+                ProjectName: "TestProgram",
+                NamespaceRoot: "TestProgram",
+                EnabledAnalyzerIds: ImmutableArray<string>.Empty);
 
-            // Write Program.mist
-            File.WriteAllText(
-                Path.Combine(tempDir, "Program.mist"),
-                mistSource);
+            var result = SharedDriver.Compile(options);
 
-            var process = new Process
+            if (!result.Succeeded || result.PrimaryOutputArtifactPath is null)
             {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "dotnet",
-                    Arguments = $"run --project \"{CliProjectPath}\" -- run \"{tempDir}\"",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                }
+                var diagnosticText = string.Join("\n",
+                    result.Diagnostics.Select(d => $"  {d.Severity} {d.Id.Value}: {d.Message}"));
+                return (-1, "", $"Compilation failed:\n{diagnosticText}");
+            }
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = result.PrimaryOutputArtifactPath,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
             };
 
-            process.Start();
+            using var process = Process.Start(psi);
+            if (process is null)
+                return (-1, "", "Failed to start dotnet process");
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             var stderrTask = process.StandardError.ReadToEndAsync();
 
-            // Timeout after 60 seconds
-            if (!process.WaitForExit(60_000))
+            if (!process.WaitForExit(30_000))
             {
                 try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
-                return (-1, "", "Process timed out after 60 seconds");
+                return (-1, "", "Process timed out after 30 seconds");
             }
 
             return (process.ExitCode, stdoutTask.Result, stderrTask.Result);
         }
         finally
         {
-            try { Directory.Delete(tempDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(iterDir, recursive: true); } catch { /* best effort */ }
         }
     }
 
-    // ─── Property ────────────────────────────────────────────────────────
+    // ─── Test ────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Property 5: For each bootstrap numeric type and each operator,
-    /// the Mist program produces the same output as the C# evaluation.
-    ///
-    /// Simplified to Int32 with 5 arithmetic + 6 comparison operators.
-    ///
-    /// Runs ≥100 iterations per Requirement 12.8.
+    /// Property 5: For each bootstrap numeric operator, the Mist program
+    /// produces the same output as the C# evaluation. 100 random scenarios
+    /// batched into a single compile + single run.
     ///
     /// **Validates: Requirements 12.1, 12.2, 12.3, 12.8**
     /// </summary>
-    [Property(
-        MaxTest = 100,
-        Arbitrary = new[] { typeof(BootstrapNumericOperatorPropertyTests) })]
-    public Property BootstrapNumericOperators_MatchCSharpSemantics(
-        NumericOpScenario scenario)
+    [Fact]
+    public void BootstrapNumericOperators_MatchCSharpSemantics()
     {
-        var mistSource = GenerateMistProgram(scenario);
-        var expected = EvaluateInCSharp(scenario.A, scenario.B, scenario.Op);
+        var scenarios = ScenarioGen
+            .Sample(IterationCount)
+            .ToList();
 
+        var mistSource = BuildBatchedProgram(scenarios);
         var (exitCode, stdout, stderr) = CompileAndRun(mistSource);
 
-        if (exitCode != 0)
+        Assert.True(exitCode == 0,
+            $"Mist program failed (exit code {exitCode}).\nStderr:\n{stderr}");
+
+        var lines = stdout.TrimEnd().Split('\n', StringSplitOptions.None);
+        Assert.Equal(scenarios.Count, lines.Length);
+
+        for (var i = 0; i < scenarios.Count; i++)
         {
-            return false.ToProperty()
-                .Label($"Mist program failed to compile/run (exit code {exitCode}).\n" +
-                       $"Scenario: {scenario}\n" +
-                       $"Stderr:\n{stderr}\n" +
-                       $"Source:\n{mistSource}");
+            var expected = EvaluateInCSharp(scenarios[i].A, scenarios[i].B, scenarios[i].Op);
+            var actual = lines[i].TrimEnd('\r');
+            Assert.True(expected == actual,
+                $"Scenario {i} failed: {scenarios[i]}\n" +
+                $"Expected: '{expected}'\nActual:   '{actual}'");
         }
-
-        var actual = stdout.Trim().Replace("\r\n", "\n");
-
-        if (actual != expected)
-        {
-            return false.ToProperty()
-                .Label($"Output mismatch for {scenario}.\n" +
-                       $"Expected: '{expected}'\n" +
-                       $"Actual:   '{actual}'\n" +
-                       $"Source:\n{mistSource}");
-        }
-
-        return true.ToProperty()
-            .Label($"Verified: {scenario} => {expected}");
     }
 }

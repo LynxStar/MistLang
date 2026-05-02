@@ -3,6 +3,7 @@ using Mist.Analysis;
 using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
+using Mist.Common.Text;
 using Mist.Driver.Contracts;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
@@ -98,12 +99,98 @@ public sealed class CompilerDriver : ICompilerDriver
             return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
         }
 
-        // Stdlib units come first so SemanticModelBuilder registers the
-        // Standard namespace's types before user code tries to reference
-        // them (via primitive-keyword aliases or explicit lookups).
+        // Step 1c: Resolve project references (if any)
+        // Only attempt reference resolution when a mist.toml exists in the
+        // project folder. Many test scenarios and CLI invocations supply a
+        // ProjectFolder without a mist.toml; in those cases we skip this
+        // step entirely.
+        var refUnits = ImmutableArray<CompilationUnit>.Empty;
+        ImmutableHashSet<string>? directReferencePaths = null;
+
+        if (!string.IsNullOrEmpty(options.ProjectFolder)
+            && File.Exists(Path.Combine(options.ProjectFolder, ProjectFileParser.FileName)))
+        {
+            var refParseBag = new DiagnosticBag();
+            var projectConfig = ProjectFileParser.Parse(options.ProjectFolder, refParseBag);
+
+            foreach (var d in refParseBag.ToImmutableArray())
+            {
+                allDiagnostics.Add(d);
+            }
+
+            if (projectConfig is not null && !projectConfig.References.IsEmpty
+                && !refParseBag.HasErrors)
+            {
+                // Build the set of directly-referenced canonical paths from
+                // the root project's declared references. This set is passed
+                // to the semantic model builder to enforce transitive
+                // visibility: only symbols from direct references (and
+                // stdlib / user code) are visible during name resolution.
+                directReferencePaths = projectConfig.References
+                    .Select(r => r.Path)
+                    .ToImmutableHashSet(StringComparer.Ordinal);
+
+                var resolveBag = new DiagnosticBag();
+                var resolved = ProjectReferenceResolver.Resolve(
+                    options.ProjectFolder,
+                    projectConfig.References,
+                    resolveBag);
+
+                foreach (var d in resolveBag.ToImmutableArray())
+                {
+                    allDiagnostics.Add(d);
+                }
+
+                if (!resolveBag.HasErrors)
+                {
+                    var refUnitBuilder = ImmutableArray.CreateBuilder<CompilationUnit>();
+                    foreach (var proj in resolved)
+                    {
+                        foreach (var path in proj.SourcePaths)
+                        {
+                            try
+                            {
+                                var contents = File.ReadAllText(path);
+                                var sourceText = new SourceText(path, contents);
+                                refUnitBuilder.Add(new CompilationUnit(sourceText)
+                                {
+                                    NamespaceRoot = proj.Configuration.NamespaceRoot,
+                                    ProjectFolder = proj.ProjectFolder,
+                                    OriginProjectPath = proj.CanonicalTomlPath,
+                                });
+                            }
+                            catch (Exception ex)
+                            {
+                                allDiagnostics.Add(new Diagnostic(
+                                    new DiagnosticId("MIST_FILE_ERROR"),
+                                    DiagnosticSeverity.Error,
+                                    PipelineStage.Driver,
+                                    $"Failed to read referenced source file '{path}': {ex.Message}",
+                                    Location: null,
+                                    CompilationUnitPath: path,
+                                    AnalyzerName: null));
+                            }
+                        }
+                    }
+                    refUnits = refUnitBuilder.ToImmutable();
+                }
+                else
+                {
+                    return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
+                }
+            }
+            else if (refParseBag.HasErrors)
+            {
+                return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
+            }
+        }
+
+        // Step 1d: Combine units
+        // Order: stdlib → referenced project units (deepest first) → user units
         var combinedUnits = ImmutableArray.CreateBuilder<CompilationUnit>(
-            stdlibUnits.Length + userUnits.Count);
+            stdlibUnits.Length + refUnits.Length + userUnits.Count);
         combinedUnits.AddRange(stdlibUnits);
+        combinedUnits.AddRange(refUnits);
         combinedUnits.AddRange(userUnits);
 
         var compilation = new MistCompilation(combinedUnits.ToImmutable());
@@ -157,7 +244,7 @@ public sealed class CompilerDriver : ICompilerDriver
         ISemanticModel? semanticModel;
         try
         {
-            semanticModel = semanticModelBuilder.Build(compilation, asts.ToImmutable(), ambientTypeResolver, options.NamespaceRoot, options.ProjectFolder, semanticBag);
+            semanticModel = semanticModelBuilder.Build(compilation, asts.ToImmutable(), ambientTypeResolver, options.NamespaceRoot, options.ProjectFolder, semanticBag, directReferencePaths);
         }
         catch(Exception ex)
         {

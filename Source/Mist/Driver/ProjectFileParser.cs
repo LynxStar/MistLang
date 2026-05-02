@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
@@ -188,6 +189,78 @@ public static partial class ProjectFileParser
             namespaceRoot = name;
         }
 
-        return new ProjectConfiguration(name, namespaceRoot);
+        // 9. Read [[references]] array (optional)
+        var references = ImmutableArray.CreateBuilder<ProjectReference>();
+
+        if (model.TryGetValue("references", out var refsObj))
+        {
+            if (refsObj is not TomlTableArray refsArray)
+            {
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_PROJECT_TOML_ERROR"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Driver,
+                    $"The 'references' field in '{filePath}' must be an array of tables ([[references]]).",
+                    Location: null,
+                    CompilationUnitPath: filePath,
+                    AnalyzerName: null));
+                return null;
+            }
+
+            foreach (var entry in refsArray)
+            {
+                // 9c.i/ii: path key must be present and a string
+                if (!entry.TryGetValue("path", out var pathObj) || pathObj is not string rawPath)
+                {
+                    diagnostics.Add(new Diagnostic(
+                        DiagnosticId.ProjectReferenceMissingPath,
+                        DiagnosticSeverity.Error,
+                        PipelineStage.Driver,
+                        $"Reference entry in '{filePath}' is missing the required 'path' field.",
+                        Location: null,
+                        CompilationUnitPath: filePath,
+                        AnalyzerName: null));
+                    return null;
+                }
+
+                // 9c.iii: path must not be empty or whitespace
+                if (string.IsNullOrWhiteSpace(rawPath))
+                {
+                    diagnostics.Add(new Diagnostic(
+                        DiagnosticId.ProjectReferenceEmptyPath,
+                        DiagnosticSeverity.Error,
+                        PipelineStage.Driver,
+                        $"Reference entry in '{filePath}' has an empty or whitespace 'path' field.",
+                        Location: null,
+                        CompilationUnitPath: filePath,
+                        AnalyzerName: null));
+                    return null;
+                }
+
+                // 9c.iv: Normalize path
+                string normalizedPath;
+                if (Path.IsPathRooted(rawPath))
+                {
+                    normalizedPath = Path.GetFullPath(rawPath);
+                }
+                else
+                {
+                    normalizedPath = Path.GetFullPath(Path.Combine(projectFolder, rawPath));
+                }
+
+                // If normalized path does not already end with "mist.toml",
+                // treat it as a directory and append "mist.toml".
+                // Existence checks are NOT performed here — deferred to resolver.
+                if (!Path.GetFileName(normalizedPath)
+                         .Equals(FileName, StringComparison.Ordinal))
+                {
+                    normalizedPath = Path.Combine(normalizedPath, FileName);
+                }
+
+                references.Add(new ProjectReference(normalizedPath));
+            }
+        }
+
+        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable());
     }
 }

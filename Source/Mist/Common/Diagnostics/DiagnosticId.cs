@@ -57,4 +57,26 @@ public readonly record struct DiagnosticId(string Value)
     /// artifact (Requirements 5.9, 5.10).
     /// </summary>
     public static readonly DiagnosticId MissingIntrinsicEmissionTemplate = new("MIST_BE_0002");
+
+    // ── Project reference diagnostics ────────────────────────────────────
+
+    /// <summary>A [[references]] entry is missing the required 'path' field.</summary>
+    public static readonly DiagnosticId ProjectReferenceMissingPath =
+        new("MIST_PROJECT_REFERENCE_MISSING_PATH");
+
+    /// <summary>A [[references]] entry has an empty or whitespace 'path' field.</summary>
+    public static readonly DiagnosticId ProjectReferenceEmptyPath =
+        new("MIST_PROJECT_REFERENCE_EMPTY_PATH");
+
+    /// <summary>The normalized reference path does not point to an existing file or directory.</summary>
+    public static readonly DiagnosticId ProjectReferenceNotFound =
+        new("MIST_PROJECT_REFERENCE_NOT_FOUND");
+
+    /// <summary>The normalized reference path points to a directory with no mist.toml.</summary>
+    public static readonly DiagnosticId ProjectReferenceNoProjectFile =
+        new("MIST_PROJECT_REFERENCE_NO_PROJECT_FILE");
+
+    /// <summary>A circular reference was detected in the project reference graph.</summary>
+    public static readonly DiagnosticId ProjectCircularReference =
+        new("MIST_PROJECT_CIRCULAR_REFERENCE");
 }

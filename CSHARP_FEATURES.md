@@ -141,7 +141,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 |---|---|---|
 | Destructors / Finalizers | 🔲 | |
 | Operator overloading | 🔲 | |
-| Implicit/explicit conversion operators | 🔲 | |
+| Implicit/explicit conversion operators | ✅ | |
 | Events | 🔲 | |
 | Deconstruct methods | 🔲 | |
 
@@ -342,7 +342,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | Null-coalescing (`??`) | 🔲 | |
 | `is` type check | 🔲 | |
 | `as` type cast | 🔲 | |
-| Cast expressions (`(T)expr`) | 🔲 | |
+| Cast expressions (`(T)expr`) | ✅ | |
 | Lambda expressions (`=>`) | 🔲 | |
 | Anonymous methods (`delegate { }`) | ⛔ | Superseded by lambdas |
 | LINQ query expressions | 🔲 | |
@@ -554,7 +554,7 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 | Undefined namespace detection | ✅ | In `using` directives |
 | Member access modifier checks | ✅ | Public/private visibility |
 | Implicit numeric conversions | 🔲 | |
-| Explicit cast validation | 🔲 | |
+| Explicit cast validation | ✅ | |
 | Null safety checks | 🔲 | |
 | Overload resolution | 🔲 | |
 | Generic type inference | 🔲 | |
@@ -572,7 +572,7 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 | Members — Properties | 10 | 1 | 0 |
 | Members — Methods | 5 | 12 | 0 |
 | Members — Constructors | 3 | 2 | 0 |
-| Members — Other | 0 | 5 | 0 |
+| Members — Other | 1 | 4 | 0 |
 | Access Modifiers | 3 | 11 | 2 |
 | Statements — Declarations | 2 | 6 | 0 |
 | Statements — Control Flow | 6 | 7 | 1 |
@@ -586,7 +586,7 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 | Expressions — Assignment | 1 | 4 | 0 |
 | Expressions — Member Access | 4 | 3 | 0 |
 | Expressions — Object Creation | 2 | 5 | 0 |
-| Expressions — Other | 2 | 14 | 2 |
+| Expressions — Other | 3 | 13 | 2 |
 | Inheritance | 3 | 8 | 0 |
 | Structural Typing — Traits | 5 | 0 | 0 |
 | Structural Typing — Matching | 5 | 0 | 0 |
@@ -601,4 +601,4 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 | Preprocessor | 0 | 0 | 6 |
 | Unsafe / Low-Level | 0 | 0 | 8 |
 | Ambient Types | 5 | 0 | 0 |
-| Type Checking | 10 | 5 | 0 |
+| Type Checking | 11 | 4 | 0 |

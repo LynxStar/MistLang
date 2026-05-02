@@ -9,4 +9,14 @@ intrinsic public struct Char
     intrinsic public static Boolean operator >(Char a, Char b);
     intrinsic public static Boolean operator <=(Char a, Char b);
     intrinsic public static Boolean operator >=(Char a, Char b);
+
+    // Implicit widening conversions
+    intrinsic public static implicit operator UInt16(Char value);
+    intrinsic public static implicit operator Int32(Char value);
+    intrinsic public static implicit operator UInt32(Char value);
+    intrinsic public static implicit operator Int64(Char value);
+    intrinsic public static implicit operator UInt64(Char value);
+    intrinsic public static implicit operator Single(Char value);
+    intrinsic public static implicit operator Double(Char value);
+    intrinsic public static implicit operator Decimal(Char value);
 }

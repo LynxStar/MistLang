@@ -1,0 +1,5 @@
+namespace Standard;
+
+intrinsic public class Type
+{
+}

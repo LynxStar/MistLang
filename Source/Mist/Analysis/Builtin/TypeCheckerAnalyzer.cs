@@ -22,6 +22,39 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     internal static readonly DiagnosticId NoApplicableOverload = new("MIST_TC_0031");
     internal static readonly DiagnosticId AmbiguousOverload = new("MIST_TC_0032");
 
+    // ── Cast operator diagnostic IDs ─────────────────────────────────────
+    /// <summary>
+    /// Emitted when a cast operator's source parameter type and target type
+    /// are both different from the enclosing type (Requirement 6.2).
+    /// </summary>
+    internal static readonly DiagnosticId CastOperatorEnclosingTypeViolation = new("MIST_TC_0040");
+
+    /// <summary>
+    /// Emitted when two cast operators in the same type have the same kind
+    /// (implicit/explicit) and the same resolved source-target type pair
+    /// (Requirement 6.5).
+    /// </summary>
+    internal static readonly DiagnosticId DuplicateCastOperator = new("MIST_TC_0041");
+
+    /// <summary>
+    /// Emitted when no cast operator is defined from the source type to the
+    /// target type in an explicit cast expression (Requirement 8.6).
+    /// </summary>
+    internal static readonly DiagnosticId NoCastOperator = new("MIST_TC_0042");
+
+    /// <summary>
+    /// Emitted when multiple cast operators (explicit and implicit combined)
+    /// are applicable for the same explicit cast expression (Requirement 8.9).
+    /// </summary>
+    internal static readonly DiagnosticId AmbiguousCast = new("MIST_TC_0043");
+
+    /// <summary>
+    /// Emitted when multiple implicit cast operators are applicable for the
+    /// same conversion at an assignment, argument, or return site
+    /// (Requirement 7.6).
+    /// </summary>
+    internal static readonly DiagnosticId AmbiguousImplicitCast = new("MIST_TC_0044");
+
     /// <summary>
     /// Feature flag gating the operator overload-resolution path introduced by
     /// Task 14 of the Mist Standard Library spec. When <c>true</c> (the
@@ -46,17 +79,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// DisplayName-based numeric classification set — covers both the
-    /// legacy <see cref="PrimitiveType"/> singletons (DisplayName
-    /// <c>"int"</c>, <c>"double"</c>, etc.) and the stdlib
-    /// <c>Standard.*</c> <see cref="StructType"/> instances (DisplayName
-    /// <c>"Int32"</c>, <c>"Double"</c>, etc.). Consulted by helpers that
-    /// still need numeric classification after Task 33 — variable
-    /// narrowing (<see cref="CheckAssignability"/> callers), numeric
-    /// widening in <see cref="HasImplicitNumericConversion"/>, and
-    /// equality compatibility in <see cref="AreEqualityCompatible"/>.
-    /// Operator type-checking no longer consults this set; operator
-    /// applicability flows from Operator_Declarations via overload
-    /// resolution (Requirement 6.7).
+    /// legacy keyword display names (<c>"int"</c>, <c>"double"</c>, etc.)
+    /// and the stdlib type names (<c>"Int32"</c>, <c>"Double"</c>, etc.).
+    /// Used for equality compatibility checks and variable declaration
+    /// narrowing suppression. Numeric widening conversions are now handled
+    /// by implicit cast operators declared on the stdlib bootstrap types.
     /// </summary>
     private static readonly HashSet<string> NumericDisplayNames = new(StringComparer.Ordinal)
     {
@@ -338,15 +365,345 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(methodSymbol); }
         catch { return; }
 
+        // ── Cast operator declarations ───────────────────────────────────
+        if (declaringNode is CastOperatorDeclarationNode castOpDecl)
+        {
+            var returnType = methodSymbol.DeclaredType ?? UnknownType.Instance;
+            _currentEnclosingType = FindDeclaringType(methodSymbol);
+            _insideConstructor = false;
+            _insidePropertyAccessor = false;
+
+            CheckCastOperatorDeclaration(castOpDecl, methodSymbol, model, diagnostics);
+
+            if (castOpDecl.Body.GetBlock() is BlockNode castBlock)
+                CheckBlock(castBlock, returnType, model, diagnostics);
+            return;
+        }
+
         if (declaringNode is not MethodDeclarationNode methodDecl)
             return;
 
-        var returnType = methodSymbol.DeclaredType ?? UnknownType.Instance;
+        var returnType2 = methodSymbol.DeclaredType ?? UnknownType.Instance;
         _currentEnclosingType = FindDeclaringType(methodSymbol);
         _insideConstructor = false;
         _insidePropertyAccessor = false;
         if (methodDecl.Body.GetBlock() is BlockNode block)
-            CheckBlock(block, returnType, model, diagnostics);
+            CheckBlock(block, returnType2, model, diagnostics);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Cast operator declaration validation (MIST_TC_0040, MIST_TC_0041)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates a cast operator declaration after type resolution:
+    /// <list type="bullet">
+    /// <item><description><c>MIST_TC_0040</c> — either the source parameter type
+    /// or the target type must be the enclosing type (Requirement 6.2).</description></item>
+    /// <item><description><c>MIST_TC_0041</c> — duplicate cast operator with the
+    /// same kind and same resolved source-target type pair (Requirement 6.5).</description></item>
+    /// </list>
+    /// </summary>
+    private void CheckCastOperatorDeclaration(
+        CastOperatorDeclarationNode castOpDecl,
+        ISymbol methodSymbol,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var enclosingType = _currentEnclosingType;
+        if (enclosingType is null)
+            return;
+
+        // Resolve the source parameter type from the symbol's parameter.
+        var paramTypes = ParameterSignature.Extract(methodSymbol, model);
+        var sourceType = paramTypes.Count > 0 ? paramTypes[0] : null;
+
+        // The target type is the symbol's DeclaredType (return type), resolved in Pass 2.
+        var targetType = methodSymbol.DeclaredType;
+
+        // ── MIST_TC_0040: Enclosing type constraint ─────────────────────
+        // Either the source parameter type or the target type must be the
+        // enclosing type.
+        if (sourceType is not null && targetType is not null)
+        {
+            var sourceMatchesEnclosing = sourceType.DisplayName == enclosingType.DisplayName;
+            var targetMatchesEnclosing = targetType.DisplayName == enclosingType.DisplayName;
+
+            if (!sourceMatchesEnclosing && !targetMatchesEnclosing)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    CastOperatorEnclosingTypeViolation.Value,
+                    $"Either the source type or the target type of a cast operator must be the enclosing type '{enclosingType.DisplayName}'. Source: '{sourceType.DisplayName}', Target: '{targetType.DisplayName}'.",
+                    castOpDecl,
+                    model));
+            }
+        }
+
+        // ── MIST_TC_0041: Duplicate cast operator detection ─────────────
+        // After type resolution, check for duplicate cast operators with the
+        // same kind (implicit/explicit) and the same resolved source-target
+        // type pair in the enclosing type.
+        if (sourceType is not null && targetType is not null)
+        {
+            var castKind = castOpDecl.CastKind switch
+            {
+                ImplicitCastCastOperatorKindNode => "implicit",
+                ExplicitCastCastOperatorKindNode => "explicit",
+                _ => "unknown",
+            };
+
+            // Get the member scope of the enclosing type to find sibling cast operators.
+            var memberScope = enclosingType switch
+            {
+                ClassType ct => ct.MemberScope,
+                StructType st => st.MemberScope,
+                _ => null,
+            };
+
+            if (memberScope is not null)
+            {
+                foreach (var sibling in memberScope.Members)
+                {
+                    if (sibling.Kind != SymbolKind.Method)
+                        continue;
+
+                    // Skip self.
+                    if (ReferenceEquals(sibling, methodSymbol))
+                        continue;
+
+                    // Only consider cast operator symbols (name starts with "operator_implicit_" or "operator_explicit_").
+                    if (!sibling.Name.StartsWith("operator_implicit_") && !sibling.Name.StartsWith("operator_explicit_"))
+                        continue;
+
+                    // Determine the sibling's cast kind from its name.
+                    var siblingKind = sibling.Name.StartsWith("operator_implicit_") ? "implicit" : "explicit";
+                    if (siblingKind != castKind)
+                        continue;
+
+                    // Compare resolved source and target types.
+                    var siblingTargetType = sibling.DeclaredType;
+                    var siblingParamTypes = ParameterSignature.Extract(sibling, model);
+                    var siblingSourceType = siblingParamTypes.Count > 0 ? siblingParamTypes[0] : null;
+
+                    if (siblingSourceType is not null && siblingTargetType is not null
+                        && siblingSourceType.DisplayName == sourceType.DisplayName
+                        && siblingTargetType.DisplayName == targetType.DisplayName)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            DuplicateCastOperator.Value,
+                            $"Duplicate {castKind} cast operator from '{sourceType.DisplayName}' to '{targetType.DisplayName}' in type '{enclosingType.DisplayName}'.",
+                            castOpDecl,
+                            model));
+                        break; // One diagnostic per duplicate is sufficient.
+                    }
+                }
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Explicit cast expression validation (MIST_TC_0042, MIST_TC_0043)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates an explicit cast expression <c>(TargetType)operand</c>:
+    /// <list type="number">
+    /// <item><description>Resolves the target type from the semantic model.</description></item>
+    /// <item><description>Gets the compile-time type of the operand.</description></item>
+    /// <item><description>If the operand type is directly assignable to the target type
+    /// (identity or subtype — <em>not</em> implicit cast), the cast is valid with no
+    /// operator needed.</description></item>
+    /// <item><description>Otherwise, searches both the source type and target type member
+    /// scopes for <c>operator_explicit_{target}</c> or <c>operator_implicit_{target}</c>
+    /// symbols. Does <b>not</b> search base types or derived types (Requirement 8.7).</description></item>
+    /// <item><description>If exactly one candidate is found, records it via
+    /// <see cref="ISemanticModel.RecordResolvedOperator"/> and sets the expression type
+    /// to the target type.</description></item>
+    /// <item><description>If zero candidates are found, emits <c>MIST_TC_0042</c>.</description></item>
+    /// <item><description>If multiple candidates are found, emits <c>MIST_TC_0043</c>.</description></item>
+    /// </list>
+    /// </summary>
+    private static void CheckCastExpression(
+        CastExpressionUnaryNode castExpr,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // 1. Resolve the target type (already set by Pass 2).
+        var targetType = model.GetTypeOf(castExpr);
+        if (targetType is null || IsUnknown(targetType))
+            return;
+
+        // 2. Get the compile-time type of the operand.
+        var sourceType = model.GetTypeOf(castExpr.Operand);
+        if (sourceType is null || IsUnknown(sourceType))
+            return;
+
+        // 3. If the operand type is directly assignable to the target type
+        //    (identity or subtype), the cast is valid — no operator needed.
+        //    We must NOT use the full IsAssignable here because that includes
+        //    the implicit cast operator fallback. We only want identity/subtype.
+        if (IsDirectlyAssignable(sourceType, targetType, model))
+            return;
+
+        // 4. Search for explicit and implicit cast operators on both the
+        //    source type and the target type. Only operators declared directly
+        //    on these types are considered (Requirement 8.7).
+        var candidates = new List<ISymbol>();
+        var explicitOpName = $"operator_explicit_{targetType.DisplayName}";
+        var implicitOpName = $"operator_implicit_{targetType.DisplayName}";
+
+        // 4a. Search the source type's member scope.
+        var sourceScope = GetMemberScope(sourceType);
+        if (sourceScope is not null)
+        {
+            foreach (var member in sourceScope.Members)
+            {
+                if (member.Kind == SymbolKind.Method
+                    && (member.Name == explicitOpName || member.Name == implicitOpName))
+                    candidates.Add(member);
+            }
+        }
+
+        // 4b. Search the target type's member scope.
+        var targetScope = GetMemberScope(targetType);
+        if (targetScope is not null && !ReferenceEquals(sourceScope, targetScope))
+        {
+            foreach (var member in targetScope.Members)
+            {
+                if (member.Kind == SymbolKind.Method
+                    && (member.Name == explicitOpName || member.Name == implicitOpName))
+                {
+                    // Avoid duplicates if the same symbol appears in both scopes.
+                    if (!candidates.Any(c => ReferenceEquals(c, member)))
+                        candidates.Add(member);
+                }
+            }
+        }
+
+        // 5. Evaluate candidates.
+        if (candidates.Count == 1)
+        {
+            // Record the resolved operator and set the expression type.
+            model.RecordResolvedOperator(castExpr, candidates[0]);
+            model.SetTypeOf(castExpr, targetType);
+        }
+        else if (candidates.Count == 0)
+        {
+            // MIST_TC_0042: No cast operator found.
+            diagnostics.Add(MakeDiagnostic(
+                NoCastOperator.Value,
+                $"No cast operator is defined from '{sourceType.DisplayName}' to '{targetType.DisplayName}'.",
+                castExpr,
+                model));
+        }
+        else
+        {
+            // MIST_TC_0043: Ambiguous cast — multiple operators applicable.
+            diagnostics.Add(MakeDiagnostic(
+                AmbiguousCast.Value,
+                $"Ambiguous cast from '{sourceType.DisplayName}' to '{targetType.DisplayName}': multiple cast operators are applicable.",
+                castExpr,
+                model));
+        }
+    }
+
+    /// <summary>
+    /// Checks whether <paramref name="source"/> is directly assignable to
+    /// <paramref name="target"/> via identity, subtype, interface, trait,
+    /// or constructed type relationships — but <b>not</b>
+    /// via implicit cast operators (including numeric widening, which is
+    /// now expressed as implicit cast operators on stdlib types). This is the subset of
+    /// <see cref="IsAssignable(IType, IType, ISemanticModel?)"/> used by
+    /// <see cref="CheckCastExpression"/> to determine whether a cast is
+    /// trivially valid without requiring a cast operator.
+    /// </summary>
+    internal static bool IsDirectlyAssignable(IType source, IType target, ISemanticModel? model)
+    {
+        // UnknownType suppresses cascading errors.
+        if (IsUnknown(source) || IsUnknown(target))
+            return true;
+
+        // Identity.
+        if (ReferenceEquals(source, target))
+            return true;
+
+        // Same display name.
+        if (source.DisplayName == target.DisplayName)
+            return true;
+
+        // Migration-window shim.
+        if (ArePrimitiveEquivalent(source, target))
+            return true;
+
+        // ConstructedType identity.
+        if (source is ConstructedType sourceConstructed && target is ConstructedType targetConstructed)
+        {
+            if (ReferenceEquals(sourceConstructed.GenericDefinition, targetConstructed.GenericDefinition)
+                && sourceConstructed.TypeArguments.Count == targetConstructed.TypeArguments.Count)
+            {
+                var allMatch = true;
+                for (var i = 0; i < sourceConstructed.TypeArguments.Count; i++)
+                {
+                    if (!TypesEqual(sourceConstructed.TypeArguments[i], targetConstructed.TypeArguments[i]))
+                    {
+                        allMatch = false;
+                        break;
+                    }
+                }
+                if (allMatch) return true;
+            }
+        }
+
+        // ConstructedType inheritance.
+        if (source is ConstructedType sourceConst && target is ConstructedType)
+        {
+            var baseType = GetSubstitutedBaseType(sourceConst);
+            if (baseType is not null && IsDirectlyAssignable(baseType, target, model))
+                return true;
+        }
+
+        // ConstructedType to constructed interface assignability.
+        if (target is ConstructedType targetConst && targetConst.GenericDefinition is InterfaceType)
+        {
+            if (ImplementsConstructedInterface(source, targetConst))
+                return true;
+        }
+
+        // Numeric widening is now handled by implicit cast operators
+        // declared on the stdlib bootstrap types (e.g., Int32 has
+        // `implicit operator Int64`). The implicit cast operator fallback
+        // at the end of IsAssignable handles this. IsDirectlyAssignable
+        // intentionally does NOT check implicit cast operators.
+
+        // Interface assignability.
+        if (target is InterfaceType targetInterface)
+        {
+            if (ImplementsInterface(source, targetInterface))
+                return true;
+        }
+
+        // Subtype assignability — walk the inheritance chain.
+        if (source is ClassType sourceClass && target is ClassType)
+        {
+            var current = sourceClass.BaseType as ClassType;
+            while (current is not null)
+            {
+                if (ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
+                    return true;
+                current = current.BaseType as ClassType;
+            }
+        }
+
+        // Trait assignability.
+        if (target is TraitType targetTrait && model is not null)
+        {
+            if (SatisfiesTrait(source, targetTrait, model))
+                return true;
+        }
+
+        // NOTE: No implicit cast operator fallback here — that's the whole
+        // point of this method. Direct assignability only.
+        return false;
     }
 
     private void CheckConstructorBody(ISymbol ctorSymbol, ISemanticModel model, DiagnosticBag diagnostics)
@@ -369,7 +726,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         if (ctorDecl.Body.GetBlock() is BlockNode ctorBlock)
-            CheckBlock(ctorBlock, VoidType.Instance, model, diagnostics);
+            CheckBlock(ctorBlock, LegacyPrimitiveTypes.Void, model, diagnostics);
         _insideConstructor = false;
     }
 
@@ -538,7 +895,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 // Block set accessor — check body statements (return type is void).
                 case BlockSetAccessorAccessorDeclarationNode blockSet:
-                    CheckBlock(blockSet.Body, VoidType.Instance, model, diagnostics);
+                    CheckBlock(blockSet.Body, LegacyPrimitiveTypes.Void, model, diagnostics);
                     break;
 
                 // Expression set accessor — check expression.
@@ -548,7 +905,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 // Block init accessor — check body statements (return type is void).
                 case BlockInitAccessorAccessorDeclarationNode blockInit:
-                    CheckBlock(blockInit.Body, VoidType.Instance, model, diagnostics);
+                    CheckBlock(blockInit.Body, LegacyPrimitiveTypes.Void, model, diagnostics);
                     break;
 
                 // Expression init accessor — check expression.
@@ -1163,7 +1520,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 declaredType ??= model.GetDeclaredSymbol(typed)?.DeclaredType;
 
                 // Check for void[] variable declarations (MIST_TC_0034).
-                if (declaredType is ArrayType arrayType && arrayType.ElementType is VoidType)
+                if (declaredType is ArrayType arrayType && arrayType.ElementType.IsVoid())
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0034",
@@ -1227,10 +1584,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             CheckExpression(returnStmt.Value, model, diagnostics);
             var valueType = model.GetTypeOf(returnStmt.Value);
 
-            if (methodReturnType is VoidType)
+            if (methodReturnType.IsVoid())
             {
-                // Void methods: reject return values UNLESS the value is VoidType
-                if (valueType is not null && !IsUnknown(valueType) && valueType is not VoidType)
+                // Void methods: reject return values UNLESS the value is void
+                if (valueType is not null && !IsUnknown(valueType) && !valueType.IsVoid())
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0008",
@@ -1249,12 +1606,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         returnStmt,
                         model));
                 }
+                else
+                {
+                    // The return type is assignable. If assignability was due to
+                    // an implicit cast operator, resolve and record it so the
+                    // emitter can wrap the return expression.
+                    TryResolveImplicitCast(valueType, methodReturnType, returnStmt, model, diagnostics);
+                }
             }
         }
         else
         {
             // return; — only valid in void methods.
-            if (methodReturnType is not VoidType)
+            if (!methodReturnType.IsVoid())
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0008",
@@ -1413,6 +1777,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                 assignment,
                                 model));
                         }
+                        else
+                        {
+                            // Resolve and record any implicit cast operator on the property assignment.
+                            TryResolveImplicitCast(rhsType, propType, assignment, model, diagnostics);
+                        }
                     }
                 }
             }
@@ -1541,7 +1910,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // remain well-typed.
             var lhsType = model.GetTypeOf(node.Left);
             var rhsType = model.GetTypeOf(node.Right);
-            if (lhsType is VoidType && rhsType is VoidType)
+            if (lhsType is not null && lhsType.IsVoid() && rhsType is not null && rhsType.IsVoid())
             {
                 model.SetTypeOf(node, LegacyPrimitiveTypes.Bool);
                 return;
@@ -1678,6 +2047,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
             case PostfixExpressionUnaryNode postfix:
                 CheckPostfixNode(postfix.Primary, model, diagnostics);
+                break;
+            case CastExpressionUnaryNode castExpr:
+                CheckUnaryNode(castExpr.Operand, model, diagnostics);
+                CheckCastExpression(castExpr, model, diagnostics);
                 break;
         }
     }
@@ -2095,6 +2468,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         argExprs[i],
                         model));
                 }
+                else
+                {
+                    // Resolve and record any implicit cast operator on the argument.
+                    TryResolveImplicitCast(argType, paramType, argExprs[i], model, diagnostics);
+                }
             }
         }
     }
@@ -2176,6 +2554,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         argExprs[i],
                         model));
                 }
+                else
+                {
+                    // Resolve and record any implicit cast operator on the argument.
+                    TryResolveImplicitCast(argType, paramType, argExprs[i], model, diagnostics);
+                }
             }
         }
     }
@@ -2253,7 +2636,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return UnknownType.Instance;
             }
             case VoidTypeRefTypeReferenceNode:
-                return VoidType.Instance;
+                return LegacyPrimitiveTypes.Void;
             default:
                 return UnknownType.Instance;
         }
@@ -2306,7 +2689,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Check element type is not void (MIST_TC_0034).
         var elementType = model.GetTypeOf(arrayCreation);
-        if (elementType is ArrayType at && at.ElementType is VoidType)
+        if (elementType is ArrayType at && at.ElementType.IsVoid())
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0034",
@@ -2934,6 +3317,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     model));
             }
         }
+        else
+        {
+            // The types are assignable. If the assignability was due to an
+            // implicit cast operator (not direct assignability like identity,
+            // subtype, interface, trait, or numeric widening), resolve and
+            // record it on the AST node so the emitter can later emit the
+            // conversion call. Direct assignability takes precedence over
+            // implicit casts (Requirements 14.1, 14.2, 14.3).
+            if (!IsDirectlyAssignable(source, target, model))
+            {
+                TryResolveImplicitCast(source, target, node, model, diagnostics);
+            }
+        }
     }
 
     /// <summary>
@@ -2960,6 +3356,117 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         return unsatisfied;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Implicit cast operator helpers
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Returns the member scope of a type, or <c>null</c> if the type does
+    /// not own a member scope (e.g. <see cref="PrimitiveType"/>,
+    /// <see cref="ArrayType"/>).
+    /// </summary>
+    private static IScope? GetMemberScope(IType type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            InterfaceType it => it.MemberScope,
+            ConstructedType cst => cst.MemberScope,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Searches both the source type's and the target type's member scopes
+    /// for an <c>operator_implicit_{targetDisplayName}</c> symbol.
+    /// Returns the matching symbol, or <c>null</c> if none (or multiple) are found.
+    /// <para>
+    /// When multiple candidates are found (ambiguous), <paramref name="ambiguous"/>
+    /// is set to <c>true</c> so the caller can emit <c>MIST_TC_0044</c>.
+    /// </para>
+    /// </summary>
+    internal static ISymbol? TryFindImplicitCast(IType source, IType target, out bool ambiguous)
+    {
+        ambiguous = false;
+        if (IsUnknown(source) || IsUnknown(target))
+            return null;
+
+        var candidates = new List<ISymbol>();
+        var opName = $"operator_implicit_{target.DisplayName}";
+
+        // 1. Search the source type's member scope.
+        var sourceScope = GetMemberScope(source);
+        if (sourceScope is not null)
+        {
+            foreach (var member in sourceScope.Members)
+            {
+                if (member.Kind == SymbolKind.Method && member.Name == opName)
+                    candidates.Add(member);
+            }
+        }
+
+        // 2. Search the target type's member scope.
+        var targetScope = GetMemberScope(target);
+        if (targetScope is not null && !ReferenceEquals(sourceScope, targetScope))
+        {
+            foreach (var member in targetScope.Members)
+            {
+                if (member.Kind == SymbolKind.Method && member.Name == opName)
+                {
+                    // Avoid duplicates if the same symbol appears in both scopes.
+                    if (!candidates.Any(c => ReferenceEquals(c, member)))
+                        candidates.Add(member);
+                }
+            }
+        }
+
+        if (candidates.Count == 1)
+            return candidates[0];
+
+        if (candidates.Count > 1)
+            ambiguous = true;
+
+        return null;
+    }
+
+    /// <summary>
+    /// Companion to <see cref="TryFindImplicitCast"/>. Returns the resolved
+    /// implicit cast operator symbol (or <c>null</c>) and, when a unique
+    /// operator is found, records it on the AST node via
+    /// <see cref="ISemanticModel.RecordResolvedOperator"/>.
+    /// <para>
+    /// When multiple candidates are found, emits <c>MIST_TC_0044</c> and
+    /// returns <c>null</c>.
+    /// </para>
+    /// </summary>
+    internal static ISymbol? TryResolveImplicitCast(
+        IType source,
+        IType target,
+        SyntaxNode node,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var resolved = TryFindImplicitCast(source, target, out var ambiguous);
+
+        if (ambiguous)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                AmbiguousImplicitCast.Value,
+                $"Ambiguous implicit conversion from '{source.DisplayName}' to '{target.DisplayName}': multiple implicit cast operators are applicable.",
+                node,
+                model));
+            return null;
+        }
+
+        if (resolved is not null)
+        {
+            model.RecordResolvedOperator(node, resolved);
+        }
+
+        return resolved;
     }
 
     /// <summary>
@@ -3037,10 +3544,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
         }
 
-        // Numeric widening.
-        if (NumericDisplayNames.Contains(source.DisplayName)
-            && NumericDisplayNames.Contains(target.DisplayName))
-            return HasImplicitNumericConversion(source, target);
+        // Numeric widening is now handled by implicit cast operators
+        // declared on the stdlib bootstrap types. The implicit cast
+        // operator fallback at the end of this method handles it.
 
         // Interface assignability:
         // A class/struct implementing an interface (directly or transitively) is assignable to that interface.
@@ -3072,6 +3578,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (SatisfiesTrait(source, targetTrait, model))
                 return true;
         }
+
+        // Implicit cast operator search (fallback after all other assignability checks).
+        // Search both source type and target type for an implicit cast operator.
+        if (TryFindImplicitCast(source, target, out _) is not null)
+            return true;
 
         return false;
     }
@@ -3498,84 +4009,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsUnknown(IType type)
     {
         return type is UnknownType;
-    }
-
-    /// <summary>
-    /// Checks for implicit numeric widening conversions following C# rules.
-    /// Uses <see cref="NumericRank(IType)"/> for DisplayName-based matching
-    /// so the migration-window shim (<c>int</c> vs. <c>Int32</c>, …) does
-    /// not cause spurious conversion rejections.
-    /// </summary>
-    private static bool HasImplicitNumericConversion(IType source, IType target)
-    {
-        // Simplified C# implicit numeric conversion table keyed by
-        // DisplayName (covers both legacy `"int"` and stdlib `"Int32"`).
-        // byte → short, ushort, int, uint, long, ulong, float, double, decimal
-        // sbyte → short, int, long, float, double, decimal
-        // short → int, long, float, double, decimal
-        // ushort → int, uint, long, ulong, float, double, decimal
-        // int → long, float, double, decimal
-        // uint → long, ulong, float, double, decimal
-        // long → float, double, decimal
-        // ulong → float, double, decimal
-        // float → double
-        // char → ushort, int, uint, long, ulong, float, double, decimal
-        var src = CanonicalNumericName(source);
-        var tgt = CanonicalNumericName(target);
-        if (src is null || tgt is null) return false;
-
-        return src switch
-        {
-            "byte" => tgt is "short" or "ushort" or "int" or "uint" or "long" or "ulong" or "float" or "double" or "decimal",
-            "sbyte" => tgt is "short" or "int" or "long" or "float" or "double" or "decimal",
-            "short" => tgt is "int" or "long" or "float" or "double" or "decimal",
-            "ushort" => tgt is "int" or "uint" or "long" or "ulong" or "float" or "double" or "decimal",
-            "int" => tgt is "long" or "float" or "double" or "decimal",
-            "uint" => tgt is "long" or "ulong" or "float" or "double" or "decimal",
-            "long" => tgt is "float" or "double" or "decimal",
-            "ulong" => tgt is "float" or "double" or "decimal",
-            "float" => tgt is "double",
-            "char" => tgt is "ushort" or "int" or "uint" or "long" or "ulong" or "float" or "double" or "decimal",
-            _ => false,
-        };
-    }
-
-    /// <summary>
-    /// Returns the canonical legacy lexeme for a primitive type regardless
-    /// of whether the <see cref="IType"/> instance is a legacy
-    /// <see cref="PrimitiveType"/> singleton or the stdlib
-    /// <c>Standard.*</c> <see cref="StructType"/>. Returns <c>null</c>
-    /// when the type is not one of the 14 primitive aliases.
-    /// </summary>
-    private static string? CanonicalNumericName(IType type)
-    {
-        var name = type.DisplayName;
-
-        // Legacy lexemes are already canonical.
-        if (NumericDisplayNames.Contains(name))
-        {
-            // Convert stdlib simple names back to legacy lexemes.
-            return name switch
-            {
-                "Int32" => "int",
-                "UInt32" => "uint",
-                "Int64" => "long",
-                "UInt64" => "ulong",
-                "Int16" => "short",
-                "UInt16" => "ushort",
-                "Byte" => "byte",
-                "SByte" => "sbyte",
-                "Single" => "float",
-                "Double" => "double",
-                "Decimal" => "decimal",
-                _ => name,
-            };
-        }
-
-        // `char` participates in the widening table but isn't in
-        // NumericDisplayNames. Accept both `char` and `Char`.
-        if (name == "char" || name == "Char") return "char";
-        return null;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

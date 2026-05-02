@@ -328,7 +328,7 @@ public class SemanticModelBuilderPass1Tests
         Assert.Equal(SymbolKind.Method, methodSymbol!.Kind);
         Assert.Equal(SymbolOrigin.UserCode, methodSymbol.Origin);
         // Pass 2 resolves the return type from the TypeReference.
-        Assert.IsType<VoidType>(methodSymbol.DeclaredType);
+        Assert.True(methodSymbol.DeclaredType!.IsVoid());
     }
 
     // ─── Multiple members ────────────────────────────────────────────────────

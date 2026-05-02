@@ -1,0 +1,16 @@
+public struct Void
+{
+    public static Void Void { get; } = new Void();
+
+    private Void() { }
+
+    public static bool operator ==(Void a, Void b)
+    {
+        return true;
+    }
+
+    public static bool operator !=(Void a, Void b)
+    {
+        return false;
+    }
+}

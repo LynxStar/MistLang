@@ -36,5 +36,6 @@ public static class KeywordAliases
             ["bool"]    = "Standard.Boolean",
             ["char"]    = "Standard.Char",
             ["string"]  = "Standard.String",
+            ["void"]    = "Standard.Void",
         }.ToImmutableDictionary();
 }

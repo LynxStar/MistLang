@@ -900,13 +900,13 @@ public sealed class EmitterOutputTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Type literal — CSharpTypeMap.GetTypeName(TypeType.Instance) (Req 5.5)
+    // Type literal — CSharpTypeMap.GetTypeName(LegacyPrimitiveTypes.Type) (Req 5.5)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void CSharpTypeMap_GetTypeName_TypeType_ReturnsSystemType()
     {
-        var result = CSharpTypeMap.GetTypeName(TypeType.Instance);
+        var result = CSharpTypeMap.GetTypeName(LegacyPrimitiveTypes.Type);
         Assert.Equal("System.Type", result);
     }
 

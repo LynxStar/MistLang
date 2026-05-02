@@ -11,17 +11,16 @@ using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using Mist.Semantics.Model.Types;
 using Mist.Tests.Generators;
 
 namespace Mist.Tests.Semantics;
 
 /// <summary>
-/// Property-based tests verifying that the expression `Void.Void` is assigned type `VoidType`
+/// Property-based tests verifying that the expression `Void.Void` is assigned the void type
 /// by the semantic model in any expression context.
 ///
 /// Property 2: For any Mist program containing the expression `Void.Void` in any expression
-/// context, the semantic model SHALL assign the type `VoidType` to that expression.
+/// context, the semantic model SHALL assign the void type to that expression.
 /// </summary>
 public class VoidInstanceExpressionPropertyTests
 {
@@ -178,7 +177,7 @@ public class VoidInstanceExpressionPropertyTests
 
     /// <summary>
     /// Builds a program with `void varName = Void.Void;` and verifies the Void.Void
-    /// expression is assigned VoidType.
+    /// expression is assigned the void type.
     /// </summary>
     private bool VerifyTypedVariableInitializer(VoidExprScenario scenario)
     {
@@ -210,7 +209,7 @@ public class VoidInstanceExpressionPropertyTests
 
     /// <summary>
     /// Builds a program with `var varName = Void.Void;` and verifies the Void.Void
-    /// expression is assigned VoidType.
+    /// expression is assigned the void type.
     /// </summary>
     private bool VerifyVarVariableInitializer(VoidExprScenario scenario)
     {
@@ -241,7 +240,7 @@ public class VoidInstanceExpressionPropertyTests
 
     /// <summary>
     /// Builds a program with `return Void.Void;` in a void method and verifies the
-    /// Void.Void expression is assigned VoidType.
+    /// Void.Void expression is assigned the void type.
     /// </summary>
     private bool VerifyReturnStatement(VoidExprScenario scenario)
     {
@@ -278,7 +277,7 @@ public class VoidInstanceExpressionPropertyTests
 
     /// <summary>
     /// Builds a program with a method call `methodName(Void.Void)` where the method
-    /// accepts a void parameter, and verifies the Void.Void expression is assigned VoidType.
+    /// accepts a void parameter, and verifies the Void.Void expression is assigned the void type.
     /// </summary>
     private bool VerifyMethodArgument(VoidExprScenario scenario)
     {
@@ -354,7 +353,7 @@ public class VoidInstanceExpressionPropertyTests
 
     /// <summary>
     /// Builds a program with `Void.Void;` as an expression statement and verifies the
-    /// Void.Void expression is assigned VoidType.
+    /// Void.Void expression is assigned the void type.
     /// </summary>
     private bool VerifyExpressionStatement(VoidExprScenario scenario)
     {
@@ -380,7 +379,7 @@ public class VoidInstanceExpressionPropertyTests
     }
 
     /// <summary>
-    /// Verifies that the semantic model assigns VoidType to both the PostfixNode and
+    /// Verifies that the semantic model assigns the void type to both the PostfixNode and
     /// the MemberAccessSuffixPostfixSuffixNode of a Void.Void expression.
     /// </summary>
     private static bool VerifyVoidType(
@@ -388,26 +387,26 @@ public class VoidInstanceExpressionPropertyTests
         PostfixNode postfix,
         MemberAccessSuffixPostfixSuffixNode suffix)
     {
-        // The suffix node should have VoidType assigned
+        // The suffix node should have the void type assigned
         var suffixType = model.GetTypeOf(suffix);
-        if (suffixType is not VoidType)
+        if (suffixType is null || !suffixType.IsVoid())
             return false;
 
-        // The overall postfix node should also have VoidType assigned
+        // The overall postfix node should also have the void type assigned
         var postfixType = model.GetTypeOf(postfix);
-        if (postfixType is not VoidType)
+        if (postfixType is null || !postfixType.IsVoid())
             return false;
 
-        // Both should be the singleton instance
-        return ReferenceEquals(suffixType, VoidType.Instance)
-            && ReferenceEquals(postfixType, VoidType.Instance);
+        // Both should be identified as void
+        return suffixType.IsVoid()
+            && postfixType.IsVoid();
     }
 
     // ─── Property tests ──────────────────────────────────────────────────
 
     /// <summary>
     /// Property 2: For any Mist program containing the expression `Void.Void` in any
-    /// expression context, the semantic model SHALL assign the type `VoidType` to that expression.
+    /// expression context, the semantic model SHALL assign the void type to that expression.
     ///
     /// **Validates: Requirements 2.1, 2.2**
     /// </summary>

@@ -19,4 +19,7 @@ intrinsic public struct Single
 
     // Unary negation — Requirement 3.3
     intrinsic public static Single operator -(Single a);
+
+    // Implicit widening conversions
+    intrinsic public static implicit operator Double(Single value);
 }

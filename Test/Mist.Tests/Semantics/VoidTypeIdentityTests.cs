@@ -10,7 +10,7 @@ using Mist.Semantics.Model.Types;
 namespace Mist.Tests.Semantics;
 
 /// <summary>
-/// Unit tests for VoidType identity properties and void variable inference.
+/// Unit tests for void type identity properties and void variable inference.
 /// Validates Requirements 1.1, 1.2, 1.3, 4.2, 4.3.
 /// </summary>
 public class VoidTypeIdentityTests
@@ -99,39 +99,39 @@ public class VoidTypeIdentityTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Requirement 1.1: VoidType SHALL have TypeKind.Struct
+    // Requirement 1.1: Void type SHALL have TypeKind.Struct
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void VoidType_Kind_IsStruct()
     {
-        Assert.Equal(TypeKind.Struct, VoidType.Instance.Kind);
+        Assert.Equal(TypeKind.Struct, LegacyPrimitiveTypes.Void.Kind);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Requirement 1.2: VoidType SHALL expose a single static instance
+    // Requirement 1.2: Void type SHALL expose a single static instance
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void VoidType_Instance_IsSingleton()
     {
-        var a = VoidType.Instance;
-        var b = VoidType.Instance;
+        var a = LegacyPrimitiveTypes.Void;
+        var b = LegacyPrimitiveTypes.Void;
         Assert.Same(a, b);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Requirement 1.3: VoidType SHALL have display name "void"
+    // Requirement 1.3: Void type SHALL have display name "void"
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void VoidType_DisplayName_IsVoid()
     {
-        Assert.Equal("void", VoidType.Instance.DisplayName);
+        Assert.Equal("void", LegacyPrimitiveTypes.Void.DisplayName);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Requirement 4.3: var x = Void.Void; infers VoidType
+    // Requirement 4.3: var x = Void.Void; infers void type
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
@@ -163,8 +163,8 @@ public class VoidTypeIdentityTests
             .FirstOrDefault(s => s.Name == "x" && s.Kind == SymbolKind.LocalVariable);
 
         Assert.NotNull(varSymbol);
-        Assert.IsType<VoidType>(varSymbol!.DeclaredType);
-        Assert.Same(VoidType.Instance, varSymbol.DeclaredType);
+        Assert.NotNull(varSymbol!.DeclaredType);
+        Assert.True(varSymbol.DeclaredType!.IsVoid());
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -197,13 +197,13 @@ public class VoidTypeIdentityTests
         var ast = MakeCompilationUnit(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
         var (model, diagnostics) = BuildModel(ast);
 
-        // Variable should resolve to VoidType
+        // Variable should resolve to void type
         var varSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == "x" && s.Kind == SymbolKind.LocalVariable);
 
         Assert.NotNull(varSymbol);
-        Assert.IsType<VoidType>(varSymbol!.DeclaredType);
-        Assert.Same(VoidType.Instance, varSymbol.DeclaredType);
+        Assert.NotNull(varSymbol!.DeclaredType);
+        Assert.True(varSymbol.DeclaredType!.IsVoid());
 
         // No type mismatch diagnostics
         Assert.DoesNotContain(diagnostics, d => d.Id.Value.Contains("MIST_TC"));

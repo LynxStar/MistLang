@@ -1,0 +1,179 @@
+using System;
+
+namespace CastOperators;
+
+// ─── Domain types ────────────────────────────────────────────────────────────
+
+// Celsius wraps a temperature value and defines:
+//   • an implicit cast TO Fahrenheit  (safe widening — no data loss)
+//   • an explicit cast TO Kelvin      (different scale — requires intent)
+public class Celsius
+{
+    private double degrees;
+
+    public Celsius(double degrees)
+    {
+        this.degrees = degrees;
+    }
+
+    public double GetDegrees()
+    {
+        return degrees;
+    }
+
+    public string Describe()
+    {
+        return $"{degrees} C";
+    }
+
+    // Implicit cast: Celsius → Fahrenheit
+    // Applied automatically at assignment, argument, and return sites.
+    public static implicit operator Fahrenheit(Celsius c)
+    {
+        return new Fahrenheit(c.GetDegrees() * 1.8 + 32.0);
+    }
+
+    // Explicit cast: Celsius → Kelvin
+    // Requires the programmer to write (Kelvin)expr.
+    public static explicit operator Kelvin(Celsius c)
+    {
+        return new Kelvin(c.GetDegrees() + 273.15);
+    }
+}
+
+// Fahrenheit wraps a converted temperature value.
+public class Fahrenheit
+{
+    private double degrees;
+
+    public Fahrenheit(double degrees)
+    {
+        this.degrees = degrees;
+    }
+
+    public double GetDegrees()
+    {
+        return degrees;
+    }
+
+    public string Describe()
+    {
+        return $"{degrees} F";
+    }
+}
+
+// Kelvin wraps an absolute temperature value.
+public class Kelvin
+{
+    private double degrees;
+
+    public Kelvin(double degrees)
+    {
+        this.degrees = degrees;
+    }
+
+    public double GetDegrees()
+    {
+        return degrees;
+    }
+
+    public string Describe()
+    {
+        return $"{degrees} K";
+    }
+}
+
+// ─── Inheritance hierarchy for compile-time safety demo ──────────────────────
+
+// Base class — does NOT declare any cast operators.
+public class Measurement
+{
+    private string unit;
+
+    public Measurement(string unit)
+    {
+        this.unit = unit;
+    }
+
+    public string GetUnit()
+    {
+        return unit;
+    }
+}
+
+// Derived class — declares an explicit cast to Kelvin.
+// This operator is only visible when the compile-time type is Weight,
+// NOT when the variable is typed as Measurement.
+public class Weight : Measurement
+{
+    private double value;
+
+    public Weight(double value, string unit) : base(unit)
+    {
+        this.value = value;
+    }
+
+    public double GetValue()
+    {
+        return value;
+    }
+
+    // Explicit cast: Weight → Kelvin (contrived, for demonstration only)
+    public static explicit operator Kelvin(Weight w)
+    {
+        return new Kelvin(w.GetValue());
+    }
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
+
+public class Program
+{
+    // Helper that accepts a Fahrenheit parameter.
+    // Passing a Celsius argument here triggers the implicit cast automatically.
+    private static void PrintTemperature(Fahrenheit f)
+    {
+        Console.WriteLine($"  Temperature: {f.Describe()}");
+    }
+
+    public static void Main(string[] args)
+    {
+        Console.WriteLine("=== Cast Operators Sample ===");
+
+        // 1. Implicit cast — automatic conversion at assignment
+        Console.WriteLine("--- Implicit cast (assignment) ---");
+        var boiling = new Celsius(100.0);
+        Fahrenheit boilingF = boiling;
+        Console.WriteLine($"  100 C = {boilingF.Describe()}");
+
+        // 2. Implicit cast — automatic conversion at argument site
+        Console.WriteLine("--- Implicit cast (argument) ---");
+        var freezing = new Celsius(0.0);
+        PrintTemperature(freezing);
+
+        // 3. Explicit cast — (TargetType)expression syntax
+        Console.WriteLine("--- Explicit cast ---");
+        var body = new Celsius(37.0);
+        var bodyK = (Kelvin)body;
+        Console.WriteLine($"  37 C = {bodyK.Describe()}");
+
+        // 4. Explicit cast on Weight (derived type)
+        Console.WriteLine("--- Explicit cast on derived type ---");
+        var w = new Weight(72.5, "kg");
+        var wK = (Kelvin)w;
+        Console.WriteLine($"  Weight 72.5 as Kelvin: {wK.Describe()}");
+
+        // 5. Compile-time safety: casting through a base-typed variable
+        //    The line below would produce a compile error because the
+        //    compile-time type of `m` is Measurement, which does NOT
+        //    declare an explicit cast operator to Kelvin. Even though
+        //    the runtime value is a Weight (which does declare the cast),
+        //    Mist resolves casts against the static type only — eliminating
+        //    any possibility of a runtime cast failure.
+        //
+        // Measurement m = w;
+        // var mK = (Kelvin)m;   // ERROR: No cast operator from 'Measurement' to 'Kelvin'
+
+        Console.WriteLine("Done!");
+    }
+}

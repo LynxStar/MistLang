@@ -74,6 +74,37 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId OperatorMustBePublicStatic = new("MIST_SB_0035");
 
+    // ── Cast-operator-shape diagnostic IDs (Task 3.2, Requirements 6.1, 6.3, 6.4, 6.5) ──
+
+    /// <summary>
+    /// A cast operator declaration has a parameter count other than 1
+    /// (Requirement 6.3, 6.4). Cast operators must have exactly one parameter.
+    /// </summary>
+    internal static readonly DiagnosticId CastOperatorArityMismatch = new("MIST_SB_0040");
+
+    /// <summary>
+    /// A cast operator declaration is missing the required
+    /// <c>public static</c> modifier combination (Requirement 6.1).
+    /// </summary>
+    internal static readonly DiagnosticId CastOperatorMustBePublicStatic = new("MIST_SB_0041");
+
+    /// <summary>
+    /// A cast operator declaration appeared outside a class or struct body
+    /// (Requirement 6.1). Like <see cref="OperatorOutsideTypeBody"/>, this
+    /// is currently unreachable from parsed source because the grammar
+    /// restricts cast operator declarations to <c>MemberDeclaration</c>.
+    /// Registered defensively.
+    /// </summary>
+    internal static readonly DiagnosticId CastOperatorOutsideTypeBody = new("MIST_SB_0042");
+
+    /// <summary>
+    /// Two cast operators in the same type have the same kind (both implicit
+    /// or both explicit) and the same target type name (Requirement 6.5).
+    /// This is a name-based duplicate check; full type-based duplicate
+    /// detection is deferred to the type checker.
+    /// </summary>
+    internal static readonly DiagnosticId DuplicateCastOperator = new("MIST_SB_0043");
+
     // ── Trait with-block diagnostic IDs (Task 4.1, Requirements 6.1–6.9) ──
 
     /// <summary>
@@ -195,6 +226,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         //   * MIST_SB_0035 — operator not declared `public static`
         //     (Requirement 4.2).
         Pass1e_ValidateOperatorShape(asts, symbolTable, compilation, diagnostics);
+
+        // Pass 1e (cont.): Validate cast-operator-declaration shape.
+        // Walks every cast operator symbol registered on class/struct member
+        // scopes to emit diagnostics for:
+        //   * MIST_SB_0040 — cast operator parameter count is not 1
+        //     (Requirements 6.3, 6.4).
+        //   * MIST_SB_0041 — cast operator not declared `public static`
+        //     (Requirement 6.1).
+        //   * MIST_SB_0042 — cast operator declared outside a class/struct
+        //     body (Requirement 6.1). Defensive; unreachable from parsed source.
+        //   * MIST_SB_0043 — duplicate cast operator (same kind + same target
+        //     type name) in the same type (Requirement 6.5).
+        Pass1e_ValidateCastOperatorShape(asts, symbolTable, compilation, diagnostics);
 
         // (Task 49: PrimitiveTypeRegistry has been deleted. Stdlib types
         // are resolved directly via ResolvePrimitiveKeyword in Pass 2.)
@@ -734,6 +778,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case IndexerMemberMemberDeclarationNode indexerMember:
                 RegisterIndexerDeclaration(indexerMember.Indexer, typeScope, symbolTable);
                 break;
+            case CastOperatorMemberMemberDeclarationNode castOpMember:
+                RegisterCastOperatorDeclaration(castOpMember.CastOperator, typeScope, symbolTable, sourceText);
+                break;
         }
     }
 
@@ -805,6 +852,96 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             isIntrinsic: isIntrinsic, hasBody: hasBody);
         typeScope.AddMember(opSymbol);
         symbolTable.Register(opSymbol, opDecl);
+    }
+
+    /// <summary>
+    /// Registers a cast operator declaration as a static method symbol on the
+    /// containing type's scope. The operator's name is encoded as
+    /// <c>operator_{kind}_{targetType}</c> (e.g., <c>operator_implicit_Weight</c>,
+    /// <c>operator_explicit_string</c>) so that the type checker can look it up
+    /// by constructing the same key from a cast expression or implicit conversion
+    /// site.
+    ///
+    /// Pass 1 establishes only the symbol's identity (name, kind, modifiers,
+    /// body-presence). The target type and parameter are resolved in Pass 2's
+    /// <see cref="ResolveCastOperatorDeclaration"/>.
+    /// </summary>
+    private static void RegisterCastOperatorDeclaration(
+        CastOperatorDeclarationNode castOpDecl, Scope typeScope, SymbolTable symbolTable, SourceText? sourceText = null)
+    {
+        // Extract the cast kind prefix.
+        var kindPrefix = castOpDecl.CastKind switch
+        {
+            ImplicitCastCastOperatorKindNode => "implicit",
+            ExplicitCastCastOperatorKindNode => "explicit",
+            _ => "unknown",
+        };
+
+        // Extract the target type name from the type reference for the encoded name.
+        // The full type resolution happens in Pass 2; here we use the raw lexeme.
+        var targetTypeName = ExtractTypeReferenceName(castOpDecl.TargetType, sourceText);
+        var opName = $"operator_{kindPrefix}_{targetTypeName}";
+
+        var opSpan = ToMistSourceSpan(castOpDecl.CastKind.Span);
+        var isIntrinsic = HasIntrinsicModifier(castOpDecl.Modifiers);
+        var hasBody = castOpDecl.Body is not OperatorNoBodyOperatorBodyNode;
+
+        var opSymbol = new Symbol(
+            opName, SymbolKind.Method, SymbolOrigin.UserCode, typeScope,
+            declaredType: null, opSpan,
+            isIntrinsic: isIntrinsic, hasBody: hasBody);
+        typeScope.AddMember(opSymbol);
+        symbolTable.Register(opSymbol, castOpDecl);
+    }
+
+    /// <summary>
+    /// Extracts the raw type name from a <see cref="TypeReferenceNode"/> for use
+    /// in encoded symbol names (e.g., cast operator names). For named types, this
+    /// returns the IDENTIFIER lexeme; for primitive types, the keyword string
+    /// (e.g., <c>"int"</c>, <c>"string"</c>). Array ranks are not included.
+    /// <para>
+    /// The generated parser may not populate <c>IDENTIFIER.Lexeme</c> on
+    /// <see cref="QualifiedIdentifierNode"/>. When the lexeme is empty, this
+    /// method falls back to extracting the name from the node's source span
+    /// via the <paramref name="sourceText"/> parameter (if available).
+    /// </para>
+    /// </summary>
+    private static string ExtractTypeReferenceName(TypeReferenceNode typeRef, SourceText? sourceText = null)
+    {
+        switch (typeRef)
+        {
+            case NamedTypeRefTypeReferenceNode namedRef:
+                var lexeme = namedRef.Name.IDENTIFIER.Lexeme;
+                if (!string.IsNullOrEmpty(lexeme))
+                    return lexeme;
+                // Fallback: extract from the QualifiedIdentifier's source span.
+                if (sourceText is not null)
+                {
+                    var span = namedRef.Name.Span;
+                    if (span.Length > 0 && span.Start + span.Length <= sourceText.Contents.Length)
+                        return sourceText.Contents.Substring(span.Start, span.Length);
+                }
+                // Last resort: extract from the TypeReference's own span (covers
+                // cases where the QualifiedIdentifier span is zero but the
+                // TypeReference span is valid).
+                {
+                    var span = namedRef.Span;
+                    if (sourceText is not null && span.Length > 0 && span.Start + span.Length <= sourceText.Contents.Length)
+                    {
+                        var raw = sourceText.Contents.Substring(span.Start, span.Length);
+                        // Strip array rank suffix if present.
+                        var bracketIdx = raw.IndexOf('[');
+                        return bracketIdx >= 0 ? raw.Substring(0, bracketIdx).Trim() : raw.Trim();
+                    }
+                }
+                return "";
+            case PrimitiveTypeRefTypeReferenceNode primitiveRef:
+                return FormatPrimitiveType(primitiveRef.PrimitiveType);
+            case VoidTypeRefTypeReferenceNode:
+                return "void";
+            default:
+                return "unknown";
+        }
     }
 
     /// <summary>
@@ -1635,6 +1772,139 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         return false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Pass 1e — Validate cast-operator-declaration shape (Task 3.2)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates the shape of every registered cast operator declaration and
+    /// emits diagnostics for:
+    /// <list type="bullet">
+    /// <item>
+    /// <description><c>MIST_SB_0040</c> — cast operator parameter count is
+    /// not exactly 1 (Requirements 6.3, 6.4).</description>
+    /// </item>
+    /// <item>
+    /// <description><c>MIST_SB_0041</c> — cast operator not declared
+    /// <c>public static</c> (Requirement 6.1).</description>
+    /// </item>
+    /// <item>
+    /// <description><c>MIST_SB_0042</c> — cast operator declared outside a
+    /// class or struct body (Requirement 6.1). Unreachable from parsed source
+    /// because the grammar restricts <c>CastOperatorDeclaration</c> to
+    /// <c>MemberDeclaration</c>; registered defensively.</description>
+    /// </item>
+    /// <item>
+    /// <description><c>MIST_SB_0043</c> — duplicate cast operator (same kind
+    /// and same target type name) in the same type (Requirement 6.5).
+    /// Name-based only; full type-based duplicate detection is deferred to
+    /// the type checker.</description>
+    /// </item>
+    /// </list>
+    /// </summary>
+    private static void Pass1e_ValidateCastOperatorShape(
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        SymbolTable symbolTable,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // Track seen cast operator encoded names per containing scope for
+        // duplicate detection. Key = containing scope reference, Value = set
+        // of encoded names already seen (e.g., "operator_implicit_Weight").
+        var seenPerScope = new Dictionary<IScope, HashSet<string>>(ReferenceEqualityComparer.Instance);
+
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbolTable.GetDeclaringNode(symbol) is not CastOperatorDeclarationNode castOpDecl)
+                continue;
+
+            var sourceText = FindSourceTextForNode(castOpDecl, asts, compilation);
+
+            // ── MIST_SB_0040: Parameter count must be exactly 1 ──────────
+            // The ParameterList rule is `Parameter (COMMA Parameter)*`, so
+            // count = 1 + Parameters.Length when non-null, or 0 when absent.
+            var paramCount = castOpDecl.Parameters is null
+                ? 0
+                : 1 + castOpDecl.Parameters.Parameters.Length;
+
+            if (paramCount != 1)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    CastOperatorArityMismatch.Value,
+                    DiagnosticSeverity.Error,
+                    $"Cast operator must have exactly one parameter; found {paramCount}.",
+                    castOpDecl,
+                    sourceText));
+            }
+
+            // ── MIST_SB_0041: Must be declared `public static` ──────────
+            var hasPublic = false;
+            var hasStatic = false;
+            foreach (var modifier in castOpDecl.Modifiers)
+            {
+                if (modifier is PublicModifierModifierNode) hasPublic = true;
+                if (modifier is StaticModifierModifierNode) hasStatic = true;
+            }
+
+            if (!hasPublic || !hasStatic)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    CastOperatorMustBePublicStatic.Value,
+                    DiagnosticSeverity.Error,
+                    "Cast operator must be declared 'public static'.",
+                    castOpDecl,
+                    sourceText));
+            }
+
+            // ── MIST_SB_0042: Must be inside a class or struct ──────────
+            if (!IsScopeInsideRegisteredType(symbol.ContainingScope, symbolTable))
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    CastOperatorOutsideTypeBody.Value,
+                    DiagnosticSeverity.Error,
+                    "Cast operators must be declared inside a class or struct.",
+                    castOpDecl,
+                    sourceText));
+            }
+
+            // ── MIST_SB_0043: Duplicate cast operator detection ─────────
+            // Two cast operators in the same type with the same encoded name
+            // (same kind + same target type name) are duplicates.
+            if (symbol.ContainingScope is not null)
+            {
+                if (!seenPerScope.TryGetValue(symbol.ContainingScope, out var seenNames))
+                {
+                    seenNames = new HashSet<string>();
+                    seenPerScope[symbol.ContainingScope] = seenNames;
+                }
+
+                if (!seenNames.Add(symbol.Name))
+                {
+                    // Extract kind and type names for the diagnostic message.
+                    var kindPrefix = castOpDecl.CastKind switch
+                    {
+                        ImplicitCastCastOperatorKindNode => "implicit",
+                        ExplicitCastCastOperatorKindNode => "explicit",
+                        _ => "unknown",
+                    };
+                    var targetTypeName = ExtractTypeReferenceName(castOpDecl.TargetType, sourceText);
+
+                    // Extract source type name from the parameter (if present).
+                    var sourceTypeName = castOpDecl.Parameters is not null
+                        ? ExtractTypeReferenceName(castOpDecl.Parameters.Parameter.Type, sourceText)
+                        : "?";
+
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        DuplicateCastOperator.Value,
+                        DiagnosticSeverity.Error,
+                        $"Duplicate {kindPrefix} cast operator from '{sourceTypeName}' to '{targetTypeName}'.",
+                        castOpDecl,
+                        sourceText));
+                }
+            }
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -5271,6 +5541,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case OperatorMemberMemberDeclarationNode operatorMember:
                 ResolveOperatorDeclaration(operatorMember.Operator, typeScope, fileScope, enclosingType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
+            case CastOperatorMemberMemberDeclarationNode castOpMember:
+                ResolveCastOperatorDeclaration(castOpMember.CastOperator, typeScope, fileScope, enclosingType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
             case PropertyMemberMemberDeclarationNode propertyMember:
                 ResolvePropertyDeclaration(propertyMember.Property, typeScope, fileScope, enclosingType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
@@ -5432,6 +5705,52 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // based on the intrinsic modifier.
         if (opDecl.Body.GetBlock() is BlockNode opBlock)
             ResolveBlock(opBlock, methodScope, fileScope, enclosingType, /* isStatic */ true, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    /// <summary>
+    /// Pass 2 counterpart to <see cref="RegisterCastOperatorDeclaration"/>. Resolves
+    /// the cast operator's target type reference to an <see cref="IType"/> and sets it
+    /// as the symbol's <see cref="Symbol.DeclaredType"/> (return type). Registers the
+    /// single parameter as a <see cref="SymbolKind.Parameter"/> symbol within the cast
+    /// operator's scope, and resolves the body block (if present) using the same logic
+    /// as <see cref="ResolveOperatorDeclaration"/>.
+    ///
+    /// Cast operators are always static methods (Requirement 6.4), so the body is
+    /// resolved with <c>isStatic = true</c>.
+    /// </summary>
+    private static void ResolveCastOperatorDeclaration(
+        CastOperatorDeclarationNode castOpDecl,
+        Scope typeScope,
+        Scope fileScope,
+        IType enclosingType,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Resolve the target type reference and set it as the symbol's DeclaredType (return type).
+        var targetType = ResolveTypeReference(castOpDecl.TargetType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        var castOpSymbol = symbolTable.GetDeclaredSymbol(castOpDecl) as Symbol;
+        if (castOpSymbol is not null)
+        {
+            castOpSymbol.DeclaredType = targetType;
+        }
+
+        // Create a method scope for parameters and the optional body.
+        var methodScope = new Scope(parent: typeScope);
+
+        // Register the single parameter within the cast operator's scope.
+        if (castOpDecl.Parameters is not null)
+        {
+            RegisterParameters(castOpDecl.Parameters, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+        }
+
+        // Resolve the body. A no-body (;) form is accepted by the grammar
+        // (for intrinsic cast operators) and has no statements to resolve;
+        // Pass 1e validates whether ; is permitted based on the intrinsic modifier.
+        if (castOpDecl.Body.GetBlock() is BlockNode castOpBlock)
+            ResolveBlock(castOpBlock, methodScope, fileScope, enclosingType, /* isStatic */ true, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
     }
 
     /// <summary>
@@ -6860,6 +7179,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 expressionTypes[node] = operandType;
                 return operandType;
             }
+            case CastExpressionUnaryNode castExpr:
+                return ResolveCastExpression(castExpr, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
             case PostfixExpressionUnaryNode postfix:
             {
                 var type = ResolvePostfix(postfix.Primary, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -6870,6 +7191,37 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 expressionTypes[node] = UnknownType.Instance;
                 return UnknownType.Instance;
         }
+    }
+
+    /// <summary>
+    /// Resolves a cast expression <c>(TargetType)operand</c> in Pass 2.
+    /// Resolves the target type reference to an <see cref="IType"/>, resolves
+    /// the operand expression, and records the target type as the expression
+    /// type of the cast expression node.
+    /// </summary>
+    private static IType ResolveCastExpression(
+        CastExpressionUnaryNode castExpr,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // 1. Resolve the target type reference to an IType.
+        var targetType = ResolveTypeReference(castExpr.TargetType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+        // 2. Resolve the operand expression to get its type.
+        ResolveUnary(castExpr.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        // 3. Record the target type as the expression type of the cast expression node.
+        expressionTypes[castExpr] = targetType;
+
+        // 4. Return the target type.
+        return targetType;
     }
 
     private static IType ResolvePostfix(

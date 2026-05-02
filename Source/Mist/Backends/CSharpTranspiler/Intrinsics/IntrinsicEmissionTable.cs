@@ -198,4 +198,12 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
         var key = $"{declaringType}:.ctor({paramList})";
         return Constructors.TryGetValue(key, out var template) ? template : null;
     }
+
+    /// <inheritdoc />
+    public IntrinsicEmissionTemplate? TryGetCastOperator(string declaringType, string targetType)
+    {
+        // No intrinsic cast operators are registered yet — the stdlib can add
+        // numeric conversion operators in a future iteration.
+        return null;
+    }
 }

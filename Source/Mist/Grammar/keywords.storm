@@ -37,6 +37,10 @@ token SET   = "set";
 token INIT  = "init";
 token FIELD = "field";
 
+// Cast operator keywords
+token IMPLICIT = "implicit";
+token EXPLICIT = "explicit";
+
 // Primitive type keywords
 token INT     = "int";
 token UINT    = "uint";

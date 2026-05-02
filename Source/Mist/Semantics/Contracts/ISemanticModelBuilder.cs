@@ -15,5 +15,6 @@ public interface ISemanticModelBuilder
         IAmbientTypeResolver? ambientTypeResolver,
         string namespaceRoot,
         string projectFolder,
-        DiagnosticBag diagnostics);
+        DiagnosticBag diagnostics,
+        ImmutableHashSet<string>? directReferencePaths = null);
 }

@@ -1,0 +1,41 @@
+using System;
+
+namespace MyApp;
+
+/// Demonstrates using types from a referenced project.
+/// MyApp references SharedLib via [[references]] in mist.toml,
+/// making SharedLib's public types available here.
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Use MathUtils from the SharedLib project
+        Console.WriteLine("=== Math Utilities ===");
+
+        var fact5 = SharedLib.MathUtils.Factorial(5);
+        Console.WriteLine($"5! = {fact5}");
+
+        var fib10 = SharedLib.MathUtils.Fibonacci(10);
+        Console.WriteLine($"Fibonacci(10) = {fib10}");
+
+        var bigger = SharedLib.MathUtils.Max(42, 17);
+        Console.WriteLine($"Max(42, 17) = {bigger}");
+
+        var smaller = SharedLib.MathUtils.Min(42, 17);
+        Console.WriteLine($"Min(42, 17) = {smaller}");
+
+        var absolute = SharedLib.MathUtils.Abs(-99);
+        Console.WriteLine($"Abs(-99) = {absolute}");
+
+        // Use StringUtils from the SharedLib project
+        Console.WriteLine("=== String Utilities ===");
+
+        var stars = SharedLib.StringUtils.Repeat("*", 10);
+        Console.WriteLine(stars);
+
+        var fancy = SharedLib.StringUtils.Surround("Hello", "~~");
+        Console.WriteLine(fancy);
+
+        Console.WriteLine("Done!");
+    }
+}

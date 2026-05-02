@@ -4,39 +4,7 @@
 
 using System;
 
-namespace AllFeatures;
-
-// A generic Result<T> type — when T is void, it represents success with no value.
-public class Result<T>
-{
-    private T value;
-    private bool success;
-
-    public Result(T value, bool success)
-    {
-        this.value = value;
-        this.success = success;
-    }
-
-    public T GetValue()
-    {
-        return value;
-    }
-
-    public bool IsSuccess()
-    {
-        return success;
-    }
-
-    public string Describe()
-    {
-        if (success)
-        {
-            return $"Result(Ok: {value})";
-        }
-        return "Result(Error)";
-    }
-}
+namespace VoidType;
 
 public class VoidDemo
 {

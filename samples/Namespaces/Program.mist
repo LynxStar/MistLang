@@ -10,6 +10,11 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
         // Use type from Namespaces.Models (imported via using)
         var player = new Player("Alice", 100);
         Console.WriteLine(player.Describe());

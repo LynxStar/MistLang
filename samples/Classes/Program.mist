@@ -1,0 +1,37 @@
+// Classes — Covers classes, structs, and static members.
+
+using System;
+
+namespace Classes;
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        // 13. Classes, constructors, constructor chaining, this, instance methods
+        var p1 = new Point(3, 4);
+        var p2 = new Point();
+        Console.WriteLine($"p1={p1.Describe()} p2={p2.Describe()}");
+        Console.WriteLine($"dist={p1.DistanceFromOrigin()}");
+        var p3 = p1.Translate(10, 20);
+        Console.WriteLine($"translated={p3.Describe()}");
+
+        // 14. Structs, public fields, struct methods
+        var red = new Color(255, 0, 0);
+        var green = new Color(0, 255, 0);
+        Console.WriteLine($"red={red.Describe()} green={green.Describe()}");
+        Console.WriteLine($"brightness={red.Brightness()}");
+        var mixed = red.Mix(green);
+        Console.WriteLine($"mixed={mixed.Describe()}");
+
+        // 15. Static fields and static methods
+        var c1 = new Counter("Alpha");
+        var c2 = new Counter("Beta");
+        Console.WriteLine($"total={Counter.GetTotalCreated()}");
+        c1.Increment();
+        c1.Increment();
+        c2.Increment();
+        Console.WriteLine(c1.Describe());
+        Console.WriteLine(c2.Describe());
+    }
+}

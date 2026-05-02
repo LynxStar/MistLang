@@ -1,0 +1,10 @@
+// IGenericContainer<T> — Demonstrates a generic interface.
+
+using System;
+
+namespace GenericTypes;
+
+interface IGenericContainer<T>
+{
+    T GetItem();
+}

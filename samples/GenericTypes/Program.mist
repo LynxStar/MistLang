@@ -1,0 +1,24 @@
+// GenericTypes — Covers generic classes and generic interfaces.
+
+using System;
+
+namespace GenericTypes;
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        // 27. Generics: generic class, generic interface, constructed generic types
+        Console.WriteLine("--- Generics ---");
+        var gbox = new GenericBox<int>(42);
+        Console.WriteLine($"gbox={gbox.Describe()}");
+        Console.WriteLine($"gbox.item={gbox.GetItem()}");
+
+        var gboxStr = new GenericBox<string>("hello");
+        Console.WriteLine($"gboxStr={gboxStr.Describe()}");
+
+        // Generic interface-typed variable
+        IGenericContainer<int> gc = new GenericBox<int>(99);
+        Console.WriteLine($"gc.item={gc.GetItem()}");
+    }
+}

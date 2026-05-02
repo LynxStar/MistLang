@@ -8,6 +8,11 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
         Console.WriteLine("=== Properties Mist Sample ===");
 
         // 1. Auto-properties

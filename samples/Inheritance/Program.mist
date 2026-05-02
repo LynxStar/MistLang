@@ -9,7 +9,7 @@ public class Program
         Console.WriteLine($"  Animal info: {animal.Describe()}");
     }
 
-    public static void Main(string[] args)
+    public static void RunDemo()
     {
         // --- Single-level inheritance: Dog extends Animal ---
         Console.WriteLine("=== Single-level inheritance ===");
@@ -45,5 +45,10 @@ public class Program
         Console.WriteLine($"GuideDog via base chain: {service.Describe()}");
 
         Console.WriteLine("Done!");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
     }
 }

@@ -139,7 +139,7 @@ public sealed class CSharpCompilationDriver
             Directory.CreateDirectory(binDirectory);
 
         // Collect all emitted .cs files
-        var csFiles = Directory.GetFiles(projectDirectory, "*.cs", SearchOption.TopDirectoryOnly);
+        var csFiles = Directory.GetFiles(projectDirectory, "*.cs", SearchOption.AllDirectories);
         if (csFiles.Length == 0)
         {
             diagnostics.Add(new Diagnostic(

@@ -38,7 +38,23 @@ public sealed class CSharpEmitter
 
             var csFileName = Path.ChangeExtension(
                 Path.GetFileName(unit.Source.Path), ".cs");
-            var csPath = Path.Combine(outputDirectory, csFileName);
+
+            // Units from referenced projects are emitted into a
+            // .references/{ProjectName}/ subdirectory to avoid filename
+            // collisions (e.g., multiple projects having Program.mist).
+            string csPath;
+            if (unit.OriginProjectPath is not null)
+            {
+                var refProjectDir = Path.GetDirectoryName(unit.OriginProjectPath)!;
+                var refProjectName = Path.GetFileName(refProjectDir);
+                var refOutputDir = Path.Combine(outputDirectory, "references", refProjectName);
+                Directory.CreateDirectory(refOutputDir);
+                csPath = Path.Combine(refOutputDir, csFileName);
+            }
+            else
+            {
+                csPath = Path.Combine(outputDirectory, csFileName);
+            }
 
             // Get the AST for this compilation unit (same index as the unit).
             if (i < model.Asts.Length && model.Asts[i] is CompilationUnitNode compilationUnit)

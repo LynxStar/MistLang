@@ -7,7 +7,7 @@ namespace MyApp;
 /// making SharedLib's public types available here.
 public class Program
 {
-    public static void Main(string[] args)
+    public static void RunDemo()
     {
         // Use MathUtils from the SharedLib project
         Console.WriteLine("=== Math Utilities ===");
@@ -37,5 +37,10 @@ public class Program
         Console.WriteLine(fancy);
 
         Console.WriteLine("Done!");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
     }
 }

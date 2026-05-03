@@ -12,6 +12,7 @@ public static class DiagnosticFormatter
         {
             DiagnosticSeverity.Error => "error",
             DiagnosticSeverity.Warning => "warning",
+            DiagnosticSeverity.Info => "info",
             _ => "info",
         };
 

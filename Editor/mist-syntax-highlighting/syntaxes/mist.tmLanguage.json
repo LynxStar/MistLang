@@ -87,7 +87,7 @@
         },
         {
           "name": "keyword.other.mist",
-          "match": "\\b(new|var|this|get|set|init|field|operator|with|as)\\b"
+          "match": "\\b(new|var|this|get|set|init|field|operator|with|as|default)\\b"
         }
       ]
     },

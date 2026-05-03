@@ -34,6 +34,7 @@ public sealed class CSharpAmbientTypeResolverStdlibTests
             _types["Char"] = new StructType("Char", new Scope(null), "Standard", isBackendBacked: true);
             _types["Decimal"] = new StructType("Decimal", new Scope(null), "Standard", isBackendBacked: true);
             _types["String"] = new ClassType("String", new Scope(null), "Standard", isBackendBacked: true);
+            _types["Void"] = new StructType("Void", new Scope(null), "Standard", isBackendBacked: true);
         }
 
         public IType LookupStandardType(string simpleName) => _types[simpleName];

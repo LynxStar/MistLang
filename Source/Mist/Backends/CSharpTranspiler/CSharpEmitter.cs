@@ -816,6 +816,71 @@ internal sealed class CSharpSourceWriter
             EmitExplicitTraitImplementations(classTypeForTraits, classDecl.Members.Length > 0);
         }
 
+        // Emit protected parameterless constructor for defaultable classes if one doesn't already exist.
+        // This is needed so __CreateDefault() can instantiate the class via `new ClassName()`.
+        // The constructor sets the class's own default field values (not inherited ones).
+        // When a derived class calls `new Derived()`, the chain `Derived() → base() → Base()`
+        // ensures each level initializes its own fields. This avoids accessibility issues
+        // with private base fields.
+        // Using `protected` (not `private`) so derived classes can call `base()`.
+        // Structs don't need this because C# allows `new MyStruct()` without an explicit
+        // parameterless constructor.
+        var isDefaultableClass = symbol?.DeclaredType is ClassType defaultableClassForCtor
+            && defaultableClassForCtor.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit
+            && defaultableClassForCtor.DefaultValues is not null;
+        var emittedDefaultCtor = false;
+
+        if (isDefaultableClass)
+        {
+            var hasParameterlessCtor = classDecl.Members.Any(m =>
+                m is ConstructorMemberMemberDeclarationNode ctorMember
+                && ctorMember.Constructor.Parameters is null);
+
+            if (!hasParameterlessCtor)
+            {
+                emittedDefaultCtor = true;
+                var classTypeForCtor = (ClassType)symbol!.DeclaredType!;
+                var ownFields = classTypeForCtor.DefaultValues!
+                    .Where(kvp => kvp.Value.ValueKind != DefaultValueKind.InheritedDefault)
+                    .ToList();
+
+                if (classDecl.Members.Length > 0)
+                {
+                    AppendLine();
+                }
+
+                if (ownFields.Count == 0)
+                {
+                    AppendLine($"protected {classDecl.Name.Lexeme}() {{ }}");
+                }
+                else
+                {
+                    AppendLine($"protected {classDecl.Name.Lexeme}()");
+                    AppendLine("{");
+                    _indentLevel++;
+                    foreach (var (fieldName, fieldValue) in ownFields)
+                    {
+                        EmitDefaultFieldAssignment("this", fieldName, fieldValue);
+                    }
+                    _indentLevel--;
+                    AppendLine("}");
+                }
+            }
+        }
+
+        // Emit __CreateDefault factory method for defaultable classes.
+        // If we emitted our own parameterless constructor that sets own fields,
+        // __CreateDefault just creates the instance (constructor chain handles initialization).
+        // Otherwise, __CreateDefault sets own fields directly.
+        if (symbol?.DeclaredType is ClassType defaultableClass
+            && defaultableClass.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit
+            && defaultableClass.DefaultValues is not null)
+        {
+            var hasExistingMembers = classDecl.Members.Length > 0 || isDefaultableClass;
+            EmitCreateDefaultMethod(defaultableClass.DisplayName, defaultableClass.DefaultValues,
+                hasExistingMembers, skipOwnFields: emittedDefaultCtor);
+        }
+
         _indentLevel--;
         AppendLine("}");
     }
@@ -1184,8 +1249,176 @@ internal sealed class CSharpSourceWriter
             EmitExplicitTraitImplementations(structTypeForTraits, structDecl.Members.Length > 0);
         }
 
+        // Emit __CreateDefault factory method for defaultable structs.
+        if (symbol?.DeclaredType is StructType defaultableStruct
+            && defaultableStruct.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit
+            && defaultableStruct.DefaultValues is not null)
+        {
+            var hasExistingMembers = structDecl.Members.Length > 0;
+            EmitCreateDefaultMethod(defaultableStruct.DisplayName, defaultableStruct.DefaultValues, hasExistingMembers);
+        }
+
         _indentLevel--;
         AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emits a <c>public static ClassName __CreateDefault()</c> factory method for a
+    /// defaultable type (class or struct). The method creates a new instance, sets each
+    /// field to its computed default value, and returns the instance.
+    /// </summary>
+    private void EmitCreateDefaultMethod(
+        string typeName,
+        IReadOnlyDictionary<string, DefaultFieldValue> defaultValues,
+        bool hasExistingMembers,
+        bool skipOwnFields = false)
+    {
+        if (hasExistingMembers)
+        {
+            AppendLine();
+        }
+
+        AppendLine($"public static {typeName} __CreateDefault()");
+        AppendLine("{");
+        _indentLevel++;
+
+        AppendLine($"var inst = new {typeName}();");
+
+        foreach (var (fieldName, fieldValue) in defaultValues)
+        {
+            // Skip inherited fields — they are initialized by the base class's
+            // parameterless constructor via the constructor chain (base() call).
+            if (fieldValue.ValueKind == DefaultValueKind.InheritedDefault)
+                continue;
+
+            // If the emitted parameterless constructor already sets own fields,
+            // skip them here (the constructor chain handles everything).
+            if (skipOwnFields)
+                continue;
+
+            EmitDefaultFieldAssignment("inst", fieldName, fieldValue);
+        }
+
+        AppendLine("return inst;");
+
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emits a single field assignment within a <c>__CreateDefault</c> factory method body.
+    /// Handles primitive literals, nested defaultable types, type bindings, and type bindings
+    /// with nested overrides.
+    /// </summary>
+    private void EmitDefaultFieldAssignment(string instanceName, string fieldName, DefaultFieldValue fieldValue)
+    {
+        switch (fieldValue.ValueKind)
+        {
+            case DefaultValueKind.TypeBinding:
+            {
+                // Interface/trait field bound to a concrete type.
+                var concreteTypeName = CSharpTypeMap.GetTypeName(fieldValue.ConcreteType!);
+
+                if (fieldValue.NestedOverrides is { Count: > 0 })
+                {
+                    // Type binding with nested overrides — use a temp variable.
+                    var tempName = $"__temp_{fieldName}";
+                    AppendLine($"var {tempName} = {concreteTypeName}.__CreateDefault();");
+                    foreach (var (nestedFieldName, nestedValue) in fieldValue.NestedOverrides)
+                    {
+                        EmitDefaultFieldAssignment(tempName, nestedFieldName, nestedValue);
+                    }
+                    AppendLine($"{instanceName}.{fieldName} = {tempName};");
+                }
+                else
+                {
+                    // Type binding without nested overrides — direct call.
+                    AppendLine($"{instanceName}.{fieldName} = {concreteTypeName}.__CreateDefault();");
+                }
+                break;
+            }
+
+            case DefaultValueKind.NestedTypeDefault:
+            {
+                // Field whose type is a defaultable class or struct — recursively call __CreateDefault.
+                var nestedTypeName = CSharpTypeMap.GetTypeName(fieldValue.FieldType);
+                AppendLine($"{instanceName}.{fieldName} = {nestedTypeName}.__CreateDefault();");
+                break;
+            }
+
+            default:
+            {
+                // Primitive, string, field initializer, explicit override, or inherited default —
+                // emit the literal constant value directly.
+                var literal = EmitDefaultLiteral(fieldValue);
+                AppendLine($"{instanceName}.{fieldName} = {literal};");
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns the C# literal representation of a <see cref="DefaultFieldValue"/>'s constant value.
+    /// </summary>
+    private static string EmitDefaultLiteral(DefaultFieldValue fieldValue)
+    {
+        var value = fieldValue.ConstantValue;
+
+        return value switch
+        {
+            null => "default",
+            bool b => b ? "true" : "false",
+            int i => i.ToString(),
+            uint u => $"{u}u",
+            long l => $"{l}L",
+            ulong ul => $"{ul}UL",
+            short s => s.ToString(),
+            ushort us => us.ToString(),
+            byte b => b.ToString(),
+            sbyte sb => sb.ToString(),
+            float f => $"{f}f",
+            double d => d.ToString(),
+            decimal m => $"{m}m",
+            char c => $"'{EscapeChar(c)}'",
+            string s => $"\"{EscapeString(s)}\"",
+            _ => value.ToString() ?? "default",
+        };
+    }
+
+    /// <summary>
+    /// Escapes a character for use in a C# character literal.
+    /// </summary>
+    private static string EscapeChar(char c) => c switch
+    {
+        '\0' => "\\0",
+        '\'' => "\\'",
+        '\\' => "\\\\",
+        '\n' => "\\n",
+        '\r' => "\\r",
+        '\t' => "\\t",
+        _ => c.ToString(),
+    };
+
+    /// <summary>
+    /// Escapes a string for use in a C# string literal.
+    /// </summary>
+    private static string EscapeString(string s)
+    {
+        var sb = new StringBuilder(s.Length);
+        foreach (var c in s)
+        {
+            sb.Append(c switch
+            {
+                '"' => "\\\"",
+                '\\' => "\\\\",
+                '\n' => "\\n",
+                '\r' => "\\r",
+                '\t' => "\\t",
+                '\0' => "\\0",
+                _ => c.ToString(),
+            });
+        }
+        return sb.ToString();
     }
 
     /// <summary>
@@ -1216,6 +1449,10 @@ internal sealed class CSharpSourceWriter
                 break;
             case CastOperatorMemberMemberDeclarationNode castOpMember:
                 EmitCastOperatorDeclaration(castOpMember.CastOperator);
+                break;
+            case DefaultBlockMemberMemberDeclarationNode:
+                // The default block is consumed by the semantic model and emitter's
+                // __CreateDefault generation logic — it is not emitted as a C# member.
                 break;
         }
     }
@@ -2502,9 +2739,72 @@ internal sealed class CSharpSourceWriter
                 return "field";
             case TypeLiteralExpressionPrimaryNode typeLiteral:
                 return $"typeof({EmitTypeReference(typeLiteral.TypeRef)})";
+            case DefaultExpressionPrimaryNode defaultExpr:
+            {
+                // Resolve the type from the semantic model's expression type map.
+                var resolvedType = _model.GetTypeOf(defaultExpr);
+                if (resolvedType is not null)
+                    return EmitDefaultValueForType(resolvedType);
+
+                // Fallback: emit using the type reference text directly.
+                var typeRef = EmitTypeReference(defaultExpr.Type);
+                return $"default({typeRef})";
+            }
+            case DefaultLiteralExpressionPrimaryNode defaultLiteral:
+            {
+                // The inferred type was recorded in the expression type map
+                // during Pass 2 or by the type checker's inference pass.
+                var resolvedType = _model.GetTypeOf(defaultLiteral);
+                if (resolvedType is not null)
+                    return EmitDefaultValueForType(resolvedType);
+
+                // Fallback: bare default keyword (should not normally reach here
+                // because the type checker would have emitted a diagnostic).
+                return "default";
+            }
             default:
                 return "";
         }
+    }
+
+    /// <summary>
+    /// Emits the C# representation of a default value for the given resolved type.
+    /// For class/struct types that are not intrinsically defaultable (not backend-backed
+    /// primitives), emits <c>TypeName.__CreateDefault()</c>.
+    /// For primitive types, emits <c>default(csharpKeyword)</c>.
+    /// For string, emits <c>""</c>.
+    /// </summary>
+    private static string EmitDefaultValueForType(IType type)
+    {
+        // Check if this is a backend-backed type (primitive or string).
+        var isBackendBacked = type switch
+        {
+            StructType st => st.IsBackendBacked,
+            ClassType ct => ct.IsBackendBacked,
+            _ => false,
+        };
+
+        if (isBackendBacked)
+        {
+            var csharpName = CSharpTypeMap.GetTypeName(type);
+
+            // String default in Mist is "" (not null).
+            if (csharpName == "string")
+                return "\"\"";
+
+            // Primitive types use C# default literal.
+            return $"default({csharpName})";
+        }
+
+        // Non-backend-backed class or struct — use the factory method.
+        if (type is ClassType or StructType)
+        {
+            var typeName = CSharpTypeMap.GetTypeName(type);
+            return $"{typeName}.__CreateDefault()";
+        }
+
+        // Fallback for other types (should not normally reach here).
+        return "default";
     }
 
     private string EmitInterpolatedString(InterpolatedStringNode interpolated)

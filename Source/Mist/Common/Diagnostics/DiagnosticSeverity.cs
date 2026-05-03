@@ -5,6 +5,7 @@ namespace Mist.Common.Diagnostics;
 /// </summary>
 public enum DiagnosticSeverity
 {
+    Info,
     Warning,
     Error,
 }

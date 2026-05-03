@@ -206,11 +206,11 @@
       "patterns": [
         {
           "name": "keyword.operator.comparison.mist",
-          "match": "==|!=|<=|>=|<|>"
+          "match": "\\b(is)\\b|==|!=|<=|>=|<|>"
         },
         {
           "name": "keyword.operator.logical.mist",
-          "match": "&&|\\|\\||!"
+          "match": "\\b(and|or|not)\\b|&&|\\|\\||!"
         },
         {
           "name": "keyword.operator.arithmetic.mist",
@@ -228,6 +228,7 @@
     },
     "punctuation": {
       "patterns": [
+        { "name": "punctuation.range.mist", "match": "\\.\\." },
         { "name": "punctuation.accessor.mist", "match": "\\." },
         { "name": "punctuation.separator.comma.mist", "match": "," },
         { "name": "punctuation.terminator.statement.mist", "match": ";" }

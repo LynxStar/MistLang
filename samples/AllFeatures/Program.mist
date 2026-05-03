@@ -18,6 +18,7 @@ public class Program
         Overloading.Program.RunDemo();
         VoidType.Program.RunDemo();
         CastOperators.Program.RunDemo();
+        PatternMatching.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

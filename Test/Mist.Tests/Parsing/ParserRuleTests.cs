@@ -89,7 +89,7 @@ public class ParserRuleTests
             var logicalOr = assignment.Target;
             var logicalAnd = logicalOr.Left;
             var equality = logicalAnd.Left;
-            var relational = equality.Left;
+            var relational = (RelationalComparisonRelationalNode)equality.Left;
             var additive = relational.Left;
 
             // The additive node should have a PLUS operator

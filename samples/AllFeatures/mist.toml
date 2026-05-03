@@ -23,3 +23,6 @@ path = "../VoidType"
 
 [[references]]
 path = "../CastOperators"
+
+[[references]]
+path = "../PatternMatching"

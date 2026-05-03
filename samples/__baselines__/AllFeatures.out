@@ -95,4 +95,18 @@ GenericBox of void: GenericBox(Void)
 --- Explicit cast on derived type ---
   Weight 72.5 as Kelvin: 72.5 K
 Done!
+=== Pattern Matching Sample ===
+--- Type Patterns ---
+Circle with radius 5
+Rectangle 3x7
+--- Property Patterns ---
+Found a circle with radius > 5
+Found a small rectangle (both sides 1-10)
+--- Relational and Logical Patterns ---
+Score 85 is between 1 and 99
+Temperature 72 is comfortable
+--- List Patterns ---
+Array has two positive elements
+Array starts with a positive number
+Done!
 === Done! ===

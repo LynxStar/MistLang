@@ -536,9 +536,19 @@ internal sealed class CSharpSourceWriter
 
     private void ScanRelationalForValueReturningCalls(RelationalNode node, HashSet<string> voidMethodNames, bool isValueContext)
     {
-        ScanAdditiveForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
-        if (node.Right is not null && !ReferenceEquals(node.Right, node.Left))
-            ScanAdditiveForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+        switch (node)
+        {
+            case RelationalComparisonRelationalNode cmp:
+                ScanAdditiveForValueReturningCalls(cmp.Left, voidMethodNames, isValueContext);
+                if (cmp.Right is not null && !ReferenceEquals(cmp.Right, cmp.Left))
+                    ScanAdditiveForValueReturningCalls(cmp.Right, voidMethodNames, isValueContext);
+                break;
+
+            case IsExpressionRelationalNode isExpr:
+                // Only scan the left additive — patterns contain no method calls
+                ScanAdditiveForValueReturningCalls(isExpr.Left, voidMethodNames, isValueContext);
+                break;
+        }
     }
 
     private void ScanAdditiveForValueReturningCalls(AdditiveNode node, HashSet<string> voidMethodNames, bool isValueContext)
@@ -2301,14 +2311,199 @@ internal sealed class CSharpSourceWriter
 
     private string EmitRelational(RelationalNode relational)
     {
-        var left = EmitAdditive(relational.Left);
+        switch (relational)
+        {
+            case RelationalComparisonRelationalNode cmp:
+            {
+                var left = EmitAdditive(cmp.Left);
 
-        if (relational.Right is null || ReferenceEquals(relational.Right, relational.Left))
+                if (cmp.Right is null || ReferenceEquals(cmp.Right, cmp.Left))
+                    return left;
+
+                var op = cmp.Operator.Lexeme;
+                var right = EmitAdditive(cmp.Right);
+                return EmitBinaryOperator(cmp, op, left, right);
+            }
+
+            case IsExpressionRelationalNode isExpr:
+            {
+                var left = EmitAdditive(isExpr.Left);
+                var pattern = EmitPattern(isExpr.Pattern);
+                return $"{left} is {pattern}";
+            }
+
+            default:
+                return "";
+        }
+    }
+
+    // ─── Pattern Emission ────────────────────────────────────────────────
+
+    private string EmitPattern(PatternNode pattern)
+    {
+        return EmitOrPattern(pattern.OrPattern);
+    }
+
+    private string EmitOrPattern(OrPatternNode orPattern)
+    {
+        var left = EmitAndPattern(orPattern.Left);
+
+        if (orPattern.Right is null || ReferenceEquals(orPattern.Right, orPattern.Left))
             return left;
 
-        var op = relational.Operator.Lexeme;
-        var right = EmitAdditive(relational.Right);
-        return EmitBinaryOperator(relational, op, left, right);
+        var right = EmitAndPattern(orPattern.Right);
+        return $"{left} or {right}";
+    }
+
+    private string EmitAndPattern(AndPatternNode andPattern)
+    {
+        var left = EmitUnaryPattern(andPattern.Left);
+
+        if (andPattern.Right is null || ReferenceEquals(andPattern.Right, andPattern.Left))
+            return left;
+
+        var right = EmitUnaryPattern(andPattern.Right);
+        return $"{left} and {right}";
+    }
+
+    private string EmitUnaryPattern(UnaryPatternNode unaryPattern)
+    {
+        switch (unaryPattern)
+        {
+            case NotPatternUnaryPatternNode notPattern:
+                return $"not {EmitPrimaryPattern(notPattern.Operand)}";
+            case DirectPatternUnaryPatternNode directPattern:
+                return EmitPrimaryPattern(directPattern.Primary);
+            default:
+                return "";
+        }
+    }
+
+    private string EmitPrimaryPattern(PrimaryPatternNode primaryPattern)
+    {
+        switch (primaryPattern)
+        {
+            case TypePatternPrimaryPatternNode typePattern:
+            {
+                var type = EmitTypeReference(typePattern.Type);
+                var name = typePattern.Name.Lexeme;
+                return $"{type} {name}";
+            }
+            case VarPatternPrimaryPatternNode varPattern:
+                return $"var {varPattern.Name.Lexeme}";
+            case ConstantPatternPrimaryPatternNode constantPattern:
+                return EmitConstantLiteral(constantPattern.Literal);
+            case LessThanRelationalPatternPrimaryPatternNode ltPattern:
+                return $"< {EmitExpression(ltPattern.Constant)}";
+            case GreaterThanRelationalPatternPrimaryPatternNode gtPattern:
+                return $"> {EmitExpression(gtPattern.Constant)}";
+            case LessThanOrEqualRelationalPatternPrimaryPatternNode ltePattern:
+                return $"<= {EmitExpression(ltePattern.Constant)}";
+            case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gtePattern:
+                return $">= {EmitExpression(gtePattern.Constant)}";
+            case PropertyPatternPrimaryPatternNode propertyPattern:
+            {
+                var sb = new StringBuilder();
+
+                if (propertyPattern.TypeName is not null)
+                {
+                    sb.Append(ExtractQualifiedName(propertyPattern.TypeName));
+                    sb.Append(' ');
+                }
+
+                sb.Append("{ ");
+                if (propertyPattern.Subpatterns is not null)
+                {
+                    sb.Append(EmitPropertySubpatternList(propertyPattern.Subpatterns));
+                    sb.Append(' ');
+                }
+                sb.Append('}');
+
+                if (propertyPattern.Name.HasValue)
+                {
+                    sb.Append(' ');
+                    sb.Append(propertyPattern.Name.Value.Lexeme);
+                }
+
+                return sb.ToString();
+            }
+            case ListPatternPrimaryPatternNode listPattern:
+            {
+                if (listPattern.Elements is null)
+                    return "[]";
+
+                return $"[{EmitListPatternElementList(listPattern.Elements)}]";
+            }
+            case ParenthesizedPatternPrimaryPatternNode parenPattern:
+                return $"({EmitPattern(parenPattern.Inner)})";
+            default:
+                return "";
+        }
+    }
+
+    private static string EmitConstantLiteral(ConstantLiteralNode literal)
+    {
+        return literal switch
+        {
+            IntegerConstantConstantLiteralNode intConst => intConst.Value.Lexeme,
+            FloatConstantConstantLiteralNode floatConst => floatConst.Value.Lexeme,
+            StringConstantConstantLiteralNode strConst => strConst.Value.Lexeme,
+            CharConstantConstantLiteralNode charConst => charConst.Value.Lexeme,
+            TrueConstantConstantLiteralNode => "true",
+            FalseConstantConstantLiteralNode => "false",
+            _ => "",
+        };
+    }
+
+    private string EmitPropertySubpatternList(PropertySubpatternListNode subpatternList)
+    {
+        var parts = new List<string>();
+        parts.Add(EmitPropertySubpattern(subpatternList.PropertySubpattern));
+
+        foreach (var subpattern in subpatternList.PropertySubpatterns)
+        {
+            parts.Add(EmitPropertySubpattern(subpattern));
+        }
+
+        return string.Join(", ", parts);
+    }
+
+    private string EmitPropertySubpattern(PropertySubpatternNode subpattern)
+    {
+        var name = subpattern.Name.Lexeme;
+        var pattern = EmitPattern(subpattern.Pattern);
+        return $"{name}: {pattern}";
+    }
+
+    private string EmitListPatternElementList(ListPatternElementListNode elementList)
+    {
+        var parts = new List<string>();
+        parts.Add(EmitListPatternElement(elementList.ListPatternElement));
+
+        foreach (var element in elementList.ListPatternElements)
+        {
+            parts.Add(EmitListPatternElement(element));
+        }
+
+        return string.Join(", ", parts);
+    }
+
+    private string EmitListPatternElement(ListPatternElementNode element)
+    {
+        switch (element)
+        {
+            case PatternElementListPatternElementNode patternElement:
+                return EmitPattern(patternElement.Pattern);
+            case SliceElementListPatternElementNode sliceElement:
+            {
+                // C# requires `.. var name` for slice variables (Mist uses `.. name`)
+                if (sliceElement.Name.HasValue)
+                    return $".. var {sliceElement.Name.Value.Lexeme}";
+                return "..";
+            }
+            default:
+                return "";
+        }
     }
 
     private string EmitAdditive(AdditiveNode additive)

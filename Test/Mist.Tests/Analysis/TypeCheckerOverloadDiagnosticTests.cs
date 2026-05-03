@@ -7,6 +7,7 @@ using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Analysis;
 
@@ -72,7 +73,7 @@ public class TypeCheckerOverloadDiagnosticTests
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
         var mult = new MultiplicativeNode { Left = unary };
         var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -333,16 +334,18 @@ public class TypeCheckerOverloadDiagnosticTests
         };
 
         // Act
-        var model = BuildModel(ast);
+        var (model, _) = StdlibTestHelper.BuildModelWithStdlib(ast);
         var diagnostics = RunTypeChecker(model);
 
         // Assert: MIST_TC_0032 emitted with both candidate signatures in message
         var ambiguousDiags = diagnostics.Where(d => d.Id.Value == "MIST_TC_0032").ToList();
         Assert.NotEmpty(ambiguousDiags);
-        // The message should mention "Foo" and include both candidate signatures
+        // The message should mention "Foo" and include both candidate signatures.
+        // With stdlib loaded, float resolves to Single and decimal to Decimal.
         Assert.Contains(ambiguousDiags, d => d.Message.Contains("Foo"));
         Assert.Contains(ambiguousDiags, d =>
-            d.Message.Contains("float") && d.Message.Contains("decimal"));
+            (d.Message.Contains("float") || d.Message.Contains("Single"))
+            && (d.Message.Contains("decimal") || d.Message.Contains("Decimal")));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -389,15 +392,17 @@ public class TypeCheckerOverloadDiagnosticTests
         };
 
         // Act
-        var model = BuildModel(ast);
+        var (model, _) = StdlibTestHelper.BuildModelWithStdlib(ast);
         var diagnostics = RunTypeChecker(model);
 
         // Assert: MIST_TC_0032 emitted for the ambiguous constructor call
         var ambiguousDiags = diagnostics.Where(d => d.Id.Value == "MIST_TC_0032").ToList();
         Assert.NotEmpty(ambiguousDiags);
+        // With stdlib loaded, float resolves to Single and decimal to Decimal.
         Assert.Contains(ambiguousDiags, d => d.Message.Contains("Bar"));
         Assert.Contains(ambiguousDiags, d =>
-            d.Message.Contains("float") && d.Message.Contains("decimal"));
+            (d.Message.Contains("float") || d.Message.Contains("Single"))
+            && (d.Message.Contains("decimal") || d.Message.Contains("Decimal")));
     }
 
     // ═══════════════════════════════════════════════════════════════════════

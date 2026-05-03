@@ -20,6 +20,7 @@ using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Analysis;
 
@@ -161,6 +162,76 @@ public class OverloadResolverPropertyTests
         };
 
         return BuildModel(ast);
+    }
+
+    /// <summary>
+    /// Builds a class with the given method declarations and returns the semantic model,
+    /// with stdlib types loaded so that implicit cast operators are available.
+    /// </summary>
+    private static ISemanticModel BuildClassWithMethodsWithStdlib(string className, IReadOnlyList<MethodDeclarationNode> methods)
+    {
+        var members = methods.Select(m =>
+            (MemberDeclarationNode)new MethodMemberMemberDeclarationNode { Method = m }).ToImmutableArray();
+
+        var classDecl = new ClassDeclarationNode
+        {
+            Name = MakeToken(className),
+            Members = members,
+        };
+
+        var ast = new CompilationUnitNode
+        {
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+        };
+
+        var (model, _) = StdlibTestHelper.BuildModelWithStdlib(ast);
+        return model;
+    }
+
+    /// <summary>
+    /// Finds the stdlib type whose display name matches the given legacy primitive type.
+    /// Returns the stdlib type (which has implicit cast operators in its member scope),
+    /// or falls back to the original type if not found.
+    /// </summary>
+    private static IType FindStdlibType(ISemanticModel model, IType legacyType)
+    {
+        return model.AllSymbols
+            .Where(s => s.Kind is SymbolKind.Struct or SymbolKind.Class
+                        && s.DeclaredType is not null
+                        && ArePrimitiveEquivalent(s.DeclaredType, legacyType))
+            .Select(s => s.DeclaredType!)
+            .FirstOrDefault() ?? legacyType;
+    }
+
+    /// <summary>
+    /// Checks whether two types are primitive-equivalent (e.g. "int" ↔ "Int32").
+    /// </summary>
+    private static bool ArePrimitiveEquivalent(IType a, IType b)
+    {
+        if (a.DisplayName == b.DisplayName)
+            return true;
+
+        // Map legacy display names to stdlib names and vice versa.
+        var map = new Dictionary<string, string>
+        {
+            ["int"] = "Int32", ["Int32"] = "int",
+            ["long"] = "Int64", ["Int64"] = "long",
+            ["short"] = "Int16", ["Int16"] = "short",
+            ["float"] = "Single", ["Single"] = "float",
+            ["double"] = "Double", ["Double"] = "double",
+            ["decimal"] = "Decimal", ["Decimal"] = "decimal",
+            ["bool"] = "Boolean", ["Boolean"] = "bool",
+            ["char"] = "Char", ["Char"] = "char",
+            ["string"] = "String", ["String"] = "string",
+            ["byte"] = "Byte", ["Byte"] = "byte",
+            ["sbyte"] = "SByte", ["SByte"] = "sbyte",
+            ["ushort"] = "UInt16", ["UInt16"] = "ushort",
+            ["uint"] = "UInt32", ["UInt32"] = "uint",
+            ["ulong"] = "UInt64", ["UInt64"] = "ulong",
+        };
+
+        return map.TryGetValue(a.DisplayName, out var mapped) && mapped == b.DisplayName;
     }
 
     /// <summary>
@@ -484,18 +555,24 @@ public class OverloadResolverPropertyTests
     public bool AmbiguousCall_ProducesDiagnostic(AmbiguousScenario scenario)
     {
         // Arrange: two overloads with types that are both applicable but neither
-        // is more specific than the other
+        // is more specific than the other.
+        // Build with stdlib so that primitive type keywords resolve to stdlib types
+        // (e.g. int → Standard.Int32) which have implicit cast operators in their
+        // member scopes, enabling numeric widening in IsAssignable.
         var method1 = MakeMethod("M", scenario.ParamType1);
         var method2 = MakeMethod("M", scenario.ParamType2);
 
-        var model = BuildClassWithMethods("C", new[] { method1, method2 });
+        var model = BuildClassWithMethodsWithStdlib("C", new[] { method1, method2 });
         var candidates = GetMethodCandidates(model, "M");
 
         if (candidates.Count != 2)
             return false;
 
-        // Act: call with the argument type that is assignable to both
-        var argTypes = new IType[] { scenario.ArgumentType };
+        // Look up the actual stdlib type for the argument so that
+        // TryFindImplicitCast can find the implicit cast operators
+        // on the type's member scope.
+        var actualArgType = FindStdlibType(model, scenario.ArgumentType);
+        var argTypes = new IType[] { actualArgType };
         var result = OverloadResolver.Resolve(candidates, argTypes, model);
 
         // Assert: ambiguous call

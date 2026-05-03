@@ -57,7 +57,7 @@ public class TypeCheckerPreservationPropertyTests
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
         var mult = new MultiplicativeNode { Left = unary };
         var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -409,7 +409,7 @@ public class TypeCheckerPreservationPropertyTests
             Operator = MakeToken("+"),
             Right = rightMult,
         };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -451,7 +451,7 @@ public class TypeCheckerPreservationPropertyTests
         var logOr = expr.Assignment.Target;
         var logAnd = logOr.Left;
         var equality = logAnd.Left;
-        var relational = equality.Left;
+        var relational = (RelationalComparisonRelationalNode)equality.Left;
         var additive = relational.Left;
         var multiplicative = additive.Left;
         return multiplicative.Left;

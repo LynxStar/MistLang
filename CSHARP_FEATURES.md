@@ -350,9 +350,9 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | `stackalloc` | ⛔ | Low-level, out of scope |
 | Range expressions (`..`) | 🔲 | C# 8 |
 | Index expressions (`^`) | 🔲 | C# 8 |
-| `is` pattern matching | 🔲 | C# 7+ |
+| `is` pattern matching | ✅ | C# 7+ |
 | `switch` expression | 🔲 | C# 8 |
-| Discard (`_`) | 🔲 | C# 7 |
+| Discard (`_`) | ✅ | C# 7 |
 | String interpolation (raw) | 🔲 | C# 11 |
 | Interpolated string handlers | ⛔ | C# 10, compiler internals |
 
@@ -424,14 +424,14 @@ Mist introduces traits as a structural typing mechanism. Unlike interfaces (nomi
 
 | Feature | Status | Notes |
 |---|---|---|
-| Type patterns (`is Type t`) | 🔲 | C# 7 |
-| Constant patterns | 🔲 | C# 7 |
-| `var` patterns | 🔲 | C# 7 |
+| Type patterns (`is Type t`) | ✅ | C# 7 |
+| Constant patterns | ✅ | C# 7 |
+| `var` patterns | ✅ | C# 7 |
 | Positional patterns | 🔲 | C# 8 |
-| Property patterns | 🔲 | C# 8 |
-| Relational patterns (`> 0`) | 🔲 | C# 9 |
-| Logical patterns (`and`, `or`, `not`) | 🔲 | C# 9 |
-| List patterns (`[1, 2, ..]`) | 🔲 | C# 11 |
+| Property patterns | ✅ | C# 8 |
+| Relational patterns (`> 0`) | ✅ | C# 9 |
+| Logical patterns (`and`, `or`, `not`) | ✅ | C# 9 |
+| List patterns (`[1, 2, ..]`) | ✅ | C# 11 |
 
 ---
 
@@ -586,13 +586,13 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 | Expressions — Assignment | 1 | 4 | 0 |
 | Expressions — Member Access | 4 | 3 | 0 |
 | Expressions — Object Creation | 2 | 5 | 0 |
-| Expressions — Other | 3 | 13 | 2 |
+| Expressions — Other | 5 | 11 | 2 |
 | Inheritance | 3 | 8 | 0 |
 | Structural Typing — Traits | 5 | 0 | 0 |
 | Structural Typing — Matching | 5 | 0 | 0 |
 | Structural Typing — With Blocks | 4 | 0 | 0 |
 | Structural Typing — C# Lowering | 4 | 0 | 0 |
-| Pattern Matching | 0 | 8 | 0 |
+| Pattern Matching | 7 | 1 | 0 |
 | Generics | 3 | 3 | 0 |
 | Async | 0 | 5 | 1 |
 | Namespaces & Imports | 3 | 3 | 1 |

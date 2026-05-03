@@ -183,8 +183,8 @@ public class VoidEqualityMismatchPropertyTests
         var rightMult = new MultiplicativeNode { Left = right };
         var leftAdd = new AdditiveNode { Left = leftMult };
         var rightAdd = new AdditiveNode { Left = rightMult };
-        var leftRel = new RelationalNode { Left = leftAdd };
-        var rightRel = new RelationalNode { Left = rightAdd };
+        var leftRel = new RelationalComparisonRelationalNode { Left = leftAdd };
+        var rightRel = new RelationalComparisonRelationalNode { Left = rightAdd };
         var eq = new EqualityNode { Left = leftRel, Operator = Tok(op), Right = rightRel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };

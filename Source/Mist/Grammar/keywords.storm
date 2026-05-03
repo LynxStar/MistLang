@@ -59,3 +59,9 @@ token DECIMAL = "decimal";
 token BOOL    = "bool";
 token CHAR    = "char";
 token STRING  = "string";
+
+// Pattern matching keywords
+token IS  = "is";
+token AND = "and";
+token OR  = "or";
+token NOT = "not";

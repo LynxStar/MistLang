@@ -6237,9 +6237,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
+        // Step 1: Resolve the condition expression (which may contain `is` expressions).
         ResolveExpression(ifStmt.Condition, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-        ResolveBlock(ifStmt.ThenBranch, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
+        // Step 2: Create a child scope for the then-branch and populate it
+        // with pattern variables introduced by `is` expressions in the condition.
+        var thenScope = new Scope(parent: blockScope);
+        CollectPatternVariables(ifStmt.Condition, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+
+        // Step 3: Resolve the then-branch in the child scope that contains
+        // pattern variables. ResolveBlock creates its own nested scope from
+        // the parent we pass, so pattern variables are visible inside.
+        ResolveBlock(ifStmt.ThenBranch, thenScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        // Step 4: The else branch does NOT get pattern variables.
         if (ifStmt.ElseBranch is ElseIfElseClauseNode elseIf)
         {
             ResolveIfStatement(elseIf.ElseIf, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -6247,6 +6258,417 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         else if (ifStmt.ElseBranch is ElseBlockElseClauseNode elseBlock)
         {
             ResolveBlock(elseBlock.ElseBlock, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        }
+    }
+
+    // ─── Pattern Variable Collection ────────────────────────────────────
+    // Walks the condition expression tree looking for IsExpressionRelationalNode
+    // nodes and extracts variable bindings from their patterns into the
+    // then-branch scope. This enables pattern variables to be used in the
+    // then-branch of an `if` statement (e.g., `if (x is string s) { ... s ... }`).
+
+    /// <summary>
+    /// Walks the condition expression tree to find <c>is</c> expressions and
+    /// registers pattern variables in the given scope.
+    /// </summary>
+    private static void CollectPatternVariables(
+        ExpressionNode condition,
+        Scope thenScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Expression → Assignment → LogicalOr → LogicalAnd → Equality → Relational
+        // Walk through the chain to find IsExpressionRelationalNode nodes.
+        CollectFromAssignment(condition.Assignment, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    private static void CollectFromAssignment(
+        AssignmentNode node,
+        Scope thenScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        CollectFromLogicalOr(node.Target, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    private static void CollectFromLogicalOr(
+        LogicalOrNode node,
+        Scope thenScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        CollectFromLogicalAnd(node.Left, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+
+        if (node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        {
+            CollectFromLogicalAnd(node.Right, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+        }
+    }
+
+    private static void CollectFromLogicalAnd(
+        LogicalAndNode node,
+        Scope thenScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        CollectFromEquality(node.Left, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+
+        if (node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        {
+            CollectFromEquality(node.Right, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+        }
+    }
+
+    private static void CollectFromEquality(
+        EqualityNode node,
+        Scope thenScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        CollectFromRelational(node.Left, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+
+        if (node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        {
+            CollectFromRelational(node.Right, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+        }
+    }
+
+    private static void CollectFromRelational(
+        RelationalNode node,
+        Scope thenScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        if (node is IsExpressionRelationalNode isExpr)
+        {
+            // Get the scrutinee type from the expression types map.
+            // The scrutinee (isExpr.Left) was already resolved by ResolveRelational.
+            expressionTypes.TryGetValue(isExpr.Left, out var scrutineeType);
+            scrutineeType ??= UnknownType.Instance;
+
+            // Extract variable bindings from the pattern.
+            CollectFromPattern(isExpr.Pattern, scrutineeType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+        }
+        // For RelationalComparisonRelationalNode, no pattern variables to collect.
+    }
+
+    private static void CollectFromPattern(
+        PatternNode pattern,
+        IType scrutineeType,
+        Scope thenScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        CollectFromOrPattern(pattern.OrPattern, scrutineeType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    private static void CollectFromOrPattern(
+        OrPatternNode orPattern,
+        IType scrutineeType,
+        Scope thenScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        CollectFromAndPattern(orPattern.Left, scrutineeType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
+            CollectFromAndPattern(orPattern.Right, scrutineeType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+        }
+    }
+
+    private static void CollectFromAndPattern(
+        AndPatternNode andPattern,
+        IType scrutineeType,
+        Scope thenScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        CollectFromUnaryPattern(andPattern.Left, scrutineeType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
+            CollectFromUnaryPattern(andPattern.Right, scrutineeType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+        }
+    }
+
+    private static void CollectFromUnaryPattern(
+        UnaryPatternNode unaryPattern,
+        IType scrutineeType,
+        Scope thenScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        switch (unaryPattern)
+        {
+            case NotPatternUnaryPatternNode notPattern:
+                // Not patterns may contain subpatterns, but variable bindings
+                // inside `not` are semantically invalid (the type checker will
+                // flag them). We still collect them here so the semantic model
+                // is complete — the type checker handles the diagnostic.
+                CollectFromPrimaryPattern(notPattern.Operand, scrutineeType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case DirectPatternUnaryPatternNode directPattern:
+                CollectFromPrimaryPattern(directPattern.Primary, scrutineeType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+                break;
+        }
+    }
+
+    private static void CollectFromPrimaryPattern(
+        PrimaryPatternNode primaryPattern,
+        IType scrutineeType,
+        Scope thenScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        switch (primaryPattern)
+        {
+            case TypePatternPrimaryPatternNode typePattern:
+            {
+                // Type pattern: `Type name` — register `name` as a local variable
+                // with the pattern's resolved type.
+                var name = typePattern.Name.Lexeme;
+
+                // Discard `_` does not introduce a variable.
+                if (name == "_")
+                    break;
+
+                var patternType = ResolveTypeReference(typePattern.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                var varSpan = ToMistSourceSpan(typePattern.Name.Span);
+                var varSymbol = new Symbol(name, SymbolKind.LocalVariable, SymbolOrigin.UserCode, thenScope, patternType, varSpan);
+                thenScope.AddMember(varSymbol);
+                symbolTable.Register(varSymbol, typePattern);
+                break;
+            }
+
+            case VarPatternPrimaryPatternNode varPattern:
+            {
+                // Var pattern: `var name` — register `name` as a local variable
+                // with the scrutinee's static type.
+                var name = varPattern.Name.Lexeme;
+
+                // Discard `_` does not introduce a variable.
+                if (name == "_")
+                    break;
+
+                var varSpan = ToMistSourceSpan(varPattern.Name.Span);
+                var varSymbol = new Symbol(name, SymbolKind.LocalVariable, SymbolOrigin.UserCode, thenScope, scrutineeType, varSpan);
+                thenScope.AddMember(varSymbol);
+                symbolTable.Register(varSymbol, varPattern);
+                break;
+            }
+
+            case PropertyPatternPrimaryPatternNode propertyPattern:
+            {
+                // Determine the pattern type for subpattern recursion.
+                var patternType = scrutineeType;
+                if (propertyPattern.TypeName is not null)
+                {
+                    var typeName = ExtractQualifiedName(propertyPattern.TypeName, sourceText);
+                    patternType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                }
+
+                // Recursively collect from subpatterns.
+                if (propertyPattern.Subpatterns is not null)
+                {
+                    CollectFromPropertySubpatternList(propertyPattern.Subpatterns, patternType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+                }
+
+                // Property pattern with trailing identifier: register the identifier.
+                if (propertyPattern.Name.HasValue)
+                {
+                    var name = propertyPattern.Name.Value.Lexeme;
+                    if (name != "_")
+                    {
+                        var varSpan = ToMistSourceSpan(propertyPattern.Name.Value.Span);
+                        var varSymbol = new Symbol(name, SymbolKind.LocalVariable, SymbolOrigin.UserCode, thenScope, patternType, varSpan);
+                        thenScope.AddMember(varSymbol);
+                        symbolTable.Register(varSymbol, propertyPattern);
+                    }
+                }
+                break;
+            }
+
+            case ListPatternPrimaryPatternNode listPattern:
+            {
+                // Determine the element type for subpattern recursion.
+                var elementType = scrutineeType is ArrayType arrayType
+                    ? arrayType.ElementType
+                    : UnknownType.Instance;
+
+                if (listPattern.Elements is not null)
+                {
+                    CollectFromListPatternElementList(listPattern.Elements, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+                }
+                break;
+            }
+
+            case ParenthesizedPatternPrimaryPatternNode parenPattern:
+            {
+                CollectFromPattern(parenPattern.Inner, scrutineeType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            }
+
+            // Constant patterns, relational patterns, and discard patterns
+            // do not introduce variables — nothing to collect.
+        }
+    }
+
+    private static void CollectFromPropertySubpatternList(
+        PropertySubpatternListNode subpatternList,
+        IType patternType,
+        Scope thenScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        CollectFromPropertySubpattern(subpatternList.PropertySubpattern, patternType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+
+        foreach (var subpattern in subpatternList.PropertySubpatterns)
+        {
+            CollectFromPropertySubpattern(subpattern, patternType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+        }
+    }
+
+    private static void CollectFromPropertySubpattern(
+        PropertySubpatternNode subpattern,
+        IType patternType,
+        Scope thenScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Determine the property's type from the pattern type's member scope.
+        var propertyType = UnknownType.Instance as IType;
+        var propertyName = subpattern.Name.Lexeme;
+
+        if (patternType is ClassType classType)
+        {
+            var member = classType.MemberScope.Lookup(propertyName);
+            if (member?.DeclaredType is not null)
+                propertyType = member.DeclaredType;
+        }
+        else if (patternType is StructType structType)
+        {
+            var member = structType.MemberScope.Lookup(propertyName);
+            if (member?.DeclaredType is not null)
+                propertyType = member.DeclaredType;
+        }
+        else if (patternType is InterfaceType interfaceType)
+        {
+            var member = interfaceType.MemberScope.Lookup(propertyName);
+            if (member?.DeclaredType is not null)
+                propertyType = member.DeclaredType;
+        }
+
+        // Recursively collect from the subpattern's inner pattern.
+        CollectFromPattern(subpattern.Pattern, propertyType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    private static void CollectFromListPatternElementList(
+        ListPatternElementListNode elementList,
+        IType elementType,
+        Scope thenScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        CollectFromListPatternElement(elementList.ListPatternElement, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+
+        foreach (var element in elementList.ListPatternElements)
+        {
+            CollectFromListPatternElement(element, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+        }
+    }
+
+    private static void CollectFromListPatternElement(
+        ListPatternElementNode element,
+        IType elementType,
+        Scope thenScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        switch (element)
+        {
+            case PatternElementListPatternElementNode patternElement:
+                CollectFromPattern(patternElement.Pattern, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+                break;
+
+            case SliceElementListPatternElementNode sliceElement:
+                // Slice element with an identifier (`.. rest`): register the identifier.
+                if (sliceElement.Name.HasValue)
+                {
+                    var name = sliceElement.Name.Value.Lexeme;
+                    if (name != "_")
+                    {
+                        // The slice variable captures a sub-array, so its type
+                        // is the same as the scrutinee array type (not the element type).
+                        // For now, use UnknownType since we don't have the full
+                        // array type here — the type checker will validate.
+                        var varSpan = ToMistSourceSpan(sliceElement.Name.Value.Span);
+                        var varSymbol = new Symbol(name, SymbolKind.LocalVariable, SymbolOrigin.UserCode, thenScope, UnknownType.Instance, varSpan);
+                        thenScope.AddMember(varSymbol);
+                        symbolTable.Register(varSymbol, sliceElement);
+                    }
+                }
+                break;
         }
     }
 
@@ -7197,18 +7619,392 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var leftType = ResolveAdditive(node.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-
-        if (node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        switch (node)
         {
-            ResolveAdditive(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-            var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
-            expressionTypes[node] = result;
-            return result;
+            case RelationalComparisonRelationalNode cmp:
+            {
+                var leftType = ResolveAdditive(cmp.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                if (cmp.Right is not null && !ReferenceEquals(cmp.Right, cmp.Left))
+                {
+                    ResolveAdditive(cmp.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
+                    expressionTypes[node] = result;
+                    return result;
+                }
+
+                expressionTypes[node] = leftType;
+                return leftType;
+            }
+
+            case IsExpressionRelationalNode isExpr:
+            {
+                // Resolve the left-hand side (scrutinee) additive expression.
+                var scrutineeType = ResolveAdditive(isExpr.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                // Resolve type references and constant expressions within the pattern.
+                ResolvePattern(isExpr.Pattern, scrutineeType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                // Record bool as the expression type — an `is` expression always evaluates to bool.
+                var boolType = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
+                expressionTypes[node] = boolType;
+                return boolType;
+            }
+
+            default:
+            {
+                expressionTypes[node] = UnknownType.Instance;
+                return UnknownType.Instance;
+            }
+        }
+    }
+
+    // ─── Pattern Resolution ─────────────────────────────────────────────
+    // Recursively resolves type references within patterns (e.g., the type
+    // in a type pattern, the type prefix in a property pattern) and records
+    // expression types for constant sub-expressions.
+
+    private static void ResolvePattern(
+        PatternNode pattern,
+        IType scrutineeType,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        ResolveOrPattern(pattern.OrPattern, scrutineeType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    private static void ResolveOrPattern(
+        OrPatternNode orPattern,
+        IType scrutineeType,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        ResolveAndPattern(orPattern.Left, scrutineeType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
+            ResolveAndPattern(orPattern.Right, scrutineeType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        }
+    }
+
+    private static void ResolveAndPattern(
+        AndPatternNode andPattern,
+        IType scrutineeType,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        ResolveUnaryPattern(andPattern.Left, scrutineeType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
+            ResolveUnaryPattern(andPattern.Right, scrutineeType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        }
+    }
+
+    private static void ResolveUnaryPattern(
+        UnaryPatternNode unaryPattern,
+        IType scrutineeType,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        switch (unaryPattern)
+        {
+            case NotPatternUnaryPatternNode notPattern:
+                ResolvePrimaryPattern(notPattern.Operand, scrutineeType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case DirectPatternUnaryPatternNode directPattern:
+                ResolvePrimaryPattern(directPattern.Primary, scrutineeType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+        }
+    }
+
+    private static void ResolvePrimaryPattern(
+        PrimaryPatternNode primaryPattern,
+        IType scrutineeType,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        switch (primaryPattern)
+        {
+            case TypePatternPrimaryPatternNode typePattern:
+            {
+                // Resolve the type reference to get the pattern type.
+                ResolveTypeReference(typePattern.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                break;
+            }
+
+            case VarPatternPrimaryPatternNode:
+            {
+                // Var pattern: the type is the scrutinee type. No resolution needed.
+                break;
+            }
+
+            case ConstantPatternPrimaryPatternNode constantPattern:
+            {
+                // Resolve the constant literal to record its type.
+                ResolveConstantLiteral(constantPattern.Literal, fileScope, symbolTable, expressionTypes);
+                break;
+            }
+
+            case LessThanRelationalPatternPrimaryPatternNode ltPattern:
+            {
+                // Resolve the constant expression.
+                ResolveExpression(ltPattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            }
+
+            case GreaterThanRelationalPatternPrimaryPatternNode gtPattern:
+            {
+                ResolveExpression(gtPattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            }
+
+            case LessThanOrEqualRelationalPatternPrimaryPatternNode ltePattern:
+            {
+                ResolveExpression(ltePattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            }
+
+            case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gtePattern:
+            {
+                ResolveExpression(gtePattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            }
+
+            case PropertyPatternPrimaryPatternNode propertyPattern:
+            {
+                // If there's a type name prefix, resolve it.
+                var patternType = scrutineeType;
+                if (propertyPattern.TypeName is not null)
+                {
+                    var typeName = ExtractQualifiedName(propertyPattern.TypeName, sourceText);
+                    patternType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                }
+
+                // Recursively resolve subpatterns.
+                if (propertyPattern.Subpatterns is not null)
+                {
+                    ResolvePropertySubpatternList(propertyPattern.Subpatterns, patternType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                }
+                break;
+            }
+
+            case ListPatternPrimaryPatternNode listPattern:
+            {
+                // Determine the element type: if the scrutinee is an array, use its element type.
+                var elementType = scrutineeType is ArrayType arrayType
+                    ? arrayType.ElementType
+                    : UnknownType.Instance;
+
+                // Recursively resolve element patterns.
+                if (listPattern.Elements is not null)
+                {
+                    ResolveListPatternElementList(listPattern.Elements, elementType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                }
+                break;
+            }
+
+            case ParenthesizedPatternPrimaryPatternNode parenPattern:
+            {
+                // Recursively resolve the inner pattern.
+                ResolvePattern(parenPattern.Inner, scrutineeType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Resolves a constant literal within a pattern, recording its type in the expression types map.
+    /// </summary>
+    private static void ResolveConstantLiteral(
+        ConstantLiteralNode literal,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes)
+    {
+        IType type = literal switch
+        {
+            IntegerConstantConstantLiteralNode intConst =>
+                ResolveIntegerLiteralType(intConst.Value.Lexeme, fileScope, symbolTable),
+            FloatConstantConstantLiteralNode floatConst =>
+                ResolveFloatLiteralType(floatConst.Value.Lexeme, fileScope, symbolTable),
+            StringConstantConstantLiteralNode =>
+                ResolvePrimitiveByKeyword("string", fileScope, symbolTable),
+            CharConstantConstantLiteralNode =>
+                ResolvePrimitiveByKeyword("char", fileScope, symbolTable),
+            TrueConstantConstantLiteralNode =>
+                ResolvePrimitiveByKeyword("bool", fileScope, symbolTable),
+            FalseConstantConstantLiteralNode =>
+                ResolvePrimitiveByKeyword("bool", fileScope, symbolTable),
+            _ => UnknownType.Instance,
+        };
+
+        expressionTypes[literal] = type;
+    }
+
+    /// <summary>
+    /// Resolves a property subpattern list, recursively resolving each subpattern.
+    /// </summary>
+    private static void ResolvePropertySubpatternList(
+        PropertySubpatternListNode subpatternList,
+        IType patternType,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Resolve the first subpattern.
+        ResolvePropertySubpattern(subpatternList.PropertySubpattern, patternType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        // Resolve additional subpatterns.
+        foreach (var subpattern in subpatternList.PropertySubpatterns)
+        {
+            ResolvePropertySubpattern(subpattern, patternType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Resolves a single property subpattern. The subpattern's inner pattern
+    /// is resolved against the property's type (if known) or the scrutinee type.
+    /// </summary>
+    private static void ResolvePropertySubpattern(
+        PropertySubpatternNode subpattern,
+        IType patternType,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Try to determine the property's type from the pattern type's member scope.
+        var propertyType = UnknownType.Instance as IType;
+        var propertyName = subpattern.Name.Lexeme;
+
+        if (patternType is ClassType classType)
+        {
+            var member = classType.MemberScope.Lookup(propertyName);
+            if (member is not null && member.DeclaredType is not null)
+            {
+                propertyType = member.DeclaredType;
+            }
+        }
+        else if (patternType is StructType structType)
+        {
+            var member = structType.MemberScope.Lookup(propertyName);
+            if (member is not null && member.DeclaredType is not null)
+            {
+                propertyType = member.DeclaredType;
+            }
+        }
+        else if (patternType is InterfaceType interfaceType)
+        {
+            var member = interfaceType.MemberScope.Lookup(propertyName);
+            if (member is not null && member.DeclaredType is not null)
+            {
+                propertyType = member.DeclaredType;
+            }
         }
 
-        expressionTypes[node] = leftType;
-        return leftType;
+        // Recursively resolve the subpattern's inner pattern.
+        ResolvePattern(subpattern.Pattern, propertyType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    /// <summary>
+    /// Resolves a list pattern element list, recursively resolving each element pattern.
+    /// </summary>
+    private static void ResolveListPatternElementList(
+        ListPatternElementListNode elementList,
+        IType elementType,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Resolve the first element.
+        ResolveListPatternElement(elementList.ListPatternElement, elementType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        // Resolve additional elements.
+        foreach (var element in elementList.ListPatternElements)
+        {
+            ResolveListPatternElement(element, elementType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Resolves a single list pattern element. Pattern elements are resolved
+    /// against the array element type; slice elements need no resolution.
+    /// </summary>
+    private static void ResolveListPatternElement(
+        ListPatternElementNode element,
+        IType elementType,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        switch (element)
+        {
+            case PatternElementListPatternElementNode patternElement:
+                ResolvePattern(patternElement.Pattern, elementType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case SliceElementListPatternElementNode:
+                // Slice elements (`..` or `.. name`) need no type resolution.
+                break;
+        }
     }
 
     private static IType ResolveAdditive(

@@ -134,7 +134,7 @@ public class PrettyPrinterPropertyTests
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
         var mult = new MultiplicativeNode { Left = unary };
         var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -160,7 +160,7 @@ public class PrettyPrinterPropertyTests
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
         var mult = new MultiplicativeNode { Left = unary };
         var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -186,7 +186,7 @@ public class PrettyPrinterPropertyTests
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
         var mult = new MultiplicativeNode { Left = unary };
         var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -197,8 +197,8 @@ public class PrettyPrinterPropertyTests
     private static ExpressionNode MakeBinaryExpression(ExpressionNode left, string op, ExpressionNode right)
     {
         // Build an additive expression: left op right
-        var leftUnary = left.Assignment.Target.Left.Left.Left.Left.Left.Left;
-        var rightUnary = right.Assignment.Target.Left.Left.Left.Left.Left.Left;
+        var leftUnary = ((RelationalComparisonRelationalNode)left.Assignment.Target.Left.Left.Left).Left.Left.Left;
+        var rightUnary = ((RelationalComparisonRelationalNode)right.Assignment.Target.Left.Left.Left).Left.Left.Left;
 
         var add = new AdditiveNode
         {
@@ -206,7 +206,7 @@ public class PrettyPrinterPropertyTests
             Operator = MakeToken(op),
             Right = new MultiplicativeNode { Left = rightUnary },
         };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -330,7 +330,7 @@ public class PrettyPrinterPropertyTests
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
         var mult = new MultiplicativeNode { Left = unary };
         var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var targetLogOr = new LogicalOrNode { Left = logAnd };

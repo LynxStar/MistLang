@@ -69,7 +69,7 @@ public class VoidTypeCheckerTests
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
         var mult = new MultiplicativeNode { Left = unary };
         var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -101,8 +101,8 @@ public class VoidTypeCheckerTests
         var rightMult = new MultiplicativeNode { Left = right };
         var leftAdd = new AdditiveNode { Left = leftMult };
         var rightAdd = new AdditiveNode { Left = rightMult };
-        var leftRel = new RelationalNode { Left = leftAdd };
-        var rightRel = new RelationalNode { Left = rightAdd };
+        var leftRel = new RelationalComparisonRelationalNode { Left = leftAdd };
+        var rightRel = new RelationalComparisonRelationalNode { Left = rightAdd };
         var eq = new EqualityNode { Left = leftRel, Operator = Tok(op), Right = rightRel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -195,7 +195,7 @@ public class VoidTypeCheckerTests
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
         var mult = new MultiplicativeNode { Left = unary };
         var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };

@@ -108,7 +108,7 @@ public class TypeCheckerEdgeCaseTests
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
         var mult = new MultiplicativeNode { Left = unary };
         var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -121,7 +121,7 @@ public class TypeCheckerEdgeCaseTests
         var logOr = expr.Assignment.Target;
         var logAnd = logOr.Left;
         var equality = logAnd.Left;
-        var relational = equality.Left;
+        var relational = (RelationalComparisonRelationalNode)equality.Left;
         var additive = relational.Left;
         var multiplicative = additive.Left;
         return multiplicative.Left;
@@ -145,7 +145,7 @@ public class TypeCheckerEdgeCaseTests
             Operator = MakeToken(op),
             Right = rightMult,
         };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -169,7 +169,7 @@ public class TypeCheckerEdgeCaseTests
             Right = rightUnary,
         };
         var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -194,7 +194,7 @@ public class TypeCheckerEdgeCaseTests
         var targetUnary = new PostfixExpressionUnaryNode { Primary = targetPostfix };
         var targetMult = new MultiplicativeNode { Left = targetUnary };
         var targetAdd = new AdditiveNode { Left = targetMult };
-        var targetRel = new RelationalNode { Left = targetAdd };
+        var targetRel = new RelationalComparisonRelationalNode { Left = targetAdd };
         var targetEq = new EqualityNode { Left = targetRel };
         var targetLogAnd = new LogicalAndNode { Left = targetEq };
         var targetLogOr = new LogicalOrNode { Left = targetLogAnd };
@@ -395,7 +395,7 @@ public class TypeCheckerEdgeCaseTests
         var leftAdd = new AdditiveNode { Left = leftMult };
         var rightAdd = new AdditiveNode { Left = rightMult };
 
-        var rel = new RelationalNode
+        var rel = new RelationalComparisonRelationalNode
         {
             Left = leftAdd,
             Operator = MakeToken("<"),
@@ -434,8 +434,8 @@ public class TypeCheckerEdgeCaseTests
         var rightMult = new MultiplicativeNode { Left = rightUnary };
         var leftAdd = new AdditiveNode { Left = leftMult };
         var rightAdd = new AdditiveNode { Left = rightMult };
-        var leftRel = new RelationalNode { Left = leftAdd };
-        var rightRel = new RelationalNode { Left = rightAdd };
+        var leftRel = new RelationalComparisonRelationalNode { Left = leftAdd };
+        var rightRel = new RelationalComparisonRelationalNode { Left = rightAdd };
         var leftEq = new EqualityNode { Left = leftRel };
         var rightEq = new EqualityNode { Left = rightRel };
 

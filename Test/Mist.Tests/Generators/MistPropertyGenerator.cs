@@ -231,7 +231,7 @@ public static class MistPropertyGenerator
         var fieldUnary = new PostfixExpressionUnaryNode { Primary = fieldPostfix };
         var fieldMult = new MultiplicativeNode { Left = fieldUnary };
         var fieldAdd = new AdditiveNode { Left = fieldMult };
-        var fieldRel = new RelationalNode { Left = fieldAdd };
+        var fieldRel = new RelationalComparisonRelationalNode { Left = fieldAdd };
         var fieldEq = new EqualityNode { Left = fieldRel };
         var fieldLogAnd = new LogicalAndNode { Left = fieldEq };
         var fieldLogOr = new LogicalOrNode { Left = fieldLogAnd };

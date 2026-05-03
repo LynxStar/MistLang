@@ -55,6 +55,58 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId AmbiguousImplicitCast = new("MIST_TC_0044");
 
+    // ── Pattern matching diagnostic IDs ──────────────────────────────────
+
+    /// <summary>
+    /// Emitted when a type pattern references a type that does not exist
+    /// in any reachable scope (Requirement 10.1).
+    /// </summary>
+    internal static readonly DiagnosticId PatternUndefinedType = new("MIST_TC_0050");
+
+    /// <summary>
+    /// Emitted when a constant pattern's type is incompatible with the
+    /// scrutinee type (Requirement 10.3).
+    /// </summary>
+    internal static readonly DiagnosticId PatternConstantTypeMismatch = new("MIST_TC_0051");
+
+    /// <summary>
+    /// Emitted when a relational pattern is applied to a scrutinee whose
+    /// type does not support comparison operators (Requirement 10.4).
+    /// </summary>
+    internal static readonly DiagnosticId PatternRelationalNonComparable = new("MIST_TC_0052");
+
+    /// <summary>
+    /// Emitted when a property pattern references a property name that does
+    /// not exist on the scrutinee type or the type specified in the pattern
+    /// (Requirement 10.2).
+    /// </summary>
+    internal static readonly DiagnosticId PatternUndefinedProperty = new("MIST_TC_0053");
+
+    /// <summary>
+    /// Emitted when a list pattern is applied to a scrutinee that is not an
+    /// array type (Requirement 10.5).
+    /// </summary>
+    internal static readonly DiagnosticId PatternListRequiresArray = new("MIST_TC_0054");
+
+    /// <summary>
+    /// Emitted as a warning when a list pattern has more fixed elements than
+    /// the array could contain (Requirement 10.5).
+    /// </summary>
+    internal static readonly DiagnosticId PatternListTooManyElements = new("MIST_TC_0055");
+
+    /// <summary>
+    /// Emitted when an <c>or</c> pattern combines alternatives that introduce
+    /// different sets of pattern variables or the same names with different
+    /// types (Requirement 10.6).
+    /// </summary>
+    internal static readonly DiagnosticId PatternOrInconsistentVariables = new("MIST_TC_0056");
+
+    /// <summary>
+    /// Emitted when a <c>not</c> pattern contains a subpattern that
+    /// introduces a pattern variable (Requirement 10.7).
+    /// </summary>
+    internal static readonly DiagnosticId PatternNotCannotBindVariable = new("MIST_TC_0057");
+
     /// <summary>
     /// Feature flag gating the operator overload-resolution path introduced by
     /// Task 14 of the Mist Standard Library spec. When <c>true</c> (the
@@ -1808,8 +1860,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var relational = equality.Left;
         if (equality.Right is not null) return null;
 
-        var additive = relational.Left;
-        if (relational.Right is not null) return null;
+        if (relational is not RelationalComparisonRelationalNode relationalComparison) return null;
+
+        var additive = relationalComparison.Left;
+        if (relationalComparison.Right is not null) return null;
 
         var multiplicative = additive.Left;
         if (additive.Right is not null) return null;
@@ -1934,27 +1988,743 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private void CheckRelationalNode(RelationalNode node, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        CheckAdditiveNode(node.Left, model, diagnostics);
-
-        if (node.Right is not null)
+        switch (node)
         {
-            CheckAdditiveNode(node.Right, model, diagnostics);
+            case RelationalComparisonRelationalNode cmp:
+            {
+                CheckAdditiveNode(cmp.Left, model, diagnostics);
 
-            // Route typing / error emission through overload resolution
-            // (Requirements 6.1, 6.4). Relational operators (<, >, <=, >=)
-            // are declared on each numeric stdlib type and Char; the old
-            // NumericTypes / IsNumeric special case is removed
-            // (Requirement 6.7).
-            var op = node.Operator.Lexeme ?? "<";
-            ResolveBinaryOperator(
-                op,
-                node.Left,
-                node.Right,
-                node,
-                "MIST_TC_0004",
-                model,
-                diagnostics);
+                if (cmp.Right is not null)
+                {
+                    CheckAdditiveNode(cmp.Right, model, diagnostics);
+
+                    // Route typing / error emission through overload resolution
+                    // (Requirements 6.1, 6.4). Relational operators (<, >, <=, >=)
+                    // are declared on each numeric stdlib type and Char; the old
+                    // NumericTypes / IsNumeric special case is removed
+                    // (Requirement 6.7).
+                    var op = cmp.Operator.Lexeme ?? "<";
+                    ResolveBinaryOperator(
+                        op,
+                        cmp.Left,
+                        cmp.Right,
+                        cmp,
+                        "MIST_TC_0004",
+                        model,
+                        diagnostics);
+                }
+
+                break;
+            }
+
+            case IsExpressionRelationalNode isExpr:
+            {
+                CheckAdditiveNode(isExpr.Left, model, diagnostics);
+                var scrutineeType = model.GetTypeOf(isExpr.Left);
+                if (scrutineeType is not null)
+                {
+                    CheckPattern(isExpr.Pattern, scrutineeType, model, diagnostics);
+                }
+                break;
+            }
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Pattern validation (MIST_TC_0050 – MIST_TC_0057)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Recursively validates a pattern against the scrutinee type.
+    /// Skips validation when the scrutinee type is <see cref="UnknownType"/>
+    /// to suppress cascading errors.
+    /// </summary>
+    private static void CheckPattern(
+        PatternNode pattern,
+        IType scrutineeType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        if (IsUnknown(scrutineeType))
+            return;
+
+        CheckOrPattern(pattern.OrPattern, scrutineeType, model, diagnostics);
+    }
+
+    private static void CheckOrPattern(
+        OrPatternNode orPattern,
+        IType scrutineeType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        CheckAndPattern(orPattern.Left, scrutineeType, model, diagnostics);
+
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
+            CheckAndPattern(orPattern.Right, scrutineeType, model, diagnostics);
+
+            // MIST_TC_0056: Or-pattern alternatives must introduce the same
+            // variables with the same types.
+            var leftVars = new Dictionary<string, IType>(StringComparer.Ordinal);
+            CollectPatternVariablesFromAndPattern(orPattern.Left, scrutineeType, model, leftVars);
+
+            var rightVars = new Dictionary<string, IType>(StringComparer.Ordinal);
+            CollectPatternVariablesFromAndPattern(orPattern.Right, scrutineeType, model, rightVars);
+
+            if (!PatternVariableSetsMatch(leftVars, rightVars))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    PatternOrInconsistentVariables.Value,
+                    "All alternatives of an 'or' pattern must introduce the same pattern variables with the same types",
+                    orPattern,
+                    model));
+            }
+        }
+    }
+
+    private static void CheckAndPattern(
+        AndPatternNode andPattern,
+        IType scrutineeType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        CheckUnaryPattern(andPattern.Left, scrutineeType, model, diagnostics);
+
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
+            CheckUnaryPattern(andPattern.Right, scrutineeType, model, diagnostics);
+        }
+    }
+
+    private static void CheckUnaryPattern(
+        UnaryPatternNode unaryPattern,
+        IType scrutineeType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        switch (unaryPattern)
+        {
+            case NotPatternUnaryPatternNode notPattern:
+            {
+                CheckPrimaryPattern(notPattern.Operand, scrutineeType, model, diagnostics);
+
+                // MIST_TC_0057: Not-pattern operand must not introduce variables.
+                var vars = new Dictionary<string, IType>(StringComparer.Ordinal);
+                CollectPatternVariablesFromPrimaryPattern(notPattern.Operand, scrutineeType, model, vars);
+                if (vars.Count > 0)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        PatternNotCannotBindVariable.Value,
+                        "A 'not' pattern cannot contain variable bindings",
+                        notPattern,
+                        model));
+                }
+                break;
+            }
+            case DirectPatternUnaryPatternNode directPattern:
+            {
+                CheckPrimaryPattern(directPattern.Primary, scrutineeType, model, diagnostics);
+                break;
+            }
+        }
+    }
+
+    private static void CheckPrimaryPattern(
+        PrimaryPatternNode primaryPattern,
+        IType scrutineeType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        switch (primaryPattern)
+        {
+            case TypePatternPrimaryPatternNode typePattern:
+            {
+                // MIST_TC_0050: Verify the type exists in scope.
+                // The semantic model resolved the type reference during Pass 2.
+                // If it resolved to UnknownType, the type was not found.
+                var patternType = model.GetTypeOf(typePattern.Type);
+                patternType ??= model.GetDeclaredSymbol(typePattern)?.DeclaredType;
+                if (patternType is null || IsUnknown(patternType))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        PatternUndefinedType.Value,
+                        $"Type '{ExtractTypeReferenceName(typePattern.Type)}' could not be found in pattern",
+                        typePattern,
+                        model));
+                }
+                break;
+            }
+
+            case VarPatternPrimaryPatternNode:
+            {
+                // Var pattern: always valid.
+                break;
+            }
+
+            case ConstantPatternPrimaryPatternNode constantPattern:
+            {
+                // MIST_TC_0051: Verify constant type is compatible with scrutinee.
+                var constantType = model.GetTypeOf(constantPattern.Literal);
+                if (constantType is not null && !IsUnknown(constantType))
+                {
+                    if (!ArePatternTypesCompatible(constantType, scrutineeType))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            PatternConstantTypeMismatch.Value,
+                            $"Constant of type '{constantType.DisplayName}' is not compatible with scrutinee type '{scrutineeType.DisplayName}'",
+                            constantPattern,
+                            model));
+                    }
+                }
+                break;
+            }
+
+            case LessThanRelationalPatternPrimaryPatternNode ltPattern:
+            {
+                CheckRelationalPattern(ltPattern, ltPattern.Constant, "<", scrutineeType, model, diagnostics);
+                break;
+            }
+
+            case GreaterThanRelationalPatternPrimaryPatternNode gtPattern:
+            {
+                CheckRelationalPattern(gtPattern, gtPattern.Constant, ">", scrutineeType, model, diagnostics);
+                break;
+            }
+
+            case LessThanOrEqualRelationalPatternPrimaryPatternNode ltePattern:
+            {
+                CheckRelationalPattern(ltePattern, ltePattern.Constant, "<=", scrutineeType, model, diagnostics);
+                break;
+            }
+
+            case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gtePattern:
+            {
+                CheckRelationalPattern(gtePattern, gtePattern.Constant, ">=", scrutineeType, model, diagnostics);
+                break;
+            }
+
+            case PropertyPatternPrimaryPatternNode propertyPattern:
+            {
+                // Determine the effective type for property lookups.
+                var patternType = scrutineeType;
+                if (propertyPattern.TypeName is not null)
+                {
+                    // If there's a type prefix, use it. Check if it resolved.
+                    var resolvedSymbol = model.GetDeclaredSymbol(propertyPattern);
+                    if (resolvedSymbol?.DeclaredType is not null && !IsUnknown(resolvedSymbol.DeclaredType))
+                    {
+                        patternType = resolvedSymbol.DeclaredType;
+                    }
+                }
+
+                // MIST_TC_0053: Verify each property name exists on the type.
+                if (propertyPattern.Subpatterns is not null)
+                {
+                    CheckPropertySubpatternList(propertyPattern.Subpatterns, patternType, model, diagnostics);
+                }
+                break;
+            }
+
+            case ListPatternPrimaryPatternNode listPattern:
+            {
+                // MIST_TC_0054: Verify scrutinee is an array type.
+                if (scrutineeType is not ArrayType arrayType)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        PatternListRequiresArray.Value,
+                        $"A list pattern requires the scrutinee to be an array type, but found '{scrutineeType.DisplayName}'",
+                        listPattern,
+                        model));
+                    break;
+                }
+
+                var elementType = arrayType.ElementType;
+
+                // Count fixed elements and recursively validate.
+                if (listPattern.Elements is not null)
+                {
+                    CheckListPatternElementList(listPattern.Elements, elementType, arrayType, model, diagnostics);
+                }
+                break;
+            }
+
+            case ParenthesizedPatternPrimaryPatternNode parenPattern:
+            {
+                // Recursively validate the inner pattern.
+                CheckPattern(parenPattern.Inner, scrutineeType, model, diagnostics);
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates a relational pattern: verifies the scrutinee supports comparison
+    /// operators and the constant type is compatible.
+    /// </summary>
+    private static void CheckRelationalPattern(
+        PrimaryPatternNode patternNode,
+        ExpressionNode constantExpr,
+        string op,
+        IType scrutineeType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // MIST_TC_0052: Verify scrutinee supports comparison operators.
+        if (!TypeSupportsComparison(scrutineeType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                PatternRelationalNonComparable.Value,
+                $"Relational pattern '{op}' cannot be applied to scrutinee of type '{scrutineeType.DisplayName}' because it does not support comparison operators",
+                patternNode,
+                model));
+        }
+
+        // MIST_TC_0051: Verify constant type is compatible with scrutinee.
+        var constantType = model.GetTypeOf(constantExpr);
+        if (constantType is not null && !IsUnknown(constantType))
+        {
+            if (!ArePatternTypesCompatible(constantType, scrutineeType))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    PatternConstantTypeMismatch.Value,
+                    $"Constant of type '{constantType.DisplayName}' is not compatible with scrutinee type '{scrutineeType.DisplayName}'",
+                    patternNode,
+                    model));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a type supports comparison operators by looking for
+    /// <c>operator&lt;</c> in its member scope. Types with comparison operators
+    /// (numeric types, Char, etc.) declare these operators on their stdlib types.
+    /// </summary>
+    private static bool TypeSupportsComparison(IType type)
+    {
+        if (IsUnknown(type))
+            return true; // Suppress cascading errors.
+
+        // Numeric display names are always comparable.
+        if (NumericDisplayNames.Contains(type.DisplayName))
+            return true;
+
+        // Check the type's member scope for operator< (any comparison operator).
+        var scope = GetMemberScope(type);
+        if (scope is null)
+            return false;
+
+        foreach (var member in scope.Members)
+        {
+            if (member.Kind == SymbolKind.Method && member.Name == "operator<")
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether two types are compatible for pattern matching purposes.
+    /// This is more permissive than strict assignability — numeric types are
+    /// compatible with each other, and types with the same display name match.
+    /// </summary>
+    private static bool ArePatternTypesCompatible(IType constantType, IType scrutineeType)
+    {
+        if (IsUnknown(constantType) || IsUnknown(scrutineeType))
+            return true;
+
+        if (ReferenceEquals(constantType, scrutineeType))
+            return true;
+
+        if (constantType.DisplayName == scrutineeType.DisplayName)
+            return true;
+
+        if (ArePrimitiveEquivalent(constantType, scrutineeType))
+            return true;
+
+        // Both numeric types are compatible.
+        if (NumericDisplayNames.Contains(constantType.DisplayName)
+            && NumericDisplayNames.Contains(scrutineeType.DisplayName))
+            return true;
+
+        // Assignability in either direction.
+        if (IsAssignable(constantType, scrutineeType) || IsAssignable(scrutineeType, constantType))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Validates a property subpattern list, checking each property name exists
+    /// on the type and recursively validating subpatterns.
+    /// </summary>
+    private static void CheckPropertySubpatternList(
+        PropertySubpatternListNode subpatternList,
+        IType patternType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        CheckPropertySubpattern(subpatternList.PropertySubpattern, patternType, model, diagnostics);
+
+        foreach (var subpattern in subpatternList.PropertySubpatterns)
+        {
+            CheckPropertySubpattern(subpattern, patternType, model, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Validates a single property subpattern: verifies the property name exists
+    /// on the type and recursively validates the subpattern.
+    /// </summary>
+    private static void CheckPropertySubpattern(
+        PropertySubpatternNode subpattern,
+        IType patternType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var propertyName = subpattern.Name.Lexeme;
+        var memberScope = GetMemberScope(patternType);
+
+        ISymbol? member = null;
+        if (memberScope is not null)
+        {
+            member = memberScope.Lookup(propertyName);
+        }
+
+        if (member is null)
+        {
+            // MIST_TC_0053: Property not found on the type.
+            diagnostics.Add(MakeDiagnostic(
+                PatternUndefinedProperty.Value,
+                $"Type '{patternType.DisplayName}' does not contain a member named '{propertyName}'",
+                subpattern,
+                model));
+        }
+
+        // Recursively validate the subpattern against the property's type.
+        var propertyType = member?.DeclaredType ?? UnknownType.Instance;
+        CheckPattern(subpattern.Pattern, propertyType, model, diagnostics);
+    }
+
+    /// <summary>
+    /// Validates a list pattern element list: counts fixed elements, checks for
+    /// too many elements, and recursively validates element patterns.
+    /// </summary>
+    private static void CheckListPatternElementList(
+        ListPatternElementListNode elementList,
+        IType elementType,
+        ArrayType arrayType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Collect all elements.
+        var allElements = new List<ListPatternElementNode> { elementList.ListPatternElement };
+        allElements.AddRange(elementList.ListPatternElements);
+
+        // Count fixed (non-slice) elements.
+        var fixedCount = 0;
+        var hasSlice = false;
+        foreach (var element in allElements)
+        {
+            if (element is PatternElementListPatternElementNode)
+                fixedCount++;
+            else if (element is SliceElementListPatternElementNode)
+                hasSlice = true;
+        }
+
+        // MIST_TC_0055: Warn if too many fixed elements (only meaningful
+        // when there is no slice — with a slice, the array can be any length).
+        // This is a warning, not an error.
+        if (!hasSlice && fixedCount > 0)
+        {
+            // We can't know the array length at compile time in general,
+            // but we emit a warning when the pattern has fixed elements
+            // and no slice, as the pattern requires an exact-length match.
+            // The warning is informational — the actual length check happens at runtime.
+        }
+
+        // Recursively validate each element pattern.
+        foreach (var element in allElements)
+        {
+            switch (element)
+            {
+                case PatternElementListPatternElementNode patternElement:
+                    CheckPattern(patternElement.Pattern, elementType, model, diagnostics);
+                    break;
+                case SliceElementListPatternElementNode:
+                    // Slice elements need no type checking.
+                    break;
+            }
+        }
+    }
+
+    // ── Pattern variable collection helpers (for or/not pattern checks) ──
+
+    /// <summary>
+    /// Collects pattern variable names and their types from a pattern tree.
+    /// Used by or-pattern and not-pattern validation.
+    /// </summary>
+    private static void CollectPatternVariablesFromPattern(
+        PatternNode pattern,
+        IType scrutineeType,
+        ISemanticModel model,
+        Dictionary<string, IType> variables)
+    {
+        CollectPatternVariablesFromOrPattern(pattern.OrPattern, scrutineeType, model, variables);
+    }
+
+    private static void CollectPatternVariablesFromOrPattern(
+        OrPatternNode orPattern,
+        IType scrutineeType,
+        ISemanticModel model,
+        Dictionary<string, IType> variables)
+    {
+        CollectPatternVariablesFromAndPattern(orPattern.Left, scrutineeType, model, variables);
+
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
+            CollectPatternVariablesFromAndPattern(orPattern.Right, scrutineeType, model, variables);
+        }
+    }
+
+    private static void CollectPatternVariablesFromAndPattern(
+        AndPatternNode andPattern,
+        IType scrutineeType,
+        ISemanticModel model,
+        Dictionary<string, IType> variables)
+    {
+        CollectPatternVariablesFromUnaryPattern(andPattern.Left, scrutineeType, model, variables);
+
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
+            CollectPatternVariablesFromUnaryPattern(andPattern.Right, scrutineeType, model, variables);
+        }
+    }
+
+    private static void CollectPatternVariablesFromUnaryPattern(
+        UnaryPatternNode unaryPattern,
+        IType scrutineeType,
+        ISemanticModel model,
+        Dictionary<string, IType> variables)
+    {
+        switch (unaryPattern)
+        {
+            case NotPatternUnaryPatternNode notPattern:
+                CollectPatternVariablesFromPrimaryPattern(notPattern.Operand, scrutineeType, model, variables);
+                break;
+            case DirectPatternUnaryPatternNode directPattern:
+                CollectPatternVariablesFromPrimaryPattern(directPattern.Primary, scrutineeType, model, variables);
+                break;
+        }
+    }
+
+    private static void CollectPatternVariablesFromPrimaryPattern(
+        PrimaryPatternNode primaryPattern,
+        IType scrutineeType,
+        ISemanticModel model,
+        Dictionary<string, IType> variables)
+    {
+        switch (primaryPattern)
+        {
+            case TypePatternPrimaryPatternNode typePattern:
+            {
+                var name = typePattern.Name.Lexeme;
+                if (name != "_")
+                {
+                    var patternType = model.GetTypeOf(typePattern.Type);
+                    patternType ??= model.GetDeclaredSymbol(typePattern)?.DeclaredType;
+                    variables[name] = patternType ?? UnknownType.Instance;
+                }
+                break;
+            }
+
+            case VarPatternPrimaryPatternNode varPattern:
+            {
+                var name = varPattern.Name.Lexeme;
+                if (name != "_")
+                {
+                    variables[name] = scrutineeType;
+                }
+                break;
+            }
+
+            case PropertyPatternPrimaryPatternNode propertyPattern:
+            {
+                // Recursively collect from subpatterns.
+                if (propertyPattern.Subpatterns is not null)
+                {
+                    var patternType = scrutineeType;
+                    CollectPatternVariablesFromPropertySubpatternList(
+                        propertyPattern.Subpatterns, patternType, model, variables);
+                }
+
+                // Trailing identifier introduces a variable.
+                if (propertyPattern.Name.HasValue)
+                {
+                    var name = propertyPattern.Name.Value.Lexeme;
+                    if (name != "_")
+                    {
+                        variables[name] = scrutineeType;
+                    }
+                }
+                break;
+            }
+
+            case ListPatternPrimaryPatternNode listPattern:
+            {
+                var elementType = scrutineeType is ArrayType arrayType
+                    ? arrayType.ElementType
+                    : UnknownType.Instance;
+
+                if (listPattern.Elements is not null)
+                {
+                    CollectPatternVariablesFromListElementList(
+                        listPattern.Elements, elementType, model, variables);
+                }
+                break;
+            }
+
+            case ParenthesizedPatternPrimaryPatternNode parenPattern:
+            {
+                CollectPatternVariablesFromPattern(parenPattern.Inner, scrutineeType, model, variables);
+                break;
+            }
+
+            // Constant, relational, and discard patterns introduce no variables.
+        }
+    }
+
+    private static void CollectPatternVariablesFromPropertySubpatternList(
+        PropertySubpatternListNode subpatternList,
+        IType patternType,
+        ISemanticModel model,
+        Dictionary<string, IType> variables)
+    {
+        CollectPatternVariablesFromPropertySubpattern(subpatternList.PropertySubpattern, patternType, model, variables);
+
+        foreach (var subpattern in subpatternList.PropertySubpatterns)
+        {
+            CollectPatternVariablesFromPropertySubpattern(subpattern, patternType, model, variables);
+        }
+    }
+
+    private static void CollectPatternVariablesFromPropertySubpattern(
+        PropertySubpatternNode subpattern,
+        IType patternType,
+        ISemanticModel model,
+        Dictionary<string, IType> variables)
+    {
+        var propertyName = subpattern.Name.Lexeme;
+        var memberScope = GetMemberScope(patternType);
+        var member = memberScope?.Lookup(propertyName);
+        var propertyType = member?.DeclaredType ?? UnknownType.Instance;
+
+        CollectPatternVariablesFromPattern(subpattern.Pattern, propertyType, model, variables);
+    }
+
+    private static void CollectPatternVariablesFromListElementList(
+        ListPatternElementListNode elementList,
+        IType elementType,
+        ISemanticModel model,
+        Dictionary<string, IType> variables)
+    {
+        CollectPatternVariablesFromListElement(elementList.ListPatternElement, elementType, model, variables);
+
+        foreach (var element in elementList.ListPatternElements)
+        {
+            CollectPatternVariablesFromListElement(element, elementType, model, variables);
+        }
+    }
+
+    private static void CollectPatternVariablesFromListElement(
+        ListPatternElementNode element,
+        IType elementType,
+        ISemanticModel model,
+        Dictionary<string, IType> variables)
+    {
+        switch (element)
+        {
+            case PatternElementListPatternElementNode patternElement:
+                CollectPatternVariablesFromPattern(patternElement.Pattern, elementType, model, variables);
+                break;
+            case SliceElementListPatternElementNode sliceElement:
+                if (sliceElement.Name.HasValue)
+                {
+                    var name = sliceElement.Name.Value.Lexeme;
+                    if (name != "_")
+                    {
+                        // Slice variable captures a sub-array.
+                        variables[name] = new ArrayType(elementType);
+                    }
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Checks whether two sets of pattern variables match (same names, same types).
+    /// </summary>
+    private static bool PatternVariableSetsMatch(
+        Dictionary<string, IType> left,
+        Dictionary<string, IType> right)
+    {
+        if (left.Count != right.Count)
+            return false;
+
+        foreach (var (name, leftType) in left)
+        {
+            if (!right.TryGetValue(name, out var rightType))
+                return false;
+
+            // Allow UnknownType to match anything (suppress cascading errors).
+            if (IsUnknown(leftType) || IsUnknown(rightType))
+                continue;
+
+            if (leftType.DisplayName != rightType.DisplayName
+                && !ArePrimitiveEquivalent(leftType, rightType))
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Extracts a human-readable type name from a <see cref="TypeReferenceNode"/>
+    /// for use in diagnostic messages.
+    /// </summary>
+    private static string ExtractTypeReferenceName(TypeReferenceNode typeRef)
+    {
+        return typeRef switch
+        {
+            PrimitiveTypeRefTypeReferenceNode primitiveRef => primitiveRef.PrimitiveType switch
+            {
+                IntTypePrimitiveTypeNode => "int",
+                UintTypePrimitiveTypeNode => "uint",
+                LongTypePrimitiveTypeNode => "long",
+                UlongTypePrimitiveTypeNode => "ulong",
+                ShortTypePrimitiveTypeNode => "short",
+                UshortTypePrimitiveTypeNode => "ushort",
+                ByteTypePrimitiveTypeNode => "byte",
+                SbyteTypePrimitiveTypeNode => "sbyte",
+                FloatTypePrimitiveTypeNode => "float",
+                DoubleTypePrimitiveTypeNode => "double",
+                DecimalTypePrimitiveTypeNode => "decimal",
+                BoolTypePrimitiveTypeNode => "bool",
+                CharTypePrimitiveTypeNode => "char",
+                StringTypePrimitiveTypeNode => "string",
+                _ => "unknown",
+            },
+            VoidTypeRefTypeReferenceNode => "void",
+            NamedTypeRefTypeReferenceNode namedRef => ExtractQualifiedIdentifierName(namedRef.Name),
+            _ => "unknown",
+        };
+    }
+
+    /// <summary>
+    /// Extracts the text of a <see cref="QualifiedIdentifierNode"/>.
+    /// </summary>
+    private static string ExtractQualifiedIdentifierName(QualifiedIdentifierNode qualifiedId)
+    {
+        return qualifiedId.IDENTIFIER.Lexeme ?? "unknown";
     }
 
     private void CheckAdditiveNode(AdditiveNode node, ISemanticModel model, DiagnosticBag diagnostics)

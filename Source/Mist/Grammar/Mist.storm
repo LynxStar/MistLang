@@ -27,6 +27,7 @@ token EQUAL                 = "=";
 token LESS_THAN             = "<";
 token GREATER_THAN          = ">";
 token EXCLAMATION           = "!";
+token DOTDOT                = "..";
 token DOT                   = ".";
 token COMMA                 = ",";
 token SEMICOLON             = ";";
@@ -367,7 +368,11 @@ rule Assignment = target:LogicalOr (EQUAL value:Assignment)?;
 rule LogicalOr  = left:LogicalAnd (LOGICAL_OR right:LogicalAnd)*;
 rule LogicalAnd = left:Equality   (LOGICAL_AND right:Equality)*;
 rule Equality   = left:Relational (operator:(EQUAL_EQUAL | NOT_EQUAL) right:Relational)*;
-rule Relational = left:Additive   (operator:(LESS_THAN | GREATER_THAN | LESS_THAN_OR_EQUAL | GREATER_THAN_OR_EQUAL) right:Additive)*;
+rule Relational
+    = left:Additive IS pattern:Pattern                                          as IsExpression
+    | left:Additive (operator:(LESS_THAN | GREATER_THAN | LESS_THAN_OR_EQUAL
+                              | GREATER_THAN_OR_EQUAL) right:Additive)*         as RelationalComparison
+    ;
 rule Additive   = left:Multiplicative (operator:(PLUS | MINUS) right:Multiplicative)*;
 rule Multiplicative = left:Unary (operator:(STAR | SLASH | MODULO) right:Unary)*;
 
@@ -411,4 +416,51 @@ rule InterpolatedString = INTERPOLATED_STRING_START parts:InterpolatedPart* INTE
 rule InterpolatedPart
     = text:INTERPOLATED_STRING_TEXT  as TextPart
     | INTERPOLATION_OPEN expression:Expression RIGHT_BRACE      as ExpressionPart
+    ;
+
+// ─── Parser Rules — Patterns ────────────────────────────────────────────────
+// Pattern grammar for `is` expressions. Precedence: or < and < not < primary.
+
+rule Pattern = OrPattern;
+
+rule OrPattern = left:AndPattern (OR right:AndPattern)*;
+
+rule AndPattern = left:UnaryPattern (AND right:UnaryPattern)*;
+
+rule UnaryPattern
+    = NOT operand:PrimaryPattern   as NotPattern
+    | primary:PrimaryPattern       as DirectPattern
+    ;
+
+rule PrimaryPattern
+    = type:TypeReference name:IDENTIFIER                                    as TypePattern
+    | VAR name:IDENTIFIER                                                   as VarPattern
+    | LESS_THAN constant:Expression                                         as LessThanRelationalPattern
+    | GREATER_THAN constant:Expression                                      as GreaterThanRelationalPattern
+    | LESS_THAN_OR_EQUAL constant:Expression                                as LessThanOrEqualRelationalPattern
+    | GREATER_THAN_OR_EQUAL constant:Expression                             as GreaterThanOrEqualRelationalPattern
+    | typeName:QualifiedIdentifier? LEFT_BRACE subpatterns:PropertySubpatternList? RIGHT_BRACE name:IDENTIFIER?  as PropertyPattern
+    | LEFT_BRACKET elements:ListPatternElementList? RIGHT_BRACKET           as ListPattern
+    | LEFT_PARENTHESIS inner:Pattern RIGHT_PARENTHESIS                      as ParenthesizedPattern
+    | literal:ConstantLiteral                                               as ConstantPattern
+    ;
+
+rule ConstantLiteral
+    = value:INTEGER_LITERAL   as IntegerConstant
+    | value:FLOAT_LITERAL     as FloatConstant
+    | value:STRING_LITERAL    as StringConstant
+    | value:CHAR_LITERAL      as CharConstant
+    | TRUE                    as TrueConstant
+    | FALSE                   as FalseConstant
+    ;
+
+rule PropertySubpatternList = PropertySubpattern (COMMA PropertySubpattern)*;
+
+rule PropertySubpattern = name:IDENTIFIER COLON pattern:Pattern;
+
+rule ListPatternElementList = ListPatternElement (COMMA ListPatternElement)*;
+
+rule ListPatternElement
+    = pattern:Pattern                          as PatternElement
+    | DOTDOT name:IDENTIFIER?                  as SliceElement
     ;

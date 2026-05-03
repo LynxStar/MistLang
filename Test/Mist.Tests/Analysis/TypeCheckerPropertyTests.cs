@@ -113,7 +113,7 @@ public class TypeCheckerPropertyTests
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
         var mult = new MultiplicativeNode { Left = unary };
         var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -139,7 +139,7 @@ public class TypeCheckerPropertyTests
             Operator = MakeToken(op),
             Right = rightMult,
         };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -162,8 +162,8 @@ public class TypeCheckerPropertyTests
         var leftAdd = new AdditiveNode { Left = leftMult };
         var rightAdd = new AdditiveNode { Left = rightMult };
 
-        var leftRel = new RelationalNode { Left = leftAdd };
-        var rightRel = new RelationalNode { Left = rightAdd };
+        var leftRel = new RelationalComparisonRelationalNode { Left = leftAdd };
+        var rightRel = new RelationalComparisonRelationalNode { Left = rightAdd };
 
         var leftEq = new EqualityNode { Left = leftRel };
         var rightEq = new EqualityNode { Left = rightRel };
@@ -193,7 +193,7 @@ public class TypeCheckerPropertyTests
         var leftAdd = new AdditiveNode { Left = leftMult };
         var rightAdd = new AdditiveNode { Left = rightMult };
 
-        var rel = new RelationalNode
+        var rel = new RelationalComparisonRelationalNode
         {
             Left = leftAdd,
             Operator = MakeToken(op),
@@ -215,7 +215,7 @@ public class TypeCheckerPropertyTests
         var notUnary = new LogicalNotUnaryNode { Operand = innerUnary };
         var mult = new MultiplicativeNode { Left = notUnary };
         var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -231,7 +231,7 @@ public class TypeCheckerPropertyTests
         var logOr = expr.Assignment.Target;
         var logAnd = logOr.Left;
         var equality = logAnd.Left;
-        var relational = equality.Left;
+        var relational = (RelationalComparisonRelationalNode)equality.Left;
         var additive = relational.Left;
         var multiplicative = additive.Left;
         return multiplicative.Left;

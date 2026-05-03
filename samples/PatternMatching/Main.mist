@@ -1,0 +1,116 @@
+// PatternMatching — Demonstrates is-expression pattern matching in Mist.
+
+using System;
+
+namespace PatternMatching;
+
+// ─── Domain types for type pattern and property pattern demos ────────────────
+
+public class Shape
+{
+    public string Kind { get; }
+
+    public Shape(string kind)
+    {
+        this.Kind = kind;
+    }
+}
+
+public class Circle : Shape
+{
+    public int Radius { get; }
+
+    public Circle(int radius) : base("circle")
+    {
+        this.Radius = radius;
+    }
+}
+
+public class Rectangle : Shape
+{
+    public int Width { get; }
+    public int Height { get; }
+
+    public Rectangle(int width, int height) : base("rectangle")
+    {
+        this.Width = width;
+        this.Height = height;
+    }
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Console.WriteLine("=== Pattern Matching Sample ===");
+
+        // 1. Type pattern — test a base-typed variable against a derived type
+        //    and bind the result to a new variable in the then-branch.
+        Console.WriteLine("--- Type Patterns ---");
+        Shape shape1 = new Circle(5);
+        if (shape1 is Circle c)
+        {
+            Console.WriteLine($"Circle with radius {c.Radius}");
+        }
+
+        Shape shape2 = new Rectangle(3, 7);
+        if (shape2 is Rectangle r)
+        {
+            Console.WriteLine($"Rectangle {r.Width}x{r.Height}");
+        }
+
+        // 2. Property pattern — match against object properties using
+        //    relational subpatterns.
+        Console.WriteLine("--- Property Patterns ---");
+        var bigCircle = new Circle(10);
+        if (bigCircle is { Radius: > 5 })
+        {
+            Console.WriteLine("Found a circle with radius > 5");
+        }
+
+        var square = new Rectangle(4, 4);
+        if (square is { Width: >= 1 and <= 10, Height: >= 1 and <= 10 })
+        {
+            Console.WriteLine("Found a small rectangle (both sides 1-10)");
+        }
+
+        // 3. Relational and logical patterns — combine comparisons on
+        //    primitive values.
+        Console.WriteLine("--- Relational and Logical Patterns ---");
+        int score = 85;
+        if (score is > 0 and < 100)
+        {
+            Console.WriteLine($"Score {score} is between 1 and 99");
+        }
+
+        int temperature = 72;
+        if (temperature is >= 60 and <= 80)
+        {
+            Console.WriteLine($"Temperature {temperature} is comfortable");
+        }
+
+        // 4. List pattern — match arrays by element position using
+        //    relational subpatterns and slice patterns.
+        Console.WriteLine("--- List Patterns ---");
+        int[] pair = new int[2];
+        pair[0] = 1;
+        pair[1] = 2;
+        if (pair is [> 0, > 0])
+        {
+            Console.WriteLine("Array has two positive elements");
+        }
+
+        int[] triple = new int[3];
+        triple[0] = 10;
+        triple[1] = 20;
+        triple[2] = 30;
+        if (triple is [> 0, ..])
+        {
+            Console.WriteLine("Array starts with a positive number");
+        }
+
+        Console.WriteLine("Done!");
+    }
+}

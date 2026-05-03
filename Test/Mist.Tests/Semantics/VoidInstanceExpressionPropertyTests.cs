@@ -87,7 +87,7 @@ public class VoidInstanceExpressionPropertyTests
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
         var mult = new MultiplicativeNode { Left = unary };
         var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalNode { Left = add };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
@@ -324,7 +324,7 @@ public class VoidInstanceExpressionPropertyTests
         var callUnary = new PostfixExpressionUnaryNode { Primary = callPostfix };
         var callMult = new MultiplicativeNode { Left = callUnary };
         var callAdd = new AdditiveNode { Left = callMult };
-        var callRel = new RelationalNode { Left = callAdd };
+        var callRel = new RelationalComparisonRelationalNode { Left = callAdd };
         var callEq = new EqualityNode { Left = callRel };
         var callLogAnd = new LogicalAndNode { Left = callEq };
         var callLogOr = new LogicalOrNode { Left = callLogAnd };

@@ -26,3 +26,6 @@ path = "../CastOperators"
 
 [[references]]
 path = "../PatternMatching"
+
+[[references]]
+path = "../DefaultKeyword"

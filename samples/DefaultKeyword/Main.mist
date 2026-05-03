@@ -1,0 +1,92 @@
+// DefaultKeyword — Demonstrates the default keyword for value initialization.
+
+using System;
+
+namespace DefaultKeyword;
+
+// ─── Simple class with defaultable fields ────────────────────────────────────
+
+public class Config
+{
+    public int MaxRetries;
+    public bool Verbose;
+    public string Label;
+
+    public string Describe()
+    {
+        return $"Config(MaxRetries={MaxRetries}, Verbose={Verbose}, Label={Label})";
+    }
+}
+
+// ─── Class with field initializers ───────────────────────────────────────────
+
+public class Settings
+{
+    public int Timeout = 30;
+    public bool Enabled = true;
+    public string Mode = "auto";
+
+    public string Describe()
+    {
+        return $"Settings(Timeout={Timeout}, Enabled={Enabled}, Mode={Mode})";
+    }
+}
+
+// ─── Class with an explicit default block overriding field values ─────────────
+
+public class AppState
+{
+    public int ErrorCount;
+    public bool Ready;
+    public string Status;
+
+    default {
+        ErrorCount = 5
+        Ready = true
+        Status = "initialized"
+    }
+
+    public string Describe()
+    {
+        return $"AppState(ErrorCount={ErrorCount}, Ready={Ready}, Status={Status})";
+    }
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Default Keyword Sample ===");
+
+        // 1. default(TypeName) for primitive types
+        Console.WriteLine("--- Primitive Defaults ---");
+        int i = default(int);
+        bool b = default(bool);
+        string s = default(string);
+        Console.WriteLine($"int={i} bool={b} string={s}");
+
+        // 2. default(TypeName) for a class with zero-initialized fields
+        Console.WriteLine("--- Class Default (zero-init) ---");
+        Config cfg = default(Config);
+        Console.WriteLine(cfg.Describe());
+
+        // 3. default(TypeName) for a class with field initializers
+        Console.WriteLine("--- Class Default (field initializers) ---");
+        Settings settings = default(Settings);
+        Console.WriteLine(settings.Describe());
+
+        // 4. Bare default with type inference from variable declaration
+        Console.WriteLine("--- Bare Default (inferred) ---");
+        Config inferred = default;
+        Console.WriteLine(inferred.Describe());
+
+        // 5. default(TypeName) for a class with an explicit default block
+        Console.WriteLine("--- Explicit Default Block ---");
+        AppState state = default(AppState);
+        Console.WriteLine(state.Describe());
+
+        Console.WriteLine("Done!");
+    }
+}

@@ -19,6 +19,7 @@ public class Program
         VoidType.Program.RunDemo();
         CastOperators.Program.RunDemo();
         PatternMatching.Program.RunDemo();
+        DefaultKeyword.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

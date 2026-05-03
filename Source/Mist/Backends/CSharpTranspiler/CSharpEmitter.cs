@@ -1322,6 +1322,10 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private void EmitDefaultFieldAssignment(string instanceName, string fieldName, DefaultFieldValue fieldValue)
     {
+        // Auto-properties generate backing fields named _PropertyName_k__BackingField,
+        // but the emitted C# uses property syntax (get; set;), so the backing field is
+        // not directly accessible. Use the property name for assignment instead.
+        fieldName = ResolveFieldOrPropertyName(fieldName);
         switch (fieldValue.ValueKind)
         {
             case DefaultValueKind.TypeBinding:
@@ -1393,6 +1397,22 @@ internal sealed class CSharpSourceWriter
             string s => $"\"{EscapeString(s)}\"",
             _ => value.ToString() ?? "default",
         };
+    }
+
+    /// <summary>
+    /// If <paramref name="fieldName"/> is a compiler-generated backing field
+    /// (e.g. <c>_PropertyName_k__BackingField</c>), returns the property name
+    /// (<c>PropertyName</c>) so the emitter uses the property setter instead of
+    /// the inaccessible backing field. Otherwise returns the name unchanged.
+    /// </summary>
+    private static string ResolveFieldOrPropertyName(string fieldName)
+    {
+        const string suffix = "_k__BackingField";
+        if (fieldName.StartsWith('_') && fieldName.EndsWith(suffix, StringComparison.Ordinal))
+        {
+            return fieldName.Substring(1, fieldName.Length - 1 - suffix.Length);
+        }
+        return fieldName;
     }
 
     /// <summary>

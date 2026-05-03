@@ -9624,10 +9624,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (result.ContainsKey(member.Name))
                 continue;
 
+            // Skip static fields — they are not part of instance default values.
+            var declaringNode = symbolTable.GetDeclaringNode(member);
+            if (declaringNode is FieldDeclarationNode staticCheck
+                && staticCheck.Modifiers.Any(m => m is StaticModifierModifierNode))
+                continue;
+
+            // Skip backing fields for static properties (auto-properties generate
+            // backing fields named _PropertyName_k__BackingField registered against
+            // the property AST node, not a FieldDeclarationNode).
+            if (declaringNode is BlockPropertyPropertyDeclarationNode propCheck
+                && propCheck.Modifiers.Any(m => m is StaticModifierModifierNode))
+                continue;
+
             var fieldType = member.DeclaredType;
 
             // Check if the field has an initializer expression.
-            var declaringNode = symbolTable.GetDeclaringNode(member);
             object? initializerValue = null;
             var hasInitializer = false;
 
@@ -9879,10 +9891,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return primary;
 
             // Look for a single non-token child to follow.
+            // Skip null children that may be yielded by generated AST nodes
+            // whose optional properties are typed as non-nullable.
             Storm.Runtime.SyntaxNode? next = null;
             var childCount = 0;
             foreach (var child in current.Children())
             {
+                if (child is null)
+                    continue;
+
                 childCount++;
                 if (child is PrimaryNode childPrimary)
                     return childPrimary;

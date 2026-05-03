@@ -42,7 +42,7 @@ public class Rectangle : Shape
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static void RunDemo()
     {
         Console.WriteLine("=== Pattern Matching Sample ===");
 

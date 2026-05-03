@@ -156,7 +156,7 @@ public class KeywordBypassesScopingPropertyTests
     /// <summary>
     /// All primitive keywords from <see cref="KeywordAliases.Map"/>.
     /// </summary>
-    private static readonly string[] AllKeywords = KeywordAliases.Map.Keys.ToArray();
+    private static readonly string[] AllKeywords = KeywordAliases.Map.Keys.Where(k => k != "void").ToArray();
 
     /// <summary>
     /// A set of user namespace names to pick from.

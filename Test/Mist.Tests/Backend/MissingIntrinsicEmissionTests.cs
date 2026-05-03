@@ -532,6 +532,12 @@ public class Program {
 
             var name = intrinsicSymbol.Name;
 
+            // Cast operators (operator_implicit, operator_explicit) are
+            // emitted through a separate path (TryGetCastOperator), not
+            // through the binary/unary/instance method tables. Skip them.
+            if (name.StartsWith("operator_implicit") || name.StartsWith("operator_explicit"))
+                continue;
+
             // Determine what kind of intrinsic this is and look it up.
             IntrinsicEmissionTemplate? template;
 

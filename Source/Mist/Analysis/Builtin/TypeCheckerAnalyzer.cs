@@ -3189,10 +3189,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
 
         var relational = equality.Left;
-        if (relational.Right is not null)
+        if (relational is not RelationalComparisonRelationalNode cmp1)
+            return null;
+        if (cmp1.Right is not null)
             return null;
 
-        var additive = relational.Left;
+        var additive = cmp1.Left;
         if (additive.Right is not null)
             return null;
 
@@ -3274,10 +3276,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
 
         var relational = equality.Left;
-        if (relational.Right is not null)
+        if (relational is not RelationalComparisonRelationalNode cmp2)
+            return null;
+        if (cmp2.Right is not null)
             return null;
 
-        var additive = relational.Left;
+        var additive = cmp2.Left;
         if (additive.Right is not null)
             return null;
 
@@ -5762,10 +5766,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return primary;
 
             // Look for a single non-token child to follow.
+            // Skip null children that may be yielded by generated AST nodes
+            // whose optional properties are typed as non-nullable.
             Storm.Runtime.SyntaxNode? next = null;
             var childCount = 0;
             foreach (var child in current.Children())
             {
+                if (child is null)
+                    continue;
+
                 childCount++;
                 if (child is PrimaryNode childPrimary)
                     return childPrimary;

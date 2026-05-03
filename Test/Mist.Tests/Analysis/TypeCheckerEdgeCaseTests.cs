@@ -7,6 +7,7 @@ using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Analysis;
 
@@ -622,7 +623,7 @@ public class TypeCheckerEdgeCaseTests
     // Numeric widening conversions in assignability
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Theory(Skip = "Implicit numeric widening not yet implemented")]
+    [Theory]
     [InlineData("byte", "int")]
     [InlineData("byte", "long")]
     [InlineData("byte", "float")]
@@ -647,7 +648,7 @@ public class TypeCheckerEdgeCaseTests
             MakeTypedVarDecl(targetTypeRef, "dst", MakeIntLiteralExpression("0")),
             MakeExpressionStatement(assignExpr)));
 
-        var model = BuildModel(ast);
+        var (model, _) = StdlibTestHelper.BuildModelWithStdlib(ast);
         var diagnostics = RunTypeChecker(model);
 
         Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0001");

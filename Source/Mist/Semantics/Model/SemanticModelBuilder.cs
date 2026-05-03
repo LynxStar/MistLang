@@ -346,6 +346,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
+        // Post-Pass 2: Compute defaultability for all class and struct types.
+        // This runs after type resolution because field types must be resolved
+        // to determine whether they are defaultable. The pass builds a
+        // dependency graph and processes types in topological order.
+        ComputeDefaultability(symbolTable, diagnostics);
+
         // Post-Pass 2: Check for member redeclarations in derived classes.
         // This runs after type resolution so that parameter types are resolved
         // and method signatures can be compared accurately for overloading.
@@ -799,6 +805,76 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             case CastOperatorMemberMemberDeclarationNode castOpMember:
                 RegisterCastOperatorDeclaration(castOpMember.CastOperator, typeScope, symbolTable, sourceText);
+                break;
+            case DefaultBlockMemberMemberDeclarationNode defaultBlockMember:
+                RegisterDefaultBlockDeclaration(defaultBlockMember, typeScope, symbolTable, sourceText, diagnostics);
+                break;
+        }
+    }
+
+    private static void RegisterDefaultBlockDeclaration(
+        DefaultBlockMemberMemberDeclarationNode defaultBlockMember,
+        Scope typeScope,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Find the containing ClassType or StructType whose MemberScope matches typeScope.
+        IType? containingType = null;
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+                continue;
+
+            var memberScope = symbol.DeclaredType switch
+            {
+                ClassType ct => ct.MemberScope,
+                StructType st => st.MemberScope,
+                _ => null,
+            };
+
+            if (memberScope is not null && ReferenceEquals(memberScope, typeScope))
+            {
+                containingType = symbol.DeclaredType;
+                break;
+            }
+        }
+
+        if (containingType is null)
+            return;
+
+        var defaultBlockNode = defaultBlockMember.DefaultBlock;
+
+        switch (containingType)
+        {
+            case ClassType classType:
+                if (classType.DefaultBlockNode is not null)
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        DiagnosticId.DefaultDuplicateBlock.Value,
+                        DiagnosticSeverity.Error,
+                        $"Type '{classType.DisplayName}' declares more than one default block; only one is permitted per type.",
+                        defaultBlockNode,
+                        sourceText));
+                    return;
+                }
+                classType.DefaultBlockNode = defaultBlockNode;
+                classType.Defaultability = DefaultabilityStatus.Explicit;
+                break;
+
+            case StructType structType:
+                if (structType.DefaultBlockNode is not null)
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        DiagnosticId.DefaultDuplicateBlock.Value,
+                        DiagnosticSeverity.Error,
+                        $"Type '{structType.DisplayName}' declares more than one default block; only one is permitted per type.",
+                        defaultBlockNode,
+                        sourceText));
+                    return;
+                }
+                structType.DefaultBlockNode = defaultBlockNode;
+                structType.Defaultability = DefaultabilityStatus.Explicit;
                 break;
         }
     }
@@ -8427,6 +8503,28 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             }
 
+            case DefaultExpressionPrimaryNode defaultExpr:
+            {
+                // Resolve the explicit type reference in default(TypeName).
+                // The resolved type becomes the expression type. The type
+                // checker will later validate that the type is defaultable.
+                result = ResolveTypeReference(
+                    defaultExpr.Type, fileScope, ambientTypeResolver,
+                    symbolTable, sourceText, diagnostics);
+                break;
+            }
+
+            case DefaultLiteralExpressionPrimaryNode:
+            {
+                // Bare 'default' — the type must be inferred from context
+                // (e.g., assignment target type, return type, parameter type).
+                // Record as UnknownType here; the type checker will resolve
+                // the actual type from context or emit a diagnostic if
+                // inference is not possible.
+                result = UnknownType.Instance;
+                break;
+            }
+
             default:
                 result = UnknownType.Instance;
                 break;
@@ -9141,6 +9239,808 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
             _ => ImmutableArray<TypeDeclarationNode>.Empty
         };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Post-Pass 2 — Defaultability Analysis
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// The set of stdlib display names that are intrinsically defaultable.
+    /// Covers both the stdlib <c>Standard.*</c> names and the legacy
+    /// keyword-based names used when stdlib is not loaded.
+    /// </summary>
+    private static readonly HashSet<string> IntrinsicDefaultableNames = new(StringComparer.Ordinal)
+    {
+        // Stdlib names (Standard.*)
+        "Int32", "UInt32", "Int64", "UInt64", "Int16", "UInt16",
+        "Byte", "SByte", "Single", "Double", "Decimal",
+        "Boolean", "Char", "String",
+        // Legacy keyword names (when stdlib is not loaded)
+        "int", "uint", "long", "ulong", "short", "ushort",
+        "byte", "sbyte", "float", "double", "decimal",
+        "bool", "char", "string",
+    };
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> is intrinsically
+    /// defaultable — i.e., a primitive type or <c>string</c>.
+    /// </summary>
+    private static bool IsIntrinsicallyDefaultable(IType type)
+    {
+        // Primitive types are StructType (stdlib) or StructType (legacy).
+        // String is ClassType (stdlib) or ClassType (legacy).
+        if (type is StructType or ClassType)
+        {
+            return IntrinsicDefaultableNames.Contains(type.DisplayName);
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> is defaultable:
+    /// either intrinsically defaultable (primitive/string), or a ClassType/StructType
+    /// whose <see cref="ClassType.Defaultability"/> or <see cref="StructType.Defaultability"/>
+    /// is <see cref="DefaultabilityStatus.Inferred"/> or <see cref="DefaultabilityStatus.Explicit"/>.
+    /// </summary>
+    private static bool IsTypeDefaultable(IType type)
+    {
+        if (IsIntrinsicallyDefaultable(type))
+            return true;
+
+        return type switch
+        {
+            ClassType ct => ct.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit,
+            StructType st => st.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Computes defaultability for all <see cref="ClassType"/> and <see cref="StructType"/>
+    /// symbols in the symbol table. Processes types in topological order so that
+    /// a type's field types are resolved before the type itself is processed.
+    /// </summary>
+    private static void ComputeDefaultability(
+        SymbolTable symbolTable,
+        DiagnosticBag diagnostics)
+    {
+        // Step 1: Collect all class and struct type symbols.
+        var typeSymbols = new List<(ISymbol Symbol, IType Type)>();
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct)
+            {
+                var type = symbol.DeclaredType;
+                if (type is ClassType or StructType)
+                {
+                    // Skip intrinsically defaultable types (stdlib primitives and string).
+                    if (IsIntrinsicallyDefaultable(type))
+                        continue;
+
+                    // Skip generic type definitions (types with unbound type parameters).
+                    // Generic types like Optional<T> cannot be defaulted without concrete
+                    // type arguments — defaultability is only meaningful for closed types.
+                    if (type is ClassType ct && ct.TypeParameters.Count > 0)
+                        continue;
+                    if (type is StructType st && st.TypeParameters.Count > 0)
+                        continue;
+
+                    typeSymbols.Add((symbol, type));
+                }
+            }
+        }
+
+        // Step 2: Build a dependency graph. A type depends on the types of its fields.
+        // Map from type → index in typeSymbols list.
+        var typeToIndex = new Dictionary<IType, int>();
+        for (var i = 0; i < typeSymbols.Count; i++)
+        {
+            typeToIndex[typeSymbols[i].Type] = i;
+        }
+
+        // Adjacency list: dependencies[i] = set of indices that type i depends on.
+        var dependencies = new List<HashSet<int>>();
+        for (var i = 0; i < typeSymbols.Count; i++)
+        {
+            var deps = new HashSet<int>();
+            var memberScope = typeSymbols[i].Type switch
+            {
+                ClassType ct => ct.MemberScope,
+                StructType st => st.MemberScope,
+                _ => null,
+            };
+
+            if (memberScope is not null)
+            {
+                foreach (var member in memberScope.Members)
+                {
+                    if (member.Kind == SymbolKind.Field && member.DeclaredType is not null)
+                    {
+                        if (typeToIndex.TryGetValue(member.DeclaredType, out var depIndex))
+                        {
+                            deps.Add(depIndex);
+                        }
+                    }
+                }
+            }
+
+            // Also depend on the base type if it's a class with a base.
+            if (typeSymbols[i].Type is ClassType classType && classType.BaseType is not null)
+            {
+                if (typeToIndex.TryGetValue(classType.BaseType, out var baseIndex))
+                {
+                    deps.Add(baseIndex);
+                }
+            }
+
+            dependencies.Add(deps);
+        }
+
+        // Step 3: Topological sort using Kahn's algorithm.
+        var inDegree = new int[typeSymbols.Count];
+        var reverseDeps = new List<List<int>>();
+        for (var i = 0; i < typeSymbols.Count; i++)
+        {
+            reverseDeps.Add(new List<int>());
+        }
+
+        for (var i = 0; i < typeSymbols.Count; i++)
+        {
+            foreach (var dep in dependencies[i])
+            {
+                reverseDeps[dep].Add(i);
+                inDegree[i]++;
+            }
+        }
+
+        var queue = new Queue<int>();
+        for (var i = 0; i < typeSymbols.Count; i++)
+        {
+            if (inDegree[i] == 0)
+                queue.Enqueue(i);
+        }
+
+        var processingOrder = new List<int>();
+        while (queue.Count > 0)
+        {
+            var idx = queue.Dequeue();
+            processingOrder.Add(idx);
+
+            foreach (var dependent in reverseDeps[idx])
+            {
+                inDegree[dependent]--;
+                if (inDegree[dependent] == 0)
+                    queue.Enqueue(dependent);
+            }
+        }
+
+        // Any types not in processingOrder have circular dependencies.
+        // Process them after the topological order (class fields are pointer-sized,
+        // so circular references between classes are allowed per Requirement 8.6).
+        for (var i = 0; i < typeSymbols.Count; i++)
+        {
+            if (!processingOrder.Contains(i))
+                processingOrder.Add(i);
+        }
+
+        // Step 4: Process each type in topological order.
+        for (var orderIdx = 0; orderIdx < processingOrder.Count; orderIdx++)
+        {
+            var idx = processingOrder[orderIdx];
+            var (symbol, type) = typeSymbols[idx];
+
+            switch (type)
+            {
+                case ClassType classType:
+                    ComputeDefaultabilityForType(classType, symbol, symbolTable, diagnostics);
+                    break;
+                case StructType structType:
+                    ComputeDefaultabilityForType(structType, symbol, symbolTable, diagnostics);
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Computes defaultability for a single <see cref="ClassType"/>.
+    /// </summary>
+    private static void ComputeDefaultabilityForType(
+        ClassType classType,
+        ISymbol typeSymbol,
+        SymbolTable symbolTable,
+        DiagnosticBag diagnostics)
+    {
+        // If already set to Explicit by Pass 1 (has a default block), keep it.
+        // We still need to compute DefaultValues.
+        var hasExplicitBlock = classType.Defaultability == DefaultabilityStatus.Explicit;
+
+        // Check base class defaultability.
+        if (classType.BaseType is ClassType baseClass)
+        {
+            if (!IsIntrinsicallyDefaultable(baseClass) &&
+                baseClass.Defaultability is not (DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit))
+            {
+                classType.Defaultability = DefaultabilityStatus.NotDefaultable;
+                diagnostics.Add(new Diagnostic(
+                    DiagnosticId.DefaultBaseNotDefaultable,
+                    DiagnosticSeverity.Error,
+                    PipelineStage.SemanticModelConstruction,
+                    $"Type '{classType.DisplayName}' cannot be defaultable because its base class '{baseClass.DisplayName}' is not defaultable.",
+                    Location: null,
+                    CompilationUnitPath: null,
+                    AnalyzerName: null));
+                return;
+            }
+        }
+
+        // Collect fields from this type's member scope.
+        var fields = new List<ISymbol>();
+        foreach (var member in classType.MemberScope.Members)
+        {
+            if (member.Kind == SymbolKind.Field)
+                fields.Add(member);
+        }
+
+        // Check if all fields are defaultable (considering the explicit default block for type bindings).
+        if (!hasExplicitBlock)
+        {
+            // No explicit block — check if all fields have defaultable types.
+            foreach (var field in fields)
+            {
+                if (field.DeclaredType is null)
+                    continue;
+
+                if (!IsTypeDefaultable(field.DeclaredType))
+                {
+                    classType.Defaultability = DefaultabilityStatus.NotDefaultable;
+
+                    // Only emit the diagnostic for interface/trait fields that need
+                    // a type binding. Other non-defaultable field types (type parameters,
+                    // void, etc.) silently make the type not-defaultable.
+                    if (field.DeclaredType is InterfaceType or TraitType)
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            DiagnosticId.DefaultRequiresTypeBinding,
+                            DiagnosticSeverity.Error,
+                            PipelineStage.SemanticModelConstruction,
+                            $"Field '{field.Name}' on type '{classType.DisplayName}' has type '{field.DeclaredType.DisplayName}' which is not defaultable. Add a default block with a type binding for this field.",
+                            Location: null,
+                            CompilationUnitPath: null,
+                            AnalyzerName: null));
+                    }
+                    return;
+                }
+            }
+
+            // All fields are defaultable — mark as Inferred.
+            classType.Defaultability = DefaultabilityStatus.Inferred;
+        }
+
+        // Compute default values.
+        var defaultValues = ComputeDefaultValues(classType.MemberScope, classType.BaseType as ClassType,
+            classType.DefaultBlockNode, symbolTable);
+        classType.DefaultValues = defaultValues;
+    }
+
+    /// <summary>
+    /// Computes defaultability for a single <see cref="StructType"/>.
+    /// </summary>
+    private static void ComputeDefaultabilityForType(
+        StructType structType,
+        ISymbol typeSymbol,
+        SymbolTable symbolTable,
+        DiagnosticBag diagnostics)
+    {
+        // If already set to Explicit by Pass 1 (has a default block), keep it.
+        var hasExplicitBlock = structType.Defaultability == DefaultabilityStatus.Explicit;
+
+        // Structs don't have base types in Mist, so no base class check needed.
+
+        // Collect fields from this type's member scope.
+        var fields = new List<ISymbol>();
+        foreach (var member in structType.MemberScope.Members)
+        {
+            if (member.Kind == SymbolKind.Field)
+                fields.Add(member);
+        }
+
+        // Check if all fields are defaultable.
+        if (!hasExplicitBlock)
+        {
+            foreach (var field in fields)
+            {
+                if (field.DeclaredType is null)
+                    continue;
+
+                if (!IsTypeDefaultable(field.DeclaredType))
+                {
+                    structType.Defaultability = DefaultabilityStatus.NotDefaultable;
+
+                    // Only emit the diagnostic for interface/trait fields that need
+                    // a type binding. Other non-defaultable field types (type parameters,
+                    // void, etc.) silently make the type not-defaultable.
+                    if (field.DeclaredType is InterfaceType or TraitType)
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            DiagnosticId.DefaultRequiresTypeBinding,
+                            DiagnosticSeverity.Error,
+                            PipelineStage.SemanticModelConstruction,
+                            $"Field '{field.Name}' on type '{structType.DisplayName}' has type '{field.DeclaredType.DisplayName}' which is not defaultable. Add a default block with a type binding for this field.",
+                            Location: null,
+                            CompilationUnitPath: null,
+                            AnalyzerName: null));
+                    }
+                    return;
+                }
+            }
+
+            structType.Defaultability = DefaultabilityStatus.Inferred;
+        }
+
+        // Compute default values.
+        var defaultValues = ComputeDefaultValues(structType.MemberScope, baseClass: null,
+            structType.DefaultBlockNode, symbolTable);
+        structType.DefaultValues = defaultValues;
+    }
+
+    /// <summary>
+    /// Computes the <see cref="DefaultFieldValue"/> dictionary for a defaultable type.
+    /// Combines inherited base defaults, field initializers, zero-initialization,
+    /// explicit overrides, and type bindings.
+    /// </summary>
+    private static Dictionary<string, DefaultFieldValue> ComputeDefaultValues(
+        IScope memberScope,
+        ClassType? baseClass,
+        DefaultBlockDeclarationNode? defaultBlockNode,
+        SymbolTable symbolTable)
+    {
+        var result = new Dictionary<string, DefaultFieldValue>();
+
+        // Step 1: Inherit base class defaults.
+        if (baseClass is not null && baseClass.DefaultValues is not null)
+        {
+            foreach (var (fieldName, baseDefault) in baseClass.DefaultValues)
+            {
+                result[fieldName] = new DefaultFieldValue
+                {
+                    FieldName = baseDefault.FieldName,
+                    FieldType = baseDefault.FieldType,
+                    ValueKind = DefaultValueKind.InheritedDefault,
+                    ConstantValue = baseDefault.ConstantValue,
+                    ConcreteType = baseDefault.ConcreteType,
+                    NestedOverrides = baseDefault.NestedOverrides,
+                };
+            }
+        }
+
+        // Step 2: Compute defaults for this type's own fields.
+        foreach (var member in memberScope.Members)
+        {
+            if (member.Kind != SymbolKind.Field || member.DeclaredType is null)
+                continue;
+
+            // Skip fields that were inherited (already in result from base).
+            if (result.ContainsKey(member.Name))
+                continue;
+
+            var fieldType = member.DeclaredType;
+
+            // Check if the field has an initializer expression.
+            var declaringNode = symbolTable.GetDeclaringNode(member);
+            object? initializerValue = null;
+            var hasInitializer = false;
+
+            if (declaringNode is FieldDeclarationNode fieldDecl && fieldDecl.Initializer is ExpressionNode initExpr)
+            {
+                initializerValue = TryExtractConstantValue(initExpr);
+                hasInitializer = true;
+            }
+
+            if (hasInitializer)
+            {
+                result[member.Name] = new DefaultFieldValue
+                {
+                    FieldName = member.Name,
+                    FieldType = fieldType,
+                    ValueKind = DefaultValueKind.FieldInitializer,
+                    ConstantValue = initializerValue,
+                };
+            }
+            else if (IsIntrinsicallyDefaultable(fieldType))
+            {
+                result[member.Name] = new DefaultFieldValue
+                {
+                    FieldName = member.Name,
+                    FieldType = fieldType,
+                    ValueKind = DefaultValueKind.ZeroInitialized,
+                    ConstantValue = GetZeroValue(fieldType),
+                };
+            }
+            else if (fieldType is ClassType nestedClass && IsTypeDefaultable(nestedClass))
+            {
+                result[member.Name] = new DefaultFieldValue
+                {
+                    FieldName = member.Name,
+                    FieldType = fieldType,
+                    ValueKind = DefaultValueKind.NestedTypeDefault,
+                    ConcreteType = nestedClass,
+                };
+            }
+            else if (fieldType is StructType nestedStruct && IsTypeDefaultable(nestedStruct))
+            {
+                result[member.Name] = new DefaultFieldValue
+                {
+                    FieldName = member.Name,
+                    FieldType = fieldType,
+                    ValueKind = DefaultValueKind.NestedTypeDefault,
+                    ConcreteType = nestedStruct,
+                };
+            }
+            else
+            {
+                // Non-defaultable field type — this should only happen for
+                // types with explicit default blocks that provide type bindings.
+                // The field will be handled by the explicit block processing below.
+                result[member.Name] = new DefaultFieldValue
+                {
+                    FieldName = member.Name,
+                    FieldType = fieldType,
+                    ValueKind = DefaultValueKind.ZeroInitialized,
+                    ConstantValue = null,
+                };
+            }
+        }
+
+        // Step 3: Apply explicit default block overrides and type bindings.
+        if (defaultBlockNode is not null)
+        {
+            foreach (var entry in defaultBlockNode.Entries)
+            {
+                switch (entry)
+                {
+                    case DefaultFieldOverrideDefaultFieldInitializerNode fieldOverride:
+                    {
+                        var fieldName = fieldOverride.FieldName.Lexeme;
+                        var overrideValue = TryExtractConstantValue(fieldOverride.Value);
+
+                        // Find the field's type from the existing result or member scope.
+                        IType? fieldType = null;
+                        if (result.TryGetValue(fieldName, out var existing))
+                        {
+                            fieldType = existing.FieldType;
+                        }
+                        else
+                        {
+                            // Look up in member scope (including inherited).
+                            var fieldSymbol = memberScope.Lookup(fieldName);
+                            fieldType = fieldSymbol?.DeclaredType;
+                        }
+
+                        result[fieldName] = new DefaultFieldValue
+                        {
+                            FieldName = fieldName,
+                            FieldType = fieldType!,
+                            ValueKind = DefaultValueKind.ExplicitOverride,
+                            ConstantValue = overrideValue,
+                        };
+                        break;
+                    }
+
+                    case DefaultTypeBindingDefaultFieldInitializerNode typeBinding:
+                    {
+                        var fieldName = typeBinding.FieldName.Lexeme;
+
+                        // Find the field's type.
+                        IType? fieldType = null;
+                        if (result.TryGetValue(fieldName, out var existing))
+                        {
+                            fieldType = existing.FieldType;
+                        }
+                        else
+                        {
+                            var fieldSymbol = memberScope.Lookup(fieldName);
+                            fieldType = fieldSymbol?.DeclaredType;
+                        }
+
+                        // Extract the concrete type name from the type binding.
+                        // The type reference has already been resolved in Pass 2,
+                        // but we need to find the concrete type by name.
+                        var concreteTypeName = ExtractTypeReferenceName(typeBinding.TypeName);
+                        IType? concreteType = FindTypeByName(memberScope, concreteTypeName);
+
+                        // Process nested overrides if present.
+                        Dictionary<string, DefaultFieldValue>? nestedOverrides = null;
+                        if (typeBinding.NestedEntries.Length > 0)
+                        {
+                            nestedOverrides = new Dictionary<string, DefaultFieldValue>();
+                            foreach (var nested in typeBinding.NestedEntries)
+                            {
+                                var nestedFieldName = nested.FieldName.Lexeme;
+                                var nestedValue = TryExtractConstantValue(nested.Value);
+
+                                // Try to find the nested field's type from the concrete type.
+                                IType? nestedFieldType = null;
+                                if (concreteType is ClassType concreteCt)
+                                {
+                                    var nestedSymbol = concreteCt.MemberScope.Lookup(nestedFieldName);
+                                    nestedFieldType = nestedSymbol?.DeclaredType;
+                                }
+                                else if (concreteType is StructType concreteSt)
+                                {
+                                    var nestedSymbol = concreteSt.MemberScope.Lookup(nestedFieldName);
+                                    nestedFieldType = nestedSymbol?.DeclaredType;
+                                }
+
+                                nestedOverrides[nestedFieldName] = new DefaultFieldValue
+                                {
+                                    FieldName = nestedFieldName,
+                                    FieldType = nestedFieldType ?? UnknownType.Instance,
+                                    ValueKind = DefaultValueKind.ExplicitOverride,
+                                    ConstantValue = nestedValue,
+                                };
+                            }
+                        }
+
+                        result[fieldName] = new DefaultFieldValue
+                        {
+                            FieldName = fieldName,
+                            FieldType = fieldType ?? UnknownType.Instance,
+                            ValueKind = DefaultValueKind.TypeBinding,
+                            ConcreteType = concreteType,
+                            NestedOverrides = nestedOverrides,
+                        };
+                        break;
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Returns the zero-initialization value for an intrinsically defaultable type.
+    /// </summary>
+    private static object? GetZeroValue(IType type)
+    {
+        return type.DisplayName switch
+        {
+            // Integer types
+            "int" or "Int32" => 0,
+            "uint" or "UInt32" => 0u,
+            "long" or "Int64" => 0L,
+            "ulong" or "UInt64" => 0UL,
+            "short" or "Int16" => (short)0,
+            "ushort" or "UInt16" => (ushort)0,
+            "byte" or "Byte" => (byte)0,
+            "sbyte" or "SByte" => (sbyte)0,
+            // Floating-point types
+            "float" or "Single" => 0.0f,
+            "double" or "Double" => 0.0d,
+            "decimal" or "Decimal" => 0.0m,
+            // Boolean
+            "bool" or "Boolean" => false,
+            // Char
+            "char" or "Char" => '\0',
+            // String
+            "string" or "String" => "",
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Attempts to extract a compile-time constant value from a literal expression.
+    /// Returns <c>null</c> if the expression is not a recognized literal.
+    /// In v1, only literal expressions are compile-time constants.
+    /// </summary>
+    private static object? TryExtractConstantValue(ExpressionNode expression)
+    {
+        // Unwrap the expression to get to the primary node.
+        // Expression → UnaryExpression → ... → Primary
+        var primary = UnwrapToPrimary(expression);
+        if (primary is null)
+            return null;
+
+        return primary switch
+        {
+            IntegerLiteralExpressionPrimaryNode intLit =>
+                TryParseIntegerLiteral(intLit.IntegerLiteral.Lexeme),
+            HexLiteralExpressionPrimaryNode hexLit =>
+                TryParseIntegerLiteral(hexLit.HexLiteral.Lexeme),
+            BinaryLiteralExpressionPrimaryNode binLit =>
+                TryParseIntegerLiteral(binLit.BinaryLiteral.Lexeme),
+            FloatLiteralExpressionPrimaryNode floatLit =>
+                TryParseFloatLiteral(floatLit.FloatLiteral.Lexeme),
+            StringLiteralExpressionPrimaryNode stringLit =>
+                ExtractStringLiteralValue(stringLit.StringLiteral.Lexeme),
+            CharLiteralExpressionPrimaryNode charLit =>
+                ExtractCharLiteralValue(charLit.CharLiteral.Lexeme),
+            TrueLiteralExpressionPrimaryNode => true,
+            FalseLiteralExpressionPrimaryNode => false,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Unwraps an expression node down to its innermost <see cref="PrimaryNode"/>.
+    /// Returns <c>null</c> if the expression structure is not a simple primary.
+    /// </summary>
+    private static PrimaryNode? UnwrapToPrimary(ExpressionNode expression)
+    {
+        // Walk down the expression tree to find the innermost PrimaryNode.
+        // The Storm AST wraps primaries in multiple layers of expression nodes
+        // (Expression → ConditionalExpression → ... → UnaryExpression → Primary).
+        Storm.Runtime.SyntaxNode current = expression;
+
+        for (var depth = 0; depth < 20; depth++)
+        {
+            if (current is PrimaryNode primary)
+                return primary;
+
+            // Look for a single non-token child to follow.
+            Storm.Runtime.SyntaxNode? next = null;
+            var childCount = 0;
+            foreach (var child in current.Children())
+            {
+                childCount++;
+                if (child is PrimaryNode childPrimary)
+                    return childPrimary;
+
+                // Follow the first (and hopefully only) syntax node child.
+                if (next is null)
+                    next = child;
+            }
+
+            // If there are multiple children, this is not a simple literal expression.
+            if (childCount > 1 || next is null)
+                return null;
+
+            current = next;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Attempts to parse an integer literal string into a numeric value.
+    /// </summary>
+    private static object? TryParseIntegerLiteral(string lexeme)
+    {
+        // Remove underscores (Mist allows _ as digit separator).
+        var cleaned = lexeme.Replace("_", "");
+        var upper = cleaned.ToUpperInvariant();
+
+        // Check for suffix.
+        if (upper.EndsWith("UL") || upper.EndsWith("LU"))
+        {
+            if (ulong.TryParse(cleaned[..^2], out var val)) return val;
+        }
+        else if (upper.EndsWith("L"))
+        {
+            if (long.TryParse(cleaned[..^1], out var val)) return val;
+        }
+        else if (upper.EndsWith("U"))
+        {
+            if (uint.TryParse(cleaned[..^1], out var val)) return val;
+        }
+        else if (upper.StartsWith("0X"))
+        {
+            if (long.TryParse(cleaned[2..], System.Globalization.NumberStyles.HexNumber, null, out var val))
+                return val;
+        }
+        else if (upper.StartsWith("0B"))
+        {
+            try { return Convert.ToInt64(cleaned[2..], 2); }
+            catch { return null; }
+        }
+        else
+        {
+            if (int.TryParse(cleaned, out var val)) return val;
+            if (long.TryParse(cleaned, out var lval)) return lval;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Attempts to parse a float literal string into a numeric value.
+    /// </summary>
+    private static object? TryParseFloatLiteral(string lexeme)
+    {
+        var cleaned = lexeme.Replace("_", "");
+        var upper = cleaned.ToUpperInvariant();
+
+        if (upper.EndsWith("F"))
+        {
+            if (float.TryParse(cleaned[..^1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var val))
+                return val;
+        }
+        else if (upper.EndsWith("M"))
+        {
+            if (decimal.TryParse(cleaned[..^1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var val))
+                return val;
+        }
+        else
+        {
+            if (double.TryParse(cleaned, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var val))
+                return val;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Extracts the string value from a string literal lexeme (removes surrounding quotes).
+    /// </summary>
+    private static string ExtractStringLiteralValue(string lexeme)
+    {
+        if (lexeme.Length >= 2 && lexeme[0] == '"' && lexeme[^1] == '"')
+            return lexeme[1..^1];
+        return lexeme;
+    }
+
+    /// <summary>
+    /// Extracts the char value from a char literal lexeme (removes surrounding quotes).
+    /// </summary>
+    private static char ExtractCharLiteralValue(string lexeme)
+    {
+        if (lexeme.Length >= 3 && lexeme[0] == '\'' && lexeme[^1] == '\'')
+        {
+            var inner = lexeme[1..^1];
+            if (inner.Length == 1)
+                return inner[0];
+            // Handle escape sequences.
+            if (inner.StartsWith('\\') && inner.Length >= 2)
+            {
+                return inner[1] switch
+                {
+                    'n' => '\n',
+                    'r' => '\r',
+                    't' => '\t',
+                    '\\' => '\\',
+                    '\'' => '\'',
+                    '0' => '\0',
+                    _ => inner[1],
+                };
+            }
+        }
+        return '\0';
+    }
+
+    /// <summary>
+    /// Extracts the simple type name from a <see cref="TypeReferenceNode"/>.
+    /// </summary>
+    private static string ExtractTypeReferenceName(TypeReferenceNode typeRef)
+    {
+        return typeRef switch
+        {
+            NamedTypeRefTypeReferenceNode named => named.Name.IDENTIFIER.Lexeme,
+            PrimitiveTypeRefTypeReferenceNode primitive => FormatPrimitiveType(primitive.PrimitiveType),
+            _ => "",
+        };
+    }
+
+    /// <summary>
+    /// Finds a type by simple name by searching the scope chain upward.
+    /// </summary>
+    private static IType? FindTypeByName(IScope scope, string typeName)
+    {
+        var current = scope;
+        while (current is not null)
+        {
+            foreach (var member in current.Members)
+            {
+                if (member.Kind is SymbolKind.Class or SymbolKind.Struct
+                    && member.Name == typeName
+                    && member.DeclaredType is not null)
+                {
+                    return member.DeclaredType;
+                }
+            }
+            current = current.Parent;
+        }
+        return null;
     }
 
     private static Diagnostic MakeDiagnosticWithLocation(

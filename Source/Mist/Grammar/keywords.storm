@@ -41,6 +41,9 @@ token FIELD = "field";
 token IMPLICIT = "implicit";
 token EXPLICIT = "explicit";
 
+// Default keyword
+token DEFAULT = "default";
+
 // Primitive type keywords
 token INT     = "int";
 token UINT    = "uint";

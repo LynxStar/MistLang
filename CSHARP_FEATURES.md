@@ -245,7 +245,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | Char literals | ✅ | With escape sequences |
 | `true` / `false` | ✅ | |
 | `null` | ⛔ | |
-| `default` / `default(T)` | 🔲 | |
+| `default` / `default(T)` | ✅ | Mist divergence: value-based defaults, inferred defaults, type bindings, bare `default` literal |
 | `typeof(T)` | ⛔ | |
 | `nameof(x)` | 🔲 | C# 6 |
 | `sizeof(T)` | ⛔ | Low-level, out of scope |
@@ -578,7 +578,7 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 | Statements — Control Flow | 6 | 7 | 1 |
 | Statements — Exceptions | 0 | 4 | 0 |
 | Statements — Other | 1 | 5 | 2 |
-| Expressions — Literals | 9 | 5 | 2 |
+| Expressions — Literals | 10 | 3 | 4 |
 | Expressions — Arithmetic | 6 | 2 | 0 |
 | Expressions — Comparison | 6 | 0 | 0 |
 | Expressions — Logical | 3 | 0 | 0 |

@@ -260,6 +260,9 @@ public sealed class MistPrettyPrinter
             case CastOperatorMemberMemberDeclarationNode castOpMember:
                 EmitCastOperatorDeclaration(castOpMember.CastOperator);
                 break;
+            case DefaultBlockMemberMemberDeclarationNode defaultBlockMember:
+                EmitDefaultBlockDeclaration(defaultBlockMember.DefaultBlock);
+                break;
         }
     }
 
@@ -632,6 +635,59 @@ public sealed class MistPrettyPrinter
         {
             AppendLine($"{modifiers}{castKind} operator {targetType}({parameters});");
         }
+    }
+
+    // ─── Default Block Declarations ─────────────────────────────────────
+
+    private void EmitDefaultBlockDeclaration(DefaultBlockDeclarationNode defaultBlock)
+    {
+        if (defaultBlock.Entries.IsEmpty)
+        {
+            AppendLine("default { }");
+            return;
+        }
+
+        AppendLine("default {");
+        _indentLevel++;
+
+        foreach (var entry in defaultBlock.Entries)
+        {
+            switch (entry)
+            {
+                case DefaultFieldOverrideDefaultFieldInitializerNode fieldOverride:
+                {
+                    var fieldName = fieldOverride.FieldName.Lexeme;
+                    var value = EmitExpression(fieldOverride.Value);
+                    AppendLine($"{fieldName} = {value}");
+                    break;
+                }
+                case DefaultTypeBindingDefaultFieldInitializerNode typeBinding:
+                {
+                    var fieldName = typeBinding.FieldName.Lexeme;
+                    var typeName = EmitTypeReference(typeBinding.TypeName);
+
+                    if (typeBinding.NestedEntries.IsDefaultOrEmpty)
+                    {
+                        AppendLine($"{fieldName}: {typeName}");
+                    }
+                    else
+                    {
+                        var overrides = new List<string>();
+                        foreach (var nested in typeBinding.NestedEntries)
+                        {
+                            var nestedFieldName = nested.FieldName.Lexeme;
+                            var nestedValue = EmitExpression(nested.Value);
+                            overrides.Add($"{nestedFieldName} = {nestedValue}");
+                        }
+                        AppendLine($"{fieldName}: {typeName} {{ {string.Join(", ", overrides)} }}");
+                    }
+                    break;
+                }
+            }
+        }
+
+        _indentLevel--;
+        AppendLine("}");
     }
 
     // ─── Interface Property Declarations ─────────────────────────────────
@@ -1461,6 +1517,10 @@ public sealed class MistPrettyPrinter
                 return "field";
             case TypeLiteralExpressionPrimaryNode typeLiteral:
                 return EmitTypeReference(typeLiteral.TypeRef);
+            case DefaultExpressionPrimaryNode defaultExpr:
+                return $"default({EmitTypeReference(defaultExpr.Type)})";
+            case DefaultLiteralExpressionPrimaryNode:
+                return "default";
             default:
                 return "";
         }

@@ -484,7 +484,8 @@ namespace Storm.SourceGenerator.Emit
                         var propName = PascalCase(lbl);
                         var localVar = "_" + propName;
                         var typeName = GetExprTypeName(lexpr);
-                        writer.WriteLine($"{typeName} {localVar} = null;");
+                        var defaultVal = GetExprDefaultValue(lexpr);
+                        writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
                         assignedProps.Add((propName, localVar));
                     }
 
@@ -659,6 +660,10 @@ namespace Storm.SourceGenerator.Emit
                     if (altIR.Alternatives.All(a => a is TokenRefIR || a is StringLiteralIR))
                         return nullable ? "Token?" : "Token";
                     return "object?";
+                case ZeroOrMoreIR zom:
+                    return GetListTypeName(zom.Inner);
+                case OneOrMoreIR oom:
+                    return GetListTypeName(oom.Inner);
                 default:
                     return "object?";
             }
@@ -669,6 +674,11 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         private static string GetExprDefaultValue(ExpressionIR expr, bool nullable = true)
         {
+            // List types (ImmutableArray) are value types and cannot be null
+            if (expr is ZeroOrMoreIR zom)
+                return GetListDefaultValue(zom.Inner);
+            if (expr is OneOrMoreIR oom)
+                return GetListDefaultValue(oom.Inner);
             if (nullable) return "null";
             switch (expr)
             {
@@ -678,6 +688,40 @@ namespace Storm.SourceGenerator.Emit
                     return "default";
                 case RuleRefIR _:
                     return "null!";
+                default:
+                    return "null";
+            }
+        }
+
+        /// <summary>
+        /// Returns the C# ImmutableArray type name for the inner expression of a list (ZeroOrMore/OneOrMore).
+        /// </summary>
+        private static string GetListTypeName(ExpressionIR inner)
+        {
+            switch (inner)
+            {
+                case RuleRefIR ruleRef:
+                    var elementType = ruleRef.Rule.Name + "Node";
+                    return $"ImmutableArray<{elementType}>";
+                case TokenRefIR _:
+                    return "ImmutableArray<Token>";
+                default:
+                    return "object?";
+            }
+        }
+
+        /// <summary>
+        /// Returns the default value expression for a list (ZeroOrMore/OneOrMore) variable.
+        /// </summary>
+        private static string GetListDefaultValue(ExpressionIR inner)
+        {
+            switch (inner)
+            {
+                case RuleRefIR ruleRef:
+                    var elementType = ruleRef.Rule.Name + "Node";
+                    return $"ImmutableArray<{elementType}>.Empty";
+                case TokenRefIR _:
+                    return "ImmutableArray<Token>.Empty";
                 default:
                     return "null";
             }
@@ -845,6 +889,26 @@ namespace Storm.SourceGenerator.Emit
                     if (withCheck)
                     {
                         writer.WriteBlock("if (!_altFound)", () => writer.WriteLine($"{okVar} = false;"));
+                    }
+                    break;
+                }
+
+                case ZeroOrMoreIR zom:
+                {
+                    // ZeroOrMore assign-only: parse the repetition and assign to the pre-declared variable.
+                    if (zom.Inner is RuleRefIR zomRuleRef)
+                    {
+                        var nodeType = zomRuleRef.Rule.Name + "Node";
+                        var builderVar = $"_{varName}_b";
+                        writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
+                        writer.WriteBlock("while (!_hasError)", () =>
+                        {
+                            writer.WriteLine($"var _item = _Parse{zomRuleRef.Rule.Name}();");
+                            writer.WriteBlock("if (_item == null)", () => writer.WriteLine("break;"));
+                            writer.WriteLine($"{builderVar}.Add(_item);");
+                        });
+                        writer.WriteLine($"_{varName} = {builderVar}.ToImmutable();");
+                        writer.WriteLine("_hasError = false;");
                     }
                     break;
                 }
@@ -1299,6 +1363,36 @@ namespace Storm.SourceGenerator.Emit
                                 writer.WriteLine($"_{trackingVarName} = null; // sequence incomplete, will restore position");
                             });
                         });
+                    }
+
+                    if (isFirst)
+                    {
+                        isFirst = false;
+                    }
+                }
+                else if (elem is ZeroOrMoreIR zom)
+                {
+                    // ZeroOrMore inside an atomic optional sequence:
+                    // parse the repetition and assign to the labeled variable if present.
+                    if (zom.Inner is RuleRefIR zomRuleRef)
+                    {
+                        var nodeType = zomRuleRef.Rule.Name + "Node";
+                        if (elemLabel != null)
+                        {
+                            var propName = PascalCase(elemLabel);
+                            writer.WriteBlock($"if (_{trackingVarName} != null)", () =>
+                            {
+                                writer.WriteLine($"var _{propName}_b = ImmutableArray.CreateBuilder<{nodeType}>();");
+                                writer.WriteBlock("while (!_hasError)", () =>
+                                {
+                                    writer.WriteLine($"var _item = _Parse{zomRuleRef.Rule.Name}();");
+                                    writer.WriteBlock("if (_item == null)", () => writer.WriteLine("break;"));
+                                    writer.WriteLine($"_{propName}_b.Add(_item);");
+                                });
+                                writer.WriteLine($"_{propName} = _{propName}_b.ToImmutable();");
+                                writer.WriteLine("_hasError = false;");
+                            });
+                        }
                     }
 
                     if (isFirst)

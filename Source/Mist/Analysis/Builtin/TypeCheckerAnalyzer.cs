@@ -195,6 +195,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Task 5.10: Check for missing interface property implementations (MIST_TC_0030).
         CheckMissingInterfaceProperties(model, diagnostics);
+
+        // Task 7.2: Validate explicit default blocks (R9.1–9.3, R6.9, R11.1, R11.2, R13.3, R13.4, R13.10).
+        ValidateDefaultBlocks(model, diagnostics);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1558,6 +1561,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             case TypedVariableDeclarationVariableDeclarationStatementNode typed:
             {
+                // Infer bare 'default' type from the declared type before checking.
+                var declaredTypeForDefault = model.GetTypeOf(typed.Type)
+                                             ?? model.GetDeclaredSymbol(typed)?.DeclaredType;
+                TryInferDefaultLiteralType(typed.Initializer, declaredTypeForDefault, model);
+
                 // Check the initializer expression.
                 CheckExpression(typed.Initializer, model, diagnostics);
 
@@ -1596,6 +1604,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
             case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
             {
+                // Check if the initializer is a bare 'default' in a var declaration.
+                // This is always an error: var x = default; — neither side provides a type.
+                var defaultLiteralInVar = TryExtractDefaultLiteral(inferred.Initializer);
+                if (defaultLiteralInVar is not null)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        DiagnosticId.DefaultCannotInferType.Value,
+                        "The type of 'default' cannot be inferred because neither side provides a type. Use 'default(TypeName)' or declare the variable with an explicit type.",
+                        defaultLiteralInVar,
+                        model));
+                }
+
                 // var with initializer — check the initializer expression.
                 CheckExpression(inferred.Initializer, model, diagnostics);
 
@@ -1632,6 +1652,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if (returnStmt.Value is not null)
         {
+            // Infer bare 'default' type from the method return type before checking.
+            if (!methodReturnType.IsVoid())
+            {
+                TryInferDefaultLiteralType(returnStmt.Value, methodReturnType, model);
+            }
+
             // return expr; — check the expression and verify type.
             CheckExpression(returnStmt.Value, model, diagnostics);
             var valueType = model.GetTypeOf(returnStmt.Value);
@@ -1780,6 +1806,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if (assignment.Value is not null)
         {
+            // Infer bare 'default' type from the LHS type before checking the RHS.
+            var lhsTypeForDefault = model.GetTypeOf(assignment.Target);
+            TryInferDefaultLiteralTypeFromAssignment(assignment.Value, lhsTypeForDefault, model);
+
             // This is an assignment: target = value.
             CheckAssignmentNode(assignment.Value, model, diagnostics);
 
@@ -2998,9 +3028,332 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
                 break;
 
+            case DefaultExpressionPrimaryNode defaultExpr:
+                CheckDefaultExpression(defaultExpr, model, diagnostics);
+                break;
+
+            case DefaultLiteralExpressionPrimaryNode defaultLiteral:
+                CheckDefaultLiteralExpression(defaultLiteral, model, diagnostics);
+                break;
+
             // Literals and identifiers don't need type checking.
             default:
                 break;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Default expression validation (Requirements 7.1–7.10)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates a <c>default(TypeName)</c> expression:
+    /// resolves the type reference and checks that the type is defaultable.
+    /// </summary>
+    private static void CheckDefaultExpression(
+        DefaultExpressionPrimaryNode defaultExpr,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var resolvedType = model.GetTypeOf(defaultExpr);
+
+        // If the type reference could not be resolved, emit MIST_DEFAULT_UNDEFINED_TYPE.
+        if (resolvedType is null || IsUnknown(resolvedType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                DiagnosticId.DefaultUndefinedType.Value,
+                "The type in 'default(TypeName)' could not be resolved to a known type",
+                defaultExpr,
+                model));
+            return;
+        }
+
+        ValidateDefaultableType(resolvedType, defaultExpr, model, diagnostics);
+    }
+
+    /// <summary>
+    /// Validates a bare <c>default</c> literal expression:
+    /// checks that the type was inferred from context. If the type is still
+    /// <see cref="UnknownType"/>, emits <c>MIST_DEFAULT_CANNOT_INFER</c>.
+    /// If a type was inferred, validates that it is defaultable.
+    /// </summary>
+    private static void CheckDefaultLiteralExpression(
+        DefaultLiteralExpressionPrimaryNode defaultLiteral,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var resolvedType = model.GetTypeOf(defaultLiteral);
+
+        // If the type is still unknown, context inference did not find a type.
+        if (resolvedType is null || IsUnknown(resolvedType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                DiagnosticId.DefaultCannotInferType.Value,
+                "The type of 'default' cannot be determined from context",
+                defaultLiteral,
+                model));
+            return;
+        }
+
+        ValidateDefaultableType(resolvedType, defaultLiteral, model, diagnostics);
+    }
+
+    /// <summary>
+    /// Validates that a resolved type supports the <c>default</c> operator.
+    /// Emits the appropriate diagnostic if the type is not defaultable.
+    /// </summary>
+    private static void ValidateDefaultableType(
+        IType resolvedType,
+        SyntaxNode node,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        switch (resolvedType)
+        {
+            case InterfaceType:
+                diagnostics.Add(MakeDiagnostic(
+                    DiagnosticId.DefaultOnInterface.Value,
+                    $"The 'default' operator is not supported on interface type '{resolvedType.DisplayName}'. Only concrete types (classes and structs) support 'default'.",
+                    node,
+                    model));
+                return;
+
+            case TraitType:
+                diagnostics.Add(MakeDiagnostic(
+                    DiagnosticId.DefaultOnTrait.Value,
+                    $"The 'default' operator is not supported on trait type '{resolvedType.DisplayName}'. Only concrete types (classes and structs) support 'default'.",
+                    node,
+                    model));
+                return;
+
+            case TypeParameterType:
+                diagnostics.Add(MakeDiagnostic(
+                    DiagnosticId.DefaultOnTypeParameter.Value,
+                    $"The 'default' operator is not supported on unconstrained generic type parameter '{resolvedType.DisplayName}'",
+                    node,
+                    model));
+                return;
+
+            case ClassType classType:
+                if (classType.Defaultability == DefaultabilityStatus.NotDefaultable)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        DiagnosticId.DefaultNotSupported.Value,
+                        $"Type '{classType.DisplayName}' does not support the 'default' operator because it has non-defaultable fields without type bindings in a default block",
+                        node,
+                        model));
+                }
+                return;
+
+            case StructType structType:
+                if (structType.Defaultability == DefaultabilityStatus.NotDefaultable)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        DiagnosticId.DefaultNotSupported.Value,
+                        $"Type '{structType.DisplayName}' does not support the 'default' operator because it has non-defaultable fields without type bindings in a default block",
+                        node,
+                        model));
+                }
+                return;
+
+            // Primitive types (represented as ClassType from stdlib) and other
+            // types are handled by the ClassType/StructType cases above.
+            // ConstructedType, ArrayType, etc. fall through — no diagnostic needed
+            // as they are not directly defaultable via default(T) in v1.
+        }
+    }
+
+    /// <summary>
+    /// Attempts to extract a <see cref="DefaultLiteralExpressionPrimaryNode"/> from
+    /// an expression node by walking down the expression chain. Returns the node if
+    /// the expression is a simple bare <c>default</c> with no operators or suffixes.
+    /// </summary>
+    private static DefaultLiteralExpressionPrimaryNode? TryExtractDefaultLiteral(ExpressionNode expr)
+    {
+        // Expression → Assignment → LogicalOr → LogicalAnd → Equality →
+        // Relational → Additive → Multiplicative → Unary → Postfix → Primary
+        var assignment = expr.Assignment;
+        if (assignment.Value is not null)
+            return null; // Has an assignment operator — not a simple expression.
+
+        var logicalOr = assignment.Target;
+        if (logicalOr.Right is not null)
+            return null;
+
+        var logicalAnd = logicalOr.Left;
+        if (logicalAnd.Right is not null)
+            return null;
+
+        var equality = logicalAnd.Left;
+        if (equality.Right is not null)
+            return null;
+
+        var relational = equality.Left;
+        if (relational.Right is not null)
+            return null;
+
+        var additive = relational.Left;
+        if (additive.Right is not null)
+            return null;
+
+        var multiplicative = additive.Left;
+        if (multiplicative.Right is not null)
+            return null;
+
+        var unary = multiplicative.Left;
+        if (unary is not PostfixExpressionUnaryNode postfixExpr)
+            return null;
+
+        var postfix = postfixExpr.Primary;
+        if (postfix.Suffix.Length > 0)
+            return null; // Has postfix suffixes (member access, method call, etc.).
+
+        return postfix.Target as DefaultLiteralExpressionPrimaryNode;
+    }
+
+    /// <summary>
+    /// If the given expression is a bare <c>default</c> literal, infers its type
+    /// from the provided context type and records it on the semantic model.
+    /// </summary>
+    private static void TryInferDefaultLiteralType(
+        ExpressionNode expr,
+        IType? contextType,
+        ISemanticModel model)
+    {
+        if (contextType is null || IsUnknown(contextType))
+            return;
+
+        var defaultLiteral = TryExtractDefaultLiteral(expr);
+        if (defaultLiteral is null)
+            return;
+
+        // Set the inferred type on the bare default literal node.
+        model.SetTypeOf(defaultLiteral, contextType);
+    }
+
+    /// <summary>
+    /// If the given <see cref="AssignmentNode"/> is a bare <c>default</c> literal
+    /// (no further assignment), infers its type from the provided context type.
+    /// Used for <c>x = default;</c> where the LHS type provides context.
+    /// </summary>
+    private static void TryInferDefaultLiteralTypeFromAssignment(
+        AssignmentNode assignment,
+        IType? contextType,
+        ISemanticModel model)
+    {
+        if (contextType is null || IsUnknown(contextType))
+            return;
+
+        // The assignment RHS is itself an AssignmentNode. If it has no further
+        // assignment (Value is null), the expression is just the Target (LogicalOr).
+        if (assignment.Value is not null)
+            return;
+
+        var defaultLiteral = TryExtractDefaultLiteralFromLogicalOr(assignment.Target);
+        if (defaultLiteral is null)
+            return;
+
+        model.SetTypeOf(defaultLiteral, contextType);
+    }
+
+    /// <summary>
+    /// Attempts to extract a <see cref="DefaultLiteralExpressionPrimaryNode"/> from
+    /// a <see cref="LogicalOrNode"/> by walking down the expression chain.
+    /// </summary>
+    private static DefaultLiteralExpressionPrimaryNode? TryExtractDefaultLiteralFromLogicalOr(LogicalOrNode logicalOr)
+    {
+        if (logicalOr.Right is not null)
+            return null;
+
+        var logicalAnd = logicalOr.Left;
+        if (logicalAnd.Right is not null)
+            return null;
+
+        var equality = logicalAnd.Left;
+        if (equality.Right is not null)
+            return null;
+
+        var relational = equality.Left;
+        if (relational.Right is not null)
+            return null;
+
+        var additive = relational.Left;
+        if (additive.Right is not null)
+            return null;
+
+        var multiplicative = additive.Left;
+        if (multiplicative.Right is not null)
+            return null;
+
+        var unary = multiplicative.Left;
+        if (unary is not PostfixExpressionUnaryNode postfixExpr)
+            return null;
+
+        var postfix = postfixExpr.Primary;
+        if (postfix.Suffix.Length > 0)
+            return null;
+
+        return postfix.Target as DefaultLiteralExpressionPrimaryNode;
+    }
+
+    /// <summary>
+    /// Pre-pass for method call arguments: infers bare <c>default</c> types from
+    /// parameter types before the argument expressions are checked.
+    /// </summary>
+    private static void InferDefaultLiteralTypesForArguments(
+        ArgumentListNode? argList,
+        MethodCallSuffixPostfixSuffixNode methodCall,
+        ISemanticModel model)
+    {
+        if (argList is null)
+            return;
+
+        var methodSymbol = model.GetDeclaredSymbol(methodCall);
+        if (methodSymbol is null || methodSymbol.Kind != SymbolKind.Method)
+            return;
+
+        var paramTypes = ParameterSignature.Extract(methodSymbol, model);
+        var argExprs = new List<ExpressionNode>();
+        foreach (var child in argList.Children())
+        {
+            if (child is ExpressionNode expr)
+                argExprs.Add(expr);
+        }
+
+        var count = Math.Min(argExprs.Count, paramTypes.Count);
+        for (var i = 0; i < count; i++)
+        {
+            TryInferDefaultLiteralType(argExprs[i], paramTypes[i], model);
+        }
+    }
+
+    /// <summary>
+    /// Pre-pass for invocation arguments: infers bare <c>default</c> types from
+    /// parameter types before the argument expressions are checked.
+    /// </summary>
+    private static void InferDefaultLiteralTypesForInvocationArguments(
+        InvocationSuffixPostfixSuffixNode invocation,
+        ISemanticModel model)
+    {
+        if (invocation.Arguments is null)
+            return;
+
+        var invokedSymbol = model.GetDeclaredSymbol(invocation);
+        if (invokedSymbol is null || invokedSymbol.Kind != SymbolKind.Method)
+            return;
+
+        var paramTypes = ParameterSignature.Extract(invokedSymbol, model);
+        var argExprs = new List<ExpressionNode>();
+        foreach (var child in invocation.Arguments.Children())
+        {
+            if (child is ExpressionNode expr)
+                argExprs.Add(expr);
+        }
+
+        var count = Math.Min(argExprs.Count, paramTypes.Count);
+        for (var i = 0; i < count; i++)
+        {
+            TryInferDefaultLiteralType(argExprs[i], paramTypes[i], model);
         }
     }
 
@@ -3014,6 +3367,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
+        // Pre-pass: infer bare 'default' types from parameter types before
+        // checking argument expressions, so CheckDefaultLiteralExpression
+        // sees the inferred type rather than UnknownType.
+        InferDefaultLiteralTypesForArguments(methodCall.Arguments, methodCall, model);
+
         // Check argument expressions recursively.
         if (methodCall.Arguments is not null)
         {
@@ -3106,6 +3464,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
+        // Pre-pass: infer bare 'default' types from parameter types.
+        InferDefaultLiteralTypesForInvocationArguments(invocation, model);
+
         // Check argument expressions recursively.
         if (invocation.Arguments is not null)
         {
@@ -5148,6 +5509,540 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var paramTypes = ParameterSignature.Extract(candidate, model);
         var typeNames = string.Join(", ", paramTypes.Select(t => t.DisplayName));
         return $"{methodName}({typeNames})";
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Default block validation (R9.1–9.3, R6.9, R11.1, R11.2, R13.3, R13.4, R13.10)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Walks all type symbols with explicit default blocks and validates:
+    /// <list type="number">
+    /// <item><description>Each field override references a field that exists in the type's member scope (including inherited fields).</description></item>
+    /// <item><description>Visibility: base type fields must be public, not private → <c>MIST_DEFAULT_FIELD_NOT_VISIBLE</c>.</description></item>
+    /// <item><description>Type bindings: concrete type must be a defaultable <see cref="ClassType"/> or <see cref="StructType"/>.</description></item>
+    /// <item><description>Compile-time constant expressions (v1: only literal expressions) → <c>MIST_DEFAULT_NOT_CONSTANT</c>.</description></item>
+    /// <item><description>Redundancy: if explicit default block produces same values as inferred default → <c>MIST_DEFAULT_REDUNDANT</c> with <c>Info</c> severity.</description></item>
+    /// </list>
+    /// </summary>
+    private static void ValidateDefaultBlocks(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Origin == SymbolOrigin.Backend)
+                continue;
+
+            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+                continue;
+
+            var type = symbol.DeclaredType;
+
+            // Extract defaultability status and default block node.
+            DefaultabilityStatus defaultability;
+            DefaultBlockDeclarationNode? defaultBlockNode;
+            IScope? memberScope;
+            ClassType? baseClass;
+
+            switch (type)
+            {
+                case ClassType ct:
+                    defaultability = ct.Defaultability;
+                    defaultBlockNode = ct.DefaultBlockNode;
+                    memberScope = ct.MemberScope;
+                    baseClass = ct.BaseType as ClassType;
+                    break;
+                case StructType st:
+                    defaultability = st.Defaultability;
+                    defaultBlockNode = st.DefaultBlockNode;
+                    memberScope = st.MemberScope;
+                    baseClass = null; // Structs don't have base types.
+                    break;
+                default:
+                    continue;
+            }
+
+            // Only validate types with explicit default blocks.
+            if (defaultability != DefaultabilityStatus.Explicit || defaultBlockNode is null)
+                continue;
+
+            // Collect the set of field names declared directly on this type (not inherited).
+            var ownFieldNames = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var member in memberScope.Members)
+            {
+                if (member.Kind == SymbolKind.Field)
+                    ownFieldNames.Add(member.Name);
+            }
+
+            var hasNonRedundantEntry = false;
+
+            foreach (var entry in defaultBlockNode.Entries)
+            {
+                switch (entry)
+                {
+                    case DefaultFieldOverrideDefaultFieldInitializerNode fieldOverride:
+                    {
+                        var fieldName = fieldOverride.FieldName.Lexeme;
+
+                        // 1. Check field exists in the type's member scope (including inherited).
+                        var fieldSymbol = memberScope.Lookup(fieldName);
+                        if (fieldSymbol is null || fieldSymbol.Kind != SymbolKind.Field)
+                        {
+                            // Field not found — the semantic model builder already handles
+                            // this during default value computation, but we still mark as
+                            // non-redundant to avoid a false redundancy diagnostic.
+                            hasNonRedundantEntry = true;
+                            break;
+                        }
+
+                        // 2. Validate visibility: if the field is from a base type, it must be public.
+                        if (!ownFieldNames.Contains(fieldName))
+                        {
+                            // Field is inherited — check visibility.
+                            if (!IsMemberPublicViaModel(fieldSymbol, model))
+                            {
+                                diagnostics.Add(MakeDiagnostic(
+                                    DiagnosticId.DefaultFieldNotVisible.Value,
+                                    $"Field '{fieldName}' is not accessible from the default block of '{type!.DisplayName}' because it is not public in the base type",
+                                    fieldOverride,
+                                    model));
+                            }
+                        }
+
+                        // 3. Validate compile-time constant expression (v1: only literals).
+                        if (!IsLiteralExpression(fieldOverride.Value))
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                DiagnosticId.DefaultNotConstant.Value,
+                                $"Default value for field '{fieldName}' must be a compile-time constant expression",
+                                fieldOverride.Value,
+                                model));
+                        }
+
+                        // Track whether this override differs from the inferred default.
+                        hasNonRedundantEntry = hasNonRedundantEntry || IsOverrideNonRedundant(fieldName, fieldOverride.Value, fieldSymbol, model);
+                        break;
+                    }
+
+                    case DefaultTypeBindingDefaultFieldInitializerNode typeBinding:
+                    {
+                        var fieldName = typeBinding.FieldName.Lexeme;
+
+                        // 1. Check field exists.
+                        var fieldSymbol = memberScope.Lookup(fieldName);
+                        if (fieldSymbol is null || fieldSymbol.Kind != SymbolKind.Field)
+                        {
+                            hasNonRedundantEntry = true;
+                            break;
+                        }
+
+                        // 2. Validate visibility for inherited fields.
+                        if (!ownFieldNames.Contains(fieldName))
+                        {
+                            if (!IsMemberPublicViaModel(fieldSymbol, model))
+                            {
+                                diagnostics.Add(MakeDiagnostic(
+                                    DiagnosticId.DefaultFieldNotVisible.Value,
+                                    $"Field '{fieldName}' is not accessible from the default block of '{type!.DisplayName}' because it is not public in the base type",
+                                    typeBinding,
+                                    model));
+                            }
+                        }
+
+                        // 3. Validate the concrete type is a defaultable ClassType or StructType.
+                        var concreteType = ResolveTypeBindingConcreteType(typeBinding, memberScope);
+                        if (concreteType is not null)
+                        {
+                            switch (concreteType)
+                            {
+                                case ClassType ct when ct.Defaultability == DefaultabilityStatus.NotDefaultable:
+                                    diagnostics.Add(MakeDiagnostic(
+                                        DiagnosticId.DefaultNotSupported.Value,
+                                        $"Type '{ct.DisplayName}' used as a type binding for field '{fieldName}' is not defaultable",
+                                        typeBinding,
+                                        model));
+                                    break;
+                                case StructType st when st.Defaultability == DefaultabilityStatus.NotDefaultable:
+                                    diagnostics.Add(MakeDiagnostic(
+                                        DiagnosticId.DefaultNotSupported.Value,
+                                        $"Type '{st.DisplayName}' used as a type binding for field '{fieldName}' is not defaultable",
+                                        typeBinding,
+                                        model));
+                                    break;
+                                case not ClassType and not StructType:
+                                    diagnostics.Add(MakeDiagnostic(
+                                        DiagnosticId.DefaultNotSupported.Value,
+                                        $"Type binding for field '{fieldName}' must reference a class or struct type, not '{concreteType.DisplayName}'",
+                                        typeBinding,
+                                        model));
+                                    break;
+                            }
+                        }
+
+                        // 4. Validate nested override expressions are compile-time constants.
+                        foreach (var nested in typeBinding.NestedEntries)
+                        {
+                            if (!IsLiteralExpression(nested.Value))
+                            {
+                                diagnostics.Add(MakeDiagnostic(
+                                    DiagnosticId.DefaultNotConstant.Value,
+                                    $"Default value for nested field '{nested.FieldName.Lexeme}' must be a compile-time constant expression",
+                                    nested.Value,
+                                    model));
+                            }
+                        }
+
+                        // Type bindings are always non-redundant (inferred defaults
+                        // cannot produce type bindings).
+                        hasNonRedundantEntry = true;
+                        break;
+                    }
+                }
+            }
+
+            // 5. Redundancy check: if the explicit default block has no entries,
+            //    or all field overrides match the inferred default, emit Info diagnostic.
+            if (!hasNonRedundantEntry)
+            {
+                diagnostics.Add(MakeDiagnosticWithSeverity(
+                    DiagnosticId.DefaultRedundantBlock.Value,
+                    $"The explicit default block on type '{type!.DisplayName}' is redundant and can be removed because it produces the same values as the inferred default",
+                    defaultBlockNode,
+                    model,
+                    DiagnosticSeverity.Info));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a member symbol is public by examining its declaring AST node's modifiers
+    /// via the semantic model.
+    /// </summary>
+    private static bool IsMemberPublicViaModel(ISymbol member, ISemanticModel model)
+    {
+        SyntaxNode declaringNode;
+        try { declaringNode = model.GetDeclaringNode(member); }
+        catch { return false; }
+
+        var modifiers = GetMemberModifiers(declaringNode);
+        return modifiers.IsPublic;
+    }
+
+    /// <summary>
+    /// Checks whether an expression is a literal expression (compile-time constant in v1).
+    /// Walks down the expression chain to the innermost <see cref="PrimaryNode"/> and
+    /// checks if it is a recognized literal node type.
+    /// </summary>
+    private static bool IsLiteralExpression(ExpressionNode expression)
+    {
+        var primary = UnwrapExpressionToPrimary(expression);
+        if (primary is null)
+            return false;
+
+        return primary is IntegerLiteralExpressionPrimaryNode
+            or HexLiteralExpressionPrimaryNode
+            or BinaryLiteralExpressionPrimaryNode
+            or FloatLiteralExpressionPrimaryNode
+            or StringLiteralExpressionPrimaryNode
+            or CharLiteralExpressionPrimaryNode
+            or TrueLiteralExpressionPrimaryNode
+            or FalseLiteralExpressionPrimaryNode;
+    }
+
+    /// <summary>
+    /// Unwraps an expression node down to its innermost <see cref="PrimaryNode"/>.
+    /// Returns <c>null</c> if the expression structure is not a simple primary.
+    /// </summary>
+    private static PrimaryNode? UnwrapExpressionToPrimary(ExpressionNode expression)
+    {
+        Storm.Runtime.SyntaxNode current = expression;
+
+        for (var depth = 0; depth < 20; depth++)
+        {
+            if (current is PrimaryNode primary)
+                return primary;
+
+            // Look for a single non-token child to follow.
+            Storm.Runtime.SyntaxNode? next = null;
+            var childCount = 0;
+            foreach (var child in current.Children())
+            {
+                childCount++;
+                if (child is PrimaryNode childPrimary)
+                    return childPrimary;
+
+                if (next is null)
+                    next = child;
+            }
+
+            if (childCount > 1 || next is null)
+                return null;
+
+            current = next;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Determines whether a field override in a default block is non-redundant —
+    /// i.e., it produces a different value than the inferred default would.
+    /// </summary>
+    private static bool IsOverrideNonRedundant(
+        string fieldName,
+        ExpressionNode overrideExpr,
+        ISymbol fieldSymbol,
+        ISemanticModel model)
+    {
+        // Extract the override's constant value.
+        var overrideValue = TryExtractLiteralConstantValue(overrideExpr);
+
+        // Get the field's declaring node to check for a field initializer.
+        SyntaxNode fieldDeclNode;
+        try { fieldDeclNode = model.GetDeclaringNode(fieldSymbol); }
+        catch { return true; } // Can't determine — assume non-redundant.
+
+        if (fieldDeclNode is FieldDeclarationNode fieldDecl && fieldDecl.Initializer is ExpressionNode initExpr)
+        {
+            // Field has an initializer — compare override value with initializer value.
+            var initValue = TryExtractLiteralConstantValue(initExpr);
+            return !Equals(overrideValue, initValue);
+        }
+
+        // Field has no initializer — compare override value with zero-init value.
+        var fieldType = fieldSymbol.DeclaredType;
+        if (fieldType is null)
+            return true;
+
+        var zeroValue = GetZeroInitValue(fieldType);
+        return !Equals(overrideValue, zeroValue);
+    }
+
+    /// <summary>
+    /// Attempts to extract a compile-time constant value from a literal expression.
+    /// Returns <c>null</c> if the expression is not a recognized literal.
+    /// </summary>
+    private static object? TryExtractLiteralConstantValue(ExpressionNode expression)
+    {
+        var primary = UnwrapExpressionToPrimary(expression);
+        if (primary is null)
+            return null;
+
+        return primary switch
+        {
+            IntegerLiteralExpressionPrimaryNode intLit => TryParseLiteralInt(intLit.IntegerLiteral.Lexeme),
+            HexLiteralExpressionPrimaryNode hexLit => TryParseLiteralInt(hexLit.HexLiteral.Lexeme),
+            BinaryLiteralExpressionPrimaryNode binLit => TryParseLiteralInt(binLit.BinaryLiteral.Lexeme),
+            FloatLiteralExpressionPrimaryNode floatLit => TryParseLiteralFloat(floatLit.FloatLiteral.Lexeme),
+            StringLiteralExpressionPrimaryNode stringLit => ExtractStringContent(stringLit.StringLiteral.Lexeme),
+            CharLiteralExpressionPrimaryNode charLit => ExtractCharContent(charLit.CharLiteral.Lexeme),
+            TrueLiteralExpressionPrimaryNode => true,
+            FalseLiteralExpressionPrimaryNode => false,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Parses an integer literal string into a numeric value.
+    /// </summary>
+    private static object? TryParseLiteralInt(string lexeme)
+    {
+        var cleaned = lexeme.Replace("_", "");
+        var upper = cleaned.ToUpperInvariant();
+
+        if (upper.StartsWith("0X"))
+            cleaned = cleaned[2..];
+        else if (upper.StartsWith("0B"))
+            cleaned = cleaned[2..];
+
+        // Remove suffix for comparison.
+        if (upper.EndsWith("UL") || upper.EndsWith("LU"))
+        {
+            if (ulong.TryParse(cleaned[..^2], out var val)) return val;
+        }
+        else if (upper.EndsWith("L"))
+        {
+            if (long.TryParse(cleaned[..^1], out var val)) return val;
+        }
+        else if (upper.EndsWith("U"))
+        {
+            if (uint.TryParse(cleaned[..^1], out var val)) return val;
+        }
+        else
+        {
+            if (int.TryParse(cleaned, out var val)) return val;
+            if (long.TryParse(cleaned, out var lval)) return lval;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Parses a float literal string into a numeric value.
+    /// </summary>
+    private static object? TryParseLiteralFloat(string lexeme)
+    {
+        var cleaned = lexeme.Replace("_", "");
+        var upper = cleaned.ToUpperInvariant();
+
+        if (upper.EndsWith("F"))
+        {
+            if (float.TryParse(cleaned[..^1], System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var val))
+                return val;
+        }
+        else if (upper.EndsWith("M"))
+        {
+            if (decimal.TryParse(cleaned[..^1], System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var val))
+                return val;
+        }
+        else
+        {
+            if (double.TryParse(cleaned, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var val))
+                return val;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Extracts the string content from a string literal lexeme (removes surrounding quotes).
+    /// </summary>
+    private static string ExtractStringContent(string lexeme)
+    {
+        if (lexeme.Length >= 2 && lexeme[0] == '"' && lexeme[^1] == '"')
+            return lexeme[1..^1];
+        return lexeme;
+    }
+
+    /// <summary>
+    /// Extracts the char content from a char literal lexeme (removes surrounding quotes).
+    /// </summary>
+    private static object ExtractCharContent(string lexeme)
+    {
+        if (lexeme.Length >= 3 && lexeme[0] == '\'' && lexeme[^1] == '\'')
+        {
+            var inner = lexeme[1..^1];
+            if (inner.Length == 1)
+                return inner[0];
+        }
+        return '\0';
+    }
+
+    /// <summary>
+    /// Returns the zero-initialization value for a type, used for redundancy comparison.
+    /// </summary>
+    private static object? GetZeroInitValue(IType type)
+    {
+        var name = type.DisplayName;
+        return name switch
+        {
+            "int" or "Int32" => 0,
+            "uint" or "UInt32" => 0u,
+            "long" or "Int64" => 0L,
+            "ulong" or "UInt64" => 0UL,
+            "short" or "Int16" => (short)0,
+            "ushort" or "UInt16" => (ushort)0,
+            "byte" or "Byte" => (byte)0,
+            "sbyte" or "SByte" => (sbyte)0,
+            "float" or "Single" => 0.0f,
+            "double" or "Double" => 0.0,
+            "decimal" or "Decimal" => 0.0m,
+            "bool" or "Boolean" => false,
+            "char" or "Char" => '\0',
+            "string" or "String" => "",
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Resolves the concrete type referenced by a type binding entry in a default block.
+    /// Searches the member scope's parent scopes for a matching type symbol.
+    /// </summary>
+    private static IType? ResolveTypeBindingConcreteType(
+        DefaultTypeBindingDefaultFieldInitializerNode typeBinding,
+        IScope memberScope)
+    {
+        var typeName = ExtractTypeBindingName(typeBinding.TypeName);
+        if (string.IsNullOrEmpty(typeName))
+            return null;
+
+        // Search up the scope chain for a type with the given name.
+        var scope = memberScope.Parent;
+        while (scope is not null)
+        {
+            foreach (var member in scope.Members)
+            {
+                if (member.Kind is SymbolKind.Class or SymbolKind.Struct
+                    && member.Name == typeName)
+                {
+                    return member.DeclaredType;
+                }
+            }
+            scope = scope.Parent;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Extracts the type name from a <see cref="TypeReferenceNode"/>.
+    /// </summary>
+    private static string? ExtractTypeBindingName(TypeReferenceNode typeRef)
+    {
+        return typeRef switch
+        {
+            NamedTypeRefTypeReferenceNode named => named.Name.IDENTIFIER.Lexeme,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Creates a diagnostic with a specified severity level.
+    /// Used for non-error diagnostics such as the <c>Info</c>-level redundant default block diagnostic.
+    /// </summary>
+    private static Diagnostic MakeDiagnosticWithSeverity(
+        string id, string message, SyntaxNode node, ISemanticModel model, DiagnosticSeverity severity)
+    {
+        Common.Text.LinePositionSpan? location = null;
+        string? compilationUnitPath = null;
+
+        var span = node.Span;
+        if (span.Length > 0)
+        {
+            var asts = model.Asts;
+            var units = model.Units;
+            var astIndex = -1;
+
+            for (var i = 0; i < asts.Length; i++)
+            {
+                var astSpan = asts[i].Span;
+                if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
+                {
+                    astIndex = i;
+                    break;
+                }
+            }
+
+            if (astIndex >= 0 && astIndex < units.Count)
+            {
+                var source = units[astIndex].Source;
+                compilationUnitPath = source.Path;
+
+                var sourceSpan = new Common.Text.SourceSpan(span.Start, span.Length);
+                location = source.ToLinePositionSpan(sourceSpan);
+            }
+        }
+
+        return new Diagnostic(
+            new DiagnosticId(id),
+            severity,
+            PipelineStage.Analysis,
+            message,
+            Location: location,
+            CompilationUnitPath: compilationUnitPath,
+            AnalyzerName: "TypeChecker");
     }
 
     /// <summary>

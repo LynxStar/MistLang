@@ -1,3 +1,4 @@
+using Mist.Generated;
 using Mist.Semantics.Contracts;
 
 namespace Mist.Semantics.Model.Types;
@@ -21,6 +22,23 @@ public sealed class StructType : IType
     /// builder and read by the emitter; it is immutable after construction.
     /// </summary>
     public bool IsBackendBacked { get; }
+
+    /// <summary>
+    /// The defaultability status of this type.
+    /// </summary>
+    public DefaultabilityStatus Defaultability { get; internal set; } = DefaultabilityStatus.Unknown;
+
+    /// <summary>
+    /// The computed default field values for this type, keyed by field name.
+    /// Null if the type is not defaultable.
+    /// </summary>
+    public IReadOnlyDictionary<string, DefaultFieldValue>? DefaultValues { get; internal set; }
+
+    /// <summary>
+    /// The AST node for the explicit default block, if one was declared.
+    /// Null for inferred defaults and non-defaultable types.
+    /// </summary>
+    internal DefaultBlockDeclarationNode? DefaultBlockNode { get; set; }
 
     public StructType(
         string displayName,

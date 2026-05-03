@@ -195,8 +195,21 @@ rule MemberDeclaration
     | castOperator:CastOperatorDeclaration as CastOperatorMember
     | property:PropertyDeclaration       as PropertyMember
     | indexer:IndexerDeclaration         as IndexerMember
+    | defaultBlock:DefaultBlockDeclaration as DefaultBlockMember
     | field:FieldDeclaration             as FieldMember
     ;
+
+// ─── Parser Rules — Default Block ───────────────────────────────────────────
+
+rule DefaultNestedOverride = fieldName:IDENTIFIER EQUAL value:Expression;
+
+rule DefaultFieldInitializer
+    = fieldName:IDENTIFIER EQUAL value:Expression                                          as DefaultFieldOverride
+    | fieldName:IDENTIFIER COLON typeName:TypeReference
+      (LEFT_BRACE nestedEntries:DefaultNestedOverride* RIGHT_BRACE)?                       as DefaultTypeBinding
+    ;
+
+rule DefaultBlockDeclaration = DEFAULT LEFT_BRACE entries:DefaultFieldInitializer* RIGHT_BRACE;
 
 // ─── Parser Rules — Members ─────────────────────────────────────────────────
 
@@ -407,6 +420,8 @@ rule Primary
     | NEW type:TypeReference LEFT_BRACKET size:Expression RIGHT_BRACKET            as ArrayCreationExpression
     | NEW type:QualifiedIdentifier typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as ObjectCreationExpression
     | LEFT_PARENTHESIS inner:Expression RIGHT_PARENTHESIS                          as ParenthesizedExpression
+    | DEFAULT LEFT_PARENTHESIS type:TypeReference RIGHT_PARENTHESIS               as DefaultExpression
+    | DEFAULT                                                                      as DefaultLiteralExpression
     | name:IDENTIFIER                                                              as IdentifierExpression
     | typeRef:TypeReference                                                        as TypeLiteralExpression
     ;

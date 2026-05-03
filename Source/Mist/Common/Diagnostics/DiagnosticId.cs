@@ -79,4 +79,42 @@ public readonly record struct DiagnosticId(string Value)
     /// <summary>A circular reference was detected in the project reference graph.</summary>
     public static readonly DiagnosticId ProjectCircularReference =
         new("MIST_PROJECT_CIRCULAR_REFERENCE");
+
+    // ── Default keyword diagnostics ──────────────────────────────────────
+
+    /// <summary><c>default(T)</c> where T is not a defaultable type.</summary>
+    public static readonly DiagnosticId DefaultNotSupported = new("MIST_DEFAULT_NOT_SUPPORTED");
+
+    /// <summary>More than one default block declared in a single type.</summary>
+    public static readonly DiagnosticId DefaultDuplicateBlock = new("MIST_DEFAULT_DUPLICATE");
+
+    /// <summary>Default block overrides a field that is not visible to the declaring type.</summary>
+    public static readonly DiagnosticId DefaultFieldNotVisible = new("MIST_DEFAULT_FIELD_NOT_VISIBLE");
+
+    /// <summary>Non-constant expression used in a default block context.</summary>
+    public static readonly DiagnosticId DefaultNotConstant = new("MIST_DEFAULT_NOT_CONSTANT");
+
+    /// <summary><c>default(T)</c> where T cannot be resolved to a known type.</summary>
+    public static readonly DiagnosticId DefaultUndefinedType = new("MIST_DEFAULT_UNDEFINED_TYPE");
+
+    /// <summary><c>default(T)</c> where T is an interface type.</summary>
+    public static readonly DiagnosticId DefaultOnInterface = new("MIST_DEFAULT_ON_INTERFACE");
+
+    /// <summary><c>default(T)</c> where T is a trait type.</summary>
+    public static readonly DiagnosticId DefaultOnTrait = new("MIST_DEFAULT_ON_TRAIT");
+
+    /// <summary><c>default(T)</c> where T is a type parameter.</summary>
+    public static readonly DiagnosticId DefaultOnTypeParameter = new("MIST_DEFAULT_ON_TYPE_PARAMETER");
+
+    /// <summary>Bare <c>default</c> used where the target type cannot be inferred.</summary>
+    public static readonly DiagnosticId DefaultCannotInferType = new("MIST_DEFAULT_CANNOT_INFER");
+
+    /// <summary>Explicit default block produces the same values as the inferred default (informational).</summary>
+    public static readonly DiagnosticId DefaultRedundantBlock = new("MIST_DEFAULT_REDUNDANT");
+
+    /// <summary>Interface or trait field requires a type binding in the default block.</summary>
+    public static readonly DiagnosticId DefaultRequiresTypeBinding = new("MIST_DEFAULT_REQUIRES_BINDING");
+
+    /// <summary>Derived type's base class is not defaultable.</summary>
+    public static readonly DiagnosticId DefaultBaseNotDefaultable = new("MIST_DEFAULT_BASE_NOT_DEFAULTABLE");
 }

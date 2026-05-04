@@ -24,6 +24,9 @@ public sealed class ConstructedType : IType
     /// <summary>
     /// The member scope of the generic definition (members are resolved with substitution).
     /// </summary>
+    // TypeKind audit (unknown-type feature): the default throw remains correct after TypeKind.Unknown
+    // is introduced because UnknownType is never the generic definition of a ConstructedType —
+    // `unknown` has no type parameters and cannot be constructed (see Requirement 5.4/7).
     public IScope MemberScope => GenericDefinition switch
     {
         ClassType c => c.MemberScope,

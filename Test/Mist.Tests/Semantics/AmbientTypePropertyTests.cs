@@ -274,11 +274,11 @@ public class AmbientTypePropertyTests
         foreach (var typeName in subset.ReferencedTypes)
         {
             // The type should be resolvable — verify by checking that the field's
-            // declared type is not UnknownType.
+            // declared type is not ErrorType.
             var fieldSymbol = model.AllSymbols
                 .FirstOrDefault(s => s.Kind == SymbolKind.Field && s.Name.StartsWith("field"));
 
-            if (fieldSymbol?.DeclaredType is UnknownType)
+            if (fieldSymbol?.DeclaredType is ErrorType)
                 return false;
         }
 

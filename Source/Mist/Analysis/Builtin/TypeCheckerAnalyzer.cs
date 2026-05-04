@@ -107,6 +107,31 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId PatternNotCannotBindVariable = new("MIST_TC_0057");
 
+    // ── unknown-type feature: assignability diagnostics ──────────────────
+    //
+    // Note on numbering: the unknown-type design document's Diagnostic ID
+    // Allocation table originally proposed MIST_TC_0056 / MIST_TC_0057 for
+    // the two assignability rejections below. Those codes were already
+    // allocated to the pattern-matching feature (see PatternOrInconsistentVariables
+    // and PatternNotCannotBindVariable above), so the unknown-type assignability
+    // diagnostics were reallocated to MIST_TC_0060 / MIST_TC_0061 instead.
+
+    /// <summary>
+    /// Emitted when a value whose static type is <see cref="UnknownType"/>
+    /// is assigned to a location whose declared type is not <c>unknown</c>.
+    /// Narrowing via pattern matching (<c>is T t</c>) is the designated
+    /// mechanism to recover a concrete type from an <c>unknown</c> value
+    /// (Requirement 4.4).
+    /// </summary>
+    internal static readonly DiagnosticId UnknownToNonUnknown = new("MIST_TC_0060");
+
+    /// <summary>
+    /// Emitted when a <c>void</c> expression is assigned to an <c>unknown</c>
+    /// target. Every non-<c>void</c> type is assignable to <c>unknown</c>, but
+    /// <c>void</c> is excluded because it carries no value (Requirement 4.2).
+    /// </summary>
+    internal static readonly DiagnosticId VoidToUnknown = new("MIST_TC_0061");
+
     /// <summary>
     /// Feature flag gating the operator overload-resolution path introduced by
     /// Task 14 of the Mist Standard Library spec. When <c>true</c> (the
@@ -423,7 +448,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── Cast operator declarations ───────────────────────────────────
         if (declaringNode is CastOperatorDeclarationNode castOpDecl)
         {
-            var returnType = methodSymbol.DeclaredType ?? UnknownType.Instance;
+            var returnType = methodSymbol.DeclaredType ?? ErrorType.Instance;
             _currentEnclosingType = FindDeclaringType(methodSymbol);
             _insideConstructor = false;
             _insidePropertyAccessor = false;
@@ -438,7 +463,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (declaringNode is not MethodDeclarationNode methodDecl)
             return;
 
-        var returnType2 = methodSymbol.DeclaredType ?? UnknownType.Instance;
+        var returnType2 = methodSymbol.DeclaredType ?? ErrorType.Instance;
         _currentEnclosingType = FindDeclaringType(methodSymbol);
         _insideConstructor = false;
         _insidePropertyAccessor = false;
@@ -585,12 +610,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // 1. Resolve the target type (already set by Pass 2).
         var targetType = model.GetTypeOf(castExpr);
-        if (targetType is null || IsUnknown(targetType))
+        if (targetType is null || IsErrorType(targetType))
             return;
 
         // 2. Get the compile-time type of the operand.
         var sourceType = model.GetTypeOf(castExpr.Operand);
-        if (sourceType is null || IsUnknown(sourceType))
+        if (sourceType is null || IsErrorType(sourceType))
             return;
 
         // 3. If the operand type is directly assignable to the target type
@@ -674,8 +699,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static bool IsDirectlyAssignable(IType source, IType target, ISemanticModel? model)
     {
-        // UnknownType suppresses cascading errors.
-        if (IsUnknown(source) || IsUnknown(target))
+        // ErrorType suppresses cascading errors.
+        if (IsErrorType(source) || IsErrorType(target))
             return true;
 
         // Identity.
@@ -827,7 +852,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         _insidePropertyAccessor = false; // Will be set to true inside CheckAccessorBody
 
         var propInfo = GetPropertyMetadata(propertySymbol);
-        var propType = propertySymbol.DeclaredType ?? UnknownType.Instance;
+        var propType = propertySymbol.DeclaredType ?? ErrorType.Instance;
 
         switch (declaringNode)
         {
@@ -861,7 +886,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Task 5.8: Check expression body type compatibility (MIST_TC_0028).
                 CheckExpression(exprProp.Body, model, diagnostics);
                 var bodyType = model.GetTypeOf(exprProp.Body);
-                if (bodyType is not null && !IsUnknown(bodyType) && !IsUnknown(propType))
+                if (bodyType is not null && !IsErrorType(bodyType) && !IsErrorType(propType))
                 {
                     if (!IsAssignable(bodyType, propType))
                     {
@@ -901,7 +926,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         _insidePropertyAccessor = false; // Will be set to true inside CheckAccessorBody
 
         var propInfo = GetPropertyMetadata(indexerSymbol);
-        var indexerType = indexerSymbol.DeclaredType ?? UnknownType.Instance;
+        var indexerType = indexerSymbol.DeclaredType ?? ErrorType.Instance;
         var indexerModifiers = ExtractPropertyModifiers(blockIndexer.Modifiers);
 
         // Task 5.4: Check accessor modifier restrictiveness (MIST_TC_0022).
@@ -989,7 +1014,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         var exprType = model.GetTypeOf(expression);
-        if (exprType is null || IsUnknown(exprType) || IsUnknown(propType))
+        if (exprType is null || IsErrorType(exprType) || IsErrorType(propType))
             return;
 
         if (!IsAssignable(exprType, propType))
@@ -1647,7 +1672,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (IsUnknown(methodReturnType))
+        if (IsErrorType(methodReturnType))
             return;
 
         if (returnStmt.Value is not null)
@@ -1665,7 +1690,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (methodReturnType.IsVoid())
             {
                 // Void methods: reject return values UNLESS the value is void
-                if (valueType is not null && !IsUnknown(valueType) && !valueType.IsVoid())
+                if (valueType is not null && !IsErrorType(valueType) && !valueType.IsVoid())
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0008",
@@ -1678,11 +1703,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 if (!IsAssignable(valueType, methodReturnType))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0008",
-                        $"Cannot return '{valueType.DisplayName}' from method with return type '{methodReturnType.DisplayName}'",
-                        returnStmt,
-                        model));
+                    // unknown-type feature (Req 4.2, 4.4): emit a targeted
+                    // diagnostic for void→unknown or unknown→non-unknown
+                    // before falling back to the generic MIST_TC_0008.
+                    if (!TryEmitUnknownAssignabilityDiagnostic(valueType, methodReturnType, returnStmt, diagnostics, model))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0008",
+                            $"Cannot return '{valueType.DisplayName}' from method with return type '{methodReturnType.DisplayName}'",
+                            returnStmt,
+                            model));
+                    }
                 }
                 else
                 {
@@ -1778,7 +1809,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static void CheckConditionIsBool(ExpressionNode condition, ISemanticModel model, DiagnosticBag diagnostics)
     {
         var condType = model.GetTypeOf(condition);
-        if (condType is null || IsUnknown(condType))
+        if (condType is null || IsErrorType(condType))
             return;
 
         if (!IsBoolLike(condType))
@@ -1849,15 +1880,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                     // MIST_TC_0021: Property type mismatch.
                     var propType = targetPropertySymbol.DeclaredType;
-                    if (propType is not null && rhsType is not null && !IsUnknown(propType) && !IsUnknown(rhsType))
+                    if (propType is not null && rhsType is not null && !IsErrorType(propType) && !IsErrorType(rhsType))
                     {
                         if (!IsAssignable(rhsType, propType))
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                "MIST_TC_0021",
-                                $"Cannot assign '{rhsType.DisplayName}' to property of type '{propType.DisplayName}'",
-                                assignment,
-                                model));
+                            // unknown-type feature (Req 4.2, 4.4): emit a targeted
+                            // diagnostic for void→unknown or unknown→non-unknown
+                            // before falling back to the generic MIST_TC_0021.
+                            if (!TryEmitUnknownAssignabilityDiagnostic(rhsType, propType, assignment, diagnostics, model))
+                            {
+                                diagnostics.Add(MakeDiagnostic(
+                                    "MIST_TC_0021",
+                                    $"Cannot assign '{rhsType.DisplayName}' to property of type '{propType.DisplayName}'",
+                                    assignment,
+                                    model));
+                            }
                         }
                         else
                         {
@@ -2066,7 +2103,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Recursively validates a pattern against the scrutinee type.
-    /// Skips validation when the scrutinee type is <see cref="UnknownType"/>
+    /// Skips validation when the scrutinee type is <see cref="ErrorType"/>
     /// to suppress cascading errors.
     /// </summary>
     private static void CheckPattern(
@@ -2075,7 +2112,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (IsUnknown(scrutineeType))
+        if (IsErrorType(scrutineeType))
             return;
 
         CheckOrPattern(pattern.OrPattern, scrutineeType, model, diagnostics);
@@ -2171,10 +2208,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 // MIST_TC_0050: Verify the type exists in scope.
                 // The semantic model resolved the type reference during Pass 2.
-                // If it resolved to UnknownType, the type was not found.
+                // If it resolved to ErrorType, the type was not found.
                 var patternType = model.GetTypeOf(typePattern.Type);
                 patternType ??= model.GetDeclaredSymbol(typePattern)?.DeclaredType;
-                if (patternType is null || IsUnknown(patternType))
+                if (patternType is null || IsErrorType(patternType))
                 {
                     diagnostics.Add(MakeDiagnostic(
                         PatternUndefinedType.Value,
@@ -2195,7 +2232,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 // MIST_TC_0051: Verify constant type is compatible with scrutinee.
                 var constantType = model.GetTypeOf(constantPattern.Literal);
-                if (constantType is not null && !IsUnknown(constantType))
+                if (constantType is not null && !IsErrorType(constantType))
                 {
                     if (!ArePatternTypesCompatible(constantType, scrutineeType))
                     {
@@ -2241,7 +2278,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     // If there's a type prefix, use it. Check if it resolved.
                     var resolvedSymbol = model.GetDeclaredSymbol(propertyPattern);
-                    if (resolvedSymbol?.DeclaredType is not null && !IsUnknown(resolvedSymbol.DeclaredType))
+                    if (resolvedSymbol?.DeclaredType is not null && !IsErrorType(resolvedSymbol.DeclaredType))
                     {
                         patternType = resolvedSymbol.DeclaredType;
                     }
@@ -2311,7 +2348,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // MIST_TC_0051: Verify constant type is compatible with scrutinee.
         var constantType = model.GetTypeOf(constantExpr);
-        if (constantType is not null && !IsUnknown(constantType))
+        if (constantType is not null && !IsErrorType(constantType))
         {
             if (!ArePatternTypesCompatible(constantType, scrutineeType))
             {
@@ -2331,7 +2368,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool TypeSupportsComparison(IType type)
     {
-        if (IsUnknown(type))
+        if (IsErrorType(type))
             return true; // Suppress cascading errors.
 
         // Numeric display names are always comparable.
@@ -2359,7 +2396,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool ArePatternTypesCompatible(IType constantType, IType scrutineeType)
     {
-        if (IsUnknown(constantType) || IsUnknown(scrutineeType))
+        if (IsErrorType(constantType) || IsErrorType(scrutineeType))
             return true;
 
         if (ReferenceEquals(constantType, scrutineeType))
@@ -2431,7 +2468,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Recursively validate the subpattern against the property's type.
-        var propertyType = member?.DeclaredType ?? UnknownType.Instance;
+        var propertyType = member?.DeclaredType ?? ErrorType.Instance;
         CheckPattern(subpattern.Pattern, propertyType, model, diagnostics);
     }
 
@@ -2562,7 +2599,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     var patternType = model.GetTypeOf(typePattern.Type);
                     patternType ??= model.GetDeclaredSymbol(typePattern)?.DeclaredType;
-                    variables[name] = patternType ?? UnknownType.Instance;
+                    variables[name] = patternType ?? ErrorType.Instance;
                 }
                 break;
             }
@@ -2603,7 +2640,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 var elementType = scrutineeType is ArrayType arrayType
                     ? arrayType.ElementType
-                    : UnknownType.Instance;
+                    : ErrorType.Instance;
 
                 if (listPattern.Elements is not null)
                 {
@@ -2646,7 +2683,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var propertyName = subpattern.Name.Lexeme;
         var memberScope = GetMemberScope(patternType);
         var member = memberScope?.Lookup(propertyName);
-        var propertyType = member?.DeclaredType ?? UnknownType.Instance;
+        var propertyType = member?.DeclaredType ?? ErrorType.Instance;
 
         CollectPatternVariablesFromPattern(subpattern.Pattern, propertyType, model, variables);
     }
@@ -2705,8 +2742,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (!right.TryGetValue(name, out var rightType))
                 return false;
 
-            // Allow UnknownType to match anything (suppress cascading errors).
-            if (IsUnknown(leftType) || IsUnknown(rightType))
+            // Allow ErrorType to match anything (suppress cascading errors).
+            if (IsErrorType(leftType) || IsErrorType(rightType))
                 continue;
 
             if (leftType.DisplayName != rightType.DisplayName
@@ -2954,7 +2991,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (targetType is null || IsUnknown(targetType))
+        if (targetType is null || IsErrorType(targetType))
             return;
 
         var memberName = memberAccess.Name.Lexeme;
@@ -3058,7 +3095,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var resolvedType = model.GetTypeOf(defaultExpr);
 
         // If the type reference could not be resolved, emit MIST_DEFAULT_UNDEFINED_TYPE.
-        if (resolvedType is null || IsUnknown(resolvedType))
+        if (resolvedType is null || IsErrorType(resolvedType))
         {
             diagnostics.Add(MakeDiagnostic(
                 DiagnosticId.DefaultUndefinedType.Value,
@@ -3074,7 +3111,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <summary>
     /// Validates a bare <c>default</c> literal expression:
     /// checks that the type was inferred from context. If the type is still
-    /// <see cref="UnknownType"/>, emits <c>MIST_DEFAULT_CANNOT_INFER</c>.
+    /// <see cref="ErrorType"/>, emits <c>MIST_DEFAULT_CANNOT_INFER</c>.
     /// If a type was inferred, validates that it is defaultable.
     /// </summary>
     private static void CheckDefaultLiteralExpression(
@@ -3085,7 +3122,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var resolvedType = model.GetTypeOf(defaultLiteral);
 
         // If the type is still unknown, context inference did not find a type.
-        if (resolvedType is null || IsUnknown(resolvedType))
+        if (resolvedType is null || IsErrorType(resolvedType))
         {
             diagnostics.Add(MakeDiagnostic(
                 DiagnosticId.DefaultCannotInferType.Value,
@@ -3222,7 +3259,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         IType? contextType,
         ISemanticModel model)
     {
-        if (contextType is null || IsUnknown(contextType))
+        if (contextType is null || IsErrorType(contextType))
             return;
 
         var defaultLiteral = TryExtractDefaultLiteral(expr);
@@ -3243,7 +3280,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         IType? contextType,
         ISemanticModel model)
     {
-        if (contextType is null || IsUnknown(contextType))
+        if (contextType is null || IsErrorType(contextType))
             return;
 
         // The assignment RHS is itself an AssignmentNode. If it has no further
@@ -3373,7 +3410,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Pre-pass: infer bare 'default' types from parameter types before
         // checking argument expressions, so CheckDefaultLiteralExpression
-        // sees the inferred type rather than UnknownType.
+        // sees the inferred type rather than ErrorType.
         InferDefaultLiteralTypesForArguments(methodCall.Arguments, methodCall, model);
 
         // Check argument expressions recursively.
@@ -3597,11 +3634,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 if (!IsAssignable(argType, paramType))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0002",
-                        $"Argument type '{argType.DisplayName}' is not assignable to parameter type '{paramType.DisplayName}'",
-                        argExprs[i],
-                        model));
+                    // unknown-type feature (Req 4.2, 4.4): emit a targeted
+                    // diagnostic for void→unknown or unknown→non-unknown
+                    // before falling back to the generic MIST_TC_0002.
+                    if (!TryEmitUnknownAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0002",
+                            $"Argument type '{argType.DisplayName}' is not assignable to parameter type '{paramType.DisplayName}'",
+                            argExprs[i],
+                            model));
+                    }
                 }
                 else
                 {
@@ -3683,11 +3726,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 if (!IsAssignable(argType, paramType))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0002",
-                        $"Argument type '{argType.DisplayName}' is not assignable to parameter type '{paramType.DisplayName}'",
-                        argExprs[i],
-                        model));
+                    // unknown-type feature (Req 4.2, 4.4): emit a targeted
+                    // diagnostic for void→unknown or unknown→non-unknown
+                    // before falling back to the generic MIST_TC_0002.
+                    if (!TryEmitUnknownAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0002",
+                            $"Argument type '{argType.DisplayName}' is not assignable to parameter type '{paramType.DisplayName}'",
+                            argExprs[i],
+                            model));
+                    }
                 }
                 else
                 {
@@ -3741,7 +3790,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Try the expression type map first (may be populated for some nodes).
         var resolved = model.GetTypeOf(typeRef);
-        if (resolved is not null && resolved is not UnknownType)
+        if (resolved is not null && resolved is not ErrorType)
             return resolved;
 
         switch (typeRef)
@@ -3751,7 +3800,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var primType = ResolvePrimitiveType(primitiveRef.PrimitiveType);
                 if (primitiveRef.ArrayRank.HasValue && primType is not null)
                     return new ArrayType(primType);
-                return primType ?? UnknownType.Instance;
+                return primType ?? ErrorType.Instance;
             }
             case NamedTypeRefTypeReferenceNode namedRef:
             {
@@ -3766,14 +3815,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 foreach (var sym in model.AllSymbols)
                 {
                     if (sym.Name == typeName && sym.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface)
-                        return sym.DeclaredType ?? UnknownType.Instance;
+                        return sym.DeclaredType ?? ErrorType.Instance;
                 }
-                return UnknownType.Instance;
+                return ErrorType.Instance;
             }
             case VoidTypeRefTypeReferenceNode:
                 return LegacyPrimitiveTypes.Void;
             default:
-                return UnknownType.Instance;
+                return ErrorType.Instance;
         }
     }
 
@@ -3835,7 +3884,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var sizeType = model.GetTypeOf(arrayCreation.Size);
-        if (sizeType is not null && !IsUnknown(sizeType))
+        if (sizeType is not null && !IsErrorType(sizeType))
         {
             if (!IsIntLike(sizeType))
             {
@@ -3858,7 +3907,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         CheckExpression(indexSuffix.Index, model, diagnostics);
 
         var indexType = model.GetTypeOf(indexSuffix.Index);
-        if (indexType is not null && !IsUnknown(indexType))
+        if (indexType is not null && !IsErrorType(indexType))
         {
             if (!IsIntLike(indexType))
             {
@@ -3872,7 +3921,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Verify the target is an array type (the target type should be ArrayType).
         // If targetType is not an array, the semantic model builder would have
-        // already flagged it or assigned UnknownType. We don't emit a separate
+        // already flagged it or assigned ErrorType. We don't emit a separate
         // diagnostic here to avoid cascading.
     }
 
@@ -3893,7 +3942,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Get the type being constructed.
         var createdType = model.GetTypeOf(objectCreation);
-        if (createdType is null || IsUnknown(createdType))
+        if (createdType is null || IsErrorType(createdType))
             return;
 
         // Find constructors on the type.
@@ -4009,7 +4058,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Find the enclosing type.
         var enclosingType = FindDeclaringType(ctorSymbol);
-        if (enclosingType is null || IsUnknown(enclosingType))
+        if (enclosingType is null || IsErrorType(enclosingType))
             return;
 
         // For `: base(...)` chains, resolve the base type and search its constructors.
@@ -4202,7 +4251,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (targetType is null || IsUnknown(targetType))
+        if (targetType is null || IsErrorType(targetType))
             return;
 
         // Find the member symbol on the target type.
@@ -4430,6 +4479,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         if (!IsAssignable(source, target, model))
         {
+            // unknown-type feature (Req 4.2, 4.4): before falling back to
+            // the generic type-mismatch diagnostic, detect the two specific
+            // unknown-related failure modes and emit the targeted code.
+            if (TryEmitUnknownAssignabilityDiagnostic(source, target, node, diagnostics, model))
+                return;
+
             // Emit a trait-specific diagnostic when the target is a TraitType.
             if (target is TraitType targetTrait)
             {
@@ -4465,6 +4520,57 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 TryResolveImplicitCast(source, target, node, model, diagnostics);
             }
         }
+    }
+
+    /// <summary>
+    /// Detects the two unknown-type-specific assignability failure modes and,
+    /// when one matches, emits the targeted diagnostic and returns <c>true</c>.
+    /// Returns <c>false</c> if neither case applies, leaving the caller to
+    /// emit its regular type-mismatch diagnostic (e.g., <c>MIST_TC_0001</c>,
+    /// <c>MIST_TC_0002</c>, <c>MIST_TC_0008</c>, or <c>MIST_TC_0021</c>).
+    /// <para>
+    /// The cases are:
+    /// <list type="bullet">
+    /// <item><description><c>MIST_TC_0061</c> — <c>void</c> assigned to
+    /// <c>unknown</c> (Req 4.2).</description></item>
+    /// <item><description><c>MIST_TC_0060</c> — a value whose static type is
+    /// <c>unknown</c> assigned to a non-<c>unknown</c> target (Req 4.4).
+    /// Pattern-narrowing (<c>is T t</c>) is the designated mechanism and is
+    /// mediated by a separate check, not this one.</description></item>
+    /// </list>
+    /// </para>
+    /// </summary>
+    private static bool TryEmitUnknownAssignabilityDiagnostic(
+        IType source,
+        IType target,
+        SyntaxNode node,
+        DiagnosticBag diagnostics,
+        ISemanticModel model)
+    {
+        // void → unknown (Req 4.2). The top-type clause in IsAssignable
+        // explicitly rejects this and leaves the emission to the caller.
+        if (target is UnknownType && source.IsVoid())
+        {
+            diagnostics.Add(MakeDiagnostic(
+                VoidToUnknown.Value,
+                $"Cannot assign '{source.DisplayName}' to 'unknown': 'void' carries no value and is not assignable to the top type.",
+                node,
+                model));
+            return true;
+        }
+
+        // unknown → non-unknown (Req 4.4). Use `is T t` to narrow first.
+        if (source is UnknownType && target is not UnknownType)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                UnknownToNonUnknown.Value,
+                $"Cannot assign 'unknown' to '{target.DisplayName}': use an 'is' pattern to narrow the value to a concrete type first.",
+                node,
+                model));
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -4526,7 +4632,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     internal static ISymbol? TryFindImplicitCast(IType source, IType target, out bool ambiguous)
     {
         ambiguous = false;
-        if (IsUnknown(source) || IsUnknown(target))
+        if (IsErrorType(source) || IsErrorType(target))
             return null;
 
         var candidates = new List<ISymbol>();
@@ -4609,7 +4715,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Rules:
     /// - Same type (identity)
     /// - Both numeric with implicit widening conversion
-    /// - Either is UnknownType (error suppression)
+    /// - Either is ErrorType (error suppression)
     /// - Subtype assignability: derived class assignable to any ancestor class
     /// </summary>
     internal static bool IsAssignable(IType source, IType target)
@@ -4624,9 +4730,39 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static bool IsAssignable(IType source, IType target, ISemanticModel? model)
     {
-        // UnknownType suppresses cascading errors.
-        if (IsUnknown(source) || IsUnknown(target))
+        // ErrorType suppresses cascading errors.
+        if (IsErrorType(source) || IsErrorType(target))
             return true;
+
+        // ── unknown-type feature (Req 4.1, 4.2, 4.3, 4.4, 4.5) ──────────
+        //
+        // UnknownType is the user-facing top type for assignment:
+        //   * Every non-void source type is assignable to UnknownType.
+        //   * void is NOT assignable to UnknownType — it carries no value.
+        //     The caller emits MIST_TC_0061 (VoidToUnknown) at the
+        //     specific assignment / return / argument / initializer site.
+        //   * A value whose static type is UnknownType is NOT assignable
+        //     to a non-UnknownType target. Pattern matching (`is T t`) is
+        //     the designated mechanism to narrow an `unknown` value back
+        //     to a concrete type. The caller emits MIST_TC_0060
+        //     (UnknownToNonUnknown) at the widening site.
+        //   * UnknownType → UnknownType is identity-accepted.
+        //
+        // This clause is placed immediately after the ErrorType cascade
+        // suppression and before every other rule so that UnknownType is
+        // handled uniformly across identity, ConstructedType, interface,
+        // subtype, trait, and implicit-cast branches.
+        if (target is UnknownType)
+        {
+            if (source.IsVoid())
+                return false;
+            return true;
+        }
+        if (source is UnknownType)
+        {
+            // target is not UnknownType (checked above); reject.
+            return false;
+        }
 
         // Identity.
         if (ReferenceEquals(source, target))
@@ -4994,7 +5130,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool AreEqualityCompatible(IType left, IType right)
     {
-        if (IsUnknown(left) || IsUnknown(right))
+        if (IsErrorType(left) || IsErrorType(right))
             return true;
 
         if (ReferenceEquals(left, right))
@@ -5141,9 +5277,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         return false;
     }
 
-    private static bool IsUnknown(IType type)
+    private static bool IsErrorType(IType type)
     {
-        return type is UnknownType;
+        return type is ErrorType;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -5161,7 +5297,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (child is ExpressionNode expr)
             {
                 var type = model.GetTypeOf(expr);
-                types.Add(type ?? UnknownType.Instance);
+                types.Add(type ?? ErrorType.Instance);
             }
         }
 
@@ -5308,7 +5444,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Suppress cascading errors — if either operand's type is unknown we
         // rely on an earlier diagnostic to explain the real problem.
         if (leftType is null || rightType is null
-            || IsUnknown(leftType) || IsUnknown(rightType))
+            || IsErrorType(leftType) || IsErrorType(rightType))
             return;
 
         var opName = "operator" + op;
@@ -5423,7 +5559,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         var operandType = model.GetTypeOf(operand);
 
-        if (operandType is null || IsUnknown(operandType))
+        if (operandType is null || IsErrorType(operandType))
             return;
 
         var opName = "operator" + op;

@@ -243,8 +243,9 @@ public class NoBackingTypeLeakPropertyTests
     /// </summary>
     private static bool IsClrLeak(IType type)
     {
-        // Void, UnknownType, TypeParameterType, ArrayType are fine
-        if (type.IsVoid() || type is UnknownType or TypeParameterType or ArrayType)
+        // Phase B will reintroduce UnknownType as the user-facing top type, distinct from this ErrorType sentinel.
+        // Void, ErrorType, TypeParameterType, ArrayType are fine
+        if (type.IsVoid() || type is ErrorType or TypeParameterType or ArrayType)
             return false;
 
         string? containingNamespace = null;

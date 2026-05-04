@@ -458,7 +458,7 @@ public class InheritedMemberResolutionPropertyTests
 
     /// <summary>
     /// Property 4c: For any class hierarchy where a member is declared in an ancestor,
-    /// the resolved type of this.memberName in the leaf class is not UnknownType
+    /// the resolved type of this.memberName in the leaf class is not ErrorType
     /// (i.e., it resolves to a concrete type from the ancestor's declaration).
     ///
     /// **Validates: Requirements 4.1, 4.5**

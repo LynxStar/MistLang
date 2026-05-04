@@ -22,8 +22,9 @@ namespace Mist.Tests.Semantics;
 /// Property 2: For any InterfaceType hierarchy and for any member name that
 /// does NOT exist in the target interface's MemberScope or any transitively
 /// inherited interface's MemberScope, calling LookupMemberType SHALL emit
-/// exactly one MIST_UNDEFINED_MEMBER diagnostic and SHALL return UnknownType.
+/// exactly one MIST_UNDEFINED_MEMBER diagnostic and SHALL return ErrorType.
 /// </summary>
+// Phase B will reintroduce UnknownType as the user-facing top type, distinct from this ErrorType sentinel.
 public class InterfaceMemberLookupMissingPropertyTests
 {
     private readonly SemanticModelBuilder _builder = new();
@@ -530,7 +531,7 @@ public class InterfaceMemberLookupMissingPropertyTests
     /// Property 2: For any InterfaceType hierarchy and for any member name that
     /// does NOT exist in the target interface's MemberScope or any transitively
     /// inherited interface's MemberScope, calling LookupMemberType SHALL emit
-    /// exactly one MIST_UNDEFINED_MEMBER diagnostic and SHALL return UnknownType.
+    /// exactly one MIST_UNDEFINED_MEMBER diagnostic and SHALL return ErrorType.
     ///
     /// **Validates: Requirements 1.4**
     /// </summary>

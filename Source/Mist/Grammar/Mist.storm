@@ -309,6 +309,7 @@ rule ArgumentList = Expression (COMMA Expression)*;
 rule TypeReference
     = primitiveType:PrimitiveType arrayRank:(LEFT_BRACKET RIGHT_BRACKET)?  as PrimitiveTypeRef
     | VOID                                                                  as VoidTypeRef
+    | UNKNOWN                                                               as UnknownTypeRef
     | name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:(LEFT_BRACKET RIGHT_BRACKET)?  as NamedTypeRef
     ;
 

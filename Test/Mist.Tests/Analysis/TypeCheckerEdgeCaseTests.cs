@@ -13,7 +13,7 @@ namespace Mist.Tests.Analysis;
 
 /// <summary>
 /// Unit tests for type checker edge cases covering specific diagnostic messages,
-/// UnknownType error suppression, numeric widening conversions, and string concatenation.
+/// ErrorType error suppression, numeric widening conversions, and string concatenation.
 /// </summary>
 public class TypeCheckerEdgeCaseTests
 {
@@ -596,14 +596,15 @@ public class TypeCheckerEdgeCaseTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // UnknownType suppresses cascading errors
+    // ErrorType suppresses cascading errors
     // ═══════════════════════════════════════════════════════════════════════
 
+    // Phase B will reintroduce UnknownType as the user-facing top type, distinct from this ErrorType sentinel.
     [Fact]
-    public void UnknownType_SuppressesCascadingErrors()
+    public void ErrorType_SuppressesCascadingErrors()
     {
         // Reference an undefined variable, then use it in arithmetic.
-        // The undefined variable gets UnknownType, and the arithmetic should NOT
+        // The undefined variable gets ErrorType, and the arithmetic should NOT
         // produce an additional type error.
         var ast = MakeProgram(ImmutableArray.Create(
             MakeExpressionStatement(MakeAdditiveExpression(
@@ -615,7 +616,7 @@ public class TypeCheckerEdgeCaseTests
 
         // The semantic model should have an undefined identifier diagnostic.
         // But the type checker should NOT produce MIST_TC_0003 for the arithmetic,
-        // because the undefined variable has UnknownType which suppresses cascading.
+        // because the undefined variable has ErrorType which suppresses cascading.
         Assert.DoesNotContain(typeCheckerDiagnostics, d => d.Id.Value == "MIST_TC_0003");
     }
 

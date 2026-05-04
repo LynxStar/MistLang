@@ -271,7 +271,7 @@ public sealed class CompilerDriver : ICompilerDriver
         }
 
         // Short-circuit if the semantic model produced errors.
-        // The builder always returns a non-null model (using UnknownType to
+        // The builder always returns a non-null model (using ErrorType to
         // suppress cascading issues), but error diagnostics still mean the
         // program is invalid and we should not proceed to emission.
         if(semanticBag.HasErrors)

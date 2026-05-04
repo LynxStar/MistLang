@@ -2300,11 +2300,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     $"Type argument '{argName}' could not be resolved.",
                     declaringNode,
                     srcText));
-                return UnknownType.Instance;
+                return ErrorType.Instance;
             }
 
             default:
-                return UnknownType.Instance;
+                return ErrorType.Instance;
         }
     }
 
@@ -6368,7 +6368,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Get the scrutinee type from the expression types map.
             // The scrutinee (isExpr.Left) was already resolved by ResolveRelational.
             expressionTypes.TryGetValue(isExpr.Left, out var scrutineeType);
-            scrutineeType ??= UnknownType.Instance;
+            scrutineeType ??= ErrorType.Instance;
 
             // Extract variable bindings from the pattern.
             CollectFromPattern(isExpr.Pattern, scrutineeType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
@@ -6538,7 +6538,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Determine the element type for subpattern recursion.
                 var elementType = scrutineeType is ArrayType arrayType
                     ? arrayType.ElementType
-                    : UnknownType.Instance;
+                    : ErrorType.Instance;
 
                 if (listPattern.Elements is not null)
                 {
@@ -6589,7 +6589,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         // Determine the property's type from the pattern type's member scope.
-        var propertyType = UnknownType.Instance as IType;
+        var propertyType = ErrorType.Instance as IType;
         var propertyName = subpattern.Name.Lexeme;
 
         if (patternType is ClassType classType)
@@ -6660,10 +6660,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         // The slice variable captures a sub-array, so its type
                         // is the same as the scrutinee array type (not the element type).
-                        // For now, use UnknownType since we don't have the full
+                        // For now, use ErrorType since we don't have the full
                         // array type here — the type checker will validate.
                         var varSpan = ToMistSourceSpan(sliceElement.Name.Value.Span);
-                        var varSymbol = new Symbol(name, SymbolKind.LocalVariable, SymbolOrigin.UserCode, thenScope, UnknownType.Instance, varSpan);
+                        var varSymbol = new Symbol(name, SymbolKind.LocalVariable, SymbolOrigin.UserCode, thenScope, ErrorType.Instance, varSpan);
                         thenScope.AddMember(varSymbol);
                         symbolTable.Register(varSymbol, sliceElement);
                     }
@@ -6746,7 +6746,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Resolves a TypeReference AST node to an IType.
-    /// Lookup order: primitives → string/void → scope chain → imported namespaces → UnknownType.
+    /// Lookup order: primitives → string/void → scope chain → imported namespaces → ErrorType.
     /// </summary>
     private static IType ResolveTypeReference(
         TypeReferenceNode typeRef,
@@ -6811,6 +6811,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     return LegacyPrimitiveTypes.Void;
                 }
 
+            case UnknownTypeRefTypeReferenceNode:
+                // The user-facing `unknown` top type (unknown-type feature, Req 3.6, 7.1-7.3).
+                // Always resolves to the UnknownType singleton — no stdlib lookup, no scope
+                // walk. Legal in any TypeReference position at the grammar level; the storage
+                // ban (Req 5), inheritance prohibition (Req 6), and member-filtering rules
+                // (Req 10) are enforced later by Pass 1 checks and the Type Checker.
+                return UnknownType.Instance;
+
             case NamedTypeRefTypeReferenceNode namedRef:
                 var typeName = ExtractQualifiedName(namedRef.Name, sourceText);
 
@@ -6846,7 +6854,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return baseType;
 
             default:
-                return UnknownType.Instance;
+                return ErrorType.Instance;
         }
     }
 
@@ -6874,7 +6882,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             BoolTypePrimitiveTypeNode => LegacyPrimitiveTypes.Bool,
             CharTypePrimitiveTypeNode => LegacyPrimitiveTypes.Char,
             StringTypePrimitiveTypeNode => LegacyPrimitiveTypes.String,
-            _ => UnknownType.Instance,
+            _ => ErrorType.Instance,
         };
     }
 
@@ -6908,7 +6916,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             BoolTypePrimitiveTypeNode => LegacyPrimitiveTypes.Bool,
             CharTypePrimitiveTypeNode => LegacyPrimitiveTypes.Char,
             StringTypePrimitiveTypeNode => LegacyPrimitiveTypes.String,
-            _ => UnknownType.Instance,
+            _ => ErrorType.Instance,
         };
     }
 
@@ -7090,7 +7098,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var symbol = fileScope.Lookup(typeName);
         if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait))
         {
-            return symbol.DeclaredType ?? UnknownType.Instance;
+            return symbol.DeclaredType ?? ErrorType.Instance;
         }
 
         // 3. Search imported namespaces from using declarations.
@@ -7125,7 +7133,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
                         else
                         {
-                            userResolvedType = member.DeclaredType ?? UnknownType.Instance;
+                            userResolvedType = member.DeclaredType ?? ErrorType.Instance;
                             userResolvedNs = ns;
                         }
                         break;
@@ -7144,7 +7152,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 Location: null,
                 CompilationUnitPath: sourceText?.Path,
                 AnalyzerName: null));
-            return UnknownType.Instance;
+            return ErrorType.Instance;
         }
 
         if (userResolvedType is not null)
@@ -7168,7 +7176,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
-        // 4. Not found → emit diagnostic, return UnknownType.
+        // 4. Not found → emit diagnostic, return ErrorType.
         diagnostics.Add(new Diagnostic(
             new DiagnosticId("MIST_UNDEFINED_TYPE"),
             DiagnosticSeverity.Error,
@@ -7178,7 +7186,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             CompilationUnitPath: sourceText?.Path,
             AnalyzerName: null));
 
-        return UnknownType.Instance;
+        return ErrorType.Instance;
     }
 
     /// <summary>
@@ -7214,7 +7222,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         // If the resolved type is unknown, don't cascade errors.
-        if (resolvedType is UnknownType)
+        if (resolvedType is ErrorType)
             return resolvedType;
 
         var typeParams = GetTypeParameters(resolvedType);
@@ -7242,7 +7250,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 $"Type '{typeName}' expects {typeParams.Count} type argument(s) but received {resolvedTypeArgs.Count}.",
                 typeArgList,
                 sourceText));
-            return UnknownType.Instance;
+            return ErrorType.Instance;
         }
 
         return new ConstructedType(resolvedType, resolvedTypeArgs);
@@ -7281,7 +7289,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// Resolves a single type argument in Pass 2 context.
     /// Uses <see cref="ResolveTypeReference"/> for full recursive resolution.
-    /// Emits <c>MIST_UNDEFINED_TYPE_ARGUMENT</c> if the result is <see cref="UnknownType"/>
+    /// Emits <c>MIST_UNDEFINED_TYPE_ARGUMENT</c> if the result is <see cref="ErrorType"/>
     /// and the type reference is a named type (not a primitive or void).
     /// </summary>
     private static IType ResolvePass2SingleTypeArg(
@@ -7352,7 +7360,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             $"Type argument '{argName}' could not be resolved.",
                             namedRef,
                             sourceText));
-                        return UnknownType.Instance;
+                        return ErrorType.Instance;
                     }
                 }
             }
@@ -7653,8 +7661,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             default:
             {
-                expressionTypes[node] = UnknownType.Instance;
-                return UnknownType.Instance;
+                expressionTypes[node] = ErrorType.Instance;
+                return ErrorType.Instance;
             }
         }
     }
@@ -7829,7 +7837,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Determine the element type: if the scrutinee is an array, use its element type.
                 var elementType = scrutineeType is ArrayType arrayType
                     ? arrayType.ElementType
-                    : UnknownType.Instance;
+                    : ErrorType.Instance;
 
                 // Recursively resolve element patterns.
                 if (listPattern.Elements is not null)
@@ -7871,7 +7879,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 ResolvePrimitiveByKeyword("bool", fileScope, symbolTable),
             FalseConstantConstantLiteralNode =>
                 ResolvePrimitiveByKeyword("bool", fileScope, symbolTable),
-            _ => UnknownType.Instance,
+            _ => ErrorType.Instance,
         };
 
         expressionTypes[literal] = type;
@@ -7921,7 +7929,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         // Try to determine the property's type from the pattern type's member scope.
-        var propertyType = UnknownType.Instance as IType;
+        var propertyType = ErrorType.Instance as IType;
         var propertyName = subpattern.Name.Lexeme;
 
         if (patternType is ClassType classType)
@@ -8108,8 +8116,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return type;
             }
             default:
-                expressionTypes[node] = UnknownType.Instance;
-                return UnknownType.Instance;
+                expressionTypes[node] = ErrorType.Instance;
+                return ErrorType.Instance;
         }
     }
 
@@ -8207,7 +8215,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 $"Method '{memberName}' expects {sym.TypeParameters.Count} type argument(s) but received {resolvedTypeArgs.Count}.",
                                 methodCall.TypeArgs,
                                 sourceText));
-                            memberType = UnknownType.Instance;
+                            memberType = ErrorType.Instance;
                         }
                         // Type arguments are valid — substitution will be handled by the type checker.
                     }
@@ -8276,8 +8284,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     return arrayType.ElementType;
                 }
 
-                expressionTypes[suffix] = UnknownType.Instance;
-                return UnknownType.Instance;
+                expressionTypes[suffix] = ErrorType.Instance;
+                return ErrorType.Instance;
             }
             case InvocationSuffixPostfixSuffixNode invocation:
             {
@@ -8367,7 +8375,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         "'this' cannot be used in a static context.",
                         node,
                         sourceText));
-                    result = UnknownType.Instance;
+                    result = ErrorType.Instance;
                 }
                 else
                 {
@@ -8442,7 +8450,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             {
                                 if (m.Name == name)
                                 {
-                                    inheritedMemberType = m.DeclaredType ?? UnknownType.Instance;
+                                    inheritedMemberType = m.DeclaredType ?? ErrorType.Instance;
                                     break;
                                 }
                             }
@@ -8463,7 +8471,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 $"The name '{name}' does not exist in the current context.",
                                 identifier,
                                 sourceText));
-                            result = UnknownType.Instance;
+                            result = ErrorType.Instance;
                         }
                     }
                     else
@@ -8474,12 +8482,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             $"The name '{name}' does not exist in the current context.",
                             identifier,
                             sourceText));
-                        result = UnknownType.Instance;
+                        result = ErrorType.Instance;
                     }
                 }
                 else
                 {
-                    result = symbol.DeclaredType ?? UnknownType.Instance;
+                    result = symbol.DeclaredType ?? ErrorType.Instance;
                 }
                 break;
             }
@@ -8518,15 +8526,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 // Bare 'default' — the type must be inferred from context
                 // (e.g., assignment target type, return type, parameter type).
-                // Record as UnknownType here; the type checker will resolve
+                // Record as ErrorType here; the type checker will resolve
                 // the actual type from context or emit a diagnostic if
                 // inference is not possible.
-                result = UnknownType.Instance;
+                result = ErrorType.Instance;
                 break;
             }
 
             default:
-                result = UnknownType.Instance;
+                result = ErrorType.Instance;
                 break;
         }
 
@@ -8612,9 +8620,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        if (targetType is UnknownType)
+        if (targetType is ErrorType)
         {
-            return UnknownType.Instance;
+            return ErrorType.Instance;
         }
 
         // For ConstructedType, unwrap to the generic definition and look up the member,
@@ -8664,7 +8672,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         foreach (var m in stdlibStringClass.MemberScope.Members)
                         {
                             if (m.Name == memberName)
-                                return m.DeclaredType ?? UnknownType.Instance;
+                                return m.DeclaredType ?? ErrorType.Instance;
                         }
                     }
                 }
@@ -8685,7 +8693,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     foreach (var member in members)
                     {
                         if (member.Name == memberName)
-                            return member.DeclaredType ?? UnknownType.Instance;
+                            return member.DeclaredType ?? ErrorType.Instance;
                     }
                 }
             }
@@ -8706,7 +8714,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         foreach (var m in stdlibArrayClass.MemberScope.Members)
                         {
                             if (m.Name == memberName)
-                                return m.DeclaredType ?? UnknownType.Instance;
+                                return m.DeclaredType ?? ErrorType.Instance;
                         }
                     }
                 }
@@ -8727,7 +8735,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     foreach (var member in members)
                     {
                         if (member.Name == memberName)
-                            return member.DeclaredType ?? UnknownType.Instance;
+                            return member.DeclaredType ?? ErrorType.Instance;
                     }
                 }
             }
@@ -8744,7 +8752,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     if (m.Name == memberName)
                     {
-                        var memberType = m.DeclaredType ?? UnknownType.Instance;
+                        var memberType = m.DeclaredType ?? ErrorType.Instance;
                         return SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
                     }
                 }
@@ -8757,7 +8765,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         if (m.Name == memberName)
                         {
-                            var memberType = m.DeclaredType ?? UnknownType.Instance;
+                            var memberType = m.DeclaredType ?? ErrorType.Instance;
                             return SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
                         }
                     }
@@ -8771,7 +8779,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var member = memberScope.Lookup(memberName);
             if (member is not null)
             {
-                var memberType = member.DeclaredType ?? UnknownType.Instance;
+                var memberType = member.DeclaredType ?? ErrorType.Instance;
                 return SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
             }
 
@@ -8800,7 +8808,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             CompilationUnitPath: sourceText?.Path,
             AnalyzerName: null));
 
-        return UnknownType.Instance;
+        return ErrorType.Instance;
     }
 
     /// <summary>
@@ -8882,7 +8890,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var member = iface.MemberScope.Lookup(memberName);
             if (member is not null)
             {
-                return member.DeclaredType ?? UnknownType.Instance;
+                return member.DeclaredType ?? ErrorType.Instance;
             }
 
             var inherited = LookupInheritedInterfaceMemberCore(iface.Interfaces, memberName, visited);
@@ -8907,7 +8915,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Scope fileScope,
         SymbolTable symbolTable)
     {
-        if (targetType is UnknownType)
+        if (targetType is ErrorType)
             return null;
 
         // For ConstructedType, look up in the generic definition's member scope.
@@ -9026,7 +9034,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (!KeywordAliases.Map.TryGetValue(keyword, out var qualifiedName))
         {
             // Not a primitive keyword — return legacy fallback.
-            return TryResolveWellKnownType(keyword) ?? UnknownType.Instance;
+            return TryResolveWellKnownType(keyword) ?? ErrorType.Instance;
         }
 
         try
@@ -9037,7 +9045,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         catch (StdlibMissingException)
         {
             // Stdlib not loaded — return legacy fallback.
-            return TryResolveWellKnownType(keyword) ?? UnknownType.Instance;
+            return TryResolveWellKnownType(keyword) ?? ErrorType.Instance;
         }
     }
 
@@ -9068,12 +9076,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Returns the common numeric type for binary arithmetic operations.
-    /// If either operand is UnknownType, returns UnknownType.
+    /// If either operand is ErrorType, returns ErrorType.
     /// </summary>
     private static IType GetCommonNumericType(IType left, IType right)
     {
-        if (left is UnknownType || right is UnknownType)
-            return UnknownType.Instance;
+        if (left is ErrorType || right is ErrorType)
+            return ErrorType.Instance;
 
         // Numeric widening: decimal > double > float > ulong > long > uint > int > smaller types.
         // Use DisplayName-based ranking to handle both legacy (e.g., "int")
@@ -9127,15 +9135,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 if (member.Kind == SymbolKind.Property && member is Symbol propSymbol && propSymbol.PropertyMetadata?.BackingField is Symbol backingField)
                 {
-                    return backingField.DeclaredType ?? UnknownType.Instance;
+                    return backingField.DeclaredType ?? ErrorType.Instance;
                 }
             }
             scope = scope.Parent;
         }
 
         // 'field' keyword used outside a property accessor or in a computed property.
-        // Return UnknownType — the type checker will report the appropriate diagnostic.
-        return UnknownType.Instance;
+        // Return ErrorType — the type checker will report the appropriate diagnostic.
+        return ErrorType.Instance;
     }
 
     /// <summary>
@@ -9787,7 +9795,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 nestedOverrides[nestedFieldName] = new DefaultFieldValue
                                 {
                                     FieldName = nestedFieldName,
-                                    FieldType = nestedFieldType ?? UnknownType.Instance,
+                                    FieldType = nestedFieldType ?? ErrorType.Instance,
                                     ValueKind = DefaultValueKind.ExplicitOverride,
                                     ConstantValue = nestedValue,
                                 };
@@ -9797,7 +9805,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         result[fieldName] = new DefaultFieldValue
                         {
                             FieldName = fieldName,
-                            FieldType = fieldType ?? UnknownType.Instance,
+                            FieldType = fieldType ?? ErrorType.Instance,
                             ValueKind = DefaultValueKind.TypeBinding,
                             ConcreteType = concreteType,
                             NestedOverrides = nestedOverrides,

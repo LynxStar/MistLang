@@ -23,6 +23,9 @@ public static class TypeExtensions
     /// </summary>
     public static bool IsTypeType(this IType type)
     {
+        // TypeKind audit (unknown-type feature): restricting to TypeKind.Class is correct after
+        // Unknown is introduced — UnknownType has Kind == TypeKind.Unknown, so it naturally
+        // returns false here, which is the desired behavior (`unknown` is not the Type metatype).
         return type.DisplayName == "Type" && type.Kind == TypeKind.Class;
     }
 }

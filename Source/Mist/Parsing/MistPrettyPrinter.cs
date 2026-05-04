@@ -884,6 +884,8 @@ public sealed class MistPrettyPrinter
             }
             case VoidTypeRefTypeReferenceNode:
                 return "void";
+            case UnknownTypeRefTypeReferenceNode:
+                return "unknown";
             case NamedTypeRefTypeReferenceNode namedRef:
             {
                 var name = ExtractQualifiedName(namedRef.Name);

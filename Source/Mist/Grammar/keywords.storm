@@ -59,6 +59,7 @@ token DECIMAL = "decimal";
 token BOOL    = "bool";
 token CHAR    = "char";
 token STRING  = "string";
+token UNKNOWN = "unknown";
 
 // Pattern matching keywords
 token IS  = "is";

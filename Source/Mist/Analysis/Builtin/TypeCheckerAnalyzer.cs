@@ -3145,6 +3145,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
+        // ── unknown-type storage ban on `default` (Task 12.4) ────────────
+        // Requirement 5.6 — `default(unknown)` and bare `default` inferred
+        // to `unknown` are forbidden. Checked before the interface/trait/
+        // type-parameter rejections below because `unknown` is none of
+        // those — it is its own TypeKind (TypeKind.Unknown) — and the
+        // diagnostic for each of those cases would be misleading. The
+        // rule fires for both explicit `default(unknown)` and bare
+        // `default` whose inferred type is UnknownType (e.g.,
+        // `unknown x = default;`).
+        if (resolvedType is UnknownType)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                SemanticModelBuilder.UnknownHasNoDefault.Value,
+                "'unknown' has no default value. 'default(unknown)' is not permitted because 'unknown' cannot be used as the declared type of a freshly-materialized value; use a concrete type or pattern-match before materializing a value.",
+                node,
+                model));
+            return;
+        }
+
         switch (resolvedType)
         {
             case InterfaceType:
@@ -3883,6 +3902,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
+        // ── unknown-type storage ban on `new T[n]` (Task 12.3) ───────────
+        // Requirement 5.5 — `new unknown[n]` is forbidden because every
+        // slot of the resulting array would persist an `unknown`-typed
+        // value, and array elements are writable storage. The check runs
+        // against the element type (unwrapped from the ArrayType that
+        // SemanticModelBuilder produces for this node); nested
+        // `unknown` occurrences inside a non-trivial element type like
+        // `List<unknown>[]` also trip the ban via IsStorageBanned.
+        if (elementType is ArrayType arr && TypeContainment.IsStorageBanned(arr.ElementType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                SemanticModelBuilder.UnknownAsArrayElement.Value,
+                $"Cannot create an array of type '{arr.ElementType.DisplayName}' because its element type contains 'unknown'. Array elements are writable storage and cannot hold an 'unknown'-typed value.",
+                arrayCreation,
+                model));
+            return;
+        }
+
         var sizeType = model.GetTypeOf(arrayCreation.Size);
         if (sizeType is not null && !IsErrorType(sizeType))
         {
@@ -3944,6 +3981,44 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var createdType = model.GetTypeOf(objectCreation);
         if (createdType is null || IsErrorType(createdType))
             return;
+
+        // ── unknown-type storage ban on `new` (Task 12.1, 12.2) ──────────
+        // Two guards, checked before constructor lookup because the
+        // constructor lookup would fail anyway (UnknownType has no members
+        // — Requirement 3.4 — and the constructed generic's constructor
+        // would require storing an `unknown`-typed argument into a
+        // T-typed slot, which is forbidden).
+        if (createdType is UnknownType)
+        {
+            // Requirement 5.4 — `new unknown(...)` is categorically
+            // forbidden. In practice the grammar rejects this form
+            // before we get here (see remarks on
+            // SemanticModelBuilder.UnknownCannotBeInstantiated), so this
+            // branch is a defensive guard for programmatically-constructed
+            // ASTs.
+            diagnostics.Add(MakeDiagnostic(
+                SemanticModelBuilder.UnknownCannotBeInstantiated.Value,
+                "'unknown' cannot be instantiated. The 'unknown' type has no constructor and no declared members; use a concrete type instead.",
+                objectCreation,
+                model));
+            return;
+        }
+
+        if (TypeContainment.IsStorageBanned(createdType))
+        {
+            // Requirement 5.7 — a generic construction whose substituted
+            // type contains `unknown` at one or more positions is
+            // forbidden because every constructor of such a generic would
+            // need to store an `unknown`-typed argument into a T-typed
+            // slot. Diagnostic message names the generic type (Req 16.2)
+            // and states the rule.
+            diagnostics.Add(MakeDiagnostic(
+                SemanticModelBuilder.UnknownInGenericConstruction.Value,
+                $"Cannot construct '{createdType.DisplayName}' because one or more type arguments are 'unknown'. A generic type cannot be constructed with 'unknown' as a type argument; use concrete type arguments or pattern-match from an already-widened value.",
+                objectCreation,
+                model));
+            return;
+        }
 
         // Find constructors on the type.
         IScope? memberScope = createdType switch

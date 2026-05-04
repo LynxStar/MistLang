@@ -153,8 +153,8 @@ Phase B adds the new `TypeKind.Unknown` variant, the new `UnknownType` singleton
     - `IsAssignable(UnknownType, UnknownType)` == true
     - _Requirements: 4.4, 4.5_
 
-- [ ] 10. Storage-ban cascade — `IsStorageBanned(IType)`
-  - [-] 10.1 Add a private helper `IsStorageBanned(IType)` in `SemanticModelBuilder` (or a shared utility near the type model) implementing the recursive rule from the design
+- [x] 10. Storage-ban cascade — `IsStorageBanned(IType)`
+  - [x] 10.1 Add a private helper `IsStorageBanned(IType)` in `SemanticModelBuilder` (or a shared utility near the type model) implementing the recursive rule from the design
     - `UnknownType` → true
     - `ArrayType(element)` → `IsStorageBanned(element)`
     - `ConstructedType(def, args)` → any position `i` where the effective type after substitution is storage-banned
@@ -162,26 +162,26 @@ Phase B adds the new `TypeKind.Unknown` variant, the new `UnknownType` singleton
     - Design note: this helper is the specialization of `ContainsType(haystack, needle=UnknownType)`. Extract a shared `ContainsType(haystack, needle)` helper so Phase C's `ContainsTAtStoragePosition` can reuse it
     - _Requirements: 5.1, 5.2, 5.3, 7.5, 7.6_
 
-  - [ ] 10.2 Write property-based test for the storage-ban predicate
+  - [x] 10.2 Write property-based test for the storage-ban predicate
     - **Property 3: `IsStorageBanned` is monotonic under `unknown` substitution** — for any `IType` t that does not contain `UnknownType`, `IsStorageBanned(t)` is false; replacing any type argument with `UnknownType` at any depth causes `IsStorageBanned` to become true
     - **Validates: Requirements 5.1, 7.5, 7.6**
     - Runs entirely in-process on `IType` values; no compilation or process spawning
     - _Requirements: 5.1, 7.5, 7.6_
 
-- [ ] 11. Enforce storage ban at declaration sites
-  - [ ] 11.1 In Pass 1 of `SemanticModelBuilder`, check every field declaration with `IsStorageBanned(declaredType)` and emit `MIST_SB_0050` if true
+- [x] 11. Enforce storage ban at declaration sites
+  - [x] 11.1 In Pass 1 of `SemanticModelBuilder`, check every field declaration with `IsStorageBanned(declaredType)` and emit `MIST_SB_0050` if true
     - Diagnostic names the declaring type and the field name
     - _Requirements: 5.1, 16.1_
 
-  - [ ] 11.2 Check every property declaration with `IsStorageBanned(declaredType)` and emit `MIST_SB_0051` if true
+  - [x] 11.2 Check every property declaration with `IsStorageBanned(declaredType)` and emit `MIST_SB_0051` if true
     - Diagnostic names the declaring type and the property name
     - _Requirements: 5.2, 16.1_
 
-  - [ ] 11.3 Check every indexer declaration's element type with `IsStorageBanned(elementType)` and emit `MIST_SB_0052` if true
+  - [x] 11.3 Check every indexer declaration's element type with `IsStorageBanned(elementType)` and emit `MIST_SB_0052` if true
     - Diagnostic names the declaring type and the indexer
     - _Requirements: 5.3, 16.1_
 
-  - [ ] 11.4 Write unit tests
+  - [x] 11.4 Write unit tests
     - `class Foo { unknown f; }` emits `MIST_SB_0050`
     - `class Foo { unknown P { get; set; } }` emits `MIST_SB_0051`
     - `class Foo { unknown this[int i] { get; set; } }` emits `MIST_SB_0052`
@@ -191,22 +191,22 @@ Phase B adds the new `TypeKind.Unknown` variant, the new `UnknownType` singleton
     - All tests use `SharedDriver.Compile()` and inspect the diagnostic list in-process
     - _Requirements: 5.1, 5.2, 5.3, 7.5, 7.6, 16.1_
 
-- [ ] 12. Enforce storage ban at `new`, `new[]`, and `default` expressions
-  - [ ] 12.1 In the Type Checker, when checking a `new T(...)` expression, emit `MIST_SB_0056` if the constructed type equals `UnknownType`
+- [x] 12. Enforce storage ban at `new`, `new[]`, and `default` expressions
+  - [x] 12.1 In the Type Checker, when checking a `new T(...)` expression, emit `MIST_SB_0056` if the constructed type equals `UnknownType`
     - Diagnostic: `unknown` cannot be instantiated
     - _Requirements: 5.4_
 
-  - [ ] 12.2 When checking `new T(...)` where T is a constructed generic, apply `IsStorageBanned(T)` and emit `MIST_SB_0053` if true
+  - [x] 12.2 When checking `new T(...)` where T is a constructed generic, apply `IsStorageBanned(T)` and emit `MIST_SB_0053` if true
     - Diagnostic names the generic type and the position(s) where `unknown` appears
     - _Requirements: 5.7, 7.5, 16.2_
 
-  - [ ] 12.3 When checking `new T[n]`, emit `MIST_SB_0055` if the element type equals `UnknownType`
+  - [x] 12.3 When checking `new T[n]`, emit `MIST_SB_0055` if the element type equals `UnknownType`
     - _Requirements: 5.5_
 
-  - [ ] 12.4 When checking `default(T)` or default-inferred initializers, emit `MIST_SB_0057` if T equals `UnknownType`
+  - [x] 12.4 When checking `default(T)` or default-inferred initializers, emit `MIST_SB_0057` if T equals `UnknownType`
     - _Requirements: 5.6_
 
-  - [ ] 12.5 Write unit tests for each new/default case
+  - [x] 12.5 Write unit tests for each new/default case
     - `new unknown()` → `MIST_SB_0056`
     - `new unknown[5]` → `MIST_SB_0055`
     - `new List<unknown>()` → `MIST_SB_0053`
@@ -214,32 +214,32 @@ Phase B adds the new `TypeKind.Unknown` variant, the new `UnknownType` singleton
     - `default(unknown)` → `MIST_SB_0057`
     - _Requirements: 5.4, 5.5, 5.6, 5.7, 7.5, 16.2_
 
-- [ ] 13. Enforce inheritance prohibition
-  - [ ] 13.1 In Pass 1b (base clause resolution) of `SemanticModelBuilder`, check whether any base or interface reference resolves to `UnknownType`; emit `MIST_SB_0054` and drop the reference from the base/interface list
+- [x] 13. Enforce inheritance prohibition
+  - [x] 13.1 In Pass 1b (base clause resolution) of `SemanticModelBuilder`, check whether any base or interface reference resolves to `UnknownType`; emit `MIST_SB_0054` and drop the reference from the base/interface list
     - Applies to classes, structs (interface list), interfaces (base interface list), and traits (base trait position)
     - Diagnostic names the declaring type and states that `unknown` cannot be a base or implemented type
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 16.6_
 
-  - [ ] 13.2 Write unit tests
+  - [x] 13.2 Write unit tests
     - `class Foo : unknown { }` → `MIST_SB_0054`
     - `struct S : unknown { }` → `MIST_SB_0054`
     - `interface I : unknown { }` → `MIST_SB_0054`
     - `trait T : unknown { }` → `MIST_SB_0054`
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-- [ ] 14. Permit `unknown` as a type argument in non-storage positions
-  - [ ] 14.1 Confirm (no code change needed) that `ConstructedType` with `UnknownType` arguments is produced by `ResolveTypeReference` without special casing
+- [x] 14. Permit `unknown` as a type argument in non-storage positions
+  - [x] 14.1 Confirm (no code change needed) that `ConstructedType` with `UnknownType` arguments is produced by `ResolveTypeReference` without special casing
     - Add a regression test to lock in this behavior
     - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-  - [ ] 14.2 Write unit tests for `unknown` in type-argument positions
+  - [x] 14.2 Write unit tests for `unknown` in type-argument positions
     - `Optional<unknown> o;` (local) parses, resolves, and is not flagged
     - `fn f(List<unknown> xs) { }` (parameter) parses and resolves
     - `fn f() : Map<string, unknown> { ... }` (return) parses and resolves
     - Nested occurrences (`Optional<List<unknown>>`, `Map<unknown, List<unknown>>`) resolve correctly
     - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [ ] 15. Phase B checkpoint
+- [x] 15. Phase B checkpoint
   - Rebuild with zero warnings; run the full test suite
   - Ensure all tests pass, ask the user if questions arise.
   - _Requirements: 2.3, (phase gate)_

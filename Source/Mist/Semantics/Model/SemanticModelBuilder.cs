@@ -105,6 +105,132 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId DuplicateCastOperator = new("MIST_SB_0043");
 
+    // ── Storage-ban diagnostic IDs (unknown-type Task 11, Requirements 5.1–5.3, 7.5–7.6, 16.1) ──
+
+    /// <summary>
+    /// A field declaration has a declared type that is storage-banned under
+    /// the <c>unknown-type</c> rules (Requirement 5.1). Fires when the
+    /// declared type is <see cref="UnknownType"/> directly, or transitively
+    /// contains it through <see cref="ArrayType"/> / <see cref="ConstructedType"/>
+    /// arguments (Requirements 7.5, 7.6). Detection is performed via
+    /// <see cref="Types.TypeContainment.IsStorageBanned"/> in
+    /// <see cref="ResolveFieldDeclaration"/>, immediately after the field
+    /// type is resolved in Pass 2. The diagnostic message names the
+    /// declaring type and the field (Requirement 16.1).
+    /// </summary>
+    internal static readonly DiagnosticId UnknownAsFieldType = new("MIST_SB_0050");
+
+    /// <summary>
+    /// A property declaration has a declared type that is storage-banned
+    /// under the <c>unknown-type</c> rules (Requirement 5.2). Like
+    /// <see cref="UnknownAsFieldType"/>, fires on bare
+    /// <see cref="UnknownType"/> and on transitive containment through
+    /// arrays and constructed generics (Requirements 7.5, 7.6). Detection
+    /// runs immediately after the property type is resolved in Pass 2
+    /// (for both block and expression-bodied properties). The diagnostic
+    /// message names the declaring type and the property (Requirement 16.1).
+    /// </summary>
+    internal static readonly DiagnosticId UnknownAsPropertyType = new("MIST_SB_0051");
+
+    /// <summary>
+    /// An indexer declaration has an element type (the indexer's declared
+    /// return type) that is storage-banned under the <c>unknown-type</c>
+    /// rules (Requirement 5.3). Like the field and property variants, fires
+    /// on bare <see cref="UnknownType"/> and transitive containment
+    /// (Requirements 7.5, 7.6). Detection runs immediately after the
+    /// indexer element type is resolved in Pass 2. The diagnostic message
+    /// names the declaring type and the indexer (Requirement 16.1).
+    /// </summary>
+    internal static readonly DiagnosticId UnknownAsIndexerElementType = new("MIST_SB_0052");
+
+    /// <summary>
+    /// A <c>new T(...)</c> object-creation expression constructs a generic
+    /// type whose substituted type contains <see cref="UnknownType"/> at one
+    /// or more positions — e.g., <c>new List&lt;unknown&gt;()</c> or
+    /// <c>new Map&lt;unknown, int&gt;()</c> (Requirement 5.7). The
+    /// constructed type satisfies <see cref="Types.TypeContainment.IsStorageBanned"/>
+    /// because each constructor stores its parameters into T-typed slots,
+    /// which would require persisting an <c>unknown</c>-typed value. The
+    /// diagnostic message names the generic type and the position(s) where
+    /// <c>unknown</c> appears (Requirement 16.2). Detection is performed by
+    /// <see cref="Builtin.TypeCheckerAnalyzer"/> during
+    /// <c>CheckObjectCreation</c>; the ID is declared here alongside the
+    /// other storage-ban IDs so the whole cascade lives in one place.
+    /// </summary>
+    internal static readonly DiagnosticId UnknownInGenericConstruction = new("MIST_SB_0053");
+
+    /// <summary>
+    /// A class, struct, interface, or trait declaration names
+    /// <see cref="UnknownType"/> in its base clause or interface list
+    /// (Requirements 6.1, 6.2, 6.3, 6.4). <c>UnknownType</c> is the
+    /// user-facing top type and is not an inheritable or implementable
+    /// shape: it declares no members (Requirement 3.4) and does not
+    /// participate in inheritance relationships (Requirement 3.5).
+    /// </summary>
+    /// <remarks>
+    /// In practice the grammar rejects this form before Pass 1b runs —
+    /// <c>BaseTypeRef = name:IDENTIFIER typeArgs:TypeArgumentList?</c>
+    /// requires an <c>IDENTIFIER</c> token, and <c>unknown</c> is a
+    /// reserved keyword that lexes to <c>UNKNOWN</c>, not
+    /// <c>IDENTIFIER</c>. Traits have no base-clause production at all
+    /// (<c>TraitDeclaration = TRAIT IDENTIFIER LEFT_BRACE ... RIGHT_BRACE</c>),
+    /// so <c>trait T : unknown { }</c> also fails at parse time. The
+    /// check is retained as a defensive guard for programmatically
+    /// constructed ASTs and for documentation alignment with
+    /// Requirements 6.1–6.4 and 16.6. When triggered, the offending
+    /// base/interface reference is dropped from the declaring type's
+    /// base/interface list so subsequent passes see a consistent model.
+    /// </remarks>
+    internal static readonly DiagnosticId UnknownAsBaseType = new("MIST_SB_0054");
+
+    /// <summary>
+    /// A <c>new T[n]</c> array-creation expression uses
+    /// <see cref="UnknownType"/> as the array element type — e.g.,
+    /// <c>new unknown[5]</c> (Requirement 5.5). The storage ban applies
+    /// because every array slot would hold an <c>unknown</c>-typed value,
+    /// and array elements are writable storage. Detection is performed by
+    /// <see cref="Builtin.TypeCheckerAnalyzer"/> during
+    /// <c>CheckArrayCreation</c>; the ID is declared here alongside the
+    /// other storage-ban IDs.
+    /// </summary>
+    internal static readonly DiagnosticId UnknownAsArrayElement = new("MIST_SB_0055");
+
+    /// <summary>
+    /// A <c>new T(...)</c> object-creation expression attempts to
+    /// instantiate <see cref="UnknownType"/> directly — <c>new unknown(...)</c>
+    /// (Requirement 5.4). <c>UnknownType</c> has no declared members
+    /// (Requirement 3.4) and no constructor, so the operation is
+    /// categorically forbidden. Detection is performed by
+    /// <see cref="Builtin.TypeCheckerAnalyzer"/> during
+    /// <c>CheckObjectCreation</c>.
+    /// </summary>
+    /// <remarks>
+    /// In practice the grammar rejects this form before the type checker
+    /// runs — <c>ObjectCreationExpression</c> requires a
+    /// <c>QualifiedIdentifier</c>, and <c>unknown</c> is a reserved keyword
+    /// that lexes to <c>UNKNOWN</c>, not <c>IDENTIFIER</c>. The check is
+    /// retained as a defensive guard for programmatically-constructed ASTs
+    /// and for documentation alignment with Requirement 5.4.
+    /// </remarks>
+    internal static readonly DiagnosticId UnknownCannotBeInstantiated = new("MIST_SB_0056");
+
+    /// <summary>
+    /// A <c>default(T)</c> expression or a bare <c>default</c> whose
+    /// inferred context type is <see cref="UnknownType"/> — e.g.,
+    /// <c>default(unknown)</c> or <c>unknown x = default;</c>
+    /// (Requirement 5.6). <c>UnknownType</c> has no default value because
+    /// it has no declared members and no associated runtime representation
+    /// beyond C# <c>object</c>; producing a default would materialize a
+    /// specific value (<c>null</c>) whose static type is <c>unknown</c>,
+    /// violating the storage ban on freshly-materialized <c>unknown</c>
+    /// values. Detection is performed by
+    /// <see cref="Builtin.TypeCheckerAnalyzer"/> inside
+    /// <c>ValidateDefaultableType</c>, before the interface/trait/type-parameter
+    /// checks, so both explicit <c>default(unknown)</c> and bare
+    /// <c>default</c> inferred to <c>unknown</c> fire.
+    /// </summary>
+    internal static readonly DiagnosticId UnknownHasNoDefault = new("MIST_SB_0057");
+
     // ── Trait with-block diagnostic IDs (Task 4.1, Requirements 6.1–6.9) ──
 
     /// <summary>
@@ -2067,6 +2193,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     classDecl,
                     sourceText));
             }
+            else if (resolvedSymbol.DeclaredType is UnknownType)
+            {
+                // Defensive guard (Requirements 6.1, 16.6). The grammar
+                // prevents `unknown` from appearing as the name in a
+                // `BaseTypeRef` because `unknown` lexes to the reserved
+                // `UNKNOWN` token, not `IDENTIFIER`. This branch exists
+                // to keep the rule robust for programmatically-constructed
+                // ASTs and for documentation alignment with Req 6.1. The
+                // reference is dropped from the base list by simply not
+                // assigning `classType.BaseType`.
+                var sourceText = FindSourceTextForClassDecl(classDecl, asts, compilation);
+
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    UnknownAsBaseType.Value,
+                    DiagnosticSeverity.Error,
+                    $"Class '{classType.DisplayName}' cannot inherit from 'unknown'. " +
+                    "'unknown' is the user-facing top type and does not participate in inheritance.",
+                    classDecl,
+                    sourceText));
+            }
             else if (resolvedSymbol.DeclaredType is ClassType resolvedClassType)
             {
                 var typeArgs = classDecl.BaseList.First.TypeArgs;
@@ -2573,6 +2719,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Already reported as MIST_CANNOT_INHERIT_STRUCT by Pass1_ResolveBaseTypes.
                 startIndex = 1;
             }
+            else if (resolvedSymbol.DeclaredType is UnknownType)
+            {
+                // Already reported by Pass1_ResolveBaseTypes' defensive
+                // UnknownType guard (Requirements 6.1, 16.6). Skip the
+                // first entry so it is not additionally reported here.
+                startIndex = 1;
+            }
             else
             {
                 // Resolved to a ClassType but BaseType is null (shouldn't happen normally).
@@ -2830,6 +2983,48 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     resolvedInterface, entry.TypeArgs, name,
                     declaringType, declaringNode, asts, compilation, diagnostics);
                 resolved.Add(resolvedType);
+            }
+            else if (resolvedSymbol.DeclaredType is UnknownType)
+            {
+                // Defensive guard (Requirements 6.2, 6.3, 16.6). The
+                // grammar prevents `unknown` from appearing as the name
+                // of a `BaseTypeRef` because `unknown` lexes to the
+                // reserved `UNKNOWN` token rather than `IDENTIFIER`, so
+                // no parsed struct interface list or interface base
+                // list can land here. The branch is retained so the
+                // rule is complete for programmatically-constructed
+                // ASTs and for documentation alignment with Req 6.2–6.3.
+                // The reference is dropped by simply not appending it to
+                // `resolved`.
+                var sourceText = FindSourceTextForSymbol(
+                    findPathForSymbol, symbolTable, asts, compilation);
+                var declNode = symbolTable.GetDeclaringNode(findPathForSymbol);
+
+                if (declNode is not null)
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        UnknownAsBaseType.Value,
+                        DiagnosticSeverity.Error,
+                        $"'{declaringType.DisplayName}' cannot reference 'unknown' as a base or implemented type. " +
+                        "'unknown' is the user-facing top type and does not participate in inheritance.",
+                        declNode,
+                        sourceText));
+                }
+                else
+                {
+                    string? compilationUnitPath = FindCompilationUnitPathForSymbol(
+                        findPathForSymbol, symbolTable, asts, compilation);
+
+                    diagnostics.Add(new Diagnostic(
+                        UnknownAsBaseType,
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        $"'{declaringType.DisplayName}' cannot reference 'unknown' as a base or implemented type. " +
+                        "'unknown' is the user-facing top type and does not participate in inheritance.",
+                        Location: null,
+                        CompilationUnitPath: compilationUnitPath,
+                        AnalyzerName: null));
+                }
             }
             else
             {
@@ -5661,6 +5856,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var fieldType = ResolveTypeReference(fieldDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
 
+        // Storage-ban check (unknown-type feature, Task 11.1, Requirements
+        // 5.1, 7.5, 7.6, 16.1). Emitted BEFORE the symbol's declared type is
+        // updated so downstream passes still see the banned type on the
+        // symbol — the design note for Task 11 is explicit that we do not
+        // substitute ErrorType here. Only the diagnostic is emitted.
+        if (TypeContainment.IsStorageBanned(fieldType))
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                UnknownAsFieldType.Value,
+                DiagnosticSeverity.Error,
+                $"Field '{enclosingType.DisplayName}.{fieldDecl.Name.Lexeme}' of type '{fieldType.DisplayName}' cannot have 'unknown' in its declared type: 'unknown' is not permitted as the type of writable storage.",
+                fieldDecl,
+                sourceText));
+        }
+
         // Update the field symbol's declared type.
         var fieldSymbol = symbolTable.GetDeclaredSymbol(fieldDecl) as Symbol;
         if (fieldSymbol is not null)
@@ -5886,6 +6096,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Resolve the property type and update the property symbol.
         var propType = ResolveTypeReference(blockProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+        // Storage-ban check (unknown-type feature, Task 11.2, Requirements
+        // 5.2, 7.5, 7.6, 16.1). See ResolveFieldDeclaration for the
+        // "do not substitute ErrorType" rationale.
+        if (TypeContainment.IsStorageBanned(propType))
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                UnknownAsPropertyType.Value,
+                DiagnosticSeverity.Error,
+                $"Property '{enclosingType.DisplayName}.{blockProp.Name.Lexeme}' of type '{propType.DisplayName}' cannot have 'unknown' in its declared type: 'unknown' is not permitted as the type of writable storage.",
+                blockProp,
+                sourceText));
+        }
+
         var propSymbol = symbolTable.GetDeclaredSymbol(blockProp) as Symbol;
         if (propSymbol is not null)
         {
@@ -5927,6 +6151,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Resolve the property type and update the property symbol.
         var propType = ResolveTypeReference(exprProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+        // Storage-ban check (unknown-type feature, Task 11.2, Requirements
+        // 5.2, 7.5, 7.6, 16.1). Expression-bodied properties have no
+        // backing field per se, but Requirement 5.2 bans `unknown` as the
+        // type of any property declaration regardless of how it is
+        // implemented — the ban is a declaration-site rule.
+        if (TypeContainment.IsStorageBanned(propType))
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                UnknownAsPropertyType.Value,
+                DiagnosticSeverity.Error,
+                $"Property '{enclosingType.DisplayName}.{exprProp.Name.Lexeme}' of type '{propType.DisplayName}' cannot have 'unknown' in its declared type: 'unknown' is not permitted as the type of writable storage.",
+                exprProp,
+                sourceText));
+        }
+
         var propSymbol = symbolTable.GetDeclaredSymbol(exprProp) as Symbol;
         if (propSymbol is not null)
         {
@@ -6038,6 +6278,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Resolve the indexer return type and update the indexer symbol.
         var indexerType = ResolveTypeReference(blockIndexer.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+        // Storage-ban check (unknown-type feature, Task 11.3, Requirements
+        // 5.3, 7.5, 7.6, 16.1). Applies to the indexer's element type — the
+        // type yielded by a get and consumed by a set — which is the
+        // storage-shaped position per Requirement 5.3.
+        if (TypeContainment.IsStorageBanned(indexerType))
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                UnknownAsIndexerElementType.Value,
+                DiagnosticSeverity.Error,
+                $"Indexer '{enclosingType.DisplayName}.this[]' of element type '{indexerType.DisplayName}' cannot have 'unknown' in its declared type: 'unknown' is not permitted as the element type of writable storage.",
+                blockIndexer,
+                sourceText));
+        }
+
         var indexerSymbol = symbolTable.GetDeclaredSymbol(blockIndexer) as Symbol;
         if (indexerSymbol is not null)
         {

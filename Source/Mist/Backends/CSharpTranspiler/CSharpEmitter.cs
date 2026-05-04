@@ -2079,6 +2079,26 @@ internal sealed class CSharpSourceWriter
                 }
                 return $"{name}{typeArgs}";
             }
+            case TupleTypeRefTypeReferenceNode tupleRef:
+            {
+                // Emit C# tuple type syntax: (T1, T2) or (T1 name1, T2 name2).
+                var parts = new List<string>();
+
+                string FormatTupleElement(TupleTypeElementNode element)
+                {
+                    var type = EmitTypeReference(element.Type, isValueContext);
+                    return element.Name.HasValue ? $"{type} {element.Name.Value.Lexeme}" : type;
+                }
+
+                parts.Add(FormatTupleElement(tupleRef.First));
+                parts.Add(FormatTupleElement(tupleRef.Rest));
+                foreach (var additional in tupleRef.TupleTypeElements)
+                {
+                    parts.Add(FormatTupleElement(additional));
+                }
+
+                return $"({string.Join(", ", parts)})";
+            }
             default:
                 return "object";
         }
@@ -2169,6 +2189,40 @@ internal sealed class CSharpSourceWriter
                 var name = inferred.Name.Lexeme;
                 var init = EmitExpression(inferred.Initializer);
                 AppendLine($"var {name} = {init};");
+                break;
+            }
+            case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
+            {
+                // Emit: var (a, b, ...) = expr;
+                var names = new List<string> { varTuple.FirstName.Lexeme };
+                foreach (var restName in varTuple.RestNames)
+                {
+                    names.Add(restName.Lexeme);
+                }
+                var init = EmitExpression(varTuple.Initializer);
+                AppendLine($"var ({string.Join(", ", names)}) = {init};");
+                break;
+            }
+            case TypedTupleDeconstructionVariableDeclarationStatementNode typedTuple:
+            {
+                // Emit: (Type1 a, Type2 b, ...) = expr;
+                var parts = new List<string>();
+
+                string FormatDeconstructionElement(TupleDeconstructionElementNode element)
+                {
+                    var type = EmitTypeReference(element.Type, isValueContext: true);
+                    return $"{type} {element.Name.Lexeme}";
+                }
+
+                parts.Add(FormatDeconstructionElement(typedTuple.First));
+                parts.Add(FormatDeconstructionElement(typedTuple.Rest));
+                foreach (var additional in typedTuple.TupleDeconstructionElements)
+                {
+                    parts.Add(FormatDeconstructionElement(additional));
+                }
+
+                var init = EmitExpression(typedTuple.Initializer);
+                AppendLine($"({string.Join(", ", parts)}) = {init};");
                 break;
             }
         }
@@ -2948,6 +3002,32 @@ internal sealed class CSharpSourceWriter
             }
             case ParenthesizedExpressionPrimaryNode paren:
                 return $"({EmitExpression(paren.Inner)})";
+            case TupleLiteralExpressionPrimaryNode tupleLit:
+            {
+                // Emit C# tuple literal: (expr1, expr2) or (name1: expr1, name2: expr2).
+                var parts = new List<string>();
+
+                string FormatTupleLiteralElement(TupleLiteralElementNode element)
+                {
+                    return element switch
+                    {
+                        NamedTupleLiteralElementTupleLiteralElementNode named =>
+                            $"{named.Name.Lexeme}: {EmitExpression(named.Value)}",
+                        UnnamedTupleLiteralElementTupleLiteralElementNode unnamed =>
+                            EmitExpression(unnamed.Value),
+                        _ => ""
+                    };
+                }
+
+                parts.Add(FormatTupleLiteralElement(tupleLit.First));
+                parts.Add(FormatTupleLiteralElement(tupleLit.Rest));
+                foreach (var additional in tupleLit.TupleLiteralElements)
+                {
+                    parts.Add(FormatTupleLiteralElement(additional));
+                }
+
+                return $"({string.Join(", ", parts)})";
+            }
             case IdentifierExpressionPrimaryNode ident:
                 return ident.Name.Lexeme;
             case FieldKeywordExpressionPrimaryNode:

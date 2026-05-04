@@ -113,6 +113,7 @@ internal static class CSharpTypeMap
         ClassType ct when ct.IsTypeType() => "System.Type",
 
         ArrayType a => $"{GetTypeName(a.ElementType, isValueContext)}[]",
+        TupleType t => EmitTupleTypeName(t, isValueContext),
         TypeParameterType tp => tp.Name,
         ConstructedType ct => $"{GetTypeName(ct.GenericDefinition, isValueContext)}<{string.Join(", ", ct.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
         ClassType c => c.DisplayName,
@@ -131,5 +132,26 @@ internal static class CSharpTypeMap
         if (BackingTypes.TryGetValue(s.DisplayName, out var keyword))
             return keyword;
         return s.DisplayName;
+    }
+
+    /// <summary>
+    /// Emits a C# tuple type name: <c>(int, string)</c> for unnamed elements,
+    /// <c>(int x, string y)</c> for named elements. Each element type is
+    /// recursively mapped through <see cref="GetTypeName"/>.
+    /// </summary>
+    private static string EmitTupleTypeName(TupleType tuple, bool isValueContext)
+    {
+        var parts = new string[tuple.Arity];
+        for (var i = 0; i < tuple.Arity; i++)
+        {
+            var elementTypeName = GetTypeName(tuple.ElementTypes[i], isValueContext);
+            var name = tuple.ElementNames is not null && i < tuple.ElementNames.Count
+                ? tuple.ElementNames[i]
+                : null;
+            parts[i] = name is not null
+                ? $"{elementTypeName} {name}"
+                : elementTypeName;
+        }
+        return $"({string.Join(", ", parts)})";
     }
 }

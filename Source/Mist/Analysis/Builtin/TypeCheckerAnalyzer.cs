@@ -994,6 +994,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (ArePrimitiveEquivalent(source, target))
             return true;
 
+        // Tuple assignability with name erasure: two TupleType instances are
+        // assignable if they have the same arity and each element type is
+        // assignable. Element names are ignored (name erasure).
+        if (source is TupleType sourceTuple && target is TupleType targetTuple)
+        {
+            if (sourceTuple.Arity == targetTuple.Arity)
+            {
+                var allElementsAssignable = true;
+                for (var i = 0; i < sourceTuple.Arity; i++)
+                {
+                    if (!IsDirectlyAssignable(sourceTuple.ElementTypes[i], targetTuple.ElementTypes[i], model))
+                    {
+                        allElementsAssignable = false;
+                        break;
+                    }
+                }
+                if (allElementsAssignable) return true;
+            }
+            return false;
+        }
+
         // ConstructedType identity.
         if (source is ConstructedType sourceConstructed && target is ConstructedType targetConstructed)
         {
@@ -1948,6 +1969,97 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         "'var' declaration requires an initializer",
                         inferred,
                         model));
+                }
+                break;
+            }
+            case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
+            {
+                // var (a, b, ...) = expr; — check initializer and validate tuple deconstruction.
+                CheckExpression(varTuple.Initializer, model, diagnostics);
+
+                var initType = model.GetTypeOf(varTuple.Initializer);
+                if (initType is not null && initType is not ErrorType)
+                {
+                    if (initType is not TupleType tupleType)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0064",
+                            $"Cannot deconstruct expression of type '{initType.DisplayName}'; a tuple type is required.",
+                            varTuple,
+                            model));
+                    }
+                    else
+                    {
+                        // Count targets: FirstName + RestNames.
+                        var targetCount = 1 + varTuple.RestNames.Length;
+                        if (targetCount != tupleType.Arity)
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                "MIST_TC_0061",
+                                $"Tuple deconstruction has {targetCount} targets but the tuple has {tupleType.Arity} elements.",
+                                varTuple,
+                                model));
+                        }
+                    }
+                }
+                break;
+            }
+            case TypedTupleDeconstructionVariableDeclarationStatementNode typedTuple:
+            {
+                // (Type1 a, Type2 b, ...) = expr; — check initializer and validate types.
+                CheckExpression(typedTuple.Initializer, model, diagnostics);
+
+                var initType = model.GetTypeOf(typedTuple.Initializer);
+                if (initType is not null && initType is not ErrorType)
+                {
+                    if (initType is not TupleType tupleType)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0064",
+                            $"Cannot deconstruct expression of type '{initType.DisplayName}'; a tuple type is required.",
+                            typedTuple,
+                            model));
+                    }
+                    else
+                    {
+                        // Count targets: First + Rest + Additional.
+                        var targetCount = 2 + typedTuple.TupleDeconstructionElements.Length;
+                        if (targetCount != tupleType.Arity)
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                "MIST_TC_0061",
+                                $"Tuple deconstruction has {targetCount} targets but the tuple has {tupleType.Arity} elements.",
+                                typedTuple,
+                                model));
+                        }
+                        else
+                        {
+                            // Verify each element type is assignable.
+                            void CheckDeconstructionElement(TupleDeconstructionElementNode element, int index)
+                            {
+                                var declaredType = model.GetTypeOf(element.Type);
+                                if (declaredType is not null && index < tupleType.Arity)
+                                {
+                                    var elementType = tupleType.ElementTypes[index];
+                                    if (!IsAssignable(elementType, declaredType, model))
+                                    {
+                                        diagnostics.Add(MakeDiagnostic(
+                                            "MIST_TC_0062",
+                                            $"Cannot assign tuple element of type '{elementType.DisplayName}' to '{declaredType.DisplayName}' at position {index + 1}.",
+                                            element,
+                                            model));
+                                    }
+                                }
+                            }
+
+                            CheckDeconstructionElement(typedTuple.First, 0);
+                            CheckDeconstructionElement(typedTuple.Rest, 1);
+                            for (var i = 0; i < typedTuple.TupleDeconstructionElements.Length; i++)
+                            {
+                                CheckDeconstructionElement(typedTuple.TupleDeconstructionElements[i], 2 + i);
+                            }
+                        }
+                    }
                 }
                 break;
             }
@@ -5727,6 +5839,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // spuriously reject `int` to `Int32` (or vice versa).
         if (ArePrimitiveEquivalent(source, target))
             return true;
+
+        // Tuple assignability with name erasure: two TupleType instances are
+        // assignable if they have the same arity and each element type is
+        // assignable. Element names are ignored (name erasure).
+        if (source is TupleType sourceTuple && target is TupleType targetTuple)
+        {
+            if (sourceTuple.Arity == targetTuple.Arity)
+            {
+                var allElementsAssignable = true;
+                for (var i = 0; i < sourceTuple.Arity; i++)
+                {
+                    if (!IsAssignable(sourceTuple.ElementTypes[i], targetTuple.ElementTypes[i], model))
+                    {
+                        allElementsAssignable = false;
+                        break;
+                    }
+                }
+                if (allElementsAssignable) return true;
+            }
+            return false;
+        }
 
         // ConstructedType identity: same generic definition + same type arguments.
         if (source is ConstructedType sourceConstructed && target is ConstructedType targetConstructed)

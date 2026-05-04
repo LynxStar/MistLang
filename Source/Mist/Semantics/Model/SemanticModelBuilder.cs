@@ -1175,6 +1175,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return FormatPrimitiveType(primitiveRef.PrimitiveType);
             case VoidTypeRefTypeReferenceNode:
                 return "void";
+            case TupleTypeRefTypeReferenceNode tupleRef:
+                return FormatTupleTypeReference(tupleRef);
             default:
                 return "unknown";
         }
@@ -2462,6 +2464,38 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     declaringNode,
                     srcText));
                 return ErrorType.Instance;
+            }
+
+            case TupleTypeRefTypeReferenceNode tupleRef:
+            {
+                // Collect all elements: First + Rest + TupleTypeElements (additional).
+                var elementCount = 2 + tupleRef.TupleTypeElements.Length;
+                var elementTypes = new List<IType>(elementCount);
+                var elementNames = new List<string?>(elementCount);
+                var hasAnyName = false;
+
+                // Resolve First element.
+                elementTypes.Add(ResolveTypeArgFromTypeReference(tupleRef.First.Type, declaringType, declaringNode, asts, compilation, diagnostics));
+                var firstName = tupleRef.First.Name?.Lexeme;
+                elementNames.Add(firstName);
+                if (firstName is not null) hasAnyName = true;
+
+                // Resolve Rest element.
+                elementTypes.Add(ResolveTypeArgFromTypeReference(tupleRef.Rest.Type, declaringType, declaringNode, asts, compilation, diagnostics));
+                var restName = tupleRef.Rest.Name?.Lexeme;
+                elementNames.Add(restName);
+                if (restName is not null) hasAnyName = true;
+
+                // Resolve additional elements.
+                foreach (var additional in tupleRef.TupleTypeElements)
+                {
+                    elementTypes.Add(ResolveTypeArgFromTypeReference(additional.Type, declaringType, declaringNode, asts, compilation, diagnostics));
+                    var additionalName = additional.Name?.Lexeme;
+                    elementNames.Add(additionalName);
+                    if (additionalName is not null) hasAnyName = true;
+                }
+
+                return new TupleType(elementTypes, hasAnyName ? elementNames : null);
             }
 
             default:
@@ -4816,12 +4850,48 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // parameter requires exactly `unknown` in the implementer).
             (UnknownTypeRefTypeReferenceNode, UnknownTypeRefTypeReferenceNode) => true,
 
+            // Two tuple type references match if they have the same arity
+            // and each element type reference matches (names are ignored
+            // for structural matching, consistent with name-erasure semantics).
+            (TupleTypeRefTypeReferenceNode ta, TupleTypeRefTypeReferenceNode tb) =>
+                TupleTypeReferencesMatch(ta, tb),
+
             // A named type ref could match a primitive type ref if someone
             // uses the type name form (e.g., "string" as named vs primitive).
             // In practice the parser produces consistent node types, so
             // cross-kind comparisons are mismatches.
             _ => false,
         };
+    }
+
+    /// <summary>
+    /// Compares two <see cref="TupleTypeRefTypeReferenceNode"/> instances for
+    /// structural equivalence: same arity and each element type reference matches.
+    /// Element names are ignored (name-erasure semantics).
+    /// </summary>
+    private static bool TupleTypeReferencesMatch(
+        TupleTypeRefTypeReferenceNode a, TupleTypeRefTypeReferenceNode b)
+    {
+        // Check arity: both must have the same number of additional elements.
+        if (a.TupleTypeElements.Length != b.TupleTypeElements.Length)
+            return false;
+
+        // Compare First elements.
+        if (!TypeReferencesMatch(a.First.Type, b.First.Type))
+            return false;
+
+        // Compare Rest elements.
+        if (!TypeReferencesMatch(a.Rest.Type, b.Rest.Type))
+            return false;
+
+        // Compare additional elements.
+        for (var i = 0; i < a.TupleTypeElements.Length; i++)
+        {
+            if (!TypeReferencesMatch(a.TupleTypeElements[i].Type, b.TupleTypeElements[i].Type))
+                return false;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -5172,8 +5242,42 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 FormatPrimitiveType(p.PrimitiveType) + (p.ArrayRank.HasValue ? "[]" : ""),
             NamedTypeRefTypeReferenceNode n =>
                 n.Name.IDENTIFIER.Lexeme + (n.ArrayRank.HasValue ? "[]" : ""),
+            TupleTypeRefTypeReferenceNode t => FormatTupleTypeReference(t),
             _ => "unknown",
         };
+    }
+
+    /// <summary>
+    /// Formats a <see cref="TupleTypeRefTypeReferenceNode"/> as a human-readable
+    /// string of the form <c>(T1, T2)</c> or <c>(T1 name1, T2 name2)</c>.
+    /// </summary>
+    private static string FormatTupleTypeReference(TupleTypeRefTypeReferenceNode tupleRef)
+    {
+        var parts = new List<string>();
+
+        // Format First element.
+        parts.Add(FormatTupleElement(tupleRef.First));
+
+        // Format Rest element.
+        parts.Add(FormatTupleElement(tupleRef.Rest));
+
+        // Format additional elements.
+        foreach (var additional in tupleRef.TupleTypeElements)
+        {
+            parts.Add(FormatTupleElement(additional));
+        }
+
+        return $"({string.Join(", ", parts)})";
+    }
+
+    /// <summary>
+    /// Formats a single <see cref="TupleTypeElementNode"/> as <c>Type</c> or <c>Type name</c>.
+    /// </summary>
+    private static string FormatTupleElement(TupleTypeElementNode element)
+    {
+        var typeStr = FormatTypeReference(element.Type);
+        var name = element.Name?.Lexeme;
+        return name is not null ? $"{typeStr} {name}" : typeStr;
     }
 
     /// <summary>
@@ -6835,6 +6939,52 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 symbolTable.Register(varSymbol, varDecl);
                 break;
             }
+            case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
+            {
+                // var (a, b, ...) = expr; — resolve initializer, defer element type inference to type checker.
+                var initType = ResolveExpression(varTuple.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                // Register first name.
+                var firstName = varTuple.FirstName.Lexeme;
+                CheckDuplicateLocal(firstName, blockScope, sourceText, diagnostics);
+                var firstSymbol = new Symbol(firstName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, ErrorType.Instance, ToMistSourceSpan(varTuple.FirstName.Span));
+                blockScope.AddMember(firstSymbol);
+                symbolTable.Register(firstSymbol, varDecl);
+
+                // Register rest names.
+                foreach (var restName in varTuple.RestNames)
+                {
+                    var name = restName.Lexeme;
+                    CheckDuplicateLocal(name, blockScope, sourceText, diagnostics);
+                    var restSymbol = new Symbol(name, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, ErrorType.Instance, ToMistSourceSpan(restName.Span));
+                    blockScope.AddMember(restSymbol);
+                    symbolTable.Register(restSymbol, varDecl);
+                }
+                break;
+            }
+            case TypedTupleDeconstructionVariableDeclarationStatementNode typedTuple:
+            {
+                // (Type1 a, Type2 b, ...) = expr; — resolve each element's declared type.
+                var initType = ResolveExpression(typedTuple.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                void RegisterDeconstructionElement(TupleDeconstructionElementNode element)
+                {
+                    var declaredType = ResolveTypeReference(element.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                    var name = element.Name.Lexeme;
+                    CheckDuplicateLocal(name, blockScope, sourceText, diagnostics);
+                    var sym = new Symbol(name, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, declaredType, ToMistSourceSpan(element.Name.Span));
+                    blockScope.AddMember(sym);
+                    symbolTable.Register(sym, varDecl);
+                }
+
+                RegisterDeconstructionElement(typedTuple.First);
+                RegisterDeconstructionElement(typedTuple.Rest);
+                foreach (var additional in typedTuple.TupleDeconstructionElements)
+                {
+                    RegisterDeconstructionElement(additional);
+                }
+                break;
+            }
         }
     }
 
@@ -7465,6 +7615,38 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     return new ArrayType(baseType);
                 }
                 return baseType;
+
+            case TupleTypeRefTypeReferenceNode tupleRef:
+            {
+                // Collect all elements: First + Rest + TupleTypeElements (additional).
+                var elementCount = 2 + tupleRef.TupleTypeElements.Length;
+                var elementTypes = new List<IType>(elementCount);
+                var elementNames = new List<string?>(elementCount);
+                var hasAnyName = false;
+
+                // Resolve First element.
+                elementTypes.Add(ResolveTypeReference(tupleRef.First.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
+                var firstName = tupleRef.First.Name?.Lexeme;
+                elementNames.Add(firstName);
+                if (firstName is not null) hasAnyName = true;
+
+                // Resolve Rest element.
+                elementTypes.Add(ResolveTypeReference(tupleRef.Rest.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
+                var restName = tupleRef.Rest.Name?.Lexeme;
+                elementNames.Add(restName);
+                if (restName is not null) hasAnyName = true;
+
+                // Resolve additional elements.
+                foreach (var additional in tupleRef.TupleTypeElements)
+                {
+                    elementTypes.Add(ResolveTypeReference(additional.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
+                    var additionalName = additional.Name?.Lexeme;
+                    elementNames.Add(additionalName);
+                    if (additionalName is not null) hasAnyName = true;
+                }
+
+                return new TupleType(elementTypes, hasAnyName ? elementNames : null);
+            }
 
             default:
                 return ErrorType.Instance;
@@ -9032,6 +9214,41 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             }
 
+            case TupleLiteralExpressionPrimaryNode tupleLit:
+            {
+                // Collect all elements: First + Rest + Additional.
+                var tupleElementCount = 2 + tupleLit.TupleLiteralElements.Length;
+                var tupleElementTypes = new List<IType>(tupleElementCount);
+                var tupleElementNames = new List<string?>(tupleElementCount);
+                var tupleHasAnyName = false;
+
+                void ResolveTupleLiteralElement(TupleLiteralElementNode element)
+                {
+                    switch (element)
+                    {
+                        case NamedTupleLiteralElementTupleLiteralElementNode named:
+                            tupleElementTypes.Add(ResolveExpression(named.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics));
+                            tupleElementNames.Add(named.Name.Lexeme);
+                            tupleHasAnyName = true;
+                            break;
+                        case UnnamedTupleLiteralElementTupleLiteralElementNode unnamed:
+                            tupleElementTypes.Add(ResolveExpression(unnamed.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics));
+                            tupleElementNames.Add(null);
+                            break;
+                    }
+                }
+
+                ResolveTupleLiteralElement(tupleLit.First);
+                ResolveTupleLiteralElement(tupleLit.Rest);
+                foreach (var additional in tupleLit.TupleLiteralElements)
+                {
+                    ResolveTupleLiteralElement(additional);
+                }
+
+                result = new TupleType(tupleElementTypes, tupleHasAnyName ? tupleElementNames : null);
+                break;
+            }
+
             case ParenthesizedExpressionPrimaryNode paren:
                 result = ResolveExpression(paren.Inner, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
@@ -9352,6 +9569,43 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                 }
             }
+        }
+
+        // Tuple element access: resolve ItemN positional access and named access.
+        if (targetType is TupleType tupleTarget)
+        {
+            // Check positional access: Item1, Item2, ..., ItemN (1-indexed).
+            if (memberName.StartsWith("Item", StringComparison.Ordinal)
+                && int.TryParse(memberName.AsSpan(4), out var itemIndex)
+                && itemIndex >= 1
+                && itemIndex <= tupleTarget.Arity)
+            {
+                return tupleTarget.ElementTypes[itemIndex - 1];
+            }
+
+            // Check named access: match against declared element names.
+            if (tupleTarget.ElementNames is not null)
+            {
+                for (var i = 0; i < tupleTarget.ElementNames.Count; i++)
+                {
+                    if (tupleTarget.ElementNames[i] == memberName)
+                    {
+                        return tupleTarget.ElementTypes[i];
+                    }
+                }
+            }
+
+            // No match — report MIST_TC_0063 (undefined tuple member access).
+            diagnostics.Add(new Diagnostic(
+                new DiagnosticId("MIST_TC_0063"),
+                DiagnosticSeverity.Error,
+                PipelineStage.SemanticModelConstruction,
+                $"Tuple type '{tupleTarget.DisplayName}' does not contain a member '{memberName}'.",
+                Location: null,
+                CompilationUnitPath: sourceText?.Path,
+                AnalyzerName: null));
+
+            return ErrorType.Instance;
         }
 
         // Search the type's member scope, walking the BaseType chain for class types.
@@ -10655,6 +10909,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             NamedTypeRefTypeReferenceNode named => named.Name.IDENTIFIER.Lexeme,
             PrimitiveTypeRefTypeReferenceNode primitive => FormatPrimitiveType(primitive.PrimitiveType),
+            TupleTypeRefTypeReferenceNode tuple => FormatTupleTypeReference(tuple),
             _ => "",
         };
     }

@@ -72,6 +72,14 @@ var x = 10;
 this.value = 5;
 // <- keyword.other.mist
 
+// ===== Type keywords (storage.type.primitive.mist) =====
+// The `unknown` keyword is a primitive type keyword, not a control or
+// declaration keyword. It is included here alongside other keyword
+// categories so its tokenization is covered by the keyword test fixture.
+
+unknown value = 42;
+// <- storage.type.primitive.mist
+
 // ===== Word boundary tests =====
 // These identifiers contain keywords as substrings but must NOT match as keywords.
 

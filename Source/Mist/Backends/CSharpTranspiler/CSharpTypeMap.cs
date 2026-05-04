@@ -93,8 +93,39 @@ internal static class CSharpTypeMap
     /// <c>MistVoid</c> (the unit-type struct) instead of the C# <c>void</c> keyword.
     /// The default <c>false</c> preserves backward compatibility for all existing callers.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Closed_Generic_With_Unknown values (e.g., Mist <c>List&lt;unknown&gt;</c>,
+    /// <c>Map&lt;string, unknown&gt;</c>) lower to C# <c>dynamic</c> rather than
+    /// <c>List&lt;object&gt;</c> / <c>Map&lt;string, object&gt;</c>. C# generic
+    /// types are invariant at the CLR level — there is no IL coercion from
+    /// <c>List&lt;int&gt;</c> to <c>List&lt;object&gt;</c> for user-defined
+    /// generics, so the original design's "(List&lt;object&gt;)(object)list"
+    /// double-cast throws <see cref="InvalidCastException"/> at runtime.
+    /// Emitting as <c>dynamic</c> routes every member access on such a
+    /// receiver through the DLR, which dispatches against the receiver's
+    /// actual runtime type. Mist's Reachability Analyzer guarantees at
+    /// compile time that no write-path member is called on a
+    /// Closed_Generic_With_Unknown receiver, so the DLR only sees
+    /// reachability-safe calls at runtime.
+    /// </para>
+    /// <para>
+    /// Bare <see cref="UnknownType"/> still lowers to <c>object</c> (not
+    /// <c>dynamic</c>) because the type checker rejects member access and
+    /// operator dispatch on a bare <c>unknown</c> receiver at compile time
+    /// (MIST_TC_0065 / MIST_TC_0066); the receiver never participates in a
+    /// dispatch that needs DLR support.
+    /// </para>
+    /// </remarks>
     public static string GetTypeName(IType type, bool isValueContext = false) => type switch
     {
+        // User-facing UnknownType (Requirement 15.1): every direct reference to
+        // UnknownType lowers to C# `object`. Matched before the generic class/
+        // struct branches because UnknownType is a singleton with its own class
+        // — it is neither a StructType nor a ClassType and has no
+        // Backing_Type_Map entry.
+        UnknownType => "object",
+
         // Stdlib Backend_Backed_Types — routed to a C# source keyword via
         // the Backing_Type_Map. Matched first so any Standard.* type does
         // not fall through to the generic ClassType / StructType branches
@@ -114,6 +145,13 @@ internal static class CSharpTypeMap
 
         ArrayType a => $"{GetTypeName(a.ElementType, isValueContext)}[]",
         TypeParameterType tp => tp.Name,
+
+        // Closed_Generic_With_Unknown (Task 31 revised) — a constructed type
+        // whose type arguments transitively contain UnknownType lowers to C#
+        // `dynamic`. See the XML remarks above for the rationale.
+        ConstructedType ctUnknown when ConstructedTypeContainsUnknown(ctUnknown)
+            => "dynamic",
+
         ConstructedType ct => $"{GetTypeName(ct.GenericDefinition, isValueContext)}<{string.Join(", ", ct.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
         ClassType c => c.DisplayName,
         StructType s => GetKeywordOrDisplayName(s),
@@ -121,6 +159,40 @@ internal static class CSharpTypeMap
         TraitType t => t.DisplayName,
         _ => throw new ArgumentException($"Cannot map type to C#: {type.DisplayName}"),
     };
+
+    /// <summary>
+    /// Structural test: returns <c>true</c> when <paramref name="ct"/> is a
+    /// Closed_Generic_With_Unknown — a constructed type whose type arguments
+    /// transitively contain <see cref="UnknownType"/> at any depth. Used by
+    /// <see cref="GetTypeName"/> to decide whether to lower the type to C#
+    /// <c>dynamic</c> instead of the naive <c>Foo&lt;object&gt;</c> form.
+    /// </summary>
+    private static bool ConstructedTypeContainsUnknown(ConstructedType ct)
+    {
+        foreach (var arg in ct.TypeArguments)
+        {
+            if (TypeContainsUnknown(arg))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Recursive helper for <see cref="ConstructedTypeContainsUnknown"/>.
+    /// Returns <c>true</c> if <paramref name="type"/> is
+    /// <see cref="UnknownType"/>, or an array whose element type contains
+    /// unknown, or a constructed type whose arguments contain unknown.
+    /// </summary>
+    private static bool TypeContainsUnknown(IType type)
+    {
+        return type switch
+        {
+            UnknownType => true,
+            ArrayType a => TypeContainsUnknown(a.ElementType),
+            ConstructedType ct => ConstructedTypeContainsUnknown(ct),
+            _ => false,
+        };
+    }
 
     /// <summary>
     /// For a StructType, check if its DisplayName maps to a C# keyword

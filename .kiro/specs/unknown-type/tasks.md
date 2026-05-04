@@ -517,70 +517,70 @@ Phase D adds the assignability helper for covariant unknown widening, the class-
 
 Phase E completes the feature: C# emission for UnknownType and covariant widening, pretty-printer round-trip parity, syntax highlighting, two sample apps, and the CSHARP_FEATURES.md update.
 
-- [ ] 29. C# type map — emit `UnknownType` as `object`
-  - [ ] 29.1 In `Source/Mist/Backends/CSharpTranspiler/CSharpTypeMap.cs`, add the `UnknownType => "object"` case
+- [x] 29. C# type map — emit `UnknownType` as `object`
+  - [x] 29.1 In `Source/Mist/Backends/CSharpTranspiler/CSharpTypeMap.cs`, add the `UnknownType => "object"` case
     - Every Mist reference to UnknownType (direct or after substitution) emits C# `object`
     - _Requirements: 15.1_
 
-  - [ ] 29.2 Write unit tests for type-map emission
+  - [x] 29.2 Write unit tests for type-map emission
     - `unknown` → `"object"`
     - `List<unknown>` → `"List<object>"`
     - `Map<string, unknown>` → `"Map<string, object>"`
     - `Optional<List<unknown>>` → `"Optional<List<object>>"`
     - _Requirements: 15.1_
 
-- [ ] 30. C# emission — cast expressions involving `unknown`
-  - [ ] 30.1 Emit `(unknown) expr` as `(object)(<emitted expr>)` — no operator dispatch
+- [x] 30. C# emission — cast expressions involving `unknown`
+  - [x] 30.1 Emit `(unknown) expr` as `(object)(<emitted expr>)` — no operator dispatch
     - _Requirements: 13.5, 15.4_
 
-  - [ ] 30.2 Emit `(T) expr` where `expr` is typed `unknown` as a static method call on the declaring type `T`, per the cast-operators feature's emission rules
+  - [x] 30.2 Emit `(T) expr` where `expr` is typed `unknown` as a static method call on the declaring type `T`, per the cast-operators feature's emission rules
     - Depends on Task 26.1's resolution
     - _Requirements: 13.4, 15.4_
 
-  - [ ] 30.3 Write unit tests for cast emission
+  - [x] 30.3 Write unit tests for cast emission
     - `(unknown) 42` → C# `(object)(42)`
     - `(MyInt) someUnknown` with a resolved implicit operator → C# `MyInt.op_Implicit(someUnknown)` (or the equivalent explicit form)
     - _Requirements: 13.4, 13.5, 15.4_
 
-- [ ] 31. C# emission — covariant unknown widening
-  - [ ] 31.1 At each widening site (assignment, argument pass, return), detect whether the source and target differ only by `UnknownType` substitutions on a class-generic definition
+- [x] 31. C# emission — covariant unknown widening
+  - [x] 31.1 At each widening site (assignment, argument pass, return), detect whether the source and target differ only by `UnknownType` substitutions on a class-generic definition
     - If so, emit the double cast: `(Foo<object>)(object)<emitted source>`
     - Otherwise, emit normally
     - _Requirements: 15.2_
 
-  - [ ] 31.2 Do not emit the double cast when target is directly `UnknownType` (single `(object)` cast suffices)
+  - [x] 31.2 Do not emit the double cast when target is directly `UnknownType` (single `(object)` cast suffices)
     - _Requirements: 15.1, 15.2_
 
-  - [ ] 31.3 Write unit tests for widening emission
+  - [x] 31.3 Write unit tests for widening emission
     - Mist `List<unknown> xs = intList;` → C# `List<object> xs = (List<object>)(object)intList;`
     - Mist `unknown x = 42;` → C# `object x = 42;` (single implicit conversion; no double cast)
     - Mist `Map<string, unknown> m = stringIntMap;` → C# `Map<string, object> m = (Map<string, object>)(object)stringIntMap;`
     - _Requirements: 15.1, 15.2_
 
-- [ ] 32. C# emission — `is` patterns and best-effort storage skipping
-  - [ ] 32.1 Confirm that `is Pattern` emission is unchanged — Mist `foo is Optional<int> oi` emits C# `foo is Optional<int> oi` directly
+- [x] 32. C# emission — `is` patterns and best-effort storage skipping
+  - [x] 32.1 Confirm that `is Pattern` emission is unchanged — Mist `foo is Optional<int> oi` emits C# `foo is Optional<int> oi` directly
     - Add a regression test to lock in this behavior
     - _Requirements: 15.3_
 
-  - [ ] 32.2 Emitter skips emission of any field/property/indexer declaration whose declared type satisfies `IsStorageBanned(type)`
+  - [x] 32.2 Emitter skips emission of any field/property/indexer declaration whose declared type satisfies `IsStorageBanned(type)`
     - Best-effort output so that programs with storage-ban diagnostics still produce compilable C# for the unaffected portions
     - _Requirements: 15.5_
 
-  - [ ] 32.3 Write a unit test
+  - [x] 32.3 Write a unit test
     - `class Foo { unknown f; int g; }` → diagnostic `MIST_SB_0050` is emitted; emitted C# contains field `g` but not `f`
     - _Requirements: 15.5_
 
-- [ ] 33. Syntax highlighting
-  - [ ] 33.1 Add `unknown` to the primitive-type keyword pattern in `Editor/mist-syntax-highlighting/syntaxes/mist.tmLanguage.json`
+- [x] 33. Syntax highlighting
+  - [x] 33.1 Add `unknown` to the primitive-type keyword pattern in `Editor/mist-syntax-highlighting/syntaxes/mist.tmLanguage.json`
     - Scope: `keyword.type.primitive.mist` (the scope used by existing primitive-type keywords)
     - _Requirements: 17.1, 17.2_
 
-  - [ ] 33.2 Add a line containing `unknown` in each relevant position to `Editor/mist-syntax-highlighting/tests/keywords.mist` and `types.mist`
+  - [x] 33.2 Add a line containing `unknown` in each relevant position to `Editor/mist-syntax-highlighting/tests/keywords.mist` and `types.mist`
     - Keeps the highlighting tests current
     - _Requirements: 17.1, 17.2_
 
-- [ ] 34. Sample application — `Samples/UnknownType/Program.mist`
-  - [ ] 34.1 Create `Samples/UnknownType/Program.mist`
+- [x] 34. Sample application — `Samples/UnknownType/Program.mist`
+  - [x] 34.1 Create `Samples/UnknownType/Program.mist`
     - `static void Main` entry point
     - Declare an `unknown`-typed local initialized from values of multiple concrete types
     - Declare an `unknown`-typed method parameter and pass values of multiple concrete types to it
@@ -591,7 +591,7 @@ Phase E completes the feature: C# emission for UnknownType and covariant widenin
     - Produce observable output via `Console.WriteLine`
     - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7, 19.8, 19.9_
 
-  - [ ] 34.2 Wire the sample into the existing sample-app test harness
+  - [x] 34.2 Wire the sample into the existing sample-app test harness
     - The existing harness discovers `Samples/*/Program.mist` automatically; verify no additional wiring is needed
     - Ensure expected-output file (if the harness uses one) is present
     - _Requirements: 19.8_

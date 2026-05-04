@@ -1,4 +1,5 @@
 using Mist.Backends.CSharpTranspiler;
+using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
 
@@ -181,5 +182,93 @@ public class CSharpTypeMapTests
     public void GetTypeName_TypeType_ReturnsSystemType()
     {
         Assert.Equal("System.Type", CSharpTypeMap.GetTypeName(LegacyPrimitiveTypes.Type));
+    }
+
+    // ── UnknownType and Closed_Generic_With_Unknown ─────────────────────
+    // Task 29.2 (bare unknown) / Task 31 revised Option C (closed generic
+    // with unknown) / Requirements 15.1, 15.2.
+    //
+    // Bare UnknownType lowers to C# `object`. A Closed_Generic_With_Unknown
+    // (a constructed type whose type arguments transitively contain
+    // UnknownType) lowers to C# `dynamic`. Rationale: C# generic types are
+    // invariant at the CLR level — `List<int>` is not assignable to
+    // `List<object>` for user-defined generics — so the naive `List<object>`
+    // lowering throws InvalidCastException at runtime. `dynamic` routes
+    // member access through the DLR, which dispatches against the
+    // receiver's actual runtime generic type. Reachability analysis
+    // (Phase C) prevents write-path member calls on such a receiver at
+    // compile time, so the DLR only sees reachability-safe calls.
+
+    [Fact]
+    public void GetTypeName_UnknownType_ReturnsObject()
+    {
+        Assert.Equal("object", CSharpTypeMap.GetTypeName(UnknownType.Instance));
+    }
+
+    [Fact]
+    public void GetTypeName_ListOfUnknown_ReturnsDynamic()
+    {
+        var scope = new Scope(parent: null);
+        var listType = new ClassType("List", scope, containingNamespace: "UserNs")
+        {
+            TypeParameters = new[] { new TypeParameterType("T", 0) },
+        };
+        var constructed = new ConstructedType(listType, new IType[] { UnknownType.Instance });
+        Assert.Equal("dynamic", CSharpTypeMap.GetTypeName(constructed));
+    }
+
+    [Fact]
+    public void GetTypeName_MapOfStringUnknown_ReturnsDynamic()
+    {
+        var scope = new Scope(parent: null);
+        var mapType = new ClassType("Map", scope, containingNamespace: "UserNs")
+        {
+            TypeParameters = new[]
+            {
+                new TypeParameterType("K", 0),
+                new TypeParameterType("V", 1),
+            },
+        };
+        var standardString = MakeStdlibClass("String");
+        var constructed = new ConstructedType(
+            mapType,
+            new IType[] { standardString, UnknownType.Instance });
+        // Multi-argument generic with unknown at a single position is still
+        // Closed_Generic_With_Unknown; no partial preservation.
+        Assert.Equal("dynamic", CSharpTypeMap.GetTypeName(constructed));
+    }
+
+    [Fact]
+    public void GetTypeName_OptionalOfListOfUnknown_ReturnsDynamic()
+    {
+        var scope = new Scope(parent: null);
+        var listType = new ClassType("List", scope, containingNamespace: "UserNs")
+        {
+            TypeParameters = new[] { new TypeParameterType("T", 0) },
+        };
+        var optionalType = new StructType("Optional", scope, containingNamespace: "UserNs")
+        {
+            TypeParameters = new[] { new TypeParameterType("T", 0) },
+        };
+        var innerConstructed = new ConstructedType(listType, new IType[] { UnknownType.Instance });
+        var outerConstructed = new ConstructedType(optionalType, new IType[] { innerConstructed });
+        // Nested unknown at any depth still triggers dynamic lowering.
+        Assert.Equal("dynamic", CSharpTypeMap.GetTypeName(outerConstructed));
+    }
+
+    [Fact]
+    public void GetTypeName_ListOfInt_ReturnsConstructedForm()
+    {
+        // Regression: a constructed type WITHOUT any unknown in its type
+        // arguments still lowers to the naive `List<int>` form. The
+        // `dynamic` lowering only fires when unknown is present.
+        var scope = new Scope(parent: null);
+        var listType = new ClassType("List", scope, containingNamespace: "UserNs")
+        {
+            TypeParameters = new[] { new TypeParameterType("T", 0) },
+        };
+        var standardInt32 = MakeStdlibStruct("Int32");
+        var constructed = new ConstructedType(listType, new IType[] { standardInt32 });
+        Assert.Equal("List<int>", CSharpTypeMap.GetTypeName(constructed));
     }
 }

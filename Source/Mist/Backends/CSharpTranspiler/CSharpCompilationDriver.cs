@@ -25,10 +25,14 @@ public sealed class CSharpCompilationDriver
         // In single-file publish mode, Assembly.Location returns "" so we fall
         // back to the shared framework directory discovered via RuntimeEnvironment.
         var runtimeDir = GetRuntimeDirectory();
+        var refPackDir = TryResolveRefPackDir();
 
         var refs = new List<RoslynApi.MetadataReference>();
 
-        // Core runtime assemblies
+        // Core runtime assemblies — resolved to the shared-framework
+        // implementation DLLs. We explicitly include `System.Private.CoreLib.dll`
+        // which is an implementation-only assembly (it has no ref DLL),
+        // so reading from the ref pack would break compilation.
         foreach (var name in new[]
         {
             "System.Runtime.dll",
@@ -47,7 +51,84 @@ public sealed class CSharpCompilationDriver
                 refs.Add(RoslynApi.MetadataReference.CreateFromFile(path));
         }
 
+        // Dynamic-dispatch supporting libraries (Task 31 revised,
+        // Req 15.1, 15.2). `Microsoft.CSharp` is the primary — it
+        // carries the DLR binder surface that Roslyn compiles `dynamic`
+        // dispatch against. `System.Linq.Expressions` and
+        // `System.Dynamic.Runtime` are transitively required by the
+        // DLR's lowering. All three must resolve to the ref DLL when
+        // a ref pack is installed so Roslyn sees the full public
+        // surface — the shared-framework implementation DLLs omit
+        // some surface-level metadata that causes errors like
+        // "Missing compiler required member
+        // 'Microsoft.CSharp.RuntimeBinder.Binder.InvokeMember'".
+        foreach (var name in new[]
+        {
+            "Microsoft.CSharp.dll",
+            "System.Linq.Expressions.dll",
+            "System.Dynamic.Runtime.dll",
+        })
+        {
+            string? path = null;
+            if (refPackDir is not null)
+            {
+                var refPath = Path.Combine(refPackDir, name);
+                if (File.Exists(refPath)) path = refPath;
+            }
+            // Fallback: shared-framework implementation. Dynamic
+            // dispatch may still work at the text level but some
+            // binder members may not resolve, producing compile-time
+            // errors. Ref pack is strongly preferred.
+            if (path is null)
+            {
+                var fallbackPath = Path.Combine(runtimeDir, name);
+                if (File.Exists(fallbackPath)) path = fallbackPath;
+            }
+            if (path is not null)
+                refs.Add(RoslynApi.MetadataReference.CreateFromFile(path));
+        }
+
         return [.. refs];
+    }
+
+    /// <summary>
+    /// Attempts to locate the .NET SDK's reference-assembly directory
+    /// for the currently running runtime's major.minor version. Returns
+    /// the path to the ref DLLs (e.g.,
+    /// <c>/usr/local/share/dotnet/packs/Microsoft.NETCore.App.Ref/10.0.7/ref/net10.0</c>)
+    /// when a ref pack is installed, or <c>null</c> when only the
+    /// runtime is installed (in which case the caller uses the
+    /// shared-framework implementation DLLs).
+    /// </summary>
+    private static string? TryResolveRefPackDir()
+    {
+        var dotnetRoot = GetDotnetRoot();
+        if (dotnetRoot is null) return null;
+
+        var refPackRoot = Path.Combine(dotnetRoot, "packs", "Microsoft.NETCore.App.Ref");
+        if (!Directory.Exists(refPackRoot)) return null;
+
+        // Pick the highest version directory matching the running
+        // runtime's major.minor, then fall back to the highest overall.
+        var runtimeMajorMinor = $"{Environment.Version.Major}.{Environment.Version.Minor}.";
+        var versionDirs = Directory.GetDirectories(refPackRoot)
+            .OrderByDescending(d => Path.GetFileName(d), StringComparer.Ordinal)
+            .ToArray();
+
+        var matched = versionDirs.FirstOrDefault(
+            d => Path.GetFileName(d).StartsWith(runtimeMajorMinor, StringComparison.Ordinal));
+        var selected = matched ?? versionDirs.FirstOrDefault();
+        if (selected is null) return null;
+
+        // Pick the highest tfm directory under `ref/`.
+        var refDir = Path.Combine(selected, "ref");
+        if (!Directory.Exists(refDir)) return null;
+
+        var tfmDirs = Directory.GetDirectories(refDir)
+            .OrderByDescending(d => Path.GetFileName(d), StringComparer.Ordinal)
+            .ToArray();
+
+        return tfmDirs.FirstOrDefault();
     }
 
     /// <summary>

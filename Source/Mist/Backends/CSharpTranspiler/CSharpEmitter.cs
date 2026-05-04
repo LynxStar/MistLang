@@ -89,6 +89,17 @@ public sealed class CSharpEmitter
                 <Deterministic>true</Deterministic>
                 <EnableNETAnalyzers>false</EnableNETAnalyzers>
               </PropertyGroup>
+              <!--
+                Microsoft.CSharp provides the DLR machinery (`System.Runtime.CompilerServices.CSharpArgumentInfo`,
+                `System.Runtime.CompilerServices.Binder`, etc.) that `dynamic` dispatch compiles against. The
+                Mist backend uses `dynamic` as the C# emission target for `Closed_Generic_With_Unknown` receivers
+                (e.g., Mist `List<unknown>` → C# `dynamic`) so that member access on such a receiver routes through
+                the DLR at runtime instead of requiring C# generic covariance that the CLR does not provide for
+                user-defined generics.
+              -->
+              <ItemGroup>
+                <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+              </ItemGroup>
             </Project>
             """;
         File.WriteAllText(csprojPath, csprojContent);
@@ -162,6 +173,13 @@ internal sealed class CSharpSourceWriter
     private int _indentLevel;
     private bool _needsMistVoidStruct;
     private bool _inValueReturningVoidMethod;
+    /// <summary>
+    /// Return type of the enclosing method, used by <see cref="EmitReturnStatement"/>
+    /// to detect covariant unknown widening at return sites (Task 31.1).
+    /// <c>null</c> outside a method body or when the return type is
+    /// unavailable (e.g., void methods where no widening can occur).
+    /// </summary>
+    private IType? _currentMethodReturnType;
     private readonly HashSet<string> _valueReturningVoidMethods = new(StringComparer.Ordinal);
     private const string IndentUnit = "    ";
 
@@ -1460,6 +1478,19 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private void EmitMemberDeclaration(MemberDeclarationNode memberDecl)
     {
+        // Task 32.2 / Req 15.5 — Best-effort storage skipping. If a field,
+        // property, or indexer has a declared type that satisfies
+        // `TypeContainment.IsStorageBanned` (i.e., contains `unknown` at any
+        // storage position), the semantic model builder has already emitted
+        // the appropriate `MIST_SB_005x` diagnostic. The emitter skips
+        // generating the C# declaration so that — if downstream tooling
+        // invokes the emitter despite errors — the unaffected portions of
+        // the program still produce compilable C#. Centralizing the check
+        // here keeps the skip logic in a single place rather than threading
+        // it through each per-member emission routine.
+        if (IsStorageBannedMember(memberDecl))
+            return;
+
         switch (memberDecl)
         {
             case FieldMemberMemberDeclarationNode fieldMember:
@@ -1485,6 +1516,43 @@ internal sealed class CSharpSourceWriter
                 // __CreateDefault generation logic — it is not emitted as a C# member.
                 break;
         }
+    }
+
+    /// <summary>
+    /// Task 32.2 / Req 15.5 — Returns <c>true</c> when <paramref name="member"/>
+    /// is a field, property, or indexer declaration whose semantic declared
+    /// type is storage-banned (per <see cref="TypeContainment.IsStorageBanned"/>).
+    /// The emitter uses this to skip emission of declarations that the
+    /// semantic model has already flagged with <c>MIST_SB_0050</c>,
+    /// <c>MIST_SB_0051</c>, or <c>MIST_SB_0052</c> — those declarations
+    /// would emit as <c>object</c>-typed slots in C#, which is both
+    /// redundant with the Mist diagnostic and potentially misleading.
+    /// </summary>
+    /// <remarks>
+    /// The check consults the resolved semantic type via
+    /// <see cref="ISemanticModel.GetDeclaredSymbol"/> rather than the AST
+    /// <c>TypeReferenceNode</c>, so nested cascades such as
+    /// <c>List&lt;unknown&gt;</c> and <c>Map&lt;string, unknown&gt;</c> are
+    /// correctly recognized as banned even though their AST form is a
+    /// plain <c>ConstructedTypeRefTypeReferenceNode</c>. Constructors,
+    /// methods, operators, and cast operators are never storage-banned
+    /// — the ban applies only to writable storage slots.
+    /// </remarks>
+    private bool IsStorageBannedMember(MemberDeclarationNode member)
+    {
+        IType? declaredType = member switch
+        {
+            FieldMemberMemberDeclarationNode fm =>
+                _model.GetDeclaredSymbol(fm.Field)?.DeclaredType,
+            PropertyMemberMemberDeclarationNode pm =>
+                _model.GetDeclaredSymbol(pm.Property)?.DeclaredType,
+            IndexerMemberMemberDeclarationNode im =>
+                _model.GetDeclaredSymbol(im.Indexer)?.DeclaredType,
+            _ => null,
+        };
+
+        return declaredType is not null
+            && TypeContainment.IsStorageBanned(declaredType);
     }
 
     private void EmitFieldDeclaration(FieldDeclarationNode fieldDecl)
@@ -1579,6 +1647,11 @@ internal sealed class CSharpSourceWriter
         var previousFlag = _inValueReturningVoidMethod;
         _inValueReturningVoidMethod = isValueReturningVoid;
 
+        // Task 31.1 — track the enclosing method's return type so return
+        // statements can detect covariant unknown widening against it.
+        var previousReturnType = _currentMethodReturnType;
+        _currentMethodReturnType = ResolveMethodReturnType(methodDecl);
+
         if (methodDecl.Body.GetBlock() is BlockNode block)
         {
             EmitMethodBlock(block, isValueReturningVoid);
@@ -1590,6 +1663,7 @@ internal sealed class CSharpSourceWriter
         }
 
         _inValueReturningVoidMethod = previousFlag;
+        _currentMethodReturnType = previousReturnType;
     }
 
     /// <summary>
@@ -1823,6 +1897,12 @@ internal sealed class CSharpSourceWriter
                 {
                     var value = EmitExpression(returnStmt.ReturnStatement.Value);
                     value = WrapWithImplicitCastIfNeeded(returnStmt.ReturnStatement, value);
+                    // Task 31.1 — covariant unknown widening at the return
+                    // site against the enclosing method's return type.
+                    var valueType = _model.GetTypeOf(returnStmt.ReturnStatement.Value);
+                    var widened = TryEmitCovariantUnknownCast(valueType, _currentMethodReturnType, value);
+                    if (widened is not null)
+                        value = widened;
                     return $"return {value};";
                 }
                 return "return;";
@@ -1839,6 +1919,13 @@ internal sealed class CSharpSourceWriter
                         var name = typed.Name.Lexeme;
                         var init = EmitExpression(typed.Initializer);
                         init = WrapWithImplicitCastIfNeeded(typed.Initializer, init);
+                        // Task 31.1 — covariant unknown widening at the
+                        // typed local declaration's assignment site.
+                        var declaredType = _model.GetDeclaredSymbol(typed)?.DeclaredType;
+                        var initType = _model.GetTypeOf(typed.Initializer);
+                        var widened = TryEmitCovariantUnknownCast(initType, declaredType, init);
+                        if (widened is not null)
+                            init = widened;
                         return $"{type} {name} = {init};";
                     }
                     case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
@@ -1959,20 +2046,114 @@ internal sealed class CSharpSourceWriter
         // The Storm generator only stores the first parameter as a named property;
         // additional comma-separated parameters are parsed but discarded from the AST.
         // Use the source span to faithfully reproduce the full parameter list,
-        // but only if no parameter has a void type (which needs MistVoid substitution).
+        // but only if no parameter has a type that requires a Mist-to-C# rewrite.
         var span = paramList.Span;
         if (span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
         {
-            // Check if any parameter uses void type — if so, we must emit manually
-            // to apply the void → MistVoid transformation.
-            if (paramList.Parameter.Type is not VoidTypeRefTypeReferenceNode)
+            var sourceText = _sourceText.Contents.Substring(span.Start, span.Length);
+
+            // Types that need rewriting:
+            //   * `void` → `MistVoid` (when in value context).
+            //   * `unknown` (bare or nested inside a generic type argument)
+            //     → `object` or `dynamic` per the Closed_Generic_With_Unknown
+            //     emission rule (Task 30 / Task 31 / Req 15.1, 15.4).
+            // We check both the first parameter's AST type (structurally) and
+            // the full parameter-list source text (as a lexical fallback) so
+            // subsequent parameters whose types contain `unknown` are also
+            // caught. A lexical check is safe here because `unknown` is a
+            // reserved keyword (not usable as an identifier in Mist grammar),
+            // so any word-boundary `unknown` in the parameter-list source is
+            // necessarily the keyword that needs rewriting.
+            var firstType = paramList.Parameter.Type;
+            if (firstType is not VoidTypeRefTypeReferenceNode
+                && !TypeReferenceContainsUnknown(firstType)
+                && !ContainsVoidOrUnknownKeyword(sourceText))
             {
-                return _sourceText.Contents.Substring(span.Start, span.Length);
+                return sourceText;
             }
         }
 
         // Fallback: emit the single parameter we do have.
         return EmitParameter(paramList.Parameter);
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if <paramref name="source"/> contains the
+    /// Mist keywords <c>unknown</c> or <c>void</c> as standalone
+    /// identifiers (matched at word boundaries). Used as a lexical
+    /// fallback in <see cref="EmitParameterList"/> for parameter-list
+    /// source spans that contain parameters beyond the first, which
+    /// the Storm parser does not expose structurally. Both keywords
+    /// require emitter-side rewriting (`void` → `MistVoid` in value
+    /// contexts, `unknown` → `object`/`dynamic` per the
+    /// Closed_Generic_With_Unknown rule), so either match requires
+    /// taking the fallback path that routes through
+    /// <see cref="EmitTypeReference"/>.
+    /// </summary>
+    private static bool ContainsVoidOrUnknownKeyword(string source)
+    {
+        return ContainsWord(source, "unknown") || ContainsWord(source, "void");
+    }
+
+    /// <summary>
+    /// Word-boundary substring match: returns <c>true</c> if
+    /// <paramref name="word"/> appears in <paramref name="source"/>
+    /// with non-identifier characters (or start/end of string) on
+    /// both sides.
+    /// </summary>
+    private static bool ContainsWord(string source, string word)
+    {
+        var index = 0;
+        while ((index = source.IndexOf(word, index, StringComparison.Ordinal)) >= 0)
+        {
+            var before = index == 0
+                || !IsIdentifierChar(source[index - 1]);
+            var afterPos = index + word.Length;
+            var after = afterPos >= source.Length
+                || !IsIdentifierChar(source[afterPos]);
+            if (before && after)
+                return true;
+            index = afterPos;
+        }
+        return false;
+    }
+
+    private static bool IsIdentifierChar(char c) =>
+        char.IsLetterOrDigit(c) || c == '_';
+
+    /// <summary>
+    /// Returns <c>true</c> if <paramref name="typeRef"/> is either
+    /// <see cref="UnknownTypeRefTypeReferenceNode"/> directly, or a
+    /// <see cref="NamedTypeRefTypeReferenceNode"/> whose type-argument
+    /// list transitively contains an <see cref="UnknownTypeRefTypeReferenceNode"/>.
+    /// Used by <see cref="EmitParameterList"/> to decide whether the
+    /// source-text fast-path is safe; any appearance of <c>unknown</c>
+    /// in the type requires the fallback (which routes through
+    /// <see cref="EmitTypeReference"/> / <see cref="CSharpTypeMap"/>)
+    /// so the Mist keyword is rewritten to the correct C# form
+    /// (<c>object</c> or <c>dynamic</c>).
+    /// </summary>
+    private static bool TypeReferenceContainsUnknown(TypeReferenceNode typeRef)
+    {
+        switch (typeRef)
+        {
+            case UnknownTypeRefTypeReferenceNode:
+                return true;
+
+            case NamedTypeRefTypeReferenceNode named:
+                if (named.TypeArgs is null) return false;
+                if (TypeReferenceContainsUnknown(named.TypeArgs.TypeReference))
+                    return true;
+                foreach (var arg in named.TypeArgs.TypeReferences)
+                {
+                    if (TypeReferenceContainsUnknown(arg))
+                        return true;
+                }
+                return false;
+
+            default:
+                return false;
+        }
     }
 
     private string EmitParameter(ParameterNode param)
@@ -2057,6 +2238,17 @@ internal sealed class CSharpSourceWriter
                     return "MistVoid";
                 }
                 return "void";
+            case UnknownTypeRefTypeReferenceNode:
+                // User-facing `unknown` (Task 30.1 / Req 13.5, 15.1, 15.4):
+                // emit C# `object` at every syntactic type-reference position.
+                // This is the emission partner to `CSharpTypeMap.GetTypeName`'s
+                // `UnknownType => "object"` rule — the type-map path is used
+                // when the emitter looks up a semantic IType, and this AST
+                // path is used when the emitter walks a source `TypeReference`
+                // node directly (for example, in a cast expression
+                // `(unknown) expr`, which `EmitCastExpression` lowers to
+                // `((object) <operand>)` without any operator dispatch).
+                return "object";
             case NamedTypeRefTypeReferenceNode namedRef:
             {
                 var name = ExtractQualifiedName(namedRef.Name);
@@ -2070,6 +2262,25 @@ internal sealed class CSharpSourceWriter
                         return "MistVoid";
                     }
                     return "void";
+                }
+
+                // Closed_Generic_With_Unknown emission (Task 31 revised,
+                // Req 15.1/15.2): any named type whose type-argument list
+                // transitively contains `unknown` lowers to C# `dynamic`.
+                // This mirrors `CSharpTypeMap.GetTypeName`'s handling on
+                // the semantic-model path and ensures the AST-walk path
+                // produces the same C# spelling. `dynamic` routes member
+                // access through the DLR, which dispatches against the
+                // receiver's actual runtime generic type (e.g., the
+                // underlying `List<int>` object). Without this, the C#
+                // compiler would reject `List<unknown>` verbatim and any
+                // naive `List<object>` lowering would throw
+                // `InvalidCastException` at runtime due to C# generic
+                // invariance.
+                if (namedRef.TypeArgs is not null
+                    && TypeReferenceContainsUnknown(namedRef))
+                {
+                    return namedRef.ArrayRank.HasValue ? "dynamic[]" : "dynamic";
                 }
 
                 var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs);
@@ -2161,6 +2372,15 @@ internal sealed class CSharpSourceWriter
                 var name = typed.Name.Lexeme;
                 var init = EmitExpression(typed.Initializer);
                 init = WrapWithImplicitCastIfNeeded(typed.Initializer, init);
+                // Task 31.1 — covariant unknown widening at the typed local
+                // declaration's assignment site. The declared type is
+                // recorded on the local variable's symbol; the initializer
+                // expression type comes from the expression-type map.
+                var declaredType = _model.GetDeclaredSymbol(typed)?.DeclaredType;
+                var initType = _model.GetTypeOf(typed.Initializer);
+                var widened = TryEmitCovariantUnknownCast(initType, declaredType, init);
+                if (widened is not null)
+                    init = widened;
                 AppendLine($"{type} {name} = {init};");
                 break;
             }
@@ -2180,6 +2400,12 @@ internal sealed class CSharpSourceWriter
         {
             var value = EmitExpression(returnStmt.Value);
             value = WrapWithImplicitCastIfNeeded(returnStmt, value);
+            // Task 31.1 — covariant unknown widening at the return site
+            // against the enclosing method's return type.
+            var valueType = _model.GetTypeOf(returnStmt.Value);
+            var widened = TryEmitCovariantUnknownCast(valueType, _currentMethodReturnType, value);
+            if (widened is not null)
+                value = widened;
             AppendLine($"return {value};");
         }
         else if (_inValueReturningVoidMethod)
@@ -2289,6 +2515,13 @@ internal sealed class CSharpSourceWriter
         {
             var value = EmitAssignment(assignment.Value);
             value = WrapWithImplicitCastIfNeeded(assignment, value);
+            // Task 31.1 — covariant unknown widening at the assignment
+            // site against the target's static type.
+            var targetType = _model.GetTypeOf(assignment.Target);
+            var valueType = _model.GetTypeOf(assignment.Value);
+            var widened = TryEmitCovariantUnknownCast(valueType, targetType, value);
+            if (widened is not null)
+                value = widened;
             return $"{target} = {value}";
         }
 
@@ -2630,6 +2863,64 @@ internal sealed class CSharpSourceWriter
             }
         }
         return expression;
+    }
+
+    /// <summary>
+    /// Task 31.1 / Req 15.2 — Covariant unknown widening emission.
+    /// <para>
+    /// Under the revised Option C emission strategy (November 2026), this
+    /// helper is a no-op. The widening site needs <b>no explicit cast</b>
+    /// because the target type (a Closed_Generic_With_Unknown such as
+    /// <c>List&lt;unknown&gt;</c>) lowers to C# <c>dynamic</c>, and every
+    /// value in C# is implicitly convertible to <c>dynamic</c> (which is
+    /// <c>object</c> plus DLR metadata). A plain assignment
+    /// <c>dynamic xs = intList;</c> is accepted by the C# compiler and
+    /// succeeds at runtime with no cast operation.
+    /// </para>
+    /// <para>
+    /// Historical note: the original Option 2 emission produced
+    /// <c>(List&lt;object&gt;)(object)intList</c>. Option 2 was accepted
+    /// by the C# compiler but threw <see cref="InvalidCastException"/> at
+    /// runtime because the CLR enforces strict generic type identity for
+    /// user-defined generics (no implicit coercion from
+    /// <c>List&lt;int&gt;</c> to <c>List&lt;object&gt;</c>). Option C
+    /// replaces that double cast with <c>dynamic</c> so member access on
+    /// the widened receiver routes through the DLR, which dispatches
+    /// against the receiver's actual runtime generic type. The
+    /// Reachability Analyzer (Phase C) still guarantees that no
+    /// write-path member is called on the widened receiver at compile
+    /// time, so the DLR only sees reachability-safe calls.
+    /// </para>
+    /// <para>
+    /// The helper is retained (rather than removed) so every call site
+    /// continues to document the widening-aware emission path. It always
+    /// returns <c>null</c>, causing the caller to emit the operand
+    /// unchanged.
+    /// </para>
+    /// </summary>
+    private static string? TryEmitCovariantUnknownCast(
+        IType? sourceType,
+        IType? targetType,
+        string emittedOperand)
+    {
+        // Option C emission: no explicit cast needed. See XML remarks.
+        // Suppress unused-parameter warnings for API stability.
+        _ = sourceType;
+        _ = targetType;
+        _ = emittedOperand;
+        return null;
+    }
+
+    /// <summary>
+    /// Looks up the return type of a method declaration from the semantic
+    /// model via the declared symbol. Used by <see cref="EmitMethodDeclaration"/>
+    /// to set <see cref="_currentMethodReturnType"/> for the duration of
+    /// the method body's emission.
+    /// </summary>
+    private IType? ResolveMethodReturnType(MethodDeclarationNode methodDecl)
+    {
+        var symbol = _model.GetDeclaredSymbol(methodDecl);
+        return symbol?.DeclaredType;
     }
 
     // ── Operator dispatch helpers ────────────────────────────────────────

@@ -550,25 +550,49 @@ Three possible strategies:
 
 **Option 4: Change the C# type.** Emit `Closed_Generic_With_Unknown` values using C# `IEnumerable<object>` or `IReadOnlyCollection<object>` instead of `List<object>`. This uses C#'s native covariance at interface level. But it loses access to all non-`IEnumerable` members even when those members are reachability-safe. ❌ Loses too much access.
 
-**Chosen approach: Option 2 — explicit cast via `object`.**
+**Chosen approach (revised November 2026): Option C — lower Closed_Generic_With_Unknown to C# `dynamic`.**
 
-Rationale:
+**Original choice (Option 2) and its failure mode.** The design originally emitted the double cast `(List<object>)(object)intList`. Empirical testing showed this throws `InvalidCastException` at runtime for user-defined generics because the CLR enforces strict generic type identity — no IL-level coercion exists from `List<int>` to `List<object>` for non-interface, non-delegate, non-array types. The original rationale that "the C# runtime tolerates the reference cast because the underlying object remains a `List<int>`" was factually incorrect: the cast operation itself fails, regardless of what the underlying object is.
 
-1. The Reachability Analyzer guarantees that no write to a variance-sensitive slot is ever emitted by Mist code.
-2. The C# runtime tolerates the reference cast because C# preserves generic type metadata; the underlying object remains a `List<int>` with all its runtime-type-parameter-faithful machinery, and reading (e.g., `list[0]` returning `int` boxed to `object`) works correctly.
-3. No runtime wrapper; no reference identity change.
-4. The performance cost is a single reference cast at the widening site.
+**Option C rationale.** Lowering Closed_Generic_With_Unknown to C# `dynamic`:
+
+1. Removes the invalid cast entirely. Assigning any value to a `dynamic` target is always accepted at compile time and succeeds at runtime with no coercion — `dynamic` is `object` plus DLR metadata.
+2. Routes member access on the widened receiver through the DLR, which dispatches against the receiver's actual runtime generic type. A call like `xs.Size()` on `dynamic xs` (underlying `List<int>`) dispatches to `List<int>.Size()` directly.
+3. Preserves reference identity (the underlying object never changes).
+4. The Reachability Analyzer's compile-time guarantee still holds — the DLR never sees a write-path member call on a Closed_Generic_With_Unknown receiver because the Mist type checker rejects those calls with `MIST_TC_0062`.
 
 Concretely, the Emitter uses:
 
 ```csharp
 // Mist:  List<unknown> xs = intList;
-// C#:    List<object> xs = (List<object>)(object)intList;
+// C#:    dynamic xs = intList;
+
+// Mist:  Map<string, unknown> m = stringIntMap;
+// C#:    dynamic m = stringIntMap;
+
+// Mist:  unknown x = 42;              (bare unknown; not a closed generic)
+// C#:    object x = 42;
 ```
 
-This is exactly what Requirement 15.2 asks for (`"rely on C#'s reference-type covariance and explicit casts to satisfy the C# compiler. If a direct assignment is not accepted by C#, the Emitter SHALL insert an explicit C# cast to preserve Mist's semantics."`).
+Note the distinction: bare `unknown` still lowers to `object` (not `dynamic`) because the type checker rejects member access and operator dispatch on a bare-`unknown` receiver at compile time (MIST_TC_0065 / MIST_TC_0066). The DLR never sees such a receiver, so `object` is sufficient. `dynamic` is reserved for Closed_Generic_With_Unknown receivers, where it is strictly necessary because read-path member access is permitted by the type checker (e.g., `xs.Size()` on `xs : List<unknown>`).
 
-**Design check / discovery**: The Emitter must be careful to emit this double-cast only where needed. A single-object `(object)value` cast is sufficient when target is directly `UnknownType`. The double cast is only for cases where target is a `ConstructedType` with one or more `unknown` arguments. The emitter distinguishes by inspecting the target's effective C# type.
+**Requirement 15.2 restated under Option C.** The emitter no longer "inserts an explicit C# cast" at widening sites. Instead, it lowers the target's declared type to `dynamic` at every widening site involving a Closed_Generic_With_Unknown, and emits the operand unchanged. The implicit conversion from any reference/value type to `dynamic` is handled by the C# compiler.
+
+**Costs and trade-offs of Option C:**
+
+- **Performance**: dynamic call sites add DLR overhead (on the order of nanoseconds to microseconds per call after the DLR binding tree is warmed). Suitable for most application code; avoid Closed_Generic_With_Unknown receivers in tight hot loops.
+- **C# type checking at widened receivers**: reduced. `dynamic` defers member resolution to runtime; the C# compiler no longer catches typos like `xs.Sze()` at compile time. Mist's own type checker does catch them (it runs against the full closed generic definition).
+- **RuntimeBinderException risk**: a malformed emitted call that passes the Mist type checker but fails DLR lookup produces a `RuntimeBinderException` at runtime. In practice, the Mist type checker's member resolution is faithful to the closed generic's public API, so this should not occur; defensive integration tests catch any regression.
+- **Dependencies**: the generated C# requires `Microsoft.CSharp.dll`, `System.Linq.Expressions.dll`, and `System.Dynamic.Runtime.dll`. The Mist CLI's in-process Roslyn driver resolves these to the SDK's reference-assembly pack at compile time. The emitted `.csproj` declares a `PackageReference` to `Microsoft.CSharp` for users who build the emitted C# directly.
+
+**Design check / discovery**: The Emitter distinguishes bare `UnknownType` (lowers to `object`) from Closed_Generic_With_Unknown (lowers to `dynamic`) in a single place: `CSharpTypeMap.GetTypeName` inspects the type-argument list of any `ConstructedType` and returns `"dynamic"` when unknown is transitively present.
+
+**Historical alternatives considered and rejected:**
+
+- **Option 1**: Emit `List<object> xs = intList;` directly. Rejected: C# compiler rejects this (no implicit conversion).
+- **Option 2 (original)**: Emit `(List<object>)(object)intList`. Rejected after implementation: runtime `InvalidCastException`. See failure discussion above.
+- **Option 3**: Runtime conversion helper (element-wise copy). Rejected: changes reference identity; requires knowledge of the generic's constructor shape; adds per-widening-site O(n) runtime cost.
+- **Option 4**: Change the C# type (e.g., `IEnumerable<object>`). Rejected: loses access to non-`IEnumerable` members even when those members are reachability-safe.
 
 ### Surfaced Discovery (open concern)
 
@@ -704,15 +728,17 @@ All PBTs use in-process compilation via `SharedDriver` with batched scenarios (a
 
 ## Risk Register and Open Discoveries
 
-1. **Reachability analyzer completeness (High)** — Any missed write path in the analyzer leads to runtime variance failures after the C# `(List<object>)(object)intList` cast. Mitigation: fail-open default in ambiguous cases; exhaustive unit tests covering every member shape; integration tests that actually run emitted C# code.
+1. **Reachability analyzer completeness (High)** — Any missed write path in the analyzer leads to runtime failures via DLR dispatch after the `dynamic` lowering. Mitigation: fail-open default in ambiguous cases; exhaustive unit tests covering every member shape; integration tests that actually run emitted C# code.
 
-2. **C# covariance for non-interface generics (Resolved)** — Option 2's double cast relies on the collection's reference identity surviving. This works for reference-type (class) generics but would not work for struct generics. **Resolution**: Req 8 is restricted to class-generic definitions (see Req 8.1 and 8.6). Struct-generic widening is rejected at compile time with `MIST_TC_0058`. The emission strategy is sound for the restricted rule. See also: Requirement Refinement Suggestion below (no longer open — accepted and applied).
+2. **C# covariance for non-interface generics (Resolved — Option C)** — The original Option 2 emission (`(List<object>)(object)intList`) was empirically shown to throw `InvalidCastException` at runtime for user-defined generics because the CLR enforces strict generic type identity — there is no IL-level coercion from `List<int>` to `List<object>` for non-interface, non-delegate, non-array types. The design's rationale ("the C# runtime tolerates the reference cast") was factually incorrect for user-defined generics. **Resolution (November 2026, applied)**: replaced Option 2 with **Option C** — `Closed_Generic_With_Unknown` lowers to C# `dynamic` rather than `Foo<object>`. Member access on the widened receiver routes through the DLR, which dispatches against the receiver's actual runtime generic type. The Reachability Analyzer (Phase C) still prevents write-path member calls on such a receiver at compile time, so the DLR only sees reachability-safe calls at runtime. Trade-off: dynamic dispatch overhead (nanoseconds–microseconds per call site) and reduced C#-layer type-checking at widened-receiver call sites. Mist-level type safety is fully preserved. Requires `Microsoft.CSharp.dll` + `System.Linq.Expressions.dll` + `System.Dynamic.Runtime.dll` references in the generated C#; the Mist CLI's in-process Roslyn driver resolves these to the SDK's reference-assembly pack. Integration-test coverage added: the `samples/UnknownType` baseline test compiles and runs the widened-receiver sample end-to-end, catching any regression that re-introduces the Option 2 runtime failure.
 
 3. **Cast operators declared on `unknown` (Medium)** — Because `unknown` is a singleton with no member scope, casts from `unknown` to `T` must be declared on `T`, not on `unknown`. This is a natural restriction but differs from most cast-operator patterns where the operator is declared on the source type. Mitigation: documentation and sample show the pattern clearly.
 
 4. **Reachability + inheritance (Medium)** — When a derived class inherits a method from a generic base, does the derived type re-classify or inherit the base's classification? Design: inherits, because the method body is the base's and unchanged. Verified via unit test.
 
 5. **External C# callee conservatism (Low)** — Every argument passed to a C# method whose type contains `T` is treated as a write. This is conservative and may over-filter. Acceptable for v1.
+
+6. **Parameter-list source-text shortcut drops later parameters (Medium, pre-existing, worked around)** — `CSharpEmitter.EmitParameterList` uses a source-text fast-path that copies the full parameter list verbatim when the first parameter's type needs no rewriting. When any parameter (including later ones) contains `unknown` or `void` as a keyword, the fast-path is bypassed and the emitter falls back to a single-parameter emission that drops later parameters. This is a pre-existing Storm-parser limitation (the AST only exposes the first parameter structurally). Impact on the unknown-type feature: methods with `unknown` in a non-first parameter position are affected. Mitigation: a textual word-boundary check on the parameter-list source text now catches `unknown`/`void` in later positions and routes to the fallback, producing a compilable — though potentially signature-truncated — output. The `samples/UnknownType` sample sidesteps this by keeping `unknown`-typed parameters at the first position. A full fix requires extending the Storm parser's `ParameterListNode` to expose all parameters, which is out of scope for this feature.
 
 ### Requirement Refinement — resolved and applied
 

@@ -1,0 +1,229 @@
+// UnknownType — Demonstrates the user-facing `unknown` top type.
+//
+// Covers (all eight acceptance criteria from Task 34.1):
+//   1. `static void Main(string[] args)` entry point
+//   2. `unknown`-typed local initialized from values of multiple concrete types
+//   3. `unknown`-typed method parameter passed values of multiple concrete types
+//   4. Pattern-match narrow from `unknown` to a concrete type via `is`
+//   5. Covariant_Unknown_Widening: assign a `MyList<int>` to a `MyList<unknown>`
+//      and call read-safe members (size, iterate, read element)
+//   6. Pattern-match narrow from a Closed_Generic_With_Unknown back to a
+//      concrete constructed type (`is MyList<int> li`)
+//   7. Inline comments describe rejected operations
+//   8. Observable output via `Console.WriteLine`
+//
+// Under the revised Option C C# emission strategy, a
+// Closed_Generic_With_Unknown such as `MyList<unknown>` lowers to C#
+// `dynamic` rather than `MyList<object>`. Member access on the widened
+// receiver routes through the DLR at runtime, which dispatches against
+// the receiver's actual runtime generic type. Reachability analysis
+// still forbids write-path members on such a receiver at compile time,
+// so the DLR only sees reachability-safe calls.
+
+using System;
+
+namespace UnknownType;
+
+// A minimal generic list-like container, just enough to demonstrate
+// covariant unknown widening and reachability-based member filtering.
+//
+//   * `count` and `item0`/`item1`/`item2` are ordinary fields. `count`
+//     is `int` (reading it is always safe). The T-typed fields are
+//     hidden from external callers on a `MyList<unknown>` receiver
+//     because writing to them is `WritesT`.
+//   * `Size()` returns `int` and writes nothing, so it is accessible
+//     even on a `MyList<unknown>` receiver.
+//   * `GetAt(i)` reads a T-typed field. It is `DoesNotWriteT`, so it
+//     stays accessible on `MyList<unknown>`; the compiler substitutes
+//     `unknown` for `T` in the result type at the call site.
+//   * `Add(x)` stores into a T-typed field. It is `WritesT`, so the
+//     compiler hides it on a `MyList<unknown>` receiver. See the
+//     inline comment in `DemoWidening` for the exact rejection.
+public class MyList<T>
+{
+    public int count;
+    public T item0;
+    public T item1;
+    public T item2;
+
+    public MyList()
+    {
+        this.count = 0;
+    }
+
+    public int Size()
+    {
+        return this.count;
+    }
+
+    public T GetAt(int index)
+    {
+        if (index == 0)
+        {
+            return this.item0;
+        }
+        if (index == 1)
+        {
+            return this.item1;
+        }
+        return this.item2;
+    }
+
+    public void Add(T value)
+    {
+        if (this.count == 0)
+        {
+            this.item0 = value;
+        }
+        if (this.count == 1)
+        {
+            this.item1 = value;
+        }
+        if (this.count == 2)
+        {
+            this.item2 = value;
+        }
+        this.count = this.count + 1;
+    }
+}
+
+public class Program
+{
+    // Demonstrates an `unknown`-typed method parameter: the caller may
+    // pass a value of any concrete type, and inside the method the
+    // value is still `unknown` until narrowed by a pattern.
+    private static void Describe(unknown value)
+    {
+        if (value is int i)
+        {
+            Console.WriteLine($"int: {i}");
+        }
+        if (value is string s)
+        {
+            Console.WriteLine($"string: {s}");
+        }
+        if (value is bool b)
+        {
+            Console.WriteLine($"bool: {b}");
+        }
+    }
+
+    // Covariant_Unknown_Widening + reachability-based member filtering +
+    // narrow-from-Closed_Generic_With_Unknown, all in one routine.
+    //
+    // The Mist type checker accepts the widening (Task 23), filters
+    // `Add` on the `MyList<unknown>` receiver (Task 21), and accepts
+    // the narrow-back pattern (Task 24.3). Under the Option C emission
+    // strategy, the C# emitter lowers the widened receiver to
+    // `dynamic` (Task 31). Member access on the `dynamic` receiver
+    // routes through the DLR at runtime and dispatches against the
+    // receiver's actual runtime generic type (the underlying
+    // `MyList<int>`).
+    //
+    // The `enable` parameter is plumbed through for documentation and
+    // to let the widening block be toggled at runtime if needed for
+    // isolation tests. The sample always calls with `enable=true`.
+    private static void DemoWidening(bool enable, MyList<int> ints)
+    {
+        if (enable)
+        {
+            // Covariant unknown widening: `MyList<int>` is assignable to
+            // `MyList<unknown>` because `MyList` is a class-generic and
+            // `unknown` is the top type. No cast needed in Mist source.
+            MyList<unknown> widened = ints;
+
+            // Read-safe members remain accessible on `MyList<unknown>`:
+            //   * `Size()` returns `int`, writes nothing.
+            //   * `GetAt(i)` reads a T-typed field; its result type at
+            //     this receiver is `unknown`.
+            Console.WriteLine($"widened size: {widened.Size()}");
+
+            for (int i = 0; i < widened.Size(); i = i + 1)
+            {
+                unknown element = widened.GetAt(i);
+                Describe(element);
+            }
+
+            // The following call would NOT compile here:
+            //   widened.Add(99);
+            // `MyList<unknown>` hides `Add` because `Add` writes to
+            // storage whose type is the enclosing type parameter `T`,
+            // and `T` is bound to `unknown` at this receiver.
+            // Reachability analysis filters the member out so runtime
+            // type safety is preserved.
+
+            // Pattern-narrow from the Closed_Generic_With_Unknown back
+            // to the concrete constructed type. The `is MyList<int> li`
+            // test uses C#'s runtime generic metadata to match the
+            // underlying `MyList<int>` object; inside the branch `li`
+            // is typed `MyList<int>` and all members — including the
+            // write-path `Add` — are available.
+            if (widened is MyList<int> li)
+            {
+                li.Add(40);
+                Console.WriteLine($"narrowed size after Add: {li.Size()}");
+                Console.WriteLine($"narrowed element at 3: {li.GetAt(3)}");
+            }
+        }
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== UnknownType Sample ===");
+
+        // 1. `unknown`-typed local initialized from values of several
+        //    concrete types in sequence. The compiler accepts every
+        //    assignment because `unknown` is the top type.
+        Console.WriteLine("--- Unknown local ---");
+        unknown u = 42;
+        Describe(u);
+        u = "hello";
+        Describe(u);
+        u = true;
+        Describe(u);
+
+        // 2. `unknown`-typed parameter accepts values of multiple
+        //    concrete types at the call site.
+        Console.WriteLine("--- Unknown parameter ---");
+        Describe(7);
+        Describe("mist");
+        Describe(false);
+
+        // 3. Pattern-match narrowing from bare `unknown` to a concrete
+        //    type via `is`. Inside the `then` branch the narrowed
+        //    binding has the concrete type and full member access.
+        Console.WriteLine("--- Narrowing from unknown ---");
+        unknown maybeInt = 17;
+        if (maybeInt is int narrowed)
+        {
+            // `narrowed` is `int` here, not `unknown`, so ordinary
+            // arithmetic resolves against the built-in `int` type.
+            int doubled = narrowed + narrowed;
+            Console.WriteLine($"narrowed int doubled: {doubled}");
+        }
+
+        // 4. Covariant widening + member filtering + narrow-back.
+        //    Under the revised Option C C# emission strategy, the widened
+        //    receiver is a C# `dynamic` local, so member access on it
+        //    dispatches through the DLR to the underlying runtime type
+        //    (the original `MyList<int>` object). The Reachability
+        //    Analyzer (Phase C) filters out any WritesT members at
+        //    compile time, so the DLR only sees reachability-safe
+        //    calls at runtime.
+        Console.WriteLine("--- Covariant widening ---");
+        var ints = new MyList<int>();
+        ints.Add(10);
+        ints.Add(20);
+        ints.Add(30);
+        DemoWidening(true, ints);
+        Console.WriteLine($"base list size: {ints.Size()}");
+        Console.WriteLine($"base list element at 0: {ints.GetAt(0)}");
+
+        Console.WriteLine("Done!");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

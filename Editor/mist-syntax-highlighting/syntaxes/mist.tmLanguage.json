@@ -95,7 +95,7 @@
       "patterns": [
         {
           "name": "storage.type.primitive.mist",
-          "match": "\\b(int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string)\\b"
+          "match": "\\b(int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|unknown)\\b"
         },
         {
           "name": "storage.type.void.mist",
@@ -180,7 +180,7 @@
         },
         {
           "comment": "Method declaration: type/void followed by identifier followed by (",
-          "match": "\\b(?:void|int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|[A-Z]\\w*)(?:\\[\\])?\\s+([a-zA-Z_]\\w*)\\s*(?=\\()",
+          "match": "\\b(?:void|int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|unknown|[A-Z]\\w*)(?:\\[\\])?\\s+([a-zA-Z_]\\w*)\\s*(?=\\()",
           "captures": {
             "1": { "name": "entity.name.function.mist" }
           }
@@ -195,7 +195,7 @@
         },
         {
           "comment": "Property declaration: type followed by identifier followed by { or =>",
-          "match": "\\b(?:void|int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|[A-Z]\\w*)(?:\\[\\])?\\s+([a-zA-Z_]\\w*)\\s*(?=\\{|=>)",
+          "match": "\\b(?:void|int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|unknown|[A-Z]\\w*)(?:\\[\\])?\\s+([a-zA-Z_]\\w*)\\s*(?=\\{|=>)",
           "captures": {
             "1": { "name": "entity.name.variable.property.mist" }
           }

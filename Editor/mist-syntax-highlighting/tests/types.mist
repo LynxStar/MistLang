@@ -44,6 +44,9 @@ char j;
 string k;
 // <- storage.type.primitive.mist
 
+unknown u;
+// <- storage.type.primitive.mist
+
 // ===== Void type (storage.type.void.mist) =====
 
 void
@@ -59,4 +62,7 @@ boolean
 // <- source.mist -storage.type
 
 stringify
+// <- source.mist -storage.type
+
+unknownable
 // <- source.mist -storage.type

@@ -425,13 +425,16 @@ Example: `Optional<List<int>>` → `Optional<List<unknown>>` is allowed even tho
 
 The rule is one-directional by construction: we only allow `argsT[i] is UnknownType`, never `argsS[i] is UnknownType`. No additional guard is needed.
 
-### Interaction with `IsDirectlyAssignable` (Req 8.4)
+### Interaction with `IsDirectlyAssignable` (Req 8.4, Req 13.5)
 
-The existing `IsDirectlyAssignable` helper in `TypeCheckerAnalyzer` is used by `CheckCastExpression` to determine "trivially-valid" casts. The Covariant_Unknown_Widening rule is added to `IsDirectlyAssignable` as well, so that a cast expression from `List<int>` to `List<unknown>` is trivially valid without requiring a cast operator.
+The existing `IsDirectlyAssignable` helper in `TypeCheckerAnalyzer` is used by `CheckCastExpression` to determine "trivially-valid" casts. Two unknown-type rules are added:
+
+1. **Covariant Unknown Widening** (Req 8.4) — a cast expression from `List<int>` to `List<unknown>` is trivially valid without requiring a cast operator.
+2. **Top-type direct assignability** (Req 13.5, Task 26.2) — a cast `(unknown) expr` for any non-`void` `expr` is trivially valid. Before Task 26, this rule lived only in `IsAssignable`, which caused the cast-expression path to search for a `(unknown) from (T)` operator and emit `MIST_TC_0042` / `MIST_TC_0067` when none was found. The Task 26 addition mirrors the `IsAssignable` top-type clause in `IsDirectlyAssignable` so both paths agree.
 
 ### Cast Operator Integration (Req 13.4, Req 15.4) — from `unknown` to `T`
 
-Casts **from `unknown` to `T`** are handled by extending the existing cast-operator resolution logic (specified in the cast-operators feature, implemented in `TypeCheckerAnalyzer.CheckCastExpression`) to search for a cast operator whose source type is UnknownType.
+Casts **from `unknown` to `T`** are handled by extending the cast-operator resolution logic (specified in the cast-operators feature, implemented in `TypeCheckerAnalyzer.CheckCastExpression`) with a dedicated `CheckCastFromUnknown` branch that fires when the operand's static type is `UnknownType` and the target is not.
 
 The critical design decision: where are `(unknown → T)` cast operators **declared**?
 
@@ -443,7 +446,7 @@ class MyInt {
 }
 ```
 
-The existing cast-operator lookup walks both the source type's and the target type's member scopes. When the source is `UnknownType`, its member scope is empty (Req 3.4), so only the target type's scope is searched. This is correct by construction.
+Because `UnknownType` has no member scope (Req 3.4), `CheckCastFromUnknown` searches only `T`'s member scope for `operator_implicit_{T}` / `operator_explicit_{T}` symbols. The unknown-source branch and the normal concrete→concrete branch differ in one respect: when no candidate is found, `CheckCastFromUnknown` emits the targeted `MIST_TC_0067` diagnostic ("no cast operator from `unknown` to T") rather than the generic `MIST_TC_0042`. The targeted diagnostic names `T` explicitly and suggests either declaring the operator or using an `is` pattern to narrow first, which matches the user-facing guidance in Req 16.4.
 
 ### Casts **into `unknown`** (Req 13.5)
 
@@ -457,7 +460,7 @@ The Emitter's cast lowering branches on the resolved cast operator:
 | ------------ | ------------ | ----------------------------------- | ----------------------------------------- |
 | Any          | UnknownType  | No operator lookup                  | `(object)(expr)`                          |
 | UnknownType  | Concrete T   | Must resolve to user-defined operator | `T.op_Explicit(expr)` or `T.op_Implicit(expr)` |
-| UnknownType  | T, but no op | Diagnostic MIST_TC_* emitted        | No emission (error)                       |
+| UnknownType  | T, but no op | Diagnostic `MIST_TC_0067` emitted   | No emission (error)                       |
 
 ### Trait Satisfaction with UnknownType (Req 12)
 
@@ -476,16 +479,23 @@ Req 12.5 requires that the Reachability Analyzer's classifications also apply to
 
 Pattern matching infrastructure already exists. The only additions are compile-time rejections:
 
-1. `x is unknown u` — the Type Checker emits `MIST_TC_*` (new diagnostic) because the pattern is tautologically true and the binding has no more specific type than the scrutinee (Req 11.3).
-2. `x is Foo<unknown> fu` — the Type Checker emits `MIST_TC_*` (new diagnostic) because the pattern is tautologically true under Covariant_Unknown_Widening and the binding loses information (Req 11.4).
+1. `x is unknown u` — the Type Checker emits `MIST_TC_0063` because the pattern is tautologically true and the binding has no more specific type than the scrutinee (Req 11.3). (Reallocated from the originally-proposed `MIST_TC_0051`; see the Diagnostic ID Allocation note on numbering.)
+2. `x is Foo<unknown> fu` — the Type Checker emits `MIST_TC_0064` because the pattern is tautologically true under Covariant_Unknown_Widening and the binding loses information (Req 11.4). (Reallocated from the originally-proposed `MIST_TC_0052`; see the same note.)
 
-Implementation: both checks happen in the existing `CheckIsExpression` or `CheckTypePattern` method of `TypeCheckerAnalyzer`. The check:
+Implementation: both checks happen in the existing `CheckPrimaryPattern` method of `TypeCheckerAnalyzer`, alongside the `PatternUndefinedType` (`MIST_TC_0050`) check. The order is:
 
 ```
-if patternType is UnknownType: diagnostic NARROW_TO_UNKNOWN
-else if patternType is ConstructedType and any arg is UnknownType: diagnostic NARROW_TO_CLOSED_WITH_UNKNOWN
-else: existing narrowing logic (binding with the concrete type)
+if patternType is null or IsErrorType(patternType):
+    existing undefined-type diagnostic (MIST_TC_0050)
+else if patternType is UnknownType:
+    diagnostic MIST_TC_0063 (narrow-to-unknown)
+else if patternType is ConstructedType and any arg transitively contains UnknownType:
+    diagnostic MIST_TC_0064 (narrow-to-closed-with-unknown)
+else:
+    existing narrowing logic (binding with the concrete type)
 ```
+
+The "transitively contains UnknownType" check recurses through nested `ConstructedType` and `ArrayType` arguments, so `Optional<List<unknown>>` is also rejected even though the outer `Optional` has no direct `unknown` argument.
 
 Note: `x is Foo<unknown> fu` is syntactically legal in a pattern; the diagnostic is the semantic rejection. The AST carries `unknown` naturally via the grammar change in Phase B.
 
@@ -501,7 +511,7 @@ Member access and operator application on a bare-`unknown`-typed operand are rej
 - `List<int>` assigns to `List<unknown>` without diagnostic.
 - `List<unknown>` does **not** assign to `List<int>`.
 - `x.M` where `x: unknown` emits MIST_TC_* (suggests `is` pattern).
-- `(int) x` where `x: unknown` requires an `implicit operator int(unknown)` declared somewhere; otherwise emits diagnostic.
+- `(int) x` where `x: unknown` requires an `implicit operator int(unknown)` declared somewhere; otherwise emits `MIST_TC_0067`.
 - `x is unknown u` emits narrow-to-unknown diagnostic.
 - `x is List<unknown> lu` emits narrow-to-closed-with-unknown diagnostic.
 
@@ -621,11 +631,11 @@ New range allocated for UnknownType feature:
 | `MIST_SB_0056`  | Req 5.4     | `new unknown(...)` — attempting to instantiate `unknown`        | SemanticModelBuilder    |
 | `MIST_SB_0057`  | Req 5.6     | `default(unknown)` — `unknown` has no default                   | SemanticModelBuilder    |
 | `MIST_TC_0062`  | Req 10.1–4, 7 | Member filtered on Closed_Generic_With_Unknown receiver       | TypeCheckerAnalyzer     |
-| `MIST_TC_0051`  | Req 11.3    | Narrowing to `unknown`                                          | TypeCheckerAnalyzer     |
-| `MIST_TC_0052`  | Req 11.4    | Narrowing to Closed_Generic_With_Unknown                        | TypeCheckerAnalyzer     |
-| `MIST_TC_0053`  | Req 13.1    | Member access on bare `unknown`                                 | TypeCheckerAnalyzer     |
-| `MIST_TC_0054`  | Req 13.2    | Operator applied to `unknown` operand                           | TypeCheckerAnalyzer     |
-| `MIST_TC_0055`  | Req 13.4    | No cast operator from `unknown` to T                            | TypeCheckerAnalyzer     |
+| `MIST_TC_0063`  | Req 11.3    | Narrowing to `unknown`                                          | TypeCheckerAnalyzer     |
+| `MIST_TC_0064`  | Req 11.4    | Narrowing to Closed_Generic_With_Unknown                        | TypeCheckerAnalyzer     |
+| `MIST_TC_0065`  | Req 13.1    | Member access on bare `unknown`                                 | TypeCheckerAnalyzer     |
+| `MIST_TC_0066`  | Req 13.2    | Operator applied to `unknown` operand                           | TypeCheckerAnalyzer     |
+| `MIST_TC_0067`  | Req 13.4    | No cast operator from `unknown` to T                            | TypeCheckerAnalyzer     |
 | `MIST_TC_0060`  | Req 4.4     | `unknown` value assigned to non-`unknown` target                | TypeCheckerAnalyzer     |
 | `MIST_TC_0061`  | Req 4.2     | `void` expression assigned to `unknown`                         | TypeCheckerAnalyzer     |
 | `MIST_TC_0058`  | Req 8.6     | Covariant `unknown` widening attempted on a struct generic      | TypeCheckerAnalyzer     |
@@ -641,9 +651,24 @@ New range allocated for UnknownType feature:
 > During Task 21 the member-filtering code originally proposed as
 > `MIST_TC_0050` was similarly reallocated to `MIST_TC_0062` — the code
 > was already in use by the pattern-matching feature's
-> `PatternUndefinedType` diagnostic. The reallocation preserves the
-> "member not found" shape required by Requirement 10.7 and keeps the
-> unknown-type codes contiguous (0058, 0060, 0061, 0062).
+> `PatternUndefinedType` diagnostic. During Task 24 the pattern-narrowing
+> rejection codes originally proposed as `MIST_TC_0051` and `MIST_TC_0052`
+> were reallocated to `MIST_TC_0063` and `MIST_TC_0064` for the same
+> reason — those codes were already owned by the pattern-matching feature's
+> `PatternConstantTypeMismatch` and `PatternRelationalNonComparable`
+> diagnostics. During Task 25 the bare-unknown rejection codes originally
+> proposed as `MIST_TC_0053` and `MIST_TC_0054` were reallocated to
+> `MIST_TC_0065` and `MIST_TC_0066` for the same reason — those codes
+> were already owned by the pattern-matching feature's
+> `PatternUndefinedProperty` and `PatternListRequiresArray` diagnostics.
+> During Task 26 the cast-from-unknown code originally proposed as
+> `MIST_TC_0055` was reallocated to `MIST_TC_0067` for the same reason —
+> that code was already owned by the pattern-matching feature's
+> `PatternListTooManyElements` diagnostic (a warning). Merging an error
+> into the same ID as a warning would make filter rules and severity
+> overrides ambiguous, so the reallocation preserved both meanings.
+> The reallocation preserves the contiguous unknown-type
+> numbering (0058, 0060, 0061, 0062, 0063, 0064, 0065, 0066, 0067).
 
 Diagnostic messages follow the existing convention: name the member/type involved, state the rule, and (where useful) suggest a remedy (e.g., "use `is` to narrow before accessing members").
 

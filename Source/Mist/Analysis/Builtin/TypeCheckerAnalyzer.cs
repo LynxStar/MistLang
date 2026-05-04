@@ -154,6 +154,128 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId UnknownClosedGenericMemberFiltered = new("MIST_TC_0062");
 
+    // ── unknown-type feature: struct-generic widening restriction (Task 23.4) ──
+    //
+    // Covariant unknown widening (Req 8.1–8.3) is only available for class
+    // (reference-type) generic definitions. When the only reason a widening
+    // assignment fails is that the generic definition whose arguments are
+    // being widened is a struct, the Type Checker emits this targeted
+    // diagnostic instead of the generic type-mismatch diagnostic, so the
+    // user sees an explanatory rather than a cascading error (Req 8.6,
+    // Req 16 diagnostic quality).
+    //
+    // The code MIST_TC_0058 was allocated in the design document's
+    // Diagnostic ID Allocation table and confirmed free in the 005x range
+    // at the time of implementation (all neighboring codes 0050–0057 are
+    // owned by the pattern-matching feature; 0058 and 0059 are unused).
+
+    /// <summary>
+    /// Emitted when a covariant <c>unknown</c> widening is attempted on a
+    /// generic definition whose <see cref="TypeKind"/> is
+    /// <see cref="TypeKind.Struct"/>. Widening is restricted to class
+    /// (reference-type) generics because the C# emission strategy — a
+    /// reference cast through <c>object</c> — is unsound for value-type
+    /// layouts (Req 8.1, 8.6).
+    /// </summary>
+    internal static readonly DiagnosticId StructGenericUnknownWidening = new("MIST_TC_0058");
+
+    // ── unknown-type feature: pattern-narrowing rejections (Task 24) ─────
+    //
+    // Note on numbering: the unknown-type design document's Diagnostic ID
+    // Allocation table originally proposed MIST_TC_0051 / MIST_TC_0052 for
+    // the two pattern-narrowing rejections below. Those codes were already
+    // allocated to the pattern-matching feature (see PatternConstantTypeMismatch
+    // and PatternRelationalNonComparable above), so the unknown-type pattern
+    // rejections were reallocated to MIST_TC_0063 / MIST_TC_0064 — the next
+    // free codes after the Task 21 member-filtering diagnostic (MIST_TC_0062) —
+    // to avoid overloading diagnostic IDs with two distinct meanings. This
+    // continues the same reallocation strategy used by Task 9 (0060 / 0061)
+    // and Task 21 (0062).
+
+    /// <summary>
+    /// Emitted when an <c>is</c>-pattern narrows to <see cref="UnknownType"/>
+    /// (e.g., <c>x is unknown u</c>). Narrowing to <c>unknown</c> is not
+    /// meaningful: the pattern is tautologically true because every value
+    /// is assignable to <c>unknown</c> (Req 4.1), and the introduced binding
+    /// has no more specific type than the scrutinee (Req 11.3).
+    /// </summary>
+    internal static readonly DiagnosticId PatternNarrowToUnknown = new("MIST_TC_0063");
+
+    /// <summary>
+    /// Emitted when an <c>is</c>-pattern narrows to a
+    /// <c>Closed_Generic_With_Unknown</c> (e.g., <c>x is List&lt;unknown&gt; lu</c>).
+    /// Narrowing to such a type is not meaningful: Covariant_Unknown_Widening
+    /// (Req 8) makes the pattern tautologically true, and the introduced
+    /// binding loses information — members classified <c>WritesT</c> with
+    /// respect to the <c>unknown</c>-bound type parameter are filtered per
+    /// Requirement 10 without any gain over the scrutinee (Req 11.4).
+    /// </summary>
+    internal static readonly DiagnosticId PatternNarrowToClosedGenericWithUnknown = new("MIST_TC_0064");
+
+    // ── unknown-type feature: bare-unknown rejection (Task 25) ───────────
+    //
+    // Note on numbering: the unknown-type design document's Diagnostic ID
+    // Allocation table originally proposed MIST_TC_0053 / MIST_TC_0054 for
+    // the two bare-unknown rejections below. Those codes were already
+    // allocated to the pattern-matching feature (see PatternUndefinedProperty
+    // and PatternListRequiresArray above), so the unknown-type bare-unknown
+    // rejections were reallocated to MIST_TC_0065 / MIST_TC_0066 — the next
+    // free codes after the Task 24 pattern-narrowing diagnostics
+    // (MIST_TC_0063, MIST_TC_0064) — to avoid overloading diagnostic IDs
+    // with two distinct meanings. This continues the same reallocation
+    // strategy used by Task 9 (0060 / 0061), Task 21 (0062), and
+    // Task 24 (0063 / 0064).
+
+    /// <summary>
+    /// Emitted when a member access expression has a receiver whose static
+    /// type is exactly <see cref="UnknownType"/> (not a Constructed_Type
+    /// with <c>unknown</c> arguments). Per Requirement 13.1, no member
+    /// exists on bare <c>unknown</c> regardless of the member name. The
+    /// message suggests using an <c>is</c> pattern to narrow to a concrete
+    /// type before accessing members (Req 16.4).
+    /// </summary>
+    internal static readonly DiagnosticId BareUnknownMemberAccess = new("MIST_TC_0065");
+
+    /// <summary>
+    /// Emitted when a binary or unary operator is applied to an operand
+    /// whose static type is exactly <see cref="UnknownType"/>. Per
+    /// Requirement 13.2, no operators are defined for bare <c>unknown</c>.
+    /// This applies to <c>==</c>, <c>!=</c>, <c>&lt;</c>, <c>&gt;</c>,
+    /// <c>&lt;=</c>, <c>&gt;=</c>, <c>+</c>, <c>-</c>, <c>*</c>, <c>/</c>,
+    /// <c>%</c>, <c>&amp;&amp;</c>, <c>||</c>, <c>!</c>, and any
+    /// user-defined operators. The message suggests using an <c>is</c>
+    /// pattern to narrow the operand first (Req 16.4).
+    /// </summary>
+    internal static readonly DiagnosticId BareUnknownOperator = new("MIST_TC_0066");
+
+    // ── unknown-type feature: cast-from-unknown diagnostic (Task 26) ─────
+    //
+    // Note on numbering: the unknown-type design document's Diagnostic ID
+    // Allocation table originally proposed MIST_TC_0055 for the "no cast
+    // operator from unknown to T" diagnostic below. That code was already
+    // allocated to the pattern-matching feature (see PatternListTooManyElements
+    // above — a warning emitted when a list pattern has more fixed elements
+    // than the array could contain). To avoid overloading a diagnostic ID
+    // with two distinct meanings — especially one being an error and the
+    // other a warning — the unknown-type cast-from-unknown diagnostic was
+    // reallocated to MIST_TC_0067, the next free code after the Task 25
+    // bare-unknown diagnostics (MIST_TC_0065, MIST_TC_0066). This continues
+    // the reallocation strategy used by Task 9 (0060 / 0061), Task 21 (0062),
+    // Task 24 (0063 / 0064), and Task 25 (0065 / 0066).
+
+    /// <summary>
+    /// Emitted when a cast expression <c>(T) expr</c> has an operand whose
+    /// static type is <see cref="UnknownType"/> and no implicit or explicit
+    /// cast operator from <c>unknown</c> to <c>T</c> has been declared on
+    /// <c>T</c>. Per Requirement 13.4, a cast from <c>unknown</c> to <c>T</c>
+    /// requires a statically-resolvable cast operator; unlike C#, Mist does
+    /// not permit a runtime-checked cast through <c>object</c>. The
+    /// diagnostic's message names the target type and explains that a
+    /// user-defined operator <c>implicit/explicit operator T(unknown)</c>
+    /// must be declared on <c>T</c> for the cast to compile (Req 13.6).
+    /// </summary>
+    internal static readonly DiagnosticId NoCastOperatorFromUnknown = new("MIST_TC_0067");
+
     /// <summary>
     /// Feature flag gating the operator overload-resolution path introduced by
     /// Task 14 of the Mist Standard Library spec. When <c>true</c> (the
@@ -614,7 +736,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Explicit cast expression validation (MIST_TC_0042, MIST_TC_0043)
+    // Explicit cast expression validation (MIST_TC_0042, MIST_TC_0043, MIST_TC_0067)
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
@@ -624,7 +746,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <item><description>Gets the compile-time type of the operand.</description></item>
     /// <item><description>If the operand type is directly assignable to the target type
     /// (identity or subtype — <em>not</em> implicit cast), the cast is valid with no
-    /// operator needed.</description></item>
+    /// operator needed. This also covers the unknown-type top-type rule — when the
+    /// target is <see cref="UnknownType"/>, <see cref="IsDirectlyAssignable"/>
+    /// accepts every non-<c>void</c> source per Req 13.5 / Req 4.1, so the operator
+    /// search is skipped entirely (Task 26.2).</description></item>
+    /// <item><description>If the operand type is <see cref="UnknownType"/>
+    /// (Task 26.1 / Req 13.4), searches <em>only</em> the target type's member
+    /// scope for a cast operator whose source type is <c>unknown</c>. The source's
+    /// scope is empty by construction (Req 3.4), so searching it is unnecessary.
+    /// If no such operator exists, emits <c>MIST_TC_0067</c> (the targeted
+    /// "no cast operator from unknown" diagnostic). If exactly one exists, records
+    /// it. If multiple exist, emits <c>MIST_TC_0043</c> for ambiguity.</description></item>
     /// <item><description>Otherwise, searches both the source type and target type member
     /// scopes for <c>operator_explicit_{target}</c> or <c>operator_implicit_{target}</c>
     /// symbols. Does <b>not</b> search base types or derived types (Requirement 8.7).</description></item>
@@ -654,8 +786,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         //    (identity or subtype), the cast is valid — no operator needed.
         //    We must NOT use the full IsAssignable here because that includes
         //    the implicit cast operator fallback. We only want identity/subtype.
+        //
+        //    The unknown-type top-type rule (Req 4.1, 13.5) is baked into
+        //    IsDirectlyAssignable: `(unknown) expr` for any non-void `expr`
+        //    is trivially valid and returns before any operator search
+        //    (Task 26.2).
         if (IsDirectlyAssignable(sourceType, targetType, model))
             return;
+
+        // 3a. Cast from `unknown` to a concrete target type (Task 26.1 /
+        //     Req 13.4, 13.6). UnknownType has no member scope (Req 3.4),
+        //     so only the target's scope is searched for an operator
+        //     whose source is `unknown` and target is T. When zero
+        //     candidates are found we emit the targeted
+        //     MIST_TC_0067 instead of the generic MIST_TC_0042 so the
+        //     user sees an explanation specific to the top-type case
+        //     (Req 16.4). Ambiguity still routes through MIST_TC_0043.
+        if (sourceType is UnknownType && targetType is not UnknownType)
+        {
+            CheckCastFromUnknown(castExpr, sourceType, targetType, model, diagnostics);
+            return;
+        }
 
         // 4. Search for explicit and implicit cast operators on both the
         //    source type and the target type. Only operators declared directly
@@ -720,6 +871,74 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
+    /// Resolves a cast expression <c>(T) expr</c> where the operand's static
+    /// type is <see cref="UnknownType"/> (Task 26.1 / Req 13.4).
+    /// <para>
+    /// Since <see cref="UnknownType"/> has no member scope (Req 3.4), only
+    /// the target type's scope is searched for an implicit or explicit cast
+    /// operator whose source type is <c>unknown</c> and whose target type
+    /// is <paramref name="targetType"/>. When zero candidates are found the
+    /// targeted <see cref="NoCastOperatorFromUnknown"/>
+    /// (<c>MIST_TC_0067</c>) diagnostic is emitted instead of the generic
+    /// <see cref="NoCastOperator"/> (<c>MIST_TC_0042</c>) so the user sees
+    /// an explanation specific to the <c>unknown</c> case (Req 16.4).
+    /// Ambiguity still routes through <see cref="AmbiguousCast"/>
+    /// (<c>MIST_TC_0043</c>).
+    /// </para>
+    /// </summary>
+    private static void CheckCastFromUnknown(
+        CastExpressionUnaryNode castExpr,
+        IType sourceType,
+        IType targetType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var candidates = new List<ISymbol>();
+        var explicitOpName = $"operator_explicit_{targetType.DisplayName}";
+        var implicitOpName = $"operator_implicit_{targetType.DisplayName}";
+
+        // Search only the target type's member scope. The source
+        // (UnknownType) has no scope (Req 3.4) so no second search is
+        // needed.
+        var targetScope = GetMemberScope(targetType);
+        if (targetScope is not null)
+        {
+            foreach (var member in targetScope.Members)
+            {
+                if (member.Kind == SymbolKind.Method
+                    && (member.Name == explicitOpName || member.Name == implicitOpName))
+                {
+                    candidates.Add(member);
+                }
+            }
+        }
+
+        if (candidates.Count == 1)
+        {
+            model.RecordResolvedOperator(castExpr, candidates[0]);
+            model.SetTypeOf(castExpr, targetType);
+        }
+        else if (candidates.Count == 0)
+        {
+            // MIST_TC_0067: targeted diagnostic for the top-type case.
+            diagnostics.Add(MakeDiagnostic(
+                NoCastOperatorFromUnknown.Value,
+                $"No cast operator is defined from 'unknown' to '{targetType.DisplayName}'. Declare 'implicit operator {targetType.DisplayName}(unknown u)' or 'explicit operator {targetType.DisplayName}(unknown u)' on '{targetType.DisplayName}', or use an 'is' pattern to narrow the operand to a concrete type first.",
+                castExpr,
+                model));
+        }
+        else
+        {
+            // MIST_TC_0043: Ambiguous cast — multiple operators applicable.
+            diagnostics.Add(MakeDiagnostic(
+                AmbiguousCast.Value,
+                $"Ambiguous cast from '{sourceType.DisplayName}' to '{targetType.DisplayName}': multiple cast operators are applicable.",
+                castExpr,
+                model));
+        }
+    }
+
+    /// <summary>
     /// Checks whether <paramref name="source"/> is directly assignable to
     /// <paramref name="target"/> via identity, subtype, interface, trait,
     /// or constructed type relationships — but <b>not</b>
@@ -734,6 +953,34 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ErrorType suppresses cascading errors.
         if (IsErrorType(source) || IsErrorType(target))
             return true;
+
+        // ── unknown-type feature: top-type direct-assignability (Task 26.2) ──
+        //
+        // UnknownType is the user-facing top type (Req 4.1). Every non-void
+        // source is assignable to `unknown` without any cast operator lookup,
+        // including in the cast-expression path — `(unknown) expr` is a
+        // trivially-valid cast (Req 13.5) that the Emitter lowers as a direct
+        // C# cast to `object`. This mirrors the top-type rule baked into
+        // `IsAssignable` so the two helpers agree on the unknown-target case;
+        // `IsDirectlyAssignable` is used by `CheckCastExpression` as the
+        // "trivially valid, no operator needed" gate, and by the assignment-
+        // site precedence check in `CheckAssignabilityAndTrackImplicitCast`
+        // which must not try to resolve an implicit cast operator when the
+        // target is `unknown` (UnknownType has no members, Req 3.4, so no
+        // such operator could exist anyway).
+        //
+        // void → unknown is rejected here; the caller (assignment site or
+        // CheckCastExpression) is responsible for emitting MIST_TC_0061.
+        if (target is UnknownType)
+        {
+            if (source.IsVoid())
+                return false;
+            return true;
+        }
+        // source is UnknownType with a non-unknown target: fall through to
+        // the rest of IsDirectlyAssignable, which will reject by returning
+        // false. The cast-expression path then routes to
+        // `CheckCastFromUnknown` for the operator lookup.
 
         // Identity.
         if (ReferenceEquals(source, target))
@@ -763,6 +1010,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     }
                 }
                 if (allMatch) return true;
+
+                // Covariant unknown widening (unknown-type feature, Task 23.3).
+                // Req 8.4: a trivially-valid cast like `(List<unknown>) intList`
+                // must not require a user-declared cast operator. Applying the
+                // widening rule here lets `CheckCastExpression` accept it
+                // directly.
+                if (AssignableWithUnknownWidening(
+                        sourceConstructed.GenericDefinition,
+                        sourceConstructed.TypeArguments,
+                        targetConstructed.TypeArguments))
+                {
+                    return true;
+                }
             }
         }
 
@@ -2269,6 +2529,37 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         typePattern,
                         model));
                 }
+                else if (patternType is UnknownType)
+                {
+                    // Task 24.1 / Req 11.3: narrowing to `unknown` is not
+                    // meaningful. `is unknown u` is tautologically true
+                    // because every value is assignable to `unknown`
+                    // (Req 4.1), and the introduced binding has no more
+                    // specific type than the scrutinee — it discards
+                    // information instead of recovering it.
+                    diagnostics.Add(MakeDiagnostic(
+                        PatternNarrowToUnknown.Value,
+                        "Narrowing to 'unknown' is not meaningful: the pattern is tautologically true and introduces no new type information. Remove the pattern or narrow to a concrete type instead.",
+                        typePattern,
+                        model));
+                }
+                else if (IsClosedGenericWithUnknown(patternType))
+                {
+                    // Task 24.2 / Req 11.4: narrowing to a
+                    // Closed_Generic_With_Unknown (e.g., `List<unknown>`)
+                    // is not meaningful. Covariant_Unknown_Widening
+                    // (Req 8) makes the pattern tautologically true, and
+                    // the introduced binding is strictly less useful than
+                    // the scrutinee — members classified WritesT with
+                    // respect to the `unknown`-bound type parameter are
+                    // filtered per Requirement 10, without any information
+                    // gain.
+                    diagnostics.Add(MakeDiagnostic(
+                        PatternNarrowToClosedGenericWithUnknown.Value,
+                        $"Narrowing to '{patternType.DisplayName}' is not meaningful: the pattern is tautologically true under covariant unknown widening, and the binding loses information because members that write to a type parameter bound to 'unknown' are filtered. Narrow to a concrete constructed type (e.g., '{ReplaceUnknownWithConcretePlaceholder(patternType)}') instead.",
+                        typePattern,
+                        model));
+                }
                 break;
             }
 
@@ -2844,6 +3135,87 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         return qualifiedId.IDENTIFIER.Lexeme ?? "unknown";
     }
 
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> is a
+    /// <see cref="ConstructedType"/> whose type arguments contain
+    /// <see cref="UnknownType"/> at any position (direct or transitive).
+    /// This is the <em>Closed_Generic_With_Unknown</em> shape defined in
+    /// the unknown-type feature glossary: a Constructed_Type in which at
+    /// least one type argument is <c>unknown</c> directly or transitively
+    /// (e.g., <c>List&lt;unknown&gt;</c>, <c>Map&lt;string, unknown&gt;</c>,
+    /// <c>Optional&lt;List&lt;unknown&gt;&gt;</c>). Used by the Task 24
+    /// pattern-narrowing rejection rule (Req 11.4).
+    /// </summary>
+    /// <remarks>
+    /// The check is recursive through nested constructed types and array
+    /// element types. A bare <see cref="UnknownType"/> is <em>not</em> a
+    /// Closed_Generic_With_Unknown — that shape is handled by the Req 11.3
+    /// rejection instead. Non-constructed types (primitives, class types
+    /// without type arguments, etc.) return <c>false</c>.
+    /// </remarks>
+    private static bool IsClosedGenericWithUnknown(IType type)
+    {
+        if (type is not ConstructedType ct)
+            return false;
+
+        foreach (var arg in ct.TypeArguments)
+        {
+            if (ContainsUnknownAtAnyPosition(arg))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Recursive structural containment check: returns <c>true</c> if
+    /// <paramref name="type"/> is <see cref="UnknownType"/>, an array whose
+    /// element (transitively) contains <c>unknown</c>, or a constructed
+    /// type whose arguments (transitively) contain <c>unknown</c>.
+    /// </summary>
+    private static bool ContainsUnknownAtAnyPosition(IType type)
+    {
+        switch (type)
+        {
+            case UnknownType:
+                return true;
+            case ArrayType arr:
+                return ContainsUnknownAtAnyPosition(arr.ElementType);
+            case ConstructedType ct:
+                foreach (var arg in ct.TypeArguments)
+                {
+                    if (ContainsUnknownAtAnyPosition(arg))
+                        return true;
+                }
+                return false;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// Produces a display-only suggestion string for the diagnostic message
+    /// emitted by <see cref="PatternNarrowToClosedGenericWithUnknown"/>.
+    /// Replaces every occurrence of <c>unknown</c> in the type's
+    /// <see cref="IType.DisplayName"/> with a concrete placeholder (<c>T</c>)
+    /// so the suggestion reads naturally (e.g., <c>List&lt;T&gt;</c> instead
+    /// of <c>List&lt;unknown&gt;</c>).
+    /// </summary>
+    /// <remarks>
+    /// This helper operates on the display name as a string because the
+    /// suggestion is purely presentational: no real substitution type is
+    /// in hand, and the diagnostic is only intended to guide the developer
+    /// toward a concrete narrow.
+    /// </remarks>
+    private static string ReplaceUnknownWithConcretePlaceholder(IType type)
+    {
+        // Simple string replacement on the display name is sufficient here:
+        // `unknown` is a reserved keyword token and cannot appear as part
+        // of any other identifier. We only need the substring replacement
+        // to be consistent; the exact placeholder is for documentation
+        // purposes only.
+        return type.DisplayName.Replace("unknown", "T", System.StringComparison.Ordinal);
+    }
+
     private void CheckAdditiveNode(AdditiveNode node, ISemanticModel model, DiagnosticBag diagnostics)
     {
         CheckMultiplicativeNode(node.Left, model, diagnostics);
@@ -2975,6 +3347,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             switch (suffix)
             {
                 case MethodCallSuffixPostfixSuffixNode methodCall:
+                    // Task 25.1: bare-unknown member access rejection.
+                    // A method call on a receiver whose static type is
+                    // exactly `UnknownType` has no valid target — the
+                    // singleton has no member scope (Req 3.4). Emit
+                    // MIST_TC_0065 and short-circuit the remaining
+                    // suffix logic to suppress cascading diagnostics.
+                    if (currentType is UnknownType)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            BareUnknownMemberAccess.Value,
+                            FormatBareUnknownMemberAccessMessage(
+                                methodCall.Name.Lexeme,
+                                currentType.DisplayName),
+                            methodCall,
+                            model));
+                        currentType = ErrorType.Instance;
+                        targetIsTypeName = false;
+                        break;
+                    }
                     CheckMethodCallArguments(methodCall, currentType, model, diagnostics);
                     CheckMemberAccessModifiers(methodCall.Name.Lexeme, currentType, targetIsTypeName, methodCall, model, diagnostics);
                     // Task 21: filter methods on Closed_Generic_With_Unknown receivers.
@@ -3007,6 +3398,26 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     break;
 
                 case IndexSuffixPostfixSuffixNode indexSuffix:
+                    // Task 25.1: bare-unknown member access rejection.
+                    // An indexer access on a receiver whose static type is
+                    // exactly `UnknownType` has no valid target — the
+                    // singleton has no indexer (Req 3.4). Emit
+                    // MIST_TC_0065 naming the canonical indexer lexeme
+                    // and short-circuit the remaining suffix logic to
+                    // suppress cascading diagnostics.
+                    if (currentType is UnknownType)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            BareUnknownMemberAccess.Value,
+                            FormatBareUnknownMemberAccessMessage(
+                                "this[]",
+                                currentType.DisplayName),
+                            indexSuffix,
+                            model));
+                        currentType = ErrorType.Instance;
+                        targetIsTypeName = false;
+                        break;
+                    }
                     CheckIndexSuffix(indexSuffix, currentType, model, diagnostics);
                     // Task 21: filter indexer accesses on Closed_Generic_With_Unknown
                     // receivers. Write context (LHS of `=`) uses the Write side of
@@ -3026,6 +3437,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     break;
 
                 case MemberAccessSuffixPostfixSuffixNode memberAccess:
+                    // Task 25.1: bare-unknown member access rejection.
+                    // A member access on a receiver whose static type is
+                    // exactly `UnknownType` has no valid target — the
+                    // singleton has no member scope (Req 3.4). Emit
+                    // MIST_TC_0065 and short-circuit the remaining
+                    // suffix logic to suppress cascading diagnostics.
+                    if (currentType is UnknownType)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            BareUnknownMemberAccess.Value,
+                            FormatBareUnknownMemberAccessMessage(
+                                memberAccess.Name.Lexeme,
+                                currentType.DisplayName),
+                            memberAccess,
+                            model));
+                        currentType = ErrorType.Instance;
+                        break;
+                    }
                     CheckMemberAccessModifiers(memberAccess.Name.Lexeme, currentType, targetIsTypeName, memberAccess, model, diagnostics);
                     // MIST_TC_0019: Check property has accessible get accessor when read.
                     CheckPropertyReadAccess(memberAccess, currentType, model, diagnostics);
@@ -3389,6 +3818,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         return $"'{receiverTypeDisplayName}' does not contain a definition for '{memberName}': " +
                "the operation would write to storage of a type parameter bound to 'unknown'.";
+    }
+
+    /// <summary>
+    /// Produces the user-facing message for <see cref="BareUnknownMemberAccess"/>
+    /// (Task 25.1). Names the receiver's static type and suggests using an
+    /// <c>is</c> pattern to narrow before accessing members (Req 13.1, Req 16.4).
+    /// </summary>
+    private static string FormatBareUnknownMemberAccessMessage(
+        string memberName,
+        string receiverTypeDisplayName)
+    {
+        return $"Cannot access member '{memberName}' on a value of type " +
+               $"'{receiverTypeDisplayName}': 'unknown' has no members. Use an " +
+               "'is' pattern to narrow the value to a concrete type before " +
+               "accessing members.";
     }
 
     /// <summary>
@@ -5021,6 +5465,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <c>unknown</c> assigned to a non-<c>unknown</c> target (Req 4.4).
     /// Pattern-narrowing (<c>is T t</c>) is the designated mechanism and is
     /// mediated by a separate check, not this one.</description></item>
+    /// <item><description><c>MIST_TC_0058</c> — a covariant <c>unknown</c>
+    /// widening is attempted on a struct (value-type) generic (Req 8.6).
+    /// Widening is restricted to class (reference-type) generics so the
+    /// C# emission strategy remains sound.</description></item>
     /// </list>
     /// </para>
     /// </summary>
@@ -5049,6 +5497,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             diagnostics.Add(MakeDiagnostic(
                 UnknownToNonUnknown.Value,
                 $"Cannot assign 'unknown' to '{target.DisplayName}': use an 'is' pattern to narrow the value to a concrete type first.",
+                node,
+                model));
+            return true;
+        }
+
+        // Struct-generic widening restriction (Req 8.1, 8.6, Task 23.4).
+        // If the only reason assignability fails is that the generic
+        // definition being widened is a struct rather than a class, emit
+        // the explanatory MIST_TC_0058 so the error points at the rule
+        // rather than cascading a generic type-mismatch diagnostic.
+        if (WouldAssignableWithUnknownWideningIfClass(source, target))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                StructGenericUnknownWidening.Value,
+                $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}': covariant 'unknown' widening is only available for class (reference-type) generics, not struct generics.",
                 node,
                 model));
             return true;
@@ -5281,6 +5744,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     }
                 }
                 if (allMatch) return true;
+
+                // Covariant unknown widening (unknown-type feature, Task 23.2).
+                // Req 8.1–8.3: after the identity check, try the position-wise
+                // widening rule that accepts any target position whose type
+                // argument is `UnknownType`, provided the generic definition
+                // at that level is a class (reference-type) generic. Nested
+                // constructions recurse through the same rule. Transitive
+                // widening along the base-type / interface chain is picked
+                // up by the existing loops below.
+                if (AssignableWithUnknownWidening(
+                        sourceConstructed.GenericDefinition,
+                        sourceConstructed.TypeArguments,
+                        targetConstructed.TypeArguments))
+                {
+                    return true;
+                }
             }
         }
 
@@ -5387,6 +5866,139 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Migration-window shim: legacy `int` and stdlib `Int32` denote
         // the same Mist primitive.
         return ArePrimitiveEquivalent(a, b);
+    }
+
+    // ─── Covariant unknown widening (unknown-type feature, Task 23) ──────
+    //
+    // Req 8.1–8.3: `Foo<A_1, …, A_n>` is assignable to `Foo<B_1, …, B_n>`
+    // when, at every position i, either `A_i == B_i` or `B_i is UnknownType`
+    // and the generic definition being widened is a class (reference-type)
+    // generic. Nested widening recurses into constructed type arguments, so
+    // `Optional<List<int>>` widens to `Optional<List<unknown>>` even when
+    // `Optional` is a struct, because the widening happens at the inner
+    // `List` boundary and `List` is a class.
+    //
+    // Req 8.5: the rule is one-directional by construction — only the target
+    // position may be `UnknownType`. A concrete target with a source of
+    // `UnknownType` falls through to the default `TypesEqual` check and is
+    // rejected.
+    //
+    // The struct-generic restriction (Req 8.1, 8.6) is enforced by checking
+    // the enclosing generic definition's <see cref="IType.Kind"/> at each
+    // level where a widening actually happens. When the check fails only
+    // because of this kind restriction, the caller of
+    // <see cref="IsAssignable"/> detects that via
+    // <see cref="WouldAssignableWithUnknownWideningIfClass"/> and emits
+    // <see cref="StructGenericUnknownWidening"/> (MIST_TC_0058).
+
+    /// <summary>
+    /// Position-wise covariant widening check for the type arguments of a
+    /// single generic construction.
+    /// <para>
+    /// For each position <c>i</c>, the rule accepts when
+    /// <c>argsS[i] == argsT[i]</c>, or when <c>argsT[i]</c> is
+    /// <see cref="UnknownType"/> and <paramref name="defCtx"/>'s
+    /// <see cref="IType.Kind"/> is <see cref="TypeKind.Class"/>, or when both
+    /// sides are <see cref="ConstructedType"/>s sharing the same generic
+    /// definition and their nested widening succeeds.
+    /// </para>
+    /// <para>
+    /// <paramref name="defCtx"/> carries the generic definition whose
+    /// arguments are being compared at the current level; the class-only
+    /// rule is enforced only where a widening actually happens at that
+    /// level (Req 8.1, 8.6). Nested levels carry their own <c>defCtx</c>.
+    /// </para>
+    /// </summary>
+    private static bool AssignableWithUnknownWidening(
+        IType defCtx,
+        IReadOnlyList<IType> argsS,
+        IReadOnlyList<IType> argsT,
+        bool ignoreClassRestriction = false)
+    {
+        if (argsS.Count != argsT.Count)
+            return false;
+
+        for (var i = 0; i < argsS.Count; i++)
+        {
+            var s = argsS[i];
+            var t = argsT[i];
+
+            // Identity at this position — no widening happens here.
+            if (TypesEqual(s, t))
+                continue;
+
+            // Widening: target is `unknown`. The class-only rule (Req 8.1,
+            // 8.6) is enforced at the level where widening happens unless
+            // the caller is probing the "would widen if class" case.
+            if (t is UnknownType)
+            {
+                if (!ignoreClassRestriction && defCtx.Kind != TypeKind.Class)
+                    return false;
+                continue;
+            }
+
+            // Nested widening: both sides are constructed from the same
+            // generic definition. Recurse with the nested definition as
+            // the new defCtx so the class-only rule is checked there.
+            if (s is ConstructedType sc
+                && t is ConstructedType tc
+                && ReferenceEquals(sc.GenericDefinition, tc.GenericDefinition))
+            {
+                if (!AssignableWithUnknownWidening(
+                        sc.GenericDefinition,
+                        sc.TypeArguments,
+                        tc.TypeArguments,
+                        ignoreClassRestriction))
+                {
+                    return false;
+                }
+                continue;
+            }
+
+            // Anything else (mismatched nested definitions, bare types
+            // differing, source-side UnknownType widening to concrete
+            // target — Req 8.5) is not a valid widening.
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the only thing preventing the covariant
+    /// unknown widening from <paramref name="source"/> to
+    /// <paramref name="target"/> is the class-only restriction (Req 8.6).
+    /// Used by <see cref="TryEmitUnknownAssignabilityDiagnostic"/> to emit
+    /// the explanatory <see cref="StructGenericUnknownWidening"/>
+    /// diagnostic instead of a generic type-mismatch error at widening
+    /// sites.
+    /// </summary>
+    private static bool WouldAssignableWithUnknownWideningIfClass(IType source, IType target)
+    {
+        if (source is not ConstructedType sc || target is not ConstructedType tc)
+            return false;
+        if (!ReferenceEquals(sc.GenericDefinition, tc.GenericDefinition))
+            return false;
+        if (sc.TypeArguments.Count != tc.TypeArguments.Count)
+            return false;
+
+        // If the strict widening already succeeds, this is not a
+        // "would widen if class" case.
+        if (AssignableWithUnknownWidening(
+                sc.GenericDefinition, sc.TypeArguments, tc.TypeArguments))
+        {
+            return false;
+        }
+
+        // Probe the relaxed widening (class-only restriction ignored). If
+        // it would succeed, then the class-only rule is the sole reason
+        // the strict widening failed — that is the struct-generic
+        // restriction diagnostic case (Req 8.6).
+        return AssignableWithUnknownWidening(
+            sc.GenericDefinition,
+            sc.TypeArguments,
+            tc.TypeArguments,
+            ignoreClassRestriction: true);
     }
 
     /// <summary>
@@ -5931,6 +6543,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             || IsErrorType(leftType) || IsErrorType(rightType))
             return;
 
+        // Task 25.2: bare-unknown operator rejection (Req 13.2).
+        // `UnknownType` has no declared members (Req 3.4), so no operator
+        // symbols are reachable from either operand's scope. Rather than
+        // falling through to the generic "no applicable operator"
+        // diagnostic, emit the targeted MIST_TC_0066 that names the
+        // unknown operand(s) and suggests using an `is` pattern
+        // (Req 16.4). Short-circuit before candidate collection to
+        // suppress cascading.
+        if (leftType is UnknownType || rightType is UnknownType)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                BareUnknownOperator.Value,
+                FormatBareUnknownBinaryOperatorMessage(op, leftType, rightType),
+                surrounding,
+                model));
+            return;
+        }
+
         var opName = "operator" + op;
 
         // Requirement 6.1: collect candidates from BOTH operand types.
@@ -6046,6 +6676,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (operandType is null || IsErrorType(operandType))
             return;
 
+        // Task 25.2: bare-unknown operator rejection (Req 13.2).
+        // `UnknownType` has no declared members (Req 3.4), so no operator
+        // symbols are reachable from the operand's scope. Rather than
+        // falling through to the generic "no applicable operator"
+        // diagnostic, emit the targeted MIST_TC_0066 that names the
+        // unknown operand and suggests using an `is` pattern
+        // (Req 16.4). Short-circuit before candidate collection to
+        // suppress cascading.
+        if (operandType is UnknownType)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                BareUnknownOperator.Value,
+                FormatBareUnknownUnaryOperatorMessage(op, operandType),
+                surrounding,
+                model));
+            return;
+        }
+
         var opName = "operator" + op;
 
         var candidates = new List<ISymbol>();
@@ -6122,6 +6770,40 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (member.Kind == SymbolKind.Method && member.Name == operatorName)
                 yield return member;
         }
+    }
+
+    /// <summary>
+    /// Produces the user-facing message for <see cref="BareUnknownOperator"/>
+    /// in the binary-operator case (Task 25.2). Names the operator and the
+    /// operand type(s) that are <c>unknown</c>, and suggests using an
+    /// <c>is</c> pattern to narrow before applying the operator
+    /// (Req 13.2, Req 16.4).
+    /// </summary>
+    private static string FormatBareUnknownBinaryOperatorMessage(
+        string op,
+        IType leftType,
+        IType rightType)
+    {
+        return $"Operator '{op}' cannot be applied to operands of type " +
+               $"'{leftType.DisplayName}' and '{rightType.DisplayName}': " +
+               "no operators are defined for 'unknown'. Use an 'is' pattern " +
+               "to narrow the value to a concrete type before applying the operator.";
+    }
+
+    /// <summary>
+    /// Produces the user-facing message for <see cref="BareUnknownOperator"/>
+    /// in the unary-operator case (Task 25.2). Names the operator and the
+    /// operand type, and suggests using an <c>is</c> pattern to narrow
+    /// before applying the operator (Req 13.2, Req 16.4).
+    /// </summary>
+    private static string FormatBareUnknownUnaryOperatorMessage(
+        string op,
+        IType operandType)
+    {
+        return $"Operator '{op}' cannot be applied to operand of type " +
+               $"'{operandType.DisplayName}': no operators are defined for " +
+               "'unknown'. Use an 'is' pattern to narrow the value to a " +
+               "concrete type before applying the operator.";
     }
 
     /// <summary>

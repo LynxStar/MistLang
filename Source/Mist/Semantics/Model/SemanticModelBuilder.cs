@@ -413,7 +413,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // combine with with-block mappings to determine which types satisfy
         // which traits. Results are stored in a TraitSatisfactionMap.
         var traitSatisfactionMap = new TraitSatisfactionMap();
-        Pass1_ResolveTraitSatisfaction(symbolTable, withBlockRegistry, traitSatisfactionMap, diagnostics);
+        Pass1_ResolveTraitSatisfaction(symbolTable, globalScope, withBlockRegistry, traitSatisfactionMap, asts, compilation, diagnostics);
 
         // Pass 1c: Detect circular interface inheritance chains.
         // After interface lists are resolved, walk each interface's Interfaces
@@ -3556,8 +3556,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static void Pass1_ResolveTraitSatisfaction(
         SymbolTable symbolTable,
+        Scope globalScope,
         WithBlockRegistry withBlockRegistry,
         TraitSatisfactionMap satisfactionMap,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
         // Collect all traits.
@@ -3601,7 +3604,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach (var traitMember in trait.MemberScope.Members)
                 {
                     var matched = TryStructuralMatch(
-                        traitMember, memberScope, typeName, symbolTable, diagnostics);
+                        traitMember, memberScope, typeName, globalScope, symbolTable,
+                        asts, compilation, diagnostics);
 
                     if (matched is not null)
                     {
@@ -3681,7 +3685,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ISymbol traitMember,
         IScope typeMemberScope,
         string typeName,
+        Scope globalScope,
         SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
         var traitMemberName = traitMember.Name;
@@ -3692,10 +3699,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return TryMatchTraitField(traitMember, typeMemberScope, typeName, symbolTable, diagnostics);
 
             case SymbolKind.Method:
-                return TryMatchTraitMethod(traitMember, typeMemberScope, typeName, symbolTable, diagnostics);
+                return TryMatchTraitMethod(traitMember, typeMemberScope, typeName, globalScope, symbolTable, asts, compilation, diagnostics);
 
             case SymbolKind.Property:
-                return TryMatchTraitProperty(traitMember, typeMemberScope, typeName, symbolTable, diagnostics);
+                return TryMatchTraitProperty(traitMember, typeMemberScope, typeName, globalScope, symbolTable, asts, compilation, diagnostics);
 
             default:
                 return null;
@@ -3761,13 +3768,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Matches a trait method member against the type's public methods with
-    /// the same name, return type, and parameter types.
+    /// the same name, return type, and parameter types. Return-position
+    /// matching uses the relaxed unknown-widening rules (Req 12.1, 12.2);
+    /// parameter-position matching remains exact (Req 12.3).
     /// </summary>
     private static ISymbol? TryMatchTraitMethod(
         ISymbol traitMethod,
         IScope typeMemberScope,
         string typeName,
+        Scope globalScope,
         SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
         var traitMethodName = traitMethod.Name;
@@ -3777,6 +3789,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         var traitReturnType = traitMethodDecl.ReturnType;
         var traitParams = ExtractParameterTypes(traitMethodDecl.Parameters);
+        var traitSourceText = FindSourceTextForNode(traitMethodDecl, asts, compilation);
         var foundPrivateMatch = false;
 
         foreach (var member in typeMemberScope.Members)
@@ -3796,8 +3809,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (memberNode is not MethodDeclarationNode implMethodDecl)
                 continue;
 
-            // Compare return types.
-            if (!TypeReferencesMatch(traitReturnType, implMethodDecl.ReturnType))
+            var implSourceText = FindSourceTextForNode(implMethodDecl, asts, compilation);
+            // Both source texts should be available; if they disagree, we
+            // use the trait's as the primary lookup source (names resolved
+            // from the trait side are the ones that need to match the
+            // impl's declaration).
+            var combinedSourceText = traitSourceText ?? implSourceText;
+
+            // Compare return types under the relaxed trait-return rules
+            // (Req 12.1, 12.2 — unknown widening allowed at the return
+            // position).
+            if (!TypeReferencesMatchForTraitReturn(
+                    traitReturnType, implMethodDecl.ReturnType, globalScope, symbolTable, combinedSourceText))
                 continue;
 
             // Compare parameter types.
@@ -3839,19 +3862,36 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// Matches a trait property member against the type's public properties
     /// with the same name, compatible type, and at least the trait's accessors.
+    /// Property types apply the relaxed unknown-widening rules (Req 12.1, 12.2)
+    /// when the trait declares only a getter (read-only), because the type
+    /// appears only at a return position. When the trait declares a setter,
+    /// exact matching is required (Req 12.3) because the property type then
+    /// appears at a parameter position (the value being assigned).
     /// </summary>
     private static ISymbol? TryMatchTraitProperty(
         ISymbol traitProperty,
         IScope typeMemberScope,
         string typeName,
+        Scope globalScope,
         SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
         var traitPropName = traitProperty.Name;
         var traitTypeRef = GetTraitMemberTypeReference(traitProperty, symbolTable);
         var traitNode = symbolTable.GetDeclaringNode(traitProperty);
         var traitAccessors = GetTraitPropertyAccessors(traitNode);
+        var traitSourceText = traitNode is null
+            ? null
+            : FindSourceTextForNode(traitNode, asts, compilation);
         var foundPrivateMatch = false;
+
+        // A trait property with a setter exposes the property type at a
+        // parameter (write) position, which requires exact matching
+        // (Req 12.3). A read-only trait property exposes the type only at
+        // a return position and permits widening (Req 12.1, 12.2).
+        var traitHasSet = traitAccessors?.HasSet ?? false;
 
         foreach (var member in typeMemberScope.Members)
         {
@@ -3869,8 +3909,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (traitTypeRef is not null)
             {
                 var memberTypeRef = GetMemberTypeReference(member, symbolTable);
-                if (memberTypeRef is not null && !TypeReferencesMatch(traitTypeRef, memberTypeRef))
-                    continue; // Type mismatch.
+                if (memberTypeRef is not null)
+                {
+                    var typesMatch = traitHasSet
+                        ? TypeReferencesMatch(traitTypeRef, memberTypeRef)
+                        : TypeReferencesMatchForTraitReturn(
+                            traitTypeRef, memberTypeRef, globalScope, symbolTable, traitSourceText);
+                    if (!typesMatch)
+                        continue; // Type mismatch.
+                }
             }
 
             // Check that the type's property has at least the accessors
@@ -4745,6 +4792,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Compares two TypeReferenceNode instances for structural equality.
+    /// Two <c>unknown</c> references match each other (Requirement 12.3 —
+    /// trait parameter positions require exact unknown-to-unknown match).
     /// </summary>
     private static bool TypeReferencesMatch(TypeReferenceNode a, TypeReferenceNode b)
     {
@@ -4760,12 +4809,288 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 na.Name.IDENTIFIER.Lexeme == nb.Name.IDENTIFIER.Lexeme
                 && na.ArrayRank.HasValue == nb.ArrayRank.HasValue,
 
+            // Two `unknown` references match each other exactly. This is
+            // required for both trait return positions (where `unknown`
+            // in both sides trivially satisfies Req 12.1) and trait
+            // parameter positions (Req 12.3 — `unknown` in a trait
+            // parameter requires exactly `unknown` in the implementer).
+            (UnknownTypeRefTypeReferenceNode, UnknownTypeRefTypeReferenceNode) => true,
+
             // A named type ref could match a primitive type ref if someone
             // uses the type name form (e.g., "string" as named vs primitive).
             // In practice the parser produces consistent node types, so
             // cross-kind comparisons are mismatches.
             _ => false,
         };
+    }
+
+    /// <summary>
+    /// Extracts the textual name from a <see cref="NamedTypeRefTypeReferenceNode"/>,
+    /// preferring <c>Name.IDENTIFIER.Lexeme</c> and falling back to slicing
+    /// the AST span out of an optional source text. Returns an empty string
+    /// when neither source is available.
+    /// <para>
+    /// Used during trait satisfaction where AST nodes produced by the
+    /// parser may carry an empty lexeme on <c>IDENTIFIER</c> (the parser
+    /// populates only the span in some cases).
+    /// </para>
+    /// </summary>
+    private static string GetNamedTypeRefName(
+        NamedTypeRefTypeReferenceNode named, SourceText? sourceText)
+    {
+        var lexeme = named.Name.IDENTIFIER.Lexeme;
+        if (!string.IsNullOrEmpty(lexeme))
+            return lexeme;
+
+        // Fallback: slice the QualifiedIdentifier's span out of the source text.
+        if (sourceText is not null)
+        {
+            var span = named.Name.Span;
+            if (span.Length > 0 && span.Start + span.Length <= sourceText.Contents.Length)
+                return sourceText.Contents.Substring(span.Start, span.Length);
+        }
+
+        // Last resort: nothing resolvable.
+        return "";
+    }
+
+    /// <summary>
+    /// Compares a trait member's return type reference (<paramref name="traitReturn"/>)
+    /// to a candidate implementer's return type reference (<paramref name="implReturn"/>)
+    /// under the relaxed rules for trait satisfaction (unknown-type feature,
+    /// Req 12.1 and Req 12.2). Returns <c>true</c> when the implementer's
+    /// return type satisfies the trait's return position.
+    /// <para>
+    /// Req 12.1: a trait return of <c>unknown</c> matches any non-<c>void</c>
+    /// implementer return.
+    /// </para>
+    /// <para>
+    /// Req 12.2: a trait return of <c>G&lt;…, unknown, …&gt;</c> matches an
+    /// implementer return of <c>G&lt;…, T_i, …&gt;</c> — the same generic
+    /// definition with type arguments that differ only by the trait's
+    /// <c>unknown</c> positions — when the generic definition is a class
+    /// (Req 8.6 class-only restriction). The widening is position-wise and
+    /// recurses into nested constructed types.
+    /// </para>
+    /// <para>
+    /// Non-return positions (trait parameters) MUST use the exact-match
+    /// <see cref="TypeReferencesMatch(TypeReferenceNode, TypeReferenceNode)"/>
+    /// helper to preserve Req 12.3.
+    /// </para>
+    /// </summary>
+    private static bool TypeReferencesMatchForTraitReturn(
+        TypeReferenceNode traitReturn,
+        TypeReferenceNode implReturn,
+        Scope globalScope,
+        SymbolTable symbolTable,
+        SourceText? sourceText)
+    {
+        // Req 12.1 — trait return `unknown` matches any non-void implementer
+        // return. The "non-void" guard is enforced by rejecting a void
+        // implementer when the trait asks for `unknown`.
+        if (traitReturn is UnknownTypeRefTypeReferenceNode)
+        {
+            return implReturn is not VoidTypeRefTypeReferenceNode;
+        }
+
+        // Req 12.2 — widening on generic type arguments. Both sides must be
+        // the same generic definition; only the trait's arguments may
+        // contain `unknown` at positions where the implementer has a
+        // concrete argument. The class-only restriction (Req 8.6) is
+        // enforced by a kind check on the generic definition symbol.
+        if (traitReturn is NamedTypeRefTypeReferenceNode traitNamed
+            && implReturn is NamedTypeRefTypeReferenceNode implNamed)
+        {
+            var traitName = GetNamedTypeRefName(traitNamed, sourceText);
+            var implName = GetNamedTypeRefName(implNamed, sourceText);
+
+            if (traitName == implName
+                && traitNamed.ArrayRank.HasValue == implNamed.ArrayRank.HasValue)
+            {
+                // If neither side carries type arguments, this is just a
+                // plain name match.
+                if (traitNamed.TypeArgs is null && implNamed.TypeArgs is null)
+                    return true;
+
+                // If only one side carries type arguments, arities
+                // mismatch — not a valid match.
+                if (traitNamed.TypeArgs is null || implNamed.TypeArgs is null)
+                    return false;
+
+                // Both sides carry type arguments — apply the widening rule.
+                return TypeArgumentsMatchWithUnknownWidening(
+                    traitName,
+                    traitNamed.TypeArgs,
+                    implNamed.TypeArgs,
+                    globalScope,
+                    symbolTable,
+                    sourceText);
+            }
+        }
+
+        // Otherwise fall back to exact structural match.
+        return TypeReferencesMatch(traitReturn, implReturn);
+    }
+
+    /// <summary>
+    /// Position-wise widening check for the type arguments of a single
+    /// generic construction in a trait return position (Req 12.2, Req 8.6).
+    /// <para>
+    /// For each position <c>i</c>, accepts when:
+    /// <list type="bullet">
+    ///   <item>The two references are structurally equal; or</item>
+    ///   <item>The trait's argument at position <c>i</c> is <c>unknown</c>
+    ///         and the generic definition named by <paramref name="genericDefName"/>
+    ///         is a class (Req 8.6); or</item>
+    ///   <item>Both sides are nested constructed types with the same
+    ///         name, and the nested widening recurses successfully.</item>
+    /// </list>
+    /// </para>
+    /// <para>
+    /// The implementer's argument at position <c>i</c> being <c>unknown</c>
+    /// while the trait's argument is concrete is <b>not</b> accepted — the
+    /// widening is one-directional (Req 8.5 symmetry applied to traits).
+    /// </para>
+    /// </summary>
+    private static bool TypeArgumentsMatchWithUnknownWidening(
+        string genericDefName,
+        TypeArgumentListNode traitArgs,
+        TypeArgumentListNode implArgs,
+        Scope globalScope,
+        SymbolTable symbolTable,
+        SourceText? sourceText)
+    {
+        // Flatten each list into a single ordered sequence of type refs.
+        var traitList = FlattenTypeArguments(traitArgs);
+        var implList = FlattenTypeArguments(implArgs);
+
+        if (traitList.Count != implList.Count)
+            return false;
+
+        // Look up the generic definition's TypeKind to enforce Req 8.6.
+        var isClassGeneric = LookupGenericDefinitionIsClass(
+            genericDefName, globalScope, symbolTable);
+
+        for (var i = 0; i < traitList.Count; i++)
+        {
+            var traitArg = traitList[i];
+            var implArg = implList[i];
+
+            // Identity at this position — no widening happens here.
+            if (TypeReferencesMatch(traitArg, implArg))
+                continue;
+
+            // Widening: trait's argument is `unknown`, implementer's is
+            // concrete. The class-only rule (Req 8.6) is enforced at the
+            // level where the widening actually happens.
+            if (traitArg is UnknownTypeRefTypeReferenceNode)
+            {
+                if (!isClassGeneric)
+                    return false;
+                // Implementer must be non-void and non-unknown (unknown-to-
+                // unknown is already covered by TypeReferencesMatch above).
+                if (implArg is VoidTypeRefTypeReferenceNode)
+                    return false;
+                continue;
+            }
+
+            // Nested widening: both sides are named generics with the
+            // same name. Recurse into the nested argument list with the
+            // nested name as the new defCtx. Nested widening is allowed
+            // even when the outer generic is a struct — what is
+            // prohibited is widening the struct's own arguments.
+            if (traitArg is NamedTypeRefTypeReferenceNode traitNested
+                && implArg is NamedTypeRefTypeReferenceNode implNested
+                && traitNested.ArrayRank.HasValue == implNested.ArrayRank.HasValue
+                && traitNested.TypeArgs is not null
+                && implNested.TypeArgs is not null)
+            {
+                var traitNestedName = GetNamedTypeRefName(traitNested, sourceText);
+                var implNestedName = GetNamedTypeRefName(implNested, sourceText);
+                if (traitNestedName != implNestedName)
+                    return false;
+
+                if (!TypeArgumentsMatchWithUnknownWidening(
+                        traitNestedName,
+                        traitNested.TypeArgs,
+                        implNested.TypeArgs,
+                        globalScope,
+                        symbolTable,
+                        sourceText))
+                {
+                    return false;
+                }
+                continue;
+            }
+
+            // Anything else (mismatched generic names at nested level,
+            // concrete-to-unknown direction, etc.) is not a valid widening.
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Flattens a <see cref="TypeArgumentListNode"/> into a plain ordered
+    /// list of type references. The AST node splits the first argument
+    /// (<c>TypeReference</c>) from the rest (<c>TypeReferences</c>); this
+    /// helper merges them so callers can index by position.
+    /// </summary>
+    private static List<TypeReferenceNode> FlattenTypeArguments(TypeArgumentListNode node)
+    {
+        var result = new List<TypeReferenceNode>(1 + node.TypeReferences.Length)
+        {
+            node.TypeReference,
+        };
+        foreach (var extra in node.TypeReferences)
+            result.Add(extra);
+        return result;
+    }
+
+    /// <summary>
+    /// Looks up the symbol registered for the generic definition named
+    /// <paramref name="genericDefName"/> and returns <c>true</c> if it is
+    /// a class (<see cref="SymbolKind.Class"/>). Returns <c>false</c>
+    /// when the symbol is a struct, an interface, or cannot be resolved.
+    /// Used to enforce Req 8.6 (class-only covariant widening) during
+    /// trait return-position matching.
+    /// </summary>
+    private static bool LookupGenericDefinitionIsClass(
+        string genericDefName,
+        Scope globalScope,
+        SymbolTable symbolTable)
+    {
+        // First try the global scope, which covers most stdlib and
+        // user-defined top-level types.
+        var symbol = globalScope.Lookup(genericDefName);
+        if (symbol is not null
+            && symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface)
+        {
+            return symbol.Kind == SymbolKind.Class;
+        }
+
+        // Fall back to a symbol-table walk for nested/namespaced types.
+        // This handles the common case where user types live inside a
+        // namespace scope (not the global scope) and are only reachable
+        // via their containing namespace.
+        foreach (var candidate in symbolTable.AllSymbols)
+        {
+            if (candidate.Name == genericDefName
+                && (candidate.Kind == SymbolKind.Class
+                    || candidate.Kind == SymbolKind.Struct
+                    || candidate.Kind == SymbolKind.Interface))
+            {
+                // Skip type parameters that were registered as
+                // SymbolKind.Class by RegisterTypeParameters — their
+                // DeclaredType is a TypeParameterType, not a class type.
+                if (candidate.DeclaredType is Types.TypeParameterType)
+                    continue;
+                return candidate.Kind == SymbolKind.Class;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -5781,6 +6106,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var fieldDecl = fieldMember.Field;
                     var fieldType = ResolveTypeReference(fieldDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+                    // Storage-ban check for trait fields (unknown-type
+                    // feature, Task 27.4, Requirement 12.4). Trait fields
+                    // are subject to the same storage ban as class/struct
+                    // fields because a type satisfying the trait must
+                    // provide writable storage matching the trait's
+                    // declared type — and writable storage cannot hold
+                    // an `unknown` value (Req 5.1, 7.5, 7.6).
+                    if (TypeContainment.IsStorageBanned(fieldType))
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            UnknownAsFieldType.Value,
+                            DiagnosticSeverity.Error,
+                            $"Field '{traitType.DisplayName}.{fieldDecl.Name.Lexeme}' of type '{fieldType.DisplayName}' cannot have 'unknown' in its declared type: 'unknown' is not permitted as the type of writable storage.",
+                            fieldDecl,
+                            sourceText));
+                    }
+
                     var fieldSymbol = symbolTable.GetDeclaredSymbol(fieldDecl) as Symbol;
                     if (fieldSymbol is not null)
                     {

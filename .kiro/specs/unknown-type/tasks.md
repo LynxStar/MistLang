@@ -378,7 +378,7 @@ Phase C adds `ReachabilityAnalyzer` as a post-Pass-2 step, exposes the `Reachabi
     - `class List<T> { void Add(T x) { ... this.Add(x); } }` — inside the declaring body, no filtering: the recursive `this.Add(x)` call is accepted
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.6, 10.7_
 
-- [-] 22. Phase C checkpoint
+- [x] 22. Phase C checkpoint
   - Rebuild with zero warnings; run the full test suite
   - Ensure all tests pass, ask the user if questions arise.
   - _Requirements: (phase gate)_
@@ -389,114 +389,115 @@ Phase C adds `ReachabilityAnalyzer` as a post-Pass-2 step, exposes the `Reachabi
 
 Phase D adds the assignability helper for covariant unknown widening, the class-generic-only restriction diagnostic, the bare-unknown rejection rules, cast-operator integration, pattern-narrowing rejections, and trait satisfaction updates.
 
-- [ ] 23. Covariant unknown widening in `IsAssignable` / `IsDirectlyAssignable`
-  - [ ] 23.1 Add `AssignableWithUnknownWidening(defCtx, argsS, argsT): bool` helper in `TypeCheckerAnalyzer`
+- [x] 23. Covariant unknown widening in `IsAssignable` / `IsDirectlyAssignable`
+  - [x] 23.1 Add `AssignableWithUnknownWidening(defCtx, argsS, argsT): bool` helper in `TypeCheckerAnalyzer`
     - For each position i: accept if `argsS[i] == argsT[i]` OR (`argsT[i]` is `UnknownType` AND `defCtx.Kind == TypeKind.Class`) OR both sides are constructed and their nested widening succeeds
     - `defCtx` carries the generic definition whose arguments are being compared at the current level, enforcing the class-only rule only where a widening actually happens at that level
     - _Requirements: 8.1, 8.2, 8.3_
 
-  - [ ] 23.2 Integrate the helper into `IsAssignable`
+  - [x] 23.2 Integrate the helper into `IsAssignable`
     - New clause in the `ConstructedType → ConstructedType` branch, after the identity check
     - Transitive/inheritance widening is picked up naturally by the existing loop over base types and interfaces
     - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-  - [ ] 23.3 Integrate the helper into `IsDirectlyAssignable` so trivial casts `(List<unknown>) intList` work without requiring a cast operator
+  - [x] 23.3 Integrate the helper into `IsDirectlyAssignable` so trivial casts `(List<unknown>) intList` work without requiring a cast operator
     - _Requirements: 8.4_
 
-  - [ ] 23.4 At the widening site (assignment, argument pass, return), detect when the only reason assignability fails is the struct-generic restriction, and emit `MIST_TC_0058`
+  - [x] 23.4 At the widening site (assignment, argument pass, return), detect when the only reason assignability fails is the struct-generic restriction, and emit `MIST_TC_0058`
     - Diagnostic: covariant `unknown` widening is only available for class (reference-type) generics
     - _Requirements: 8.6_
 
-  - [ ] 23.5 Confirm the reverse direction is naturally rejected by the helper (never accept `argsS[i]` being `UnknownType` widening to a concrete `argsT[i]`)
+  - [x] 23.5 Confirm the reverse direction is naturally rejected by the helper (never accept `argsS[i]` being `UnknownType` widening to a concrete `argsT[i]`)
     - _Requirements: 8.5_
 
-  - [ ] 23.6 Write property-based test for covariant widening
+  - [x] 23.6 Write property-based test for covariant widening
     - **Property 5: Covariant unknown widening is position-wise and class-only** — for any class-generic definition `Foo` and any type arguments tuple, replacing any subset of positions with `UnknownType` produces a target assignable from the original; struct-generic widening never succeeds
     - **Validates: Requirements 8.1, 8.2, 8.3, 8.5, 8.6**
     - Runs in-process against `IsAssignable`; generates synthetic constructed types from a small pool of class and struct generic definitions
     - _Requirements: 8.1, 8.2, 8.3, 8.5, 8.6_
 
-  - [ ] 23.7 Write unit tests for nested widening and the defCtx rule
+  - [x] 23.7 Write unit tests for nested widening and the defCtx rule
     - `Optional<List<int>>` → `Optional<List<unknown>>` is accepted when `Optional` is a struct and `List` is a class (nested widening on the class boundary)
     - `Optional<int>` → `Optional<unknown>` is rejected with `MIST_TC_0058` when `Optional` is a struct
     - `List<int>` → `List<unknown>` is accepted
     - `List<unknown>` → `List<int>` is rejected
     - _Requirements: 8.1, 8.3, 8.5, 8.6_
 
-- [ ] 24. Pattern narrowing — reject narrow to `unknown` and narrow to `Closed_Generic_With_Unknown`
-  - [ ] 24.1 In `TypeCheckerAnalyzer.CheckIsExpression` / `CheckTypePattern`, detect when the pattern type is `UnknownType` and emit `MIST_TC_0051`
+- [x] 24. Pattern narrowing — reject narrow to `unknown` and narrow to `Closed_Generic_With_Unknown`
+  - [x] 24.1 In `TypeCheckerAnalyzer.CheckIsExpression` / `CheckTypePattern`, detect when the pattern type is `UnknownType` and emit `MIST_TC_0063` (reallocated from the design-document-proposed `MIST_TC_0051`, which was already in use by the pattern-matching feature's `PatternConstantTypeMismatch` diagnostic — see the "Note on numbering" in `design.md`)
     - Diagnostic: narrowing to `unknown` is not meaningful; pattern is tautologically true and introduces no new type information
     - _Requirements: 11.3_
 
-  - [ ] 24.2 Detect when the pattern type is a `ConstructedType` with any argument equal to `UnknownType` and emit `MIST_TC_0052`
+  - [x] 24.2 Detect when the pattern type is a `ConstructedType` with any argument transitively equal to `UnknownType` and emit `MIST_TC_0064` (reallocated from the design-document-proposed `MIST_TC_0052`, which was already in use by the pattern-matching feature's `PatternRelationalNonComparable` diagnostic — see the "Note on numbering" in `design.md`)
     - Diagnostic: narrowing to a Closed_Generic_With_Unknown is not meaningful; pattern is tautologically true under Covariant_Unknown_Widening and the binding loses information
+    - The recursive containment check also covers nested positions such as `Optional<List<unknown>>`
     - _Requirements: 11.4_
 
-  - [ ] 24.3 Preserve the existing narrowing behavior for concrete constructed pattern types
+  - [x] 24.3 Preserve the existing narrowing behavior for concrete constructed pattern types
     - `foo is Optional<int> oi` continues to introduce `oi : Optional<int>` and permits full member access with no filtering
     - _Requirements: 11.1, 11.2_
 
-  - [ ] 24.4 Write unit tests for narrowing rejection and acceptance
-    - `x is unknown u` → `MIST_TC_0051`
-    - `x is List<unknown> lu` → `MIST_TC_0052`
+  - [x] 24.4 Write unit tests for narrowing rejection and acceptance
+    - `x is unknown u` → `MIST_TC_0063`
+    - `x is List<unknown> lu` → `MIST_TC_0064`
     - `x is List<int> li` → accepted; `li.Add(...)` works inside the pattern branch
     - _Requirements: 11.1, 11.2, 11.3, 11.4_
 
-- [ ] 25. Bare-unknown member access and operator rejection
-  - [ ] 25.1 In member-access resolution, when the receiver's static type is exactly `UnknownType`, emit `MIST_TC_0053` and return `ErrorType.Instance`
+- [x] 25. Bare-unknown member access and operator rejection
+  - [x] 25.1 In member-access resolution, when the receiver's static type is exactly `UnknownType`, emit `MIST_TC_0065` (reallocated from the design-document-proposed `MIST_TC_0053`, which was already in use by the pattern-matching feature's `PatternUndefinedProperty` diagnostic — see the "Note on numbering" in `design.md`) and return `ErrorType.Instance`
     - Diagnostic names the receiver's static type and suggests using an `is` pattern to narrow
     - _Requirements: 13.1, 16.4_
 
-  - [ ] 25.2 In binary/unary operator resolution, when any operand's static type is `UnknownType`, emit `MIST_TC_0054`
+  - [x] 25.2 In binary/unary operator resolution, when any operand's static type is `UnknownType`, emit `MIST_TC_0066` (reallocated from the design-document-proposed `MIST_TC_0054`, which was already in use by the pattern-matching feature's `PatternListRequiresArray` diagnostic — see the "Note on numbering" in `design.md`)
     - Applies to `==`, `!=`, `<`, `>`, `<=`, `>=`, `+`, `-`, `*`, `/`, `%`, `&&`, `||`, `!`, and user-defined operators
     - _Requirements: 13.2, 16.4_
 
-  - [ ] 25.3 Leave `is`-expression handling untouched on bare `unknown` — narrowing is the designated mechanism (Req 13.3)
+  - [x] 25.3 Leave `is`-expression handling untouched on bare `unknown` — narrowing is the designated mechanism (Req 13.3)
     - Confirmed by Task 24's tests
     - _Requirements: 13.3_
 
-  - [ ] 25.4 Write unit tests
-    - `fn f(x: unknown) { x.M() }` → `MIST_TC_0053`
-    - `fn f(x: unknown, y: unknown) { x + y }` → `MIST_TC_0054` (and for every operator above)
+  - [x] 25.4 Write unit tests
+    - `fn f(x: unknown) { x.M() }` → `MIST_TC_0065` (the bare-unknown member access diagnostic)
+    - `fn f(x: unknown, y: unknown) { x + y }` → `MIST_TC_0066` (the bare-unknown operator diagnostic, and for every operator above)
     - `fn f(x: unknown) { x is int i; i + 1 }` → accepted
     - _Requirements: 13.1, 13.2, 13.3_
 
-- [ ] 26. Cast-operator integration for `unknown`
-  - [ ] 26.1 Extend `TypeCheckerAnalyzer.CheckCastExpression` so a cast `(T) expr` where `expr` is typed `unknown` resolves via the cast-operators feature
+- [x] 26. Cast-operator integration for `unknown`
+  - [x] 26.1 Extend `TypeCheckerAnalyzer.CheckCastExpression` so a cast `(T) expr` where `expr` is typed `unknown` resolves via the cast-operators feature
     - Search only `T`'s member scope (since `UnknownType` has empty member scope)
     - Accept implicit and explicit operators whose source type is `UnknownType` and target is `T`
-    - If no such operator exists, emit `MIST_TC_0055`
+    - If no such operator exists, emit `MIST_TC_0067` (reallocated from the design-document-proposed `MIST_TC_0055`, which was already in use by the pattern-matching feature's `PatternListTooManyElements` diagnostic — see the "Note on numbering" in `design.md`)
     - _Requirements: 13.4, 13.6_
 
-  - [ ] 26.2 Accept `(unknown) expr` for any non-`void` `expr` without searching for a cast operator
-    - The top-type assignability rule (Task 9) already covers this; confirm the cast expression path agrees
+  - [x] 26.2 Accept `(unknown) expr` for any non-`void` `expr` without searching for a cast operator
+    - The top-type assignability rule (Task 9) already covers this; confirm the cast expression path agrees by extending `IsDirectlyAssignable` with the same `target is UnknownType` early-accept clause used by `IsAssignable`, so `CheckCastExpression` short-circuits before any operator search
     - _Requirements: 13.5_
 
-  - [ ] 26.3 Write unit tests for cast resolution
+  - [x] 26.3 Write unit tests for cast resolution
     - `class MyInt { implicit operator MyInt(unknown u) { ... } }` — `(MyInt) someUnknown` resolves and emits the static method call
-    - `(int) someUnknown` with no operator declared → `MIST_TC_0055`
+    - `(int) someUnknown` with no operator declared → `MIST_TC_0067` (reallocated from the design-document-proposed `MIST_TC_0055`)
     - `(unknown) 42` → accepted; emission checked in Task 28
     - _Requirements: 13.4, 13.5, 13.6_
 
-- [ ] 27. Trait satisfaction with `unknown`
-  - [ ] 27.1 Relax the trait-match return-type compatibility check
+- [x] 27. Trait satisfaction with `unknown`
+  - [x] 27.1 Relax the trait-match return-type compatibility check
     - Trait return type `UnknownType` matches any non-`void` concrete return type (Req 12.1)
     - Trait return type `ConstructedType(def, argsT)` matches concrete return type `ConstructedType(def, argsS)` via `AssignableWithUnknownWidening(def, argsS, argsT)` (Req 12.2)
     - _Requirements: 12.1, 12.2_
 
-  - [ ] 27.2 Preserve exact parameter-type matching for trait members (no widening at parameter positions)
+  - [x] 27.2 Preserve exact parameter-type matching for trait members (no widening at parameter positions)
     - `unknown` in a trait parameter requires exactly `unknown` in the implementer (and vice versa)
     - _Requirements: 12.3_
 
-  - [ ] 27.3 Apply reachability-based member filtering to trait-typed receivers
+  - [x] 27.3 Apply reachability-based member filtering to trait-typed receivers
     - For v1, traits do not carry type parameters; reduce to filtering trait members whose classification is `WritesT` where `T` is a position occupied by `UnknownType` in the trait's signature
     - _Requirements: 12.5_
 
-  - [ ] 27.4 Confirm that trait field declarations with `unknown` are already rejected by Task 11.1's field check (`MIST_SB_0050`)
+  - [x] 27.4 Confirm that trait field declarations with `unknown` are already rejected by Task 11.1's field check (`MIST_SB_0050`)
     - Add a test to lock in the coverage
     - _Requirements: 12.4_
 
-  - [ ] 27.5 Write unit tests for trait satisfaction
+  - [x] 27.5 Write unit tests for trait satisfaction
     - Trait `trait T { fn get() : unknown; }` is satisfied by `class C { fn get() : int { ... } }`
     - Trait `trait T { fn get() : List<unknown>; }` is satisfied by `class C { fn get() : List<int> { ... } }` (with class generic widening)
     - Trait `trait T { fn get() : Optional<unknown>; }` is NOT satisfied by `class C { fn get() : Optional<int> { ... } }` when `Optional` is a struct (struct generic restriction)
@@ -505,7 +506,7 @@ Phase D adds the assignability helper for covariant unknown widening, the class-
     - Trait with an `unknown` field declaration → `MIST_SB_0050`
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5_
 
-- [ ] 28. Phase D checkpoint
+- [x] 28. Phase D checkpoint
   - Rebuild with zero warnings; run the full test suite
   - Ensure all tests pass, ask the user if questions arise.
   - _Requirements: (phase gate)_

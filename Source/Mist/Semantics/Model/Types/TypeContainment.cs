@@ -113,6 +113,40 @@ public static class TypeContainment
     }
 
     /// <summary>
+    /// Tests whether <paramref name="haystack"/> mentions the given type
+    /// parameter <paramref name="needle"/> at a storage position — i.e.,
+    /// whether assigning a value through a slot of this declared type would
+    /// write through <paramref name="needle"/>'s layout (Requirements 9.2,
+    /// 9.8, 9.9).
+    /// </summary>
+    /// <param name="haystack">The declared type of a field, parameter,
+    /// assignment target, or similar slot.</param>
+    /// <param name="needle">The type parameter being analyzed (typically a
+    /// parameter of the enclosing generic type).</param>
+    /// <returns>
+    /// <c>true</c> iff <paramref name="haystack"/> is
+    /// <paramref name="needle"/>, an array whose element type contains
+    /// <paramref name="needle"/> at a storage position, or a constructed type
+    /// with at least one argument that contains <paramref name="needle"/> at a
+    /// storage position. <c>false</c> otherwise.
+    /// </returns>
+    /// <remarks>
+    /// This is the Phase C counterpart of <see cref="IsStorageBanned"/>: both
+    /// are specializations of <see cref="ContainsType"/>, one pinning the
+    /// needle to <see cref="UnknownType.Instance"/> and the other accepting an
+    /// arbitrary <see cref="TypeParameterType"/>. The named wrapper exists so
+    /// call sites in the Reachability Analyzer read as "does this slot
+    /// contain T at a storage position?" rather than as a generic structural
+    /// containment query.
+    /// </remarks>
+    public static bool ContainsTAtStoragePosition(IType haystack, TypeParameterType needle)
+    {
+        ArgumentNullException.ThrowIfNull(haystack);
+        ArgumentNullException.ThrowIfNull(needle);
+        return ContainsType(haystack, needle);
+    }
+
+    /// <summary>
     /// Tests whether <paramref name="type"/> is banned from appearing as the
     /// declared type of writable storage under the <c>unknown-type</c> rules
     /// (Requirements 5.1–5.3 and 7.5–7.6).

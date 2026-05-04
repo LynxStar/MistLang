@@ -21,7 +21,8 @@ public sealed class SemanticModel : ISemanticModel
         Scope globalScope,
         SymbolTable symbolTable,
         Dictionary<Storm.Runtime.SyntaxNode, IType>? expressionTypes = null,
-        TraitSatisfactionMap? traitSatisfactionMap = null)
+        TraitSatisfactionMap? traitSatisfactionMap = null,
+        IReachabilityMap? reachabilityMap = null)
     {
         Compilation = compilation;
         Units = units;
@@ -31,6 +32,7 @@ public sealed class SemanticModel : ISemanticModel
         _expressionTypes = expressionTypes ?? new Dictionary<Storm.Runtime.SyntaxNode, IType>();
         _resolvedOperators = new Dictionary<Storm.Runtime.SyntaxNode, ISymbol>();
         TraitSatisfactionMap = traitSatisfactionMap ?? new TraitSatisfactionMap();
+        ReachabilityMap = reachabilityMap ?? ReachabilityAnalyzer.Empty;
     }
 
     public MistCompilation Compilation { get; }
@@ -40,12 +42,30 @@ public sealed class SemanticModel : ISemanticModel
     public TraitSatisfactionMap TraitSatisfactionMap { get; }
 
     /// <summary>
+    /// The reachability map produced by <see cref="ReachabilityAnalyzer.Analyze"/>
+    /// as a post-Pass-2 step in <see cref="SemanticModelBuilder.Build"/>.
+    /// Consulted by <see cref="Mist.Analysis.Builtin.TypeCheckerAnalyzer"/>
+    /// (Task 21) to filter members on <c>Closed_Generic_With_Unknown</c>
+    /// receivers.
+    /// </summary>
+    public IReachabilityMap ReachabilityMap { get; }
+
+    /// <summary>
     /// The symbol table that backs <see cref="AllSymbols"/>, exposed
     /// internally for stdlib-lookup helpers such as
     /// <c>SemanticModelBuilder.LookupQualifiedStdlibType</c> that need to
     /// walk symbol metadata rather than flatten via <see cref="AllSymbols"/>.
     /// </summary>
     internal SymbolTable SymbolTable => _symbolTable;
+
+    /// <summary>
+    /// The expression-type map populated by Pass 2, exposed internally so
+    /// that the Reachability Analyzer (Phase C of the <c>unknown-type</c>
+    /// feature) and Task 18 / Task 19 tests can walk assignment targets
+    /// and argument expressions without going through
+    /// <see cref="GetTypeOf"/>'s fallback lookup.
+    /// </summary>
+    internal IReadOnlyDictionary<Storm.Runtime.SyntaxNode, IType> ExpressionTypes => _expressionTypes;
 
     public ImmutableArray<ISymbol> AllSymbols => [.. _symbolTable.AllSymbols];
 

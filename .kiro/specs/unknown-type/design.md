@@ -620,7 +620,7 @@ New range allocated for UnknownType feature:
 | `MIST_SB_0055`  | Req 5.5     | `new unknown[n]` — `unknown` as array element in new expression | SemanticModelBuilder    |
 | `MIST_SB_0056`  | Req 5.4     | `new unknown(...)` — attempting to instantiate `unknown`        | SemanticModelBuilder    |
 | `MIST_SB_0057`  | Req 5.6     | `default(unknown)` — `unknown` has no default                   | SemanticModelBuilder    |
-| `MIST_TC_0050`  | Req 10.1–4, 7 | Member filtered on Closed_Generic_With_Unknown receiver       | TypeCheckerAnalyzer     |
+| `MIST_TC_0062`  | Req 10.1–4, 7 | Member filtered on Closed_Generic_With_Unknown receiver       | TypeCheckerAnalyzer     |
 | `MIST_TC_0051`  | Req 11.3    | Narrowing to `unknown`                                          | TypeCheckerAnalyzer     |
 | `MIST_TC_0052`  | Req 11.4    | Narrowing to Closed_Generic_With_Unknown                        | TypeCheckerAnalyzer     |
 | `MIST_TC_0053`  | Req 13.1    | Member access on bare `unknown`                                 | TypeCheckerAnalyzer     |
@@ -638,6 +638,12 @@ New range allocated for UnknownType feature:
 > `MIST_TC_0060` / `MIST_TC_0061` to avoid overloading a diagnostic ID with
 > two distinct meanings. The struct-generic-widening code (`MIST_TC_0058`)
 > was still free at the time of allocation and is retained as proposed.
+> During Task 21 the member-filtering code originally proposed as
+> `MIST_TC_0050` was similarly reallocated to `MIST_TC_0062` — the code
+> was already in use by the pattern-matching feature's
+> `PatternUndefinedType` diagnostic. The reallocation preserves the
+> "member not found" shape required by Requirement 10.7 and keeps the
+> unknown-type codes contiguous (0058, 0060, 0061, 0062).
 
 Diagnostic messages follow the existing convention: name the member/type involved, state the rule, and (where useful) suggest a remedy (e.g., "use `is` to narrow before accessing members").
 

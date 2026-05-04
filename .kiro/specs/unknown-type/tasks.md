@@ -250,70 +250,70 @@ Phase B adds the new `TypeKind.Unknown` variant, the new `UnknownType` singleton
 
 Phase C adds `ReachabilityAnalyzer` as a post-Pass-2 step, exposes the `ReachabilityMap` on `SemanticModel`, and integrates the map into the Type Checker's member-access resolution.
 
-- [ ] 16. Define analyzer contracts and supporting types
-  - [ ] 16.1 Create `Source/Mist/Semantics/Contracts/IReachabilityMap.cs`
+- [x] 16. Define analyzer contracts and supporting types
+  - [x] 16.1 Create `Source/Mist/Semantics/Contracts/IReachabilityMap.cs`
     - `IReachabilityMap` interface with lookups for member + type-parameter → classification
     - `MemberClassification` enum/record: `DoesNotWriteT`, `WritesT`; for properties/indexers, track `(read, write)` pair
     - _Requirements: 9.1, 9.11_
 
-  - [ ] 16.2 Add the shared `ContainsTAtStoragePosition(IType haystack, TypeParameterType needle): bool` helper
+  - [x] 16.2 Add the shared `ContainsTAtStoragePosition(IType haystack, TypeParameterType needle): bool` helper
     - Recursive structural check: needle itself → true; array element → recurse; constructed type args → exists recurse
     - Share implementation with Phase B's `IsStorageBanned` via a common `ContainsType(haystack, needle)` helper
     - _Requirements: 9.2, 9.8, 9.9_
 
-  - [ ] 16.3 Write unit tests for `ContainsTAtStoragePosition`
+  - [x] 16.3 Write unit tests for `ContainsTAtStoragePosition`
     - Positive: `T`, `T[]`, `List<T>`, `Map<string, T>`, `List<Optional<T>>`
     - Negative: `int`, `string`, `List<int>`, `Map<T, int>` when checking "does value slot contain T?" using appropriate position-targeted variant if the design uses one, otherwise simple containment
     - _Requirements: 9.2_
 
-- [ ] 17. Implement `ReachabilityAnalyzer` field, property, and indexer classification
-  - [ ] 17.1 Create `Source/Mist/Semantics/Model/ReachabilityAnalyzer.cs`
+- [x] 17. Implement `ReachabilityAnalyzer` field, property, and indexer classification
+  - [x] 17.1 Create `Source/Mist/Semantics/Model/ReachabilityAnalyzer.cs`
     - Public API: `IReachabilityMap Analyze(ISymbolTable symbols, IReadOnlyDictionary<IExpressionNode, IType> expressionTypes)`
     - Skeleton: iterate every generic-type declaration; classify every member for every type parameter
     - _Requirements: 9.1_
 
-  - [ ] 17.2 Implement field classification
+  - [x] 17.2 Implement field classification
     - Field read → `DoesNotWriteT` w.r.t. every T
     - Field write (assignment to field) → `WritesT` if the field's declared type satisfies `ContainsTAtStoragePosition(fieldType, T)`
     - _Requirements: 9.2_
 
-  - [ ] 17.3 Implement property classification (read, write pair)
+  - [x] 17.3 Implement property classification (read, write pair)
     - Property read → `WritesT` only if the getter body performs a `Write_To_T` (detected by the method-body walk added in Task 18)
     - Property write → `WritesT` if auto-implemented with T-typed backing, backed by a T-typed field, or the setter body performs a `Write_To_T`
     - _Requirements: 9.3, 9.11_
 
-  - [ ] 17.4 Implement indexer classification analogously to property (read, write pair)
+  - [x] 17.4 Implement indexer classification analogously to property (read, write pair)
     - _Requirements: 9.4, 9.11_
 
-  - [ ] 17.5 Write unit tests for field, property, indexer classification
+  - [x] 17.5 Write unit tests for field, property, indexer classification
     - `class List<T> { T[] items; }` — `items` field read = `DoesNotWriteT`; field write = `WritesT`
     - Auto-property `T Value { get; set; }` — read = `DoesNotWriteT`, write = `WritesT`
     - Property with setter-body write to a non-T field — write = `DoesNotWriteT`
     - Indexer that stores into `T[]` — write = `WritesT`; read = `DoesNotWriteT`
     - _Requirements: 9.2, 9.3, 9.4, 9.11_
 
-- [ ] 18. Implement `ReachabilityAnalyzer` method and constructor classification
-  - [ ] 18.1 Implement the method-body write-site extraction
+- [x] 18. Implement `ReachabilityAnalyzer` method and constructor classification
+  - [x] 18.1 Implement the method-body write-site extraction
     - Walk every statement/expression of the method body using the semantic model's expressionTypes map
     - For every assignment/compound-assignment/element-assignment whose target is a `T_Typed_Storage_Location`, record a write-site
     - _Requirements: 9.5_
 
-  - [ ] 18.2 Build the per-member call graph for the generic type
+  - [x] 18.2 Build the per-member call graph for the generic type
     - For each method body, extract the set of call targets (resolved member symbols) or `"unknown callee"` markers for dynamic-dispatch sites
     - _Requirements: 9.6_
 
-  - [ ] 18.3 Implement constructor classification
+  - [x] 18.3 Implement constructor classification
     - `WritesT` if any constructor parameter type satisfies `ContainsTAtStoragePosition(paramType, T)`
     - `WritesT` if the constructor body performs a `Write_To_T` to a T-typed field
     - `WritesT` if the constructor invokes another `WritesT` constructor via `this(...)` or `base(...)`
     - _Requirements: 9.7_
 
-  - [ ] 18.4 Implement conservative handling of virtual dispatch, trait satisfaction, and generic-method invocation
+  - [x] 18.4 Implement conservative handling of virtual dispatch, trait satisfaction, and generic-method invocation
     - Dynamic-dispatch call: treat as `WritesT` if any argument's type satisfies `ContainsTAtStoragePosition(argType, T)`
     - External (C#-defined) callee: same rule — `WritesT` if any argument's type contains T at a storage position; else `DoesNotWriteT`
     - _Requirements: 9.8, 9.9_
 
-  - [ ] 18.5 Write unit tests for method and constructor classification
+  - [x] 18.5 Write unit tests for method and constructor classification
     - Method that assigns to a `T[]` element → `WritesT`
     - Method that only reads → `DoesNotWriteT`
     - Constructor taking a `T` parameter stored into a field → `WritesT`
@@ -322,63 +322,63 @@ Phase C adds `ReachabilityAnalyzer` as a post-Pass-2 step, exposes the `Reachabi
     - External `Console.WriteLine(T)` invocation → `WritesT` if T contains the analyzed parameter at a storage position, else `DoesNotWriteT`
     - _Requirements: 9.5, 9.6, 9.7, 9.8, 9.9_
 
-- [ ] 19. Implement fixed-point iteration
-  - [ ] 19.1 Implement the fixed-point loop described in the design
+- [x] 19. Implement fixed-point iteration
+  - [x] 19.1 Implement the fixed-point loop described in the design
     - Initialize every `(member, T)` classification to `DoesNotWriteT`
     - Iterate: for each member, if any write-site or any callee's current classification is `WritesT`, promote to `WritesT`
     - Repeat until no change in a full pass
     - Lattice height is 2; termination is bounded
     - _Requirements: 9.6, 9.10_
 
-  - [ ] 19.2 Write a property-based test for fixed-point monotonicity
+  - [x] 19.2 Write a property-based test for fixed-point monotonicity
     - **Property 4: Fixed-point iteration is monotone** — for any iteration k, the classification map is a pointwise under-approximation of the final map (no entry ever changes from `WritesT` back to `DoesNotWriteT`)
     - **Validates: Requirement 9.10**
     - Generate synthetic call graphs in-process; run the analyzer step-by-step; assert monotonicity at each step
     - Runs entirely in-process; no compilation or process spawning
     - _Requirements: 9.10_
 
-  - [ ] 19.3 Write a unit test for mutual recursion
+  - [x] 19.3 Write a unit test for mutual recursion
     - `class G<T> { void A() { B(); this.field = ...; }  void B() { A(); } }` — after fixed-point, both A and B are `WritesT`
     - _Requirements: 9.6, 9.10_
 
-- [ ] 20. Wire the analyzer into `SemanticModelBuilder.Build`
-  - [ ] 20.1 Invoke `ReachabilityAnalyzer.Analyze(...)` as a post-Pass-2 step, after `ComputeDefaultability` and the Pass-1 member-redeclaration and duplicate-signature checks
+- [x] 20. Wire the analyzer into `SemanticModelBuilder.Build`
+  - [x] 20.1 Invoke `ReachabilityAnalyzer.Analyze(...)` as a post-Pass-2 step, after `ComputeDefaultability` and the Pass-1 member-redeclaration and duplicate-signature checks
     - Store the result as a new property `ReachabilityMap` on `SemanticModel`
     - _Requirements: 9.1_
 
-  - [ ] 20.2 Thread the reachability map through the analyzer context so `TypeCheckerAnalyzer` can consult it
+  - [x] 20.2 Thread the reachability map through the analyzer context so `TypeCheckerAnalyzer` can consult it
     - _Requirements: 9.1, 10.1_
 
-  - [ ] 20.3 Write an integration test that compiles a small generic type and inspects the resulting `ReachabilityMap`
+  - [x] 20.3 Write an integration test that compiles a small generic type and inspects the resulting `ReachabilityMap`
     - `class List<T> { T[] items; void Add(T item); int Count { get; } }` — `Add` = `WritesT`; `Count` read = `DoesNotWriteT`; `items` write = `WritesT`
     - _Requirements: 9.1_
 
-- [ ] 21. Type checker — filter members on `Closed_Generic_With_Unknown` receivers
-  - [ ] 21.1 In `TypeCheckerAnalyzer`'s member-access resolution, when the receiver's static type is a `Closed_Generic_With_Unknown`, consult the reachability map
+- [x] 21. Type checker — filter members on `Closed_Generic_With_Unknown` receivers
+  - [x] 21.1 In `TypeCheckerAnalyzer`'s member-access resolution, when the receiver's static type is a `Closed_Generic_With_Unknown`, consult the reachability map
     - For each type parameter T whose corresponding type argument is `UnknownType`, filter out members classified `WritesT`
     - Filter methods, property writes, and indexer writes; do not filter property reads / indexer reads whose `read` classification is `DoesNotWriteT`
     - When a read passes, substitute `UnknownType` for the closed parameter(s) in the result type
     - Do not apply filtering inside the declaring body of the generic type itself (receiver is fully open)
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.6_
 
-  - [ ] 21.2 Emit `MIST_TC_0050` when a member is filtered per 21.1
+  - [x] 21.2 Emit `MIST_TC_0062` when a member is filtered per 21.1 (reallocated from the design-document-proposed `MIST_TC_0050`, which was already in use by the pattern-matching feature's `PatternUndefinedType` diagnostic — see the "Note on numbering" in `design.md`)
     - Diagnostic names the receiver's static type, names the member, and states that the operation would write to storage of a type parameter bound to `unknown`
     - Use the same "member not found" shape as the existing missing-member diagnostic, per Req 10.1 and Req 10.7
     - _Requirements: 10.1, 10.3, 10.4, 10.7, 16.3_
 
-  - [ ] 21.3 Do not apply member filtering to constructor invocations on `Closed_Generic_With_Unknown`
+  - [x] 21.3 Do not apply member filtering to constructor invocations on `Closed_Generic_With_Unknown`
     - Constructor invocations on such a receiver are already rejected by Task 12.2 (`MIST_SB_0053`)
     - _Requirements: 10.5_
 
-  - [ ] 21.4 Write unit tests for member filtering
-    - `var xs: List<unknown> = ...; xs.Add(x)` → `MIST_TC_0050`
+  - [x] 21.4 Write unit tests for member filtering
+    - `var xs: List<unknown> = ...; xs.Add(x)` → `MIST_TC_0062` (reallocated from the design-document-proposed `MIST_TC_0050`)
     - `var xs: List<unknown> = ...; var n = xs.Count` → accepted (read)
     - `var xs: List<unknown> = ...; var e = xs[0]` → accepted (read, result type is `UnknownType`)
-    - `var xs: List<unknown> = ...; xs[0] = x` → `MIST_TC_0050` (indexer write)
+    - `var xs: List<unknown> = ...; xs[0] = x` → `MIST_TC_0062` (indexer write)
     - `class List<T> { void Add(T x) { ... this.Add(x); } }` — inside the declaring body, no filtering: the recursive `this.Add(x)` call is accepted
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.6, 10.7_
 
-- [ ] 22. Phase C checkpoint
+- [-] 22. Phase C checkpoint
   - Rebuild with zero warnings; run the full test suite
   - Ensure all tests pass, ask the user if questions arise.
   - _Requirements: (phase gate)_

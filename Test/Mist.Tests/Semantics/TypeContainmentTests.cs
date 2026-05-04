@@ -22,8 +22,9 @@ using Mist.Semantics.Model.Types;
 namespace Mist.Tests.Semantics;
 
 /// <summary>
-/// Tests for <see cref="TypeContainment.IsStorageBanned"/> and
-/// <see cref="TypeContainment.ContainsType"/>.
+/// Tests for <see cref="TypeContainment.IsStorageBanned"/>,
+/// <see cref="TypeContainment.ContainsType"/>, and
+/// <see cref="TypeContainment.ContainsTAtStoragePosition"/>.
 ///
 /// <para>
 /// <strong>Property 3 (unknown-type feature):</strong>
@@ -190,6 +191,146 @@ public class TypeContainmentTests
         var needle = new TypeParameterType("T", 0);
         var arrayOfT = new ArrayType(new TypeParameterType("T", 0));
         Assert.True(TypeContainment.ContainsType(arrayOfT, needle));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ContainsTAtStoragePosition — Phase C wrapper (Task 16.2, 16.3).
+    //
+    // The wrapper is a thin, self-documenting delegation to ContainsType with
+    // the needle typed as TypeParameterType. Its correctness follows from
+    // ContainsType's, which is already exercised above; these tests pin down
+    // the Phase C call-site cases the Reachability Analyzer will depend on.
+    //
+    // **Validates: Requirements 9.2, 9.8, 9.9**
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Returns a freshly allocated <see cref="TypeParameterType"/> with the
+    /// same (Name, Ordinal) as <paramref name="source"/>. Used to verify that
+    /// the wrapper compares by (Name, Ordinal) and not by reference.
+    /// </summary>
+    private static TypeParameterType Clone(TypeParameterType source) =>
+        new(source.Name, source.Ordinal);
+
+    [Fact]
+    public void ContainsTAtStoragePosition_Matches_Needle_At_Root()
+    {
+        // `T` itself contains T.
+        var T = new TypeParameterType("T", 0);
+        Assert.True(TypeContainment.ContainsTAtStoragePosition(Clone(T), T));
+    }
+
+    [Fact]
+    public void ContainsTAtStoragePosition_Descends_Into_Array_Element()
+    {
+        // `T[]` — the element is T.
+        var T = new TypeParameterType("T", 0);
+        var arrayOfT = new ArrayType(Clone(T));
+        Assert.True(TypeContainment.ContainsTAtStoragePosition(arrayOfT, T));
+    }
+
+    [Fact]
+    public void ContainsTAtStoragePosition_Descends_Into_Sole_TypeArgument()
+    {
+        // `List<T>` — the sole type argument is T.
+        var T = new TypeParameterType("T", 0);
+        var listOfT = new ConstructedType(ListDef, new IType[] { Clone(T) });
+        Assert.True(TypeContainment.ContainsTAtStoragePosition(listOfT, T));
+    }
+
+    [Fact]
+    public void ContainsTAtStoragePosition_Descends_Into_Second_TypeArgument()
+    {
+        // `Map<string, T>` — T appears in the second type-argument position.
+        var T = new TypeParameterType("T", 0);
+        var mapOfStringT = new ConstructedType(
+            MapDef, new IType[] { LegacyPrimitiveTypes.String, Clone(T) });
+        Assert.True(TypeContainment.ContainsTAtStoragePosition(mapOfStringT, T));
+    }
+
+    [Fact]
+    public void ContainsTAtStoragePosition_Descends_Recursively_Through_Nested_Constructions()
+    {
+        // `List<Optional<T>>` — the Req 9.2 "nested at any depth" case.
+        // Note Optional is a struct generic; nesting depth, not kind, is
+        // what matters for structural containment.
+        var T = new TypeParameterType("T", 0);
+        var optionalOfT = new ConstructedType(OptionalDef, new IType[] { Clone(T) });
+        var listOfOptionalOfT = new ConstructedType(ListDef, new IType[] { optionalOfT });
+        Assert.True(TypeContainment.ContainsTAtStoragePosition(listOfOptionalOfT, T));
+    }
+
+    [Fact]
+    public void ContainsTAtStoragePosition_Rejects_Primitive_Int()
+    {
+        // `int` does not contain T.
+        var T = new TypeParameterType("T", 0);
+        Assert.False(TypeContainment.ContainsTAtStoragePosition(LegacyPrimitiveTypes.Int, T));
+    }
+
+    [Fact]
+    public void ContainsTAtStoragePosition_Rejects_Primitive_String()
+    {
+        // `string` does not contain T.
+        var T = new TypeParameterType("T", 0);
+        Assert.False(TypeContainment.ContainsTAtStoragePosition(LegacyPrimitiveTypes.String, T));
+    }
+
+    [Fact]
+    public void ContainsTAtStoragePosition_Rejects_Construction_Without_T()
+    {
+        // `List<int>` — no T anywhere.
+        var T = new TypeParameterType("T", 0);
+        var listOfInt = new ConstructedType(ListDef, new IType[] { LegacyPrimitiveTypes.Int });
+        Assert.False(TypeContainment.ContainsTAtStoragePosition(listOfInt, T));
+    }
+
+    [Fact]
+    public void ContainsTAtStoragePosition_FindsT_InKeyPosition_OfMapTInt()
+    {
+        // `Map<T, int>` with needle=T — T is in the first argument position.
+        var T = new TypeParameterType("T", 0);
+        var mapOfTInt = new ConstructedType(
+            MapDef, new IType[] { Clone(T), LegacyPrimitiveTypes.Int });
+        Assert.True(TypeContainment.ContainsTAtStoragePosition(mapOfTInt, T));
+    }
+
+    [Fact]
+    public void ContainsTAtStoragePosition_DoesNotFindU_InMapTInt()
+    {
+        // Same `Map<T, int>` but needle=U (a *different* type parameter).
+        // This is the crucial Phase C case: the analyzer queries one T at a
+        // time, and a container holding a *different* T must not register as
+        // containing the queried T. Distinction is made by (Name, Ordinal).
+        var T = new TypeParameterType("T", 0);
+        var U = new TypeParameterType("U", 0);  // different name; same ordinal is fine
+        var mapOfTInt = new ConstructedType(
+            MapDef, new IType[] { Clone(T), LegacyPrimitiveTypes.Int });
+        Assert.False(TypeContainment.ContainsTAtStoragePosition(mapOfTInt, U));
+    }
+
+    [Fact]
+    public void ContainsTAtStoragePosition_Distinguishes_TypeParameters_ByOrdinal()
+    {
+        // Same-named TPs at different ordinals must not collide. Two
+        // generics both called "T" but at different ordinals (e.g., T at
+        // position 0 of one generic and T at position 1 of another) represent
+        // distinct parameters; ContainsTAtStoragePosition must see them as
+        // distinct, same as ContainsType does.
+        var T0 = new TypeParameterType("T", 0);
+        var T1 = new TypeParameterType("T", 1);
+        var listOfT1 = new ConstructedType(ListDef, new IType[] { T1 });
+        Assert.False(TypeContainment.ContainsTAtStoragePosition(listOfT1, T0));
+        Assert.True(TypeContainment.ContainsTAtStoragePosition(listOfT1, Clone(T1)));
+    }
+
+    [Fact]
+    public void ContainsTAtStoragePosition_ArrayOf_ConcreteType_DoesNotMatchT()
+    {
+        // `int[]` — array element is concrete; no T.
+        var T = new TypeParameterType("T", 0);
+        var arrayOfInt = new ArrayType(LegacyPrimitiveTypes.Int);
+        Assert.False(TypeContainment.ContainsTAtStoragePosition(arrayOfInt, T));
     }
 
     // ═══════════════════════════════════════════════════════════════════════

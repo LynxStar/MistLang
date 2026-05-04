@@ -132,6 +132,28 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId VoidToUnknown = new("MIST_TC_0061");
 
+    // ── unknown-type feature: member-filtering diagnostic (Task 21.2) ────
+    //
+    // Note on numbering: the unknown-type design document's Diagnostic ID
+    // Allocation table originally proposed MIST_TC_0050 for the member-
+    // filtering diagnostic below. That code was already allocated to the
+    // pattern-matching feature (see PatternUndefinedType above), so the
+    // unknown-type filter diagnostic was reallocated to MIST_TC_0062 —
+    // the next free code after the assignability pair (0060, 0061) —
+    // to avoid overloading a diagnostic ID with two distinct meanings.
+
+    /// <summary>
+    /// Emitted when a member access on a <c>Closed_Generic_With_Unknown</c>
+    /// receiver resolves to a member classified <c>WritesT</c> with respect
+    /// to a type parameter whose type argument is <see cref="UnknownType"/>.
+    /// Per Requirement 10.1–10.4 and 10.7, the diagnostic uses the same
+    /// "member not found" shape as the existing missing-member diagnostic,
+    /// naming the receiver's static type and the member, and states that
+    /// the operation would write to storage of a type parameter bound to
+    /// <c>unknown</c>.
+    /// </summary>
+    internal static readonly DiagnosticId UnknownClosedGenericMemberFiltered = new("MIST_TC_0062");
+
     /// <summary>
     /// Feature flag gating the operator overload-resolution path introduced by
     /// Task 14 of the Mist Standard Library spec. When <c>true</c> (the
@@ -183,6 +205,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     // ── Whether we are currently inside a property accessor body (for field keyword checks) ──
     private bool _insidePropertyAccessor;
+
+    // ── Whether the postfix currently being walked is the target of an ──
+    //    assignment — set by CheckAssignmentNode before recursing into the
+    //    target, and cleared afterwards. When true, the LAST suffix of the
+    //    top-level postfix in the target expression is a *write* context
+    //    (Requirement 10.3); all other suffixes in the chain are reads.
+    //    Only the Task 21 member-filtering logic consults this flag; legacy
+    //    read/write distinctions continue to use their existing lookups
+    //    (e.g. TryResolvePropertyFromAssignmentTarget).
+    private bool _analyzingAssignmentLhs;
 
     public void Analyze(ISemanticModel model, DiagnosticBag diagnostics)
     {
@@ -1833,7 +1865,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private void CheckAssignmentNode(AssignmentNode assignment, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        CheckLogicalOrNode(assignment.Target, model, diagnostics);
+        // Task 21: when this assignment has a value, the target is an
+        // *lvalue* (write position). Flag the flag while we walk the
+        // target so CheckPostfixNode treats the terminal suffix of the
+        // target as a write context for the unknown-type member filter.
+        // Nested assignments (e.g., `a = b = c`) always go through this
+        // same method, so the flag is naturally re-established for each
+        // inner assignment target as the recursion walks inward.
+        var targetIsLhs = assignment.Value is not null;
+        var previousAssignmentLhs = _analyzingAssignmentLhs;
+        if (targetIsLhs) _analyzingAssignmentLhs = true;
+
+        try
+        {
+            CheckLogicalOrNode(assignment.Target, model, diagnostics);
+        }
+        finally
+        {
+            _analyzingAssignmentLhs = previousAssignmentLhs;
+        }
 
         if (assignment.Value is not null)
         {
@@ -2906,16 +2956,46 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Track the running type of the target as we process suffixes.
         var currentType = model.GetTypeOf(node.Target);
 
-        foreach (var suffix in node.Suffix)
+        // Task 21: if this postfix is the LHS of an assignment, then the
+        // *last* suffix in the chain is a write context (for the unknown-
+        // type member filter). Every earlier suffix is still a read —
+        // e.g., in `a.b.c = x`, `a.b` is a read, `a.b.c` is the write.
+        // We capture the flag once here and reset it for inner expressions
+        // (e.g., arguments inside method calls) so those nested visits do
+        // not inherit the LHS context.
+        var isAssignmentLhsPostfix = _analyzingAssignmentLhs;
+        _analyzingAssignmentLhs = false;
+
+        for (var suffixIndex = 0; suffixIndex < node.Suffix.Length; suffixIndex++)
         {
+            var suffix = node.Suffix[suffixIndex];
+            var isLastSuffix = suffixIndex == node.Suffix.Length - 1;
+            var suffixIsWriteTarget = isAssignmentLhsPostfix && isLastSuffix;
+
             switch (suffix)
             {
                 case MethodCallSuffixPostfixSuffixNode methodCall:
                     CheckMethodCallArguments(methodCall, currentType, model, diagnostics);
                     CheckMemberAccessModifiers(methodCall.Name.Lexeme, currentType, targetIsTypeName, methodCall, model, diagnostics);
-                    currentType = SubstituteMemberType(model.GetTypeOf(suffix), currentType);
-                    // Also substitute method-level type arguments in the return type.
-                    currentType = SubstituteMethodReturnType(currentType, methodCall, model);
+                    // Task 21: filter methods on Closed_Generic_With_Unknown receivers.
+                    // A method call is always a "write-ish" use of the member — if
+                    // the method writes T and T is closed with unknown, filter it.
+                    // Method filtering intentionally ignores isAssignmentLhsPostfix
+                    // (calling a method is never itself the target of `=`).
+                    if (FilterMethodOnClosedUnknownReceiver(methodCall, currentType, model, diagnostics))
+                    {
+                        currentType = ErrorType.Instance;
+                    }
+                    else
+                    {
+                        currentType = SubstituteMemberType(model.GetTypeOf(suffix), currentType);
+                        // Also substitute method-level type arguments in the return type.
+                        currentType = SubstituteMethodReturnType(currentType, methodCall, model);
+                        // A method call's return flows through the unknown-receiver
+                        // substitution so the result type is reported as `unknown` at
+                        // any position the generic's type parameter was closed with it.
+                        currentType = SubstituteClosedUnknownInResultType(currentType, model.GetTypeOf(node.Target));
+                    }
                     // After the first suffix, subsequent accesses are on instances (the result of the method call).
                     targetIsTypeName = false;
                     break;
@@ -2928,7 +3008,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 case IndexSuffixPostfixSuffixNode indexSuffix:
                     CheckIndexSuffix(indexSuffix, currentType, model, diagnostics);
-                    currentType = model.GetTypeOf(suffix);
+                    // Task 21: filter indexer accesses on Closed_Generic_With_Unknown
+                    // receivers. Write context (LHS of `=`) uses the Write side of
+                    // the indexer classification; read context uses Read.
+                    if (FilterIndexerOnClosedUnknownReceiver(indexSuffix, currentType, suffixIsWriteTarget, model, diagnostics))
+                    {
+                        currentType = ErrorType.Instance;
+                    }
+                    else
+                    {
+                        currentType = model.GetTypeOf(suffix);
+                        // A read through an indexer on List<unknown> yields `unknown`
+                        // at every position the generic's T was closed with unknown.
+                        currentType = SubstituteClosedUnknownInResultType(currentType, model.GetTypeOf(node.Target));
+                    }
                     targetIsTypeName = false;
                     break;
 
@@ -2936,7 +3029,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     CheckMemberAccessModifiers(memberAccess.Name.Lexeme, currentType, targetIsTypeName, memberAccess, model, diagnostics);
                     // MIST_TC_0019: Check property has accessible get accessor when read.
                     CheckPropertyReadAccess(memberAccess, currentType, model, diagnostics);
-                    currentType = SubstituteMemberType(model.GetTypeOf(suffix), currentType);
+                    // Task 21: filter member accesses on Closed_Generic_With_Unknown
+                    // receivers. Read context uses the Read classification; write
+                    // context (LHS of `=`) uses Write.
+                    if (FilterMemberAccessOnClosedUnknownReceiver(memberAccess, currentType, suffixIsWriteTarget, model, diagnostics))
+                    {
+                        currentType = ErrorType.Instance;
+                    }
+                    else
+                    {
+                        currentType = SubstituteMemberType(model.GetTypeOf(suffix), currentType);
+                        // A read of a property/field whose substituted type mentions T
+                        // at a position closed with unknown must report the result as
+                        // `unknown` at that position (Requirement 10.2).
+                        currentType = SubstituteClosedUnknownInResultType(currentType, model.GetTypeOf(node.Target));
+                    }
                     // After accessing a field, subsequent accesses are on the field's value (an instance).
                     targetIsTypeName = false;
                     break;
@@ -2980,6 +3087,308 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return returnType;
 
         return SubstituteType(returnType, sym.TypeParameters, methodTypeArgs);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Task 21 — member filtering on Closed_Generic_With_Unknown receivers
+    //
+    // When the receiver's static type is a ConstructedType whose type
+    // arguments contain UnknownType at one or more positions, members
+    // classified WritesT with respect to any such parameter are filtered
+    // (Requirements 10.1–10.4). A filtered member access produces
+    // MIST_TC_0062 — the same "member not found" shape as the existing
+    // undefined-member diagnostic, per Requirement 10.7.
+    //
+    // Filtering is disabled inside the declaring body of the receiver's
+    // generic type itself (Requirement 10.6) — inside `class List<T>`,
+    // `this.Add(x)` is accessed on the fully open generic, not on a
+    // Closed_Generic_With_Unknown, and all of T's positions still hold
+    // T (not unknown).
+    //
+    // Constructor invocations on Closed_Generic_With_Unknown are rejected
+    // by Task 12.2 (MIST_SB_0053) before member filtering runs, so there
+    // is no filter-path for constructors (Requirement 10.5).
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// If <paramref name="receiverType"/> is a <see cref="ConstructedType"/>
+    /// whose type arguments contain <see cref="UnknownType"/> at one or more
+    /// positions, returns the list of <see cref="TypeParameterType"/>s of
+    /// the generic definition at those positions. Returns <c>null</c>
+    /// otherwise, <i>including</i> when analysis is currently inside the
+    /// receiver's own declaring body (where type parameters are still
+    /// open, per Requirement 10.6).
+    /// </summary>
+    private IReadOnlyList<TypeParameterType>? GetClosedUnknownTypeParameters(IType? receiverType)
+    {
+        if (receiverType is not ConstructedType ct)
+            return null;
+
+        var typeParams = GetTypeParameters(ct.GenericDefinition);
+        if (typeParams is null)
+            return null;
+
+        // Requirement 10.6: skip filtering when the current method/constructor/
+        // accessor body is declared *on* the receiver's generic definition.
+        // Inside `class List<T>`, a `this.Add(x)` call's receiver is
+        // `List<T>` (the fully open generic), not `List<unknown>`; even if
+        // a caller somehow produces a `List<unknown>`, the analysis is
+        // performed in the open scope where T is not yet substituted.
+        if (_currentEnclosingType is not null &&
+            ReferenceEquals(_currentEnclosingType, ct.GenericDefinition))
+        {
+            return null;
+        }
+
+        var count = Math.Min(typeParams.Count, ct.TypeArguments.Count);
+        List<TypeParameterType>? closed = null;
+        for (var i = 0; i < count; i++)
+        {
+            if (ct.TypeArguments[i] is UnknownType)
+            {
+                closed ??= new List<TypeParameterType>(count);
+                closed.Add(typeParams[i]);
+            }
+        }
+
+        return closed;
+    }
+
+    /// <summary>
+    /// After a member read passes the filter, substitute <see cref="UnknownType"/>
+    /// for every type-parameter position of <paramref name="receiverType"/>'s
+    /// generic definition that is closed with <c>unknown</c>. This implements
+    /// Requirement 10.2: a read through <c>List&lt;unknown&gt;</c> of an
+    /// indexer that returns <c>T</c> must report the result as
+    /// <see cref="UnknownType"/>, not <c>T</c>.
+    /// </summary>
+    private static IType? SubstituteClosedUnknownInResultType(IType? resultType, IType? receiverType)
+    {
+        if (resultType is null || receiverType is not ConstructedType ct)
+            return resultType;
+
+        var typeParams = GetTypeParameters(ct.GenericDefinition);
+        if (typeParams is null)
+            return resultType;
+
+        // Build a parallel (TypeParameter, TypeArgument) pair but replace
+        // every occurrence of UnknownType with itself so SubstituteType
+        // maps T → unknown at exactly the positions the user wrote.
+        // Non-unknown positions use the original argument (already the
+        // user's concrete substitution), preserving the current behavior
+        // for `List<int>` where T → int.
+        var count = Math.Min(typeParams.Count, ct.TypeArguments.Count);
+        var args = new IType[count];
+        for (var i = 0; i < count; i++)
+            args[i] = ct.TypeArguments[i];
+
+        // SubstituteType already does this mapping when used with the
+        // constructed type's own arguments; `SubstituteMemberType` is the
+        // suffix-level helper used elsewhere and is equivalent here. We
+        // call SubstituteType directly to make the intent explicit and
+        // to decouple from the suffix API.
+        return SubstituteType(resultType, typeParams, args);
+    }
+
+    /// <summary>
+    /// Filters a method call on a <c>Closed_Generic_With_Unknown</c> receiver:
+    /// if any overload whose signature matches the call writes to T-storage
+    /// for a type parameter T bound to <c>unknown</c>, emit
+    /// <see cref="UnknownClosedGenericMemberFiltered"/> and return
+    /// <c>true</c>. Otherwise return <c>false</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Today the Type Checker resolves a single method symbol per call site
+    /// via <see cref="ISemanticModel.GetDeclaredSymbol"/>; Task 21 filters
+    /// that resolved symbol. When overload resolution admits multiple
+    /// candidates, a future enhancement can prune the candidate set by
+    /// classification before resolution (see design § Critical design
+    /// considerations). The current one-candidate-per-call model still
+    /// produces the right diagnostic for the resolved target.
+    /// </para>
+    /// </remarks>
+    private bool FilterMethodOnClosedUnknownReceiver(
+        MethodCallSuffixPostfixSuffixNode methodCall,
+        IType? receiverType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var closedParams = GetClosedUnknownTypeParameters(receiverType);
+        if (closedParams is null)
+            return false;
+
+        var map = model.ReachabilityMap;
+        if (map is null)
+            return false;
+
+        // Prefer the Pass-2-registered symbol (set by
+        // `ISemanticModel.GetDeclaredSymbol` when overload resolution
+        // settled on a single candidate). When no symbol is registered —
+        // the current semantic model does not register a symbol on the
+        // MethodCallSuffix node itself — fall back to a by-name lookup
+        // against the receiver's member scope, matching what
+        // `CheckMemberAccessModifiers` already does for modifier checks.
+        var methodSymbol = model.GetDeclaredSymbol(methodCall)
+            ?? FindMemberSymbol(receiverType!, methodCall.Name.Lexeme, model);
+        if (methodSymbol is null || methodSymbol.Kind != SymbolKind.Method)
+            return false;
+
+        // A method is filtered iff it is WritesT for at least one closed T.
+        foreach (var tp in closedParams)
+        {
+            MemberClassification classification;
+            try { classification = map.GetMethodClassification(methodSymbol, tp); }
+            catch (KeyNotFoundException) { continue; }
+
+            if (classification == MemberClassification.WritesT)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    UnknownClosedGenericMemberFiltered.Value,
+                    FormatFilteredMemberMessage(
+                        methodCall.Name.Lexeme,
+                        receiverType!.DisplayName),
+                    methodCall,
+                    model));
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Filters a member access (field or property) on a
+    /// <c>Closed_Generic_With_Unknown</c> receiver. The read side is
+    /// filtered when <paramref name="isWriteContext"/> is <c>false</c>
+    /// and the property's Read classification is <c>WritesT</c>; the
+    /// write side is filtered when <paramref name="isWriteContext"/> is
+    /// <c>true</c> and the property's Write (or the field's write)
+    /// classification is <c>WritesT</c>. Returns <c>true</c> if a
+    /// diagnostic was emitted.
+    /// </summary>
+    private bool FilterMemberAccessOnClosedUnknownReceiver(
+        MemberAccessSuffixPostfixSuffixNode memberAccess,
+        IType? receiverType,
+        bool isWriteContext,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var closedParams = GetClosedUnknownTypeParameters(receiverType);
+        if (closedParams is null)
+            return false;
+
+        var map = model.ReachabilityMap;
+        if (map is null)
+            return false;
+
+        var memberSymbol = FindMemberSymbol(receiverType!, memberAccess.Name.Lexeme, model);
+        if (memberSymbol is null)
+            return false;
+
+        foreach (var tp in closedParams)
+        {
+            MemberClassification classification;
+            switch (memberSymbol.Kind)
+            {
+                case SymbolKind.Field:
+                {
+                    // Field reads never write T (the map does not expose
+                    // a read side for fields). Field writes are filtered
+                    // if the write classification is WritesT.
+                    if (!isWriteContext)
+                        continue;
+
+                    try { classification = map.GetFieldClassification(memberSymbol, tp); }
+                    catch (KeyNotFoundException) { continue; }
+                    break;
+                }
+                case SymbolKind.Property:
+                {
+                    PropertyClassification pair;
+                    try { pair = map.GetPropertyClassification(memberSymbol, tp); }
+                    catch (KeyNotFoundException) { continue; }
+                    classification = isWriteContext ? pair.Write : pair.Read;
+                    break;
+                }
+                default:
+                    continue;
+            }
+
+            if (classification == MemberClassification.WritesT)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    UnknownClosedGenericMemberFiltered.Value,
+                    FormatFilteredMemberMessage(
+                        memberAccess.Name.Lexeme,
+                        receiverType!.DisplayName),
+                    memberAccess,
+                    model));
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Filters an indexer access on a <c>Closed_Generic_With_Unknown</c>
+    /// receiver. Uses the Read side when <paramref name="isWriteContext"/>
+    /// is <c>false</c> and the Write side when it is <c>true</c>. Returns
+    /// <c>true</c> if a diagnostic was emitted.
+    /// </summary>
+    private bool FilterIndexerOnClosedUnknownReceiver(
+        IndexSuffixPostfixSuffixNode indexSuffix,
+        IType? receiverType,
+        bool isWriteContext,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var closedParams = GetClosedUnknownTypeParameters(receiverType);
+        if (closedParams is null)
+            return false;
+
+        var map = model.ReachabilityMap;
+        if (map is null)
+            return false;
+
+        // Indexers are registered on the generic definition's member scope
+        // under the canonical name "this[]".
+        var indexerSymbol = FindMemberSymbol(receiverType!, "this[]", model);
+        if (indexerSymbol is null || indexerSymbol.Kind != SymbolKind.Indexer)
+            return false;
+
+        foreach (var tp in closedParams)
+        {
+            PropertyClassification pair;
+            try { pair = map.GetPropertyClassification(indexerSymbol, tp); }
+            catch (KeyNotFoundException) { continue; }
+
+            var classification = isWriteContext ? pair.Write : pair.Read;
+            if (classification == MemberClassification.WritesT)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    UnknownClosedGenericMemberFiltered.Value,
+                    FormatFilteredMemberMessage("this[]", receiverType!.DisplayName),
+                    indexSuffix,
+                    model));
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Produces the user-facing message for <see cref="UnknownClosedGenericMemberFiltered"/>.
+    /// Matches the existing "member not found" shape (Requirement 10.7)
+    /// and adds a causal clause so the developer knows why filtering
+    /// happened rather than seeing a generic missing-member error.
+    /// </summary>
+    private static string FormatFilteredMemberMessage(string memberName, string receiverTypeDisplayName)
+    {
+        return $"'{receiverTypeDisplayName}' does not contain a definition for '{memberName}': " +
+               "the operation would write to storage of a type parameter bound to 'unknown'.";
     }
 
     /// <summary>

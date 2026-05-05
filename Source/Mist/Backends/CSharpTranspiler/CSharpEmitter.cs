@@ -2339,6 +2339,58 @@ internal sealed class CSharpSourceWriter
         return $"System.ValueTuple<{string.Join(", ", parts)}>";
     }
 
+    /// <summary>
+    /// Returns <c>true</c> if any element in <paramref name="tupleRef"/>
+    /// carries an identifier name (e.g., <c>(int a, int b)</c>). Used by
+    /// <see cref="EmitPrimaryPattern"/> to decide whether to emit a
+    /// chained deconstruction pattern that introduces the element names
+    /// as locals.
+    /// </summary>
+    private static bool TupleTypeRefHasAnyElementName(TupleTypeRefTypeReferenceNode tupleRef)
+    {
+        if (tupleRef.First.Name.HasValue) return true;
+        if (tupleRef.Rest.Name.HasValue) return true;
+        foreach (var additional in tupleRef.TupleTypeElements)
+        {
+            if (additional.Name.HasValue) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Emits a C# positional deconstruction pattern for a named tuple
+    /// type reference, including the element identifier names as
+    /// binding targets. For example, <c>(int a, int b)</c> emits as
+    /// <c>(int a, int b)</c> — the same surface syntax, but produced
+    /// from the resolved AST rather than the raw source text so the
+    /// emitter is faithful to type-map rewrites (e.g., an element
+    /// typed <c>unknown</c> lowers to <c>object</c>). Used as the
+    /// second stage of the chained emission for tuple type patterns
+    /// against non-tuple scrutinees: the first stage narrows to
+    /// <c>System.ValueTuple&lt;...&gt;</c>, and this form deconstructs
+    /// the narrowed binding so C# introduces the element names in the
+    /// enclosing scope.
+    /// </summary>
+    private string EmitTupleDeconstructionPattern(TupleTypeRefTypeReferenceNode tupleRef)
+    {
+        string FormatElement(TupleTypeElementNode element)
+        {
+            var elementType = EmitTypeReference(element.Type);
+            return element.Name.HasValue
+                ? $"{elementType} {element.Name.Value.Lexeme}"
+                : elementType;
+        }
+
+        var parts = new List<string>();
+        parts.Add(FormatElement(tupleRef.First));
+        parts.Add(FormatElement(tupleRef.Rest));
+        foreach (var additional in tupleRef.TupleTypeElements)
+        {
+            parts.Add(FormatElement(additional));
+        }
+        return $"({string.Join(", ", parts)})";
+    }
+
     private static string EmitPrimitiveType(PrimitiveTypeNode primitiveType)
     {
         return primitiveType switch
@@ -2757,9 +2809,27 @@ internal sealed class CSharpSourceWriter
                     }
 
                     // Scrutinee is not a tuple (object / unknown / etc.).
-                    // Fall back to the generic form, which works against
-                    // any receiver but does not deconstruct.
+                    // Use the generic `System.ValueTuple<...>` form for the
+                    // type test, which works against any scrutinee.
                     var genericTypeName = EmitTupleTypePatternType(tupleRef);
+
+                    // If the pattern declares element names (e.g.,
+                    // `(int a, int b) pair`), C# can't deconstruct
+                    // directly against the `object` scrutinee. Chain a
+                    // second pattern match against the freshly-bound
+                    // typed local so `a` and `b` are introduced in the
+                    // enclosing scope. The resulting form is accepted
+                    // by C# 14 and matches Mist's semantics exactly:
+                    //   `u is System.ValueTuple<int, int> pair && pair is (int a, int b)`
+                    // When there are no element names, no chain is
+                    // needed — the simple `ValueTuple<...>` form is
+                    // enough to make `pair` available in the branch.
+                    if (TupleTypeRefHasAnyElementName(tupleRef))
+                    {
+                        var deconstructionPattern = EmitTupleDeconstructionPattern(tupleRef);
+                        return $"{genericTypeName} {name} && {name} is {deconstructionPattern}";
+                    }
+
                     return $"{genericTypeName} {name}";
                 }
 

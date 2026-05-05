@@ -7261,28 +7261,30 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 thenScope.AddMember(varSymbol);
                 symbolTable.Register(varSymbol, typePattern);
 
-                // Tuple type pattern: if the pattern type is a tuple with
-                // named elements AND the scrutinee is a concrete tuple
-                // type, each named element introduces a local binding in
-                // the then-scope, matching C# semantics. In C#,
+                // Tuple type pattern: if the pattern type is a named
+                // tuple, each named element introduces a local binding
+                // in the then-scope, matching C# semantics. In C#,
                 // `is (int a, int b) pair` against a tuple scrutinee
                 // deconstructs into separate `a`, `b`, and `pair`
                 // bindings — `a` and `b` are the deconstructed element
                 // values, `pair` is the whole tuple (without named-element
-                // metadata on the binding). Mist follows the same rule.
+                // metadata on the binding).
                 //
-                // When the scrutinee is NOT a concrete tuple (e.g., bare
-                // `unknown`, which lowers to C# `object`), the C# compiler
-                // rejects deconstruction patterns, so the emitter falls
-                // back to the generic `ValueTuple<T1, T2, ...> pair` type
-                // pattern which does not deconstruct. Binding `a`/`b` as
-                // locals in that case would introduce names that the
-                // emitted C# doesn't populate. We therefore skip the
-                // element-name bindings unless the scrutinee is a tuple.
+                // When the scrutinee is not a concrete tuple (e.g., a
+                // bare `unknown`, which lowers to C# `object`), the
+                // emitter uses the chained form
+                // `u is ValueTuple<int, int> pair && pair is (int a, int b)`
+                // to introduce the element names as locals — C# accepts
+                // this compound pattern against any scrutinee. The
+                // end result is identical from Mist's perspective: `a`
+                // and `b` are bound in the then-scope with the
+                // deconstructed element values. We therefore register
+                // the element-name bindings whenever the pattern type
+                // carries names, without restricting on the scrutinee
+                // type.
                 if (typePattern.Type is TupleTypeRefTypeReferenceNode tupleRef
                     && patternType is TupleType tupleType
-                    && tupleType.ElementNames is not null
-                    && scrutineeType is TupleType)
+                    && tupleType.ElementNames is not null)
                 {
                     // Walk the AST elements in order to get token spans
                     // for each named binding; parallel to the element

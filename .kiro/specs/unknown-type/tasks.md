@@ -596,34 +596,34 @@ Phase E completes the feature: C# emission for UnknownType and covariant widenin
     - Ensure expected-output file (if the harness uses one) is present
     - _Requirements: 19.8_
 
-- [ ] 35. AllFeatures sample update — `Samples/AllFeatures/UnknownType.mist`
-  - [ ] 35.1 Create a new file `Samples/AllFeatures/UnknownType.mist`
+- [x] 35. AllFeatures sample update — `Samples/AllFeatures/UnknownType.mist`
+  - [x] 35.1 Create a new file `Samples/AllFeatures/UnknownType.mist`
     - At least one `unknown`-typed local
     - At least one Covariant_Unknown_Widening assignment
     - At least one pattern-match narrowing
     - File is additive, not a modification of existing files, to simplify merging
     - _Requirements: 20.1, 20.2_
 
-  - [ ] 35.2 Confirm the AllFeatures sample still compiles and runs as part of the existing sample test suite
+  - [x] 35.2 Confirm the AllFeatures sample still compiles and runs as part of the existing sample test suite
     - _Requirements: 20.3_
 
-- [ ] 36. CSHARP_FEATURES.md update
-  - [ ] 36.1 Add an entry for `unknown` in the `Reference Types` section
+- [x] 36. CSHARP_FEATURES.md update
+  - [x] 36.1 Add an entry for `unknown` in the `Reference Types` section
     - Marked as implemented
     - Note that this is a Mist-specific feature distinct from C# `object`, and explicitly distinct from C# `dynamic` (which remains skipped)
     - _Requirements: 18.1_
 
-  - [ ] 36.2 Update the `Summary` table at the bottom of CSHARP_FEATURES.md to reflect the new implementation count
+  - [x] 36.2 Update the `Summary` table at the bottom of CSHARP_FEATURES.md to reflect the new implementation count
     - _Requirements: 18.2_
 
-  - [ ] 36.3 Add a short prose subsection describing the semantics
+  - [x] 36.3 Add a short prose subsection describing the semantics
     - Top-type assignability
     - Storage prohibition
     - Reachability-based member filtering on closed generics
     - Pattern-matching narrowing as the designated escape
     - _Requirements: 18.3_
 
-- [ ] 37. Final checkpoint — rebuild, full tests, samples
+- [x] 37. Final checkpoint — rebuild, full tests, samples
   - Rebuild with zero warnings; run the full test suite including the two new samples
   - Ensure all tests pass, ask the user if questions arise.
   - _Requirements: 2.3, (phase gate)_

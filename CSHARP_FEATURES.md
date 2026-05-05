@@ -38,6 +38,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | `string` | ✅ | |
 | `object` | 🔲 | |
 | `dynamic` | ⛔ | DLR feature, out of scope |
+| `unknown` (Mist-specific) | ✅ | Mist top type with storage prohibition + reachability-filtered widening. Distinct from C# `object` (not a direct alias) and from C# `dynamic` (not general runtime dispatch). See "Mist-specific Features" below. |
 | User-defined classes | ✅ | |
 | Single-dimensional arrays (`T[]`) | ✅ | |
 | Multi-dimensional arrays (`T[,]`) | 🔲 | |
@@ -561,12 +562,34 @@ Types available to Mist programs via the C# backend's ambient type resolver.
 
 ---
 
+## Mist-specific Features
+
+Features introduced by Mist that don't map directly to a single C# feature. These are Mist's semantic extensions, listed here so the feature matrix is complete.
+
+### The `unknown` Top Type
+
+`unknown` is Mist's top type — any non-`void` value is assignable into an `unknown`-typed slot. The compiler enforces a structured path for getting information back out: pattern-matching via `is` is the designated mechanism. This gives programs an escape hatch for interop and dynamic-origin values while keeping Mist's type checker sound.
+
+**Top-type assignability.** Every non-`void` type is assignable to `unknown`. `void` is not. The reverse direction requires pattern narrowing or a user-defined cast operator declared on the target type.
+
+**Storage prohibition.** `unknown` cannot appear as the declared type of writable storage — fields, properties, indexer elements, `new` expressions, generic-construction type arguments at a storage position. The compiler rejects those declarations with the `MIST_SB_005x` diagnostic family. Read-only positions (method parameters, return types, type arguments in non-storage contexts) are allowed. This keeps the type safely untyped at the boundary without letting it leak into storage that would undermine type checking.
+
+**Reachability-based member filtering on closed generics.** A `Closed_Generic_With_Unknown` receiver (e.g., `List<unknown>`) has its members filtered at member access. The compiler's Reachability Analyzer classifies every member of every generic type by whether it can transitively write to storage of the generic's type parameters. On a `List<unknown>` receiver, members classified `WritesT` are hidden from the call site with diagnostic `MIST_TC_0062`. Read-path members remain accessible, with their result types substituted (so `List<unknown>.Count` returns `int`, `List<unknown>[i]` returns `unknown`).
+
+**Pattern-matching as the designated escape.** `x is Concrete c` is the only way to recover a concrete type from a bare `unknown` or from a `Closed_Generic_With_Unknown`. Inside the narrowed branch, the binding has the concrete type and full member access — including write-path members hidden before the narrow.
+
+**Covariant unknown widening.** For class-generic definitions, `Foo<A> → Foo<unknown>` is an implicit widening conversion. The Mist rule is sound: every write-path member on the widened receiver is filtered out by reachability analysis, so the runtime can't observe a variance violation. The C# emission lowers `Closed_Generic_With_Unknown` to C# `dynamic`, routing member access through the DLR at runtime. This is one of the places where `unknown` is explicitly distinct from C# `dynamic`: Mist's type checker still validates every member access at compile time against the closed generic's public API, and filters writes. C# `dynamic` defers all checking to runtime. Struct-generic widening (e.g., `Optional<int> → Optional<unknown>`) is rejected with `MIST_TC_0058` because C# generic structs cannot be safely widened even under a reachability-filtered read-only access pattern.
+
+**C# emission.** Bare `unknown` lowers to C# `object`. `Closed_Generic_With_Unknown` lowers to C# `dynamic`, with `Microsoft.CSharp.dll` + `System.Linq.Expressions.dll` + `System.Dynamic.Runtime.dll` added to the emitted project's references. No cast is inserted at widening sites — the implicit conversion to `dynamic` is handled by the C# compiler. See `.kiro/specs/unknown-type/design.md` for the full emission strategy rationale (Option C).
+
+---
+
 ## Summary
 
 | Category | ✅ Implemented | 🔲 Remaining | ⛔ Skipped |
 |---|---|---|---|
 | Value Types | 14 | 4 | 0 |
-| Reference Types | 4 | 6 | 1 |
+| Reference Types | 5 | 6 | 1 |
 | Type Declarations | 5 | 10 | 0 |
 | Members — Fields | 3 | 3 | 1 |
 | Members — Properties | 10 | 1 | 0 |

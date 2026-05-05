@@ -121,4 +121,11 @@ Config(MaxRetries=0, Verbose=False, Label=)
 --- Explicit Default Block ---
 AppState(ErrorCount=5, Ready=True, Status=initialized)
 Done!
+=== UnknownType Sample (AllFeatures) ===
+--- Unknown local ---
+narrowed int: 123
+--- Covariant widening ---
+widened tag: 7
+widened value: 99
+narrowed-back value: 42
 === Done! ===

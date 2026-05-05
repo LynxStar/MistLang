@@ -1,0 +1,103 @@
+// AllFeatures UnknownType demo — demonstrates the user-facing `unknown`
+// top type as part of the comprehensive feature showcase.
+//
+// Task 35.1 — Covers the three acceptance criteria:
+//   * At least one `unknown`-typed local.
+//   * At least one Covariant_Unknown_Widening assignment.
+//   * At least one pattern-match narrowing.
+//
+// This file is additive: it is a new file in `samples/AllFeatures/`
+// rather than a modification of the existing `Program.mist`. The
+// demonstration is invoked from `Program.Main` via
+// `UnknownTypeDemo.RunDemo()`.
+//
+// Under the Option C C# emission strategy, a Closed_Generic_With_Unknown
+// such as `Box<unknown>` lowers to C# `dynamic`. Member access on the
+// widened receiver routes through the DLR, which dispatches against the
+// receiver's actual runtime generic type. The Mist type checker still
+// filters write-path members on the widened receiver at compile time
+// (Reachability Analyzer, Phase C).
+
+using System;
+
+namespace AllFeatures;
+
+// A minimal generic container used in the Covariant_Unknown_Widening
+// demonstration. `Box<T>` holds a single value of type `T` plus an
+// `int` tag. `GetTag()` is `int`-returning and writes nothing, so it is
+// accessible on a `Box<unknown>` receiver. `GetValue()` reads a
+// T-typed field and is also accessible (result type is `unknown` on a
+// `Box<unknown>` receiver). `SetValue(x)` writes to a T-typed field;
+// it is filtered out on a `Box<unknown>` receiver by the Reachability
+// Analyzer.
+public class UnknownTypeBox<T>
+{
+    public int tag;
+    public T value;
+
+    public UnknownTypeBox(int tag, T value)
+    {
+        this.tag = tag;
+        this.value = value;
+    }
+
+    public int GetTag()
+    {
+        return this.tag;
+    }
+
+    public T GetValue()
+    {
+        return this.value;
+    }
+
+    public void SetValue(T newValue)
+    {
+        this.value = newValue;
+    }
+}
+
+// Invoked from `AllFeatures.Program.Main`.
+public class UnknownTypeDemo
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== UnknownType Sample (AllFeatures) ===");
+
+        // 1. `unknown`-typed local initialized from a concrete value.
+        //    The compiler accepts any non-`void` source type because
+        //    `unknown` is the top type.
+        unknown u = 123;
+        Console.WriteLine("--- Unknown local ---");
+
+        // 2. Pattern-match narrowing from bare `unknown` to a concrete
+        //    type. Inside the `then` branch the narrowed binding has
+        //    the concrete type and full member access.
+        if (u is int n)
+        {
+            Console.WriteLine($"narrowed int: {n}");
+        }
+
+        // 3. Covariant_Unknown_Widening. `Box<int>` is assignable to
+        //    `Box<unknown>` because `Box` is a class-generic and
+        //    `unknown` is the top type. Under Option C emission, the
+        //    widened local is a C# `dynamic`; `widened.GetTag()` and
+        //    `widened.GetValue()` dispatch through the DLR to the
+        //    underlying `Box<int>`.
+        Console.WriteLine("--- Covariant widening ---");
+        var boxInt = new UnknownTypeBox<int>(7, 99);
+        UnknownTypeBox<unknown> widened = boxInt;
+        Console.WriteLine($"widened tag: {widened.GetTag()}");
+        Console.WriteLine($"widened value: {widened.GetValue()}");
+
+        // 4. Pattern-narrow from Closed_Generic_With_Unknown back to
+        //    the concrete constructed type. Inside the `then` branch
+        //    `bi` is `UnknownTypeBox<int>` and all members — including
+        //    the write-path `SetValue` — are available.
+        if (widened is UnknownTypeBox<int> bi)
+        {
+            bi.SetValue(42);
+            Console.WriteLine($"narrowed-back value: {bi.GetValue()}");
+        }
+    }
+}

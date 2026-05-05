@@ -20,6 +20,7 @@ public class Program
         CastOperators.Program.RunDemo();
         PatternMatching.Program.RunDemo();
         DefaultKeyword.Program.RunDemo();
+        UnknownTypeDemo.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

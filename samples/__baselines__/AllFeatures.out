@@ -142,6 +142,8 @@ data narrowed to string: seven
 narrowed: Item1=10 Item2=ten
 --- Named deconstruction from unknown ---
 x=100 y=200 positional=100
+--- Bare type pattern ---
+mystery is a (int, string) tuple
 Done!
 === UnknownType Sample (AllFeatures) ===
 --- Unknown local ---

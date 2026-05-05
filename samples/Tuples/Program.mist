@@ -115,6 +115,21 @@ public class Program
             Console.WriteLine($"x={x} y={y} positional={named.Item1}");
         }
 
+        // 9. Bare type pattern — a pure type test with no binding.
+        //    `if (value is int)` checks the runtime type without
+        //    introducing a new variable. Useful when you only need
+        //    to branch on type, not extract the value.
+        Console.WriteLine("--- Bare type pattern ---");
+        unknown mystery = (42, "hello");
+        if (mystery is (int, string))
+        {
+            Console.WriteLine("mystery is a (int, string) tuple");
+        }
+        if (mystery is int)
+        {
+            Console.WriteLine("mystery is int");
+        }
+
         Console.WriteLine("Done!");
     }
 }

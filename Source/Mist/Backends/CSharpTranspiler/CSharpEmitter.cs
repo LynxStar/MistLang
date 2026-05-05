@@ -74,6 +74,14 @@ public sealed class CSharpEmitter
             var mistVoidPath = Path.Combine(outputDirectory, "MistVoid.g.cs");
             File.WriteAllText(mistVoidPath, GenerateMistVoidFile());
         }
+
+        // Emit union helper types into a single UnionHelpers.cs file if any union types are used.
+        var unionTypes = UnionHelperGenerator.CollectUnionTypes(model);
+        if (unionTypes.Count > 0)
+        {
+            var unionHelpersPath = Path.Combine(outputDirectory, "UnionHelpers.cs");
+            File.WriteAllText(unionHelpersPath, UnionHelperGenerator.GenerateUnionHelpersFile(unionTypes));
+        }
     }
 
     private static void EmitCsproj(string outputDirectory, string projectName)
@@ -181,6 +189,13 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private IType? _currentMethodReturnType;
     private readonly HashSet<string> _valueReturningVoidMethods = new(StringComparer.Ordinal);
+    /// <summary>
+    /// Pending variable bindings from union pattern matching. When an <c>is T t</c>
+    /// pattern is emitted against a union scrutinee, the condition becomes
+    /// <c>scrutinee.Is{T}</c> and the variable extraction <c>var t = scrutinee.As{T}</c>
+    /// is deferred to the start of the then-branch block.
+    /// </summary>
+    private readonly List<string> _pendingUnionPatternBindings = new();
     private const string IndentUnit = "    ";
 
     /// <summary>
@@ -2057,17 +2072,23 @@ internal sealed class CSharpSourceWriter
             //   * `unknown` (bare or nested inside a generic type argument)
             //     → `object` or `dynamic` per the Closed_Generic_With_Unknown
             //     emission rule (Task 30 / Task 31 / Req 15.1, 15.4).
+            //   * Union types (`int | string`) → helper type name
+            //     (`Union_Int32_String`) per the type-unions feature.
             // We check both the first parameter's AST type (structurally) and
             // the full parameter-list source text (as a lexical fallback) so
-            // subsequent parameters whose types contain `unknown` are also
+            // subsequent parameters whose types contain `unknown` or `|` are also
             // caught. A lexical check is safe here because `unknown` is a
             // reserved keyword (not usable as an identifier in Mist grammar),
             // so any word-boundary `unknown` in the parameter-list source is
-            // necessarily the keyword that needs rewriting.
+            // necessarily the keyword that needs rewriting. Similarly, `|` in
+            // a parameter list is always the union type operator (not logical OR
+            // which is `||`).
             var firstType = paramList.Parameter.Type;
             if (firstType is not VoidTypeRefTypeReferenceNode
+                && firstType is not UnionTypeRefTypeReferenceNode
                 && !TypeReferenceContainsUnknown(firstType)
-                && !ContainsVoidOrUnknownKeyword(sourceText))
+                && !ContainsVoidOrUnknownKeyword(sourceText)
+                && !ContainsPipeOperator(sourceText))
             {
                 return sourceText;
             }
@@ -2093,6 +2114,35 @@ internal sealed class CSharpSourceWriter
     private static bool ContainsVoidOrUnknownKeyword(string source)
     {
         return ContainsWord(source, "unknown") || ContainsWord(source, "void");
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if <paramref name="source"/> contains a single <c>|</c>
+    /// character that is not part of <c>||</c>. Used as a lexical fallback in
+    /// <see cref="EmitParameterList"/> to detect union type annotations in
+    /// subsequent parameters (beyond the first) that the Storm parser does not
+    /// expose structurally. A single <c>|</c> in a parameter list is always the
+    /// union type operator; logical OR (<c>||</c>) cannot appear in a type context.
+    /// </summary>
+    private static bool ContainsPipeOperator(string source)
+    {
+        for (var i = 0; i < source.Length; i++)
+        {
+            if (source[i] == '|')
+            {
+                // Check it's not part of ||
+                if (i + 1 < source.Length && source[i + 1] == '|')
+                {
+                    i++; // Skip the second |
+                    continue;
+                }
+                // Check it's not preceded by another | (second char of ||)
+                if (i > 0 && source[i - 1] == '|')
+                    continue;
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>
@@ -2310,9 +2360,154 @@ internal sealed class CSharpSourceWriter
 
                 return $"({string.Join(", ", parts)})";
             }
+            case UnionTypeRefTypeReferenceNode unionRef:
+            {
+                // Union type references emit as the generated helper type name.
+                // Collect constituent names matching UnionHelperGenerator.GetConstituentCSharpName,
+                // sort alphabetically, and join with "_" to form "Union_{Type1}_{Type2}".
+                var constituentNames = new List<string>();
+                constituentNames.Add(GetConstituentNameForHelper(unionRef.UnionType.First));
+                foreach (var rest in unionRef.UnionType.SingleTypeRefs)
+                {
+                    constituentNames.Add(GetConstituentNameForHelper(rest));
+                }
+                constituentNames.Sort(StringComparer.Ordinal);
+                return "Union_" + string.Join("_", constituentNames);
+            }
             default:
                 return "object";
         }
+    }
+
+    /// <summary>
+    /// Maps a <see cref="SingleTypeRefNode"/> to the constituent name used by
+    /// <see cref="UnionHelperGenerator.GetHelperTypeName"/> for constructing
+    /// the helper type name. This mirrors <c>GetConstituentCSharpName</c> but
+    /// operates on AST nodes rather than semantic <see cref="IType"/> instances.
+    /// </summary>
+    private string GetConstituentNameForHelper(SingleTypeRefNode singleTypeRef)
+    {
+        switch (singleTypeRef)
+        {
+            case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
+            {
+                var name = GetPrimitiveDisplayName(primitiveRef.PrimitiveType);
+                return primitiveRef.ArrayRank.HasValue ? $"{name}Array" : name;
+            }
+            case VoidSingleTypeRefSingleTypeRefNode:
+                return "Void";
+            case UnknownSingleTypeRefSingleTypeRefNode:
+                return "Object";
+            case NamedSingleTypeRefSingleTypeRefNode namedRef:
+            {
+                var name = ExtractQualifiedName(namedRef.Name);
+                if (namedRef.TypeArgs is not null)
+                {
+                    var typeArgNames = new List<string>();
+                    CollectTypeArgConstituentNames(namedRef.TypeArgs, typeArgNames);
+                    name = $"{name}_{typeArgNames.Count}_{string.Join("_", typeArgNames)}";
+                }
+                return namedRef.ArrayRank.HasValue ? $"{name}Array" : name;
+            }
+            case ParenthesizedTypeRefSingleTypeRefNode parenRef:
+            {
+                // Parenthesized type refs contain an inner TypeReference.
+                // For union helper naming, we recurse into the inner type.
+                var innerName = GetConstituentNameFromTypeRef(parenRef.Inner);
+                return parenRef.ArrayRank.HasValue ? $"{innerName}Array" : innerName;
+            }
+            case TupleSingleTypeRefSingleTypeRefNode:
+                // Tuple types in union constituents use a generic ValueTuple name.
+                return "ValueTuple";
+            default:
+                return "Object";
+        }
+    }
+
+    /// <summary>
+    /// Maps a <see cref="TypeReferenceNode"/> to a constituent name for the union
+    /// helper type. Used when a parenthesized type ref contains an inner type reference.
+    /// </summary>
+    private string GetConstituentNameFromTypeRef(TypeReferenceNode typeRef)
+    {
+        switch (typeRef)
+        {
+            case PrimitiveTypeRefTypeReferenceNode primitiveRef:
+            {
+                var name = GetPrimitiveDisplayName(primitiveRef.PrimitiveType);
+                return primitiveRef.ArrayRank.HasValue ? $"{name}Array" : name;
+            }
+            case VoidTypeRefTypeReferenceNode:
+                return "Void";
+            case UnknownTypeRefTypeReferenceNode:
+                return "Object";
+            case NamedTypeRefTypeReferenceNode namedRef:
+            {
+                var name = ExtractQualifiedName(namedRef.Name);
+                if (namedRef.TypeArgs is not null)
+                {
+                    var typeArgNames = new List<string>();
+                    CollectTypeArgConstituentNames(namedRef.TypeArgs, typeArgNames);
+                    name = $"{name}_{typeArgNames.Count}_{string.Join("_", typeArgNames)}";
+                }
+                return namedRef.ArrayRank.HasValue ? $"{name}Array" : name;
+            }
+            case UnionTypeRefTypeReferenceNode unionRef:
+            {
+                // Nested union inside parenthesized ref — flatten by returning
+                // the helper type name itself as the constituent name.
+                var constituentNames = new List<string>();
+                constituentNames.Add(GetConstituentNameForHelper(unionRef.UnionType.First));
+                foreach (var rest in unionRef.UnionType.SingleTypeRefs)
+                {
+                    constituentNames.Add(GetConstituentNameForHelper(rest));
+                }
+                constituentNames.Sort(StringComparer.Ordinal);
+                return "Union_" + string.Join("_", constituentNames);
+            }
+            default:
+                return "Object";
+        }
+    }
+
+    /// <summary>
+    /// Collects constituent names from a type argument list for use in helper type naming.
+    /// </summary>
+    private void CollectTypeArgConstituentNames(TypeArgumentListNode typeArgs, List<string> names)
+    {
+        // TypeArgumentList has TypeReference (first) and TypeReferences (rest).
+        names.Add(GetConstituentNameFromTypeRef(typeArgs.TypeReference));
+        foreach (var additional in typeArgs.TypeReferences)
+        {
+            names.Add(GetConstituentNameFromTypeRef(additional));
+        }
+    }
+
+    /// <summary>
+    /// Maps a <see cref="PrimitiveTypeNode"/> to its stdlib DisplayName
+    /// (e.g., <c>int</c> → <c>Int32</c>, <c>string</c> → <c>String</c>).
+    /// This matches the names used by <see cref="UnionHelperGenerator.GetConstituentCSharpName"/>.
+    /// </summary>
+    private static string GetPrimitiveDisplayName(PrimitiveTypeNode primitiveType)
+    {
+        return primitiveType switch
+        {
+            IntTypePrimitiveTypeNode => "Int32",
+            UintTypePrimitiveTypeNode => "UInt32",
+            LongTypePrimitiveTypeNode => "Int64",
+            UlongTypePrimitiveTypeNode => "UInt64",
+            ShortTypePrimitiveTypeNode => "Int16",
+            UshortTypePrimitiveTypeNode => "UInt16",
+            ByteTypePrimitiveTypeNode => "Byte",
+            SbyteTypePrimitiveTypeNode => "SByte",
+            FloatTypePrimitiveTypeNode => "Single",
+            DoubleTypePrimitiveTypeNode => "Double",
+            DecimalTypePrimitiveTypeNode => "Decimal",
+            BoolTypePrimitiveTypeNode => "Boolean",
+            CharTypePrimitiveTypeNode => "Char",
+            StringTypePrimitiveTypeNode => "String",
+            _ => "Object",
+        };
     }
 
     /// <summary>
@@ -2417,6 +2612,17 @@ internal sealed class CSharpSourceWriter
     {
         AppendLine("{");
         _indentLevel++;
+
+        // Inject any pending union pattern variable bindings at the start of the block.
+        // These are queued by TryEmitUnionPatternMatch when emitting `if (x.IsT)` conditions.
+        if (_pendingUnionPatternBindings.Count > 0)
+        {
+            foreach (var binding in _pendingUnionPatternBindings)
+            {
+                AppendLine(binding);
+            }
+            _pendingUnionPatternBindings.Clear();
+        }
 
         foreach (var stmt in block.Statements)
         {
@@ -2712,6 +2918,16 @@ internal sealed class CSharpSourceWriter
             {
                 var left = EmitAdditive(isExpr.Left);
                 var scrutineeType = _model.GetTypeOf(isExpr.Left);
+
+                // Union type pattern matching: emit Is{T}/As{T} property access
+                // instead of C#'s native `is T t` pattern.
+                if (scrutineeType is UnionType unionType)
+                {
+                    var unionResult = TryEmitUnionPatternMatch(isExpr.Pattern, unionType, left);
+                    if (unionResult is not null)
+                        return unionResult;
+                }
+
                 var pattern = EmitPattern(isExpr.Pattern, scrutineeType);
                 return $"{left} is {pattern}";
             }
@@ -2719,6 +2935,104 @@ internal sealed class CSharpSourceWriter
             default:
                 return "";
         }
+    }
+
+    // ─── Union Pattern Matching ──────────────────────────────────────────
+
+    /// <summary>
+    /// Attempts to emit a union-specific pattern match. For type patterns
+    /// (<c>is T t</c>) on a union scrutinee, emits <c>scrutinee.Is{T}</c> as
+    /// the condition and queues <c>var t = scrutinee.As{T}</c> as a pending
+    /// binding to be injected at the start of the then-branch.
+    /// For var patterns (<c>is var v</c>), emits <c>true</c> (always matches)
+    /// and queues <c>var v = scrutinee</c>.
+    /// Returns <c>null</c> if the pattern is not a simple type or var pattern
+    /// (e.g., or-patterns, and-patterns), in which case the caller falls through
+    /// to standard emission.
+    /// </summary>
+    private string? TryEmitUnionPatternMatch(PatternNode pattern, UnionType unionType, string scrutineeExpr)
+    {
+        // Navigate the pattern chain: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
+        // Only handle simple (non-compound) patterns for union emission.
+        var orPattern = pattern.OrPattern;
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+            return null; // or-pattern — fall through to standard emission
+
+        var andPattern = orPattern.Left;
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+            return null; // and-pattern — fall through to standard emission
+
+        var unaryPattern = andPattern.Left;
+        if (unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+            return null; // not-pattern — fall through to standard emission
+
+        var primaryPattern = directPattern.Primary;
+
+        switch (primaryPattern)
+        {
+            case TypePatternPrimaryPatternNode typePattern:
+            {
+                // Resolve the pattern type to find the matching constituent.
+                // The semantic model may store the type on the type reference node
+                // or on the pattern's declared symbol (the introduced variable).
+                var patternType = _model.GetTypeOf(typePattern.Type);
+                patternType ??= _model.GetDeclaredSymbol(typePattern)?.DeclaredType;
+                if (patternType is null)
+                    return null;
+
+                // Find the constituent that matches the pattern type.
+                var constituentName = FindConstituentName(patternType, unionType);
+                if (constituentName is null)
+                    return null; // Not a constituent — emit standard (dead code per type checker warning)
+
+                var bindingName = typePattern.Name.Lexeme;
+                var csharpTypeName = CSharpTypeMap.GetTypeName(patternType);
+
+                // Queue the variable binding for injection into the then-branch.
+                if (bindingName != "_")
+                {
+                    _pendingUnionPatternBindings.Add(
+                        $"{csharpTypeName} {bindingName} = {scrutineeExpr}.As{constituentName};");
+                }
+
+                return $"{scrutineeExpr}.Is{constituentName}";
+            }
+
+            case VarPatternPrimaryPatternNode varPattern:
+            {
+                var bindingName = varPattern.Name.Lexeme;
+                var helperTypeName = UnionHelperGenerator.GetHelperTypeName(unionType);
+
+                // Queue the variable binding for injection into the then-branch.
+                if (bindingName != "_")
+                {
+                    _pendingUnionPatternBindings.Add(
+                        $"{helperTypeName} {bindingName} = {scrutineeExpr};");
+                }
+
+                // var pattern always matches — emit `true` so the if-condition is trivially true.
+                return "true";
+            }
+
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// Finds the constituent C# name (e.g., "Int32", "String") for a pattern type
+    /// within a union type. Returns <c>null</c> if the type is not a constituent.
+    /// </summary>
+    private static string? FindConstituentName(IType patternType, UnionType unionType)
+    {
+        foreach (var constituent in unionType.Constituents)
+        {
+            if (constituent.DisplayName == patternType.DisplayName)
+            {
+                return UnionHelperGenerator.GetConstituentCSharpName(constituent);
+            }
+        }
+        return null;
     }
 
     // ─── Pattern Emission ────────────────────────────────────────────────

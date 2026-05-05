@@ -873,6 +873,16 @@ public sealed class MistPrettyPrinter
     {
         switch (typeRef)
         {
+            case UnionTypeRefTypeReferenceNode unionRef:
+            {
+                var parts = new List<string>();
+                parts.Add(EmitSingleTypeRef(unionRef.UnionType.First));
+                foreach (var constituent in unionRef.UnionType.SingleTypeRefs)
+                {
+                    parts.Add(EmitSingleTypeRef(constituent));
+                }
+                return string.Join(" | ", parts);
+            }
             case PrimitiveTypeRefTypeReferenceNode primitiveRef:
             {
                 var keyword = EmitPrimitiveType(primitiveRef.PrimitiveType);
@@ -897,6 +907,66 @@ public sealed class MistPrettyPrinter
                 return $"{name}{typeArgs}";
             }
             case TupleTypeRefTypeReferenceNode tupleRef:
+            {
+                var parts = new List<string>();
+
+                string FormatTupleElement(TupleTypeElementNode element)
+                {
+                    var type = EmitTypeReference(element.Type);
+                    return element.Name.HasValue ? $"{type} {element.Name.Value.Lexeme}" : type;
+                }
+
+                parts.Add(FormatTupleElement(tupleRef.First));
+                parts.Add(FormatTupleElement(tupleRef.Rest));
+                foreach (var additional in tupleRef.TupleTypeElements)
+                {
+                    parts.Add(FormatTupleElement(additional));
+                }
+
+                return $"({string.Join(", ", parts)})";
+            }
+            default:
+                return "object";
+        }
+    }
+
+    private string EmitSingleTypeRef(SingleTypeRefNode singleTypeRef)
+    {
+        switch (singleTypeRef)
+        {
+            case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
+            {
+                var keyword = EmitPrimitiveType(primitiveRef.PrimitiveType);
+                if (primitiveRef.ArrayRank.HasValue)
+                {
+                    return $"{keyword}[]";
+                }
+                return keyword;
+            }
+            case VoidSingleTypeRefSingleTypeRefNode:
+                return "void";
+            case UnknownSingleTypeRefSingleTypeRefNode:
+                return "unknown";
+            case NamedSingleTypeRefSingleTypeRefNode namedRef:
+            {
+                var name = ExtractQualifiedName(namedRef.Name);
+                var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs);
+                if (namedRef.ArrayRank.HasValue)
+                {
+                    return $"{name}{typeArgs}[]";
+                }
+                return $"{name}{typeArgs}";
+            }
+            case ParenthesizedTypeRefSingleTypeRefNode parenRef:
+            {
+                var inner = EmitTypeReference(parenRef.Inner);
+                if (parenRef.ArrayRank.HasValue)
+                {
+                    return $"({inner})[]";
+                }
+                return $"({inner})";
+            }
+            case TupleSingleTypeRefSingleTypeRefNode tupleRef:
             {
                 var parts = new List<string>();
 

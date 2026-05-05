@@ -119,6 +119,9 @@ internal static class CSharpTypeMap
     /// </remarks>
     public static string GetTypeName(IType type, bool isValueContext = false) => type switch
     {
+        // Union types lower to the generated helper struct name.
+        UnionType ut => UnionHelperGenerator.GetHelperTypeName(ut),
+
         // User-facing UnknownType (Requirement 15.1): every direct reference to
         // UnknownType lowers to C# `object`. Matched before the generic class/
         // struct branches because UnknownType is a singleton with its own class

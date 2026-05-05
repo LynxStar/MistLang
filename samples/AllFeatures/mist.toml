@@ -32,3 +32,6 @@ path = "../DefaultKeyword"
 
 [[references]]
 path = "../Tuples"
+
+[[references]]
+path = "../TypeUnions"

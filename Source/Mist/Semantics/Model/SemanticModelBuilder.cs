@@ -7724,6 +7724,232 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return new TupleType(elementTypes, hasAnyName ? elementNames : null);
             }
 
+            case UnionTypeRefTypeReferenceNode unionRef:
+            {
+                return ResolveUnionTypeRef(unionRef, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            }
+
+            default:
+                return ErrorType.Instance;
+        }
+    }
+
+    /// <summary>
+    /// Resolves a <see cref="UnionTypeRefTypeReferenceNode"/> to an <see cref="IType"/>.
+    /// Applies the construction rules from the design document:
+    /// 1. Resolve each constituent type reference.
+    /// 2. Flatten: if a constituent is itself a <see cref="UnionType"/>, inline its constituents.
+    /// 3. Deduplicate: remove duplicate types by <see cref="IType.DisplayName"/> equality.
+    /// 4. If only one distinct constituent remains, return that type directly (not a union).
+    /// 5. Sort constituents by DisplayName for canonical form (handled by <see cref="UnionType"/> constructor).
+    /// 6. If any constituent resolves to <see cref="ErrorType"/>, include it but still produce the union.
+    /// </summary>
+    private static IType ResolveUnionTypeRef(
+        UnionTypeRefTypeReferenceNode unionRef,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Collect all constituent SingleTypeRefNodes.
+        var singleTypeRefs = new List<SingleTypeRefNode>();
+        singleTypeRefs.Add(unionRef.UnionType.First);
+        foreach (var rest in unionRef.UnionType.SingleTypeRefs)
+        {
+            singleTypeRefs.Add(rest);
+        }
+
+        // Resolve each constituent and flatten nested unions.
+        var flatConstituents = new List<IType>();
+        foreach (var singleRef in singleTypeRefs)
+        {
+            var resolved = ResolveSingleTypeRef(singleRef, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+            // Flatten: if the resolved type is itself a UnionType, inline its constituents.
+            if (resolved is UnionType nestedUnion)
+            {
+                foreach (var nested in nestedUnion.Constituents)
+                {
+                    flatConstituents.Add(nested);
+                }
+            }
+            else
+            {
+                flatConstituents.Add(resolved);
+            }
+        }
+
+        // Deduplicate by DisplayName equality.
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var distinct = new List<IType>();
+        foreach (var type in flatConstituents)
+        {
+            if (seen.Add(type.DisplayName))
+            {
+                distinct.Add(type);
+            }
+        }
+
+        // If only one distinct constituent remains, return that type directly.
+        if (distinct.Count == 1)
+        {
+            // Task 6.3 / Req 12.1: Degenerate union — fewer than 2 distinct
+            // types after deduplication. Emit a warning unless the reduction
+            // is caused by ErrorType (unresolved constituent), which would
+            // cascade from an already-reported diagnostic.
+            var hasErrorType = false;
+            foreach (var type in flatConstituents)
+            {
+                if (type is ErrorType)
+                {
+                    hasErrorType = true;
+                    break;
+                }
+            }
+
+            if (!hasErrorType && flatConstituents.Count > distinct.Count)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    "MIST_TC_0075",
+                    DiagnosticSeverity.Warning,
+                    $"Union type has fewer than 2 distinct types after deduplication (resolved to '{distinct[0].DisplayName}'). A union type requires at least two distinct types.",
+                    unionRef,
+                    sourceText));
+            }
+
+            return distinct[0];
+        }
+
+        // Produce the union (UnionType constructor handles canonical sorting).
+        return new UnionType(distinct);
+    }
+
+    /// <summary>
+    /// Resolves a <see cref="SingleTypeRefNode"/> to an <see cref="IType"/>.
+    /// Mirrors the logic of <see cref="ResolveTypeReference"/> but for the
+    /// <c>SingleTypeRef</c> grammar alternatives (which exclude the union
+    /// alternative to prevent infinite left-recursion).
+    /// </summary>
+    private static IType ResolveSingleTypeRef(
+        SingleTypeRefNode singleTypeRef,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        switch (singleTypeRef)
+        {
+            case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
+            {
+                IType primBase;
+                try
+                {
+                    var primGlobalScope = FindGlobalScope(fileScope) ?? fileScope;
+                    primBase = ResolvePrimitiveKeyword(primGlobalScope, symbolTable, primitiveRef.PrimitiveType);
+                }
+                catch (StdlibMissingException)
+                {
+                    primBase = ResolveLegacyPrimitive(primitiveRef.PrimitiveType);
+                }
+                if (primitiveRef.ArrayRank.HasValue)
+                {
+                    return new ArrayType(primBase);
+                }
+                return primBase;
+            }
+
+            case VoidSingleTypeRefSingleTypeRefNode:
+            {
+                try
+                {
+                    var voidGlobalScope = FindGlobalScope(fileScope) ?? fileScope;
+                    return ResolveVoidKeyword(voidGlobalScope, symbolTable);
+                }
+                catch (StdlibMissingException)
+                {
+                    return LegacyPrimitiveTypes.Void;
+                }
+            }
+
+            case UnknownSingleTypeRefSingleTypeRefNode:
+                return UnknownType.Instance;
+
+            case NamedSingleTypeRefSingleTypeRefNode namedRef:
+            {
+                var typeName = ExtractQualifiedName(namedRef.Name, sourceText);
+
+                // Check if the identifier resolves to a TypeParameterType first.
+                var namedSymbol = fileScope.Lookup(typeName);
+                if (namedSymbol is not null && namedSymbol.DeclaredType is TypeParameterType tpt)
+                {
+                    if (namedRef.TypeArgs is not null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            DiagnosticId.NotGeneric.Value,
+                            DiagnosticSeverity.Error,
+                            $"Type '{typeName}' is not generic and does not accept type arguments.",
+                            namedRef,
+                            sourceText));
+                    }
+                    return tpt;
+                }
+
+                var baseType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+                // Handle type arguments if present.
+                if (namedRef.TypeArgs is not null)
+                {
+                    baseType = ResolvePass2TypeArguments(baseType, typeName, namedRef.TypeArgs, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                }
+
+                if (namedRef.ArrayRank.HasValue)
+                {
+                    return new ArrayType(baseType);
+                }
+                return baseType;
+            }
+
+            case ParenthesizedTypeRefSingleTypeRefNode parenRef:
+            {
+                // Resolve the inner type reference (which can be any TypeReference, including unions).
+                var inner = ResolveTypeReference(parenRef.Inner, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                if (parenRef.ArrayRank.HasValue)
+                {
+                    return new ArrayType(inner);
+                }
+                return inner;
+            }
+
+            case TupleSingleTypeRefSingleTypeRefNode tupleRef:
+            {
+                var elementCount = 2 + tupleRef.TupleTypeElements.Length;
+                var elementTypes = new List<IType>(elementCount);
+                var elementNames = new List<string?>(elementCount);
+                var hasAnyName = false;
+
+                elementTypes.Add(ResolveTypeReference(tupleRef.First.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
+                var firstName = tupleRef.First.Name?.Lexeme;
+                elementNames.Add(firstName);
+                if (firstName is not null) hasAnyName = true;
+
+                elementTypes.Add(ResolveTypeReference(tupleRef.Rest.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
+                var restName = tupleRef.Rest.Name?.Lexeme;
+                elementNames.Add(restName);
+                if (restName is not null) hasAnyName = true;
+
+                foreach (var additional in tupleRef.TupleTypeElements)
+                {
+                    elementTypes.Add(ResolveTypeReference(additional.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
+                    var additionalName = additional.Name?.Lexeme;
+                    elementNames.Add(additionalName);
+                    if (additionalName is not null) hasAnyName = true;
+                }
+
+                return new TupleType(elementTypes, hasAnyName ? elementNames : null);
+            }
+
             default:
                 return ErrorType.Instance;
         }

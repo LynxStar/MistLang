@@ -436,6 +436,56 @@ Mist introduces traits as a structural typing mechanism. Unlike interfaces (nomi
 
 ---
 
+## Type Unions
+
+Mist supports TypeScript-style type unions (`int | string`) allowing a value to be one of several types. Union types can appear in all type positions: variables, parameters, return types, fields, and type arguments. Pattern matching narrows union-typed values to specific constituents.
+
+### Syntax & Parsing
+
+| Feature | Status | Notes |
+|---|---|---|
+| `\|` operator in type contexts | ✅ | `int \| string` |
+| Multi-constituent unions | ✅ | `int \| string \| bool` |
+| Union types in all type positions | ✅ | Variables, parameters, return types, fields, type arguments |
+| Parenthesized grouping | ✅ | `(int \| string)[]` for array of union |
+| Precedence below array rank | ✅ | `int[] \| string` = `(int[]) \| string` |
+
+### Semantic Model
+
+| Feature | Status | Notes |
+|---|---|---|
+| Union type resolution | ✅ | Resolves to `UnionType` with constituent types |
+| Nested union flattening | ✅ | `(int \| string) \| bool` → three constituents |
+| Duplicate deduplication | ✅ | `int \| int` → `int` |
+| Single-constituent reduction | ✅ | Reduces to the type itself |
+
+### Type Checking
+
+| Feature | Status | Notes |
+|---|---|---|
+| Constituent-to-union assignability | ✅ | `int` → `int \| string` |
+| Union-to-wider-union assignability | ✅ | `int \| string` → `int \| string \| bool` |
+| Order-independent equality | ✅ | `int \| string` = `string \| int` |
+| Common member access | ✅ | Allowed if member exists on all constituents |
+| Pattern matching narrowing | ✅ | `is string s` narrows to `string` |
+| Non-constituent rejection | ✅ | Diagnostic MIST_TC_0050 |
+| Union-to-non-union rejection | ✅ | Diagnostic MIST_TC_0051 |
+| Missing member diagnostic | ✅ | Diagnostic MIST_TC_0052 |
+| Non-constituent pattern warning | ✅ | Diagnostic MIST_TC_0053 |
+
+### C# Emission
+
+| Feature | Status | Notes |
+|---|---|---|
+| Helper type generation | ✅ | `Union_{Type1}_{Type2}` struct with tag + value |
+| Implicit conversion operators | ✅ | From each constituent to helper type |
+| Is/As properties | ✅ | `IsInt32`, `AsInt32` for type checking and extraction |
+| Helper type deduplication | ✅ | Same constituents reuse same helper type |
+| Union type usage emission | ✅ | Variables, parameters, return types, fields |
+| Pattern matching emission | ✅ | `is T t` → discriminator check + extraction |
+
+---
+
 ## Generics
 
 | Feature | Status | Notes |
@@ -616,6 +666,10 @@ Features introduced by Mist that don't map directly to a single C# feature. Thes
 | Structural Typing — With Blocks | 4 | 0 | 0 |
 | Structural Typing — C# Lowering | 4 | 0 | 0 |
 | Pattern Matching | 7 | 1 | 0 |
+| Type Unions — Syntax & Parsing | 5 | 0 | 0 |
+| Type Unions — Semantic Model | 4 | 0 | 0 |
+| Type Unions — Type Checking | 9 | 0 | 0 |
+| Type Unions — C# Emission | 6 | 0 | 0 |
 | Generics | 3 | 3 | 0 |
 | Async | 0 | 5 | 1 |
 | Namespaces & Imports | 3 | 3 | 1 |

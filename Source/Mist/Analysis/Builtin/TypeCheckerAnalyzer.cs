@@ -276,6 +276,64 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId NoCastOperatorFromUnknown = new("MIST_TC_0067");
 
+    // ── type-unions feature: assignability diagnostics ────────────────────
+    //
+    // Note on numbering: the type-unions design document's Diagnostic ID
+    // Allocation table originally proposed MIST_TC_0050 / MIST_TC_0051 /
+    // MIST_TC_0055 for the three union assignability diagnostics below.
+    // Those codes were already allocated to the pattern-matching feature
+    // (see PatternUndefinedType, PatternConstantTypeMismatch, and
+    // PatternListTooManyElements above), so the type-unions assignability
+    // diagnostics were reallocated to MIST_TC_0070 / MIST_TC_0071 /
+    // MIST_TC_0072 — the next free codes after the unknown-type cast
+    // diagnostic (MIST_TC_0067). This continues the same reallocation
+    // strategy used throughout this file.
+
+    /// <summary>
+    /// Emitted when a non-constituent type is assigned to a union-typed
+    /// target. For example, assigning <c>bool</c> to <c>int | string</c>
+    /// when <c>bool</c> is not a constituent of the union (Requirement 6.3).
+    /// </summary>
+    internal static readonly DiagnosticId UnionNonConstituentAssignment = new("MIST_TC_0070");
+
+    /// <summary>
+    /// Emitted when a union type is assigned to a non-union target without
+    /// narrowing. For example, assigning <c>int | string</c> to <c>int</c>
+    /// without first using a pattern match to narrow the union (Requirement 6.4).
+    /// </summary>
+    internal static readonly DiagnosticId UnionToNonUnionAssignment = new("MIST_TC_0071");
+
+    /// <summary>
+    /// Emitted when a union type is assigned to another union type but at
+    /// least one constituent of the source union is not present in the target
+    /// union. For example, assigning <c>int | string | bool</c> to
+    /// <c>int | string</c> when <c>bool</c> is not a constituent of the
+    /// target (Requirement 6.3).
+    /// </summary>
+    internal static readonly DiagnosticId UnionIncompatibleConstituents = new("MIST_TC_0072");
+
+    /// <summary>
+    /// Emitted when a member access or method call is performed on a union-typed
+    /// value and the member does not exist on all constituent types. The diagnostic
+    /// message lists which constituent types lack the member (Requirement 7.2).
+    /// </summary>
+    internal static readonly DiagnosticId UnionMemberNotOnAllConstituents = new("MIST_TC_0073");
+
+    /// <summary>
+    /// Emitted as a warning when a type pattern on a union-typed scrutinee
+    /// references a type that is not one of the union's constituent types.
+    /// The pattern will never match at runtime (Requirement 8.3, 12.5).
+    /// </summary>
+    internal static readonly DiagnosticId UnionPatternNonConstituent = new("MIST_TC_0074");
+
+    /// <summary>
+    /// Emitted as a warning when a union type annotation resolves to fewer
+    /// than two distinct constituent types after flattening and deduplication.
+    /// A union type requires at least two distinct types to be meaningful
+    /// (Requirement 12.1).
+    /// </summary>
+    internal static readonly DiagnosticId UnionDegenerateType = new("MIST_TC_0075");
+
     /// <summary>
     /// Feature flag gating the operator overload-resolution path introduced by
     /// Task 14 of the Mist Standard Library spec. When <c>true</c> (the
@@ -981,6 +1039,37 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // the rest of IsDirectlyAssignable, which will reject by returning
         // false. The cast-expression path then routes to
         // `CheckCastFromUnknown` for the operator lookup.
+
+        // ── type-unions feature: union type direct-assignability ──────────
+        //
+        // Mirrors the union rules in IsAssignable so that IsDirectlyAssignable
+        // and IsAssignable agree on union-related assignments. This ensures
+        // the cast-expression path and the implicit-cast precedence check
+        // both handle union types consistently.
+        if (target is UnionType targetUnionDirect)
+        {
+            if (HasErrorConstituent(targetUnionDirect))
+                return true;
+
+            if (source is UnionType sourceUnionDirect)
+            {
+                if (HasErrorConstituent(sourceUnionDirect))
+                    return true;
+
+                foreach (var constituent in sourceUnionDirect.Constituents)
+                {
+                    if (!IsConstituentOf(constituent, targetUnionDirect))
+                        return false;
+                }
+                return true;
+            }
+
+            return IsConstituentOf(source, targetUnionDirect);
+        }
+        if (source is UnionType)
+        {
+            return false;
+        }
 
         // Identity.
         if (ReferenceEquals(source, target))
@@ -2110,7 +2199,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // unknown-type feature (Req 4.2, 4.4): emit a targeted
                     // diagnostic for void→unknown or unknown→non-unknown
                     // before falling back to the generic MIST_TC_0008.
-                    if (!TryEmitUnknownAssignabilityDiagnostic(valueType, methodReturnType, returnStmt, diagnostics, model))
+                    if (TryEmitUnknownAssignabilityDiagnostic(valueType, methodReturnType, returnStmt, diagnostics, model))
+                    {
+                        // Targeted unknown diagnostic emitted; skip generic.
+                    }
+                    // type-unions feature (Req 6.3, 6.4): emit a targeted
+                    // diagnostic for union-specific failures.
+                    else if (TryEmitUnionAssignabilityDiagnostic(valueType, methodReturnType, returnStmt, diagnostics, model))
+                    {
+                        // Targeted union diagnostic emitted; skip generic.
+                    }
+                    else
                     {
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_TC_0008",
@@ -2309,7 +2408,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             // unknown-type feature (Req 4.2, 4.4): emit a targeted
                             // diagnostic for void→unknown or unknown→non-unknown
                             // before falling back to the generic MIST_TC_0021.
-                            if (!TryEmitUnknownAssignabilityDiagnostic(rhsType, propType, assignment, diagnostics, model))
+                            if (TryEmitUnknownAssignabilityDiagnostic(rhsType, propType, assignment, diagnostics, model))
+                            {
+                                // Targeted unknown diagnostic emitted; skip generic.
+                            }
+                            // type-unions feature (Req 6.3, 6.4): emit a targeted
+                            // diagnostic for union-specific failures.
+                            else if (TryEmitUnionAssignabilityDiagnostic(rhsType, propType, assignment, diagnostics, model))
+                            {
+                                // Targeted union diagnostic emitted; skip generic.
+                            }
+                            else
                             {
                                 diagnostics.Add(MakeDiagnostic(
                                     "MIST_TC_0021",
@@ -2672,6 +2781,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         typePattern,
                         model));
                 }
+                else if (scrutineeType is UnionType unionForTypePattern
+                         && !IsConstituentOfUnion(patternType, unionForTypePattern))
+                {
+                    // Task 6.3 / Req 8.3, 12.5: type pattern references a
+                    // type that is not a constituent of the union — the
+                    // pattern will never match at runtime.
+                    diagnostics.Add(MakeDiagnosticWarning(
+                        UnionPatternNonConstituent.Value,
+                        $"Type '{patternType.DisplayName}' is not a constituent of union type '{unionForTypePattern.DisplayName}'; this pattern will never match",
+                        typePattern,
+                        model));
+                }
                 break;
             }
 
@@ -2701,6 +2822,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     diagnostics.Add(MakeDiagnostic(
                         PatternNarrowToClosedGenericWithUnknown.Value,
                         $"Narrowing to '{patternType.DisplayName}' is not meaningful: the pattern is tautologically true under covariant unknown widening, and the binding loses information because members that write to a type parameter bound to 'unknown' are filtered. Narrow to a concrete constructed type (e.g., '{ReplaceUnknownWithConcretePlaceholder(patternType)}') instead.",
+                        bareTypePattern,
+                        model));
+                }
+                else if (scrutineeType is UnionType unionForBareTypePattern
+                         && !IsConstituentOfUnion(patternType, unionForBareTypePattern))
+                {
+                    // Task 6.3 / Req 8.3, 12.5: type pattern references a
+                    // type that is not a constituent of the union — the
+                    // pattern will never match at runtime.
+                    diagnostics.Add(MakeDiagnosticWarning(
+                        UnionPatternNonConstituent.Value,
+                        $"Type '{patternType.DisplayName}' is not a constituent of union type '{unionForBareTypePattern.DisplayName}'; this pattern will never match",
                         bareTypePattern,
                         model));
                 }
@@ -3516,6 +3649,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         targetIsTypeName = false;
                         break;
                     }
+                    // Task 6.2: union type method call validation (Req 7.1, 7.2, 7.3).
+                    // If the receiver is a UnionType, check that the method exists
+                    // on ALL constituent types. If it does, compute the result type
+                    // as the union of return types; otherwise emit MIST_TC_0073.
+                    if (currentType is UnionType unionForMethodCall)
+                    {
+                        var unionMethodResult = CheckUnionMemberAccess(
+                            methodCall.Name.Lexeme, unionForMethodCall, methodCall, model, diagnostics);
+                        currentType = unionMethodResult;
+                        targetIsTypeName = false;
+                        break;
+                    }
                     CheckMethodCallArguments(methodCall, currentType, model, diagnostics);
                     CheckMemberAccessModifiers(methodCall.Name.Lexeme, currentType, targetIsTypeName, methodCall, model, diagnostics);
                     // Task 21: filter methods on Closed_Generic_With_Unknown receivers.
@@ -3603,6 +3748,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             memberAccess,
                             model));
                         currentType = ErrorType.Instance;
+                        break;
+                    }
+                    // Task 6.2: union type member access validation (Req 7.1, 7.2).
+                    // If the receiver is a UnionType, check that the member exists
+                    // on ALL constituent types. If it does, compute the result type
+                    // as the union of member types; otherwise emit MIST_TC_0073.
+                    if (currentType is UnionType unionForMemberAccess)
+                    {
+                        var unionMemberResult = CheckUnionMemberAccess(
+                            memberAccess.Name.Lexeme, unionForMemberAccess, memberAccess, model, diagnostics);
+                        currentType = unionMemberResult;
+                        targetIsTypeName = false;
                         break;
                     }
                     CheckMemberAccessModifiers(memberAccess.Name.Lexeme, currentType, targetIsTypeName, memberAccess, model, diagnostics);
@@ -4659,7 +4816,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // unknown-type feature (Req 4.2, 4.4): emit a targeted
                     // diagnostic for void→unknown or unknown→non-unknown
                     // before falling back to the generic MIST_TC_0002.
-                    if (!TryEmitUnknownAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    if (TryEmitUnknownAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    {
+                        // Targeted unknown diagnostic emitted; skip generic.
+                    }
+                    // type-unions feature (Req 6.3, 6.4): emit a targeted
+                    // diagnostic for union-specific failures.
+                    else if (TryEmitUnionAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    {
+                        // Targeted union diagnostic emitted; skip generic.
+                    }
+                    else
                     {
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_TC_0002",
@@ -4751,7 +4918,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // unknown-type feature (Req 4.2, 4.4): emit a targeted
                     // diagnostic for void→unknown or unknown→non-unknown
                     // before falling back to the generic MIST_TC_0002.
-                    if (!TryEmitUnknownAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    if (TryEmitUnknownAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    {
+                        // Targeted unknown diagnostic emitted; skip generic.
+                    }
+                    // type-unions feature (Req 6.3, 6.4): emit a targeted
+                    // diagnostic for union-specific failures.
+                    else if (TryEmitUnionAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    {
+                        // Targeted union diagnostic emitted; skip generic.
+                    }
+                    else
                     {
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_TC_0002",
@@ -5563,6 +5740,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (TryEmitUnknownAssignabilityDiagnostic(source, target, node, diagnostics, model))
                 return;
 
+            // type-unions feature (Req 6.3, 6.4): before falling back to
+            // the generic type-mismatch diagnostic, detect union-specific
+            // failure modes and emit the targeted code.
+            if (TryEmitUnionAssignabilityDiagnostic(source, target, node, diagnostics, model))
+                return;
+
             // Emit a trait-specific diagnostic when the target is a TraitType.
             if (target is TraitType targetTrait)
             {
@@ -5858,6 +6041,54 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (source is UnknownType)
         {
             // target is not UnknownType (checked above); reject.
+            return false;
+        }
+
+        // ── type-unions feature: union type assignability ─────────────────
+        //
+        // Union type rules are checked before identity/display-name so that
+        // structural union equality (same constituents regardless of order)
+        // is handled correctly, and constituent-to-union / union-to-wider-union
+        // assignments are accepted.
+        //
+        // Rules:
+        //   * UnionType → UnionType: valid if every source constituent is
+        //     a constituent of the target (order-independent).
+        //   * T (non-union) → UnionType: valid if T is a constituent of
+        //     the target union.
+        //   * UnionType → T (non-union): rejected (must narrow first).
+        //
+        // A union containing ErrorType is treated as "poisoned" — accept
+        // any assignment to suppress cascading errors.
+        if (target is UnionType targetUnion)
+        {
+            // Poisoned union target: suppress cascading errors.
+            if (HasErrorConstituent(targetUnion))
+                return true;
+
+            if (source is UnionType sourceUnionForTarget)
+            {
+                // Poisoned union source: suppress cascading errors.
+                if (HasErrorConstituent(sourceUnionForTarget))
+                    return true;
+
+                // Union → Union: every source constituent must be in target.
+                foreach (var constituent in sourceUnionForTarget.Constituents)
+                {
+                    if (!IsConstituentOf(constituent, targetUnion))
+                        return false;
+                }
+                return true;
+            }
+
+            // Non-union → Union: source must be a constituent of target.
+            return IsConstituentOf(source, targetUnion);
+        }
+        if (source is UnionType)
+        {
+            // Union → non-union: rejected (must narrow first).
+            // The only exception is if the target is UnknownType, but that
+            // was already handled above.
             return false;
         }
 
@@ -7527,6 +7758,189 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             AnalyzerName: "TypeChecker");
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // Union type assignability helpers
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Returns <c>true</c> if the given union type contains at least one
+    /// <see cref="ErrorType"/> constituent. A "poisoned" union suppresses
+    /// cascading diagnostics by accepting any assignment.
+    /// </summary>
+    private static bool HasErrorConstituent(UnionType union)
+    {
+        foreach (var constituent in union.Constituents)
+        {
+            if (IsErrorType(constituent))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if <paramref name="type"/> is a constituent of
+    /// <paramref name="union"/> — i.e., it matches one of the union's
+    /// constituent types by display name or primitive equivalence.
+    /// </summary>
+    private static bool IsConstituentOf(IType type, UnionType union)
+    {
+        foreach (var constituent in union.Constituents)
+        {
+            if (ReferenceEquals(type, constituent))
+                return true;
+            if (type.DisplayName == constituent.DisplayName)
+                return true;
+            if (ArePrimitiveEquivalent(type, constituent))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Validates a member access on a union-typed receiver (Req 7.1, 7.2, 7.3).
+    /// Checks that the member exists on ALL constituent types. If it does,
+    /// returns the union of member return types (or the single type if all
+    /// identical). If the member is missing on any constituent, emits
+    /// <see cref="UnionMemberNotOnAllConstituents"/> and returns
+    /// <see cref="ErrorType.Instance"/>.
+    /// </summary>
+    private static IType? CheckUnionMemberAccess(
+        string memberName,
+        UnionType unionType,
+        SyntaxNode node,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // If the union is poisoned (contains ErrorType), suppress cascading
+        // diagnostics and return ErrorType.
+        if (HasErrorConstituent(unionType))
+            return ErrorType.Instance;
+
+        var missingOn = new List<string>();
+        var memberTypes = new List<IType>();
+
+        foreach (var constituent in unionType.Constituents)
+        {
+            var memberSymbol = FindMemberSymbol(constituent, memberName, model);
+            if (memberSymbol is null)
+            {
+                missingOn.Add(constituent.DisplayName);
+            }
+            else
+            {
+                var memberType = memberSymbol.DeclaredType;
+                if (memberType is not null)
+                    memberTypes.Add(memberType);
+            }
+        }
+
+        if (missingOn.Count > 0)
+        {
+            var missingList = string.Join(", ", missingOn.Select(t => $"'{t}'"));
+            diagnostics.Add(MakeDiagnostic(
+                UnionMemberNotOnAllConstituents.Value,
+                $"Member '{memberName}' does not exist on all constituents of union type '{unionType.DisplayName}'. Missing on: {missingList}.",
+                node,
+                model));
+            return ErrorType.Instance;
+        }
+
+        // All constituents have the member. Compute the result type:
+        // if all member types are identical, return that type; otherwise
+        // return a union of the distinct member types.
+        if (memberTypes.Count == 0)
+            return ErrorType.Instance;
+
+        // Check if all member types are the same.
+        var allSame = true;
+        var firstDisplayName = memberTypes[0].DisplayName;
+        for (var i = 1; i < memberTypes.Count; i++)
+        {
+            if (memberTypes[i].DisplayName != firstDisplayName)
+            {
+                allSame = false;
+                break;
+            }
+        }
+
+        if (allSame)
+            return memberTypes[0];
+
+        // Distinct member types — build a union of the return types.
+        // Deduplicate by DisplayName to avoid redundant constituents.
+        var distinctTypes = new List<IType>();
+        var seenDisplayNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var memberType in memberTypes)
+        {
+            if (seenDisplayNames.Add(memberType.DisplayName))
+                distinctTypes.Add(memberType);
+        }
+
+        if (distinctTypes.Count == 1)
+            return distinctTypes[0];
+
+        return new UnionType(distinctTypes);
+    }
+
+    /// <summary>
+    /// Attempts to emit a union-type-specific assignability diagnostic.
+    /// Returns <c>true</c> if a targeted diagnostic was emitted, in which
+    /// case the caller should not emit the generic MIST_TC_0001 diagnostic.
+    /// </summary>
+    private static bool TryEmitUnionAssignabilityDiagnostic(
+        IType source,
+        IType target,
+        SyntaxNode node,
+        DiagnosticBag diagnostics,
+        ISemanticModel model)
+    {
+        // Union → non-union (Req 6.4): must narrow first.
+        if (source is UnionType sourceUnion && target is not UnionType)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                UnionToNonUnionAssignment.Value,
+                $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}': use a pattern match ('is {target.DisplayName} x') to narrow the union type first.",
+                node,
+                model));
+            return true;
+        }
+
+        // Non-constituent → union (Req 6.3): source is not a constituent.
+        if (source is not UnionType && target is UnionType targetUnion)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                UnionNonConstituentAssignment.Value,
+                $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}': '{source.DisplayName}' is not a constituent of the union type.",
+                node,
+                model));
+            return true;
+        }
+
+        // Union → narrower union (Req 6.3): some source constituents missing.
+        if (source is UnionType srcUnion && target is UnionType tgtUnion)
+        {
+            var missing = new List<string>();
+            foreach (var constituent in srcUnion.Constituents)
+            {
+                if (!IsConstituentOf(constituent, tgtUnion))
+                    missing.Add(constituent.DisplayName);
+            }
+
+            if (missing.Count > 0)
+            {
+                var missingList = string.Join(", ", missing);
+                diagnostics.Add(MakeDiagnostic(
+                    UnionIncompatibleConstituents.Value,
+                    $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}': constituent type(s) {missingList} not present in the target union.",
+                    node,
+                    model));
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Creates a diagnostic for the type checker.
     /// Uses the semantic model to resolve the source file path and convert
@@ -7574,5 +7988,64 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             Location: location,
             CompilationUnitPath: compilationUnitPath,
             AnalyzerName: "TypeChecker");
+    }
+
+    /// <summary>
+    /// Creates a warning-severity diagnostic with location information derived from the given AST node.
+    /// </summary>
+    private static Diagnostic MakeDiagnosticWarning(string id, string message, SyntaxNode node, ISemanticModel model)
+    {
+        Common.Text.LinePositionSpan? location = null;
+        string? compilationUnitPath = null;
+
+        var span = node.Span;
+        if (span.Length > 0)
+        {
+            var asts = model.Asts;
+            var units = model.Units;
+            var astIndex = -1;
+
+            for (var i = 0; i < asts.Length; i++)
+            {
+                var astSpan = asts[i].Span;
+                if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
+                {
+                    astIndex = i;
+                    break;
+                }
+            }
+
+            if (astIndex >= 0 && astIndex < units.Count)
+            {
+                var source = units[astIndex].Source;
+                compilationUnitPath = source.Path;
+
+                var sourceSpan = new Common.Text.SourceSpan(span.Start, span.Length);
+                location = source.ToLinePositionSpan(sourceSpan);
+            }
+        }
+
+        return new Diagnostic(
+            new DiagnosticId(id),
+            DiagnosticSeverity.Warning,
+            PipelineStage.Analysis,
+            message,
+            Location: location,
+            CompilationUnitPath: compilationUnitPath,
+            AnalyzerName: "TypeChecker");
+    }
+
+    /// <summary>
+    /// Determines whether the given type is a constituent of the specified union type.
+    /// Comparison is by <see cref="IType.DisplayName"/> equality (structural).
+    /// </summary>
+    private static bool IsConstituentOfUnion(IType type, UnionType union)
+    {
+        foreach (var constituent in union.Constituents)
+        {
+            if (string.Equals(constituent.DisplayName, type.DisplayName, StringComparison.Ordinal))
+                return true;
+        }
+        return false;
     }
 }

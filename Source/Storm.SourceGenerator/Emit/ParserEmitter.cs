@@ -641,6 +641,124 @@ namespace Storm.SourceGenerator.Emit
                     break;
                 }
 
+                case OneOrMoreIR plus:
+                {
+                    // Unlabeled one-or-more that may contain labeled sub-expressions.
+                    // Same as ZeroOrMoreIR but requires at least one successful iteration.
+                    var innerLabeled = new List<(string Label, ExpressionIR Expr)>();
+                    CollectLabeledExprs(plus.Inner, labelMap, innerLabeled);
+                    var tokenListLabels = new List<(string PropName, string BuilderVar, string ScalarVar)>();
+                    foreach (var (lbl, lexpr) in innerLabeled)
+                    {
+                        var propName = PascalCase(lbl);
+                        var localVar = "_" + propName;
+                        if (lexpr is TokenRefIR)
+                        {
+                            var builderVar = localVar + "Builder";
+                            writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<Token>();");
+                            tokenListLabels.Add((propName, builderVar, localVar));
+                            writer.WriteLine($"Token? {localVar} = null;");
+                        }
+                        else
+                        {
+                            var typeName = GetExprTypeName(lexpr, nullable: false);
+                            var defaultVal = GetExprDefaultValue(lexpr, nullable: false);
+                            writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
+                            assignedProps.Add((propName, localVar));
+                        }
+                    }
+
+                    // Detect if the inner SequenceIR contains a RuleRefIR that needs
+                    // accumulation into a list builder.
+                    RuleRefIR? plusRuleRef = null;
+                    if (plus.Inner is SequenceIR plusSeq)
+                    {
+                        plusRuleRef = plusSeq.Elements.OfType<RuleRefIR>().FirstOrDefault();
+                    }
+
+                    string? ruleBuilderVar = null;
+                    string? parsedItemVar = null;
+                    if (plusRuleRef != null)
+                    {
+                        var nodeType = plusRuleRef.Rule.Name + "Node";
+                        var propName = PascalCase(plusRuleRef.Rule.Name) + "s";
+                        ruleBuilderVar = "_" + propName + "Builder";
+                        if (labelMap.TryGetValue(plusRuleRef, out var ruleRefLabel))
+                        {
+                            parsedItemVar = "_" + PascalCase(ruleRefLabel);
+                        }
+                        else
+                        {
+                            parsedItemVar = "_parsed" + PascalCase(plusRuleRef.Rule.Name);
+                        }
+                        writer.WriteLine($"var {ruleBuilderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
+                    }
+
+                    // Track iteration count for the one-or-more requirement
+                    writer.WriteLine("var _plusCount = 0;");
+
+                    // Position-progress loop with ok flag: keep parsing while making progress
+                    writer.WriteBlock("while (!_hasError)", () =>
+                    {
+                        writer.WriteLine("var _starSaved = _pos;");
+                        writer.WriteLine("var _starSavedError = _hasError;");
+                        writer.WriteLine("var _starSavedDiagCount = _diagnostics?.Count ?? 0;");
+                        writer.WriteLine("var _starOk = true;");
+                        var innerAssignedProps = new List<(string PropName, string LocalVar)>();
+                        EmitFullExprParseAssignOnly(writer, context, plus.Inner, labelMap, innerAssignedProps, true, "_starOk");
+                        writer.WriteBlock("if (!_starOk || _hasError || _pos == _starSaved)", () =>
+                        {
+                            writer.WriteLine("_hasError = _starSavedError;");
+                            writer.WriteLine("_pos = _starSaved;");
+                            writer.WriteLine("_diagnostics?.TruncateTo(_starSavedDiagCount);");
+                            writer.WriteLine("break;");
+                        });
+                        writer.WriteLine("_plusCount++;");
+
+                        // Accumulate the parsed rule-ref node into the builder
+                        if (ruleBuilderVar != null && parsedItemVar != null)
+                        {
+                            writer.WriteBlock($"if ({parsedItemVar} != null)", () =>
+                            {
+                                writer.WriteLine($"{ruleBuilderVar}.Add({parsedItemVar});");
+                            });
+                        }
+
+                        // Accumulate labeled tokens into their builders
+                        foreach (var (propName, builderVar, scalarVar) in tokenListLabels)
+                        {
+                            writer.WriteBlock($"if ({scalarVar} != null)", () =>
+                            {
+                                writer.WriteLine($"{builderVar}.Add({scalarVar}.Value);");
+                            });
+                        }
+                    });
+
+                    // Require at least one iteration
+                    if (withCheck)
+                    {
+                        writer.WriteBlock("if (_plusCount == 0)", () => writer.WriteLine($"{okVar} = false;"));
+                    }
+
+                    // Finalize the rule-ref builder and add to assignedProps
+                    if (ruleBuilderVar != null && plusRuleRef != null)
+                    {
+                        var propName = PascalCase(plusRuleRef.Rule.Name) + "s";
+                        var finalVar = "_" + propName;
+                        writer.WriteLine($"var {finalVar} = {ruleBuilderVar}.ToImmutable();");
+                        assignedProps.Add((propName, finalVar));
+                    }
+
+                    // Finalize token-list builders and add to assignedProps
+                    foreach (var (propName, builderVar, _) in tokenListLabels)
+                    {
+                        var finalVar = "_" + propName + "List";
+                        writer.WriteLine($"var {finalVar} = {builderVar}.ToImmutable();");
+                        assignedProps.Add((propName, finalVar));
+                    }
+                    break;
+                }
+
                 default:
                     break;
             }

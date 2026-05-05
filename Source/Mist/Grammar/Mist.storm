@@ -12,6 +12,7 @@ hidden token LINE_COMMENT = "//" `[^\n]*`;
 // selects the longer token.
 
 token LOGICAL_AND           = "&&";
+token PIPE                  = "|";
 token LOGICAL_OR            = "||";
 token EQUAL_EQUAL           = "==";
 token NOT_EQUAL             = "!=";
@@ -307,11 +308,23 @@ rule ArgumentList = Expression (COMMA Expression)*;
 // ─── Parser Rules — Type References ─────────────────────────────────────────
 
 rule TypeReference
-    = primitiveType:PrimitiveType arrayRank:(LEFT_BRACKET RIGHT_BRACKET)?  as PrimitiveTypeRef
+    = unionType:UnionTypeRef                                                as UnionTypeRef
+    | primitiveType:PrimitiveType arrayRank:(LEFT_BRACKET RIGHT_BRACKET)?  as PrimitiveTypeRef
     | VOID                                                                  as VoidTypeRef
     | UNKNOWN                                                               as UnknownTypeRef
     | name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:(LEFT_BRACKET RIGHT_BRACKET)?  as NamedTypeRef
     | LEFT_PARENTHESIS first:TupleTypeElement COMMA rest:TupleTypeElement (COMMA additional:TupleTypeElement)* RIGHT_PARENTHESIS  as TupleTypeRef
+    ;
+
+rule UnionTypeRef = first:SingleTypeRef (PIPE rest:SingleTypeRef)+;
+
+rule SingleTypeRef
+    = primitiveType:PrimitiveType arrayRank:(LEFT_BRACKET RIGHT_BRACKET)?  as PrimitiveSingleTypeRef
+    | VOID as VoidSingleTypeRef
+    | UNKNOWN as UnknownSingleTypeRef
+    | name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:(LEFT_BRACKET RIGHT_BRACKET)? as NamedSingleTypeRef
+    | LEFT_PARENTHESIS inner:TypeReference RIGHT_PARENTHESIS arrayRank:(LEFT_BRACKET RIGHT_BRACKET)? as ParenthesizedTypeRef
+    | LEFT_PARENTHESIS first:TupleTypeElement COMMA rest:TupleTypeElement (COMMA additional:TupleTypeElement)* RIGHT_PARENTHESIS as TupleSingleTypeRef
     ;
 
 rule TupleTypeElement = type:TypeReference name:IDENTIFIER?;

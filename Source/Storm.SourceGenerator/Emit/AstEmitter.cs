@@ -368,12 +368,28 @@ public static class AstEmitter
         var properties = new List<PropertyInfo>();
         var usedNames = new HashSet<string>();
 
+        // Build a set of TokenRefIR expressions that live inside a ZeroOrMoreIR
+        // or OneOrMoreIR so we can promote labeled tokens to list properties.
+        // Only tokens need this — rule refs inside repetitions already get a
+        // separate ImmutableArray property via the unlabeled-property walk.
+        var tokensInsideRepetition = new HashSet<ExpressionIR>();
+        CollectTokensInsideRepetition(alt.Expression, false, tokensInsideRepetition);
+
         // First, add properties from field labels
         foreach(var label in alt.FieldLabels)
         {
             var propName = PascalCase(label.Label);
             propName = EnsureUnique(propName, usedNames);
-            var propInfo = GetPropertyInfo(label.Expression, propName);
+            PropertyInfo propInfo;
+            if (tokensInsideRepetition.Contains(label.Expression))
+            {
+                // The labeled token is inside a * or + repetition — generate a list property
+                propInfo = new PropertyInfo(propName, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
+            }
+            else
+            {
+                propInfo = GetPropertyInfo(label.Expression, propName);
+            }
             properties.Add(propInfo);
         }
 
@@ -381,6 +397,41 @@ public static class AstEmitter
         CollectUnlabeledProperties(alt.Expression, alt.FieldLabels, properties, usedNames);
 
         return properties;
+    }
+
+    /// <summary>
+    /// Recursively walks the expression tree and adds all <see cref="TokenRefIR"/>
+    /// sub-expressions that are nested inside a <see cref="ZeroOrMoreIR"/> or
+    /// <see cref="OneOrMoreIR"/> to the <paramref name="result"/> set.
+    /// Only tokens need promotion — rule refs already get separate list properties.
+    /// </summary>
+    private static void CollectTokensInsideRepetition(ExpressionIR expr, bool insideRep, HashSet<ExpressionIR> result)
+    {
+        if (insideRep && expr is TokenRefIR)
+        {
+            result.Add(expr);
+        }
+
+        switch (expr)
+        {
+            case SequenceIR seq:
+                foreach (var elem in seq.Elements)
+                    CollectTokensInsideRepetition(elem, insideRep, result);
+                break;
+            case AlternationIR alt:
+                foreach (var a in alt.Alternatives)
+                    CollectTokensInsideRepetition(a, insideRep, result);
+                break;
+            case OptionalIR opt:
+                CollectTokensInsideRepetition(opt.Inner, insideRep, result);
+                break;
+            case ZeroOrMoreIR zom:
+                CollectTokensInsideRepetition(zom.Inner, true, result);
+                break;
+            case OneOrMoreIR oom:
+                CollectTokensInsideRepetition(oom.Inner, true, result);
+                break;
+        }
     }
 
     /// <summary>

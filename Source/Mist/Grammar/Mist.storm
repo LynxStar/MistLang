@@ -311,7 +311,10 @@ rule TypeReference
     | VOID                                                                  as VoidTypeRef
     | UNKNOWN                                                               as UnknownTypeRef
     | name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:(LEFT_BRACKET RIGHT_BRACKET)?  as NamedTypeRef
+    | LEFT_PARENTHESIS first:TupleTypeElement COMMA rest:TupleTypeElement (COMMA additional:TupleTypeElement)* RIGHT_PARENTHESIS  as TupleTypeRef
     ;
+
+rule TupleTypeElement = type:TypeReference name:IDENTIFIER?;
 
 rule PrimitiveType
     = INT as IntType | UINT as UintType | LONG as LongType | ULONG as UlongType
@@ -337,8 +340,12 @@ rule Statement
 
 rule VariableDeclarationStatement
     = type:TypeReference name:IDENTIFIER EQUAL initializer:Expression SEMICOLON  as TypedVariableDeclaration
+    | VAR LEFT_PARENTHESIS firstName:IDENTIFIER (COMMA restNames:IDENTIFIER)* RIGHT_PARENTHESIS EQUAL initializer:Expression SEMICOLON  as VarTupleDeconstruction
     | VAR name:IDENTIFIER EQUAL initializer:Expression SEMICOLON                 as InferredVariableDeclaration
+    | LEFT_PARENTHESIS first:TupleDeconstructionElement COMMA rest:TupleDeconstructionElement (COMMA additional:TupleDeconstructionElement)* RIGHT_PARENTHESIS EQUAL initializer:Expression SEMICOLON  as TypedTupleDeconstruction
     ;
+
+rule TupleDeconstructionElement = type:TypeReference name:IDENTIFIER;
 
 rule ReturnStatement
     = RETURN value:Expression? SEMICOLON
@@ -420,11 +427,17 @@ rule Primary
     | FIELD                                                                        as FieldKeywordExpression
     | NEW type:TypeReference LEFT_BRACKET size:Expression RIGHT_BRACKET            as ArrayCreationExpression
     | NEW type:QualifiedIdentifier typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as ObjectCreationExpression
+    | LEFT_PARENTHESIS first:TupleLiteralElement COMMA rest:TupleLiteralElement (COMMA additional:TupleLiteralElement)* RIGHT_PARENTHESIS as TupleLiteralExpression
     | LEFT_PARENTHESIS inner:Expression RIGHT_PARENTHESIS                          as ParenthesizedExpression
     | DEFAULT LEFT_PARENTHESIS type:TypeReference RIGHT_PARENTHESIS               as DefaultExpression
     | DEFAULT                                                                      as DefaultLiteralExpression
     | name:IDENTIFIER                                                              as IdentifierExpression
     | typeRef:TypeReference                                                        as TypeLiteralExpression
+    ;
+
+rule TupleLiteralElement
+    = name:IDENTIFIER COLON value:Expression  as NamedTupleLiteralElement
+    | value:Expression                         as UnnamedTupleLiteralElement
     ;
 
 rule InterpolatedString = INTERPOLATED_STRING_START parts:InterpolatedPart* INTERPOLATED_STRING_END;

@@ -527,16 +527,35 @@ namespace Storm.SourceGenerator.Emit
                     // Unlabeled zero-or-more that may contain labeled sub-expressions.
                     // Pre-declare variables for labeled sub-expressions so they're
                     // accessible after the loop for node property assignment.
+                    //
+                    // Labeled tokens inside a repetition are promoted to
+                    // ImmutableArray<Token> (matching the AST property type).
+                    // We track which labels are token-list so we can accumulate
+                    // them in the loop body and finalize after the loop.
                     var innerLabeled = new List<(string Label, ExpressionIR Expr)>();
                     CollectLabeledExprs(star.Inner, labelMap, innerLabeled);
+                    var tokenListLabels = new List<(string PropName, string BuilderVar, string ScalarVar)>();
                     foreach (var (lbl, lexpr) in innerLabeled)
                     {
                         var propName = PascalCase(lbl);
                         var localVar = "_" + propName;
-                        var typeName = GetExprTypeName(lexpr, nullable: false);
-                        var defaultVal = GetExprDefaultValue(lexpr, nullable: false);
-                        writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
-                        assignedProps.Add((propName, localVar));
+                        if (lexpr is TokenRefIR)
+                        {
+                            // Labeled token inside repetition → accumulate into ImmutableArray<Token>
+                            var builderVar = localVar + "Builder";
+                            writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<Token>();");
+                            tokenListLabels.Add((propName, builderVar, localVar));
+                            // Declare the scalar variable as Token? for the loop body assignment
+                            writer.WriteLine($"Token? {localVar} = null;");
+                            // Do NOT add to assignedProps here — we'll add the finalized list after the loop
+                        }
+                        else
+                        {
+                            var typeName = GetExprTypeName(lexpr, nullable: false);
+                            var defaultVal = GetExprDefaultValue(lexpr, nullable: false);
+                            writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
+                            assignedProps.Add((propName, localVar));
+                        }
                     }
 
                     // Detect if the inner SequenceIR contains a RuleRefIR that needs
@@ -547,13 +566,13 @@ namespace Storm.SourceGenerator.Emit
                         starRuleRef = starSeq.Elements.OfType<RuleRefIR>().FirstOrDefault();
                     }
 
-                    string? builderVar = null;
+                    string? ruleBuilderVar = null;
                     string? parsedItemVar = null;
                     if (starRuleRef != null)
                     {
                         var nodeType = starRuleRef.Rule.Name + "Node";
                         var propName = PascalCase(starRuleRef.Rule.Name) + "s";
-                        builderVar = "_" + propName + "Builder";
+                        ruleBuilderVar = "_" + propName + "Builder";
                         // If the RuleRefIR has a label, the parsed result is assigned to the
                         // labeled variable (e.g., _Right) rather than _parsed{RuleName}.
                         if (labelMap.TryGetValue(starRuleRef, out var ruleRefLabel))
@@ -564,7 +583,7 @@ namespace Storm.SourceGenerator.Emit
                         {
                             parsedItemVar = "_parsed" + PascalCase(starRuleRef.Rule.Name);
                         }
-                        writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
+                        writer.WriteLine($"var {ruleBuilderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
                     }
 
                     // Position-progress loop with ok flag: keep parsing while making progress
@@ -585,20 +604,37 @@ namespace Storm.SourceGenerator.Emit
                         });
 
                         // Accumulate the parsed rule-ref node into the builder
-                        if (builderVar != null && parsedItemVar != null)
+                        if (ruleBuilderVar != null && parsedItemVar != null)
                         {
                             writer.WriteBlock($"if ({parsedItemVar} != null)", () =>
                             {
-                                writer.WriteLine($"{builderVar}.Add({parsedItemVar});");
+                                writer.WriteLine($"{ruleBuilderVar}.Add({parsedItemVar});");
+                            });
+                        }
+
+                        // Accumulate labeled tokens into their builders
+                        foreach (var (propName, builderVar, scalarVar) in tokenListLabels)
+                        {
+                            writer.WriteBlock($"if ({scalarVar} != null)", () =>
+                            {
+                                writer.WriteLine($"{builderVar}.Add({scalarVar}.Value);");
                             });
                         }
                     });
 
-                    // Finalize the builder and add to assignedProps
-                    if (builderVar != null && starRuleRef != null)
+                    // Finalize the rule-ref builder and add to assignedProps
+                    if (ruleBuilderVar != null && starRuleRef != null)
                     {
                         var propName = PascalCase(starRuleRef.Rule.Name) + "s";
                         var finalVar = "_" + propName;
+                        writer.WriteLine($"var {finalVar} = {ruleBuilderVar}.ToImmutable();");
+                        assignedProps.Add((propName, finalVar));
+                    }
+
+                    // Finalize token-list builders and add to assignedProps
+                    foreach (var (propName, builderVar, _) in tokenListLabels)
+                    {
+                        var finalVar = "_" + propName + "List";
                         writer.WriteLine($"var {finalVar} = {builderVar}.ToImmutable();");
                         assignedProps.Add((propName, finalVar));
                     }

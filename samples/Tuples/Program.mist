@@ -1,0 +1,103 @@
+// Tuples — Demonstrates Mist value tuples and their interaction with the
+// unknown top type.
+//
+// Mist tuples are structural value types that lower to C# ValueTuple.
+// They support:
+//   * Positional and named elements
+//   * Nesting
+//   * Deconstruction (var form and typed form)
+//   * Positional element access via Item1..ItemN
+//   * Named element access via declared names
+//   * Interoperation with `unknown`: a tuple element can be typed
+//     `unknown`, and narrowing via `is` works against both individual
+//     tuple elements and whole tuples assigned to `unknown` slots.
+
+using System;
+
+namespace Tuples;
+
+// A simple domain type used in the unknown-interop demo below.
+public class Greeter
+{
+    public string Name { get; }
+
+    public Greeter(string name)
+    {
+        this.Name = name;
+    }
+
+    public string Greet()
+    {
+        return $"Hello, {this.Name}!";
+    }
+}
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Tuples Sample ===");
+
+        // 1. Positional tuple with element access via ItemN.
+        Console.WriteLine("--- Positional tuples ---");
+        (int, string) pair = (42, "forty-two");
+        Console.WriteLine($"pair.Item1={pair.Item1} pair.Item2={pair.Item2}");
+
+        // 2. Named tuple — each element has a declared name, accessible
+        //    alongside the positional name.
+        Console.WriteLine("--- Named tuples ---");
+        (int x, int y) point = (x: 3, y: 4);
+        Console.WriteLine($"point.x={point.x} point.y={point.y}");
+        Console.WriteLine($"positional: Item1={point.Item1} Item2={point.Item2}");
+
+        // 3. Deconstruction — var form infers element types; typed form
+        //    declares them explicitly.
+        Console.WriteLine("--- Deconstruction ---");
+        var (a, b) = (10, 20);
+        Console.WriteLine($"var: a={a} b={b}");
+        (int u, int v) = (100, 200);
+        Console.WriteLine($"typed: u={u} v={v}");
+
+        // 4. Nested tuples — elements can themselves be tuples, to
+        //    arbitrary depth.
+        Console.WriteLine("--- Nested tuples ---");
+        ((int, int), string) nested = ((1, 2), "label");
+        Console.WriteLine(
+            $"nested: inner=({nested.Item1.Item1}, {nested.Item1.Item2}) outer={nested.Item2}");
+
+        // 5. Unknown as a tuple element — the tuple holds a value of
+        //    indeterminate type, and pattern-matching narrows it.
+        Console.WriteLine("--- Unknown element ---");
+        (int tag, unknown payload) envelope = (tag: 1, payload: new Greeter("Mist"));
+        Console.WriteLine($"tag={envelope.tag}");
+        if (envelope.payload is Greeter g)
+        {
+            Console.WriteLine($"payload: {g.Greet()}");
+        }
+
+        // 6. Deconstructing a tuple with an unknown element — each
+        //    target binding receives the tuple element's declared
+        //    type. The `data` binding below is typed `unknown`.
+        Console.WriteLine("--- Deconstruct with unknown ---");
+        (int, unknown) source = (7, "seven");
+        var (num, data) = source;
+        Console.WriteLine($"num={num}");
+        if (data is string ds)
+        {
+            Console.WriteLine($"data narrowed to string: {ds}");
+        }
+
+        // 7. A whole tuple stored in an `unknown` slot, then narrowed
+        //    back via a tuple type pattern. Lowers to a C# ValueTuple
+        //    type pattern so the narrow works against an `object`
+        //    scrutinee.
+        Console.WriteLine("--- Whole tuple in unknown ---");
+        unknown box = (10, "ten");
+        if (box is (int, string) pair2)
+        {
+            Console.WriteLine($"narrowed: Item1={pair2.Item1} Item2={pair2.Item2}");
+        }
+
+        Console.WriteLine("Done!");
+    }
+}

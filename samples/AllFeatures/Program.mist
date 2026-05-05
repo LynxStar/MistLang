@@ -20,6 +20,7 @@ public class Program
         CastOperators.Program.RunDemo();
         PatternMatching.Program.RunDemo();
         DefaultKeyword.Program.RunDemo();
+        Tuples.Program.RunDemo();
         UnknownTypeDemo.RunDemo();
         Console.WriteLine("=== Done! ===");
     }

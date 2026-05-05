@@ -121,6 +121,26 @@ Config(MaxRetries=0, Verbose=False, Label=)
 --- Explicit Default Block ---
 AppState(ErrorCount=5, Ready=True, Status=initialized)
 Done!
+=== Tuples Sample ===
+--- Positional tuples ---
+pair.Item1=42 pair.Item2=forty-two
+--- Named tuples ---
+point.x=3 point.y=4
+positional: Item1=3 Item2=4
+--- Deconstruction ---
+var: a=10 b=20
+typed: u=100 v=200
+--- Nested tuples ---
+nested: inner=(1, 2) outer=label
+--- Unknown element ---
+tag=1
+payload: Hello, Mist!
+--- Deconstruct with unknown ---
+num=7
+data narrowed to string: seven
+--- Whole tuple in unknown ---
+narrowed: Item1=10 Item2=ten
+Done!
 === UnknownType Sample (AllFeatures) ===
 --- Unknown local ---
 narrowed int: 123

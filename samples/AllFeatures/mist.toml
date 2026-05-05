@@ -29,3 +29,6 @@ path = "../PatternMatching"
 
 [[references]]
 path = "../DefaultKeyword"
+
+[[references]]
+path = "../Tuples"

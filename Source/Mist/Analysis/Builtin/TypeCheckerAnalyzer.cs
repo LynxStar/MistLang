@@ -2675,6 +2675,38 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 break;
             }
 
+            case BareTypePatternPrimaryPatternNode bareTypePattern:
+            {
+                // Bare type pattern: `Type` (no binding name) — pure type test.
+                // Verify the type exists in scope.
+                var patternType = model.GetTypeOf(bareTypePattern.Type);
+                if (patternType is null || IsErrorType(patternType))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        PatternUndefinedType.Value,
+                        $"Type '{ExtractTypeReferenceName(bareTypePattern.Type)}' could not be found in pattern",
+                        bareTypePattern,
+                        model));
+                }
+                else if (patternType is UnknownType)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        PatternNarrowToUnknown.Value,
+                        "Narrowing to 'unknown' is not meaningful: the pattern is tautologically true and introduces no new type information. Remove the pattern or narrow to a concrete type instead.",
+                        bareTypePattern,
+                        model));
+                }
+                else if (IsClosedGenericWithUnknown(patternType))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        PatternNarrowToClosedGenericWithUnknown.Value,
+                        $"Narrowing to '{patternType.DisplayName}' is not meaningful: the pattern is tautologically true under covariant unknown widening, and the binding loses information because members that write to a type parameter bound to 'unknown' are filtered. Narrow to a concrete constructed type (e.g., '{ReplaceUnknownWithConcretePlaceholder(patternType)}') instead.",
+                        bareTypePattern,
+                        model));
+                }
+                break;
+            }
+
             case VarPatternPrimaryPatternNode:
             {
                 // Var pattern: always valid.
@@ -3054,6 +3086,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     patternType ??= model.GetDeclaredSymbol(typePattern)?.DeclaredType;
                     variables[name] = patternType ?? ErrorType.Instance;
                 }
+                break;
+            }
+
+            case BareTypePatternPrimaryPatternNode:
+            {
+                // Bare type pattern: no binding name, nothing to collect.
                 break;
             }
 

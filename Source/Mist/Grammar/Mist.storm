@@ -463,6 +463,7 @@ rule UnaryPattern
 
 rule PrimaryPattern
     = type:TypeReference name:IDENTIFIER                                    as TypePattern
+    | type:TypeReference                                                    as BareTypePattern
     | VAR name:IDENTIFIER                                                   as VarPattern
     | LESS_THAN constant:Expression                                         as LessThanRelationalPattern
     | GREATER_THAN constant:Expression                                      as GreaterThanRelationalPattern

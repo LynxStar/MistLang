@@ -2837,6 +2837,21 @@ internal sealed class CSharpSourceWriter
                 var nameDefault = typePattern.Name.Lexeme;
                 return $"{type} {nameDefault}";
             }
+            case BareTypePatternPrimaryPatternNode bareTypePattern:
+            {
+                // Bare type pattern: emit just the type (no binding name).
+                if (bareTypePattern.Type is TupleTypeRefTypeReferenceNode tupleRef)
+                {
+                    if (scrutineeType is TupleType)
+                    {
+                        return EmitTypeReference(bareTypePattern.Type);
+                    }
+
+                    return EmitTupleTypePatternType(tupleRef);
+                }
+
+                return EmitTypeReference(bareTypePattern.Type);
+            }
             case VarPatternPrimaryPatternNode varPattern:
                 return $"var {varPattern.Name.Lexeme}";
             case ConstantPatternPrimaryPatternNode constantPattern:

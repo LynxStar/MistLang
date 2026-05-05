@@ -1321,6 +1321,11 @@ public sealed class MistPrettyPrinter
                 var name = typePattern.Name.Lexeme;
                 return $"{type} {name}";
             }
+            case BareTypePatternPrimaryPatternNode bareTypePattern:
+            {
+                var type = EmitTypeReference(bareTypePattern.Type);
+                return type;
+            }
             case VarPatternPrimaryPatternNode varPattern:
                 return $"var {varPattern.Name.Lexeme}";
             case ConstantPatternPrimaryPatternNode constantPattern:

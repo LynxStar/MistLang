@@ -7317,6 +7317,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             }
 
+            case BareTypePatternPrimaryPatternNode:
+            {
+                // Bare type pattern: `Type` (no binding name) — pure type test.
+                // No variable to register.
+                break;
+            }
+
             case VarPatternPrimaryPatternNode varPattern:
             {
                 // Var pattern: `var name` — register `name` as a local variable
@@ -8637,6 +8644,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 // Resolve the type reference to get the pattern type.
                 ResolveTypeReference(typePattern.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                break;
+            }
+
+            case BareTypePatternPrimaryPatternNode bareTypePattern:
+            {
+                // Bare type pattern: resolve the type reference (no binding name).
+                // Store the resolved type in the expression-type map so the
+                // type checker can retrieve it via GetTypeOf(bareTypePattern.Type).
+                var resolvedType = ResolveTypeReference(bareTypePattern.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                expressionTypes[bareTypePattern.Type] = resolvedType;
                 break;
             }
 

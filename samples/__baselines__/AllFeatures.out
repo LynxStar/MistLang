@@ -140,6 +140,8 @@ num=7
 data narrowed to string: seven
 --- Whole tuple in unknown ---
 narrowed: Item1=10 Item2=ten
+--- Named deconstruction from unknown ---
+x=100 y=200 positional=100
 Done!
 === UnknownType Sample (AllFeatures) ===
 --- Unknown local ---

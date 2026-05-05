@@ -9,8 +9,10 @@
 //   * Positional element access via Item1..ItemN
 //   * Named element access via declared names
 //   * Interoperation with `unknown`: a tuple element can be typed
-//     `unknown`, and narrowing via `is` works against both individual
-//     tuple elements and whole tuples assigned to `unknown` slots.
+//     `unknown`, whole tuples can be assigned to `unknown` slots and
+//     narrowed back, and named-deconstruction patterns like
+//     `(int x, int y) pair` bind `x` and `y` as separate locals in
+//     the then-branch (matching C# semantics).
 
 using System;
 
@@ -96,6 +98,21 @@ public class Program
         if (box is (int, string) pair2)
         {
             Console.WriteLine($"narrowed: Item1={pair2.Item1} Item2={pair2.Item2}");
+        }
+
+        // 8. Narrow an `unknown` to a tuple using a named deconstruction
+        //    pattern. The element names `x` and `y` become locals in
+        //    the then-branch (matching C# semantics: `a`, `b`, and
+        //    `pair` are the three bindings from `is (int a, int b) pair`).
+        //    The `named` binding is the whole tuple, and referencing
+        //    `named.x` would fail — per C#, `named` has the unnamed
+        //    tuple type; the named elements are available only as
+        //    standalone locals.
+        Console.WriteLine("--- Named deconstruction from unknown ---");
+        unknown coord = (100, 200);
+        if (coord is (int x, int y) named)
+        {
+            Console.WriteLine($"x={x} y={y} positional={named.Item1}");
         }
 
         Console.WriteLine("Done!");

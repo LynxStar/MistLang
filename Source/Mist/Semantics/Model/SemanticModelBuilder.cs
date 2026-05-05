@@ -7241,10 +7241,77 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
 
                 var patternType = ResolveTypeReference(typePattern.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+                // C# semantics for `is (int a, int b) pair`: the `pair`
+                // binding has the UNNAMED tuple type, not the named form.
+                // Element names in the pattern syntax introduce separate
+                // local bindings (`a`, `b`) but do not attach to `pair`.
+                // We strip the names here so Mist lookups match C#:
+                // `pair.a` fails (there's no `a` member on the unnamed
+                // tuple), `pair.Item1` succeeds.
+                var bindingType = patternType;
+                if (patternType is TupleType tupleTypeForBinding
+                    && tupleTypeForBinding.ElementNames is not null)
+                {
+                    bindingType = new TupleType(tupleTypeForBinding.ElementTypes, elementNames: null);
+                }
+
                 var varSpan = ToMistSourceSpan(typePattern.Name.Span);
-                var varSymbol = new Symbol(name, SymbolKind.LocalVariable, SymbolOrigin.UserCode, thenScope, patternType, varSpan);
+                var varSymbol = new Symbol(name, SymbolKind.LocalVariable, SymbolOrigin.UserCode, thenScope, bindingType, varSpan);
                 thenScope.AddMember(varSymbol);
                 symbolTable.Register(varSymbol, typePattern);
+
+                // Tuple type pattern: if the pattern type is a tuple with
+                // named elements AND the scrutinee is a concrete tuple
+                // type, each named element introduces a local binding in
+                // the then-scope, matching C# semantics. In C#,
+                // `is (int a, int b) pair` against a tuple scrutinee
+                // deconstructs into separate `a`, `b`, and `pair`
+                // bindings — `a` and `b` are the deconstructed element
+                // values, `pair` is the whole tuple (without named-element
+                // metadata on the binding). Mist follows the same rule.
+                //
+                // When the scrutinee is NOT a concrete tuple (e.g., bare
+                // `unknown`, which lowers to C# `object`), the C# compiler
+                // rejects deconstruction patterns, so the emitter falls
+                // back to the generic `ValueTuple<T1, T2, ...> pair` type
+                // pattern which does not deconstruct. Binding `a`/`b` as
+                // locals in that case would introduce names that the
+                // emitted C# doesn't populate. We therefore skip the
+                // element-name bindings unless the scrutinee is a tuple.
+                if (typePattern.Type is TupleTypeRefTypeReferenceNode tupleRef
+                    && patternType is TupleType tupleType
+                    && tupleType.ElementNames is not null
+                    && scrutineeType is TupleType)
+                {
+                    // Walk the AST elements in order to get token spans
+                    // for each named binding; parallel to the element
+                    // types on the resolved TupleType.
+                    var astElements = new List<TupleTypeElementNode> { tupleRef.First, tupleRef.Rest };
+                    astElements.AddRange(tupleRef.TupleTypeElements);
+
+                    for (var i = 0; i < tupleType.ElementNames.Count; i++)
+                    {
+                        var elementName = tupleType.ElementNames[i];
+                        if (elementName is null || elementName == "_") continue;
+                        if (i >= astElements.Count) continue;
+
+                        var elementAst = astElements[i];
+                        if (!elementAst.Name.HasValue) continue;
+
+                        var elementSpan = ToMistSourceSpan(elementAst.Name.Value.Span);
+                        var elementSymbol = new Symbol(
+                            elementName,
+                            SymbolKind.LocalVariable,
+                            SymbolOrigin.UserCode,
+                            thenScope,
+                            tupleType.ElementTypes[i],
+                            elementSpan);
+                        thenScope.AddMember(elementSymbol);
+                        symbolTable.Register(elementSymbol, elementAst);
+                    }
+                }
+
                 break;
             }
 

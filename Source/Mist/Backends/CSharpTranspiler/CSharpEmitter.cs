@@ -2659,7 +2659,8 @@ internal sealed class CSharpSourceWriter
             case IsExpressionRelationalNode isExpr:
             {
                 var left = EmitAdditive(isExpr.Left);
-                var pattern = EmitPattern(isExpr.Pattern);
+                var scrutineeType = _model.GetTypeOf(isExpr.Left);
+                var pattern = EmitPattern(isExpr.Pattern, scrutineeType);
                 return $"{left} is {pattern}";
             }
 
@@ -2670,70 +2671,96 @@ internal sealed class CSharpSourceWriter
 
     // ─── Pattern Emission ────────────────────────────────────────────────
 
-    private string EmitPattern(PatternNode pattern)
+    private string EmitPattern(PatternNode pattern, IType? scrutineeType = null)
     {
-        return EmitOrPattern(pattern.OrPattern);
+        return EmitOrPattern(pattern.OrPattern, scrutineeType);
     }
 
-    private string EmitOrPattern(OrPatternNode orPattern)
+    private string EmitOrPattern(OrPatternNode orPattern, IType? scrutineeType)
     {
-        var left = EmitAndPattern(orPattern.Left);
+        var left = EmitAndPattern(orPattern.Left, scrutineeType);
 
         if (orPattern.Right is null || ReferenceEquals(orPattern.Right, orPattern.Left))
             return left;
 
-        var right = EmitAndPattern(orPattern.Right);
+        var right = EmitAndPattern(orPattern.Right, scrutineeType);
         return $"{left} or {right}";
     }
 
-    private string EmitAndPattern(AndPatternNode andPattern)
+    private string EmitAndPattern(AndPatternNode andPattern, IType? scrutineeType)
     {
-        var left = EmitUnaryPattern(andPattern.Left);
+        var left = EmitUnaryPattern(andPattern.Left, scrutineeType);
 
         if (andPattern.Right is null || ReferenceEquals(andPattern.Right, andPattern.Left))
             return left;
 
-        var right = EmitUnaryPattern(andPattern.Right);
+        var right = EmitUnaryPattern(andPattern.Right, scrutineeType);
         return $"{left} and {right}";
     }
 
-    private string EmitUnaryPattern(UnaryPatternNode unaryPattern)
+    private string EmitUnaryPattern(UnaryPatternNode unaryPattern, IType? scrutineeType)
     {
         switch (unaryPattern)
         {
             case NotPatternUnaryPatternNode notPattern:
-                return $"not {EmitPrimaryPattern(notPattern.Operand)}";
+                return $"not {EmitPrimaryPattern(notPattern.Operand, scrutineeType)}";
             case DirectPatternUnaryPatternNode directPattern:
-                return EmitPrimaryPattern(directPattern.Primary);
+                return EmitPrimaryPattern(directPattern.Primary, scrutineeType);
             default:
                 return "";
         }
     }
 
-    private string EmitPrimaryPattern(PrimaryPatternNode primaryPattern)
+    private string EmitPrimaryPattern(PrimaryPatternNode primaryPattern, IType? scrutineeType = null)
     {
         switch (primaryPattern)
         {
             case TypePatternPrimaryPatternNode typePattern:
             {
-                // Tuple type patterns require special lowering. In C#, the
-                // syntax `is (int, int) pair` is a positional deconstruction
-                // pattern, which requires the scrutinee to have a
-                // `Deconstruct` method. When the scrutinee is `object`
-                // (e.g., from a bare `unknown` or from a Closed_Generic_With_Unknown
-                // narrow that lowered to `object`), `Deconstruct` is not
-                // available and the C# compiler rejects the pattern. The
-                // equivalent type pattern that works against any scrutinee
-                // — including `object` — uses the generic form
-                // `is System.ValueTuple<int, int> pair`. We emit that form
-                // whenever the pattern's type is a tuple, so narrowing from
-                // `unknown` (or any other `object`-compatible receiver) to
-                // a tuple type works as expected.
+                // Tuple type patterns require emission logic that depends on
+                // the scrutinee's static type. C# distinguishes two forms:
+                //
+                //   * `is (int, int) pair` or `is (int a, int b) pair` —
+                //     a positional deconstruction pattern. Requires the
+                //     scrutinee to have a `Deconstruct` method; C# tuple
+                //     types do, `object` does not. When emitted against
+                //     a scrutinee typed as a C# tuple, this form is
+                //     correct and matches C# semantics exactly: `a` and
+                //     `b` are bound as separate locals (the deconstructed
+                //     element values) and `pair` is bound to the whole
+                //     tuple (without element names on the binding).
+                //
+                //   * `is System.ValueTuple<int, int> pair` — an
+                //     unambiguous type pattern that works against any
+                //     scrutinee, including `object`. Does not deconstruct:
+                //     only `pair` is bound, with the unnamed tuple type.
+                //     Used when the scrutinee is not a concrete C# tuple
+                //     (e.g., a bare `unknown` that lowered to `object`).
+                //
+                // We pick the form based on the scrutinee's Mist static
+                // type: a `TupleType` scrutinee lowers to a C# tuple and
+                // can use the deconstruction form; anything else must use
+                // the generic form. This mirrors C#'s own restrictions —
+                // if C# would reject `is (int a, int b) pair` against a
+                // given scrutinee, the Mist emitter routes through the
+                // `ValueTuple<>` form instead.
                 if (typePattern.Type is TupleTypeRefTypeReferenceNode tupleRef)
                 {
-                    var typeName = EmitTupleTypePatternType(tupleRef);
                     var name = typePattern.Name.Lexeme;
-                    return $"{typeName} {name}";
+                    if (scrutineeType is TupleType)
+                    {
+                        // Scrutinee is a concrete tuple. Emit verbatim;
+                        // C# handles deconstruction and element-name
+                        // binding naturally.
+                        var tupleTypeName = EmitTypeReference(typePattern.Type);
+                        return $"{tupleTypeName} {name}";
+                    }
+
+                    // Scrutinee is not a tuple (object / unknown / etc.).
+                    // Fall back to the generic form, which works against
+                    // any receiver but does not deconstruct.
+                    var genericTypeName = EmitTupleTypePatternType(tupleRef);
+                    return $"{genericTypeName} {name}";
                 }
 
                 var type = EmitTypeReference(typePattern.Type);
@@ -2786,7 +2813,7 @@ internal sealed class CSharpSourceWriter
                 return $"[{EmitListPatternElementList(listPattern.Elements)}]";
             }
             case ParenthesizedPatternPrimaryPatternNode parenPattern:
-                return $"({EmitPattern(parenPattern.Inner)})";
+                return $"({EmitPattern(parenPattern.Inner, scrutineeType)})";
             default:
                 return "";
         }

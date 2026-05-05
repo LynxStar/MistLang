@@ -1,0 +1,70 @@
+// GreetingExtensions — Instance extension methods and properties on a concrete type.
+// Demonstrates: Requirement 2.1 (extension block syntax),
+//               Requirement 5.1 (extension method declarations),
+//               Requirement 6.1 (extension property declarations),
+//               Requirement 13.1 (static extension members).
+
+namespace ExtensionMethods;
+
+// ─── Instance extension methods on Greeting ──────────────────────────────────
+// These methods are callable via dot-notation on any Greeting instance.
+// The receiver parameter `self` provides access to the instance being extended.
+
+extension(Greeting self)
+{
+    // Returns the number of words in the greeting message.
+    public int WordCount()
+    {
+        return self.Message.Split(' ').Length;
+    }
+
+    // Returns the message converted to uppercase.
+    public string Uppercase()
+    {
+        return self.Message.ToUpper();
+    }
+
+    // Returns a new Greeting with the message repeated N times.
+    public Greeting Repeat(int times)
+    {
+        var repeated = "";
+        for (var i = 0; i < times; i++)
+        {
+            if (i > 0) repeated = repeated + " ";
+            repeated = repeated + self.Message;
+        }
+        return new Greeting(repeated);
+    }
+}
+
+// ─── Extension properties on Greeting ────────────────────────────────────────
+// Extension properties are read-only (no set accessor allowed).
+// They lower to static getter methods in the emitted C#.
+
+extension(Greeting self)
+{
+    // Expression-bodied property: checks if the message is empty.
+    public bool IsEmpty => self.Message.Length == 0;
+
+    // Expression-bodied property: returns the character count.
+    public int CharCount => self.Message.Length;
+}
+
+// ─── Static extension members on Greeting ────────────────────────────────────
+// Static members are callable via the type name (Greeting.Create()).
+// They cannot access the receiver parameter `self`.
+
+extension(Greeting self)
+{
+    // Factory method: creates a default greeting.
+    public static Greeting Create()
+    {
+        return new Greeting("Hello, World!");
+    }
+
+    // Factory method: creates a greeting from a name.
+    public static Greeting ForName(string name)
+    {
+        return new Greeting("Hello, " + name + "!");
+    }
+}

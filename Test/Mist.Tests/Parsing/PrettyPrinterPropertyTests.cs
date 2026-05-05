@@ -428,7 +428,7 @@ public class PrettyPrinterPropertyTests
                 Span = new Storm.Runtime.SourceSpan(0, 5),
             },
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }),
+                new StructTypeTypeDeclarationNode { StructDeclaration = structDecl }).AsNamespaceBodyItems(),
         };
 
         return new CompilationUnitNode
@@ -675,7 +675,7 @@ public class PrettyPrinterPropertyTests
                 Span = new Storm.Runtime.SourceSpan(0, 4),
             },
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
         };
 
         return new CompilationUnitNode

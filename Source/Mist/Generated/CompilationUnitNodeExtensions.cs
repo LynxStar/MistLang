@@ -97,6 +97,26 @@ public static class CompilationUnitNodeExtensions
             Items = items.ToImmutable(),
         };
     }
+
+    /// <summary>
+    /// Wraps a single TypeDeclarationNode into a NamespaceBodyItemNode.
+    /// </summary>
+    public static NamespaceBodyItemNode AsNamespaceBodyItem(this TypeDeclarationNode typeDecl)
+    {
+        return new NamespaceTypeItemNamespaceBodyItemNode { TypeDeclaration = typeDecl };
+    }
+
+    /// <summary>
+    /// Converts an array of TypeDeclarationNode into an array of NamespaceBodyItemNode.
+    /// Used for backward compatibility when constructing namespace bodies.
+    /// </summary>
+    public static ImmutableArray<NamespaceBodyItemNode> AsNamespaceBodyItems(this ImmutableArray<TypeDeclarationNode> types)
+    {
+        var builder = ImmutableArray.CreateBuilder<NamespaceBodyItemNode>(types.Length);
+        foreach (var t in types)
+            builder.Add(t.AsNamespaceBodyItem());
+        return builder.MoveToImmutable();
+    }
 }
 
 /// <summary>

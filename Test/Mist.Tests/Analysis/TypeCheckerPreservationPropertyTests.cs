@@ -202,7 +202,7 @@ public class TypeCheckerPreservationPropertyTests
                 {
                     Name = MakeQualifiedId(namespaceName),
                     Body = ImmutableArray.Create<TypeDeclarationNode>(
-                        new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                        new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
                     Span = new Storm.Runtime.SourceSpan(0, 100),
                 } }),
             };

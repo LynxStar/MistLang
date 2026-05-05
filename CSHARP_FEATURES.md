@@ -119,7 +119,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | `out` parameters | 🔲 | |
 | `in` parameters | 🔲 | |
 | `ref readonly` parameters | 🔲 | C# 12 |
-| Extension methods | 🔲 | |
+| Extension methods | ✅ | Via `extension(Type self) { ... }` blocks |
 | Async methods (`async`/`await`) | 🔲 | |
 | Iterator methods (`yield`) | 🔲 | |
 | Local functions | 🔲 | C# 7 |
@@ -499,6 +499,201 @@ Mist supports TypeScript-style type unions (`int | string`) allowing a value to 
 
 ---
 
+## Extension Methods
+
+Mist supports extension blocks — a way to add methods and properties to types you do not own. Extension blocks use the syntax `extension(ReceiverType receiverName) { ... }` and can appear at the top level or inside namespaces.
+
+### Basic Syntax
+
+```mist
+extension(string self) {
+    int WordCount() {
+        return self.Split(' ').Length;
+    }
+
+    bool IsBlank() {
+        return self.Length == 0;
+    }
+}
+
+// Usage:
+var greeting = "hello world";
+var count = greeting.WordCount(); // 2
+```
+
+The receiver parameter (`self` above) is accessible inside instance member bodies, similar to `this` in a class.
+
+### Generic Extensions
+
+Type parameters declared on the extension block are inferred automatically at call sites:
+
+```mist
+<T> extension(List<T> self) {
+    T First() {
+        return self[0];
+    }
+
+    T Last() {
+        return self[self.Count - 1];
+    }
+}
+
+// Usage — T is inferred as int:
+var numbers = new List<int> { 1, 2, 3 };
+var first = numbers.First(); // 1
+```
+
+Multiple type parameters are supported:
+
+```mist
+<K, V> extension(Map<K, V> self) {
+    List<K> Keys() { ... }
+}
+```
+
+### Universal Extensions
+
+An extension with receiver type `unknown` provides members on all types:
+
+```mist
+extension(unknown self) {
+    string Describe() {
+        return self.ToString();
+    }
+}
+
+// Callable on any value:
+var x = 42;
+var s = x.Describe(); // "42"
+```
+
+The standard library uses this mechanism to provide `ToString()`, `GetHashCode()`, and `GetType()` on all types.
+
+### Static Members
+
+Mark individual members with `static` to make them callable on the type name rather than on instances:
+
+```mist
+extension(int self) {
+    static int Parse(string s) {
+        return Convert.ToInt32(s);
+    }
+
+    int Doubled() {
+        return self * 2;
+    }
+}
+
+// Static call — no instance needed:
+var n = int.Parse("42");
+
+// Instance call:
+var d = n.Doubled(); // 84
+```
+
+Static members cannot reference the receiver parameter. The compiler emits an error if they do.
+
+### Extension Properties
+
+Extension properties are read-only (get-only). They cannot declare a `set` accessor because extensions have no backing storage.
+
+```mist
+// Expression-bodied property:
+extension(string self) {
+    int DoubleLength => self.Length * 2;
+}
+
+// Block-bodied property:
+extension(string self) {
+    bool IsEmpty {
+        get {
+            return self.Length == 0;
+        }
+    }
+}
+
+// Usage:
+var s = "hello";
+var dl = s.DoubleLength; // 10
+```
+
+Attempting to declare a `set` or `init` accessor on an extension property produces a compiler error.
+
+### Namespace Scoping
+
+Extensions declared inside a namespace are only visible when that namespace is imported:
+
+```mist
+namespace StringUtils;
+
+extension(string self) {
+    string Reversed() { ... }
+}
+```
+
+```mist
+// Another file — must import the namespace:
+using StringUtils;
+
+var r = "hello".Reversed(); // works
+
+// Without the using directive, Reversed() is not discoverable.
+```
+
+Extensions declared at the top level (outside any namespace) are visible from all files in the compilation.
+
+### Shadowing and Specificity
+
+**Own members always win.** If a type declares a member with the same name as an extension member, the type's own member is always used:
+
+```mist
+class Greeter {
+    string Hello() { return "own"; }
+}
+
+extension(Greeter self) {
+    string Hello() { return "extension"; }
+}
+
+var g = new Greeter();
+g.Hello(); // "own" — the extension is shadowed
+```
+
+**More-specific receiver types are preferred.** When multiple extensions provide the same member, the one with the most specific receiver type wins:
+
+```mist
+extension(unknown self) {
+    string Label() { return "any"; }
+}
+
+extension(string self) {
+    string Label() { return "string"; }
+}
+
+var s = "hi";
+s.Label(); // "string" — string-specific extension wins over universal
+```
+
+The specificity ordering is: exact type match > base type match > universal (`unknown`). If two candidates are equally specific, the compiler emits an ambiguity error.
+
+### Feature Summary
+
+| Feature | Status | Notes |
+|---|---|---|
+| Extension block syntax | ✅ | `extension(Type name) { ... }` |
+| Generic extensions | ✅ | `<T> extension(List<T> self) { ... }` |
+| Universal extensions | ✅ | `extension(unknown self) { ... }` |
+| Static extension members | ✅ | `static` keyword on individual members |
+| Extension methods | ✅ | Instance and static |
+| Extension properties | ✅ | Read-only only (no `set` accessor) |
+| Namespace scoping | ✅ | Requires `using` to be visible |
+| Own members shadow extensions | ✅ | Type's own members always preferred |
+| Receiver specificity ordering | ✅ | More-specific receiver type wins |
+| Multiple blocks per type | ✅ | Allowed if no duplicate signatures |
+| Trait/interface exclusion | ✅ | Extensions do not satisfy traits or interfaces |
+
+---
+
 ## Async / Concurrency
 
 | Feature | Status | Notes |
@@ -643,7 +838,7 @@ Features introduced by Mist that don't map directly to a single C# feature. Thes
 | Type Declarations | 5 | 10 | 0 |
 | Members — Fields | 3 | 3 | 1 |
 | Members — Properties | 10 | 1 | 0 |
-| Members — Methods | 5 | 12 | 0 |
+| Members — Methods | 6 | 11 | 0 |
 | Members — Constructors | 3 | 2 | 0 |
 | Members — Other | 1 | 4 | 0 |
 | Access Modifiers | 3 | 11 | 2 |

@@ -90,15 +90,21 @@ rule TopLevelItem
     = namespaceDeclaration:NamespaceDeclaration  as NamespaceItem
     | typeDeclaration:TypeDeclaration            as TypeItem
     | withDeclaration:WithDeclaration            as WithItem
+    | extensionDeclaration:ExtensionBlockDeclaration as ExtensionItem
     ;
 
 rule UsingDeclaration = USING name:QualifiedIdentifier SEMICOLON;
 
 rule QualifiedIdentifier = IDENTIFIER (DOT IDENTIFIER)*;
 
+rule NamespaceBodyItem
+    = typeDeclaration:TypeDeclaration              as NamespaceTypeItem
+    | extensionDeclaration:ExtensionBlockDeclaration as NamespaceExtensionItem
+    ;
+
 rule NamespaceDeclaration
-    = NAMESPACE name:QualifiedIdentifier SEMICOLON body:TypeDeclaration*   as FileScopedNamespace
-    | NAMESPACE name:QualifiedIdentifier LEFT_BRACE body:TypeDeclaration* RIGHT_BRACE as BlockNamespace
+    = NAMESPACE name:QualifiedIdentifier SEMICOLON body:NamespaceBodyItem*   as FileScopedNamespace
+    | NAMESPACE name:QualifiedIdentifier LEFT_BRACE body:NamespaceBodyItem* RIGHT_BRACE as BlockNamespace
     ;
 
 rule TypeDeclaration
@@ -181,6 +187,19 @@ rule WithDeclaration = WITH typeName:IDENTIFIER COLON traitName:IDENTIFIER
     LEFT_BRACE mappings:MemberMapping+ RIGHT_BRACE;
 
 rule MemberMapping = sourceName:IDENTIFIER AS targetName:IDENTIFIER SEMICOLON;
+
+// ─── Parser Rules — Extension Block Declaration ──────────────────────────────
+
+rule ExtensionBlockDeclaration = typeParams:TypeParameterList?
+    EXTENSION LEFT_PARENTHESIS receiverType:TypeReference receiverName:IDENTIFIER RIGHT_PARENTHESIS
+    LEFT_BRACE members:ExtensionMemberDeclaration* RIGHT_BRACE;
+
+rule ExtensionMemberDeclaration
+    = method:MethodDeclaration    as ExtensionMethodMember
+    | property:PropertyDeclaration as ExtensionPropertyMember
+    ;
+
+// ─── Parser Rules — Modifiers ────────────────────────────────────────────────
 
 rule Modifier
     = PUBLIC    as PublicModifier

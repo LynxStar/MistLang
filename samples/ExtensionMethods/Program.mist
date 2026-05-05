@@ -1,0 +1,83 @@
+// Extension Methods — Comprehensive sample demonstrating all extension block features in Mist.
+//
+// This sample showcases:
+//   1. Instance extension methods on a concrete type (Requirement 2.1)
+//   2. Generic extension methods on Container<T> (Requirement 4.1)
+//   3. Universal extension via extension(unknown self) (Requirement 9.1)
+//   4. Static extension members (Requirement 13.1)
+//   5. Extension properties (Requirement 6.1)
+//   6. Namespace-scoped extensions with `using` (Requirement 27.1)
+
+using System;
+using StringUtils;  // Import namespace-scoped extensions
+
+namespace ExtensionMethods;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Console.WriteLine("=== Extension Methods Sample ===");
+
+        // ─── 1. Instance extension methods on a concrete type ────────────────
+        Console.WriteLine("--- Instance Extension Methods (Greeting) ---");
+        var greeting = new Greeting("Hello beautiful world");
+        Console.WriteLine($"  Message: {greeting.Message}");
+        Console.WriteLine($"  WordCount(): {greeting.WordCount()}");
+        Console.WriteLine($"  Uppercase(): {greeting.Uppercase()}");
+
+        var repeated = greeting.Repeat(2);
+        Console.WriteLine($"  Repeat(2): {repeated.Message}");
+
+        // ─── 2. Generic extension methods on Container<T> ────────────────────
+        Console.WriteLine("--- Generic Extension Methods (Container<T>) ---");
+        var intContainer = new Container<int>(42);
+        Console.WriteLine($"  Container<int> value: {intContainer.Value}");
+        Console.WriteLine($"  Unwrap(): {intContainer.Unwrap()}");
+        Console.WriteLine($"  HasValue(): {intContainer.HasValue()}");
+
+        var strContainer = new Container<string>("Mist");
+        Console.WriteLine($"  Container<string> value: {strContainer.Value}");
+        Console.WriteLine($"  Unwrap(): {strContainer.Unwrap()}");
+
+        // Nested generic: Container<Container<int>>
+        var nested = intContainer.Nest();
+        Console.WriteLine($"  Nest().Unwrap().Unwrap(): {nested.Unwrap().Unwrap()}");
+
+        // ─── 3. Universal extension via extension(unknown self) ──────────────
+        Console.WriteLine("--- Universal Extensions (unknown self) ---");
+        Console.WriteLine($"  greeting.Describe(): {greeting.Describe()}");
+        Console.WriteLine($"  42.Describe(): {42.Describe()}");
+        Console.WriteLine($"  intContainer.Describe(): {intContainer.Describe()}");
+        Console.WriteLine($"  greeting.IsNotNull(): {greeting.IsNotNull()}");
+
+        // ─── 4. Static extension members ─────────────────────────────────────
+        Console.WriteLine("--- Static Extension Members ---");
+        var defaultGreeting = Greeting.Create();
+        Console.WriteLine($"  Greeting.Create(): {defaultGreeting.Message}");
+
+        var namedGreeting = Greeting.ForName("Mist");
+        Console.WriteLine($"  Greeting.ForName(\"Mist\"): {namedGreeting.Message}");
+
+        // ─── 5. Extension properties ─────────────────────────────────────────
+        Console.WriteLine("--- Extension Properties ---");
+        Console.WriteLine($"  greeting.IsEmpty: {greeting.IsEmpty}");
+        Console.WriteLine($"  greeting.CharCount: {greeting.CharCount}");
+
+        var emptyGreeting = new Greeting("");
+        Console.WriteLine($"  emptyGreeting.IsEmpty: {emptyGreeting.IsEmpty}");
+        Console.WriteLine($"  emptyGreeting.CharCount: {emptyGreeting.CharCount}");
+
+        // ─── 6. Namespace-scoped extensions (requires `using StringUtils`) ───
+        Console.WriteLine("--- Namespace-Scoped Extensions (StringUtils) ---");
+        var text = "hello";
+        Console.WriteLine($"  \"{text}\".IsNullOrEmpty(): {text.IsNullOrEmpty()}");
+        Console.WriteLine($"  \"{text}\".Reverse(): {text.Reverse()}");
+        Console.WriteLine($"  \"{text}\".Capitalize(): {text.Capitalize()}");
+
+        var empty = "";
+        Console.WriteLine($"  \"\".IsNullOrEmpty(): {empty.IsNullOrEmpty()}");
+
+        Console.WriteLine("=== Done! ===");
+    }
+}

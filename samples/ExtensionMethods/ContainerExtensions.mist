@@ -1,0 +1,30 @@
+// ContainerExtensions — Generic extension methods on Container<T>.
+// Demonstrates: Requirement 4.1 (generic extension block syntax).
+// The type parameter T is declared on the extension block and inferred at call sites.
+
+namespace ExtensionMethods;
+
+// ─── Generic extension methods on Container<T> ──────────────────────────────
+// The type parameter <T> is declared on the extension block itself.
+// When calling these methods on a Container<int>, the compiler infers T = int.
+
+<T> extension(Container<T> self)
+{
+    // Unwraps the contained value.
+    public T Unwrap()
+    {
+        return self.Value;
+    }
+
+    // Returns true if the container holds a value (always true for this simple type).
+    public bool HasValue()
+    {
+        return true;
+    }
+
+    // Wraps the current value in another Container, producing Container<Container<T>>.
+    public Container<Container<T>> Nest()
+    {
+        return new Container<Container<T>>(self);
+    }
+}

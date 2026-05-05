@@ -389,7 +389,7 @@ public class SymbolKindPropertyTests
             var nsNode = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = qualifiedId,
-                Body = typeDecls.ToImmutable(),
+                Body = typeDecls.ToImmutable().AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source.Length),
             };
             ast = new CompilationUnitNode

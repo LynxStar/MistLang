@@ -365,7 +365,7 @@ public class NameResolutionPropertyTests
         {
             Name = qualifiedId,
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
             Span = new Storm.Runtime.SourceSpan(0, source.Length),
         };
 
@@ -700,7 +700,7 @@ public class NameResolutionPropertyTests
         {
             Name = qualifiedId,
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
             Span = new Storm.Runtime.SourceSpan(14, 16),
         };
 

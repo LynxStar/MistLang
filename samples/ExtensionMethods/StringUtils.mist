@@ -1,0 +1,37 @@
+// StringUtils — Namespace-scoped extensions demonstrating visibility rules.
+// Demonstrates: Requirement 27.1 (namespace scoping with `using`).
+// These extensions are only visible at call sites that import the StringUtils namespace.
+
+namespace StringUtils;
+
+// ─── Namespace-scoped extensions ─────────────────────────────────────────────
+// Extensions declared inside a namespace require a `using StringUtils;` directive
+// at the call site to become visible during member lookup.
+
+extension(string self)
+{
+    // Returns true if the string is null or has zero length.
+    public bool IsNullOrEmpty()
+    {
+        return self == null || self.Length == 0;
+    }
+
+    // Returns the string reversed.
+    public string Reverse()
+    {
+        var chars = self.ToCharArray();
+        var result = "";
+        for (var i = chars.Length - 1; i >= 0; i--)
+        {
+            result = result + chars[i];
+        }
+        return result;
+    }
+
+    // Returns the string with the first character capitalized.
+    public string Capitalize()
+    {
+        if (self.Length == 0) return self;
+        return self.Substring(0, 1).ToUpper() + self.Substring(1);
+    }
+}

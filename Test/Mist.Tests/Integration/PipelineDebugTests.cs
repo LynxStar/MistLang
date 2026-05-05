@@ -100,7 +100,7 @@ public sealed class PipelineDebugTests : IDisposable
             $"Diagnostics:\n{diagDump}\nFirst 30 tokens:\n{tokenDump}");
 
         // Verify the class is there
-        var typeDecl = ns.Body[0] as ClassTypeTypeDeclarationNode;
+        var typeDecl = (ns.Body[0] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as ClassTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
         Assert.Equal("Program", typeDecl!.ClassDeclaration.Name.Lexeme);
 

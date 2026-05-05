@@ -20,6 +20,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     internal static readonly DiagnosticId DuplicateConstructorSignature = new("MIST_SM_0021");
     internal static readonly DiagnosticId MissingInterfaceOverload = new("MIST_SM_0022");
 
+    // ── Extension member lookup context ──────────────────────────────────
+    // Set before Pass 2 type resolution and cleared after. Allows
+    // LookupMemberType to perform extension member fallback without
+    // threading the registry through the entire deep call chain.
+    [ThreadStatic]
+    private static ExtensionRegistry? _extensionRegistryContext;
+
     // ── Intrinsic-marker diagnostic IDs (Task 9, Requirements 5.3, 5.6, 5.13, 5.15) ──
     /// <summary>
     /// An intrinsic member was declared with a body. Per Requirement 5.3,
@@ -283,6 +290,57 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId TraitWithUnsatisfied = new("MIST_TRAIT_WITH_UNSATISFIED");
 
+    // ── Extension block diagnostic IDs (Task 5.3, Requirements 8.1–8.8, 9.1, 9.4, 10.1–10.3, 20.1–20.6) ──
+
+    /// <summary>
+    /// The receiver type reference in an extension block could not be resolved
+    /// to a declared type (Requirement 8.4).
+    /// </summary>
+    internal static readonly DiagnosticId ExtensionReceiverUnresolved = new("MIST_SB_0070");
+
+    /// <summary>
+    /// An extension property declares a <c>set</c> or <c>init</c> accessor.
+    /// Extension properties are read-only (Requirement 20.3).
+    /// </summary>
+    internal static readonly DiagnosticId ExtensionPropertyHasSetAccessor = new("MIST_SB_0071");
+
+    /// <summary>
+    /// An extension block contains an invalid member declaration. Only methods
+    /// and properties are allowed inside extension blocks (Requirement 20.2).
+    /// </summary>
+    internal static readonly DiagnosticId ExtensionInvalidMember = new("MIST_SB_0072");
+
+    /// <summary>
+    /// Two extension blocks for the same receiver type declare members with identical
+    /// signatures (Requirement 8.9, 20.4).
+    /// </summary>
+    internal static readonly DiagnosticId ExtensionDuplicateMember = new("MIST_SB_0073");
+
+    /// <summary>
+    /// The <c>void</c> type cannot be used as an extension receiver type
+    /// (Requirement 20.6).
+    /// </summary>
+    internal static readonly DiagnosticId ExtensionVoidReceiver = new("MIST_SB_0074");
+
+    /// <summary>
+    /// A static extension member body references the receiver parameter.
+    /// Static members cannot access the receiver instance (Requirements 3.3, 13.4).
+    /// </summary>
+    internal static readonly DiagnosticId ExtensionStaticReceiverAccess = new("MIST_TC_0080");
+
+    /// <summary>
+    /// A method parameter name conflicts with the receiver parameter name,
+    /// creating ambiguity in the method body (Requirement 20.5).
+    /// </summary>
+    internal static readonly DiagnosticId ExtensionParameterConflictsWithReceiver = new("MIST_TC_0081");
+
+    /// <summary>
+    /// A member declaration inside an extension block has the same name as the
+    /// receiver parameter, which shadows it and may cause confusion
+    /// (Requirements 10.4, 20.5).
+    /// </summary>
+    internal static readonly DiagnosticId ExtensionMemberShadowsReceiver = new("MIST_TC_0083");
+
     public ISemanticModel Build(
         MistCompilation compilation,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
@@ -306,6 +364,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // project, enforcing transitive visibility rules (Requirements 6.1,
         // 6.2, 6.4).
         var withDeclarations = new List<WithDeclarationNode>();
+        var extensionBlockScopes = new Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace)>();
         for (var i = 0; i < asts.Length; i++)
         {
             var ast = asts[i];
@@ -333,7 +392,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             try
             {
-                Pass1_RegisterTypes(ast, targetScope, symbolTable, sourceText, effectiveNamespaceRoot, effectiveProjectFolder, diagnostics, withDeclarations);
+                Pass1_RegisterTypes(ast, targetScope, symbolTable, sourceText, effectiveNamespaceRoot, effectiveProjectFolder, diagnostics, withDeclarations, extensionBlockScopes);
             }
             catch (Exception ex)
             {
@@ -448,7 +507,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 new ScopeBasedStdlibTypeProvider(globalScope, symbolTable));
         }
 
+        // Pass 2e (Phase A): Resolve extension block receiver types and register
+        // member signatures in the ExtensionRegistry. This runs BEFORE Pass 2 so
+        // that extension members are available during member lookup fallback.
+        // Only receiver types and member signatures are resolved here; method
+        // bodies are resolved in Phase B (after Pass 2) because they may
+        // reference expressions that require full type resolution.
+        var extensionRegistry = new ExtensionRegistry();
+        Pass2_RegisterExtensionMembers(extensionBlockScopes, globalScope, symbolTable, ambientTypeResolver, extensionRegistry, asts, compilation, diagnostics);
+
         // Pass 2: Resolve types and build expression types.
+        // Set the extension registry context so LookupMemberType can perform
+        // extension member fallback without threading the registry through
+        // the entire deep call chain.
+        _extensionRegistryContext = extensionRegistry;
         var expressionTypes = new Dictionary<Storm.Runtime.SyntaxNode, IType>();
         for (var i = 0; i < asts.Length; i++)
         {
@@ -471,6 +543,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     AnalyzerName: null));
             }
         }
+        _extensionRegistryContext = null;
+
+        // Pass 2e (Phase B): Resolve extension block method/property bodies.
+        // This runs after Pass 2 so that expression types are available for
+        // body resolution.
+        Pass2_ResolveExtensionBodies(extensionBlockScopes, globalScope, symbolTable, expressionTypes, ambientTypeResolver, asts, compilation, diagnostics);
+
+        // Post-Pass 2: Check for duplicate extension member signatures across
+        // all extension blocks for the same receiver type (Requirement 8.9, 20.4, 20.7).
+        Pass2_CheckDuplicateExtensionSignatures(extensionRegistry, symbolTable, asts, compilation, diagnostics);
 
         // Post-Pass 2: Compute defaultability for all class and struct types.
         // This runs after type resolution because field types must be resolved
@@ -510,7 +592,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             symbolTable,
             expressionTypes,
             traitSatisfactionMap,
-            reachabilityMap);
+            reachabilityMap,
+            extensionRegistry);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -554,7 +637,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         string namespaceRoot,
         string projectFolder,
         DiagnosticBag diagnostics,
-        List<WithDeclarationNode>? withDeclarations = null)
+        List<WithDeclarationNode>? withDeclarations = null,
+        Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace)>? extensionBlockScopes = null)
     {
         if (ast is not CompilationUnitNode compilationUnit)
         {
@@ -593,6 +677,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             RegisterTypeDeclaration(typeDecl, currentScope, symbolTable, currentNamespace, sourceText, diagnostics);
                         }
+
+                        // Register extension blocks in the file-scoped namespace body.
+                        var bodyExtensions = GetNamespaceBodyExtensions(nsDecl);
+                        foreach (var extDecl in bodyExtensions)
+                        {
+                            RegisterExtensionBlock(extDecl, currentScope, currentNamespace, sourceText, diagnostics, extensionBlockScopes);
+                        }
                     }
                     else if (nsDecl is BlockNamespaceNamespaceDeclarationNode)
                     {
@@ -602,6 +693,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         foreach (var typeDecl in bodyTypes)
                         {
                             RegisterTypeDeclaration(typeDecl, blockScope, symbolTable, declaredName, sourceText, diagnostics);
+                        }
+
+                        // Register extension blocks in the block namespace body.
+                        var bodyExtensions = GetNamespaceBodyExtensions(nsDecl);
+                        foreach (var extDecl in bodyExtensions)
+                        {
+                            RegisterExtensionBlock(extDecl, blockScope, declaredName, sourceText, diagnostics, extensionBlockScopes);
                         }
                     }
                     break;
@@ -617,6 +715,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Store the WithDeclaration AST node for later resolution.
                     // No symbols are registered at this point — with blocks don't declare types.
                     withDeclarations?.Add(withItem.WithDeclaration);
+                    break;
+                }
+                case ExtensionItemTopLevelItemNode extensionItem:
+                {
+                    // Create a placeholder scope for the extension block and register
+                    // type parameters (if generic). The scope is stored for Pass 2
+                    // to resolve the receiver type and register member symbols.
+                    RegisterExtensionBlock(extensionItem.ExtensionDeclaration, currentScope, currentNamespace, sourceText, diagnostics, extensionBlockScopes);
                     break;
                 }
             }
@@ -845,6 +951,554 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Creates a placeholder scope for an extension block and registers its type
+    /// parameters (if generic). The scope is stored in the dictionary so Pass 2
+    /// can resolve the receiver type and register member symbols.
+    /// </summary>
+    private static void RegisterExtensionBlock(
+        ExtensionBlockDeclarationNode extDecl,
+        Scope parentScope,
+        string? namespaceName,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics,
+        Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace)>? extensionBlockScopes)
+    {
+        // Create a child scope for the extension block.
+        var extensionScope = new Scope(parent: parentScope);
+
+        // Register type parameters (if generic) in the extension block's scope.
+        if (extDecl.TypeParams is not null)
+        {
+            var typeParams = ExtractTypeParameters(extDecl.TypeParams, enclosingTypeName: null, sourceText, diagnostics);
+            foreach (var tp in typeParams)
+            {
+                var tpSpan = GetTypeParameterSpan(extDecl.TypeParams, tp.Ordinal);
+                var tpSymbol = new Symbol(tp.Name, SymbolKind.Class, SymbolOrigin.UserCode, extensionScope, tp, tpSpan);
+                extensionScope.AddMember(tpSymbol);
+            }
+        }
+
+        // Store the scope so Pass 2 can find it later.
+        extensionBlockScopes?.TryAdd(extDecl, (extensionScope, namespaceName));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Pass 2e (Phase A) — Register extension member signatures
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves extension block receiver types, registers receiver parameters,
+    /// registers member symbols with their declared types, and populates the
+    /// <see cref="ExtensionRegistry"/>. Does NOT resolve method/property bodies
+    /// (that happens in Phase B after Pass 2).
+    /// </summary>
+    private static void Pass2_RegisterExtensionMembers(
+        Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace)> extensionBlockScopes,
+        Scope globalScope,
+        SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
+        ExtensionRegistry extensionRegistry,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var (extDecl, (extensionScope, namespaceName)) in extensionBlockScopes)
+        {
+            var sourceText = FindSourceTextForNode(extDecl, asts, compilation);
+
+            // Create a file scope for type resolution that includes the
+            // extension block's parent scope (which has namespace context).
+            var fileScope = extensionScope.Parent is Scope parentScope
+                ? parentScope
+                : globalScope;
+
+            // Resolve the receiver type reference.
+            var receiverType = ResolveTypeReference(
+                extDecl.ReceiverType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+            // If resolution fails (ErrorType), emit MIST_SB_0070 and skip.
+            if (receiverType is ErrorType)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    ExtensionReceiverUnresolved.Value,
+                    DiagnosticSeverity.Error,
+                    "Extension block receiver type cannot be resolved.",
+                    extDecl.ReceiverType,
+                    sourceText));
+                continue;
+            }
+
+            // If receiver type is void, emit MIST_SB_0074 and skip.
+            if (receiverType.IsVoid())
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    ExtensionVoidReceiver.Value,
+                    DiagnosticSeverity.Error,
+                    "'void' cannot be used as an extension receiver type.",
+                    extDecl.ReceiverType,
+                    sourceText));
+                continue;
+            }
+
+            // Register a parameter symbol for the receiver in the extension block's scope.
+            var receiverName = extDecl.ReceiverName.Lexeme;
+            var receiverSpan = ToMistSourceSpan(extDecl.ReceiverName.Span);
+            var receiverSymbol = new Symbol(
+                receiverName, SymbolKind.Parameter, SymbolOrigin.UserCode,
+                extensionScope, receiverType, receiverSpan);
+            extensionScope.AddMember(receiverSymbol);
+            symbolTable.Register(receiverSymbol, extDecl);
+
+            // Create a member scope for the extension block's members.
+            var memberScope = new Scope(parent: extensionScope);
+
+            // Walk member declarations — register symbols and resolve types (but not bodies).
+            foreach (var member in extDecl.Members)
+            {
+                switch (member)
+                {
+                    case ExtensionMethodMemberExtensionMemberDeclarationNode methodMember:
+                    {
+                        var methodDecl = methodMember.Method;
+                        var methodName = methodDecl.Name.Lexeme;
+                        var methodSpan = ToMistSourceSpan(methodDecl.Name.Span);
+                        var hasBody = methodDecl.Body is not MethodNoBodyMethodBodyNode;
+                        var methodSymbol = new Symbol(
+                            methodName, SymbolKind.Method, SymbolOrigin.UserCode,
+                            memberScope, declaredType: null, methodSpan, hasBody: hasBody);
+                        memberScope.AddMember(methodSymbol);
+                        symbolTable.Register(methodSymbol, methodDecl);
+
+                        // Warn if the method name shadows the receiver parameter name.
+                        if (string.Equals(methodName, receiverName, StringComparison.Ordinal))
+                        {
+                            diagnostics.Add(MakeDiagnosticWithLocation(
+                                ExtensionMemberShadowsReceiver.Value,
+                                DiagnosticSeverity.Warning,
+                                $"Extension method '{methodName}' shadows the receiver parameter name '{receiverName}'.",
+                                methodDecl,
+                                sourceText));
+                        }
+
+                        // Emit error if any method parameter name conflicts with the receiver parameter name.
+                        if (methodDecl.Parameters is not null)
+                        {
+                            foreach (var child in methodDecl.Parameters.Children())
+                            {
+                                if (child is ParameterNode param &&
+                                    string.Equals(param.Name.Lexeme, receiverName, StringComparison.Ordinal))
+                                {
+                                    diagnostics.Add(MakeDiagnosticWithLocation(
+                                        ExtensionParameterConflictsWithReceiver.Value,
+                                        DiagnosticSeverity.Error,
+                                        $"Method parameter '{param.Name.Lexeme}' conflicts with the receiver parameter name '{receiverName}'.",
+                                        param,
+                                        sourceText));
+                                }
+                            }
+                        }
+
+                        // Register method type parameters if present.
+                        RegisterMethodTypeParameters(methodDecl.TypeParams, methodSymbol, memberScope, sourceText, diagnostics);
+
+                        // Resolve the return type.
+                        var returnType = ResolveTypeReference(
+                            methodDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                        methodSymbol.DeclaredType = returnType;
+
+                        // Register parameters.
+                        if (methodDecl.Parameters is not null)
+                        {
+                            var methodScope = new Scope(parent: memberScope);
+                            RegisterParameters(methodDecl.Parameters, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                        }
+                        break;
+                    }
+                    case ExtensionPropertyMemberExtensionMemberDeclarationNode propertyMember:
+                    {
+                        var propertyDecl = propertyMember.Property;
+
+                        // Check for set/init accessors — reject with MIST_SB_0071.
+                        if (HasSetOrInitAccessor(propertyDecl))
+                        {
+                            diagnostics.Add(MakeDiagnosticWithLocation(
+                                ExtensionPropertyHasSetAccessor.Value,
+                                DiagnosticSeverity.Error,
+                                "Extension properties cannot declare a 'set' or 'init' accessor; extension properties are read-only.",
+                                propertyDecl switch
+                                {
+                                    BlockPropertyPropertyDeclarationNode bp => (Storm.Runtime.SyntaxNode)bp,
+                                    ExpressionBodiedPropertyPropertyDeclarationNode ep => ep,
+                                    _ => member
+                                },
+                                sourceText));
+                        }
+
+                        // Register the property symbol.
+                        var (propName, propSpan) = propertyDecl switch
+                        {
+                            BlockPropertyPropertyDeclarationNode bp => (bp.Name.Lexeme, ToMistSourceSpan(bp.Name.Span)),
+                            ExpressionBodiedPropertyPropertyDeclarationNode ep => (ep.Name.Lexeme, ToMistSourceSpan(ep.Name.Span)),
+                            _ => ("?", (Common.Text.SourceSpan?)null)
+                        };
+                        var propSymbol = new Symbol(
+                            propName, SymbolKind.Property, SymbolOrigin.UserCode,
+                            memberScope, declaredType: null, propSpan);
+                        memberScope.AddMember(propSymbol);
+                        symbolTable.Register(propSymbol, propertyDecl switch
+                        {
+                            BlockPropertyPropertyDeclarationNode bp => (Storm.Runtime.SyntaxNode)bp,
+                            ExpressionBodiedPropertyPropertyDeclarationNode ep => ep,
+                            _ => member
+                        });
+
+                        // Warn if the property name shadows the receiver parameter name.
+                        if (string.Equals(propName, receiverName, StringComparison.Ordinal))
+                        {
+                            diagnostics.Add(MakeDiagnosticWithLocation(
+                                ExtensionMemberShadowsReceiver.Value,
+                                DiagnosticSeverity.Warning,
+                                $"Extension property '{propName}' shadows the receiver parameter name '{receiverName}'.",
+                                propertyDecl switch
+                                {
+                                    BlockPropertyPropertyDeclarationNode bp => (Storm.Runtime.SyntaxNode)bp,
+                                    ExpressionBodiedPropertyPropertyDeclarationNode ep => ep,
+                                    _ => member
+                                },
+                                sourceText));
+                        }
+
+                        // Resolve the property type.
+                        var propType = propertyDecl switch
+                        {
+                            BlockPropertyPropertyDeclarationNode bp =>
+                                ResolveTypeReference(bp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics),
+                            ExpressionBodiedPropertyPropertyDeclarationNode ep =>
+                                ResolveTypeReference(ep.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics),
+                            _ => ErrorType.Instance
+                        };
+                        propSymbol.DeclaredType = propType;
+                        break;
+                    }
+                    default:
+                    {
+                        // Invalid member (field or other) — emit MIST_SB_0072.
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            ExtensionInvalidMember.Value,
+                            DiagnosticSeverity.Error,
+                            "Extension blocks can only contain methods and properties.",
+                            member,
+                            sourceText));
+                        break;
+                    }
+                }
+            }
+
+            // Collect type parameters from the extension block's scope.
+            var typeParameters = new List<TypeParameterType>();
+            foreach (var sym in extensionScope.Members)
+            {
+                if (sym.DeclaredType is TypeParameterType tp)
+                {
+                    typeParameters.Add(tp);
+                }
+            }
+
+            // Create and register the ExtensionBlockInfo.
+            var extensionBlockInfo = new ExtensionBlockInfo
+            {
+                ReceiverType = receiverType,
+                ReceiverParameterName = receiverName,
+                MemberScope = memberScope,
+                TypeParameters = typeParameters,
+                ContainingNamespace = namespaceName,
+                DeclaringNode = extDecl,
+            };
+            extensionRegistry.Register(extensionBlockInfo);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Pass 2e (Phase B) — Resolve extension block method/property bodies
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves extension block method and property bodies. Runs after Pass 2
+    /// so that expression types are available for body resolution.
+    /// </summary>
+    private static void Pass2_ResolveExtensionBodies(
+        Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace)> extensionBlockScopes,
+        Scope globalScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var (extDecl, (extensionScope, namespaceName)) in extensionBlockScopes)
+        {
+            var sourceText = FindSourceTextForNode(extDecl, asts, compilation);
+
+            // Create a file scope for type resolution that includes the
+            // extension block's parent scope (which has namespace context).
+            var fileScope = extensionScope.Parent is Scope parentScope
+                ? parentScope
+                : globalScope;
+
+            // Find the receiver type (already resolved in Phase A).
+            var receiverType = ResolveTypeReference(
+                extDecl.ReceiverType, fileScope, ambientTypeResolver, symbolTable, sourceText, new DiagnosticBag());
+
+            // Skip blocks that failed receiver resolution in Phase A.
+            if (receiverType is ErrorType || receiverType.IsVoid())
+                continue;
+
+            // Get the receiver parameter name for static receiver access validation.
+            var receiverName = extDecl.ReceiverName.Lexeme;
+
+            // Walk member declarations — resolve bodies only.
+            foreach (var member in extDecl.Members)
+            {
+                switch (member)
+                {
+                    case ExtensionMethodMemberExtensionMemberDeclarationNode methodMember:
+                    {
+                        var methodDecl = methodMember.Method;
+                        var isStatic = methodDecl.Modifiers.Any(m => m is StaticModifierModifierNode);
+
+                        // Resolve the body if present.
+                        if (methodDecl.Body.GetBlock() is BlockNode methodBlock)
+                        {
+                            var bodyScope = new Scope(parent: extensionScope);
+                            ResolveBlock(methodBlock, bodyScope, fileScope, receiverType, /* isStatic */ false, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                            // Task 7.5: If this is a static extension member, check for
+                            // receiver parameter references in the body → emit MIST_TC_0080.
+                            if (isStatic)
+                            {
+                                CheckStaticExtensionReceiverAccess(methodBlock, receiverName, sourceText, diagnostics);
+                            }
+                        }
+                        break;
+                    }
+                    // Properties don't have bodies that need expression resolution
+                    // (expression-bodied properties are handled by the emitter).
+                    case ExtensionPropertyMemberExtensionMemberDeclarationNode propertyMember:
+                    {
+                        var propertyDecl = propertyMember.Property;
+                        var isStatic = propertyDecl switch
+                        {
+                            BlockPropertyPropertyDeclarationNode bp => bp.Modifiers.Any(m => m is StaticModifierModifierNode),
+                            ExpressionBodiedPropertyPropertyDeclarationNode ep => ep.Modifiers.Any(m => m is StaticModifierModifierNode),
+                            _ => false,
+                        };
+
+                        // Task 7.5: If this is a static extension property, check for
+                        // receiver parameter references in the property body → emit MIST_TC_0080.
+                        if (isStatic)
+                        {
+                            switch (propertyDecl)
+                            {
+                                case BlockPropertyPropertyDeclarationNode bp:
+                                    foreach (var accessor in bp.Accessors)
+                                    {
+                                        CheckStaticExtensionReceiverAccess(accessor, receiverName, sourceText, diagnostics);
+                                    }
+                                    break;
+                                case ExpressionBodiedPropertyPropertyDeclarationNode ep:
+                                    CheckStaticExtensionReceiverAccess(ep.Body, receiverName, sourceText, diagnostics);
+                                    break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Recursively walks an AST node tree looking for <see cref="IdentifierExpressionPrimaryNode"/>
+    /// references that match the receiver parameter name. Emits <c>MIST_TC_0080</c> for each
+    /// occurrence found. Used to validate that static extension members do not access the receiver.
+    /// </summary>
+    private static void CheckStaticExtensionReceiverAccess(
+        Storm.Runtime.SyntaxNode node,
+        string receiverName,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        if (node is IdentifierExpressionPrimaryNode identifier &&
+            string.Equals(identifier.Name.Lexeme, receiverName, StringComparison.Ordinal))
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                ExtensionStaticReceiverAccess.Value,
+                DiagnosticSeverity.Error,
+                $"Static extension member cannot access the receiver parameter '{receiverName}'.",
+                node,
+                sourceText));
+            return; // Don't recurse into children of this identifier node.
+        }
+
+        foreach (var child in node.Children())
+        {
+            if (child is not null)
+            {
+                CheckStaticExtensionReceiverAccess(child, receiverName, sourceText, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks for duplicate member signatures across all extension blocks registered
+    /// for the same receiver type. Emits <c>MIST_SB_0073</c> on the second occurrence.
+    /// </summary>
+    private static void Pass2_CheckDuplicateExtensionSignatures(
+        ExtensionRegistry extensionRegistry,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var (receiverType, blocks) in extensionRegistry.AllGroups)
+        {
+            if (blocks.Count < 1)
+                continue;
+
+            // Collect all member symbols across all extension blocks for this receiver type.
+            // Track which block each member came from for diagnostic reporting.
+            var allMembers = new List<(ISymbol Symbol, ExtensionBlockInfo Block)>();
+            foreach (var block in blocks)
+            {
+                foreach (var member in block.MemberScope.Members)
+                {
+                    if (member.Kind is SymbolKind.Method or SymbolKind.Property)
+                    {
+                        allMembers.Add((member, block));
+                    }
+                }
+            }
+
+            // Group by name, then check for duplicate signatures within each name group.
+            var nameGroups = allMembers.GroupBy(m => m.Symbol.Name);
+            foreach (var group in nameGroups)
+            {
+                var groupList = group.ToList();
+                if (groupList.Count <= 1)
+                    continue;
+
+                // Track which members have already been reported as duplicates.
+                var reported = new HashSet<int>();
+
+                for (var i = 0; i < groupList.Count; i++)
+                {
+                    for (var j = i + 1; j < groupList.Count; j++)
+                    {
+                        if (reported.Contains(j))
+                            continue;
+
+                        var (symbolA, _) = groupList[i];
+                        var (symbolB, blockB) = groupList[j];
+
+                        // For properties, same name is sufficient for a duplicate.
+                        if (symbolA.Kind == SymbolKind.Property && symbolB.Kind == SymbolKind.Property)
+                        {
+                            reported.Add(j);
+                            EmitDuplicateExtensionMemberDiagnostic(
+                                symbolB, blockB, receiverType, symbolTable, asts, compilation, diagnostics);
+                            continue;
+                        }
+
+                        // For methods, compare parameter signatures.
+                        if (symbolA.Kind == SymbolKind.Method && symbolB.Kind == SymbolKind.Method)
+                        {
+                            var sigA = ParameterSignature.Extract(symbolA, symbolTable);
+                            var sigB = ParameterSignature.Extract(symbolB, symbolTable);
+
+                            if (ParameterSignature.AreEqual(sigA, sigB))
+                            {
+                                reported.Add(j);
+                                EmitDuplicateExtensionMemberDiagnostic(
+                                    symbolB, blockB, receiverType, symbolTable, asts, compilation, diagnostics);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Emits the <c>MIST_SB_0073</c> diagnostic for a duplicate extension member.
+    /// </summary>
+    private static void EmitDuplicateExtensionMemberDiagnostic(
+        ISymbol duplicateSymbol,
+        ExtensionBlockInfo containingBlock,
+        IType receiverType,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        var memberKind = duplicateSymbol.Kind == SymbolKind.Method ? "method" : "property";
+        var message = $"Duplicate extension {memberKind} '{duplicateSymbol.Name}' for receiver type '{receiverType.DisplayName}'. " +
+                      $"Another extension block for the same receiver type already declares a member with this signature.";
+
+        var declaringNode = symbolTable.GetDeclaringNode(duplicateSymbol);
+        if (declaringNode is not null)
+        {
+            var sourceText = FindSourceTextForNode(containingBlock.DeclaringNode, asts, compilation);
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                ExtensionDuplicateMember.Value,
+                DiagnosticSeverity.Error,
+                message,
+                declaringNode,
+                sourceText));
+        }
+        else
+        {
+            diagnostics.Add(new Diagnostic(
+                ExtensionDuplicateMember,
+                DiagnosticSeverity.Error,
+                PipelineStage.SemanticModelConstruction,
+                message,
+                Location: null,
+                CompilationUnitPath: null,
+                AnalyzerName: null));
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a property declaration has a set or init accessor.
+    /// </summary>
+    private static bool HasSetOrInitAccessor(PropertyDeclarationNode propertyDecl)
+    {
+        switch (propertyDecl)
+        {
+            case BlockPropertyPropertyDeclarationNode blockProp:
+                foreach (var accessor in blockProp.Accessors)
+                {
+                    if (accessor is AutoSetAccessorAccessorDeclarationNode
+                        or BlockSetAccessorAccessorDeclarationNode
+                        or ExpressionSetAccessorAccessorDeclarationNode
+                        or AutoInitAccessorAccessorDeclarationNode
+                        or BlockInitAccessorAccessorDeclarationNode
+                        or ExpressionInitAccessorAccessorDeclarationNode)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            case ExpressionBodiedPropertyPropertyDeclarationNode:
+                // Expression-bodied properties are always get-only.
+                return false;
+            default:
+                return false;
         }
     }
 
@@ -9973,6 +10627,243 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
+        // ── Extension member lookup fallback (Task 7.1 + 7.2 + 7.6) ────────
+        // Before emitting MIST_UNDEFINED_MEMBER, check the extension registry
+        // for applicable extension members matching the name.
+        // Task 7.6: Do NOT fall back to extension lookup when the receiver type
+        // is a trait or interface. Extensions are orthogonal to traits/interfaces
+        // and should not be discoverable on trait-typed or interface-typed variables.
+        // Task 7.2: Collect ALL candidates and apply specificity ordering.
+        if (_extensionRegistryContext is not null
+            && targetType is not TraitType
+            && targetType is not InterfaceType)
+        {
+            // Use the original target type (before ConstructedType unwrapping)
+            // for the extension registry query. If the original was a
+            // ConstructedType, reconstruct it; otherwise use targetType as-is.
+            var lookupType = (constructedTypeParams is not null && constructedTypeArgs is not null)
+                ? (IType)new ConstructedType(targetType, constructedTypeArgs)
+                : targetType;
+
+            // Task 7.7: When the static type is `unknown`, only search universal extensions.
+            // Type-specific extensions should NOT be included because we can't verify
+            // they're applicable when the concrete type is not known at compile time.
+            // Task 7.8: When the static type is a union type (A | B), only include
+            // extensions applicable to ALL constituents. Universal extensions always apply.
+            IReadOnlyList<ExtensionBlockInfo> applicableExtensions;
+            if (lookupType is UnknownType)
+            {
+                applicableExtensions = _extensionRegistryContext.UniversalExtensions;
+            }
+            else if (lookupType is UnionType unionType)
+            {
+                applicableExtensions = _extensionRegistryContext.GetApplicableExtensionsForUnion(unionType.Constituents);
+            }
+            else
+            {
+                applicableExtensions = _extensionRegistryContext.GetApplicableExtensions(lookupType);
+            }
+
+            // Filter by namespace visibility: only include extensions whose
+            // ContainingNamespace is null (top-level) or is in the current
+            // file's imported namespaces.
+            var importedNamespaces = CollectImportedNamespaces(fileScope);
+
+            // Collect ALL matching extension candidates (receiver type + member type).
+            var candidates = new List<(IType ReceiverType, IType MemberType)>();
+
+            foreach (var ext in applicableExtensions)
+            {
+                // Namespace visibility check.
+                if (ext.ContainingNamespace is not null && !importedNamespaces.Contains(ext.ContainingNamespace))
+                    continue;
+
+                // Search the extension block's member scope for a matching member.
+                var extMember = ext.MemberScope.Lookup(memberName);
+                if (extMember is not null)
+                {
+                    var memberType = extMember.DeclaredType ?? ErrorType.Instance;
+
+                    // Task 7.3: Generic extension type inference.
+                    // If the extension block has type parameters, attempt to unify
+                    // the extension's receiver type pattern with the actual receiver type.
+                    if (ext.TypeParameters.Count > 0)
+                    {
+                        var bindings = TryUnifyReceiverType(ext.ReceiverType, lookupType, ext.TypeParameters);
+                        if (bindings is null)
+                        {
+                            // Unification failed — silently exclude this extension.
+                            continue;
+                        }
+
+                        // Substitute the inferred type arguments into the member's declared type.
+                        memberType = SubstituteTypeInMember(memberType, ext.TypeParameters, bindings);
+                    }
+
+                    candidates.Add((ext.ReceiverType, memberType));
+                }
+            }
+
+            if (candidates.Count == 1)
+            {
+                // Single candidate — use it directly.
+                return candidates[0].MemberType;
+            }
+
+            if (candidates.Count > 1)
+            {
+                // Apply specificity ordering: find the most-specific candidate.
+                var bestIndex = 0;
+                var ambiguous = false;
+
+                for (var i = 1; i < candidates.Count; i++)
+                {
+                    var comparison = CompareReceiverSpecificity(candidates[bestIndex].ReceiverType, candidates[i].ReceiverType);
+                    if (comparison > 0)
+                    {
+                        // Current best is less specific than candidate i → i becomes new best.
+                        bestIndex = i;
+                        ambiguous = false;
+                    }
+                    else if (comparison == 0)
+                    {
+                        // Equally specific → potential ambiguity.
+                        ambiguous = true;
+                    }
+                    // comparison < 0 means current best is already more specific — keep it.
+                }
+
+                // Verify the best candidate is strictly more specific than ALL others.
+                if (!ambiguous)
+                {
+                    for (var i = 0; i < candidates.Count; i++)
+                    {
+                        if (i == bestIndex) continue;
+                        var cmp = CompareReceiverSpecificity(candidates[bestIndex].ReceiverType, candidates[i].ReceiverType);
+                        if (cmp >= 0)
+                        {
+                            ambiguous = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!ambiguous)
+                {
+                    return candidates[bestIndex].MemberType;
+                }
+
+                // Ambiguity: emit MIST_TC_0082.
+                var candidateDescriptions = string.Join(", ", candidates.Select(c => $"extension({c.ReceiverType.DisplayName})"));
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_TC_0082"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.SemanticModelConstruction,
+                    $"Ambiguous extension method resolution: member '{memberName}' is provided by multiple equally-specific extension blocks: {candidateDescriptions}.",
+                    Location: null,
+                    CompilationUnitPath: sourceText?.Path,
+                    AnalyzerName: null));
+
+                return ErrorType.Instance;
+            }
+
+            // ── Static extension member lookup (Task 7.4) ─────────────────
+            // When instance extension lookup finds no candidates, also search
+            // for static extension members using exact type match only.
+            // Static extension members are callable via TypeName.MemberName.
+            var exactExtensions = _extensionRegistryContext.GetExactExtensions(lookupType);
+            var staticCandidates = new List<(IType ReceiverType, IType MemberType)>();
+
+            foreach (var ext in exactExtensions)
+            {
+                // Namespace visibility check.
+                if (ext.ContainingNamespace is not null && !importedNamespaces.Contains(ext.ContainingNamespace))
+                    continue;
+
+                // Search the extension block's member scope for a matching member.
+                var extMember = ext.MemberScope.Lookup(memberName);
+                if (extMember is null)
+                    continue;
+
+                // Filter: only consider members marked static.
+                var declaringNode = symbolTable.GetDeclaringNode(extMember);
+                if (!IsExtensionMemberStatic(declaringNode))
+                    continue;
+
+                var memberType = extMember.DeclaredType ?? ErrorType.Instance;
+
+                // Generic extension type inference (same rules as instance lookup).
+                if (ext.TypeParameters.Count > 0)
+                {
+                    var bindings = TryUnifyReceiverType(ext.ReceiverType, lookupType, ext.TypeParameters);
+                    if (bindings is null)
+                        continue;
+
+                    memberType = SubstituteTypeInMember(memberType, ext.TypeParameters, bindings);
+                }
+
+                staticCandidates.Add((ext.ReceiverType, memberType));
+            }
+
+            if (staticCandidates.Count == 1)
+            {
+                return staticCandidates[0].MemberType;
+            }
+
+            if (staticCandidates.Count > 1)
+            {
+                // Apply specificity ordering for static candidates.
+                var bestIndex = 0;
+                var ambiguous = false;
+
+                for (var i = 1; i < staticCandidates.Count; i++)
+                {
+                    var comparison = CompareReceiverSpecificity(staticCandidates[bestIndex].ReceiverType, staticCandidates[i].ReceiverType);
+                    if (comparison > 0)
+                    {
+                        bestIndex = i;
+                        ambiguous = false;
+                    }
+                    else if (comparison == 0)
+                    {
+                        ambiguous = true;
+                    }
+                }
+
+                if (!ambiguous)
+                {
+                    for (var i = 0; i < staticCandidates.Count; i++)
+                    {
+                        if (i == bestIndex) continue;
+                        var cmp = CompareReceiverSpecificity(staticCandidates[bestIndex].ReceiverType, staticCandidates[i].ReceiverType);
+                        if (cmp >= 0)
+                        {
+                            ambiguous = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!ambiguous)
+                {
+                    return staticCandidates[bestIndex].MemberType;
+                }
+
+                // Ambiguity among static extension members.
+                var staticCandidateDescriptions = string.Join(", ", staticCandidates.Select(c => $"extension({c.ReceiverType.DisplayName})"));
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_TC_0082"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.SemanticModelConstruction,
+                    $"Ambiguous extension method resolution: static member '{memberName}' is provided by multiple equally-specific extension blocks: {staticCandidateDescriptions}.",
+                    Location: null,
+                    CompilationUnitPath: sourceText?.Path,
+                    AnalyzerName: null));
+
+                return ErrorType.Instance;
+            }
+        }
+
         // Use the original target type display name for the diagnostic (including type args).
         var diagnosticTypeName = (constructedTypeParams is not null && constructedTypeArgs is not null)
             ? $"{targetType.DisplayName}<{string.Join(", ", constructedTypeArgs.Select(a => a.DisplayName))}>"
@@ -9988,6 +10879,272 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             AnalyzerName: null));
 
         return ErrorType.Instance;
+    }
+
+    /// <summary>
+    /// Compares two extension receiver types for specificity.
+    /// Returns:
+    ///   negative value if <paramref name="r1"/> is more specific than <paramref name="r2"/>,
+    ///   positive value if <paramref name="r2"/> is more specific than <paramref name="r1"/>,
+    ///   zero if they are equally specific (ambiguous).
+    /// </summary>
+    /// <remarks>
+    /// Specificity rules:
+    /// - <c>unknown</c> is always less specific than any concrete type.
+    /// - If R1 is assignable to R2 but not vice versa → R1 is more specific (return negative).
+    /// - If R2 is assignable to R1 but not vice versa → R2 is more specific (return positive).
+    /// - If neither is assignable to the other → equally specific (ambiguous, return 0).
+    /// - If both are assignable to each other (same type) → equally specific (return 0).
+    /// </remarks>
+    private static int CompareReceiverSpecificity(IType r1, IType r2)
+    {
+        // Same type reference — equally specific.
+        if (ReferenceEquals(r1, r2))
+            return 0;
+
+        // Special case: unknown is always less specific than any concrete type.
+        var r1IsUnknown = r1 is UnknownType;
+        var r2IsUnknown = r2 is UnknownType;
+
+        if (r1IsUnknown && !r2IsUnknown)
+            return 1; // r2 is more specific.
+        if (r2IsUnknown && !r1IsUnknown)
+            return -1; // r1 is more specific.
+        if (r1IsUnknown && r2IsUnknown)
+            return 0; // Both unknown — equally specific.
+
+        // Check assignability in both directions.
+        var r1AssignableToR2 = IsReceiverAssignableTo(r1, r2);
+        var r2AssignableToR1 = IsReceiverAssignableTo(r2, r1);
+
+        if (r1AssignableToR2 && !r2AssignableToR1)
+            return -1; // r1 is more specific (it fits into r2 but not vice versa).
+        if (r2AssignableToR1 && !r1AssignableToR2)
+            return 1; // r2 is more specific.
+
+        // Both assignable to each other, or neither assignable → equally specific (ambiguous).
+        return 0;
+    }
+
+    /// <summary>
+    /// Determines whether <paramref name="source"/> is assignable to <paramref name="target"/>
+    /// for the purposes of extension receiver specificity comparison.
+    /// A type is assignable to another if it is a subtype (via base type chain or interface implementation).
+    /// </summary>
+    private static bool IsReceiverAssignableTo(IType source, IType target)
+    {
+        // Same reference — trivially assignable.
+        if (ReferenceEquals(source, target))
+            return true;
+
+        // Everything is assignable to unknown.
+        if (target is UnknownType)
+            return true;
+
+        // Nothing is assignable from unknown to a concrete type.
+        if (source is UnknownType)
+            return false;
+
+        // Check base type chain for class types.
+        if (source is ClassType sourceClass)
+        {
+            // Walk the base type chain.
+            var current = sourceClass.BaseType;
+            while (current is not null)
+            {
+                if (ReferenceEquals(current, target))
+                    return true;
+                current = (current as ClassType)?.BaseType;
+            }
+
+            // Check interface implementations.
+            foreach (var iface in sourceClass.Interfaces)
+            {
+                if (ReferenceEquals(iface, target))
+                    return true;
+            }
+        }
+
+        // Check struct interface implementations.
+        if (source is StructType sourceStruct)
+        {
+            foreach (var iface in sourceStruct.Interfaces)
+            {
+                if (ReferenceEquals(iface, target))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether an extension member's declaring node has the <c>static</c> modifier.
+    /// Used during static extension member lookup (Task 7.4) to filter for static members only.
+    /// </summary>
+    private static bool IsExtensionMemberStatic(Storm.Runtime.SyntaxNode? declaringNode)
+    {
+        return declaringNode switch
+        {
+            MethodDeclarationNode md => md.Modifiers.Any(m => m is StaticModifierModifierNode),
+            BlockPropertyPropertyDeclarationNode bp => bp.Modifiers.Any(m => m is StaticModifierModifierNode),
+            ExpressionBodiedPropertyPropertyDeclarationNode ep => ep.Modifiers.Any(m => m is StaticModifierModifierNode),
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Attempts to unify an extension's receiver type pattern with the actual receiver type,
+    /// extracting type argument bindings for the extension's type parameters.
+    /// </summary>
+    /// <param name="pattern">The extension's receiver type pattern (e.g., the resolved type for <c>List&lt;T&gt;</c>).</param>
+    /// <param name="actual">The actual receiver type at the call site (e.g., <c>List&lt;int&gt;</c>).</param>
+    /// <param name="typeParameters">The extension block's declared type parameters.</param>
+    /// <returns>
+    /// A list of concrete type bindings (one per type parameter, in order) if unification succeeds;
+    /// <c>null</c> if unification fails.
+    /// </returns>
+    private static IReadOnlyList<IType>? TryUnifyReceiverType(
+        IType pattern,
+        IType actual,
+        IReadOnlyList<TypeParameterType> typeParameters)
+    {
+        // Build a dictionary to collect bindings: type parameter name → concrete type.
+        var bindings = new Dictionary<string, IType>();
+
+        if (!UnifyTypes(pattern, actual, typeParameters, bindings))
+            return null;
+
+        // Ensure all type parameters have been bound.
+        var result = new IType[typeParameters.Count];
+        for (var i = 0; i < typeParameters.Count; i++)
+        {
+            if (!bindings.TryGetValue(typeParameters[i].Name, out var bound))
+                return null; // Not all type parameters could be inferred.
+            result[i] = bound;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Recursively unifies a type pattern with an actual type, collecting type parameter bindings.
+    /// </summary>
+    /// <returns><c>true</c> if unification succeeds; <c>false</c> otherwise.</returns>
+    private static bool UnifyTypes(
+        IType pattern,
+        IType actual,
+        IReadOnlyList<TypeParameterType> typeParameters,
+        Dictionary<string, IType> bindings)
+    {
+        // Case 1: The pattern is a type parameter — bind it to the actual type.
+        if (pattern is TypeParameterType tpt)
+        {
+            // Verify this is one of the extension's own type parameters.
+            var isExtensionTypeParam = false;
+            for (var i = 0; i < typeParameters.Count; i++)
+            {
+                if (tpt.Name == typeParameters[i].Name && tpt.Ordinal == typeParameters[i].Ordinal)
+                {
+                    isExtensionTypeParam = true;
+                    break;
+                }
+            }
+
+            if (isExtensionTypeParam)
+            {
+                // If already bound, check consistency.
+                if (bindings.TryGetValue(tpt.Name, out var existing))
+                {
+                    return ReferenceEquals(existing, actual);
+                }
+
+                bindings[tpt.Name] = actual;
+                return true;
+            }
+
+            // Not one of our type parameters — must match exactly.
+            return ReferenceEquals(pattern, actual);
+        }
+
+        // Case 2: The pattern is a ConstructedType (e.g., List<T>) — the actual must also
+        // be a ConstructedType with the same generic definition and matching arity.
+        if (pattern is ConstructedType patternConstructed)
+        {
+            if (actual is ConstructedType actualConstructed)
+            {
+                // Generic definitions must match.
+                if (!ReferenceEquals(patternConstructed.GenericDefinition, actualConstructed.GenericDefinition))
+                    return false;
+
+                // Arity must match.
+                if (patternConstructed.TypeArguments.Count != actualConstructed.TypeArguments.Count)
+                    return false;
+
+                // Recursively unify each type argument.
+                for (var i = 0; i < patternConstructed.TypeArguments.Count; i++)
+                {
+                    if (!UnifyTypes(patternConstructed.TypeArguments[i], actualConstructed.TypeArguments[i], typeParameters, bindings))
+                        return false;
+                }
+
+                return true;
+            }
+
+            // The actual is not a ConstructedType — unification fails.
+            return false;
+        }
+
+        // Case 3: The pattern is a plain type (ClassType, StructType, InterfaceType, etc.)
+        // with type parameters on it (it's a generic definition used as the receiver pattern).
+        // For example, extension<T>(List<T> self) where the receiver type resolves to the
+        // generic definition ClassType "List" with TypeParameters [T].
+        // The actual must be a ConstructedType whose GenericDefinition matches.
+        if (pattern is ClassType patternClass && patternClass.TypeParameters.Count > 0)
+        {
+            if (actual is ConstructedType actualCt && ReferenceEquals(actualCt.GenericDefinition, patternClass))
+            {
+                // Unify the class's type parameters with the actual's type arguments.
+                for (var i = 0; i < patternClass.TypeParameters.Count && i < actualCt.TypeArguments.Count; i++)
+                {
+                    if (!UnifyTypes(patternClass.TypeParameters[i], actualCt.TypeArguments[i], typeParameters, bindings))
+                        return false;
+                }
+                return true;
+            }
+            return false;
+        }
+
+        if (pattern is StructType patternStruct && patternStruct.TypeParameters.Count > 0)
+        {
+            if (actual is ConstructedType actualCt && ReferenceEquals(actualCt.GenericDefinition, patternStruct))
+            {
+                for (var i = 0; i < patternStruct.TypeParameters.Count && i < actualCt.TypeArguments.Count; i++)
+                {
+                    if (!UnifyTypes(patternStruct.TypeParameters[i], actualCt.TypeArguments[i], typeParameters, bindings))
+                        return false;
+                }
+                return true;
+            }
+            return false;
+        }
+
+        if (pattern is InterfaceType patternInterface && patternInterface.TypeParameters.Count > 0)
+        {
+            if (actual is ConstructedType actualCt && ReferenceEquals(actualCt.GenericDefinition, patternInterface))
+            {
+                for (var i = 0; i < patternInterface.TypeParameters.Count && i < actualCt.TypeArguments.Count; i++)
+                {
+                    if (!UnifyTypes(patternInterface.TypeParameters[i], actualCt.TypeArguments[i], typeParameters, bindings))
+                        return false;
+                }
+                return true;
+            }
+            return false;
+        }
+
+        // Case 4: Non-generic, non-type-parameter types — must match by reference.
+        return ReferenceEquals(pattern, actual);
     }
 
     /// <summary>
@@ -10420,12 +11577,43 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static ImmutableArray<TypeDeclarationNode> GetNamespaceBodyTypes(
         NamespaceDeclarationNode namespaceNode)
     {
-        return namespaceNode switch
+        var bodyItems = namespaceNode switch
         {
             FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
             BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
-            _ => ImmutableArray<TypeDeclarationNode>.Empty
+            _ => ImmutableArray<NamespaceBodyItemNode>.Empty
         };
+
+        var builder = ImmutableArray.CreateBuilder<TypeDeclarationNode>();
+        foreach (var item in bodyItems)
+        {
+            if (item is NamespaceTypeItemNamespaceBodyItemNode typeItem)
+            {
+                builder.Add(typeItem.TypeDeclaration);
+            }
+        }
+        return builder.ToImmutable();
+    }
+
+    private static ImmutableArray<ExtensionBlockDeclarationNode> GetNamespaceBodyExtensions(
+        NamespaceDeclarationNode namespaceNode)
+    {
+        var bodyItems = namespaceNode switch
+        {
+            FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
+            BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
+            _ => ImmutableArray<NamespaceBodyItemNode>.Empty
+        };
+
+        var builder = ImmutableArray.CreateBuilder<ExtensionBlockDeclarationNode>();
+        foreach (var item in bodyItems)
+        {
+            if (item is NamespaceExtensionItemNamespaceBodyItemNode extensionItem)
+            {
+                builder.Add(extensionItem.ExtensionDeclaration);
+            }
+        }
+        return builder.ToImmutable();
     }
 
     // ═══════════════════════════════════════════════════════════════════════

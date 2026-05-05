@@ -248,7 +248,7 @@ public sealed class BugfixIntegrationTests : IDisposable
             {
                 Name = MakeQualifiedId("TestApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = geometryClass }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = geometryClass }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source1.Length),
             } }),
         };
@@ -314,7 +314,7 @@ public sealed class BugfixIntegrationTests : IDisposable
             {
                 Name = MakeQualifiedId("TestApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = stringHelperClass }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = stringHelperClass }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source2.Length),
             } }),
         };
@@ -348,7 +348,7 @@ public sealed class BugfixIntegrationTests : IDisposable
             {
                 Name = MakeQualifiedId("TestApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source3.Length),
             } }),
         };
@@ -464,7 +464,7 @@ public sealed class BugfixIntegrationTests : IDisposable
             {
                 Name = MakeQualifiedId("TestApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = widgetClass }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = widgetClass }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source1.Length),
             } }),
         };
@@ -529,7 +529,7 @@ public sealed class BugfixIntegrationTests : IDisposable
             {
                 Name = MakeQualifiedId("TestApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = textUtilClass }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = textUtilClass }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source2.Length),
             } }),
         };
@@ -563,7 +563,7 @@ public sealed class BugfixIntegrationTests : IDisposable
             {
                 Name = MakeQualifiedId("TestApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source3.Length),
             } }),
         };

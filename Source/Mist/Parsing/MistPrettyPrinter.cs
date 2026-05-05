@@ -84,6 +84,9 @@ public sealed class MistPrettyPrinter
                 case WithItemTopLevelItemNode withItem:
                     EmitWithDeclaration(withItem.WithDeclaration);
                     break;
+                case ExtensionItemTopLevelItemNode extensionItem:
+                    EmitExtensionBlockDeclaration(extensionItem.ExtensionDeclaration);
+                    break;
             }
         }
     }
@@ -108,9 +111,9 @@ public sealed class MistPrettyPrinter
                 AppendLine($"namespace {name};");
                 AppendLine();
 
-                foreach (var typeDecl in fileScopedNs.Body)
+                foreach (var bodyItem in fileScopedNs.Body)
                 {
-                    EmitTypeDeclaration(typeDecl);
+                    EmitNamespaceBodyItem(bodyItem);
                 }
                 break;
             }
@@ -120,15 +123,28 @@ public sealed class MistPrettyPrinter
                 AppendLine($"namespace {name} {{");
                 _indentLevel++;
 
-                foreach (var typeDecl in blockNs.Body)
+                foreach (var bodyItem in blockNs.Body)
                 {
-                    EmitTypeDeclaration(typeDecl);
+                    EmitNamespaceBodyItem(bodyItem);
                 }
 
                 _indentLevel--;
                 AppendLine("}");
                 break;
             }
+        }
+    }
+
+    private void EmitNamespaceBodyItem(NamespaceBodyItemNode bodyItem)
+    {
+        switch (bodyItem)
+        {
+            case NamespaceTypeItemNamespaceBodyItemNode typeItem:
+                EmitTypeDeclaration(typeItem.TypeDeclaration);
+                break;
+            case NamespaceExtensionItemNamespaceBodyItemNode extensionItem:
+                EmitExtensionBlockDeclaration(extensionItem.ExtensionDeclaration);
+                break;
         }
     }
 
@@ -820,6 +836,42 @@ public sealed class MistPrettyPrinter
         var sourceName = mapping.SourceName.Lexeme;
         var targetName = mapping.TargetName.Lexeme;
         AppendLine($"{sourceName} as {targetName};");
+    }
+
+    // ─── Extension Block Declarations ────────────────────────────────────
+
+    private void EmitExtensionBlockDeclaration(ExtensionBlockDeclarationNode extDecl)
+    {
+        var typeParams = EmitTypeParameterList(extDecl.TypeParams);
+        var receiverType = EmitTypeReference(extDecl.ReceiverType);
+        var receiverName = extDecl.ReceiverName.Lexeme;
+
+        // Grammar: TypeParameterList? EXTENSION ( ... ) — type params precede the keyword
+        var prefix = typeParams.Length > 0 ? $"{typeParams} " : "";
+        AppendLine($"{prefix}extension({receiverType} {receiverName}) {{");
+        _indentLevel++;
+
+        for (var i = 0; i < extDecl.Members.Length; i++)
+        {
+            if (i > 0) AppendLine();
+            EmitExtensionMemberDeclaration(extDecl.Members[i]);
+        }
+
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    private void EmitExtensionMemberDeclaration(ExtensionMemberDeclarationNode member)
+    {
+        switch (member)
+        {
+            case ExtensionMethodMemberExtensionMemberDeclarationNode methodMember:
+                EmitMethodDeclaration(methodMember.Method);
+                break;
+            case ExtensionPropertyMemberExtensionMemberDeclarationNode propertyMember:
+                EmitPropertyDeclaration(propertyMember.Property);
+                break;
+        }
     }
 
     // ─── Parameters and Arguments ────────────────────────────────────────

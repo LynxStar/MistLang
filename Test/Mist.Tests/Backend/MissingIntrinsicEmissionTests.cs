@@ -155,7 +155,7 @@ public class Program {
                 Span = new Storm.Runtime.SourceSpan(0, 0),
             },
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new StructTypeTypeDeclarationNode { StructDeclaration = fakeStruct }),
+                new StructTypeTypeDeclarationNode { StructDeclaration = fakeStruct }).AsNamespaceBodyItems(),
         };
 
         var stdlibAst = new CompilationUnitNode
@@ -352,7 +352,7 @@ public class Program {
                 Span = new Storm.Runtime.SourceSpan(0, 0),
             },
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new StructTypeTypeDeclarationNode { StructDeclaration = fakeStruct }),
+                new StructTypeTypeDeclarationNode { StructDeclaration = fakeStruct }).AsNamespaceBodyItems(),
         };
 
         var stdlibAst = new CompilationUnitNode

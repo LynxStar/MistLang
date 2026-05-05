@@ -2315,6 +2315,30 @@ internal sealed class CSharpSourceWriter
         }
     }
 
+    /// <summary>
+    /// Emits a tuple type reference as a <c>System.ValueTuple&lt;T1, T2, ...&gt;</c>
+    /// generic form, stripping any tuple-element names. This is the variant
+    /// used by <see cref="EmitPrimaryPattern"/> for type patterns against a
+    /// tuple type: C# treats <c>is (T1, T2) name</c> as a positional
+    /// deconstruction pattern (requiring <c>Deconstruct</c> on the
+    /// scrutinee), whereas <c>is ValueTuple&lt;T1, T2&gt; name</c> is an
+    /// unambiguous type pattern that works against any scrutinee including
+    /// <c>object</c>. Element names are meaningless in a pattern position,
+    /// so dropping them produces the correct C# with no loss of
+    /// information.
+    /// </summary>
+    private string EmitTupleTypePatternType(TupleTypeRefTypeReferenceNode tupleRef)
+    {
+        var parts = new List<string>();
+        parts.Add(EmitTypeReference(tupleRef.First.Type));
+        parts.Add(EmitTypeReference(tupleRef.Rest.Type));
+        foreach (var additional in tupleRef.TupleTypeElements)
+        {
+            parts.Add(EmitTypeReference(additional.Type));
+        }
+        return $"System.ValueTuple<{string.Join(", ", parts)}>";
+    }
+
     private static string EmitPrimitiveType(PrimitiveTypeNode primitiveType)
     {
         return primitiveType switch
@@ -2692,9 +2716,29 @@ internal sealed class CSharpSourceWriter
         {
             case TypePatternPrimaryPatternNode typePattern:
             {
+                // Tuple type patterns require special lowering. In C#, the
+                // syntax `is (int, int) pair` is a positional deconstruction
+                // pattern, which requires the scrutinee to have a
+                // `Deconstruct` method. When the scrutinee is `object`
+                // (e.g., from a bare `unknown` or from a Closed_Generic_With_Unknown
+                // narrow that lowered to `object`), `Deconstruct` is not
+                // available and the C# compiler rejects the pattern. The
+                // equivalent type pattern that works against any scrutinee
+                // — including `object` — uses the generic form
+                // `is System.ValueTuple<int, int> pair`. We emit that form
+                // whenever the pattern's type is a tuple, so narrowing from
+                // `unknown` (or any other `object`-compatible receiver) to
+                // a tuple type works as expected.
+                if (typePattern.Type is TupleTypeRefTypeReferenceNode tupleRef)
+                {
+                    var typeName = EmitTupleTypePatternType(tupleRef);
+                    var name = typePattern.Name.Lexeme;
+                    return $"{typeName} {name}";
+                }
+
                 var type = EmitTypeReference(typePattern.Type);
-                var name = typePattern.Name.Lexeme;
-                return $"{type} {name}";
+                var nameDefault = typePattern.Name.Lexeme;
+                return $"{type} {nameDefault}";
             }
             case VarPatternPrimaryPatternNode varPattern:
                 return $"var {varPattern.Name.Lexeme}";

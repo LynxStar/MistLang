@@ -1276,6 +1276,12 @@ public sealed class MistPrettyPrinter
                 var init = EmitExpression(varDecl.Initializer);
                 return $"{type} {name} = {init}";
             }
+            case ForInitializerVarDeclarationForInitializerNode varDeclInit:
+            {
+                var name = varDeclInit.Name.Lexeme;
+                var init = EmitExpression(varDeclInit.Initializer);
+                return $"var {name} = {init}";
+            }
             case ForInitializerExpressionForInitializerNode exprInit:
                 return EmitExpression(exprInit.Expression);
             default:

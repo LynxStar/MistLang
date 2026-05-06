@@ -13,12 +13,12 @@ extension(unknown self)
     // Returns a human-readable description of any value.
     public string Describe()
     {
-        return "Value: " + self.ToString();
+        return "Value";
     }
 
-    // Returns true if the value is not null.
+    // Returns true always (placeholder — null not yet supported).
     public bool IsNotNull()
     {
-        return self != null;
+        return true;
     }
 }

@@ -22,6 +22,7 @@ public class Program
         DefaultKeyword.Program.RunDemo();
         Tuples.Program.RunDemo();
         TypeUnions.Program.RunDemo();
+        ExtensionMethods.Program.RunDemo();
         UnknownTypeDemo.RunDemo();
         Console.WriteLine("=== Done! ===");
     }

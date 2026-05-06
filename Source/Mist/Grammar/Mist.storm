@@ -399,6 +399,7 @@ rule ForStatement = FOR LEFT_PARENTHESIS initializer:ForInitializer? SEMICOLON c
 
 rule ForInitializer
     = variableDeclaration:TypeReference name:IDENTIFIER EQUAL initializer:Expression  as ForInitializerVariableDeclaration
+    | varDeclaration:VAR name:IDENTIFIER EQUAL initializer:Expression                 as ForInitializerVarDeclaration
     | expression:Expression                                                            as ForInitializerExpression
     ;
 

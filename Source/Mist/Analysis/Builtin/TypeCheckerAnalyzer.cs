@@ -2282,6 +2282,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CheckAssignability(initType, declaredType, varInit.Initializer, diagnostics, model);
             }
         }
+        else if (forStmt.Initializer is ForInitializerVarDeclarationForInitializerNode varDeclInit)
+        {
+            CheckExpression(varDeclInit.Initializer, model, diagnostics);
+        }
         else if (forStmt.Initializer is ForInitializerExpressionForInitializerNode exprInit)
         {
             CheckExpression(exprInit.Expression, model, diagnostics);

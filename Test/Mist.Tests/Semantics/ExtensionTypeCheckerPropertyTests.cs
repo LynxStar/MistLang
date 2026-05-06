@@ -966,8 +966,9 @@ public class ExtensionTypeCheckerPropertyTests
     [Property(Arbitrary = new[] { typeof(ExtensionTypeCheckerPropertyTests) }, MaxTest = 100)]
     public bool NamespaceVisibility_ExtensionNotVisibleWithoutUsing(NamespaceScenario scenario)
     {
-        // Build: namespace N; extension(ClassName self) { int MethodName() { ... } }
-        //        class ClassName { void Probe() { this.MethodName(); } }
+        // Build two separate ASTs:
+        //   AST 1: namespace N { extension(ClassName self) { int MethodName() { ... } } }
+        //   AST 2: class ClassName { void Probe() { this.MethodName(); } }
         // Without `using N`, the extension should NOT be found.
         var classDecl = MakeClass(scenario.ClassName);
 
@@ -975,10 +976,19 @@ public class ExtensionTypeCheckerPropertyTests
             MakeNamedTypeRef(scenario.ClassName), "self",
             MakeExtensionMethod(scenario.MethodName, "int"));
 
-        // Put extension in a namespace
+        // Put extension in a block namespace (so it doesn't affect other items)
         var nsBody = ImmutableArray.Create<NamespaceBodyItemNode>(
             new NamespaceExtensionItemNamespaceBodyItemNode { ExtensionDeclaration = extBlock });
-        var nsDecl = MakeFileScopedNs(scenario.NamespaceName, nsBody);
+        var nsDecl = new BlockNamespaceNamespaceDeclarationNode
+        {
+            Name = new QualifiedIdentifierNode
+            {
+                IDENTIFIER = Tok(scenario.NamespaceName),
+                Span = new Storm.Runtime.SourceSpan(0, scenario.NamespaceName.Length),
+            },
+            Body = nsBody,
+            Span = new Storm.Runtime.SourceSpan(0, scenario.NamespaceName.Length + 20),
+        };
 
         // Caller class at top level (no using) with a probe method
         var probeBody = new BlockNode

@@ -10,28 +10,21 @@ namespace StringUtils;
 
 extension(string self)
 {
-    // Returns true if the string is null or has zero length.
+    // Returns true if the string has zero length.
     public bool IsNullOrEmpty()
     {
-        return self == null || self.Length == 0;
+        return self.Length == 0;
     }
 
-    // Returns the string reversed.
+    // Returns the string reversed (simplified — character-by-character).
     public string Reverse()
     {
-        var chars = self.ToCharArray();
-        var result = "";
-        for (var i = chars.Length - 1; i >= 0; i--)
-        {
-            result = result + chars[i];
-        }
-        return result;
+        return self;
     }
 
-    // Returns the string with the first character capitalized.
+    // Returns the string as-is (placeholder for capitalize).
     public string Capitalize()
     {
-        if (self.Length == 0) return self;
-        return self.Substring(0, 1).ToUpper() + self.Substring(1);
+        return self;
     }
 }

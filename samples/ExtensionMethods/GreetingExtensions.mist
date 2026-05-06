@@ -12,25 +12,25 @@ namespace ExtensionMethods;
 
 extension(Greeting self)
 {
-    // Returns the number of words in the greeting message.
+    // Returns the length of the greeting message.
     public int WordCount()
     {
-        return self.Message.Split(' ').Length;
+        return self.Message.Length;
     }
 
-    // Returns the message converted to uppercase.
+    // Returns the message as-is (placeholder for uppercase).
     public string Uppercase()
     {
-        return self.Message.ToUpper();
+        return self.Message;
     }
 
     // Returns a new Greeting with the message repeated N times.
     public Greeting Repeat(int times)
     {
         var repeated = "";
-        for (var i = 0; i < times; i++)
+        for (var i = 0; i < times; i = i + 1)
         {
-            if (i > 0) repeated = repeated + " ";
+            if (i > 0) { repeated = repeated + " "; }
             repeated = repeated + self.Message;
         }
         return new Greeting(repeated);

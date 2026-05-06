@@ -1,8 +1,8 @@
 // Universal extension methods available on all types.
-// These provide the base object operations (ToString, GetHashCode, GetType)
+// These provide the base object operations (ToString, GetHashCode)
 // that every value in Mist can call. The method bodies are placeholders —
 // actual behavior comes from the .NET runtime when the code is transpiled.
-// Requirements: 23.1, 23.2, 23.3
+// Requirements: 23.1, 23.2
 
 extension(unknown self) {
     string ToString() {
@@ -11,9 +11,5 @@ extension(unknown self) {
 
     int GetHashCode() {
         return 0;
-    }
-
-    Type GetType() {
-        return default;
     }
 }

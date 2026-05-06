@@ -364,7 +364,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // project, enforcing transitive visibility rules (Requirements 6.1,
         // 6.2, 6.4).
         var withDeclarations = new List<WithDeclarationNode>();
-        var extensionBlockScopes = new Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace)>();
+        var extensionBlockScopes = new Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace, SourceText? SourceText)>();
         for (var i = 0; i < asts.Length; i++)
         {
             var ast = asts[i];
@@ -638,7 +638,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         string projectFolder,
         DiagnosticBag diagnostics,
         List<WithDeclarationNode>? withDeclarations = null,
-        Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace)>? extensionBlockScopes = null)
+        Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace, SourceText? SourceText)>? extensionBlockScopes = null)
     {
         if (ast is not CompilationUnitNode compilationUnit)
         {
@@ -665,7 +665,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var nsDecl = nsItem.NamespaceDeclaration;
                     var declaredName = ExtractNamespaceName(nsDecl, sourceText);
 
-                    if (nsDecl is FileScopedNamespaceNamespaceDeclarationNode)
+                    if (nsDecl is FileScopedNamespaceNamespaceDeclarationNode fileScopedNs)
                     {
                         // File-scoped: update current namespace for subsequent types.
                         currentNamespace = declaredName;
@@ -965,7 +965,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         string? namespaceName,
         SourceText? sourceText,
         DiagnosticBag diagnostics,
-        Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace)>? extensionBlockScopes)
+        Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace, SourceText? SourceText)>? extensionBlockScopes)
     {
         // Create a child scope for the extension block.
         var extensionScope = new Scope(parent: parentScope);
@@ -983,7 +983,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // Store the scope so Pass 2 can find it later.
-        extensionBlockScopes?.TryAdd(extDecl, (extensionScope, namespaceName));
+        extensionBlockScopes?.TryAdd(extDecl, (extensionScope, namespaceName, sourceText));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -997,7 +997,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// (that happens in Phase B after Pass 2).
     /// </summary>
     private static void Pass2_RegisterExtensionMembers(
-        Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace)> extensionBlockScopes,
+        Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace, SourceText? SourceText)> extensionBlockScopes,
         Scope globalScope,
         SymbolTable symbolTable,
         IAmbientTypeResolver? ambientTypeResolver,
@@ -1006,9 +1006,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
-        foreach (var (extDecl, (extensionScope, namespaceName)) in extensionBlockScopes)
+        foreach (var (extDecl, (extensionScope, namespaceName, sourceText)) in extensionBlockScopes)
         {
-            var sourceText = FindSourceTextForNode(extDecl, asts, compilation);
 
             // Create a file scope for type resolution that includes the
             // extension block's parent scope (which has namespace context).
@@ -1231,7 +1230,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// so that expression types are available for body resolution.
     /// </summary>
     private static void Pass2_ResolveExtensionBodies(
-        Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace)> extensionBlockScopes,
+        Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace, SourceText? SourceText)> extensionBlockScopes,
         Scope globalScope,
         SymbolTable symbolTable,
         Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
@@ -1240,9 +1239,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
-        foreach (var (extDecl, (extensionScope, namespaceName)) in extensionBlockScopes)
+        foreach (var (extDecl, (extensionScope, namespaceName, sourceText)) in extensionBlockScopes)
         {
-            var sourceText = FindSourceTextForNode(extDecl, asts, compilation);
 
             // Create a file scope for type resolution that includes the
             // extension block's parent scope (which has namespace context).
@@ -1275,6 +1273,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         if (methodDecl.Body.GetBlock() is BlockNode methodBlock)
                         {
                             var bodyScope = new Scope(parent: extensionScope);
+
+                            // Register method parameters in the body scope so they're
+                            // accessible during body resolution.
+                            if (methodDecl.Parameters is not null)
+                            {
+                                RegisterParameters(methodDecl.Parameters, bodyScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                            }
+
                             ResolveBlock(methodBlock, bodyScope, fileScope, receiverType, /* isStatic */ false, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
                             // Task 7.5: If this is a static extension member, check for
@@ -6495,6 +6501,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // the namespace scope and the type scopes.
         var fileScope = new Scope(parent: primaryNamespaceScope);
 
+        // Add the file's own namespace as implicitly imported so that extensions
+        // declared in the same namespace are visible without an explicit `using`.
+        var ownNamespaceName = DetermineFileNamespaceName(compilationUnit, sourceText);
+        if (ownNamespaceName is not null)
+        {
+            fileScope.AddImportedNamespace(ownNamespaceName);
+        }
+
         // Process using declarations — verify namespace existence and record imports.
         foreach (var usingDecl in compilationUnit.Usings)
         {
@@ -6625,6 +6639,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
+        return null;
+    }
+
+    /// <summary>
+    /// Determines the namespace name for a file by examining its namespace declarations.
+    /// Returns null if the file has no namespace declaration.
+    /// Used to implicitly import the file's own namespace for extension visibility.
+    /// </summary>
+    private static string? DetermineFileNamespaceName(
+        CompilationUnitNode compilationUnit,
+        SourceText? sourceText)
+    {
+        foreach (var item in compilationUnit.Items)
+        {
+            if (item is NamespaceItemTopLevelItemNode nsItem)
+            {
+                return ExtractNamespaceName(nsItem.NamespaceDeclaration, sourceText);
+            }
+        }
         return null;
     }
 
@@ -8190,6 +8223,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, forScope, initType, varSpan);
             forScope.AddMember(varSymbol);
             symbolTable.Register(varSymbol, varInit);
+        }
+        else if (forStmt.Initializer is ForInitializerVarDeclarationForInitializerNode varDeclInit)
+        {
+            var initExprType = ResolveExpression(varDeclInit.Initializer, forScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+            var varName = varDeclInit.Name.Lexeme;
+            var varSpan = ToMistSourceSpan(varDeclInit.Name.Span);
+            var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, forScope, initExprType, varSpan);
+            forScope.AddMember(varSymbol);
+            symbolTable.Register(varSymbol, varDeclInit);
         }
         else if (forStmt.Initializer is ForInitializerExpressionForInitializerNode exprInit)
         {

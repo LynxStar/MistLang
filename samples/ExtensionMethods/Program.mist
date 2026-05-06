@@ -37,6 +37,8 @@ public class Program
         var emptyCheck = empty.IsNullOrEmpty();
 
         Console.WriteLine(empty.GetType());
+        Console.WriteLine(string);
+        Console.WriteLine(int.Name);
 
     }
 }

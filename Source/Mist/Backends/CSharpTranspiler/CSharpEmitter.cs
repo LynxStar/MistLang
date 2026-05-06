@@ -2682,20 +2682,107 @@ internal sealed class CSharpSourceWriter
 
         // No implicit casts needed — use the source span for faithful reproduction,
         // applying Void.Void → MistVoid.Instance substitution if needed.
-        var span = argList.Span;
-        if (span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
+        // However, if any argument contains a type literal (e.g., int.Name),
+        // we must fall through to the expression emitter so typeof() is applied.
+        if (!ArgumentContainsTypeLiteral(argExprs))
         {
-            var rawText = _sourceText.Contents.Substring(span.Start, span.Length);
-            if (rawText.Contains("Void.Void"))
+            var span = argList.Span;
+            if (span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
             {
-                _needsMistVoidStruct = true;
-                return rawText.Replace("Void.Void", "MistVoid.Instance");
+                var rawText = _sourceText.Contents.Substring(span.Start, span.Length);
+                if (rawText.Contains("Void.Void"))
+                {
+                    _needsMistVoidStruct = true;
+                    return rawText.Replace("Void.Void", "MistVoid.Instance");
+                }
+                return rawText;
             }
-            return rawText;
         }
 
         // Fallback: emit the single argument we do have.
         return EmitExpression(argList.Expression);
+    }
+
+    /// <summary>
+    /// Returns true if any argument expression contains a type literal (e.g., <c>int.Name</c>)
+    /// that requires <c>typeof()</c> wrapping. When true, the source-text fast path must be
+    /// bypassed so the expression emitter can apply the wrapping.
+    /// </summary>
+    private static bool ArgumentContainsTypeLiteral(List<ExpressionNode> argExprs)
+    {
+        foreach (var expr in argExprs)
+        {
+            if (ExpressionContainsTypeLiteral(expr))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Recursively checks if an expression contains a <see cref="TypeLiteralExpressionPrimaryNode"/>.
+    /// </summary>
+    private static bool ExpressionContainsTypeLiteral(ExpressionNode expr)
+    {
+        // Walk the expression tree: Assignment → LogicalOr → ... → Unary → Postfix → Primary
+        var assignment = expr.Assignment;
+        return AssignmentContainsTypeLiteral(assignment);
+    }
+
+    private static bool AssignmentContainsTypeLiteral(AssignmentNode assignment)
+    {
+        if (LogicalOrContainsTypeLiteral(assignment.Target))
+            return true;
+        if (assignment.Value is not null)
+            return AssignmentContainsTypeLiteral(assignment.Value);
+        return false;
+    }
+
+    private static bool LogicalOrContainsTypeLiteral(LogicalOrNode logicalOr)
+    {
+        return LogicalAndContainsTypeLiteral(logicalOr.Left);
+    }
+
+    private static bool LogicalAndContainsTypeLiteral(LogicalAndNode logicalAnd)
+    {
+        return EqualityContainsTypeLiteral(logicalAnd.Left);
+    }
+
+    private static bool EqualityContainsTypeLiteral(EqualityNode equality)
+    {
+        return RelationalContainsTypeLiteral(equality.Left);
+    }
+
+    private static bool RelationalContainsTypeLiteral(RelationalNode relational)
+    {
+        return relational switch
+        {
+            RelationalComparisonRelationalNode comp => AdditiveContainsTypeLiteral(comp.Left),
+            _ => false,
+        };
+    }
+
+    private static bool AdditiveContainsTypeLiteral(AdditiveNode additive)
+    {
+        return MultiplicativeContainsTypeLiteral(additive.Left);
+    }
+
+    private static bool MultiplicativeContainsTypeLiteral(MultiplicativeNode multiplicative)
+    {
+        return UnaryContainsTypeLiteral(multiplicative.Left);
+    }
+
+    private static bool UnaryContainsTypeLiteral(UnaryNode unary)
+    {
+        return unary switch
+        {
+            PostfixExpressionUnaryNode postfix => PostfixContainsTypeLiteral(postfix.Primary),
+            _ => false,
+        };
+    }
+
+    private static bool PostfixContainsTypeLiteral(PostfixNode postfix)
+    {
+        return postfix.Target is TypeLiteralExpressionPrimaryNode;
     }
 
     private string EmitTypeReference(TypeReferenceNode typeRef, bool isValueContext = false)

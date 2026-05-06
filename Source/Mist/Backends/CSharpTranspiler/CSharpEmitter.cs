@@ -293,6 +293,9 @@ internal sealed class CSharpSourceWriter
                 case ExtensionItemTopLevelItemNode extensionItem:
                     EmitExtensionBlock(extensionItem.ExtensionDeclaration);
                     break;
+                case TypeAliasItemTopLevelItemNode:
+                    // Type aliases are erased — no C# declaration is emitted.
+                    break;
             }
         }
 
@@ -743,13 +746,17 @@ internal sealed class CSharpSourceWriter
 
                 foreach (var bodyItem in fileScopedNs.Body)
                 {
-                    if (bodyItem is NamespaceTypeItemNamespaceBodyItemNode typeBodyItem)
+                    switch (bodyItem)
                     {
-                        EmitTypeDeclaration(typeBodyItem.TypeDeclaration);
-                    }
-                    else if (bodyItem is NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem)
-                    {
-                        EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
+                        case NamespaceTypeItemNamespaceBodyItemNode typeBodyItem:
+                            EmitTypeDeclaration(typeBodyItem.TypeDeclaration);
+                            break;
+                        case NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem:
+                            EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
+                            break;
+                        case NamespaceTypeAliasItemNamespaceBodyItemNode:
+                            // Type aliases are erased — no C# declaration is emitted.
+                            break;
                     }
                 }
                 break;
@@ -763,13 +770,17 @@ internal sealed class CSharpSourceWriter
 
                 foreach (var bodyItem in blockNs.Body)
                 {
-                    if (bodyItem is NamespaceTypeItemNamespaceBodyItemNode typeBodyItem)
+                    switch (bodyItem)
                     {
-                        EmitTypeDeclaration(typeBodyItem.TypeDeclaration);
-                    }
-                    else if (bodyItem is NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem)
-                    {
-                        EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
+                        case NamespaceTypeItemNamespaceBodyItemNode typeBodyItem:
+                            EmitTypeDeclaration(typeBodyItem.TypeDeclaration);
+                            break;
+                        case NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem:
+                            EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
+                            break;
+                        case NamespaceTypeAliasItemNamespaceBodyItemNode:
+                            // Type aliases are erased — no C# declaration is emitted.
+                            break;
                     }
                 }
 
@@ -2518,7 +2529,8 @@ internal sealed class CSharpSourceWriter
                 && firstType is not UnionTypeRefTypeReferenceNode
                 && !TypeReferenceContainsUnknown(firstType)
                 && !ContainsVoidOrUnknownKeyword(sourceText)
-                && !ContainsPipeOperator(sourceText))
+                && !ContainsPipeOperator(sourceText)
+                && !ParameterListContainsTypeAlias(paramList, sourceText))
             {
                 return sourceText;
             }
@@ -2634,6 +2646,37 @@ internal sealed class CSharpSourceWriter
             default:
                 return false;
         }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the parameter list contains a type reference that
+    /// resolves to a type alias. Type aliases must be rewritten to their underlying
+    /// type in C# output, so the source-text fast-path cannot be used.
+    /// Checks both the first parameter's AST type and the source text for alias names.
+    /// </summary>
+    private bool ParameterListContainsTypeAlias(ParameterListNode paramList, string sourceText)
+    {
+        // Check the first parameter's type reference structurally.
+        if (paramList.Parameter.Type is NamedTypeRefTypeReferenceNode namedRef)
+        {
+            var name = ExtractQualifiedName(namedRef.Name);
+            if (_model.AllSymbols.Any(s => s.Name == name && s.Kind == SymbolKind.TypeAlias))
+                return true;
+        }
+
+        // Lexical fallback: check if any type alias name appears in the source text.
+        // This catches subsequent parameters (beyond the first) that the Storm parser
+        // does not expose structurally.
+        foreach (var sym in _model.AllSymbols)
+        {
+            if (sym.Kind == SymbolKind.TypeAlias
+                && sourceText.Contains(sym.Name, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private string EmitParameter(ParameterNode param)
@@ -2819,6 +2862,26 @@ internal sealed class CSharpSourceWriter
             case NamedTypeRefTypeReferenceNode namedRef:
             {
                 var name = ExtractQualifiedName(namedRef.Name);
+
+                // ── type-aliases feature: transparent resolution (Requirement 6.1) ──
+                // If this named type reference resolves to a type alias, emit the
+                // underlying type instead of the alias name. Type aliases are erased
+                // during transpilation — no alias name should appear in C# output.
+                // Check the expression type map first, then fall back to symbol lookup.
+                var resolvedType = _model.GetTypeOf(namedRef);
+                if (resolvedType is TypeAliasType aliasFromExprMap)
+                {
+                    var csharpName = CSharpTypeMap.GetTypeName(aliasFromExprMap.UnderlyingType, isValueContext);
+                    return namedRef.ArrayRank.HasValue ? $"{csharpName}[]" : csharpName;
+                }
+                // Fallback: search all symbols for a type alias with this name.
+                var aliasSymbol = _model.AllSymbols
+                    .FirstOrDefault(s => s.Name == name && s.Kind == SymbolKind.TypeAlias);
+                if (aliasSymbol?.DeclaredType is TypeAliasType aliasType)
+                {
+                    var csharpName = CSharpTypeMap.GetTypeName(aliasType.UnderlyingType, isValueContext);
+                    return namedRef.ArrayRank.HasValue ? $"{csharpName}[]" : csharpName;
+                }
 
                 // Handle "Void" identifier as equivalent to the void keyword.
                 if (name == "Void" && namedRef.TypeArgs is null && !namedRef.ArrayRank.HasValue)

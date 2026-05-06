@@ -175,6 +175,10 @@ internal static class UnionHelperGenerator
                     CollectFromType(elementType, seen);
                 }
                 break;
+
+            case TypeAliasType alias:
+                CollectFromType(alias.UnderlyingType, seen);
+                break;
         }
     }
 }

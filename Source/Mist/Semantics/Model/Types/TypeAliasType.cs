@@ -1,0 +1,27 @@
+using Mist.Semantics.Contracts;
+
+namespace Mist.Semantics.Model.Types;
+
+/// <summary>
+/// A transparent type alias that resolves to its underlying type during type checking.
+/// The alias is erased after resolution — using an alias is semantically identical to
+/// using the underlying type directly.
+/// </summary>
+public sealed class TypeAliasType : IType
+{
+    public string Name { get; }
+    public IType UnderlyingType { get; }
+    public IReadOnlyList<TypeParameterType> TypeParameters { get; }
+    public string DisplayName => Name;
+    public TypeKind Kind => UnderlyingType.Kind;
+
+    public TypeAliasType(
+        string name,
+        IType underlyingType,
+        IReadOnlyList<TypeParameterType> typeParameters)
+    {
+        Name = name;
+        UnderlyingType = underlyingType;
+        TypeParameters = typeParameters;
+    }
+}

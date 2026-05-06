@@ -1008,6 +1008,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static bool IsDirectlyAssignable(IType source, IType target, ISemanticModel? model)
     {
+        // ── type-aliases feature: transparent unwrapping (Requirement 5.1) ──
+        // Type aliases are fully transparent — unwrap to the underlying type
+        // before any comparison so that using an alias is semantically
+        // identical to using the underlying type directly.
+        if (source is TypeAliasType sourceAlias)
+            source = sourceAlias.UnderlyingType;
+        if (target is TypeAliasType targetAlias)
+            target = targetAlias.UnderlyingType;
+
         // ErrorType suppresses cascading errors.
         if (IsErrorType(source) || IsErrorType(target))
             return true;
@@ -4985,16 +4994,31 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         return result;
     }
 
+    // ── Type alias diagnostic ID ─────────────────────────────────────────
+
+    /// <summary>
+    /// Emitted when a generic type alias is used with the wrong number of
+    /// type arguments (Requirement 5.3).
+    /// </summary>
+    internal static readonly DiagnosticId TypeAliasArgumentCountMismatch = new("MIST_SB_0063");
+
     /// <summary>
     /// Resolves a <see cref="TypeReferenceNode"/> to its corresponding <see cref="IType"/>
     /// by looking up the type name in the semantic model's symbol table.
+    /// Type aliases are resolved transparently — the underlying type is returned
+    /// with no alias wrapper remaining.
     /// </summary>
-    private static IType ResolveTypeReferenceToType(TypeReferenceNode typeRef, ISemanticModel model)
+    private static IType ResolveTypeReferenceToType(TypeReferenceNode typeRef, ISemanticModel model, DiagnosticBag? diagnostics = null)
     {
         // Try the expression type map first (may be populated for some nodes).
         var resolved = model.GetTypeOf(typeRef);
         if (resolved is not null && resolved is not ErrorType)
+        {
+            // Transparently unwrap type aliases (Requirement 5.1).
+            if (resolved is TypeAliasType aliasFromMap)
+                return aliasFromMap.UnderlyingType;
             return resolved;
+        }
 
         switch (typeRef)
         {
@@ -5011,14 +5035,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Try to find the type by looking up the symbol.
                 var symbol = model.GetDeclaredSymbol(namedRef);
                 if (symbol?.DeclaredType is not null)
-                    return symbol.DeclaredType;
+                {
+                    return ResolveTypeAliasMaybeGeneric(
+                        symbol.DeclaredType, namedRef, model, diagnostics);
+                }
 
                 // Fallback: search all symbols for a matching type name.
                 var typeName = ExtractTypeName(namedRef);
                 foreach (var sym in model.AllSymbols)
                 {
-                    if (sym.Name == typeName && sym.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface)
-                        return sym.DeclaredType ?? ErrorType.Instance;
+                    if (sym.Name == typeName && sym.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.TypeAlias)
+                    {
+                        var declaredType = sym.DeclaredType ?? ErrorType.Instance;
+                        return ResolveTypeAliasMaybeGeneric(
+                            declaredType, namedRef, model, diagnostics);
+                    }
                 }
                 return ErrorType.Instance;
             }
@@ -5027,6 +5058,58 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             default:
                 return ErrorType.Instance;
         }
+    }
+
+    /// <summary>
+    /// If <paramref name="type"/> is a <see cref="TypeAliasType"/>, transparently
+    /// resolves it to its underlying type. For generic aliases with type arguments
+    /// on the reference node, verifies argument count and substitutes type arguments
+    /// into the underlying type. Reports <c>MIST_SB_0063</c> on arity mismatch.
+    /// Non-alias types are returned unchanged.
+    /// </summary>
+    private static IType ResolveTypeAliasMaybeGeneric(
+        IType type,
+        NamedTypeRefTypeReferenceNode namedRef,
+        ISemanticModel model,
+        DiagnosticBag? diagnostics)
+    {
+        if (type is not TypeAliasType aliasType)
+            return type;
+
+        var underlyingType = aliasType.UnderlyingType;
+        var typeParams = aliasType.TypeParameters;
+
+        // Non-generic alias — return the underlying type directly.
+        if (typeParams.Count == 0)
+            return underlyingType;
+
+        // Generic alias — check if type arguments are provided on the reference.
+        if (namedRef.TypeArgs is null)
+        {
+            // No type arguments provided for a generic alias — return as-is
+            // (the underlying type still contains unsubstituted type parameters).
+            return underlyingType;
+        }
+
+        // Resolve the type arguments from the AST.
+        var typeArgs = ResolveTypeArgumentsFromAst(namedRef.TypeArgs, model);
+
+        // Verify argument count matches parameter count (Requirement 5.3).
+        if (typeArgs.Count != typeParams.Count)
+        {
+            if (diagnostics is not null)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    TypeAliasArgumentCountMismatch.Value,
+                    $"Type alias '{aliasType.Name}' expects {typeParams.Count} type argument(s) but was given {typeArgs.Count}.",
+                    namedRef,
+                    model));
+            }
+            return ErrorType.Instance;
+        }
+
+        // Substitute type arguments into the underlying type.
+        return SubstituteType(underlyingType, typeParams, typeArgs);
     }
 
     /// <summary>
@@ -6014,6 +6097,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static bool IsAssignable(IType source, IType target, ISemanticModel? model)
     {
+        // ── type-aliases feature: transparent unwrapping (Requirement 5.1) ──
+        // Type aliases are fully transparent — unwrap to the underlying type
+        // before any comparison so that using an alias is semantically
+        // identical to using the underlying type directly.
+        if (source is TypeAliasType sourceAlias)
+            source = sourceAlias.UnderlyingType;
+        if (target is TypeAliasType targetAlias)
+            target = targetAlias.UnderlyingType;
+
         // ErrorType suppresses cascading errors.
         if (IsErrorType(source) || IsErrorType(target))
             return true;

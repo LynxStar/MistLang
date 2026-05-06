@@ -162,10 +162,15 @@ y assigned string: world
   int: 99
   string: triple
   bool: True
+  bool: True
 --- Reassignment ---
   before: assigned int
   after: switched
 Done!
+Extension Methods Demo
+System.String
+System.String
+Int32
 === UnknownType Sample (AllFeatures) ===
 --- Unknown local ---
 narrowed int: 123
@@ -173,4 +178,20 @@ narrowed int: 123
 widened tag: 7
 widened value: 99
 narrowed-back value: 42
+=== Type Aliases Sample ===
+--- Simple aliases ---
+id=42 name=Alice score=98.5 active=True
+--- Transparency ---
+rawId=42 aliasedId=100 rawName=Alice
+--- Methods ---
+  User ID: 7
+  User ID: 100
+defaultName=Anonymous
+--- Union aliases ---
+x=42 y=hello
+r1=99 r2=success r3=True
+--- Closed generic aliases ---
+intBox=Box(42) strBox=Box(Mist)
+intBox.value=42 strBox.value=Mist
+Done!
 === Done! ===

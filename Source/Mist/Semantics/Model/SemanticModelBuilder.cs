@@ -238,6 +238,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId UnknownHasNoDefault = new("MIST_SB_0057");
 
+    // ── Type alias diagnostic IDs (Task 5.3, Requirements 4.1–4.4, 5.4) ──
+
+    /// <summary>
+    /// A type alias forms a cycle (e.g., <c>type A = B; type B = A;</c>).
+    /// Detected during Pass 2 resolution using a visited-set. The alias is
+    /// assigned <see cref="Types.ErrorType"/> to prevent infinite loops.
+    /// </summary>
+    internal static readonly DiagnosticId CyclicTypeAlias = new("MIST_SB_0060");
+
+    /// <summary>
+    /// A type alias name is already defined in the same scope (Requirement 4.3).
+    /// </summary>
+    internal static readonly DiagnosticId DuplicateTypeAlias = new("MIST_SB_0061");
+
+    /// <summary>
+    /// The target type in a type alias declaration could not be resolved
+    /// (Requirement 4.4).
+    /// </summary>
+    internal static readonly DiagnosticId UnresolvedTypeAliasTarget = new("MIST_SB_0062");
+
     // ── Trait with-block diagnostic IDs (Task 4.1, Requirements 6.1–6.9) ──
 
     /// <summary>
@@ -678,6 +698,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             RegisterTypeDeclaration(typeDecl, currentScope, symbolTable, currentNamespace, sourceText, diagnostics);
                         }
 
+                        // Register type aliases in the file-scoped namespace body.
+                        var bodyTypeAliases = GetNamespaceBodyTypeAliases(nsDecl);
+                        foreach (var aliasDecl in bodyTypeAliases)
+                        {
+                            RegisterTypeAliasDeclaration(aliasDecl, currentScope, symbolTable, sourceText, diagnostics);
+                        }
+
                         // Register extension blocks in the file-scoped namespace body.
                         var bodyExtensions = GetNamespaceBodyExtensions(nsDecl);
                         foreach (var extDecl in bodyExtensions)
@@ -695,6 +722,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             RegisterTypeDeclaration(typeDecl, blockScope, symbolTable, declaredName, sourceText, diagnostics);
                         }
 
+                        // Register type aliases in the block namespace body.
+                        var blockTypeAliases = GetNamespaceBodyTypeAliases(nsDecl);
+                        foreach (var aliasDecl in blockTypeAliases)
+                        {
+                            RegisterTypeAliasDeclaration(aliasDecl, blockScope, symbolTable, sourceText, diagnostics);
+                        }
+
                         // Register extension blocks in the block namespace body.
                         var bodyExtensions = GetNamespaceBodyExtensions(nsDecl);
                         foreach (var extDecl in bodyExtensions)
@@ -708,6 +742,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     // Register type under the current namespace.
                     RegisterTypeDeclaration(typeItem.TypeDeclaration, currentScope, symbolTable, currentNamespace, sourceText, diagnostics);
+                    break;
+                }
+                case TypeAliasItemTopLevelItemNode typeAliasItem:
+                {
+                    // Register type alias under the current namespace.
+                    RegisterTypeAliasDeclaration(typeAliasItem.TypeAliasDeclaration, currentScope, symbolTable, sourceText, diagnostics);
                     break;
                 }
                 case WithItemTopLevelItemNode withItem:
@@ -952,6 +992,55 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Registers a type alias declaration as a symbol in the enclosing scope.
+    /// Reports <see cref="DuplicateTypeAlias"/> if the name already exists in scope.
+    /// </summary>
+    private static void RegisterTypeAliasDeclaration(
+        TypeAliasDeclarationNode aliasDecl,
+        Scope parentScope,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var aliasName = aliasDecl.Name.Lexeme;
+        var aliasSpan = ToMistSourceSpan(aliasDecl.Name.Span);
+
+        // Check for duplicate alias name in the same scope.
+        foreach (var member in parentScope.Members)
+        {
+            if (member.Name == aliasName)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    DuplicateTypeAlias.Value,
+                    DiagnosticSeverity.Error,
+                    $"Type alias '{aliasName}' is already defined in this scope.",
+                    aliasDecl,
+                    sourceText));
+                return;
+            }
+        }
+
+        // Extract type parameters (if generic alias).
+        var typeParams = ExtractTypeParameters(aliasDecl.TypeParams, aliasName, sourceText, diagnostics);
+
+        // Create the symbol with a null DeclaredType — it will be set in Pass 2
+        // after the target type reference is resolved.
+        var aliasSymbol = new Symbol(
+            aliasName,
+            SymbolKind.TypeAlias,
+            SymbolOrigin.UserCode,
+            parentScope,
+            declaredType: null,
+            aliasSpan);
+
+        // Store type parameters on the symbol for later resolution.
+        aliasSymbol.TypeParameters = typeParams;
+
+        parentScope.AddMember(aliasSymbol);
+        symbolTable.Register(aliasSymbol, aliasDecl);
     }
 
     /// <summary>
@@ -3174,6 +3263,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ClassType ct => ct.TypeParameters,
             StructType st => st.TypeParameters,
             InterfaceType it => it.TypeParameters,
+            TypeAliasType at => at.TypeParameters,
             _ => Array.Empty<TypeParameterType>(),
         };
     }
@@ -6583,10 +6673,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         ResolveTypeDeclaration(typeDecl, sectionFileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     }
+
+                    var namespaceTypeAliases = GetNamespaceBodyTypeAliases(nsDecl);
+                    foreach (var aliasDecl in namespaceTypeAliases)
+                    {
+                        ResolveTypeAliasDeclaration(aliasDecl, sectionFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                    }
                     break;
                 }
                 case TypeItemTopLevelItemNode typeItem:
                     ResolveTypeDeclaration(typeItem.TypeDeclaration, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    break;
+                case TypeAliasItemTopLevelItemNode typeAliasItem:
+                    ResolveTypeAliasDeclaration(typeAliasItem.TypeAliasDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                     break;
             }
         }
@@ -6617,6 +6716,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 };
 
                 var symbol = symbolTable.GetDeclaredSymbol(declNode);
+                if (symbol?.ContainingScope is Scope namespaceScope && namespaceScope.Parent == globalScope)
+                {
+                    return namespaceScope;
+                }
+            }
+            else if (item is TypeAliasItemTopLevelItemNode typeAliasItem)
+            {
+                var symbol = symbolTable.GetDeclaredSymbol(typeAliasItem.TypeAliasDeclaration);
                 if (symbol?.ContainingScope is Scope namespaceScope && namespaceScope.Parent == globalScope)
                 {
                     return namespaceScope;
@@ -6770,6 +6877,86 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case TraitTypeTypeDeclarationNode traitTypeNode:
                 ResolveTraitDeclaration(traitTypeNode.TraitDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 break;
+        }
+    }
+
+    // ── Type alias visited-set for cycle detection (Pass 2) ──────────────
+    [ThreadStatic]
+    private static HashSet<string>? _typeAliasResolutionStack;
+
+    /// <summary>
+    /// Resolves a type alias declaration's target type reference and constructs
+    /// a <see cref="TypeAliasType"/>. Detects cycles using a visited-set and
+    /// reports <see cref="CyclicTypeAlias"/> on cycle, assigning <see cref="ErrorType"/>.
+    /// Reports <see cref="UnresolvedTypeAliasTarget"/> if the target type cannot be resolved.
+    /// </summary>
+    private static void ResolveTypeAliasDeclaration(
+        TypeAliasDeclarationNode aliasDecl,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var aliasSymbol = symbolTable.GetDeclaredSymbol(aliasDecl) as Symbol;
+        if (aliasSymbol is null) return;
+
+        // If already resolved (e.g., resolved as a dependency of another alias), skip.
+        if (aliasSymbol.DeclaredType is not null) return;
+
+        var aliasName = aliasDecl.Name.Lexeme;
+
+        // Initialize the resolution stack if needed.
+        _typeAliasResolutionStack ??= new HashSet<string>();
+
+        // Check for cycles.
+        if (!_typeAliasResolutionStack.Add(aliasName))
+        {
+            // Cycle detected — report diagnostic and assign ErrorType.
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                CyclicTypeAlias.Value,
+                DiagnosticSeverity.Error,
+                $"Type alias '{aliasName}' forms a cycle.",
+                aliasDecl,
+                sourceText));
+            aliasSymbol.DeclaredType = ErrorType.Instance;
+            return;
+        }
+
+        try
+        {
+            // Resolve the target type reference.
+            var targetType = ResolveTypeReference(
+                aliasDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+            // Check if the resolved type is an error (unresolved).
+            if (targetType is ErrorType)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    UnresolvedTypeAliasTarget.Value,
+                    DiagnosticSeverity.Error,
+                    $"Type '{ExtractTypeReferenceName(aliasDecl.Type, sourceText)}' could not be resolved in type alias '{aliasName}'.",
+                    aliasDecl.Type,
+                    sourceText));
+                aliasSymbol.DeclaredType = ErrorType.Instance;
+                return;
+            }
+
+            // If the target resolves to another TypeAliasType, ensure it's fully resolved
+            // (handles transitive aliases like type A = B; type B = int;).
+            if (targetType is TypeAliasType aliasTarget)
+            {
+                targetType = aliasTarget.UnderlyingType;
+            }
+
+            // Construct the TypeAliasType.
+            var typeParams = aliasSymbol.TypeParameters;
+            var typeAliasType = new TypeAliasType(aliasName, targetType, typeParams);
+            aliasSymbol.DeclaredType = typeAliasType;
+        }
+        finally
+        {
+            _typeAliasResolutionStack.Remove(aliasName);
         }
     }
 
@@ -8890,8 +9077,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // 2. Search current scope → parent scopes (local → file → namespace → global).
         var symbol = fileScope.Lookup(typeName);
-        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait))
+        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.TypeAlias))
         {
+            // For type aliases that haven't been resolved yet, trigger
+            // recursive resolution so that cycle detection via
+            // _typeAliasResolutionStack can fire (Requirement 5.4).
+            if (symbol.Kind == SymbolKind.TypeAlias && symbol.DeclaredType is null)
+            {
+                var aliasNode = symbolTable.GetDeclaringNode(symbol) as TypeAliasDeclarationNode;
+                if (aliasNode is not null)
+                {
+                    ResolveTypeAliasDeclaration(aliasNode, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                }
+            }
             return symbol.DeclaredType ?? ErrorType.Instance;
         }
 
@@ -8918,7 +9116,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach (var member in nsScope.Members)
                 {
                     if (member.Name == typeName &&
-                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait))
+                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias))
                     {
                         if (userResolvedType is not null)
                         {
@@ -9004,6 +9202,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Validates arity and emits diagnostics for mismatches and non-generic types.
     /// Returns a <see cref="ConstructedType"/> if the type is generic with matching arity,
     /// or the original type with diagnostics if there's an error.
+    /// For type aliases, emits <c>MIST_SB_0063</c> on arity mismatch and returns
+    /// the underlying type (transparent resolution).
     /// </summary>
     private static IType ResolvePass2TypeArguments(
         IType resolvedType,
@@ -9037,6 +9237,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         if (resolvedTypeArgs.Count != typeParams.Count)
         {
+            // For type aliases, emit MIST_SB_0063 (Requirement 5.3).
+            if (resolvedType is TypeAliasType aliasType)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    "MIST_SB_0063",
+                    DiagnosticSeverity.Error,
+                    $"Type alias '{aliasType.Name}' expects {typeParams.Count} type argument(s) but was given {resolvedTypeArgs.Count}.",
+                    typeArgList,
+                    sourceText));
+                return ErrorType.Instance;
+            }
+
             // Arity mismatch — emit MIST_ARITY_MISMATCH.
             diagnostics.Add(MakeDiagnosticWithLocation(
                 DiagnosticId.ArityMismatch.Value,
@@ -9045,6 +9257,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 typeArgList,
                 sourceText));
             return ErrorType.Instance;
+        }
+
+        // For type aliases, return the underlying type (transparent resolution).
+        // Type argument substitution into the underlying type is handled by the
+        // TypeCheckerAnalyzer during its analysis pass.
+        if (resolvedType is TypeAliasType alias)
+        {
+            return alias.UnderlyingType;
         }
 
         return new ConstructedType(resolvedType, resolvedTypeArgs);
@@ -9106,7 +9326,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (wellKnown is null)
             {
                 var symbol = fileScope.Lookup(argName);
-                if (symbol is null || (symbol.Kind != SymbolKind.Class && symbol.Kind != SymbolKind.Struct && symbol.Kind != SymbolKind.Interface && symbol.Kind != SymbolKind.Trait))
+                if (symbol is null || (symbol.Kind != SymbolKind.Class && symbol.Kind != SymbolKind.Struct && symbol.Kind != SymbolKind.Interface && symbol.Kind != SymbolKind.Trait && symbol.Kind != SymbolKind.TypeAlias))
                 {
                     // Check user-defined namespace scopes first.
                     var importedNamespaces = CollectImportedNamespaces(fileScope);
@@ -9124,7 +9344,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             foreach (var member in nsScope.Members)
                             {
                                 if (member.Name == argName &&
-                                    (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait))
+                                    (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias))
                                 {
                                     userResolved = true;
                                     break;
@@ -10398,7 +10618,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Check scope chain for type symbols (local → file → namespace → global).
         var symbol = fileScope.Lookup(name);
-        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait))
+        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.TypeAlias))
         {
             return symbol.DeclaredType;
         }
@@ -10419,7 +10639,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach (var member in nsScope.Members)
                 {
                     if (member.Name == name &&
-                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait))
+                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias))
                     {
                         return member.DeclaredType;
                     }
@@ -10462,6 +10682,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (targetType is ErrorType)
         {
             return ErrorType.Instance;
+        }
+
+        // Type aliases are transparent — unwrap to the underlying type
+        // before member lookup so that alias-typed variables have full
+        // member access (Requirement 5.1).
+        if (targetType is TypeAliasType aliasTarget)
+        {
+            targetType = aliasTarget.UnderlyingType;
         }
 
         // For ConstructedType, unwrap to the generic definition and look up the member,
@@ -11654,6 +11882,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (item is NamespaceExtensionItemNamespaceBodyItemNode extensionItem)
             {
                 builder.Add(extensionItem.ExtensionDeclaration);
+            }
+        }
+        return builder.ToImmutable();
+    }
+
+    private static ImmutableArray<TypeAliasDeclarationNode> GetNamespaceBodyTypeAliases(
+        NamespaceDeclarationNode namespaceNode)
+    {
+        var bodyItems = namespaceNode switch
+        {
+            FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
+            BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
+            _ => ImmutableArray<NamespaceBodyItemNode>.Empty
+        };
+
+        var builder = ImmutableArray.CreateBuilder<TypeAliasDeclarationNode>();
+        foreach (var item in bodyItems)
+        {
+            if (item is NamespaceTypeAliasItemNamespaceBodyItemNode typeAliasItem)
+            {
+                builder.Add(typeAliasItem.TypeAliasDeclaration);
             }
         }
         return builder.ToImmutable();

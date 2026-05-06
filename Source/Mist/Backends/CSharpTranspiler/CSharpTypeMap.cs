@@ -146,6 +146,11 @@ internal static class CSharpTypeMap
     /// </remarks>
     public static string GetTypeName(IType type, bool isValueContext = false) => type switch
     {
+        // Defensive: type aliases are resolved transparently during type checking,
+        // so a TypeAliasType should never reach the type map. If one does leak
+        // through, resolve to the underlying type and delegate to existing logic.
+        TypeAliasType alias => GetTypeName(alias.UnderlyingType, isValueContext),
+
         // Union types lower to the generated helper struct name.
         UnionType ut => UnionHelperGenerator.GetHelperTypeName(ut),
 

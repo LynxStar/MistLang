@@ -1,0 +1,107 @@
+// TypeAliases — Demonstrates type alias features in Mist.
+//
+// This sample showcases:
+//   1. Simple type aliases (renaming a primitive type)
+//   2. Union type aliases
+//   3. Aliases to closed generic types
+//   4. Aliases are transparent — interchangeable with underlying type
+
+using System;
+
+namespace TypeAliases;
+
+// --- Simple type aliases ---
+type UserId = int;
+type UserName = string;
+type Score = double;
+type Flag = bool;
+
+// --- Union type aliases ---
+type StringOrInt = int | string;
+type Outcome = int | string | bool;
+
+// --- Aliases to closed generic types ---
+type IntBox = GenericBox<int>;
+type StringBox = GenericBox<string>;
+
+// A simple generic class for demonstrating closed generic aliases.
+public class GenericBox<T>
+{
+    public T value;
+
+    public GenericBox(T v)
+    {
+        this.value = v;
+    }
+
+    public T GetValue()
+    {
+        return this.value;
+    }
+
+    public string Describe()
+    {
+        return $"Box({this.value})";
+    }
+}
+
+public class Program
+{
+    // Method using simple alias parameter
+    private static void PrintUserId(UserId id)
+    {
+        Console.WriteLine($"  User ID: {id}");
+    }
+
+    // Method with alias return type
+    private static UserName GetDefaultName()
+    {
+        return "Anonymous";
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Type Aliases Sample ===");
+
+        // 1. Simple type aliases in variable declarations
+        Console.WriteLine("--- Simple aliases ---");
+        UserId id = 42;
+        UserName name = "Alice";
+        Score score = 98.5;
+        Flag active = true;
+        Console.WriteLine($"id={id} name={name} score={score} active={active}");
+
+        // 2. Aliases are transparent — assignable to/from underlying type
+        Console.WriteLine("--- Transparency ---");
+        int rawId = id;
+        UserId aliasedId = 100;
+        string rawName = name;
+        Console.WriteLine($"rawId={rawId} aliasedId={aliasedId} rawName={rawName}");
+
+        // 3. Aliases in method parameters and return types
+        Console.WriteLine("--- Methods ---");
+        Program.PrintUserId(7);
+        Program.PrintUserId(aliasedId);
+        UserName defaultName = Program.GetDefaultName();
+        Console.WriteLine($"defaultName={defaultName}");
+
+        // 4. Union type aliases
+        Console.WriteLine("--- Union aliases ---");
+        StringOrInt x = 42;
+        StringOrInt y = "hello";
+        Console.WriteLine($"x=42 y=hello");
+        Outcome r1 = 99;
+        Outcome r2 = "success";
+        Outcome r3 = true;
+        Console.WriteLine($"r1=99 r2=success r3=True");
+
+        // 5. Closed generic aliases
+        Console.WriteLine("--- Closed generic aliases ---");
+        IntBox intBox = new GenericBox<int>(42);
+        StringBox strBox = new GenericBox<string>("Mist");
+        Console.WriteLine($"intBox={intBox.Describe()} strBox={strBox.Describe()}");
+        Console.WriteLine($"intBox.value={intBox.GetValue()} strBox.value={strBox.GetValue()}");
+
+        Console.WriteLine("Done!");
+    }
+}

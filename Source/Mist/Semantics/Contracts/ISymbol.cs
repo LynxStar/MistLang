@@ -29,6 +29,7 @@ public enum SymbolKind
     Struct,
     Interface,
     Trait,
+    TypeAlias,
     Field,
     Constructor,
     Method,

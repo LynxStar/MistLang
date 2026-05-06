@@ -34,6 +34,9 @@ token AS    = "as";
 // Extension-related keywords
 token EXTENSION = "extension";
 
+// Type alias keywords
+token TYPE = "type";
+
 // Property-related keywords
 token GET   = "get";
 token SET   = "set";

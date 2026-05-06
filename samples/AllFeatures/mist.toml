@@ -38,3 +38,6 @@ path = "../TypeUnions"
 
 [[references]]
 path = "../ExtensionMethods"
+
+[[references]]
+path = "../TypeAliases"

@@ -2744,6 +2744,16 @@ internal sealed class CSharpSourceWriter
                     return "void";
                 }
 
+                // Check if this named type is a stdlib type that maps to a
+                // C# fully-qualified name (e.g., "Type" → "System.Type").
+                // This ensures stdlib types emit correctly without requiring
+                // a `using` directive in the generated C#.
+                var mappedName = CSharpTypeMap.TryGetMappedName(name);
+                if (mappedName is not null && namedRef.TypeArgs is null)
+                {
+                    return namedRef.ArrayRank.HasValue ? $"{mappedName}[]" : mappedName;
+                }
+
                 // Closed_Generic_With_Unknown emission (Task 31 revised,
                 // Req 15.1/15.2): any named type whose type-argument list
                 // transitively contains `unknown` lowers to C# `dynamic`.
@@ -4134,6 +4144,15 @@ internal sealed class CSharpSourceWriter
                 }
 
                 var args = EmitArgumentList(methodCall.Arguments);
+
+                // Check if this is an intrinsic static method call (e.g., Type.Of(x) → x.GetType()).
+                // The target is a type name; check if it maps to a stdlib type with an intrinsic.
+                var intrinsicStaticTemplate = TryGetIntrinsicStaticMethodTemplate(target, name, methodCall.Arguments);
+                if (intrinsicStaticTemplate is not null)
+                {
+                    return intrinsicStaticTemplate;
+                }
+
                 return $"{target}.{name}{typeArgs}({args})";
             }
             case MemberAccessSuffixPostfixSuffixNode memberAccess:
@@ -4179,6 +4198,48 @@ internal sealed class CSharpSourceWriter
             return declaredSymbol;
         }
         return null;
+    }
+
+    /// <summary>
+    /// Checks if a static method call on a type name is an intrinsic that should
+    /// be rewritten. For example, <c>Type.Of(x)</c> → <c>x.GetType()</c>.
+    /// Returns the rewritten C# expression, or null if not an intrinsic.
+    /// </summary>
+    private string? TryGetIntrinsicStaticMethodTemplate(string target, string methodName, ArgumentListNode? arguments)
+    {
+        // Map common Mist type names to their fully-qualified stdlib form.
+        // The target may already be the C# form (e.g., "System.Type") due to
+        // CSharpTypeMap remapping, or it may be the Mist name (e.g., "Type").
+        var stdlibType = target switch
+        {
+            "Type" or "System.Type" => "Standard.Type",
+            _ => null,
+        };
+
+        if (stdlibType is null)
+            return null;
+
+        // Build parameter type list for lookup.
+        // For now, use "unknown" for unknown-typed parameters since that's
+        // how Type.Of is declared.
+        var paramTypes = new List<string>();
+        if (arguments is not null)
+        {
+            paramTypes.Add("unknown");
+        }
+
+        var template = _intrinsicRegistry.TryGetStaticMethod(stdlibType, methodName, paramTypes);
+        if (template is null)
+            return null;
+
+        // Emit arguments and substitute into the template.
+        if (arguments is not null)
+        {
+            var arg0 = EmitExpression(arguments.Expression);
+            return string.Format(template.Template, arg0);
+        }
+
+        return string.Format(template.Template);
     }
 
     private string EmitPrimary(PrimaryNode primary)

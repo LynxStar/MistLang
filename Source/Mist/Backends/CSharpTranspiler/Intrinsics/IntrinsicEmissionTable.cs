@@ -20,6 +20,7 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
     private static readonly Dictionary<string, IntrinsicEmissionTemplate> BinaryOperators = BuildBinaryOperators();
     private static readonly Dictionary<string, IntrinsicEmissionTemplate> UnaryOperators = BuildUnaryOperators();
     private static readonly Dictionary<string, IntrinsicEmissionTemplate> InstanceMethods = BuildInstanceMethods();
+    private static readonly Dictionary<string, IntrinsicEmissionTemplate> StaticMethods = BuildStaticMethods();
     private static readonly Dictionary<string, IntrinsicEmissionTemplate> Constructors = new(StringComparer.Ordinal);
 
     private static Dictionary<string, IntrinsicEmissionTemplate> BuildBinaryOperators()
@@ -44,6 +45,13 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
     {
         var dict = new Dictionary<string, IntrinsicEmissionTemplate>(StringComparer.Ordinal);
         PopulateInstanceMethods(dict);
+        return dict;
+    }
+
+    private static Dictionary<string, IntrinsicEmissionTemplate> BuildStaticMethods()
+    {
+        var dict = new Dictionary<string, IntrinsicEmissionTemplate>(StringComparer.Ordinal);
+        PopulateStaticMethods(dict);
         return dict;
     }
 
@@ -165,6 +173,19 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
         // Array instance methods — keyed as "Standard.Array" (generic but the
         // key works with just the base type name)
         dict["Standard.Array:Length()"] = new IntrinsicEmissionTemplate("{0}.Length");
+
+        // Type instance members
+        dict["Standard.Type:Name()"] = new IntrinsicEmissionTemplate("{0}.Name");
+    }
+
+    /// <summary>
+    /// Registers intrinsic static methods: Type.Of(unknown) → value.GetType().
+    /// </summary>
+    private static void PopulateStaticMethods(Dictionary<string, IntrinsicEmissionTemplate> dict)
+    {
+        // Type.Of(value) lowers to value.GetType() in C#.
+        // {0} is the first argument (the unknown value).
+        dict["Standard.Type:Of(unknown)"] = new IntrinsicEmissionTemplate("{0}.GetType()");
     }
 
     // ── IIntrinsicEmissionRegistry implementation ────────────────────────
@@ -205,5 +226,13 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
         // No intrinsic cast operators are registered yet — the stdlib can add
         // numeric conversion operators in a future iteration.
         return null;
+    }
+
+    /// <inheritdoc />
+    public IntrinsicEmissionTemplate? TryGetStaticMethod(string declaringType, string method, IReadOnlyList<string> paramTypes)
+    {
+        var paramList = paramTypes.Count > 0 ? string.Join(",", paramTypes) : "";
+        var key = $"{declaringType}:{method}({paramList})";
+        return StaticMethods.TryGetValue(key, out var template) ? template : null;
     }
 }

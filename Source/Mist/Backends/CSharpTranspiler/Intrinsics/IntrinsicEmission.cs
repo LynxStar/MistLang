@@ -56,4 +56,13 @@ internal interface IIntrinsicEmissionRegistry
     /// <param name="targetType">The target type name of the cast (e.g., <c>"long"</c>).</param>
     /// <returns>The template, or <c>null</c> if no intrinsic cast is registered.</returns>
     IntrinsicEmissionTemplate? TryGetCastOperator(string declaringType, string targetType);
+
+    /// <summary>
+    /// Looks up the emission template for an intrinsic static method on a stdlib type.
+    /// </summary>
+    /// <param name="declaringType">Fully-qualified Mist type name (e.g., <c>"Standard.Type"</c>).</param>
+    /// <param name="method">Method name (e.g., <c>"Of"</c>).</param>
+    /// <param name="paramTypes">Parameter type names for overload disambiguation.</param>
+    /// <returns>The template, or <c>null</c> if no intrinsic is registered.</returns>
+    IntrinsicEmissionTemplate? TryGetStaticMethod(string declaringType, string method, IReadOnlyList<string> paramTypes);
 }

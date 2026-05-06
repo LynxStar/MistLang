@@ -565,11 +565,12 @@ public class Program {
             }
             else
             {
-                // Instance method — extract parameter types from the symbol's
+                // Method — extract parameter types from the symbol's
                 // method scope. Parameters are registered as Parameter-kind
                 // symbols in the scope that the method owns.
                 var paramTypes = ExtractParameterTypeNames(intrinsicSymbol, model);
-                template = registry.TryGetInstanceMethod(declaringType, name, paramTypes);
+                template = registry.TryGetInstanceMethod(declaringType, name, paramTypes)
+                        ?? registry.TryGetStaticMethod(declaringType, name, paramTypes);
             }
 
             if (template is null)

@@ -9259,12 +9259,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return ErrorType.Instance;
         }
 
-        // For type aliases, return the underlying type (transparent resolution).
-        // Type argument substitution into the underlying type is handled by the
-        // TypeCheckerAnalyzer during its analysis pass.
+        // For type aliases, substitute type arguments into the underlying type
+        // and return the result (transparent resolution). This ensures that
+        // `Box<int>` where `type Box<T> = GenericBox<T>` resolves to
+        // `GenericBox<int>` (a ConstructedType with concrete type arguments).
         if (resolvedType is TypeAliasType alias)
         {
-            return alias.UnderlyingType;
+            var underlying = alias.UnderlyingType;
+            // Substitute each type parameter with the corresponding type argument.
+            return SubstituteTypeInMember(underlying, alias.TypeParameters, resolvedTypeArgs);
         }
 
         return new ConstructedType(resolvedType, resolvedTypeArgs);

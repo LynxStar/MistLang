@@ -2649,6 +2649,42 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
+    /// Resolves a type alias for C# emission. For non-generic aliases, returns
+    /// the C# name of the underlying type directly. For generic aliases with
+    /// type arguments on the reference node, substitutes the type arguments
+    /// into the underlying type before emitting.
+    /// </summary>
+    private string ResolveAliasForEmission(
+        TypeAliasType aliasType,
+        NamedTypeRefTypeReferenceNode namedRef,
+        bool isValueContext)
+    {
+        var underlying = aliasType.UnderlyingType;
+
+        // Non-generic alias or no type arguments provided — emit underlying directly.
+        if (aliasType.TypeParameters.Count == 0 || namedRef.TypeArgs is null)
+        {
+            return CSharpTypeMap.GetTypeName(underlying, isValueContext);
+        }
+
+        // Generic alias with type arguments — emit the underlying type's generic
+        // definition with the substituted type arguments from the reference site.
+        // e.g., `Box<int>` where `type Box<T> = GenericBox<T>` → `GenericBox<int>`
+        if (underlying is ConstructedType ct)
+        {
+            // Emit the generic definition name and substitute type args.
+            var defName = CSharpTypeMap.GetTypeName(ct.GenericDefinition, isValueContext);
+            var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs);
+            return $"{defName}{typeArgs}";
+        }
+
+        // Fallback: emit the underlying type with the type arguments appended.
+        var baseName = CSharpTypeMap.GetTypeName(underlying, isValueContext);
+        var args = EmitTypeArgumentList(namedRef.TypeArgs);
+        return $"{baseName}{args}";
+    }
+
+    /// <summary>
     /// Returns <c>true</c> if the parameter list contains a type reference that
     /// resolves to a type alias. Type aliases must be rewritten to their underlying
     /// type in C# output, so the source-text fast-path cannot be used.
@@ -2871,16 +2907,16 @@ internal sealed class CSharpSourceWriter
                 var resolvedType = _model.GetTypeOf(namedRef);
                 if (resolvedType is TypeAliasType aliasFromExprMap)
                 {
-                    var csharpName = CSharpTypeMap.GetTypeName(aliasFromExprMap.UnderlyingType, isValueContext);
-                    return namedRef.ArrayRank.HasValue ? $"{csharpName}[]" : csharpName;
+                    var emittedType = ResolveAliasForEmission(aliasFromExprMap, namedRef, isValueContext);
+                    return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
                 }
                 // Fallback: search all symbols for a type alias with this name.
                 var aliasSymbol = _model.AllSymbols
                     .FirstOrDefault(s => s.Name == name && s.Kind == SymbolKind.TypeAlias);
                 if (aliasSymbol?.DeclaredType is TypeAliasType aliasType)
                 {
-                    var csharpName = CSharpTypeMap.GetTypeName(aliasType.UnderlyingType, isValueContext);
-                    return namedRef.ArrayRank.HasValue ? $"{csharpName}[]" : csharpName;
+                    var emittedType = ResolveAliasForEmission(aliasType, namedRef, isValueContext);
+                    return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
                 }
 
                 // Handle "Void" identifier as equivalent to the void keyword.
@@ -4426,6 +4462,35 @@ internal sealed class CSharpSourceWriter
             {
                 var type = ExtractQualifiedName(objCreation.Type);
                 var typeArgs = EmitTypeArgumentList(objCreation.TypeArgs);
+
+                // Type aliases are transparent — resolve to the underlying type name
+                // for object creation expressions (e.g., `new IntBox(42)` → `new GenericBox<int>(42)`).
+                var aliasSymbol = _model.AllSymbols
+                    .FirstOrDefault(s => s.Name == type && s.Kind == SymbolKind.TypeAlias);
+                if (aliasSymbol?.DeclaredType is TypeAliasType objAlias)
+                {
+                    var underlying = objAlias.UnderlyingType;
+                    if (objCreation.TypeArgs is not null && objAlias.TypeParameters.Count > 0)
+                    {
+                        // Generic alias with type arguments: emit definition + substituted args.
+                        if (underlying is ConstructedType ct)
+                        {
+                            type = CSharpTypeMap.GetTypeName(ct.GenericDefinition);
+                        }
+                        else
+                        {
+                            type = CSharpTypeMap.GetTypeName(underlying);
+                            typeArgs = "";
+                        }
+                    }
+                    else
+                    {
+                        // Non-generic alias or closed generic alias: emit the full resolved type.
+                        type = CSharpTypeMap.GetTypeName(underlying);
+                        typeArgs = "";
+                    }
+                }
+
                 var args = EmitArgumentList(objCreation.Arguments);
                 return $"new {type}{typeArgs}({args})";
             }

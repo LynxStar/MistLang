@@ -5249,6 +5249,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (createdType is null || IsErrorType(createdType))
             return;
 
+        // Type aliases are transparent — unwrap to the underlying type
+        // so constructor lookup finds the actual class/struct constructors.
+        if (createdType is TypeAliasType aliasCreated)
+            createdType = aliasCreated.UnderlyingType;
+
         // ── unknown-type storage ban on `new` (Task 12.1, 12.2) ──────────
         // Two guards, checked before constructor lookup because the
         // constructor lookup would fail anyway (UnknownType has no members

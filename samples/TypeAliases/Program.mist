@@ -4,7 +4,9 @@
 //   1. Simple type aliases (renaming a primitive type)
 //   2. Union type aliases
 //   3. Aliases to closed generic types
-//   4. Aliases are transparent — interchangeable with underlying type
+//   4. Generic aliases with type parameters used in the type expression
+//   5. Aliases are transparent — interchangeable with underlying type
+//   6. Constructing objects via alias names
 
 using System;
 
@@ -24,7 +26,10 @@ type Outcome = int | string | bool;
 type IntBox = GenericBox<int>;
 type StringBox = GenericBox<string>;
 
-// A simple generic class for demonstrating closed generic aliases.
+// --- Generic alias with type parameter used in the type expression ---
+type Box<T> = GenericBox<T>;
+
+// A simple generic class for demonstrating generic aliases.
 public class GenericBox<T>
 {
     public T value;
@@ -95,12 +100,19 @@ public class Program
         Outcome r3 = true;
         Console.WriteLine($"r1=99 r2=success r3=True");
 
-        // 5. Closed generic aliases
+        // 5. Closed generic aliases — construct via alias name
         Console.WriteLine("--- Closed generic aliases ---");
-        IntBox intBox = new GenericBox<int>(42);
-        StringBox strBox = new GenericBox<string>("Mist");
+        IntBox intBox = new IntBox(42);
+        StringBox strBox = new StringBox("Mist");
         Console.WriteLine($"intBox={intBox.Describe()} strBox={strBox.Describe()}");
         Console.WriteLine($"intBox.value={intBox.GetValue()} strBox.value={strBox.GetValue()}");
+
+        // 6. Generic alias with type parameter — construct via alias name
+        Console.WriteLine("--- Generic alias with type param ---");
+        Box<int> boxInt = new Box<int>(7);
+        Box<string> boxStr = new Box<string>("world");
+        Console.WriteLine($"boxInt={boxInt.Describe()} boxStr={boxStr.Describe()}");
+        Console.WriteLine($"boxInt.value={boxInt.GetValue()} boxStr.value={boxStr.GetValue()}");
 
         Console.WriteLine("Done!");
     }

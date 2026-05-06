@@ -193,5 +193,8 @@ r1=99 r2=success r3=True
 --- Closed generic aliases ---
 intBox=Box(42) strBox=Box(Mist)
 intBox.value=42 strBox.value=Mist
+--- Generic alias with type param ---
+boxInt=Box(7) boxStr=Box(world)
+boxInt.value=7 boxStr.value=world
 Done!
 === Done! ===

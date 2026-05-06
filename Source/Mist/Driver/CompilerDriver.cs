@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Mist.Analysis;
 using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
@@ -22,19 +23,22 @@ public sealed class CompilerDriver : ICompilerDriver
     private ISemanticModelBuilder semanticModelBuilder;
     private ImmutableArray<IAnalyzer> analyzers;
     private ImmutableDictionary<string, IBackend> backends;
+    private readonly ICompilationProgressReporter progressReporter;
 
     public CompilerDriver(
         ILexer lexer,
         IParser parser,
         ISemanticModelBuilder semanticModelBuilder,
         ImmutableArray<IAnalyzer> analyzers,
-        ImmutableArray<IBackend> backends)
+        ImmutableArray<IBackend> backends,
+        ICompilationProgressReporter? progressReporter = null)
     {
         this.lexer = lexer;
         this.parser = parser;
         this.semanticModelBuilder = semanticModelBuilder;
         this.analyzers = analyzers;
         this.backends = backends.ToImmutableDictionary(b => b.Id.Value);
+        this.progressReporter = progressReporter ?? NullProgressReporter.Instance;
     }
 
     public CompilerResult Compile(CompilerOptions options)
@@ -55,6 +59,10 @@ public sealed class CompilerDriver : ICompilerDriver
 
             return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
         }
+
+        // Stage 1: Loading
+        var loadingStopwatch = Stopwatch.StartNew();
+        progressReporter.ReportStageStart(1, "Loading");
 
         // Step 1: Load source files into CompilationUnits
         var userUnits = ImmutableArray.CreateBuilder<CompilationUnit>();
@@ -195,7 +203,21 @@ public sealed class CompilerDriver : ICompilerDriver
 
         var compilation = new MistCompilation(combinedUnits.ToImmutable());
 
-        // Step 2: Lex each compilation unit
+        loadingStopwatch.Stop();
+        var stdlibCount = compilation.Units.Count(u => u.IsStdlib);
+        var refCount = compilation.Units.Count(u => !u.IsStdlib && u.OriginProjectPath is not null);
+        var userFileCount = compilation.Units.Count(u => !u.IsStdlib && u.OriginProjectPath is null);
+        progressReporter.ReportStageComplete(1, loadingStopwatch.Elapsed, new[]
+        {
+            $"{stdlibCount} stdlib files",
+            $"{refCount} referenced project files",
+            $"{userFileCount} user files",
+        });
+
+        // Stage 2: Lexing
+        var lexingStopwatch = Stopwatch.StartNew();
+        progressReporter.ReportStageStart(2, "Lexing");
+
         var tokenStreams = new Dictionary<CompilationUnit, TokenStream>();
         foreach(var unit in compilation.Units)
         {
@@ -214,7 +236,17 @@ public sealed class CompilerDriver : ICompilerDriver
             // If lex errors, skip parse for this unit (R16.3)
         }
 
-        // Step 3: Parse each successfully-lexed unit
+        lexingStopwatch.Stop();
+        var totalTokens = tokenStreams.Values.Sum(ts => ts.DefaultChannelTokens.Length);
+        progressReporter.ReportStageComplete(2, lexingStopwatch.Elapsed, new[]
+        {
+            $"{totalTokens} tokens",
+        });
+
+        // Stage 3: Parsing
+        var parsingStopwatch = Stopwatch.StartNew();
+        progressReporter.ReportStageStart(3, "Parsing");
+
         var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
         foreach(var (unit, tokenStream) in tokenStreams)
         {
@@ -238,7 +270,17 @@ public sealed class CompilerDriver : ICompilerDriver
             // If parse errors, exclude AST from semantic model (R16.4)
         }
 
-        // Step 4: Build semantic model
+        parsingStopwatch.Stop();
+        var totalNodes = asts.Sum(root => SyntaxTreeMetrics.CountNodes(root));
+        progressReporter.ReportStageComplete(3, parsingStopwatch.Elapsed, new[]
+        {
+            $"{totalNodes} AST nodes",
+        });
+
+        // Stage 4: Semantic Model
+        var semanticStopwatch = Stopwatch.StartNew();
+        progressReporter.ReportStageStart(4, "Semantic Model");
+
         var ambientTypeResolver = backend.GetAmbientTypeResolver();
         var semanticBag = new DiagnosticBag();
         ISemanticModel? semanticModel;
@@ -258,6 +300,15 @@ public sealed class CompilerDriver : ICompilerDriver
                 AnalyzerName: null));
             semanticModel = null;
         }
+
+        semanticStopwatch.Stop();
+        var topLevelConstructs = semanticModel?.AllSymbols.Count(s =>
+            s.Origin == SymbolOrigin.UserCode &&
+            s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Trait) ?? 0;
+        progressReporter.ReportStageComplete(4, semanticStopwatch.Elapsed, new[]
+        {
+            $"{topLevelConstructs} top-level constructs",
+        });
 
         foreach(var d in semanticBag.ToImmutableArray())
         {
@@ -279,29 +330,49 @@ public sealed class CompilerDriver : ICompilerDriver
             return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
         }
 
-        // Step 5: Run analyzers
+        // Stage 5: Analysis
+        var analysisStopwatch = Stopwatch.StartNew();
+        progressReporter.ReportStageStart(5, "Analysis");
+
         var filteredAnalyzers = options.EnabledAnalyzerIds.IsEmpty
             ? analyzers
             : analyzers.Where(a => options.EnabledAnalyzerIds.Contains(a.AnalyzerId)).ToImmutableArray();
 
         var runner = new AnalyzerRunner(filteredAnalyzers);
-        var analyzerDiagnostics = runner.RunAll(semanticModel);
+        var analyzerResult = runner.RunAll(semanticModel);
 
-        foreach(var d in analyzerDiagnostics)
+        analysisStopwatch.Stop();
+        var analyzerDetails = analyzerResult.Timings
+            .Select(entry => $"{entry.AnalyzerId}  {entry.Elapsed.TotalSeconds:F2}s")
+            .ToArray();
+        progressReporter.ReportStageComplete(5, analysisStopwatch.Elapsed, analyzerDetails);
+
+        foreach(var d in analyzerResult.Diagnostics)
         {
             allDiagnostics.Add(d);
         }
 
-        if(analyzerDiagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+        if(analyzerResult.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
         {
             // Skip backend if analyzer errors (R13.6)
             return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
         }
 
-        // Step 6: Emit via backend
+        // Stage 6: Emit via backend
+        var emitStopwatch = Stopwatch.StartNew();
+        progressReporter.ReportStageStart(6, "Emit");
+
         var backendBag = new DiagnosticBag();
         var projectName = options.ProjectName;
         var backendResult = backend.Emit(semanticModel, options.OutputDirectory, options.BinDirectory, projectName, backendBag);
+
+        emitStopwatch.Stop();
+        var emitDetails = new List<string> { $"{backendResult.EmittedFileCount} .cs files written" };
+        if (backendResult.PrimaryArtifactPath is not null)
+        {
+            emitDetails.Add(backendResult.PrimaryArtifactPath);
+        }
+        progressReporter.ReportStageComplete(6, emitStopwatch.Elapsed, emitDetails);
 
         foreach(var d in backendBag.ToImmutableArray())
         {

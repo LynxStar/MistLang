@@ -36,8 +36,13 @@ public sealed class CSharpTranspilerBackend : IBackend
                     Diagnostics: bag.ToImmutableArray());
             }
 
+            // Count emitted .cs files for progress reporting
+            var emittedFileCount = Directory.Exists(outputDirectory)
+                ? Directory.GetFiles(outputDirectory, "*.cs", SearchOption.AllDirectories).Length
+                : 0;
+
             // Step 2: Compile the emitted C# project
-            var compileResult = CSharpCompilationDriver.Compile(outputDirectory, binDirectory, projectName, bag);
+            var compileResult = CSharpCompilationDriver.Compile(outputDirectory, binDirectory, projectName, bag, emittedFileCount);
 
             return compileResult;
         }

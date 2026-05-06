@@ -5,6 +5,7 @@ using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.CLI.Args;
+using Mist.CLI.Output;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -48,6 +49,9 @@ internal class Program
 
     private static int RunBuildPipeline(CliArguments cliArgs)
     {
+        var reporter = new ConsoleProgressReporter(Console.Out);
+        var totalStopwatch = Stopwatch.StartNew();
+
         // Discover all .mist source files from the project folder, sorted ordinally.
         var sourceFiles = Directory.EnumerateFiles(cliArgs.ProjectFolder, "*.mist", SearchOption.AllDirectories)
             .OrderBy(f => f, StringComparer.Ordinal)
@@ -59,7 +63,10 @@ internal class Program
             return 1;
         }
 
-        // Clean output and bin directories before build.
+        // Stage 0: Cleaning
+        reporter.ReportStageStart(0, "Cleaning");
+        var cleanStopwatch = Stopwatch.StartNew();
+
         try
         {
             CleanDirectory(cliArgs.OutputDirectory);
@@ -71,10 +78,17 @@ internal class Program
             return 1;
         }
 
+        cleanStopwatch.Stop();
+        reporter.ReportStageComplete(0, cleanStopwatch.Elapsed, new[]
+        {
+            $"Cleaned {cliArgs.OutputDirectory}",
+            $"Cleaned {cliArgs.BinDirectory}",
+        });
+
         return cliArgs.Mode switch
         {
             CompilerMode.Lex => RunLexMode(sourceFiles, cliArgs.OutputDirectory),
-            _ => RunCompileMode(sourceFiles, cliArgs),
+            _ => RunCompileMode(sourceFiles, cliArgs, reporter, totalStopwatch),
         };
     }
 
@@ -173,9 +187,16 @@ internal class Program
         return hasErrors ? 1 : 0;
     }
 
-    private static int RunCompileMode(List<string> sourceFiles, CliArguments cliArgs)
+    private static int RunCompileMode(List<string> sourceFiles, CliArguments cliArgs, ConsoleProgressReporter reporter, Stopwatch totalStopwatch)
     {
-        var result = CompileProject(sourceFiles, cliArgs);
+        var result = CompileProject(sourceFiles, cliArgs, reporter);
+
+        // Compute error/warning counts from diagnostics
+        var errorCount = result.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
+        var warningCount = result.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
+
+        totalStopwatch.Stop();
+        reporter.ReportBuildSummary(result.Succeeded, errorCount, warningCount, totalStopwatch.Elapsed);
 
         // Format diagnostics to stderr
         foreach(var diagnostic in result.Diagnostics)
@@ -187,7 +208,7 @@ internal class Program
         return result.Succeeded ? 0 : 1;
     }
 
-    private static CompilerResult CompileProject(List<string> sourceFiles, CliArguments cliArgs)
+    private static CompilerResult CompileProject(List<string> sourceFiles, CliArguments cliArgs, ICompilationProgressReporter? progressReporter = null)
     {
         // Parse the project file to get the project name
         var parseDiagnostics = new DiagnosticBag();
@@ -216,7 +237,7 @@ internal class Program
         ImmutableArray<IAnalyzer> analyzers = [new TypeCheckerAnalyzer()];
         ImmutableArray<IBackend> backends = [new CSharpTranspilerBackend()];
 
-        var driver = new CompilerDriver(lexer, parser, semanticModelBuilder, analyzers, backends);
+        var driver = new CompilerDriver(lexer, parser, semanticModelBuilder, analyzers, backends, progressReporter);
 
         // Run compilation
         return driver.Compile(options);
@@ -224,6 +245,9 @@ internal class Program
 
     private static int RunRunCommand(CliArguments cliArgs)
     {
+        var reporter = new ConsoleProgressReporter(Console.Out);
+        var totalStopwatch = Stopwatch.StartNew();
+
         // Discover all .mist source files from the project folder, sorted ordinally.
         var sourceFiles = Directory.EnumerateFiles(cliArgs.ProjectFolder, "*.mist", SearchOption.AllDirectories)
             .OrderBy(f => f, StringComparer.Ordinal)
@@ -235,7 +259,10 @@ internal class Program
             return 1;
         }
 
-        // Clean output and bin directories before build.
+        // Stage 0: Cleaning
+        reporter.ReportStageStart(0, "Cleaning");
+        var cleanStopwatch = Stopwatch.StartNew();
+
         try
         {
             CleanDirectory(cliArgs.OutputDirectory);
@@ -247,8 +274,22 @@ internal class Program
             return 1;
         }
 
+        cleanStopwatch.Stop();
+        reporter.ReportStageComplete(0, cleanStopwatch.Elapsed, new[]
+        {
+            $"Cleaned {cliArgs.OutputDirectory}",
+            $"Cleaned {cliArgs.BinDirectory}",
+        });
+
         // Compile the project
-        var result = CompileProject(sourceFiles, cliArgs);
+        var result = CompileProject(sourceFiles, cliArgs, reporter);
+
+        // Compute error/warning counts from diagnostics
+        var errorCount = result.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
+        var warningCount = result.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
+
+        totalStopwatch.Stop();
+        reporter.ReportBuildSummary(result.Succeeded, errorCount, warningCount, totalStopwatch.Elapsed);
 
         // On build failure, print diagnostics and return non-zero
         if(!result.Succeeded)

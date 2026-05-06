@@ -1,9 +1,16 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Mist.Analysis.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Semantics.Contracts;
 
 namespace Mist.Analysis;
+
+public sealed record AnalyzerTimingEntry(string AnalyzerId, TimeSpan Elapsed);
+
+public sealed record AnalyzerRunResult(
+    ImmutableArray<Diagnostic> Diagnostics,
+    ImmutableArray<AnalyzerTimingEntry> Timings);
 
 /// <summary>
 /// Runs all registered analyzers against a semantic model, catching unhandled
@@ -18,12 +25,14 @@ public sealed class AnalyzerRunner
         _analyzers = analyzers;
     }
 
-    public ImmutableArray<Diagnostic> RunAll(ISemanticModel model)
+    public AnalyzerRunResult RunAll(ISemanticModel model)
     {
         var bag = new DiagnosticBag();
+        var timings = ImmutableArray.CreateBuilder<AnalyzerTimingEntry>();
 
         foreach(var analyzer in _analyzers)
         {
+            var sw = Stopwatch.StartNew();
             try
             {
                 analyzer.Analyze(model, bag);
@@ -39,8 +48,10 @@ public sealed class AnalyzerRunner
                     CompilationUnitPath: null,
                     AnalyzerName: analyzer.AnalyzerId));
             }
+            sw.Stop();
+            timings.Add(new AnalyzerTimingEntry(analyzer.AnalyzerId, sw.Elapsed));
         }
 
-        return bag.ToImmutableArray();
+        return new AnalyzerRunResult(bag.ToImmutableArray(), timings.ToImmutable());
     }
 }

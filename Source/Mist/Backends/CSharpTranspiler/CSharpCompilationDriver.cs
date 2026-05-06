@@ -214,7 +214,8 @@ public sealed class CSharpCompilationDriver
         string projectDirectory,
         string binDirectory,
         string projectName,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        int emittedFileCount = 0)
     {
         if (!Directory.Exists(binDirectory))
             Directory.CreateDirectory(binDirectory);
@@ -231,7 +232,7 @@ public sealed class CSharpCompilationDriver
                 Location: null,
                 CompilationUnitPath: null,
                 AnalyzerName: null));
-            return new BackendResult(false, null, diagnostics.ToImmutableArray());
+            return new BackendResult(false, null, diagnostics.ToImmutableArray(), EmittedFileCount: emittedFileCount);
         }
 
         // Parse each .cs file into a SyntaxTree
@@ -289,13 +290,13 @@ public sealed class CSharpCompilationDriver
         {
             if (File.Exists(outputPath))
                 File.Delete(outputPath);
-            return new BackendResult(false, null, diagnostics.ToImmutableArray());
+            return new BackendResult(false, null, diagnostics.ToImmutableArray(), EmittedFileCount: emittedFileCount);
         }
 
         // Write a .runtimeconfig.json so `dotnet <dll>` knows which runtime to use
         WriteRuntimeConfig(runtimeConfigPath);
 
-        return new BackendResult(true, outputPath, diagnostics.ToImmutableArray());
+        return new BackendResult(true, outputPath, diagnostics.ToImmutableArray(), EmittedFileCount: emittedFileCount);
     }
 
     private static void WriteRuntimeConfig(string path)

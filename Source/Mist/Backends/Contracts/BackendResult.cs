@@ -9,4 +9,5 @@ namespace Mist.Backends.Contracts;
 public sealed record BackendResult(
     bool Succeeded,
     string? PrimaryArtifactPath,
-    ImmutableArray<Diagnostic> Diagnostics);
+    ImmutableArray<Diagnostic> Diagnostics,
+    int EmittedFileCount = 0);

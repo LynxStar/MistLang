@@ -19,4 +19,10 @@ extension(unknown self)
     {
         return 0;
     }
+
+    Type GetType()
+    {
+        return Type.Of(self);
+    }
+
 }

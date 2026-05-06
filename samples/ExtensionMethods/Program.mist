@@ -4,7 +4,8 @@
 //   1. Instance extension methods on a concrete type (Requirement 2.1)
 //   2. Universal extension via extension(unknown self) (Requirement 9.1)
 //   3. Namespace-scoped extensions with `using` (Requirement 27.1)
-
+using System;
+using Standard;
 using StringUtils;  // Import namespace-scoped extensions
 
 namespace ExtensionMethods;
@@ -13,6 +14,9 @@ public class Program
 {
     public static void RunDemo()
     {
+
+        Console.WriteLine("Extension Methods Demo");
+
         // ─── 1. Instance extension methods on a concrete type ────────────────
         var greeting = new Greeting("Hello beautiful world");
         var wc = greeting.WordCount();
@@ -31,5 +35,8 @@ public class Program
 
         var empty = "";
         var emptyCheck = empty.IsNullOrEmpty();
+
+        Console.WriteLine(empty.GetType());
+
     }
 }

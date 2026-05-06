@@ -79,7 +79,7 @@
         },
         {
           "name": "keyword.declaration.mist",
-          "match": "\\b(namespace|using|class|struct|interface|trait)\\b"
+          "match": "\\b(namespace|using|class|struct|interface|trait|extension)\\b"
         },
         {
           "name": "storage.modifier.mist",
@@ -133,6 +133,16 @@
     },
     "declaration-names": {
       "patterns": [
+        {
+          "comment": "Extension block declaration: extension<T>(ReceiverType receiverName)",
+          "match": "\\b(extension)\\s*(?:<([^>]+)>)?\\s*\\(\\s*([a-zA-Z_]\\w*(?:\\s*<[^>]+>)?(?:\\[\\])?)\\s+([a-zA-Z_]\\w*)\\s*\\)",
+          "captures": {
+            "1": { "name": "keyword.declaration.mist" },
+            "2": { "name": "entity.name.type.parameter.mist" },
+            "3": { "name": "entity.name.type.mist" },
+            "4": { "name": "variable.parameter.mist" }
+          }
+        },
         {
           "comment": "Generic class/struct/interface declaration: class Box<T>, struct Pair<T, U>, interface IContainer<T>",
           "match": "\\b(class|struct|interface)\\s+([a-zA-Z_]\\w*)\\s*<([^>]+)>",
@@ -207,6 +217,12 @@
         {
           "name": "keyword.operator.comparison.mist",
           "match": "\\b(is)\\b|==|!=|<=|>=|<|>"
+        },
+        {
+          "match": "(?<=\\w|\\]|\\))\\s*(\\|)\\s*(?=\\w)",
+          "captures": {
+            "1": { "name": "keyword.operator.type.union.mist" }
+          }
         },
         {
           "name": "keyword.operator.logical.mist",

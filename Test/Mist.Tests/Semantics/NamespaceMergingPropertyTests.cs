@@ -102,7 +102,7 @@ public sealed class NamespaceMergingPropertyTests
                 IDENTIFIER = MakeToken(firstSegment, start: sourceOffset),
                 Span = new Storm.Runtime.SourceSpan(sourceOffset, nsName.Length),
             },
-            Body = body,
+            Body = body.AsNamespaceBodyItems(),
             Span = new Storm.Runtime.SourceSpan(sourceOffset > 0 ? sourceOffset - 10 : 0, nsName.Length + 20),
         };
     }
@@ -118,7 +118,7 @@ public sealed class NamespaceMergingPropertyTests
                 IDENTIFIER = MakeToken(firstSegment, start: sourceOffset),
                 Span = new Storm.Runtime.SourceSpan(sourceOffset, nsName.Length),
             },
-            Body = body,
+            Body = body.AsNamespaceBodyItems(),
             Span = new Storm.Runtime.SourceSpan(sourceOffset > 0 ? sourceOffset - 10 : 0, nsName.Length + 20),
         };
     }

@@ -296,7 +296,7 @@ public class SemanticModelBuilderUnitTests
         {
             Name = qualifiedId,
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
             Span = new Storm.Runtime.SourceSpan(0, source.Length),
         };
 
@@ -439,7 +439,7 @@ public class SemanticModelBuilderUnitTests
                 Span = new Storm.Runtime.SourceSpan(24, 6),
             },
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
             Span = new Storm.Runtime.SourceSpan(14, 16),
         };
 

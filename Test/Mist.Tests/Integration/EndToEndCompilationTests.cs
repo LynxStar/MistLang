@@ -290,7 +290,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             {
                 Name = MakeQualifiedId("MyApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source.Length),
             } }),
         };
@@ -392,7 +392,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             {
                 Name = MakeQualifiedId("TestNs"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source.Length),
             } }),
         };
@@ -478,7 +478,7 @@ public sealed class EndToEndCompilationTests : IDisposable
                 Name = MakeQualifiedId("TestNs"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new StructTypeTypeDeclarationNode { StructDeclaration = structDecl },
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source.Length),
             } }),
         };
@@ -534,7 +534,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             {
                 Name = MakeQualifiedId("MyApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source.Length),
             } }),
         };
@@ -603,7 +603,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             {
                 Name = MakeQualifiedId("MyApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source.Length),
             } }),
         };
@@ -679,7 +679,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             {
                 Name = MakeQualifiedId("App"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = helperClass }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = helperClass }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source1.Length),
             } }),
         };
@@ -711,7 +711,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             {
                 Name = MakeQualifiedId("App"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source2.Length),
             } }),
         };
@@ -788,7 +788,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             {
                 Name = MakeQualifiedId("Shared"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = fooClass }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = fooClass }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source1.Length),
             } }),
         };
@@ -800,7 +800,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             {
                 Name = MakeQualifiedId("Shared"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = barClass }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = barClass }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source2.Length),
             } }),
         };
@@ -859,7 +859,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             {
                 Name = MakeQualifiedId("MyApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source.Length),
             } }),
         };
@@ -914,7 +914,7 @@ public sealed class EndToEndCompilationTests : IDisposable
             {
                 Name = MakeQualifiedId("MyApp"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source.Length),
             } }),
         };

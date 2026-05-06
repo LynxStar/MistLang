@@ -22,7 +22,8 @@ public sealed class SemanticModel : ISemanticModel
         SymbolTable symbolTable,
         Dictionary<Storm.Runtime.SyntaxNode, IType>? expressionTypes = null,
         TraitSatisfactionMap? traitSatisfactionMap = null,
-        IReachabilityMap? reachabilityMap = null)
+        IReachabilityMap? reachabilityMap = null,
+        ExtensionRegistry? extensionRegistry = null)
     {
         Compilation = compilation;
         Units = units;
@@ -33,6 +34,7 @@ public sealed class SemanticModel : ISemanticModel
         _resolvedOperators = new Dictionary<Storm.Runtime.SyntaxNode, ISymbol>();
         TraitSatisfactionMap = traitSatisfactionMap ?? new TraitSatisfactionMap();
         ReachabilityMap = reachabilityMap ?? ReachabilityAnalyzer.Empty;
+        ExtensionRegistry = extensionRegistry ?? new ExtensionRegistry();
     }
 
     public MistCompilation Compilation { get; }
@@ -40,6 +42,7 @@ public sealed class SemanticModel : ISemanticModel
     public IReadOnlyList<CompilationUnit> Units { get; }
     public ImmutableArray<Storm.Runtime.SyntaxNode> Asts { get; }
     public TraitSatisfactionMap TraitSatisfactionMap { get; }
+    public ExtensionRegistry ExtensionRegistry { get; }
 
     /// <summary>
     /// The reachability map produced by <see cref="ReachabilityAnalyzer.Analyze"/>

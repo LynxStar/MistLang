@@ -1,0 +1,28 @@
+// Universal extension methods available on all types.
+// These provide the base object operations (ToString, GetHashCode)
+// that every value in Mist can call. The method bodies are placeholders —
+// actual behavior comes from the .NET runtime when the code is transpiled.
+// Requirements: 23.1, 23.2
+//
+// Note: GetType() is provided via Type.Of(value) — a static intrinsic on
+// the Type class — rather than a universal extension, because Mist has no
+// base object with virtual dispatch.
+
+extension(unknown self) 
+{
+    string ToString() 
+    {
+        return "";
+    }
+
+    int GetHashCode() 
+    {
+        return 0;
+    }
+
+    Type GetType()
+    {
+        return Type.Of(self);
+    }
+
+}

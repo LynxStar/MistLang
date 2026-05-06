@@ -340,7 +340,7 @@ public class FieldInitializerTests
             {
                 Name = MakeQualifiedId("App"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = counterClass }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = counterClass }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source1.Length),
             } }),
         };
@@ -371,7 +371,7 @@ public class FieldInitializerTests
             {
                 Name = MakeQualifiedId("App"),
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsNamespaceBodyItems(),
                 Span = new Storm.Runtime.SourceSpan(0, source2.Length),
             } }),
         };

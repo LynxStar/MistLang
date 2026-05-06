@@ -2,4 +2,6 @@ namespace Standard;
 
 intrinsic public class Type
 {
+    intrinsic public string Name { get; }
+    intrinsic public static Type Of(unknown value);
 }

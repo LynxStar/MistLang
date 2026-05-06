@@ -1,0 +1,114 @@
+// TypeUnions — Demonstrates type union features in Mist.
+
+using System;
+
+namespace TypeUnions;
+
+public class Program
+{
+    // --- Method with union-typed parameter ---
+    private static void Describe(int | string value)
+    {
+        if (value is int n)
+        {
+            Console.WriteLine($"  int: {n}");
+        }
+        if (value is string s)
+        {
+            Console.WriteLine($"  string: {s}");
+        }
+    }
+
+    // --- Method with union-typed return type ---
+    private static int | string GetValue(bool useInt)
+    {
+        if (useInt)
+        {
+            return 100;
+        }
+        return "hello";
+    }
+
+    // --- Method demonstrating three-type union ---
+    private static void DescribeTriple(int | string | bool value)
+    {
+        if (value is int n)
+        {
+            Console.WriteLine($"  int: {n}");
+        }
+        if (value is string s)
+        {
+            Console.WriteLine($"  string: {s}");
+        }
+        if (value is bool b)
+        {
+            Console.WriteLine($"  bool: {b}");
+        }
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Type Unions Sample ===");
+
+        // 1. Union-typed variables
+        Console.WriteLine("--- Union-typed variables ---");
+        int | string x = 42;
+        Console.WriteLine($"x assigned int: 42");
+        int | string y = "world";
+        Console.WriteLine($"y assigned string: world");
+
+        // 2. Pattern matching to narrow union types
+        Console.WriteLine("--- Pattern matching ---");
+        if (x is int n)
+        {
+            Console.WriteLine($"  x is int: {n}");
+        }
+        if (y is string s)
+        {
+            Console.WriteLine($"  y is string: {s}");
+        }
+
+        // 3. Union-typed parameters
+        Console.WriteLine("--- Union-typed parameters ---");
+        Program.Describe(7);
+        Program.Describe("Mist");
+
+        // 4. Union-typed return types
+        Console.WriteLine("--- Union-typed return types ---");
+        int | string fromInt = Program.GetValue(true);
+        int | string fromStr = Program.GetValue(false);
+        if (fromInt is int ri)
+        {
+            Console.WriteLine($"  GetValue(true) returned int: {ri}");
+        }
+        if (fromStr is string rs)
+        {
+            Console.WriteLine($"  GetValue(false) returned string: {rs}");
+        }
+
+        // 5. Three-type union
+        Console.WriteLine("--- Three-type union ---");
+        int | string | bool tri1 = 99;
+        int | string | bool tri2 = "triple";
+        int | string | bool tri3 = true;
+        Program.DescribeTriple(tri1);
+        Program.DescribeTriple(tri2);
+        Program.DescribeTriple(tri3);
+
+        var tri4 = tri3;
+        Program.DescribeTriple(tri4);
+
+        // 6. Reassignment across constituent types
+        Console.WriteLine("--- Reassignment ---");
+        int | string mutable = 1;
+        Console.WriteLine($"  before: assigned int");
+        mutable = "switched";
+        if (mutable is string ms)
+        {
+            Console.WriteLine($"  after: {ms}");
+        }
+
+        Console.WriteLine("Done!");
+    }
+
+}

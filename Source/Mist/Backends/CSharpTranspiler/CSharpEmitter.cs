@@ -74,6 +74,14 @@ public sealed class CSharpEmitter
             var mistVoidPath = Path.Combine(outputDirectory, "MistVoid.g.cs");
             File.WriteAllText(mistVoidPath, GenerateMistVoidFile());
         }
+
+        // Emit union helper types into a single UnionHelpers.cs file if any union types are used.
+        var unionTypes = UnionHelperGenerator.CollectUnionTypes(model);
+        if (unionTypes.Count > 0)
+        {
+            var unionHelpersPath = Path.Combine(outputDirectory, "UnionHelpers.cs");
+            File.WriteAllText(unionHelpersPath, UnionHelperGenerator.GenerateUnionHelpersFile(unionTypes));
+        }
     }
 
     private static void EmitCsproj(string outputDirectory, string projectName)
@@ -181,6 +189,19 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private IType? _currentMethodReturnType;
     private readonly HashSet<string> _valueReturningVoidMethods = new(StringComparer.Ordinal);
+    /// <summary>
+    /// The name of the currently-being-emitted extension class. Set during
+    /// <see cref="EmitExtensionBlock"/> so that call-site rewriting for
+    /// extension properties can reference the correct static class name.
+    /// </summary>
+    private string? _currentExtensionClassName;
+    /// <summary>
+    /// Pending variable bindings from union pattern matching. When an <c>is T t</c>
+    /// pattern is emitted against a union scrutinee, the condition becomes
+    /// <c>scrutinee.Is{T}</c> and the variable extraction <c>var t = scrutinee.As{T}</c>
+    /// is deferred to the start of the then-branch block.
+    /// </summary>
+    private readonly List<string> _pendingUnionPatternBindings = new();
     private const string IndentUnit = "    ";
 
     /// <summary>
@@ -269,6 +290,9 @@ internal sealed class CSharpSourceWriter
                     EmitTypeDeclaration(typeItem.TypeDeclaration);
                     break;
                 }
+                case ExtensionItemTopLevelItemNode extensionItem:
+                    EmitExtensionBlock(extensionItem.ExtensionDeclaration);
+                    break;
             }
         }
 
@@ -308,16 +332,19 @@ internal sealed class CSharpSourceWriter
             {
                 case NamespaceItemTopLevelItemNode nsItem:
                 {
-                    var types = nsItem.NamespaceDeclaration switch
+                    var bodyItems = nsItem.NamespaceDeclaration switch
                     {
                         FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
                         BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
-                        _ => System.Collections.Immutable.ImmutableArray<TypeDeclarationNode>.Empty,
+                        _ => System.Collections.Immutable.ImmutableArray<NamespaceBodyItemNode>.Empty,
                     };
 
-                    foreach (var typeDecl in types)
+                    foreach (var bodyItem in bodyItems)
                     {
-                        CollectVoidMethodNamesFromType(typeDecl, voidMethodNames);
+                        if (bodyItem is NamespaceTypeItemNamespaceBodyItemNode typeBodyItem)
+                        {
+                            CollectVoidMethodNamesFromType(typeBodyItem.TypeDeclaration, voidMethodNames);
+                        }
                     }
                     break;
                 }
@@ -363,13 +390,19 @@ internal sealed class CSharpSourceWriter
             {
                 case NamespaceItemTopLevelItemNode nsItem:
                 {
-                    var nsTypes = nsItem.NamespaceDeclaration switch
+                    var bodyItems = nsItem.NamespaceDeclaration switch
                     {
                         FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
                         BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
-                        _ => System.Collections.Immutable.ImmutableArray<TypeDeclarationNode>.Empty,
+                        _ => System.Collections.Immutable.ImmutableArray<NamespaceBodyItemNode>.Empty,
                     };
-                    types.AddRange(nsTypes);
+                    foreach (var bodyItem in bodyItems)
+                    {
+                        if (bodyItem is NamespaceTypeItemNamespaceBodyItemNode typeBodyItem)
+                        {
+                            types.Add(typeBodyItem.TypeDeclaration);
+                        }
+                    }
                     break;
                 }
                 case TypeItemTopLevelItemNode typeItem:
@@ -708,9 +741,16 @@ internal sealed class CSharpSourceWriter
                 AppendLine($"namespace {name};");
                 AppendLine();
 
-                foreach (var typeDecl in fileScopedNs.Body)
+                foreach (var bodyItem in fileScopedNs.Body)
                 {
-                    EmitTypeDeclaration(typeDecl);
+                    if (bodyItem is NamespaceTypeItemNamespaceBodyItemNode typeBodyItem)
+                    {
+                        EmitTypeDeclaration(typeBodyItem.TypeDeclaration);
+                    }
+                    else if (bodyItem is NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem)
+                    {
+                        EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
+                    }
                 }
                 break;
             }
@@ -721,9 +761,16 @@ internal sealed class CSharpSourceWriter
                 AppendLine("{");
                 _indentLevel++;
 
-                foreach (var typeDecl in blockNs.Body)
+                foreach (var bodyItem in blockNs.Body)
                 {
-                    EmitTypeDeclaration(typeDecl);
+                    if (bodyItem is NamespaceTypeItemNamespaceBodyItemNode typeBodyItem)
+                    {
+                        EmitTypeDeclaration(typeBodyItem.TypeDeclaration);
+                    }
+                    else if (bodyItem is NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem)
+                    {
+                        EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
+                    }
                 }
 
                 _indentLevel--;
@@ -750,6 +797,404 @@ internal sealed class CSharpSourceWriter
                 EmitInterfaceDeclaration(interfaceType.InterfaceDeclaration);
                 break;
         }
+    }
+
+    // ─── Extension Block Emission (Tasks 9.1–9.4) ────────────────────────
+
+    /// <summary>
+    /// Emits an extension block as a C# static class with deterministic name:
+    /// <c>{ReceiverTypeName}Extensions_{FileName}_{LineNumber}</c>.
+    /// Instance methods get a <c>this</c>-annotated receiver as first parameter.
+    /// Static methods are emitted without <c>this</c> annotation.
+    /// Generic extension type parameters are hoisted to individual methods.
+    /// Extension properties are emitted as <c>get_PropertyName</c> static methods.
+    /// Universal extensions map receiver type <c>unknown</c> to C# <c>object</c>.
+    /// </summary>
+    private void EmitExtensionBlock(ExtensionBlockDeclarationNode extDecl)
+    {
+        // Determine the receiver type name for the generated class name.
+        var receiverTypeName = GetExtensionReceiverTypeName(extDecl.ReceiverType);
+        var fileName = SanitizeForIdentifier(Path.GetFileNameWithoutExtension(_sourceText.Path));
+        var lineNumber = GetLineNumber(extDecl);
+        var className = $"{receiverTypeName}Extensions_{fileName}_L{lineNumber}";
+
+        // Store the class name for call-site rewriting of extension properties.
+        _currentExtensionClassName = className;
+
+        // Determine the receiver C# type string.
+        var receiverCSharpType = EmitTypeReference(extDecl.ReceiverType);
+        var receiverName = extDecl.ReceiverName.Lexeme;
+
+        // Collect type parameters from the extension block (for generic extensions).
+        var blockTypeParams = EmitTypeParameterList(extDecl.TypeParams);
+
+        AppendLine($"public static class {className}");
+        AppendLine("{");
+        _indentLevel++;
+
+        for (var i = 0; i < extDecl.Members.Length; i++)
+        {
+            if (i > 0)
+            {
+                AppendLine();
+            }
+            EmitExtensionMember(extDecl.Members[i], receiverCSharpType, receiverName, blockTypeParams);
+        }
+
+        _indentLevel--;
+        AppendLine("}");
+
+        _currentExtensionClassName = null;
+    }
+
+    /// <summary>
+    /// Emits a single extension member (method or property) as a static method
+    /// in the generated extension class.
+    /// </summary>
+    private void EmitExtensionMember(
+        ExtensionMemberDeclarationNode member,
+        string receiverCSharpType,
+        string receiverName,
+        string blockTypeParams)
+    {
+        switch (member)
+        {
+            case ExtensionMethodMemberExtensionMemberDeclarationNode methodMember:
+                EmitExtensionMethod(methodMember.Method, receiverCSharpType, receiverName, blockTypeParams);
+                break;
+            case ExtensionPropertyMemberExtensionMemberDeclarationNode propertyMember:
+                EmitExtensionProperty(propertyMember.Property, receiverCSharpType, receiverName, blockTypeParams);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Emits an extension method. Instance methods get <c>this ReceiverType receiverName</c>
+    /// as the first parameter. Static methods are emitted without <c>this</c>.
+    /// Generic extension type parameters are hoisted to the method level.
+    /// </summary>
+    private void EmitExtensionMethod(
+        MethodDeclarationNode methodDecl,
+        string receiverCSharpType,
+        string receiverName,
+        string blockTypeParams)
+    {
+        var returnType = EmitTypeReference(methodDecl.ReturnType);
+        var name = methodDecl.Name.Lexeme;
+        var methodTypeParams = EmitTypeParameterList(methodDecl.TypeParams);
+
+        // Combine block-level and method-level type parameters.
+        var combinedTypeParams = CombineTypeParameters(blockTypeParams, methodTypeParams);
+
+        var isStatic = methodDecl.Modifiers.Any(m => m is StaticModifierModifierNode);
+        var parameters = EmitParameterList(methodDecl.Parameters);
+
+        // Build the full parameter list.
+        string fullParams;
+        if (isStatic)
+        {
+            // Static extension methods don't get the receiver parameter.
+            fullParams = parameters;
+        }
+        else
+        {
+            // Instance extension methods get `this ReceiverType receiverName` as first param.
+            var receiverParam = $"this {receiverCSharpType} {receiverName}";
+            fullParams = parameters.Length > 0
+                ? $"{receiverParam}, {parameters}"
+                : receiverParam;
+        }
+
+        AppendLine($"public static {returnType} {name}{combinedTypeParams}({fullParams})");
+
+        // Set the return type context for covariant unknown widening.
+        var previousReturnType = _currentMethodReturnType;
+        _currentMethodReturnType = ResolveMethodReturnType(methodDecl);
+
+        if (methodDecl.Body.GetBlock() is BlockNode block)
+        {
+            EmitMethodBlock(block, false);
+        }
+        else
+        {
+            AppendLine(";");
+        }
+
+        _currentMethodReturnType = previousReturnType;
+    }
+
+    /// <summary>
+    /// Emits an extension property as a <c>get_PropertyName</c> static method
+    /// with <c>this ReceiverType receiverName</c> as the first parameter.
+    /// Expression-bodied properties emit as <c>return expr;</c>.
+    /// Block-bodied properties emit the get accessor body.
+    /// </summary>
+    private void EmitExtensionProperty(
+        PropertyDeclarationNode propertyDecl,
+        string receiverCSharpType,
+        string receiverName,
+        string blockTypeParams)
+    {
+        switch (propertyDecl)
+        {
+            case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
+            {
+                var type = EmitTypeReference(exprProp.Type);
+                var propName = exprProp.Name.Lexeme;
+                var body = EmitExpression(exprProp.Body);
+                var typeParams = blockTypeParams.Length > 0 ? blockTypeParams : "";
+                var receiverParam = $"this {receiverCSharpType} {receiverName}";
+
+                AppendLine($"public static {type} get_{propName}{typeParams}({receiverParam})");
+                AppendLine("{");
+                _indentLevel++;
+                AppendLine($"return {body};");
+                _indentLevel--;
+                AppendLine("}");
+                break;
+            }
+            case BlockPropertyPropertyDeclarationNode blockProp:
+            {
+                var type = EmitTypeReference(blockProp.Type);
+                var propName = blockProp.Name.Lexeme;
+                var typeParams = blockTypeParams.Length > 0 ? blockTypeParams : "";
+                var receiverParam = $"this {receiverCSharpType} {receiverName}";
+
+                AppendLine($"public static {type} get_{propName}{typeParams}({receiverParam})");
+                AppendLine("{");
+                _indentLevel++;
+
+                // Emit the get accessor body statements.
+                foreach (var accessor in blockProp.Accessors)
+                {
+                    if (accessor is BlockGetAccessorAccessorDeclarationNode blockGet)
+                    {
+                        foreach (var stmt in blockGet.Body.Statements)
+                        {
+                            EmitStatement(stmt);
+                        }
+                    }
+                }
+
+                _indentLevel--;
+                AppendLine("}");
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the simple receiver type name for the generated extension class name.
+    /// Maps <c>unknown</c> to <c>Unknown</c>, named types to their simple name,
+    /// and generic types to <c>NameOfT</c> form.
+    /// </summary>
+    private string GetExtensionReceiverTypeName(TypeReferenceNode typeRef)
+    {
+        return typeRef switch
+        {
+            UnknownTypeRefTypeReferenceNode => "Unknown",
+            NamedTypeRefTypeReferenceNode namedRef => ExtractSimpleTypeName(namedRef),
+            PrimitiveTypeRefTypeReferenceNode primitiveRef => GetPrimitiveTypeName(primitiveRef),
+            _ => "Unknown",
+        };
+    }
+
+    /// <summary>
+    /// Extracts the simple type name from a named type reference, including
+    /// generic type arguments in a flattened form (e.g., <c>List&lt;T&gt;</c> → <c>ListOfT</c>).
+    /// </summary>
+    private string ExtractSimpleTypeName(NamedTypeRefTypeReferenceNode namedRef)
+    {
+        // Use the qualified name extraction which handles dotted names via source span.
+        var fullName = ExtractQualifiedName(namedRef.Name);
+        // Take only the last segment for the simple name (e.g., "System.Collections.List" → "List").
+        var dotIndex = fullName.LastIndexOf('.');
+        var name = dotIndex >= 0 ? fullName[(dotIndex + 1)..] : fullName;
+
+        if (namedRef.TypeArgs is not null)
+        {
+            // Flatten type args into the name: List<T> → ListOfT
+            var typeArgNames = new List<string>();
+            typeArgNames.Add(GetTypeArgName(namedRef.TypeArgs.TypeReference));
+            foreach (var arg in namedRef.TypeArgs.TypeReferences)
+            {
+                typeArgNames.Add(GetTypeArgName(arg));
+            }
+            return $"{name}Of{string.Join("", typeArgNames)}";
+        }
+
+        return name;
+    }
+
+    /// <summary>
+    /// Gets a simple name for a type argument used in extension class naming.
+    /// </summary>
+    private string GetTypeArgName(TypeReferenceNode typeRef)
+    {
+        return typeRef switch
+        {
+            NamedTypeRefTypeReferenceNode named => ExtractSimpleTypeName(named),
+            PrimitiveTypeRefTypeReferenceNode prim => GetPrimitiveTypeName(prim),
+            UnknownTypeRefTypeReferenceNode => "Unknown",
+            _ => "T"
+        };
+    }
+
+    /// <summary>
+    /// Gets the C#-friendly name for a primitive type reference.
+    /// </summary>
+    private static string GetPrimitiveTypeName(PrimitiveTypeRefTypeReferenceNode primitiveRef)
+    {
+        return primitiveRef.PrimitiveType switch
+        {
+            IntTypePrimitiveTypeNode => "Int32",
+            UintTypePrimitiveTypeNode => "UInt32",
+            LongTypePrimitiveTypeNode => "Int64",
+            UlongTypePrimitiveTypeNode => "UInt64",
+            ShortTypePrimitiveTypeNode => "Int16",
+            UshortTypePrimitiveTypeNode => "UInt16",
+            ByteTypePrimitiveTypeNode => "Byte",
+            SbyteTypePrimitiveTypeNode => "SByte",
+            FloatTypePrimitiveTypeNode => "Single",
+            DoubleTypePrimitiveTypeNode => "Double",
+            DecimalTypePrimitiveTypeNode => "Decimal",
+            BoolTypePrimitiveTypeNode => "Boolean",
+            CharTypePrimitiveTypeNode => "Char",
+            StringTypePrimitiveTypeNode => "String",
+            _ => "Unknown"
+        };
+    }
+
+    /// <summary>
+    /// Gets the 1-based line number of an extension block declaration in the source file.
+    /// </summary>
+    private int GetLineNumber(ExtensionBlockDeclarationNode extDecl)
+    {
+        var span = extDecl.Span;
+        if (span.Length > 0)
+        {
+            var linePos = _sourceText.ToLinePositionSpan(new Common.Text.SourceSpan(span.Start, span.Length));
+            return linePos.Start.Line;
+        }
+        return 1;
+    }
+
+    /// <summary>
+    /// Sanitizes a file name for use as a C# identifier by replacing non-alphanumeric
+    /// characters with underscores.
+    /// </summary>
+    private static string SanitizeForIdentifier(string name)
+    {
+        var sb = new StringBuilder(name.Length);
+        foreach (var c in name)
+        {
+            sb.Append(char.IsLetterOrDigit(c) || c == '_' ? c : '_');
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Combines block-level and method-level type parameter lists.
+    /// If both are present, merges them into a single list.
+    /// </summary>
+    private static string CombineTypeParameters(string blockTypeParams, string methodTypeParams)
+    {
+        if (blockTypeParams.Length == 0) return methodTypeParams;
+        if (methodTypeParams.Length == 0) return blockTypeParams;
+
+        // Both have type params — merge: strip angle brackets and combine.
+        var blockInner = blockTypeParams[1..^1]; // Remove < and >
+        var methodInner = methodTypeParams[1..^1];
+        return $"<{blockInner}, {methodInner}>";
+    }
+
+    /// <summary>
+    /// Computes the deterministic extension class name for a given extension block info.
+    /// Used for call-site rewriting of extension properties and static extension methods.
+    /// The name follows the pattern: <c>{ReceiverTypeName}Extensions_{FileName}_{LineNumber}</c>.
+    /// </summary>
+    private string ComputeExtensionClassName(ExtensionBlockInfo extBlock)
+    {
+        var declaringNode = extBlock.DeclaringNode;
+        var receiverTypeName = GetReceiverTypeNameFromIType(extBlock.ReceiverType);
+
+        // Find the source file containing this extension block.
+        string fileName = "Unknown";
+        var lineNumber = 1;
+
+        for (var i = 0; i < _model.Units.Count; i++)
+        {
+            var unit = _model.Units[i];
+            if (i < _model.Asts.Length && _model.Asts[i] is CompilationUnitNode cu)
+            {
+                // Check if this compilation unit contains the declaring node.
+                if (ContainsNode(cu, declaringNode))
+                {
+                    fileName = SanitizeForIdentifier(Path.GetFileNameWithoutExtension(unit.Source.Path));
+                    var span = declaringNode.Span;
+                    if (span.Length > 0)
+                    {
+                        var linePos = unit.Source.ToLinePositionSpan(
+                            new Common.Text.SourceSpan(span.Start, span.Length));
+                        lineNumber = linePos.Start.Line;
+                    }
+                    break;
+                }
+            }
+        }
+
+        return $"{receiverTypeName}Extensions_{fileName}_L{lineNumber}";
+    }
+
+    /// <summary>
+    /// Gets the simple receiver type name from a resolved IType for extension class naming.
+    /// </summary>
+    private static string GetReceiverTypeNameFromIType(IType type)
+    {
+        return type switch
+        {
+            UnknownType => "Unknown",
+            ClassType ct => ct.DisplayName,
+            StructType st => st.DisplayName,
+            InterfaceType it => it.DisplayName,
+            ConstructedType constructed => GetReceiverTypeNameFromIType(constructed.GenericDefinition),
+            TypeParameterType tp => tp.Name,
+            _ => "Unknown"
+        };
+    }
+
+    /// <summary>
+    /// Checks if a compilation unit AST contains the given node (shallow check via extension blocks).
+    /// </summary>
+    private static bool ContainsNode(CompilationUnitNode cu, Storm.Runtime.SyntaxNode targetNode)
+    {
+        foreach (var item in cu.Items)
+        {
+            switch (item)
+            {
+                case ExtensionItemTopLevelItemNode extItem:
+                    if (ReferenceEquals(extItem.ExtensionDeclaration, targetNode))
+                        return true;
+                    break;
+                case NamespaceItemTopLevelItemNode nsItem:
+                {
+                    var bodyItems = nsItem.NamespaceDeclaration switch
+                    {
+                        FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
+                        BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
+                        _ => System.Collections.Immutable.ImmutableArray<NamespaceBodyItemNode>.Empty,
+                    };
+                    foreach (var bodyItem in bodyItems)
+                    {
+                        if (bodyItem is NamespaceExtensionItemNamespaceBodyItemNode extBodyItem &&
+                            ReferenceEquals(extBodyItem.ExtensionDeclaration, targetNode))
+                            return true;
+                    }
+                    break;
+                }
+            }
+        }
+        return false;
     }
 
     private void EmitClassDeclaration(ClassDeclarationNode classDecl)
@@ -2057,17 +2502,23 @@ internal sealed class CSharpSourceWriter
             //   * `unknown` (bare or nested inside a generic type argument)
             //     → `object` or `dynamic` per the Closed_Generic_With_Unknown
             //     emission rule (Task 30 / Task 31 / Req 15.1, 15.4).
+            //   * Union types (`int | string`) → helper type name
+            //     (`Union_Int32_String`) per the type-unions feature.
             // We check both the first parameter's AST type (structurally) and
             // the full parameter-list source text (as a lexical fallback) so
-            // subsequent parameters whose types contain `unknown` are also
+            // subsequent parameters whose types contain `unknown` or `|` are also
             // caught. A lexical check is safe here because `unknown` is a
             // reserved keyword (not usable as an identifier in Mist grammar),
             // so any word-boundary `unknown` in the parameter-list source is
-            // necessarily the keyword that needs rewriting.
+            // necessarily the keyword that needs rewriting. Similarly, `|` in
+            // a parameter list is always the union type operator (not logical OR
+            // which is `||`).
             var firstType = paramList.Parameter.Type;
             if (firstType is not VoidTypeRefTypeReferenceNode
+                && firstType is not UnionTypeRefTypeReferenceNode
                 && !TypeReferenceContainsUnknown(firstType)
-                && !ContainsVoidOrUnknownKeyword(sourceText))
+                && !ContainsVoidOrUnknownKeyword(sourceText)
+                && !ContainsPipeOperator(sourceText))
             {
                 return sourceText;
             }
@@ -2093,6 +2544,35 @@ internal sealed class CSharpSourceWriter
     private static bool ContainsVoidOrUnknownKeyword(string source)
     {
         return ContainsWord(source, "unknown") || ContainsWord(source, "void");
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if <paramref name="source"/> contains a single <c>|</c>
+    /// character that is not part of <c>||</c>. Used as a lexical fallback in
+    /// <see cref="EmitParameterList"/> to detect union type annotations in
+    /// subsequent parameters (beyond the first) that the Storm parser does not
+    /// expose structurally. A single <c>|</c> in a parameter list is always the
+    /// union type operator; logical OR (<c>||</c>) cannot appear in a type context.
+    /// </summary>
+    private static bool ContainsPipeOperator(string source)
+    {
+        for (var i = 0; i < source.Length; i++)
+        {
+            if (source[i] == '|')
+            {
+                // Check it's not part of ||
+                if (i + 1 < source.Length && source[i + 1] == '|')
+                {
+                    i++; // Skip the second |
+                    continue;
+                }
+                // Check it's not preceded by another | (second char of ||)
+                if (i > 0 && source[i - 1] == '|')
+                    continue;
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>
@@ -2264,6 +2744,16 @@ internal sealed class CSharpSourceWriter
                     return "void";
                 }
 
+                // Check if this named type is a stdlib type that maps to a
+                // C# fully-qualified name (e.g., "Type" → "System.Type").
+                // This ensures stdlib types emit correctly without requiring
+                // a `using` directive in the generated C#.
+                var mappedName = CSharpTypeMap.TryGetMappedName(name);
+                if (mappedName is not null && namedRef.TypeArgs is null)
+                {
+                    return namedRef.ArrayRank.HasValue ? $"{mappedName}[]" : mappedName;
+                }
+
                 // Closed_Generic_With_Unknown emission (Task 31 revised,
                 // Req 15.1/15.2): any named type whose type-argument list
                 // transitively contains `unknown` lowers to C# `dynamic`.
@@ -2310,9 +2800,154 @@ internal sealed class CSharpSourceWriter
 
                 return $"({string.Join(", ", parts)})";
             }
+            case UnionTypeRefTypeReferenceNode unionRef:
+            {
+                // Union type references emit as the generated helper type name.
+                // Collect constituent names matching UnionHelperGenerator.GetConstituentCSharpName,
+                // sort alphabetically, and join with "_" to form "Union_{Type1}_{Type2}".
+                var constituentNames = new List<string>();
+                constituentNames.Add(GetConstituentNameForHelper(unionRef.UnionType.First));
+                foreach (var rest in unionRef.UnionType.SingleTypeRefs)
+                {
+                    constituentNames.Add(GetConstituentNameForHelper(rest));
+                }
+                constituentNames.Sort(StringComparer.Ordinal);
+                return "Union_" + string.Join("_", constituentNames);
+            }
             default:
                 return "object";
         }
+    }
+
+    /// <summary>
+    /// Maps a <see cref="SingleTypeRefNode"/> to the constituent name used by
+    /// <see cref="UnionHelperGenerator.GetHelperTypeName"/> for constructing
+    /// the helper type name. This mirrors <c>GetConstituentCSharpName</c> but
+    /// operates on AST nodes rather than semantic <see cref="IType"/> instances.
+    /// </summary>
+    private string GetConstituentNameForHelper(SingleTypeRefNode singleTypeRef)
+    {
+        switch (singleTypeRef)
+        {
+            case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
+            {
+                var name = GetPrimitiveDisplayName(primitiveRef.PrimitiveType);
+                return primitiveRef.ArrayRank.HasValue ? $"{name}Array" : name;
+            }
+            case VoidSingleTypeRefSingleTypeRefNode:
+                return "Void";
+            case UnknownSingleTypeRefSingleTypeRefNode:
+                return "Object";
+            case NamedSingleTypeRefSingleTypeRefNode namedRef:
+            {
+                var name = ExtractQualifiedName(namedRef.Name);
+                if (namedRef.TypeArgs is not null)
+                {
+                    var typeArgNames = new List<string>();
+                    CollectTypeArgConstituentNames(namedRef.TypeArgs, typeArgNames);
+                    name = $"{name}_{typeArgNames.Count}_{string.Join("_", typeArgNames)}";
+                }
+                return namedRef.ArrayRank.HasValue ? $"{name}Array" : name;
+            }
+            case ParenthesizedTypeRefSingleTypeRefNode parenRef:
+            {
+                // Parenthesized type refs contain an inner TypeReference.
+                // For union helper naming, we recurse into the inner type.
+                var innerName = GetConstituentNameFromTypeRef(parenRef.Inner);
+                return parenRef.ArrayRank.HasValue ? $"{innerName}Array" : innerName;
+            }
+            case TupleSingleTypeRefSingleTypeRefNode:
+                // Tuple types in union constituents use a generic ValueTuple name.
+                return "ValueTuple";
+            default:
+                return "Object";
+        }
+    }
+
+    /// <summary>
+    /// Maps a <see cref="TypeReferenceNode"/> to a constituent name for the union
+    /// helper type. Used when a parenthesized type ref contains an inner type reference.
+    /// </summary>
+    private string GetConstituentNameFromTypeRef(TypeReferenceNode typeRef)
+    {
+        switch (typeRef)
+        {
+            case PrimitiveTypeRefTypeReferenceNode primitiveRef:
+            {
+                var name = GetPrimitiveDisplayName(primitiveRef.PrimitiveType);
+                return primitiveRef.ArrayRank.HasValue ? $"{name}Array" : name;
+            }
+            case VoidTypeRefTypeReferenceNode:
+                return "Void";
+            case UnknownTypeRefTypeReferenceNode:
+                return "Object";
+            case NamedTypeRefTypeReferenceNode namedRef:
+            {
+                var name = ExtractQualifiedName(namedRef.Name);
+                if (namedRef.TypeArgs is not null)
+                {
+                    var typeArgNames = new List<string>();
+                    CollectTypeArgConstituentNames(namedRef.TypeArgs, typeArgNames);
+                    name = $"{name}_{typeArgNames.Count}_{string.Join("_", typeArgNames)}";
+                }
+                return namedRef.ArrayRank.HasValue ? $"{name}Array" : name;
+            }
+            case UnionTypeRefTypeReferenceNode unionRef:
+            {
+                // Nested union inside parenthesized ref — flatten by returning
+                // the helper type name itself as the constituent name.
+                var constituentNames = new List<string>();
+                constituentNames.Add(GetConstituentNameForHelper(unionRef.UnionType.First));
+                foreach (var rest in unionRef.UnionType.SingleTypeRefs)
+                {
+                    constituentNames.Add(GetConstituentNameForHelper(rest));
+                }
+                constituentNames.Sort(StringComparer.Ordinal);
+                return "Union_" + string.Join("_", constituentNames);
+            }
+            default:
+                return "Object";
+        }
+    }
+
+    /// <summary>
+    /// Collects constituent names from a type argument list for use in helper type naming.
+    /// </summary>
+    private void CollectTypeArgConstituentNames(TypeArgumentListNode typeArgs, List<string> names)
+    {
+        // TypeArgumentList has TypeReference (first) and TypeReferences (rest).
+        names.Add(GetConstituentNameFromTypeRef(typeArgs.TypeReference));
+        foreach (var additional in typeArgs.TypeReferences)
+        {
+            names.Add(GetConstituentNameFromTypeRef(additional));
+        }
+    }
+
+    /// <summary>
+    /// Maps a <see cref="PrimitiveTypeNode"/> to its stdlib DisplayName
+    /// (e.g., <c>int</c> → <c>Int32</c>, <c>string</c> → <c>String</c>).
+    /// This matches the names used by <see cref="UnionHelperGenerator.GetConstituentCSharpName"/>.
+    /// </summary>
+    private static string GetPrimitiveDisplayName(PrimitiveTypeNode primitiveType)
+    {
+        return primitiveType switch
+        {
+            IntTypePrimitiveTypeNode => "Int32",
+            UintTypePrimitiveTypeNode => "UInt32",
+            LongTypePrimitiveTypeNode => "Int64",
+            UlongTypePrimitiveTypeNode => "UInt64",
+            ShortTypePrimitiveTypeNode => "Int16",
+            UshortTypePrimitiveTypeNode => "UInt16",
+            ByteTypePrimitiveTypeNode => "Byte",
+            SbyteTypePrimitiveTypeNode => "SByte",
+            FloatTypePrimitiveTypeNode => "Single",
+            DoubleTypePrimitiveTypeNode => "Double",
+            DecimalTypePrimitiveTypeNode => "Decimal",
+            BoolTypePrimitiveTypeNode => "Boolean",
+            CharTypePrimitiveTypeNode => "Char",
+            StringTypePrimitiveTypeNode => "String",
+            _ => "Object",
+        };
     }
 
     /// <summary>
@@ -2417,6 +3052,17 @@ internal sealed class CSharpSourceWriter
     {
         AppendLine("{");
         _indentLevel++;
+
+        // Inject any pending union pattern variable bindings at the start of the block.
+        // These are queued by TryEmitUnionPatternMatch when emitting `if (x.IsT)` conditions.
+        if (_pendingUnionPatternBindings.Count > 0)
+        {
+            foreach (var binding in _pendingUnionPatternBindings)
+            {
+                AppendLine(binding);
+            }
+            _pendingUnionPatternBindings.Clear();
+        }
 
         foreach (var stmt in block.Statements)
         {
@@ -2613,6 +3259,12 @@ internal sealed class CSharpSourceWriter
                 var init = EmitExpression(varDecl.Initializer);
                 return $"{type} {name} = {init}";
             }
+            case ForInitializerVarDeclarationForInitializerNode varDeclInit:
+            {
+                var name = varDeclInit.Name.Lexeme;
+                var init = EmitExpression(varDeclInit.Initializer);
+                return $"var {name} = {init}";
+            }
             case ForInitializerExpressionForInitializerNode exprInit:
                 return EmitExpression(exprInit.Expression);
             default:
@@ -2712,6 +3364,16 @@ internal sealed class CSharpSourceWriter
             {
                 var left = EmitAdditive(isExpr.Left);
                 var scrutineeType = _model.GetTypeOf(isExpr.Left);
+
+                // Union type pattern matching: emit Is{T}/As{T} property access
+                // instead of C#'s native `is T t` pattern.
+                if (scrutineeType is UnionType unionType)
+                {
+                    var unionResult = TryEmitUnionPatternMatch(isExpr.Pattern, unionType, left);
+                    if (unionResult is not null)
+                        return unionResult;
+                }
+
                 var pattern = EmitPattern(isExpr.Pattern, scrutineeType);
                 return $"{left} is {pattern}";
             }
@@ -2719,6 +3381,104 @@ internal sealed class CSharpSourceWriter
             default:
                 return "";
         }
+    }
+
+    // ─── Union Pattern Matching ──────────────────────────────────────────
+
+    /// <summary>
+    /// Attempts to emit a union-specific pattern match. For type patterns
+    /// (<c>is T t</c>) on a union scrutinee, emits <c>scrutinee.Is{T}</c> as
+    /// the condition and queues <c>var t = scrutinee.As{T}</c> as a pending
+    /// binding to be injected at the start of the then-branch.
+    /// For var patterns (<c>is var v</c>), emits <c>true</c> (always matches)
+    /// and queues <c>var v = scrutinee</c>.
+    /// Returns <c>null</c> if the pattern is not a simple type or var pattern
+    /// (e.g., or-patterns, and-patterns), in which case the caller falls through
+    /// to standard emission.
+    /// </summary>
+    private string? TryEmitUnionPatternMatch(PatternNode pattern, UnionType unionType, string scrutineeExpr)
+    {
+        // Navigate the pattern chain: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
+        // Only handle simple (non-compound) patterns for union emission.
+        var orPattern = pattern.OrPattern;
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+            return null; // or-pattern — fall through to standard emission
+
+        var andPattern = orPattern.Left;
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+            return null; // and-pattern — fall through to standard emission
+
+        var unaryPattern = andPattern.Left;
+        if (unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+            return null; // not-pattern — fall through to standard emission
+
+        var primaryPattern = directPattern.Primary;
+
+        switch (primaryPattern)
+        {
+            case TypePatternPrimaryPatternNode typePattern:
+            {
+                // Resolve the pattern type to find the matching constituent.
+                // The semantic model may store the type on the type reference node
+                // or on the pattern's declared symbol (the introduced variable).
+                var patternType = _model.GetTypeOf(typePattern.Type);
+                patternType ??= _model.GetDeclaredSymbol(typePattern)?.DeclaredType;
+                if (patternType is null)
+                    return null;
+
+                // Find the constituent that matches the pattern type.
+                var constituentName = FindConstituentName(patternType, unionType);
+                if (constituentName is null)
+                    return null; // Not a constituent — emit standard (dead code per type checker warning)
+
+                var bindingName = typePattern.Name.Lexeme;
+                var csharpTypeName = CSharpTypeMap.GetTypeName(patternType);
+
+                // Queue the variable binding for injection into the then-branch.
+                if (bindingName != "_")
+                {
+                    _pendingUnionPatternBindings.Add(
+                        $"{csharpTypeName} {bindingName} = {scrutineeExpr}.As{constituentName};");
+                }
+
+                return $"{scrutineeExpr}.Is{constituentName}";
+            }
+
+            case VarPatternPrimaryPatternNode varPattern:
+            {
+                var bindingName = varPattern.Name.Lexeme;
+                var helperTypeName = UnionHelperGenerator.GetHelperTypeName(unionType);
+
+                // Queue the variable binding for injection into the then-branch.
+                if (bindingName != "_")
+                {
+                    _pendingUnionPatternBindings.Add(
+                        $"{helperTypeName} {bindingName} = {scrutineeExpr};");
+                }
+
+                // var pattern always matches — emit `true` so the if-condition is trivially true.
+                return "true";
+            }
+
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// Finds the constituent C# name (e.g., "Int32", "String") for a pattern type
+    /// within a union type. Returns <c>null</c> if the type is not a constituent.
+    /// </summary>
+    private static string? FindConstituentName(IType patternType, UnionType unionType)
+    {
+        foreach (var constituent in unionType.Constituents)
+        {
+            if (constituent.DisplayName == patternType.DisplayName)
+            {
+                return UnionHelperGenerator.GetConstituentCSharpName(constituent);
+            }
+        }
+        return null;
     }
 
     // ─── Pattern Emission ────────────────────────────────────────────────
@@ -3317,9 +4077,18 @@ internal sealed class CSharpSourceWriter
     {
         var result = EmitPrimary(postfix.Target);
 
-        foreach (var suffix in postfix.Suffix)
+        // Track the receiver type through the suffix chain for extension property rewriting.
+        // The receiver type for the first suffix is the type of the primary target.
+        // For subsequent suffixes, it's the result type of the previous suffix.
+        IType? receiverType = _model.GetTypeOf(postfix.Target);
+
+        for (var i = 0; i < postfix.Suffix.Length; i++)
         {
-            result = EmitPostfixSuffix(result, suffix);
+            var suffix = postfix.Suffix[i];
+            result = EmitPostfixSuffix(result, suffix, receiverType);
+
+            // Update receiver type for the next suffix.
+            receiverType = _model.GetTypeOf(suffix);
         }
 
         return result;
@@ -3334,7 +4103,7 @@ internal sealed class CSharpSourceWriter
         "Length", // string.Length, Array.Length
     };
 
-    private string EmitPostfixSuffix(string target, PostfixSuffixNode suffix)
+    private string EmitPostfixSuffix(string target, PostfixSuffixNode suffix, IType? receiverType)
     {
         switch (suffix)
         {
@@ -3351,6 +4120,18 @@ internal sealed class CSharpSourceWriter
                     return $"{target}.{name}";
                 }
 
+                // Check if this method call resolves to an extension property —
+                // if so, rewrite to ClassName.get_PropertyName(instance).
+                if (methodCall.Arguments is null && methodCall.TypeArgs is null && receiverType is not null)
+                {
+                    var extPropertyBlock = _model.ExtensionRegistry.FindExtensionPropertyBlock(receiverType, name);
+                    if (extPropertyBlock is not null)
+                    {
+                        var extClassName = ComputeExtensionClassName(extPropertyBlock);
+                        return $"{extClassName}.get_{name}({target})";
+                    }
+                }
+
                 // Check if this method call actually resolves to a property symbol —
                 // if so, emit as property access (no parentheses).
                 if (methodCall.Arguments is null && methodCall.TypeArgs is null)
@@ -3363,6 +4144,15 @@ internal sealed class CSharpSourceWriter
                 }
 
                 var args = EmitArgumentList(methodCall.Arguments);
+
+                // Check if this is an intrinsic static method call (e.g., Type.Of(x) → x.GetType()).
+                // The target is a type name; check if it maps to a stdlib type with an intrinsic.
+                var intrinsicStaticTemplate = TryGetIntrinsicStaticMethodTemplate(target, name, methodCall.Arguments);
+                if (intrinsicStaticTemplate is not null)
+                {
+                    return intrinsicStaticTemplate;
+                }
+
                 return $"{target}.{name}{typeArgs}({args})";
             }
             case MemberAccessSuffixPostfixSuffixNode memberAccess:
@@ -3408,6 +4198,48 @@ internal sealed class CSharpSourceWriter
             return declaredSymbol;
         }
         return null;
+    }
+
+    /// <summary>
+    /// Checks if a static method call on a type name is an intrinsic that should
+    /// be rewritten. For example, <c>Type.Of(x)</c> → <c>x.GetType()</c>.
+    /// Returns the rewritten C# expression, or null if not an intrinsic.
+    /// </summary>
+    private string? TryGetIntrinsicStaticMethodTemplate(string target, string methodName, ArgumentListNode? arguments)
+    {
+        // Map common Mist type names to their fully-qualified stdlib form.
+        // The target may already be the C# form (e.g., "System.Type") due to
+        // CSharpTypeMap remapping, or it may be the Mist name (e.g., "Type").
+        var stdlibType = target switch
+        {
+            "Type" or "System.Type" => "Standard.Type",
+            _ => null,
+        };
+
+        if (stdlibType is null)
+            return null;
+
+        // Build parameter type list for lookup.
+        // For now, use "unknown" for unknown-typed parameters since that's
+        // how Type.Of is declared.
+        var paramTypes = new List<string>();
+        if (arguments is not null)
+        {
+            paramTypes.Add("unknown");
+        }
+
+        var template = _intrinsicRegistry.TryGetStaticMethod(stdlibType, methodName, paramTypes);
+        if (template is null)
+            return null;
+
+        // Emit arguments and substitute into the template.
+        if (arguments is not null)
+        {
+            var arg0 = EmitExpression(arguments.Expression);
+            return string.Format(template.Template, arg0);
+        }
+
+        return string.Format(template.Template);
     }
 
     private string EmitPrimary(PrimaryNode primary)

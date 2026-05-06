@@ -84,4 +84,11 @@ public interface ISemanticModel
     /// is <see cref="Mist.Semantics.Model.ReachabilityAnalyzer.Empty"/>.
     /// </remarks>
     IReachabilityMap ReachabilityMap { get; }
+
+    /// <summary>
+    /// The extension registry indexing all extension blocks by receiver type.
+    /// Populated by the <see cref="Mist.Semantics.Model.SemanticModelBuilder"/>
+    /// and consumed by the type checker during member lookup fallback.
+    /// </summary>
+    ExtensionRegistry ExtensionRegistry { get; }
 }

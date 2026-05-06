@@ -31,6 +31,9 @@ token TRAIT = "trait";
 token WITH  = "with";
 token AS    = "as";
 
+// Extension-related keywords
+token EXTENSION = "extension";
+
 // Property-related keywords
 token GET   = "get";
 token SET   = "set";

@@ -176,7 +176,7 @@ public sealed class EmitterOutputTests : IDisposable
             {
                 Name = nsName,
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
             } }),
         };
 
@@ -224,7 +224,7 @@ public sealed class EmitterOutputTests : IDisposable
             {
                 Name = nsName,
                 Body = ImmutableArray.Create<TypeDeclarationNode>(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
             } }),
         };
 

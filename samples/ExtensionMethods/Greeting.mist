@@ -1,0 +1,13 @@
+// Greeting — A simple class used as the receiver type for extension demonstrations.
+
+namespace ExtensionMethods;
+
+public class Greeting
+{
+    public string Message;
+
+    public Greeting(string message)
+    {
+        Message = message;
+    }
+}

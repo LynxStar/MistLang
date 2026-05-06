@@ -145,6 +145,27 @@ x=100 y=200 positional=100
 --- Bare type pattern ---
 mystery is a (int, string) tuple
 Done!
+=== Type Unions Sample ===
+--- Union-typed variables ---
+x assigned int: 42
+y assigned string: world
+--- Pattern matching ---
+  x is int: 42
+  y is string: world
+--- Union-typed parameters ---
+  int: 7
+  string: Mist
+--- Union-typed return types ---
+  GetValue(true) returned int: 100
+  GetValue(false) returned string: hello
+--- Three-type union ---
+  int: 99
+  string: triple
+  bool: True
+--- Reassignment ---
+  before: assigned int
+  after: switched
+Done!
 === UnknownType Sample (AllFeatures) ===
 --- Unknown local ---
 narrowed int: 123

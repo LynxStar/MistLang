@@ -272,7 +272,7 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
                     {
                         Name = nsName,
                         Body = ImmutableArray.Create<TypeDeclarationNode>(
-                            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
                     },
                 }),
         };
@@ -307,7 +307,7 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
                     {
                         Name = nsName,
                         Body = ImmutableArray.Create<TypeDeclarationNode>(
-                            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                            new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
                     },
                 }),
         };
@@ -356,7 +356,7 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
                     {
                         Name = MakeQualifiedId(scenario.FileScopedNs),
                         Body = ImmutableArray.Create<TypeDeclarationNode>(
-                            new ClassTypeTypeDeclarationNode { ClassDeclaration = fileScopedClass }),
+                            new ClassTypeTypeDeclarationNode { ClassDeclaration = fileScopedClass }).AsNamespaceBodyItems(),
                     },
                 },
                 // Block namespace
@@ -366,7 +366,7 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
                     {
                         Name = MakeQualifiedId(scenario.BlockNs),
                         Body = ImmutableArray.Create<TypeDeclarationNode>(
-                            new StructTypeTypeDeclarationNode { StructDeclaration = blockClass }),
+                            new StructTypeTypeDeclarationNode { StructDeclaration = blockClass }).AsNamespaceBodyItems(),
                     },
                 }),
         };

@@ -40,7 +40,7 @@ public class NullablePrefixParsingTests
         Assert.NotNull(ns);
         Assert.True(ns!.Body.Length > 0, "FileScopedNamespace.Body should contain the class declaration");
 
-        var typeDecl = ns.Body[0] as ClassTypeTypeDeclarationNode;
+        var typeDecl = (ns.Body[0] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as ClassTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
         Assert.Equal("Program", typeDecl!.ClassDeclaration.Name.Lexeme);
     }
@@ -92,11 +92,11 @@ public class NullablePrefixParsingTests
         Assert.NotNull(ns);
         Assert.Equal(2, ns!.Body.Length);
 
-        var classDecl = ns.Body[0] as ClassTypeTypeDeclarationNode;
+        var classDecl = (ns.Body[0] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as ClassTypeTypeDeclarationNode;
         Assert.NotNull(classDecl);
         Assert.Equal("Foo", classDecl!.ClassDeclaration.Name.Lexeme);
 
-        var structDecl = ns.Body[1] as StructTypeTypeDeclarationNode;
+        var structDecl = (ns.Body[1] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as StructTypeTypeDeclarationNode;
         Assert.NotNull(structDecl);
         Assert.Equal("Bar", structDecl!.StructDeclaration.Name.Lexeme);
     }
@@ -126,7 +126,7 @@ public class Program
         Assert.NotNull(ns);
 
         Assert.True(ns!.Body.Length > 0, "Namespace body should contain the Program class");
-        var typeDecl = ns.Body[0] as ClassTypeTypeDeclarationNode;
+        var typeDecl = (ns.Body[0] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as ClassTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
         Assert.Equal("Program", typeDecl!.ClassDeclaration.Name.Lexeme);
         Assert.True(typeDecl.ClassDeclaration.Members.Length > 0, "Class should have members");
@@ -233,7 +233,7 @@ public class Point
         Assert.NotNull(ns);
         Assert.True(ns!.Body.Length > 0, "Namespace body should contain the Point class");
 
-        var typeDecl = ns.Body[0] as ClassTypeTypeDeclarationNode;
+        var typeDecl = (ns.Body[0] as NamespaceTypeItemNamespaceBodyItemNode)?.TypeDeclaration as ClassTypeTypeDeclarationNode;
         Assert.NotNull(typeDecl);
         var classDecl = typeDecl!.ClassDeclaration;
         Assert.Equal("Point", classDecl.Name.Lexeme);

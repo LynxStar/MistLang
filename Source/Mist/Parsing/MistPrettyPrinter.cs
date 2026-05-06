@@ -84,6 +84,9 @@ public sealed class MistPrettyPrinter
                 case WithItemTopLevelItemNode withItem:
                     EmitWithDeclaration(withItem.WithDeclaration);
                     break;
+                case ExtensionItemTopLevelItemNode extensionItem:
+                    EmitExtensionBlockDeclaration(extensionItem.ExtensionDeclaration);
+                    break;
             }
         }
     }
@@ -108,9 +111,9 @@ public sealed class MistPrettyPrinter
                 AppendLine($"namespace {name};");
                 AppendLine();
 
-                foreach (var typeDecl in fileScopedNs.Body)
+                foreach (var bodyItem in fileScopedNs.Body)
                 {
-                    EmitTypeDeclaration(typeDecl);
+                    EmitNamespaceBodyItem(bodyItem);
                 }
                 break;
             }
@@ -120,15 +123,28 @@ public sealed class MistPrettyPrinter
                 AppendLine($"namespace {name} {{");
                 _indentLevel++;
 
-                foreach (var typeDecl in blockNs.Body)
+                foreach (var bodyItem in blockNs.Body)
                 {
-                    EmitTypeDeclaration(typeDecl);
+                    EmitNamespaceBodyItem(bodyItem);
                 }
 
                 _indentLevel--;
                 AppendLine("}");
                 break;
             }
+        }
+    }
+
+    private void EmitNamespaceBodyItem(NamespaceBodyItemNode bodyItem)
+    {
+        switch (bodyItem)
+        {
+            case NamespaceTypeItemNamespaceBodyItemNode typeItem:
+                EmitTypeDeclaration(typeItem.TypeDeclaration);
+                break;
+            case NamespaceExtensionItemNamespaceBodyItemNode extensionItem:
+                EmitExtensionBlockDeclaration(extensionItem.ExtensionDeclaration);
+                break;
         }
     }
 
@@ -822,6 +838,42 @@ public sealed class MistPrettyPrinter
         AppendLine($"{sourceName} as {targetName};");
     }
 
+    // ─── Extension Block Declarations ────────────────────────────────────
+
+    private void EmitExtensionBlockDeclaration(ExtensionBlockDeclarationNode extDecl)
+    {
+        var typeParams = EmitTypeParameterList(extDecl.TypeParams);
+        var receiverType = EmitTypeReference(extDecl.ReceiverType);
+        var receiverName = extDecl.ReceiverName.Lexeme;
+
+        // Grammar: TypeParameterList? EXTENSION ( ... ) — type params precede the keyword
+        var prefix = typeParams.Length > 0 ? $"{typeParams} " : "";
+        AppendLine($"{prefix}extension({receiverType} {receiverName}) {{");
+        _indentLevel++;
+
+        for (var i = 0; i < extDecl.Members.Length; i++)
+        {
+            if (i > 0) AppendLine();
+            EmitExtensionMemberDeclaration(extDecl.Members[i]);
+        }
+
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    private void EmitExtensionMemberDeclaration(ExtensionMemberDeclarationNode member)
+    {
+        switch (member)
+        {
+            case ExtensionMethodMemberExtensionMemberDeclarationNode methodMember:
+                EmitMethodDeclaration(methodMember.Method);
+                break;
+            case ExtensionPropertyMemberExtensionMemberDeclarationNode propertyMember:
+                EmitPropertyDeclaration(propertyMember.Property);
+                break;
+        }
+    }
+
     // ─── Parameters and Arguments ────────────────────────────────────────
 
     private string EmitParameterList(ParameterListNode? paramList)
@@ -873,6 +925,16 @@ public sealed class MistPrettyPrinter
     {
         switch (typeRef)
         {
+            case UnionTypeRefTypeReferenceNode unionRef:
+            {
+                var parts = new List<string>();
+                parts.Add(EmitSingleTypeRef(unionRef.UnionType.First));
+                foreach (var constituent in unionRef.UnionType.SingleTypeRefs)
+                {
+                    parts.Add(EmitSingleTypeRef(constituent));
+                }
+                return string.Join(" | ", parts);
+            }
             case PrimitiveTypeRefTypeReferenceNode primitiveRef:
             {
                 var keyword = EmitPrimitiveType(primitiveRef.PrimitiveType);
@@ -897,6 +959,66 @@ public sealed class MistPrettyPrinter
                 return $"{name}{typeArgs}";
             }
             case TupleTypeRefTypeReferenceNode tupleRef:
+            {
+                var parts = new List<string>();
+
+                string FormatTupleElement(TupleTypeElementNode element)
+                {
+                    var type = EmitTypeReference(element.Type);
+                    return element.Name.HasValue ? $"{type} {element.Name.Value.Lexeme}" : type;
+                }
+
+                parts.Add(FormatTupleElement(tupleRef.First));
+                parts.Add(FormatTupleElement(tupleRef.Rest));
+                foreach (var additional in tupleRef.TupleTypeElements)
+                {
+                    parts.Add(FormatTupleElement(additional));
+                }
+
+                return $"({string.Join(", ", parts)})";
+            }
+            default:
+                return "object";
+        }
+    }
+
+    private string EmitSingleTypeRef(SingleTypeRefNode singleTypeRef)
+    {
+        switch (singleTypeRef)
+        {
+            case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
+            {
+                var keyword = EmitPrimitiveType(primitiveRef.PrimitiveType);
+                if (primitiveRef.ArrayRank.HasValue)
+                {
+                    return $"{keyword}[]";
+                }
+                return keyword;
+            }
+            case VoidSingleTypeRefSingleTypeRefNode:
+                return "void";
+            case UnknownSingleTypeRefSingleTypeRefNode:
+                return "unknown";
+            case NamedSingleTypeRefSingleTypeRefNode namedRef:
+            {
+                var name = ExtractQualifiedName(namedRef.Name);
+                var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs);
+                if (namedRef.ArrayRank.HasValue)
+                {
+                    return $"{name}{typeArgs}[]";
+                }
+                return $"{name}{typeArgs}";
+            }
+            case ParenthesizedTypeRefSingleTypeRefNode parenRef:
+            {
+                var inner = EmitTypeReference(parenRef.Inner);
+                if (parenRef.ArrayRank.HasValue)
+                {
+                    return $"({inner})[]";
+                }
+                return $"({inner})";
+            }
+            case TupleSingleTypeRefSingleTypeRefNode tupleRef:
             {
                 var parts = new List<string>();
 
@@ -1153,6 +1275,12 @@ public sealed class MistPrettyPrinter
                 var name = varDecl.Name.Lexeme;
                 var init = EmitExpression(varDecl.Initializer);
                 return $"{type} {name} = {init}";
+            }
+            case ForInitializerVarDeclarationForInitializerNode varDeclInit:
+            {
+                var name = varDeclInit.Name.Lexeme;
+                var init = EmitExpression(varDeclInit.Initializer);
+                return $"var {name} = {init}";
             }
             case ForInitializerExpressionForInitializerNode exprInit:
                 return EmitExpression(exprInit.Expression);

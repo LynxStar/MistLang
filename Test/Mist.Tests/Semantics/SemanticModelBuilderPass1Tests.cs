@@ -137,7 +137,7 @@ public class SemanticModelBuilderPass1Tests
         var nsNode = new FileScopedNamespaceNamespaceDeclarationNode
         {
             Name = qualifiedId,
-            Body = ImmutableArray<TypeDeclarationNode>.Empty,
+            Body = ImmutableArray<NamespaceBodyItemNode>.Empty,
             Span = new Storm.Runtime.SourceSpan(0, source.Length),
         };
         var ast = new CompilationUnitNode
@@ -166,7 +166,7 @@ public class SemanticModelBuilderPass1Tests
         var nsNode = new FileScopedNamespaceNamespaceDeclarationNode
         {
             Name = qualifiedId,
-            Body = ImmutableArray<TypeDeclarationNode>.Empty,
+            Body = ImmutableArray<NamespaceBodyItemNode>.Empty,
             Span = new Storm.Runtime.SourceSpan(0, source.Length),
         };
         var ast = new CompilationUnitNode
@@ -201,7 +201,7 @@ public class SemanticModelBuilderPass1Tests
         {
             Name = qualifiedId,
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
             Span = new Storm.Runtime.SourceSpan(0, source.Length),
         };
         var ast = new CompilationUnitNode
@@ -527,7 +527,7 @@ public class SemanticModelBuilderPass1Tests
         {
             Name = qualifiedId,
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
             Span = new Storm.Runtime.SourceSpan(0, source.Length),
         };
         var ast = new CompilationUnitNode
@@ -572,7 +572,7 @@ public class SemanticModelBuilderPass1Tests
         {
             Name = qualifiedId,
             Body = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }),
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
             Span = new Storm.Runtime.SourceSpan(0, source.Length),
         };
         var ast = new CompilationUnitNode

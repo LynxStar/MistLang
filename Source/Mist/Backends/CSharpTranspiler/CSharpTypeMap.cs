@@ -62,6 +62,33 @@ internal static class CSharpTypeMap
     };
 
     /// <summary>
+    /// Attempts to find a C# mapped name for a Mist type name used in source.
+    /// Checks both the simple name (e.g., "Type") and the fully-qualified
+    /// stdlib form (e.g., "Standard.Type"). Returns null if no mapping exists
+    /// or if the mapped name equals the input (no remapping needed).
+    /// </summary>
+    public static string? TryGetMappedName(string mistTypeName)
+    {
+        // Check the simple name first (e.g., "Type" → "System.Type").
+        if (BackingTypes.TryGetValue(mistTypeName, out var mapped))
+        {
+            // Only return if the mapped name differs from the input
+            // (skip identity mappings like "int" → "int").
+            if (mapped != mistTypeName)
+                return mapped;
+        }
+
+        // Check with "Standard." prefix (e.g., "Type" → "Standard.Type" → "System.Type").
+        if (BackingTypes.TryGetValue($"Standard.{mistTypeName}", out var qualifiedMapped))
+        {
+            if (qualifiedMapped != mistTypeName)
+                return qualifiedMapped;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Returns the C# keyword for a Mist type by looking up its fully-qualified
     /// stdlib name or legacy DisplayName in the Backing_Type_Map.
     /// </summary>
@@ -119,6 +146,9 @@ internal static class CSharpTypeMap
     /// </remarks>
     public static string GetTypeName(IType type, bool isValueContext = false) => type switch
     {
+        // Union types lower to the generated helper struct name.
+        UnionType ut => UnionHelperGenerator.GetHelperTypeName(ut),
+
         // User-facing UnknownType (Requirement 15.1): every direct reference to
         // UnknownType lowers to C# `object`. Matched before the generic class/
         // struct branches because UnknownType is a singleton with its own class

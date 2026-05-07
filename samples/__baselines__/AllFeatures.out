@@ -202,17 +202,23 @@ Product created: Widget, sku 1001
   Name: Widget, Id: 1001
 Done!
 === Generic Traits Demo ===
---- 1. Comparable<T> with T in method signature ---
+--- 1. Type parameter as method parameter (Comparable<T>) ---
   IntComparer(10).CompareTo(5) = 5
---- 2. Comparable<string> substitution ---
+--- 2. Same trait, different type arg (Comparable<string>) ---
   StringComparer.CompareTo("world") = 0
---- 3. Non-generic trait inheritance ---
+--- 3. Type parameter as field type (Container<T>) ---
+  IntBox(42) via Container<int>.Data = 42
+--- 4. Type parameter as return type (Provider<T>) ---
+  NameProvider via Provider<string>.Provide() = hello
+--- 5. Multiple type parameters (Converter<TIn, TOut>) ---
+  IntToString via Converter<int,string>.Convert(7) = converted
+--- 6. Non-generic trait inheritance ---
   trait ReadWriteStream : Readable, Writable { void Flush(); }
---- 4. Structural satisfaction of non-generic trait ---
+--- 7. Structural satisfaction of non-generic trait ---
   MemoryStream.Read() via Readable = data from memory
---- 5. With-block mapping for non-generic trait ---
+--- 8. With-block mapping for non-generic trait ---
   Logger.Write() via Writable called successfully
---- 6. Passing to trait-typed parameter ---
+--- 9. Passing to trait-typed parameter ---
   PrintReadable: data from memory
 === Generic Traits Demo Complete ===
 === UnknownType Sample (AllFeatures) ===

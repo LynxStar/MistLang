@@ -226,6 +226,11 @@ internal sealed class CSharpSourceWriter
     /// is deferred to the start of the then-branch block.
     /// </summary>
     private readonly List<string> _pendingUnionPatternBindings = new();
+    /// <summary>
+    /// The namespace of the current compilation unit being emitted.
+    /// Used to scope type alias fallback resolution to the correct namespace.
+    /// </summary>
+    private string? _currentNamespace;
     private const string IndentUnit = "    ";
 
     /// <summary>
@@ -309,6 +314,7 @@ internal sealed class CSharpSourceWriter
                         AppendLine($"namespace {typeNamespace};");
                         AppendLine();
                         emittedInferredNamespace = typeNamespace;
+                        _currentNamespace = typeNamespace;
                     }
 
                     EmitTypeDeclaration(typeItem.TypeDeclaration);
@@ -758,6 +764,22 @@ internal sealed class CSharpSourceWriter
         };
     }
 
+    /// <summary>
+    /// Gets the containing namespace for a symbol by inspecting its DeclaredType.
+    /// Returns null if the symbol has no type or the type has no namespace.
+    /// </summary>
+    private static string? GetSymbolContainingNamespace(ISymbol symbol)
+    {
+        return symbol.DeclaredType switch
+        {
+            ClassType ct => ct.ContainingNamespace,
+            StructType st => st.ContainingNamespace,
+            InterfaceType it => it.ContainingNamespace,
+            TraitType tt => tt.ContainingNamespace,
+            _ => null,
+        };
+    }
+
     private void EmitNamespaceDeclaration(NamespaceDeclarationNode ns)
     {
         switch (ns)
@@ -765,6 +787,7 @@ internal sealed class CSharpSourceWriter
             case FileScopedNamespaceNamespaceDeclarationNode fileScopedNs:
             {
                 var name = ExtractQualifiedName(fileScopedNs.Name);
+                _currentNamespace = name;
                 AppendLine($"namespace {name};");
                 AppendLine();
 
@@ -1672,20 +1695,10 @@ internal sealed class CSharpSourceWriter
                 name = ExtractQualifiedName(namedRef.Name);
             }
 
-            if (substitutions.TryGetValue(name, out var substituted))
+            // If name is still null/empty (node from a different source file where
+            // span-based extraction failed), attempt cross-file lookup immediately.
+            if (string.IsNullOrEmpty(name))
             {
-                // Type parameter substituted with concrete type.
-                return namedRef.ArrayRank.HasValue ? $"{substituted}[]" : substituted;
-            }
-
-            // The name extraction may have failed because the node is from a
-            // different source file (e.g., a trait method parameter accessed
-            // during explicit interface implementation emission). Try to find
-            // the name from the correct compilation unit's source text.
-            if (!string.IsNullOrEmpty(name))
-            {
-                // Check if the extracted name looks wrong (not a valid identifier
-                // or doesn't match any known type). If so, try cross-file lookup.
                 var span = namedRef.Name.Span;
                 if (span.Length > 0 && span.Length <= 128)
                 {
@@ -1699,6 +1712,43 @@ internal sealed class CSharpSourceWriter
                             {
                                 return namedRef.ArrayRank.HasValue ? $"{crossFileSubstituted}[]" : crossFileSubstituted;
                             }
+                            // Use the cross-file name even if it's not a type parameter.
+                            if (!string.IsNullOrEmpty(crossFileName))
+                            {
+                                name = crossFileName;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // If still null after all attempts, fall back to emitting without substitution.
+                if (string.IsNullOrEmpty(name))
+                    return EmitTypeReference(typeRef);
+            }
+
+            if (substitutions.TryGetValue(name, out var substituted))
+            {
+                // Type parameter substituted with concrete type.
+                return namedRef.ArrayRank.HasValue ? $"{substituted}[]" : substituted;
+            }
+
+            // The name extraction may have failed because the node is from a
+            // different source file (e.g., a trait method parameter accessed
+            // during explicit interface implementation emission). Try to find
+            // the name from the correct compilation unit's source text.
+            var nameSpan = namedRef.Name.Span;
+            if (nameSpan.Length > 0 && nameSpan.Length <= 128)
+            {
+                foreach (var unit in _model.Units)
+                {
+                    if (unit.Source is not null
+                        && nameSpan.Start + nameSpan.Length <= unit.Source.Contents.Length)
+                    {
+                        var crossFileName = unit.Source.Contents.Substring(nameSpan.Start, nameSpan.Length);
+                        if (substitutions.TryGetValue(crossFileName, out var crossFileSubstituted))
+                        {
+                            return namedRef.ArrayRank.HasValue ? $"{crossFileSubstituted}[]" : crossFileSubstituted;
                         }
                     }
                 }
@@ -3072,12 +3122,29 @@ internal sealed class CSharpSourceWriter
                     return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
                 }
                 // Fallback: search all symbols for a type alias with this name.
-                var aliasSymbol = _model.AllSymbols
-                    .FirstOrDefault(s => s.Name == name && s.Kind == SymbolKind.TypeAlias);
-                if (aliasSymbol?.DeclaredType is TypeAliasType aliasType)
+                // Only apply if no concrete type (class/struct/interface) with the
+                // same name exists in the current namespace — prevents cross-namespace
+                // alias collisions when a class and a type alias share the same simple
+                // name in different namespaces compiled together.
+                if (resolvedType is null)
                 {
-                    var emittedType = ResolveAliasForEmission(aliasType, namedRef, isValueContext);
-                    return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
+                    var aliasSymbol = _model.AllSymbols
+                        .FirstOrDefault(s => s.Name == name && s.Kind == SymbolKind.TypeAlias);
+                    if (aliasSymbol?.DeclaredType is TypeAliasType aliasType)
+                    {
+                        // Check that no concrete type with this name exists in the
+                        // current namespace (which would take precedence over an alias
+                        // from a different namespace).
+                        var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
+                            && _model.AllSymbols.Any(s => s.Name == name
+                                && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                                && GetSymbolContainingNamespace(s) == _currentNamespace);
+                        if (!hasConcreteTypeInCurrentNamespace)
+                        {
+                            var emittedType = ResolveAliasForEmission(aliasType, namedRef, isValueContext);
+                            return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
+                        }
+                    }
                 }
 
                 // Handle "Void" identifier as equivalent to the void keyword.
@@ -4626,29 +4693,38 @@ internal sealed class CSharpSourceWriter
 
                 // Type aliases are transparent — resolve to the underlying type name
                 // for object creation expressions (e.g., `new IntBox(42)` → `new GenericBox<int>(42)`).
+                // Only apply if no concrete type with the same name exists in the
+                // current namespace, to prevent cross-namespace collisions.
                 var aliasSymbol = _model.AllSymbols
                     .FirstOrDefault(s => s.Name == type && s.Kind == SymbolKind.TypeAlias);
                 if (aliasSymbol?.DeclaredType is TypeAliasType objAlias)
                 {
-                    var underlying = objAlias.UnderlyingType;
-                    if (objCreation.TypeArgs is not null && objAlias.TypeParameters.Count > 0)
+                    var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
+                        && _model.AllSymbols.Any(s => s.Name == type
+                            && s.Kind is SymbolKind.Class or SymbolKind.Struct
+                            && GetSymbolContainingNamespace(s) == _currentNamespace);
+                    if (!hasConcreteTypeInCurrentNamespace)
                     {
-                        // Generic alias with type arguments: emit definition + substituted args.
-                        if (underlying is ConstructedType ct)
+                        var underlying = objAlias.UnderlyingType;
+                        if (objCreation.TypeArgs is not null && objAlias.TypeParameters.Count > 0)
                         {
-                            type = CSharpTypeMap.GetTypeName(ct.GenericDefinition);
+                            // Generic alias with type arguments: emit definition + substituted args.
+                            if (underlying is ConstructedType ct)
+                            {
+                                type = CSharpTypeMap.GetTypeName(ct.GenericDefinition);
+                            }
+                            else
+                            {
+                                type = CSharpTypeMap.GetTypeName(underlying);
+                                typeArgs = "";
+                            }
                         }
                         else
                         {
+                            // Non-generic alias or closed generic alias: emit the full resolved type.
                             type = CSharpTypeMap.GetTypeName(underlying);
                             typeArgs = "";
                         }
-                    }
-                    else
-                    {
-                        // Non-generic alias or closed generic alias: emit the full resolved type.
-                        type = CSharpTypeMap.GetTypeName(underlying);
-                        typeArgs = "";
                     }
                 }
 

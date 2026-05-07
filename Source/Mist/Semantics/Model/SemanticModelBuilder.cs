@@ -3984,8 +3984,36 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ClassTypeTypeDeclarationNode ct => ReferenceEquals(ct.ClassDeclaration, declaringNode),
             StructTypeTypeDeclarationNode st => ReferenceEquals(st.StructDeclaration, declaringNode),
             InterfaceTypeTypeDeclarationNode it => ReferenceEquals(it.InterfaceDeclaration, declaringNode),
+            TraitTypeTypeDeclarationNode tt => ReferenceEquals(tt.TraitDeclaration, declaringNode),
             _ => false,
         };
+    }
+
+    /// <summary>
+    /// Checks whether a compilation unit contains a given node by reference equality.
+    /// Walks all top-level items including type declarations and namespace members.
+    /// </summary>
+    private static bool ContainsNodeByReference(CompilationUnitNode cu, Storm.Runtime.SyntaxNode targetNode)
+    {
+        foreach (var item in cu.Items)
+        {
+            switch (item)
+            {
+                case TypeItemTopLevelItemNode typeItem:
+                    if (MatchesTypeDeclaration(typeItem.TypeDeclaration, targetNode))
+                        return true;
+                    break;
+                case NamespaceItemTopLevelItemNode nsItem:
+                    var namespaceTypes = GetNamespaceBodyTypes(nsItem.NamespaceDeclaration);
+                    foreach (var typeDecl in namespaceTypes)
+                    {
+                        if (MatchesTypeDeclaration(typeDecl, targetNode))
+                            return true;
+                    }
+                    break;
+            }
+        }
+        return false;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -4563,21 +4591,40 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 if (sourceTypeRef is not null && targetTypeRef is not null)
                 {
-                    // Find the trait member's source text for name extraction
-                    // (the parser may not populate IDENTIFIER.Lexeme).
-                    var traitMemberNode = symbolTable.GetDeclaringNode(targetMember);
-                    var traitMemberSourceText = traitMemberNode is not null
-                        ? FindSourceTextForNode(traitMemberNode, asts, compilation)
+                    // Find the correct source text for the trait member's type reference.
+                    // Use reference-equality containment: walk each AST's compilation unit
+                    // and check if it contains the trait declaration node by reference.
+                    SourceText? traitMemberSourceText = null;
+                    var traitDeclSymbol = symbolTable.AllSymbols.FirstOrDefault(s =>
+                        s.Kind == SymbolKind.Trait &&
+                        ReferenceEquals(s.DeclaredType, resolvedTraitType));
+                    var traitDeclNode = traitDeclSymbol is not null
+                        ? symbolTable.GetDeclaringNode(traitDeclSymbol)
                         : null;
 
+                    if (traitDeclNode is not null)
+                    {
+                        for (var cuIdx = 0; cuIdx < asts.Length; cuIdx++)
+                        {
+                            if (asts[cuIdx] is CompilationUnitNode cu &&
+                                ContainsNodeByReference(cu, traitDeclNode))
+                            {
+                                traitMemberSourceText = cuIdx < compilation.Units.Length
+                                    ? compilation.Units[cuIdx].Source
+                                    : null;
+                                break;
+                            }
+                        }
+                    }
+
                     var typesMatch = typeParams is not null && typeArgs is not null
-                        ? TypeReferencesMatchWithSubstitution(sourceTypeRef, targetTypeRef, typeParams, typeArgs, traitMemberSourceText)
+                        ? TypeReferencesMatchWithSubstitution(sourceTypeRef, targetTypeRef, typeParams, typeArgs, traitMemberSourceText, asts, compilation)
                         : TypeReferencesMatch(sourceTypeRef, targetTypeRef);
 
                     if (!typesMatch)
                     {
                         var expectedTypeStr = typeParams is not null && typeArgs is not null
-                            ? FormatTypeReferenceWithSubstitution(targetTypeRef, typeParams, typeArgs, traitMemberSourceText)
+                            ? FormatTypeReferenceWithSubstitution(targetTypeRef, typeParams, typeArgs, traitMemberSourceText, asts, compilation)
                             : FormatTypeReference(targetTypeRef);
                         var actualTypeStr = FormatTypeReference(sourceTypeRef);
                         diagnostics.Add(new Diagnostic(
@@ -6964,13 +7011,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         TypeReferenceNode targetRef,
         IReadOnlyList<TypeParameterType> typeParams,
         IReadOnlyList<IType> typeArgs,
-        SourceText? traitSourceText = null)
+        SourceText? traitSourceText = null,
+        ImmutableArray<Storm.Runtime.SyntaxNode>? asts = null,
+        MistCompilation? compilation = null)
     {
         // If the target is a named type ref that matches a type parameter name,
         // substitute it with the corresponding type argument and compare.
         if (targetRef is NamedTypeRefTypeReferenceNode namedTarget)
         {
             var targetName = GetNamedTypeRefName(namedTarget, traitSourceText);
+
+            // If primary source text lookup failed, try all compilation units.
+            if (string.IsNullOrEmpty(targetName) && asts.HasValue && compilation is not null)
+            {
+                targetName = GetNamedTypeRefName(namedTarget, asts.Value, compilation);
+            }
+
             for (var i = 0; i < typeParams.Count; i++)
             {
                 if (typeParams[i].Name == targetName)
@@ -7049,11 +7105,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         TypeReferenceNode typeRef,
         IReadOnlyList<TypeParameterType> typeParams,
         IReadOnlyList<IType> typeArgs,
-        SourceText? sourceText = null)
+        SourceText? sourceText = null,
+        ImmutableArray<Storm.Runtime.SyntaxNode>? asts = null,
+        MistCompilation? compilation = null)
     {
         if (typeRef is NamedTypeRefTypeReferenceNode namedRef)
         {
             var name = GetNamedTypeRefName(namedRef, sourceText);
+
+            // If primary source text lookup failed, try all compilation units.
+            if (string.IsNullOrEmpty(name) && asts.HasValue && compilation is not null)
+            {
+                name = GetNamedTypeRefName(namedRef, asts.Value, compilation);
+            }
+
             for (var i = 0; i < typeParams.Count; i++)
             {
                 if (typeParams[i].Name == name)
@@ -7085,15 +7150,68 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (!string.IsNullOrEmpty(lexeme))
             return lexeme;
 
-        // Fallback: slice the QualifiedIdentifier's span out of the source text.
+        // Fallback 1: try the IDENTIFIER token's own span against the source text.
         if (sourceText is not null)
         {
+            var tokenSpan = named.Name.IDENTIFIER.Span;
+            if (tokenSpan.Length > 0 && tokenSpan.Start + tokenSpan.Length <= sourceText.Contents.Length)
+            {
+                var extracted = sourceText.Contents.Substring(tokenSpan.Start, tokenSpan.Length);
+                if (!string.IsNullOrEmpty(extracted) && char.IsLetter(extracted[0]))
+                    return extracted;
+            }
+
+            // Fallback 2: try the QualifiedIdentifier's span.
             var span = named.Name.Span;
             if (span.Length > 0 && span.Start + span.Length <= sourceText.Contents.Length)
-                return sourceText.Contents.Substring(span.Start, span.Length);
+            {
+                var extracted = sourceText.Contents.Substring(span.Start, span.Length);
+                if (!string.IsNullOrEmpty(extracted) && char.IsLetter(extracted[0]))
+                    return extracted;
+            }
         }
 
         // Last resort: nothing resolvable.
+        return "";
+    }
+
+    /// <summary>
+    /// Variant of <see cref="GetNamedTypeRefName"/> that tries multiple source texts.
+    /// Used when the correct source text is uncertain (e.g., multi-file compilation
+    /// where span-based file identification may be unreliable).
+    /// </summary>
+    private static string GetNamedTypeRefName(
+        NamedTypeRefTypeReferenceNode named,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation)
+    {
+        var lexeme = named.Name.IDENTIFIER.Lexeme;
+        if (!string.IsNullOrEmpty(lexeme))
+            return lexeme;
+
+        // Try each compilation unit's source text.
+        for (var i = 0; i < compilation.Units.Length; i++)
+        {
+            var src = compilation.Units[i].Source;
+            if (src is null) continue;
+
+            var tokenSpan = named.Name.IDENTIFIER.Span;
+            if (tokenSpan.Length > 0 && tokenSpan.Start + tokenSpan.Length <= src.Contents.Length)
+            {
+                var extracted = src.Contents.Substring(tokenSpan.Start, tokenSpan.Length);
+                if (!string.IsNullOrEmpty(extracted) && char.IsLetter(extracted[0]))
+                    return extracted;
+            }
+
+            var span = named.Name.Span;
+            if (span.Length > 0 && span.Start + span.Length <= src.Contents.Length)
+            {
+                var extracted = src.Contents.Substring(span.Start, span.Length);
+                if (!string.IsNullOrEmpty(extracted) && char.IsLetter(extracted[0]))
+                    return extracted;
+            }
+        }
+
         return "";
     }
 

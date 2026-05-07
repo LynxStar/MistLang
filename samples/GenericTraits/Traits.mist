@@ -1,9 +1,27 @@
 namespace GenericTraits;
 
-// Generic trait with type parameter used in method parameter
+// Generic trait with type parameter used as method parameter type
 trait Comparable<T>
 {
     int CompareTo(T other);
+}
+
+// Generic trait with type parameter used as a field type
+trait Container<T>
+{
+    T Data;
+}
+
+// Generic trait with type parameter used as a return type
+trait Provider<T>
+{
+    T Provide();
+}
+
+// Generic trait with multiple type parameters used in different positions
+trait Converter<TIn, TOut>
+{
+    TOut Convert(TIn input);
 }
 
 // Non-generic traits

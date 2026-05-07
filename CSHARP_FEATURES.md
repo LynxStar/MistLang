@@ -67,7 +67,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | Nested types | 🔲 | |
 | Traits (structural typing) | ✅ | Structural typing via `trait` declarations |
 | Generic type declarations | ✅ | |
-| Generic constraints (`where T : ...`) | 🔲 | |
+| Generic constraints (`where T : ...`) | ✅ | |
 
 ---
 
@@ -493,7 +493,7 @@ Mist supports TypeScript-style type unions (`int | string`) allowing a value to 
 | Generic classes (`class Foo<T>`) | ✅ | |
 | Generic methods (`void Foo<T>()`) | ✅ | |
 | Generic interfaces | ✅ | |
-| Type constraints (`where T : class`) | 🔲 | |
+| Type constraints (`where T : class`) | ✅ | |
 | Covariance / contravariance | 🔲 | |
 | Generic delegates | 🔲 | |
 
@@ -835,7 +835,7 @@ Features introduced by Mist that don't map directly to a single C# feature. Thes
 |---|---|---|---|
 | Value Types | 14 | 4 | 0 |
 | Reference Types | 5 | 6 | 1 |
-| Type Declarations | 5 | 10 | 0 |
+| Type Declarations | 6 | 9 | 0 |
 | Members — Fields | 3 | 3 | 1 |
 | Members — Properties | 10 | 1 | 0 |
 | Members — Methods | 6 | 11 | 0 |
@@ -865,7 +865,7 @@ Features introduced by Mist that don't map directly to a single C# feature. Thes
 | Type Unions — Semantic Model | 4 | 0 | 0 |
 | Type Unions — Type Checking | 9 | 0 | 0 |
 | Type Unions — C# Emission | 6 | 0 | 0 |
-| Generics | 3 | 3 | 0 |
+| Generics | 4 | 2 | 0 |
 | Async | 0 | 5 | 1 |
 | Namespaces & Imports | 3 | 3 | 1 |
 | Comments | 1 | 2 | 0 |

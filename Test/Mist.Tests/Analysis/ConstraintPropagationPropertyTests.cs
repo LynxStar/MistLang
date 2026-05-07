@@ -1,0 +1,292 @@
+// Feature: generic-constraints, Property 6: Constraint Propagation Through Inheritance
+// **Validates: Requirements 7.1, 7.2, 7.3**
+
+using System.Collections.Immutable;
+using FsCheck;
+using FsCheck.Fluent;
+using FsCheck.Xunit;
+using Mist.Analysis.Builtin;
+using Mist.Common.Diagnostics;
+using Mist.Common.Text;
+using Mist.Driver.Contracts;
+using Mist.Lexing.Contracts;
+using Mist.Parsing.Contracts;
+using Mist.Semantics.Contracts;
+using Mist.Semantics.Model;
+
+namespace Mist.Tests.Analysis;
+
+/// <summary>
+/// Represents a scenario for testing constraint propagation through inheritance.
+/// </summary>
+public sealed class ConstraintPropagationScenario
+{
+    public string Source { get; }
+    public string Description { get; }
+    public bool ShouldAccept { get; }
+
+    public ConstraintPropagationScenario(string source, string description, bool shouldAccept)
+    {
+        Source = source;
+        Description = description;
+        ShouldAccept = shouldAccept;
+    }
+
+    public override string ToString() => $"[{(ShouldAccept ? "ACCEPT" : "REJECT")}] {Description}";
+}
+
+/// <summary>
+/// Property-based tests verifying constraint propagation through inheritance.
+///
+/// Property 6: For any generic type Derived&lt;T&gt; that inherits from a constrained
+/// generic type Base&lt;T&gt;, the compiler SHALL accept the inheritance if and only if
+/// the constraints on Derived's type parameter T are at least as restrictive as the
+/// constraints on Base's type parameter T.
+///
+/// **Validates: Requirements 7.1, 7.2, 7.3**
+/// </summary>
+public class ConstraintPropagationPropertyTests
+{
+    private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
+    private static readonly IParser Parser = new Mist.Parsing.MistParser();
+    private static readonly SemanticModelBuilder Builder = new();
+    private static readonly TypeCheckerAnalyzer Analyzer = new();
+
+    // ─── Helpers ─────────────────────────────────────────────────────────
+
+    private static (ISemanticModel Model, ImmutableArray<Diagnostic> AllDiagnostics) CompileSource(string source)
+    {
+        var sourceText = new SourceText("test.mist", source);
+        var lexBag = new DiagnosticBag();
+        var tokens = Lexer.Lex(sourceText, lexBag);
+
+        var parseBag = new DiagnosticBag();
+        var parseResult = Parser.Parse(tokens, parseBag);
+
+        if (parseResult.Root is null)
+            return (null!, lexBag.ToImmutableArray().AddRange(parseBag.ToImmutableArray()));
+
+        var compilation = new MistCompilation(
+            ImmutableArray.Create(new CompilationUnit(sourceText)));
+        var semBag = new DiagnosticBag();
+        var model = Builder.Build(
+            compilation,
+            ImmutableArray.Create(parseResult.Root!),
+            ambientTypeResolver: null,
+            namespaceRoot: "TestProject",
+            projectFolder: "/test",
+            semBag);
+
+        var tcBag = new DiagnosticBag();
+        Analyzer.Analyze(model, tcBag);
+
+        var allDiags = semBag.ToImmutableArray().AddRange(tcBag.ToImmutableArray());
+        return (model, allDiags);
+    }
+
+    private static bool HasPropagationViolation(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return diagnostics.Any(d => d.Id.Value == "MIST_CONSTRAINT_0017");
+    }
+
+    // ─── Generators ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Generates scenarios where derived type has the same class constraint as base — accepted.
+    /// </summary>
+    private static Gen<ConstraintPropagationScenario> GenClassConstraintPropagated()
+    {
+        return from baseName in Gen.Elements("Base", "Parent", "Root")
+               from derivedName in Gen.Elements("Derived", "Child", "Sub")
+               select new ConstraintPropagationScenario(
+                   $@"class {baseName}<T> where T : class {{ }}
+class {derivedName}<T> : {baseName}<T> where T : class {{ }}",
+                   $"{derivedName}<T> : {baseName}<T> — both have class constraint",
+                   shouldAccept: true);
+    }
+
+    /// <summary>
+    /// Generates scenarios where derived type is missing the class constraint from base — rejected.
+    /// </summary>
+    private static Gen<ConstraintPropagationScenario> GenClassConstraintMissing()
+    {
+        return from baseName in Gen.Elements("Base", "Parent", "Root")
+               from derivedName in Gen.Elements("Derived", "Child", "Sub")
+               select new ConstraintPropagationScenario(
+                   $@"class {baseName}<T> where T : class {{ }}
+class {derivedName}<T> : {baseName}<T> {{ }}",
+                   $"{derivedName}<T> : {baseName}<T> — derived missing class constraint",
+                   shouldAccept: false);
+    }
+
+    /// <summary>
+    /// Generates scenarios where derived type has the same struct constraint as base — accepted.
+    /// </summary>
+    private static Gen<ConstraintPropagationScenario> GenStructConstraintPropagated()
+    {
+        return from baseName in Gen.Elements("Base", "Parent", "Root")
+               from derivedName in Gen.Elements("Derived", "Child", "Sub")
+               select new ConstraintPropagationScenario(
+                   $@"class {baseName}<T> where T : struct {{ }}
+class {derivedName}<T> : {baseName}<T> where T : struct {{ }}",
+                   $"{derivedName}<T> : {baseName}<T> — both have struct constraint",
+                   shouldAccept: true);
+    }
+
+    /// <summary>
+    /// Generates scenarios where derived type is missing the struct constraint from base — rejected.
+    /// </summary>
+    private static Gen<ConstraintPropagationScenario> GenStructConstraintMissing()
+    {
+        return from baseName in Gen.Elements("Base", "Parent", "Root")
+               from derivedName in Gen.Elements("Derived", "Child", "Sub")
+               select new ConstraintPropagationScenario(
+                   $@"class {baseName}<T> where T : struct {{ }}
+class {derivedName}<T> : {baseName}<T> {{ }}",
+                   $"{derivedName}<T> : {baseName}<T> — derived missing struct constraint",
+                   shouldAccept: false);
+    }
+
+    /// <summary>
+    /// Generates scenarios where derived type has the same interface constraint as base — accepted.
+    /// </summary>
+    private static Gen<ConstraintPropagationScenario> GenInterfaceConstraintPropagated()
+    {
+        return from baseName in Gen.Elements("Base", "Parent", "Root")
+               from derivedName in Gen.Elements("Derived", "Child", "Sub")
+               from ifaceName in Gen.Elements("IFoo", "IBar", "IBaz")
+               select new ConstraintPropagationScenario(
+                   $@"interface {ifaceName} {{ }}
+class {baseName}<T> where T : {ifaceName} {{ }}
+class {derivedName}<T> : {baseName}<T> where T : {ifaceName} {{ }}",
+                   $"{derivedName}<T> : {baseName}<T> — both have {ifaceName} constraint",
+                   shouldAccept: true);
+    }
+
+    /// <summary>
+    /// Generates scenarios where derived type is missing the interface constraint from base — rejected.
+    /// </summary>
+    private static Gen<ConstraintPropagationScenario> GenInterfaceConstraintMissing()
+    {
+        return from baseName in Gen.Elements("Base", "Parent", "Root")
+               from derivedName in Gen.Elements("Derived", "Child", "Sub")
+               from ifaceName in Gen.Elements("IFoo", "IBar", "IBaz")
+               select new ConstraintPropagationScenario(
+                   $@"interface {ifaceName} {{ }}
+class {baseName}<T> where T : {ifaceName} {{ }}
+class {derivedName}<T> : {baseName}<T> {{ }}",
+                   $"{derivedName}<T> : {baseName}<T> — derived missing {ifaceName} constraint",
+                   shouldAccept: false);
+    }
+
+    /// <summary>
+    /// Generates scenarios where derived type has a more restrictive constraint set — accepted.
+    /// (Derived has class + interface, base only has class.)
+    /// </summary>
+    private static Gen<ConstraintPropagationScenario> GenMoreRestrictiveDerived()
+    {
+        return from baseName in Gen.Elements("Base", "Parent", "Root")
+               from derivedName in Gen.Elements("Derived", "Child", "Sub")
+               from ifaceName in Gen.Elements("IFoo", "IBar", "IBaz")
+               select new ConstraintPropagationScenario(
+                   $@"interface {ifaceName} {{ }}
+class {baseName}<T> where T : class {{ }}
+class {derivedName}<T> : {baseName}<T> where T : class, {ifaceName} {{ }}",
+                   $"{derivedName}<T> : {baseName}<T> — derived is more restrictive (class + {ifaceName})",
+                   shouldAccept: true);
+    }
+
+    /// <summary>
+    /// Generates scenarios where derived type has new() constraint matching base — accepted.
+    /// </summary>
+    private static Gen<ConstraintPropagationScenario> GenNewConstraintPropagated()
+    {
+        return from baseName in Gen.Elements("Base", "Parent", "Root")
+               from derivedName in Gen.Elements("Derived", "Child", "Sub")
+               select new ConstraintPropagationScenario(
+                   $@"class {baseName}<T> where T : new() {{ }}
+class {derivedName}<T> : {baseName}<T> where T : new() {{ }}",
+                   $"{derivedName}<T> : {baseName}<T> — both have new() constraint",
+                   shouldAccept: true);
+    }
+
+    /// <summary>
+    /// Generates scenarios where derived type is missing new() constraint from base — rejected.
+    /// </summary>
+    private static Gen<ConstraintPropagationScenario> GenNewConstraintMissing()
+    {
+        return from baseName in Gen.Elements("Base", "Parent", "Root")
+               from derivedName in Gen.Elements("Derived", "Child", "Sub")
+               select new ConstraintPropagationScenario(
+                   $@"class {baseName}<T> where T : new() {{ }}
+class {derivedName}<T> : {baseName}<T> {{ }}",
+                   $"{derivedName}<T> : {baseName}<T> — derived missing new() constraint",
+                   shouldAccept: false);
+    }
+
+    /// <summary>
+    /// Generates scenarios for interface inheritance propagation — accepted.
+    /// </summary>
+    private static Gen<ConstraintPropagationScenario> GenInterfaceInheritancePropagated()
+    {
+        return from baseIfaceName in Gen.Elements("IBase", "IParent", "IRoot")
+               from derivedIfaceName in Gen.Elements("IDerived", "IChild", "ISub")
+               from constraintIface in Gen.Elements("IFoo", "IBar", "IBaz")
+               select new ConstraintPropagationScenario(
+                   $@"interface {constraintIface} {{ }}
+interface {baseIfaceName}<T> where T : {constraintIface} {{ }}
+interface {derivedIfaceName}<T> : {baseIfaceName}<T> where T : {constraintIface} {{ }}",
+                   $"{derivedIfaceName}<T> : {baseIfaceName}<T> — interface inheritance with {constraintIface}",
+                   shouldAccept: true);
+    }
+
+    // ─── Combined generator ──────────────────────────────────────────────
+
+    private static Gen<ConstraintPropagationScenario> GenScenario()
+    {
+        return Gen.OneOf(
+            GenClassConstraintPropagated(),
+            GenClassConstraintMissing(),
+            GenStructConstraintPropagated(),
+            GenStructConstraintMissing(),
+            GenInterfaceConstraintPropagated(),
+            GenInterfaceConstraintMissing(),
+            GenMoreRestrictiveDerived(),
+            GenNewConstraintPropagated(),
+            GenNewConstraintMissing(),
+            GenInterfaceInheritancePropagated());
+    }
+
+    public static Arbitrary<ConstraintPropagationScenario> ArbitraryConstraintPropagationScenario() =>
+        GenScenario().ToArbitrary();
+
+    // ─── Property test ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Property 6: Constraint Propagation Through Inheritance
+    ///
+    /// For any generic type Derived&lt;T&gt; that inherits from a constrained generic type
+    /// Base&lt;T&gt;, the compiler SHALL accept the inheritance if and only if the constraints
+    /// on Derived's type parameter T are at least as restrictive as the constraints on
+    /// Base's type parameter T.
+    ///
+    /// **Validates: Requirements 7.1, 7.2, 7.3**
+    /// </summary>
+    [Property(MaxTest = 100, Arbitrary = new[] { typeof(ConstraintPropagationPropertyTests) })]
+    public Property ConstraintPropagation_AcceptRejectMatchesRestrictiveness(ConstraintPropagationScenario scenario)
+    {
+        var (_, diagnostics) = CompileSource(scenario.Source);
+        var hasViolation = HasPropagationViolation(diagnostics);
+
+        if (scenario.ShouldAccept)
+        {
+            return (!hasViolation).ToProperty()
+                .Label($"Expected ACCEPT but got MIST_CONSTRAINT_0017.\nSource:\n{scenario.Source}\nDiagnostics: {string.Join("; ", diagnostics.Where(d => d.Id.Value.StartsWith("MIST_CONSTRAINT")).Select(d => d.Message))}");
+        }
+        else
+        {
+            return hasViolation.ToProperty()
+                .Label($"Expected REJECT (MIST_CONSTRAINT_0017) but none emitted.\nSource:\n{scenario.Source}");
+        }
+    }
+}

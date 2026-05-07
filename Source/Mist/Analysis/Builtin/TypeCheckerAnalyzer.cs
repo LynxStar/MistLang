@@ -334,6 +334,65 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId UnionDegenerateType = new("MIST_TC_0075");
 
+    // ── Generic constraint satisfaction diagnostic IDs ────────────────────
+
+    /// <summary>
+    /// Emitted when a type argument does not implement a required interface
+    /// constraint on a type parameter (Requirement 5.2, 10.1).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintInterfaceNotImplemented = new("MIST_CONSTRAINT_0009");
+
+    /// <summary>
+    /// Emitted when a type argument does not satisfy a required trait
+    /// constraint on a type parameter (Requirement 5.3, 10.2).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintTraitNotSatisfied = new("MIST_CONSTRAINT_0010");
+
+    /// <summary>
+    /// Emitted when a type argument does not derive from a required base
+    /// class constraint on a type parameter (Requirement 5.4, 10.3).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintBaseClassNotDerived = new("MIST_CONSTRAINT_0011");
+
+    /// <summary>
+    /// Emitted when a type argument must be a reference type to satisfy the
+    /// 'class' constraint but is a value type (Requirement 5.5, 10.4).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintClassViolation = new("MIST_CONSTRAINT_0012");
+
+    /// <summary>
+    /// Emitted when a type argument must be a value type to satisfy the
+    /// 'struct' constraint but is a reference type (Requirement 5.6, 10.5).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintStructViolation = new("MIST_CONSTRAINT_0013");
+
+    /// <summary>
+    /// Emitted when a type argument must have a public parameterless
+    /// constructor to satisfy the 'new()' constraint (Requirement 5.7, 10.6).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintParameterlessCtorViolation = new("MIST_CONSTRAINT_0014");
+
+    /// <summary>
+    /// Emitted when a type argument must have a public constructor with
+    /// specific parameters to satisfy a parameterized constructor constraint
+    /// (Requirement 5.8, 10.7).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintParameterizedCtorViolation = new("MIST_CONSTRAINT_0015");
+
+    /// <summary>
+    /// Emitted when a <c>new T(...)</c> expression is used in a generic body
+    /// and the argument types do not match any declared constructor constraint
+    /// signature on that type parameter (Requirement 6.5, 6.6, 10.8).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintNewTNoMatch = new("MIST_CONSTRAINT_0016");
+
+    /// <summary>
+    /// Emitted when a derived type inherits from a constrained generic base
+    /// but does not declare constraints at least as restrictive on the
+    /// corresponding type parameter (Requirement 7.1, 7.2, 7.3).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintPropagationInsufficient = new("MIST_CONSTRAINT_0017");
+
     /// <summary>
     /// Feature flag gating the operator overload-resolution path introduced by
     /// Task 14 of the Mist Standard Library spec. When <c>true</c> (the
@@ -432,6 +491,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Task 5.10: Check for missing interface property implementations (MIST_TC_0030).
         CheckMissingInterfaceProperties(model, diagnostics);
+
+        // Task 6.2: Check constraint satisfaction for inheritance clauses where
+        // constrained generics are used as base types or implemented interfaces.
+        CheckInheritanceClauseConstraints(model, diagnostics);
 
         // Task 7.2: Validate explicit default blocks (R9.1–9.3, R6.9, R11.1, R11.2, R13.3, R13.4, R13.10).
         ValidateDefaultBlocks(model, diagnostics);
@@ -1787,6 +1850,261 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (child is not null)
                 CollectThisKeywordNodesFromTree(child, results);
         }
+    }
+
+    /// <summary>
+    /// Checks constraint satisfaction for inheritance clauses where constrained generics
+    /// are used as base types or implemented interfaces. For example, if
+    /// <c>class Foo : Bar&lt;int&gt;</c> and <c>Bar&lt;T&gt;</c> has <c>where T : IComparable&lt;T&gt;</c>,
+    /// this verifies that <c>int</c> satisfies the constraint.
+    /// </summary>
+    private static void CheckInheritanceClauseConstraints(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Origin == SymbolOrigin.Backend)
+                continue;
+
+            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface))
+                continue;
+
+            var declaredType = symbol.DeclaredType;
+            if (declaredType is null)
+                continue;
+
+            // Get the declaring node for diagnostic location.
+            SyntaxNode declaringNode;
+            try { declaringNode = model.GetDeclaringNode(symbol); }
+            catch { continue; }
+
+            // Check base type (classes only).
+            if (declaredType is ClassType classType && classType.BaseType is ConstructedType baseConstructed)
+            {
+                var baseTypeParams = GetTypeParameters(baseConstructed.GenericDefinition);
+                if (baseTypeParams is not null)
+                {
+                    var baseTypeArgs = baseConstructed.TypeArguments;
+                    var genericName = baseConstructed.GenericDefinition.DisplayName;
+                    for (var i = 0; i < baseTypeParams.Count && i < baseTypeArgs.Count; i++)
+                    {
+                        if (baseTypeArgs[i] is TypeParameterType derivedTypeParam)
+                        {
+                            // The type argument is a type parameter of the derived type —
+                            // check constraint propagation ("at least as restrictive").
+                            CheckConstraintPropagation(
+                                derivedTypeParam, baseTypeParams[i], declaredType,
+                                genericName, declaringNode, model, diagnostics);
+                        }
+                        else
+                        {
+                            CheckConstraintSatisfaction(baseTypeArgs[i], baseTypeParams[i], declaringNode, genericName, model, diagnostics);
+                        }
+                    }
+                }
+            }
+
+            // Check implemented interfaces.
+            var interfaces = declaredType switch
+            {
+                ClassType ct => ct.Interfaces,
+                StructType st => st.Interfaces,
+                InterfaceType it => it.Interfaces,
+                _ => Array.Empty<IType>()
+            };
+
+            foreach (var iface in interfaces)
+            {
+                if (iface is not ConstructedType ifaceConstructed)
+                    continue;
+
+                var ifaceTypeParams = GetTypeParameters(ifaceConstructed.GenericDefinition);
+                if (ifaceTypeParams is null)
+                    continue;
+
+                var ifaceTypeArgs = ifaceConstructed.TypeArguments;
+                var genericName = ifaceConstructed.GenericDefinition.DisplayName;
+                for (var i = 0; i < ifaceTypeParams.Count && i < ifaceTypeArgs.Count; i++)
+                {
+                    if (ifaceTypeArgs[i] is TypeParameterType derivedTypeParam)
+                    {
+                        // The type argument is a type parameter of the derived type —
+                        // check constraint propagation ("at least as restrictive").
+                        CheckConstraintPropagation(
+                            derivedTypeParam, ifaceTypeParams[i], declaredType,
+                            genericName, declaringNode, model, diagnostics);
+                    }
+                    else
+                    {
+                        CheckConstraintSatisfaction(ifaceTypeArgs[i], ifaceTypeParams[i], declaringNode, genericName, model, diagnostics);
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks that a derived type's constraints on a type parameter are at least as
+    /// restrictive as the base/interface type's constraints on the corresponding type
+    /// parameter. Emits MIST_CONSTRAINT_0017 when constraints are insufficient.
+    /// (Requirements 7.1, 7.2, 7.3)
+    /// </summary>
+    private static void CheckConstraintPropagation(
+        TypeParameterType derivedTypeParam,
+        TypeParameterType baseTypeParam,
+        IType derivedType,
+        string baseTypeName,
+        SyntaxNode node,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var baseConstraints = baseTypeParam.Constraints;
+        if (baseConstraints is null)
+            return; // Base has no constraints — nothing to propagate.
+
+        var derivedConstraints = derivedTypeParam.Constraints;
+
+        // Check class constraint propagation.
+        if (baseConstraints.HasClassConstraint)
+        {
+            if (derivedConstraints is null || !derivedConstraints.HasClassConstraint)
+            {
+                EmitPropagationDiagnostic(derivedType, baseTypeName, derivedTypeParam.Name, node, model, diagnostics);
+                return;
+            }
+        }
+
+        // Check struct constraint propagation.
+        if (baseConstraints.HasStructConstraint)
+        {
+            if (derivedConstraints is null || !derivedConstraints.HasStructConstraint)
+            {
+                EmitPropagationDiagnostic(derivedType, baseTypeName, derivedTypeParam.Name, node, model, diagnostics);
+                return;
+            }
+        }
+
+        // Check base class constraint propagation.
+        if (baseConstraints.BaseClassConstraint is not null)
+        {
+            if (derivedConstraints?.BaseClassConstraint is null
+                || !DerivesFromClass(derivedConstraints.BaseClassConstraint, baseConstraints.BaseClassConstraint))
+            {
+                EmitPropagationDiagnostic(derivedType, baseTypeName, derivedTypeParam.Name, node, model, diagnostics);
+                return;
+            }
+        }
+
+        // Check interface constraint propagation: derived must require each interface the base requires.
+        foreach (var baseIface in baseConstraints.InterfaceConstraints)
+        {
+            if (derivedConstraints is null || !HasMatchingInterfaceConstraint(derivedConstraints, baseIface))
+            {
+                EmitPropagationDiagnostic(derivedType, baseTypeName, derivedTypeParam.Name, node, model, diagnostics);
+                return;
+            }
+        }
+
+        // Check trait constraint propagation: derived must require each trait the base requires.
+        foreach (var baseTrait in baseConstraints.TraitConstraints)
+        {
+            if (derivedConstraints is null || !HasMatchingTraitConstraint(derivedConstraints, baseTrait))
+            {
+                EmitPropagationDiagnostic(derivedType, baseTypeName, derivedTypeParam.Name, node, model, diagnostics);
+                return;
+            }
+        }
+
+        // Check constructor constraint propagation: derived must have at least the same
+        // constructor constraints as the base (each base constructor constraint must be
+        // matched by a derived constructor constraint).
+        foreach (var baseCtorParams in baseConstraints.ConstructorConstraints)
+        {
+            if (derivedConstraints is null || !HasMatchingConstructorConstraint(derivedConstraints, baseCtorParams))
+            {
+                EmitPropagationDiagnostic(derivedType, baseTypeName, derivedTypeParam.Name, node, model, diagnostics);
+                return;
+            }
+        }
+    }
+
+    private static void EmitPropagationDiagnostic(
+        IType derivedType,
+        string baseTypeName,
+        string typeParamName,
+        SyntaxNode node,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        diagnostics.Add(MakeDiagnostic(
+            ConstraintPropagationInsufficient.Value,
+            $"Type '{derivedType.DisplayName}' must declare constraints at least as restrictive as '{baseTypeName}' for type parameter '{typeParamName}'.",
+            node,
+            model));
+    }
+
+    /// <summary>
+    /// Checks whether the derived constraints include an interface constraint that
+    /// matches (or is more derived than) the given base interface constraint.
+    /// </summary>
+    private static bool HasMatchingInterfaceConstraint(TypeParameterConstraints derivedConstraints, IType baseIface)
+    {
+        foreach (var derivedIface in derivedConstraints.InterfaceConstraints)
+        {
+            if (ImplementsInterfaceConstraint(derivedIface, baseIface))
+                return true;
+
+            // Direct match by display name.
+            if (derivedIface.DisplayName == baseIface.DisplayName)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether the derived constraints include a trait constraint that
+    /// matches the given base trait constraint.
+    /// </summary>
+    private static bool HasMatchingTraitConstraint(TypeParameterConstraints derivedConstraints, IType baseTrait)
+    {
+        foreach (var derivedTrait in derivedConstraints.TraitConstraints)
+        {
+            if (ReferenceEquals(derivedTrait, baseTrait)
+                || derivedTrait.DisplayName == baseTrait.DisplayName)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether the derived constraints include a constructor constraint
+    /// with the same parameter types as the given base constructor constraint.
+    /// </summary>
+    private static bool HasMatchingConstructorConstraint(
+        TypeParameterConstraints derivedConstraints,
+        IReadOnlyList<IType> baseCtorParams)
+    {
+        foreach (var derivedCtorParams in derivedConstraints.ConstructorConstraints)
+        {
+            if (derivedCtorParams.Count != baseCtorParams.Count)
+                continue;
+
+            var allMatch = true;
+            for (var j = 0; j < derivedCtorParams.Count; j++)
+            {
+                if (derivedCtorParams[j].DisplayName != baseCtorParams[j].DisplayName)
+                {
+                    allMatch = false;
+                    break;
+                }
+            }
+
+            if (allMatch)
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -4635,6 +4953,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 methodTypeParams = sym.TypeParameters;
                 methodTypeArgs = ResolveTypeArgumentsFromAst(methodCall.TypeArgs, model);
+
+                // Check constraint satisfaction for each explicit type argument
+                // against the corresponding method type parameter.
+                for (var i = 0; i < methodTypeParams.Count && i < methodTypeArgs.Count; i++)
+                {
+                    CheckConstraintSatisfaction(methodTypeArgs[i], methodTypeParams[i], (SyntaxNode)methodCall, sym.Name, model, diagnostics);
+                }
             }
 
             CheckArgumentTypesWithSubstitution(methodCall.Arguments, methodSymbol, model, diagnostics, methodCall,
@@ -5290,6 +5615,86 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 objectCreation,
                 model));
             return;
+        }
+
+        // ── new T(...) validation against constructor constraints ──
+        // When the type being constructed is a TypeParameterType, validate
+        // the call against the declared constructor constraints on that type
+        // parameter (Requirements 6.5, 6.6, 10.8).
+        if (createdType is TypeParameterType typeParam)
+        {
+            var constraints = typeParam.Constraints;
+
+            // If no constructor constraints exist, we cannot use new T(...).
+            if (constraints is null || constraints.ConstructorConstraints.Count == 0)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    ConstraintNewTNoMatch.Value,
+                    $"No constructor constraint on type parameter '{typeParam.Name}' matches arguments '({FormatArgTypes(objectCreation.Arguments, model)})'. Available constructor constraints: (none).",
+                    objectCreation,
+                    model));
+                return;
+            }
+
+            // Collect argument types from the new T(...) call.
+            var ctorArgTypes = CollectArgumentTypes(objectCreation.Arguments, model);
+
+            // Check if any declared constructor constraint signature matches.
+            var matched = false;
+            foreach (var requiredParams in constraints.ConstructorConstraints)
+            {
+                if (requiredParams.Count != ctorArgTypes.Count)
+                    continue;
+
+                var allMatch = true;
+                for (var i = 0; i < requiredParams.Count; i++)
+                {
+                    if (!IsAssignable(ctorArgTypes[i], requiredParams[i], model))
+                    {
+                        allMatch = false;
+                        break;
+                    }
+                }
+
+                if (allMatch)
+                {
+                    matched = true;
+                    break;
+                }
+            }
+
+            if (!matched)
+            {
+                var argTypeNames = FormatArgTypes(objectCreation.Arguments, model);
+                var signatures = string.Join(", ",
+                    constraints.ConstructorConstraints.Select(p =>
+                        "new(" + string.Join(", ", p.Select(t => t.DisplayName)) + ")"));
+                diagnostics.Add(MakeDiagnostic(
+                    ConstraintNewTNoMatch.Value,
+                    $"No constructor constraint on type parameter '{typeParam.Name}' matches arguments '({argTypeNames})'. Available constructor constraints: {signatures}.",
+                    objectCreation,
+                    model));
+            }
+
+            return;
+        }
+
+        // ── Constraint satisfaction checking for generic type arguments ──
+        // When constructing a generic type (e.g., new Box<int>()), verify that
+        // each type argument satisfies the constraints on the corresponding
+        // type parameter of the generic definition.
+        if (createdType is ConstructedType constructedForConstraints)
+        {
+            var typeParams = GetTypeParameters(constructedForConstraints.GenericDefinition);
+            if (typeParams is not null)
+            {
+                var typeArgs = constructedForConstraints.TypeArguments;
+                var genericName = constructedForConstraints.GenericDefinition.DisplayName;
+                for (var i = 0; i < typeParams.Count && i < typeArgs.Count; i++)
+                {
+                    CheckConstraintSatisfaction(typeArgs[i], typeParams[i], objectCreation, genericName, model, diagnostics);
+                }
+            }
         }
 
         // Find constructors on the type.
@@ -6904,6 +7309,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
+    /// Formats the argument types of an argument list as a comma-separated string
+    /// of display names. Used for diagnostic messages in <c>new T(...)</c> validation.
+    /// </summary>
+    private static string FormatArgTypes(ArgumentListNode? argList, ISemanticModel model)
+    {
+        var types = CollectArgumentTypes(argList, model);
+        return string.Join(", ", types.Select(t => t.DisplayName));
+    }
+
+    /// <summary>
     /// Collects all method symbols with the given name from the target type's member scope
     /// and inherited methods from base types (walking the base type chain).
     /// </summary>
@@ -8148,5 +8563,331 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
         }
         return false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Generic constraint satisfaction checking (Task 6.1)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Verifies that a type argument satisfies all constraints declared on the
+    /// corresponding type parameter. Emits diagnostics MIST_CONSTRAINT_0009
+    /// through MIST_CONSTRAINT_0015 for each violated constraint.
+    /// </summary>
+    /// <param name="typeArgument">The concrete type argument being checked.</param>
+    /// <param name="typeParameter">The type parameter with constraints to check against.</param>
+    /// <param name="node">The syntax node for diagnostic location reporting.</param>
+    /// <param name="genericTypeName">The display name of the generic type/method for diagnostic messages.</param>
+    /// <param name="model">The semantic model.</param>
+    /// <param name="diagnostics">The diagnostic bag to emit errors into.</param>
+    internal static void CheckConstraintSatisfaction(
+        IType typeArgument,
+        TypeParameterType typeParameter,
+        SyntaxNode node,
+        string genericTypeName,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var constraints = typeParameter.Constraints;
+        if (constraints is null)
+            return;
+
+        // Suppress cascading errors for error types.
+        if (IsErrorType(typeArgument))
+            return;
+
+        // Unwrap type aliases to their underlying type for constraint checking.
+        if (typeArgument is TypeAliasType aliasArg)
+            typeArgument = aliasArg.UnderlyingType;
+
+        // Check class constraint: type argument must be a reference type.
+        if (constraints.HasClassConstraint)
+        {
+            if (typeArgument.Kind == TypeKind.Struct)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    ConstraintClassViolation.Value,
+                    $"Type '{typeArgument.DisplayName}' must be a reference type to satisfy the 'class' constraint on type parameter '{typeParameter.Name}'.",
+                    node,
+                    model));
+            }
+        }
+
+        // Check struct constraint: type argument must be a value type.
+        if (constraints.HasStructConstraint)
+        {
+            if (typeArgument.Kind != TypeKind.Struct)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    ConstraintStructViolation.Value,
+                    $"Type '{typeArgument.DisplayName}' must be a value type to satisfy the 'struct' constraint on type parameter '{typeParameter.Name}'.",
+                    node,
+                    model));
+            }
+        }
+
+        // Check base class constraint: type argument must derive from the base class.
+        if (constraints.BaseClassConstraint is not null)
+        {
+            if (!DerivesFromClass(typeArgument, constraints.BaseClassConstraint))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    ConstraintBaseClassNotDerived.Value,
+                    $"Type '{typeArgument.DisplayName}' does not derive from '{constraints.BaseClassConstraint.DisplayName}' required by type parameter '{typeParameter.Name}' of '{genericTypeName}'.",
+                    node,
+                    model));
+            }
+        }
+
+        // Check interface constraints: type argument must implement each interface.
+        foreach (var iface in constraints.InterfaceConstraints)
+        {
+            if (!ImplementsInterfaceConstraint(typeArgument, iface))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    ConstraintInterfaceNotImplemented.Value,
+                    $"Type '{typeArgument.DisplayName}' does not implement interface '{iface.DisplayName}' required by type parameter '{typeParameter.Name}' of '{genericTypeName}'.",
+                    node,
+                    model));
+            }
+        }
+
+        // Check trait constraints: type argument must satisfy each trait.
+        foreach (var trait in constraints.TraitConstraints)
+        {
+            if (trait is TraitType traitType && !SatisfiesTrait(typeArgument, traitType, model))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    ConstraintTraitNotSatisfied.Value,
+                    $"Type '{typeArgument.DisplayName}' does not satisfy trait '{trait.DisplayName}' required by type parameter '{typeParameter.Name}' of '{genericTypeName}'.",
+                    node,
+                    model));
+            }
+        }
+
+        // Check constructor constraints (OR semantics): type argument must have
+        // at least one matching public constructor.
+        if (constraints.ConstructorConstraints.Count > 0)
+        {
+            CheckConstructorConstraints(
+                typeArgument, typeParameter, constraints.ConstructorConstraints,
+                genericTypeName, node, model, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Checks constructor constraints with OR semantics. The type argument must
+    /// have a public constructor matching at least one of the declared constructor
+    /// constraint signatures.
+    /// </summary>
+    private static void CheckConstructorConstraints(
+        IType typeArgument,
+        TypeParameterType typeParameter,
+        IReadOnlyList<IReadOnlyList<IType>> constructorConstraints,
+        string genericTypeName,
+        SyntaxNode node,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Collect public constructors from the type argument.
+        var publicConstructors = CollectPublicConstructors(typeArgument, model);
+
+        // For each constructor constraint, check if at least one public constructor matches.
+        foreach (var requiredParams in constructorConstraints)
+        {
+            var matched = false;
+
+            // Structs always have a parameterless constructor.
+            if (requiredParams.Count == 0 && typeArgument.Kind == TypeKind.Struct)
+            {
+                matched = true;
+            }
+            else
+            {
+                foreach (var ctor in publicConstructors)
+                {
+                    if (ConstructorMatchesConstraint(ctor, requiredParams, model))
+                    {
+                        matched = true;
+                        break;
+                    }
+                }
+
+                // If no explicit constructors are defined and the constraint is
+                // parameterless, the default constructor satisfies it.
+                if (!matched && requiredParams.Count == 0 && publicConstructors.Count == 0)
+                {
+                    // Types with no declared constructors have an implicit
+                    // public parameterless constructor.
+                    matched = true;
+                }
+            }
+
+            if (!matched)
+            {
+                if (requiredParams.Count == 0)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        ConstraintParameterlessCtorViolation.Value,
+                        $"Type '{typeArgument.DisplayName}' must have a public parameterless constructor to satisfy the 'new()' constraint on type parameter '{typeParameter.Name}'.",
+                        node,
+                        model));
+                }
+                else
+                {
+                    var paramTypes = string.Join(", ", requiredParams.Select(p => p.DisplayName));
+                    diagnostics.Add(MakeDiagnostic(
+                        ConstraintParameterizedCtorViolation.Value,
+                        $"Type '{typeArgument.DisplayName}' must have a public constructor with parameters '({paramTypes})' to satisfy the 'new({paramTypes})' constraint on type parameter '{typeParameter.Name}'.",
+                        node,
+                        model));
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a type derives from (or is) the specified base class.
+    /// </summary>
+    private static bool DerivesFromClass(IType typeArgument, IType baseClassConstraint)
+    {
+        // The type argument itself matches the base class.
+        if (ReferenceEquals(typeArgument, baseClassConstraint)
+            || typeArgument.DisplayName == baseClassConstraint.DisplayName)
+            return true;
+
+        // Walk the inheritance chain for ClassType.
+        if (typeArgument is ClassType classType)
+        {
+            var current = classType.BaseType as ClassType;
+            while (current is not null)
+            {
+                if (ReferenceEquals(current, baseClassConstraint)
+                    || current.DisplayName == baseClassConstraint.DisplayName)
+                    return true;
+                current = current.BaseType as ClassType;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether a type argument implements the specified interface constraint.
+    /// Handles both <see cref="InterfaceType"/> and <see cref="ConstructedType"/>
+    /// (for generic interface constraints like <c>IComparable&lt;T&gt;</c>).
+    /// </summary>
+    private static bool ImplementsInterfaceConstraint(IType typeArgument, IType interfaceConstraint)
+    {
+        // If the constraint is a plain InterfaceType, use the existing helper.
+        if (interfaceConstraint is InterfaceType ifaceType)
+            return ImplementsInterface(typeArgument, ifaceType);
+
+        // For ConstructedType interface constraints (e.g., IComparable<int>),
+        // check if the type argument implements a matching constructed interface.
+        if (interfaceConstraint is ConstructedType constructedIface
+            && constructedIface.GenericDefinition is InterfaceType)
+        {
+            return ImplementsConstructedInterface(typeArgument, constructedIface);
+        }
+
+        // Fallback: display name comparison.
+        return GetInterfaceList(typeArgument)
+            .Any(i => i.DisplayName == interfaceConstraint.DisplayName);
+    }
+
+    /// <summary>
+    /// Gets the interface list from a type (ClassType, StructType, or InterfaceType).
+    /// </summary>
+    private static IReadOnlyList<IType> GetInterfaceList(IType type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.Interfaces,
+            StructType st => st.Interfaces,
+            InterfaceType it => it.Interfaces,
+            _ => Array.Empty<IType>(),
+        };
+    }
+
+    /// <summary>
+    /// Collects all public constructors from a type argument.
+    /// </summary>
+    private static List<ISymbol> CollectPublicConstructors(IType typeArgument, ISemanticModel model)
+    {
+        var results = new List<ISymbol>();
+
+        var memberScope = typeArgument switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            ConstructedType cst => cst.MemberScope,
+            _ => null,
+        };
+
+        if (memberScope is null)
+            return results;
+
+        foreach (var member in memberScope.Members)
+        {
+            if (member.Kind != SymbolKind.Constructor)
+                continue;
+
+            // Check if the constructor is public.
+            SyntaxNode ctorNode;
+            try { ctorNode = model.GetDeclaringNode(member); }
+            catch { continue; }
+
+            var modifiers = GetMemberModifiers(ctorNode);
+            if (modifiers.IsPublic)
+                results.Add(member);
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Checks whether a constructor symbol matches a constructor constraint
+    /// (a list of required parameter types).
+    /// </summary>
+    private static bool ConstructorMatchesConstraint(
+        ISymbol ctor,
+        IReadOnlyList<IType> requiredParams,
+        ISemanticModel model)
+    {
+        SyntaxNode ctorNode;
+        try { ctorNode = model.GetDeclaringNode(ctor); }
+        catch { return false; }
+
+        if (ctorNode is not ConstructorDeclarationNode ctorDecl)
+            return false;
+
+        var paramTypes = new List<IType>();
+        if (ctorDecl.Parameters is not null)
+        {
+            foreach (var child in ctorDecl.Parameters.Children())
+            {
+                if (child is ParameterNode paramNode)
+                {
+                    var paramSym = model.GetDeclaredSymbol(paramNode);
+                    if (paramSym?.DeclaredType is not null)
+                        paramTypes.Add(paramSym.DeclaredType);
+                }
+            }
+        }
+
+        if (paramTypes.Count != requiredParams.Count)
+            return false;
+
+        for (var i = 0; i < requiredParams.Count; i++)
+        {
+            // For constructor constraints, we check exact type match
+            // (by display name) since the constraint specifies the
+            // exact parameter types required.
+            if (paramTypes[i].DisplayName != requiredParams[i].DisplayName)
+                return false;
+        }
+
+        return true;
     }
 }

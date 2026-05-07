@@ -161,7 +161,8 @@ public sealed class MistPrettyPrinter
         var name = aliasDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(aliasDecl.TypeParams);
         var typeExpr = EmitTypeReference(aliasDecl.Type);
-        AppendLine($"type {name}{typeParams} = {typeExpr};");
+        var constraints = EmitConstraintClauses(aliasDecl.Constraints);
+        AppendLine($"type {name}{typeParams} = {typeExpr}{constraints};");
     }
 
     // ─── Type Declarations ───────────────────────────────────────────────
@@ -195,7 +196,8 @@ public sealed class MistPrettyPrinter
         {
             baseClause = $" : {EmitBaseList(classDecl.BaseList)}";
         }
-        AppendLine($"{modifiers}class {name}{typeParams}{baseClause} {{");
+        var constraints = EmitConstraintClauses(classDecl.Constraints);
+        AppendLine($"{modifiers}class {name}{typeParams}{baseClause}{constraints} {{");
         _indentLevel++;
 
         EmitMembers(classDecl.Members);
@@ -214,7 +216,8 @@ public sealed class MistPrettyPrinter
         {
             interfaceClause = $" : {EmitBaseList(structDecl.Interfaces)}";
         }
-        AppendLine($"{modifiers}struct {name}{typeParams}{interfaceClause} {{");
+        var constraints = EmitConstraintClauses(structDecl.Constraints);
+        AppendLine($"{modifiers}struct {name}{typeParams}{interfaceClause}{constraints} {{");
         _indentLevel++;
 
         EmitMembers(structDecl.Members);
@@ -232,7 +235,8 @@ public sealed class MistPrettyPrinter
         {
             interfaceClause = $" : {EmitBaseList(interfaceDecl.Interfaces)}";
         }
-        AppendLine($"interface {name}{typeParams}{interfaceClause} {{");
+        var constraints = EmitConstraintClauses(interfaceDecl.Constraints);
+        AppendLine($"interface {name}{typeParams}{interfaceClause}{constraints} {{");
         _indentLevel++;
 
         for (var i = 0; i < interfaceDecl.Members.Length; i++)
@@ -250,7 +254,8 @@ public sealed class MistPrettyPrinter
         var name = methodDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
         var parameters = EmitParameterList(methodDecl.Parameters);
-        AppendLine($"{returnType} {name}{typeParams}({parameters});");
+        var constraints = EmitConstraintClauses(methodDecl.Constraints);
+        AppendLine($"{returnType} {name}{typeParams}({parameters}){constraints};");
     }
 
     private void EmitMembers(ImmutableArray<MemberDeclarationNode> members)
@@ -352,8 +357,9 @@ public sealed class MistPrettyPrinter
         var name = methodDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
         var parameters = EmitParameterList(methodDecl.Parameters);
+        var constraints = EmitConstraintClauses(methodDecl.Constraints);
 
-        AppendLine($"{modifiers}{returnType} {name}{typeParams}({parameters}) {{");
+        AppendLine($"{modifiers}{returnType} {name}{typeParams}({parameters}){constraints} {{");
         _indentLevel++;
 
         if (methodDecl.Body.GetBlock() is BlockNode methodBlock)
@@ -1903,6 +1909,73 @@ public sealed class MistPrettyPrinter
             }
         }
         return sb.ToString();
+    }
+
+    // ─── Constraint Clauses ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Emits constraint clauses preserving source order.
+    /// Returns a string like " where T : class where U : struct" or empty string if no constraints.
+    /// </summary>
+    private string EmitConstraintClauses(ImmutableArray<ConstraintClauseNode> constraints)
+    {
+        if (constraints.IsDefaultOrEmpty) return "";
+
+        var sb = new StringBuilder();
+        foreach (var clause in constraints)
+        {
+            sb.Append(" where ");
+            sb.Append(clause.Name.Lexeme);
+            sb.Append(" : ");
+            sb.Append(EmitConstraintList(clause.Constraints));
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Emits a constraint list as a comma-separated string of constraints.
+    /// </summary>
+    private string EmitConstraintList(ConstraintListNode constraintList)
+    {
+        var parts = new List<string>();
+        parts.Add(EmitConstraint(constraintList.Constraint));
+        foreach (var constraint in constraintList.Constraints)
+        {
+            parts.Add(EmitConstraint(constraint));
+        }
+        return string.Join(", ", parts);
+    }
+
+    /// <summary>
+    /// Emits a single constraint variant.
+    /// </summary>
+    private string EmitConstraint(ConstraintNode constraint)
+    {
+        switch (constraint)
+        {
+            case ClassConstraintConstraintNode:
+                return "class";
+            case StructConstraintConstraintNode:
+                return "struct";
+            case ConstructorConstraintConstraintNode ctorConstraint:
+            {
+                if (ctorConstraint.ParamTypes is null)
+                {
+                    return "new()";
+                }
+                var paramTypes = new List<string>();
+                paramTypes.Add(EmitTypeReference(ctorConstraint.ParamTypes.TypeReference));
+                foreach (var typeRef in ctorConstraint.ParamTypes.TypeReferences)
+                {
+                    paramTypes.Add(EmitTypeReference(typeRef));
+                }
+                return $"new({string.Join(", ", paramTypes)})";
+            }
+            case TypeConstraintConstraintNode typeConstraint:
+                return EmitTypeReference(typeConstraint.Type);
+            default:
+                return "";
+        }
     }
 
     private void AppendLine(string text = "")

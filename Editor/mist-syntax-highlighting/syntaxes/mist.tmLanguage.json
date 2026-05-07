@@ -87,7 +87,29 @@
         },
         {
           "name": "keyword.other.mist",
-          "match": "\\b(new|var|this|get|set|init|field|operator|with|as|default)\\b"
+          "match": "\\b(new|var|this|get|set|init|field|operator|with|as|default|where)\\b"
+        },
+        {
+          "comment": "Constraint clause: where TypeParam : class/struct/new(...)",
+          "match": "\\b(where)\\s+([a-zA-Z_]\\w*)\\s*:",
+          "captures": {
+            "1": { "name": "keyword.other.mist" },
+            "2": { "name": "entity.name.type.parameter.mist" }
+          }
+        },
+        {
+          "comment": "class/struct within constraint clauses (after colon in where clause)",
+          "match": "(?<=where\\s+[a-zA-Z_]\\w*\\s*:[^{]*?)\\b(class|struct)\\b",
+          "captures": {
+            "1": { "name": "storage.type.mist" }
+          }
+        },
+        {
+          "comment": "new within constructor constraints",
+          "match": "(?<=where\\s+[a-zA-Z_]\\w*\\s*:[^{]*?)\\b(new)\\s*\\(",
+          "captures": {
+            "1": { "name": "keyword.other.mist" }
+          }
         }
       ]
     },

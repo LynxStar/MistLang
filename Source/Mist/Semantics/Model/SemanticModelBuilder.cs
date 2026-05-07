@@ -361,6 +361,56 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId ExtensionMemberShadowsReceiver = new("MIST_TC_0083");
 
+    // ── Constraint diagnostic IDs (generic-constraints spec, Requirements 3.1–3.9) ──
+
+    /// <summary>
+    /// A <c>where</c> clause references a type parameter name that is not
+    /// defined on the declaring type or method (Requirement 3.2).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintUndefinedTypeParam = new("MIST_CONSTRAINT_0001");
+
+    /// <summary>
+    /// Multiple <c>where</c> clauses target the same type parameter on a
+    /// single declaration (Requirement 3.9).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintDuplicateWhereClause = new("MIST_CONSTRAINT_0007");
+
+    /// <summary>
+    /// The 'class' and 'struct' constraints are mutually exclusive on the same
+    /// type parameter (Requirement 4.1).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintClassStructMutualExclusion = new("MIST_CONSTRAINT_0002");
+
+    /// <summary>
+    /// The 'new()' constraint is redundant when 'struct' is present because all
+    /// structs have a parameterless constructor (Requirement 4.2).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintStructNewRedundant = new("MIST_CONSTRAINT_0003");
+
+    /// <summary>
+    /// At most one base class constraint is allowed on a type parameter
+    /// (Requirement 4.3).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintMultipleBaseClasses = new("MIST_CONSTRAINT_0004");
+
+    /// <summary>
+    /// A struct type cannot be used as a base class constraint
+    /// (Requirement 4.4).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintStructAsBaseClass = new("MIST_CONSTRAINT_0005");
+
+    /// <summary>
+    /// A base class constraint is incompatible with the 'struct' constraint
+    /// (Requirement 4.5).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintBaseClassStructIncompatible = new("MIST_CONSTRAINT_0006");
+
+    /// <summary>
+    /// A constraint type reference could not be resolved to a known type
+    /// (Requirement 3.4).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintUnresolvableType = new("MIST_CONSTRAINT_0008");
+
     public ISemanticModel Build(
         MistCompilation compilation,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
@@ -478,6 +528,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // (already resolved above) or an interface; this pass handles the
         // interface case and any additional interface names.
         Pass1_ResolveInterfaceLists(symbolTable, asts, compilation, diagnostics);
+
+        // Pass 1b (cont.): Resolve constraint clauses on type/method declarations.
+        // After base types and interface lists are resolved, resolve constraint
+        // type references and store them on TypeParameterType.Constraints.
+        // Emits MIST_CONSTRAINT_0001 for undefined type parameter references,
+        // MIST_CONSTRAINT_0007 for duplicate where clauses, and
+        // MIST_CONSTRAINT_0008 for unresolvable constraint types.
+        Pass1_ResolveConstraints(symbolTable, asts, compilation, diagnostics);
 
         // Pass 1g: Resolve with-block declarations (Task 4.1).
         // After all types are registered and interface lists are resolved,
@@ -3872,6 +3930,482 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             entries.Add(rest);
         }
         return entries;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Pass 1b (cont.): Constraint Resolution
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves constraint clauses on all type and method declarations.
+    /// For each declaration with constraint clauses:
+    ///   1. Validates the <c>where</c> clause references a valid type parameter name.
+    ///   2. Checks for duplicate <c>where</c> clauses on the same type parameter.
+    ///   3. Resolves each constraint (class, struct, new(...), type reference).
+    ///   4. Stores the resulting <see cref="TypeParameterConstraints"/> on the
+    ///      <see cref="TypeParameterType.Constraints"/> property.
+    /// </summary>
+    private static void Pass1_ResolveConstraints(
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            var declaringNode = symbolTable.GetDeclaringNode(symbol);
+            if (declaringNode is null)
+                continue;
+
+            // Get the constraint clauses and type parameters for this declaration.
+            var (constraintClauses, typeParameters) = GetConstraintClausesAndTypeParams(symbol, declaringNode);
+            if (constraintClauses.IsDefaultOrEmpty || typeParameters.Count == 0)
+                continue;
+
+            var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+            var declaringName = symbol.Name;
+
+            // Track which type parameters have already been constrained to detect duplicates.
+            var constrainedParams = new Dictionary<string, bool>();
+
+            foreach (var clause in constraintClauses)
+            {
+                var typeParamName = clause.Name.Lexeme;
+
+                // Validate the type parameter name exists on this declaration.
+                var typeParam = FindTypeParameter(typeParameters, typeParamName);
+                if (typeParam is null)
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        ConstraintUndefinedTypeParam.Value,
+                        DiagnosticSeverity.Error,
+                        $"Type parameter '{typeParamName}' is not defined on '{declaringName}'.",
+                        clause,
+                        sourceText));
+                    continue;
+                }
+
+                // Check for duplicate where clauses on the same type parameter.
+                if (constrainedParams.ContainsKey(typeParamName))
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        ConstraintDuplicateWhereClause.Value,
+                        DiagnosticSeverity.Error,
+                        $"Type parameter '{typeParamName}' cannot have multiple 'where' clauses. Combine constraints in a single clause.",
+                        clause,
+                        sourceText));
+                    continue;
+                }
+                constrainedParams[typeParamName] = true;
+
+                // Resolve the constraints in this clause.
+                var constraints = ResolveConstraintClause(
+                    clause, typeParam, symbol, declaringNode, asts, compilation, diagnostics, sourceText);
+
+                // Store the resolved constraints on the type parameter.
+                typeParam.Constraints = constraints;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extracts constraint clauses and type parameters from a symbol's declaring node.
+    /// Returns empty/default values for declarations that don't support constraints.
+    /// </summary>
+    private static (ImmutableArray<ConstraintClauseNode> Clauses, IReadOnlyList<TypeParameterType> TypeParams) GetConstraintClausesAndTypeParams(
+        ISymbol symbol,
+        Storm.Runtime.SyntaxNode declaringNode)
+    {
+        switch (declaringNode)
+        {
+            case ClassDeclarationNode classDecl when symbol.DeclaredType is ClassType classType:
+                return (classDecl.Constraints, classType.TypeParameters);
+
+            case StructDeclarationNode structDecl when symbol.DeclaredType is StructType structType:
+                return (structDecl.Constraints, structType.TypeParameters);
+
+            case InterfaceDeclarationNode interfaceDecl when symbol.DeclaredType is InterfaceType interfaceType:
+                return (interfaceDecl.Constraints, interfaceType.TypeParameters);
+
+            case MethodDeclarationNode methodDecl when symbol is Symbol methodSymbol:
+                return (methodDecl.Constraints, methodSymbol.TypeParameters);
+
+            case InterfaceMethodDeclarationNode interfaceMethodDecl when symbol is Symbol ifaceMethodSymbol:
+                return (interfaceMethodDecl.Constraints, ifaceMethodSymbol.TypeParameters);
+
+            case TypeAliasDeclarationNode aliasDecl when symbol is Symbol aliasSymbol:
+                return (aliasDecl.Constraints, aliasSymbol.TypeParameters);
+
+            default:
+                return (ImmutableArray<ConstraintClauseNode>.Empty, Array.Empty<TypeParameterType>());
+        }
+    }
+
+    /// <summary>
+    /// Finds a type parameter by name in the given list.
+    /// </summary>
+    private static TypeParameterType? FindTypeParameter(IReadOnlyList<TypeParameterType> typeParameters, string name)
+    {
+        foreach (var tp in typeParameters)
+        {
+            if (tp.Name == name)
+                return tp;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Resolves all constraints in a single <c>where</c> clause and builds a
+    /// <see cref="TypeParameterConstraints"/> instance.
+    /// </summary>
+    private static TypeParameterConstraints ResolveConstraintClause(
+        ConstraintClauseNode clause,
+        TypeParameterType typeParam,
+        ISymbol declaringSymbol,
+        Storm.Runtime.SyntaxNode declaringNode,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics,
+        SourceText? sourceText)
+    {
+        var hasClassConstraint = false;
+        var hasStructConstraint = false;
+        IType? baseClassConstraint = null;
+        var interfaceConstraints = new List<IType>();
+        var traitConstraints = new List<IType>();
+        var constructorConstraints = new List<IReadOnlyList<IType>>();
+
+        // Track all base class constraints for validation (MIST_CONSTRAINT_0004).
+        var baseClassConstraints = new List<IType>();
+        // Track struct types used as type constraints (MIST_CONSTRAINT_0005).
+        var structTypeConstraints = new List<IType>();
+
+        // Collect all constraints from the clause (first + rest).
+        var allConstraints = new List<ConstraintNode> { clause.Constraints.Constraint };
+        allConstraints.AddRange(clause.Constraints.Constraints);
+
+        foreach (var constraint in allConstraints)
+        {
+            switch (constraint)
+            {
+                case ClassConstraintConstraintNode:
+                    hasClassConstraint = true;
+                    break;
+
+                case StructConstraintConstraintNode:
+                    hasStructConstraint = true;
+                    break;
+
+                case ConstructorConstraintConstraintNode ctorConstraint:
+                {
+                    var paramTypes = ResolveConstructorConstraintParams(
+                        ctorConstraint, declaringSymbol, declaringNode, asts, compilation, diagnostics, sourceText);
+                    constructorConstraints.Add(paramTypes);
+                    break;
+                }
+
+                case TypeConstraintConstraintNode typeConstraint:
+                {
+                    var resolvedType = ResolveConstraintTypeReference(
+                        typeConstraint, declaringSymbol, declaringNode, asts, compilation, diagnostics, sourceText);
+
+                    if (resolvedType is null || resolvedType is ErrorType)
+                    {
+                        // Already emitted MIST_CONSTRAINT_0008 in ResolveConstraintTypeReference.
+                        break;
+                    }
+
+                    // Classify the resolved type, tracking base class and struct constraints.
+                    ClassifyConstraintType(
+                        resolvedType, ref baseClassConstraint,
+                        interfaceConstraints, traitConstraints,
+                        baseClassConstraints, structTypeConstraints);
+                    break;
+                }
+            }
+        }
+
+        // Validate constraint combinations after all constraints are resolved.
+        ValidateConstraintCombinations(
+            hasClassConstraint, hasStructConstraint,
+            baseClassConstraints, structTypeConstraints,
+            constructorConstraints,
+            typeParam, clause, sourceText, diagnostics);
+
+        return new TypeParameterConstraints
+        {
+            HasClassConstraint = hasClassConstraint,
+            HasStructConstraint = hasStructConstraint,
+            BaseClassConstraint = baseClassConstraint,
+            InterfaceConstraints = interfaceConstraints,
+            TraitConstraints = traitConstraints,
+            ConstructorConstraints = constructorConstraints,
+        };
+    }
+
+    /// <summary>
+    /// Resolves the parameter types for a constructor constraint (<c>new(...)</c>).
+    /// Returns an empty list for parameterless <c>new()</c>.
+    /// </summary>
+    private static IReadOnlyList<IType> ResolveConstructorConstraintParams(
+        ConstructorConstraintConstraintNode ctorConstraint,
+        ISymbol declaringSymbol,
+        Storm.Runtime.SyntaxNode declaringNode,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics,
+        SourceText? sourceText)
+    {
+        if (ctorConstraint.ParamTypes is null)
+            return Array.Empty<IType>();
+
+        var paramTypes = new List<IType>();
+        var scope = declaringSymbol.ContainingScope;
+
+        // Resolve the first parameter type.
+        var firstType = ResolveConstraintParamType(
+            ctorConstraint.ParamTypes.TypeReference, scope, declaringNode, asts, compilation, diagnostics, sourceText);
+        paramTypes.Add(firstType);
+
+        // Resolve additional parameter types.
+        foreach (var typeRef in ctorConstraint.ParamTypes.TypeReferences)
+        {
+            var resolvedType = ResolveConstraintParamType(
+                typeRef, scope, declaringNode, asts, compilation, diagnostics, sourceText);
+            paramTypes.Add(resolvedType);
+        }
+
+        return paramTypes;
+    }
+
+    /// <summary>
+    /// Resolves a single type reference within a constructor constraint parameter list.
+    /// Uses scope-based lookup (same as Pass 1b base type resolution).
+    /// </summary>
+    private static IType ResolveConstraintParamType(
+        TypeReferenceNode typeRef,
+        IScope scope,
+        Storm.Runtime.SyntaxNode declaringNode,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics,
+        SourceText? sourceText)
+    {
+        // For primitive type references, resolve directly via legacy primitives.
+        // In Pass 1b we don't have the full file scope, so we use the legacy path.
+        if (typeRef is PrimitiveTypeRefTypeReferenceNode primitiveRef)
+        {
+            return ResolveLegacyPrimitive(primitiveRef.PrimitiveType);
+        }
+
+        // For named type references, look up in scope.
+        if (typeRef is NamedTypeRefTypeReferenceNode namedRef)
+        {
+            var typeName = ExtractQualifiedName(namedRef.Name, sourceText);
+
+            var resolvedSymbol = scope.Lookup(typeName);
+            if (resolvedSymbol?.DeclaredType is not null)
+                return resolvedSymbol.DeclaredType;
+
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                ConstraintUnresolvableType.Value,
+                DiagnosticSeverity.Error,
+                $"Constraint type '{typeName}' could not be resolved.",
+                declaringNode,
+                sourceText));
+            return ErrorType.Instance;
+        }
+
+        return ErrorType.Instance;
+    }
+
+    /// <summary>
+    /// Resolves the type reference in a type constraint (<c>where T : SomeType</c>).
+    /// Returns null if the type cannot be resolved (diagnostic already emitted).
+    /// </summary>
+    private static IType? ResolveConstraintTypeReference(
+        TypeConstraintConstraintNode typeConstraint,
+        ISymbol declaringSymbol,
+        Storm.Runtime.SyntaxNode declaringNode,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics,
+        SourceText? sourceText)
+    {
+        var typeRef = typeConstraint.Type;
+        var scope = declaringSymbol.ContainingScope;
+
+        // For named type references, look up in scope.
+        if (typeRef is NamedTypeRefTypeReferenceNode namedRef)
+        {
+            var typeName = ExtractQualifiedName(namedRef.Name, sourceText);
+
+            var resolvedSymbol = scope.Lookup(typeName);
+            if (resolvedSymbol?.DeclaredType is not null)
+            {
+                var resolvedType = resolvedSymbol.DeclaredType;
+
+                // Handle generic type arguments if present.
+                if (namedRef.TypeArgs is not null && resolvedType is ClassType or InterfaceType or StructType)
+                {
+                    resolvedType = ResolveGenericTypeReference(
+                        resolvedType, namedRef.TypeArgs, typeName,
+                        declaringSymbol.DeclaredType ?? ErrorType.Instance,
+                        declaringNode, asts, compilation, diagnostics);
+                }
+
+                return resolvedType;
+            }
+
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                ConstraintUnresolvableType.Value,
+                DiagnosticSeverity.Error,
+                $"Constraint type '{typeName}' could not be resolved.",
+                declaringNode,
+                sourceText));
+            return null;
+        }
+
+        // For other type reference forms (primitives, etc.), they're not valid as constraints
+        // but we still try to resolve them gracefully.
+        diagnostics.Add(MakeDiagnosticWithLocation(
+            ConstraintUnresolvableType.Value,
+            DiagnosticSeverity.Error,
+            "Constraint type could not be resolved.",
+            declaringNode,
+            sourceText));
+        return null;
+    }
+
+    /// <summary>
+    /// Classifies a resolved constraint type as a base class, interface, or trait constraint
+    /// and adds it to the appropriate collection. Also tracks base class and struct types
+    /// for validation purposes.
+    /// </summary>
+    private static void ClassifyConstraintType(
+        IType resolvedType,
+        ref IType? baseClassConstraint,
+        List<IType> interfaceConstraints,
+        List<IType> traitConstraints,
+        List<IType> baseClassConstraints,
+        List<IType> structTypeConstraints)
+    {
+        // Unwrap ConstructedType to check the underlying definition.
+        var definitionType = resolvedType is ConstructedType constructed
+            ? constructed.GenericDefinition
+            : resolvedType;
+
+        switch (definitionType)
+        {
+            case InterfaceType:
+                interfaceConstraints.Add(resolvedType);
+                break;
+
+            case TraitType:
+                traitConstraints.Add(resolvedType);
+                break;
+
+            case ClassType:
+                // Track all base class constraints for MIST_CONSTRAINT_0004 validation.
+                baseClassConstraints.Add(resolvedType);
+                // Store the first one as the effective base class constraint.
+                baseClassConstraint ??= resolvedType;
+                break;
+
+            case StructType:
+                // Track struct types used as constraints for MIST_CONSTRAINT_0005 validation.
+                structTypeConstraints.Add(resolvedType);
+                break;
+
+            case TypeParameterType:
+                // A type parameter used as a constraint (e.g., where U : T).
+                // Treat as an interface-like constraint for now.
+                interfaceConstraints.Add(resolvedType);
+                break;
+
+            default:
+                // Other types used as constraints — store as interface constraint.
+                interfaceConstraints.Add(resolvedType);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Validates constraint combinations after all constraints in a clause are resolved.
+    /// Emits diagnostics for invalid combinations (Requirements 4.1–4.5).
+    /// </summary>
+    private static void ValidateConstraintCombinations(
+        bool hasClassConstraint,
+        bool hasStructConstraint,
+        List<IType> baseClassConstraints,
+        List<IType> structTypeConstraints,
+        List<IReadOnlyList<IType>> constructorConstraints,
+        TypeParameterType typeParam,
+        ConstraintClauseNode clause,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // MIST_CONSTRAINT_0002: class + struct mutual exclusion.
+        if (hasClassConstraint && hasStructConstraint)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                ConstraintClassStructMutualExclusion.Value,
+                DiagnosticSeverity.Error,
+                $"The 'class' and 'struct' constraints are mutually exclusive on type parameter '{typeParam.Name}'.",
+                clause,
+                sourceText));
+        }
+
+        // MIST_CONSTRAINT_0003: struct + new() redundancy (warning).
+        if (hasStructConstraint)
+        {
+            foreach (var ctorParams in constructorConstraints)
+            {
+                if (ctorParams.Count == 0)
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        ConstraintStructNewRedundant.Value,
+                        DiagnosticSeverity.Warning,
+                        $"The 'new()' constraint is redundant on type parameter '{typeParam.Name}' because all structs have a parameterless constructor.",
+                        clause,
+                        sourceText));
+                    break;
+                }
+            }
+        }
+
+        // MIST_CONSTRAINT_0004: Multiple base class constraints.
+        if (baseClassConstraints.Count > 1)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                ConstraintMultipleBaseClasses.Value,
+                DiagnosticSeverity.Error,
+                $"At most one base class constraint is allowed on type parameter '{typeParam.Name}'.",
+                clause,
+                sourceText));
+        }
+
+        // MIST_CONSTRAINT_0005: Struct used as base class constraint.
+        foreach (var structType in structTypeConstraints)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                ConstraintStructAsBaseClass.Value,
+                DiagnosticSeverity.Error,
+                $"Struct '{structType.DisplayName}' cannot be used as a base class constraint.",
+                clause,
+                sourceText));
+        }
+
+        // MIST_CONSTRAINT_0006: Base class + struct incompatibility.
+        if (baseClassConstraints.Count > 0 && hasStructConstraint)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                ConstraintBaseClassStructIncompatible.Value,
+                DiagnosticSeverity.Error,
+                $"A base class constraint is incompatible with the 'struct' constraint on type parameter '{typeParam.Name}'.",
+                clause,
+                sourceText));
+        }
     }
 
     /// <summary>
@@ -10695,6 +11229,60 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             targetType = aliasTarget.UnderlyingType;
         }
 
+        // ── Constrained type parameter member access (Requirements 6.1–6.4, 6.7) ──
+        // When the receiver is a TypeParameterType with constraints, look up the
+        // member in the constraint types (interfaces, traits, base class).
+        if (targetType is TypeParameterType typeParam && typeParam.Constraints is not null)
+        {
+            var constraints = typeParam.Constraints;
+
+            // Check interface constraints.
+            foreach (var ifaceConstraint in constraints.InterfaceConstraints)
+            {
+                if (ifaceConstraint is InterfaceType iface)
+                {
+                    var member = iface.MemberScope.Lookup(memberName);
+                    if (member is not null)
+                        return member.DeclaredType ?? ErrorType.Instance;
+
+                    // Also check inherited interfaces transitively.
+                    var inherited = LookupInheritedInterfaceMember(iface, memberName);
+                    if (inherited is not null)
+                        return inherited;
+                }
+            }
+
+            // Check trait constraints.
+            foreach (var traitConstraint in constraints.TraitConstraints)
+            {
+                if (traitConstraint is TraitType trait)
+                {
+                    var member = trait.MemberScope.Lookup(memberName);
+                    if (member is not null)
+                        return member.DeclaredType ?? ErrorType.Instance;
+                }
+            }
+
+            // Check base class constraint (including inherited members).
+            if (constraints.BaseClassConstraint is ClassType baseClass)
+            {
+                ClassType? current = baseClass;
+                while (current is not null)
+                {
+                    foreach (var m in current.MemberScope.Members)
+                    {
+                        if (m.Name == memberName)
+                            return m.DeclaredType ?? ErrorType.Instance;
+                    }
+
+                    current = current.BaseType as ClassType;
+                }
+            }
+
+            // If constraints exist but none provide the member, fall through
+            // to the MIST_UNDEFINED_MEMBER diagnostic below.
+        }
+
         // For ConstructedType, unwrap to the generic definition and look up the member,
         // then substitute type parameters with type arguments.
         IReadOnlyList<TypeParameterType>? constructedTypeParams = null;
@@ -11514,6 +12102,44 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Looks up a member symbol by name in an interface's inherited interfaces transitively.
+    /// Returns the <see cref="ISymbol"/> if found; <c>null</c> otherwise.
+    /// Used for constrained type parameter member lookup in <see cref="LookupMemberSymbol"/>.
+    /// </summary>
+    private static ISymbol? LookupInheritedInterfaceMemberSymbol(
+        InterfaceType interfaceType,
+        string memberName)
+    {
+        var visited = new HashSet<InterfaceType>(ReferenceEqualityComparer.Instance);
+        return LookupInheritedInterfaceMemberSymbolCore(interfaceType.Interfaces, memberName, visited);
+    }
+
+    private static ISymbol? LookupInheritedInterfaceMemberSymbolCore(
+        IReadOnlyList<IType> interfaces,
+        string memberName,
+        HashSet<InterfaceType> visited)
+    {
+        foreach (var ifaceType in interfaces)
+        {
+            if (ifaceType is not InterfaceType iface)
+                continue;
+
+            if (!visited.Add(iface))
+                continue;
+
+            var member = iface.MemberScope.Lookup(memberName);
+            if (member is not null)
+                return member;
+
+            var inherited = LookupInheritedInterfaceMemberSymbolCore(iface.Interfaces, memberName, visited);
+            if (inherited is not null)
+                return inherited;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Looks up a member symbol by name on a target type.
     /// Similar to <see cref="LookupMemberType"/> but returns the <see cref="ISymbol"/> instead of the type.
     /// Used for checking method type parameters on generic method invocations.
@@ -11527,6 +12153,59 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         if (targetType is ErrorType)
             return null;
+
+        // ── Constrained type parameter member access (Requirements 6.1–6.4, 6.7) ──
+        // When the receiver is a TypeParameterType with constraints, look up the
+        // member in the constraint types (interfaces, traits, base class).
+        if (targetType is TypeParameterType typeParam && typeParam.Constraints is not null)
+        {
+            var constraints = typeParam.Constraints;
+
+            // Check interface constraints.
+            foreach (var ifaceConstraint in constraints.InterfaceConstraints)
+            {
+                if (ifaceConstraint is InterfaceType iface)
+                {
+                    var member = iface.MemberScope.Lookup(memberName);
+                    if (member is not null)
+                        return member;
+
+                    // Also check inherited interfaces transitively.
+                    var inherited = LookupInheritedInterfaceMemberSymbol(iface, memberName);
+                    if (inherited is not null)
+                        return inherited;
+                }
+            }
+
+            // Check trait constraints.
+            foreach (var traitConstraint in constraints.TraitConstraints)
+            {
+                if (traitConstraint is TraitType trait)
+                {
+                    var member = trait.MemberScope.Lookup(memberName);
+                    if (member is not null)
+                        return member;
+                }
+            }
+
+            // Check base class constraint (including inherited members).
+            if (constraints.BaseClassConstraint is ClassType baseClass)
+            {
+                ClassType? current = baseClass;
+                while (current is not null)
+                {
+                    foreach (var m in current.MemberScope.Members)
+                    {
+                        if (m.Name == memberName)
+                            return m;
+                    }
+
+                    current = current.BaseType as ClassType;
+                }
+            }
+
+            return null;
+        }
 
         // For ConstructedType, look up in the generic definition's member scope.
         if (targetType is ConstructedType ct)

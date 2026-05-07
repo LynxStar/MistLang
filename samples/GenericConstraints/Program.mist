@@ -1,0 +1,335 @@
+// GenericConstraints — Demonstrates all generic constraint variants in Mist.
+// Each permutation prints labeled output to stdout for correctness verification.
+
+using System;
+
+namespace GenericConstraints;
+
+// ─── Supporting types ────────────────────────────────────────────────────
+
+interface IComparable<T> {
+    int CompareTo(T other);
+}
+
+interface IPrintable {
+    string Print();
+}
+
+trait Describable {
+    string Describe();
+}
+
+class Animal {
+    public string Species;
+    public Animal(string species) {
+        Species = species;
+    }
+    public string GetSpecies() {
+        return Species;
+    }
+}
+
+class Dog : Animal {
+    public Dog() : base("Dog") { }
+}
+
+class Cat : Animal {
+    public Cat() : base("Cat") { }
+}
+
+struct Point {
+    public int X;
+    public int Y;
+    public Point(int x, int y) {
+        X = x;
+        Y = y;
+    }
+}
+
+class Widget : IPrintable {
+    public int Id;
+    public Widget() {
+        Id = 0;
+    }
+    public Widget(int id) {
+        Id = id;
+    }
+    public Widget(bool flag) {
+        Id = flag ? 1 : 0;
+    }
+    public string Print() {
+        return $"Widget({Id})";
+    }
+    public string Describe() {
+        return $"Widget#{Id}";
+    }
+}
+
+class SortableInt : IComparable<SortableInt> {
+    public int Value;
+    public SortableInt() {
+        Value = 0;
+    }
+    public SortableInt(int v) {
+        Value = v;
+    }
+    public int CompareTo(SortableInt other) {
+        return Value - other.Value;
+    }
+}
+
+// ─── 1. class constraint ─────────────────────────────────────────────────
+
+class RefOnly<T> where T : class {
+    public T Item;
+    public RefOnly(T item) {
+        Item = item;
+    }
+    public string Show() {
+        return $"RefOnly: {Item}";
+    }
+}
+
+// ─── 2. struct constraint ────────────────────────────────────────────────
+
+class ValOnly<T> where T : struct {
+    public T Item;
+    public ValOnly(T item) {
+        Item = item;
+    }
+    public string Show() {
+        return $"ValOnly: {Item}";
+    }
+}
+
+// ─── 3. interface constraint with method call ────────────────────────────
+
+class Sorter<T> where T : IComparable<T> {
+    public int Compare(T a, T b) {
+        return a.CompareTo(b);
+    }
+}
+
+// ─── 4. trait constraint with member access ──────────────────────────────
+
+class Describer<T> where T : Describable {
+    public string GetDescription(T item) {
+        return item.Describe();
+    }
+}
+
+// ─── 5. base class constraint with base class member access ──────────────
+
+class AnimalHandler<T> where T : Animal {
+    public string GetSpeciesOf(T animal) {
+        return animal.GetSpecies();
+    }
+}
+
+// ─── 6. parameterless new() constraint ───────────────────────────────────
+
+class Creator<T> where T : new() {
+    public T Create() {
+        return new T();
+    }
+}
+
+// ─── 7. parameterized new(int) constraint ────────────────────────────────
+
+class IntFactory<T> where T : new(int) {
+    public T Create(int value) {
+        return new T(value);
+    }
+}
+
+// ─── 8. multiple constructor constraints: new(), new(int), new(bool) ─────
+
+class MultiFactory<T> where T : new(), new(int), new(bool) {
+    public T CreateDefault() {
+        return new T();
+    }
+    public T CreateFromInt(int value) {
+        return new T(value);
+    }
+    public T CreateFromBool(bool flag) {
+        return new T(flag);
+    }
+}
+
+// ─── 9. multiple constraints on single type parameter ────────────────────
+
+class PrintableCreator<T> where T : class, IPrintable, new() {
+    public string CreateAndPrint() {
+        T item = new T();
+        return item.Print();
+    }
+}
+
+// ─── 10. multiple where clauses on multi-parameter generic ───────────────
+
+class Pair<K, V> where K : IComparable<K> where V : new() {
+    public K Key;
+    public V Value;
+    public Pair(K key) {
+        Key = key;
+        Value = new V();
+    }
+}
+
+// ─── 11. constraints on generic methods ──────────────────────────────────
+
+class MethodConstraints {
+    public static string DescribeItem<T>(T item) where T : Describable {
+        return item.Describe();
+    }
+
+    public static T CreateItem<T>() where T : new() {
+        return new T();
+    }
+}
+
+// ─── 12. constraint propagation through inheritance ──────────────────────
+
+class BaseContainer<T> where T : IPrintable {
+    public T Item;
+    public BaseContainer(T item) {
+        Item = item;
+    }
+}
+
+class DerivedContainer<T> : BaseContainer<T> where T : IPrintable, new() {
+    public DerivedContainer(T item) : base(item) { }
+    public T CreateNew() {
+        return new T();
+    }
+}
+
+// ─── 13. constructor constraints at any position ─────────────────────────
+
+class AnyPosition<T> where T : new(int), IComparable<T>, class {
+    public T Item;
+    public AnyPosition(int value) {
+        Item = new T(value);
+    }
+}
+
+// ─── 14. constraints on generic type alias ───────────────────────────────
+
+type StructList<T> = List<T> where T : struct;
+
+// ─── 15. interface declaration with constraint ───────────────────────────
+
+interface IRepository<T> where T : class, new() {
+    T GetById(int id);
+    void Save(T item);
+}
+
+class WidgetRepository : IRepository<Widget> {
+    public Widget GetById(int id) {
+        return new Widget(id);
+    }
+    public void Save(Widget item) { }
+}
+
+// ─── 16. struct declaration with constraint ──────────────────────────────
+
+struct Holder<T> where T : IPrintable {
+    public T Value;
+    public Holder(T value) {
+        Value = value;
+    }
+    public string ShowValue() {
+        return Value.Print();
+    }
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────
+
+public class Program {
+    public static void RunDemo() {
+        Console.WriteLine("--- Generic Constraints ---");
+
+        // 1. class constraint
+        RefOnly<string> r = new RefOnly<string>("hello");
+        Console.WriteLine($"1. class constraint: {r.Show()}");
+
+        // 2. struct constraint
+        ValOnly<int> v = new ValOnly<int>(42);
+        Console.WriteLine($"2. struct constraint: {v.Show()}");
+
+        // 3. interface constraint
+        Sorter<SortableInt> sorter = new Sorter<SortableInt>();
+        SortableInt a = new SortableInt(10);
+        SortableInt b = new SortableInt(20);
+        int cmp = sorter.Compare(a, b);
+        Console.WriteLine($"3. interface constraint: Compare(10, 20) = {cmp}");
+
+        // 4. trait constraint
+        Widget w = new Widget(7);
+        Describer<Widget> desc = new Describer<Widget>();
+        Console.WriteLine($"4. trait constraint: {desc.GetDescription(w)}");
+
+        // 5. base class constraint
+        Dog dog = new Dog();
+        AnimalHandler<Dog> handler = new AnimalHandler<Dog>();
+        Console.WriteLine($"5. base class constraint: {handler.GetSpeciesOf(dog)}");
+
+        // 6. parameterless new()
+        Creator<Widget> creator = new Creator<Widget>();
+        Widget created = creator.Create();
+        Console.WriteLine($"6. new() constraint: {created.Print()}");
+
+        // 7. parameterized new(int)
+        IntFactory<Widget> intFactory = new IntFactory<Widget>();
+        Widget fromInt = intFactory.Create(99);
+        Console.WriteLine($"7. new(int) constraint: {fromInt.Print()}");
+
+        // 8. multiple constructor constraints
+        MultiFactory<Widget> multi = new MultiFactory<Widget>();
+        Widget mDefault = multi.CreateDefault();
+        Widget mInt = multi.CreateFromInt(5);
+        Widget mBool = multi.CreateFromBool(true);
+        Console.WriteLine($"8. multi-ctor: default={mDefault.Print()}, int={mInt.Print()}, bool={mBool.Print()}");
+
+        // 9. multiple constraints on single type parameter
+        PrintableCreator<Widget> pc = new PrintableCreator<Widget>();
+        Console.WriteLine($"9. multiple constraints: {pc.CreateAndPrint()}");
+
+        // 10. multiple where clauses
+        Pair<SortableInt, Widget> pair = new Pair<SortableInt, Widget>(new SortableInt(1));
+        Console.WriteLine($"10. multiple where clauses: key={pair.Key.Value}, value={pair.Value.Print()}");
+
+        // 11. constraints on generic methods
+        Widget methodWidget = new Widget(42);
+        string methodDesc = MethodConstraints.DescribeItem<Widget>(methodWidget);
+        Console.WriteLine($"11. method constraint: {methodDesc}");
+
+        // 12. constraint propagation
+        Widget propWidget = new Widget(3);
+        DerivedContainer<Widget> dc = new DerivedContainer<Widget>(propWidget);
+        Widget newFromDerived = dc.CreateNew();
+        Console.WriteLine($"12. propagation: item={dc.Item.Print()}, new={newFromDerived.Print()}");
+
+        // 13. constructor constraints at any position
+        AnyPosition<SortableInt> ap = new AnyPosition<SortableInt>(77);
+        Console.WriteLine($"13. any position: value={ap.Item.Value}");
+
+        // 14. type alias constraint (compile-time only, alias is erased)
+        Console.WriteLine("14. type alias constraint: StructList<int> compiles OK");
+
+        // 15. interface declaration with constraint
+        WidgetRepository repo = new WidgetRepository();
+        Widget fetched = repo.GetById(42);
+        Console.WriteLine($"15. interface with constraint: {fetched.Print()}");
+
+        // 16. struct declaration with constraint
+        Holder<Widget> holder = new Holder<Widget>(new Widget(99));
+        Console.WriteLine($"16. struct with constraint: {holder.ShowValue()}");
+
+        Console.WriteLine("--- Generic Constraints Done ---");
+    }
+
+    public static void Main() {
+        RunDemo();
+    }
+}

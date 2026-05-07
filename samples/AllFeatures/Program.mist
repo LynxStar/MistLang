@@ -26,6 +26,8 @@ public class Program
         TypeAliases.Program.RunDemo();
         Traits.Program.RunDemo();
         UnknownTypeDemo.RunDemo();
+        // TODO: Uncomment once GenericConstraints sample compiles through the full pipeline
+        // GenericConstraints.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

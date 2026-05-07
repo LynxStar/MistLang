@@ -116,7 +116,9 @@ rule TypeDeclaration
     | traitDeclaration:TraitDeclaration           as TraitType
     ;
 
-rule TypeAliasDeclaration = TYPE name:IDENTIFIER typeParams:TypeParameterList? EQUAL type:TypeReference SEMICOLON;
+rule TypeAliasDeclaration = TYPE name:IDENTIFIER typeParams:TypeParameterList? EQUAL type:TypeReference
+    constraints:ConstraintClause*
+    SEMICOLON;
 
 // ─── Parser Rules — Type Parameter and Type Argument Lists ───────────────────
 
@@ -125,6 +127,21 @@ rule TypeParameterList = LESS_THAN TypeParameter (COMMA TypeParameter)* GREATER_
 rule TypeParameter = name:IDENTIFIER;
 
 rule TypeArgumentList = LESS_THAN TypeReference (COMMA TypeReference)* GREATER_THAN;
+
+// ─── Parser Rules — Constraint Clauses ───────────────────────────────────────
+
+rule ConstraintClause = WHERE name:IDENTIFIER COLON constraints:ConstraintList;
+
+rule ConstraintList = Constraint (COMMA Constraint)*;
+
+rule Constraint
+    = CLASS                                                                    as ClassConstraint
+    | STRUCT                                                                   as StructConstraint
+    | NEW LEFT_PARENTHESIS paramTypes:ConstraintParameterTypeList? RIGHT_PARENTHESIS  as ConstructorConstraint
+    | type:TypeReference                                                       as TypeConstraint
+    ;
+
+rule ConstraintParameterTypeList = TypeReference (COMMA TypeReference)*;
 
 // ─── Parser Rules — Type Declarations ────────────────────────────────────────
 
@@ -135,16 +152,19 @@ rule BaseList = first:BaseTypeRef (COMMA rest:BaseTypeRef)*;
 rule ClassDeclaration = modifiers:Modifier* CLASS name:IDENTIFIER
     typeParams:TypeParameterList?
     baseClause:(COLON baseList:BaseList)?
+    constraints:ConstraintClause*
     LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
 rule StructDeclaration = modifiers:Modifier* STRUCT name:IDENTIFIER
     typeParams:TypeParameterList?
     interfaceList:(COLON interfaces:BaseList)?
+    constraints:ConstraintClause*
     LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
 rule InterfaceDeclaration = INTERFACE name:IDENTIFIER
     typeParams:TypeParameterList?
     interfaceList:(COLON interfaces:BaseList)?
+    constraints:ConstraintClause*
     LEFT_BRACE members:InterfaceMemberDeclaration* RIGHT_BRACE;
 
 rule InterfaceMemberDeclaration
@@ -154,7 +174,9 @@ rule InterfaceMemberDeclaration
 
 rule InterfaceMethodDeclaration = returnType:TypeReference name:IDENTIFIER
     typeParams:TypeParameterList?
-    LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS SEMICOLON;
+    LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
+    constraints:ConstraintClause*
+    SEMICOLON;
 
 rule InterfacePropertyDeclaration
     = type:TypeReference name:IDENTIFIER
@@ -275,7 +297,9 @@ rule ConstructorChain
 
 rule MethodDeclaration = modifiers:Modifier* returnType:TypeReference name:IDENTIFIER
                          typeParams:TypeParameterList?
-                         LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS body:MethodBody;
+                         LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
+                         constraints:ConstraintClause*
+                         body:MethodBody;
 
 rule MethodBody
     = block:Block as MethodBlockBody

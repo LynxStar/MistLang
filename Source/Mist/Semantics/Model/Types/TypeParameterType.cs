@@ -17,6 +17,12 @@ public sealed class TypeParameterType : IType
     /// </summary>
     public int Ordinal { get; }
 
+    /// <summary>
+    /// The constraints declared on this type parameter.
+    /// Null if no constraints are declared (unconstrained).
+    /// </summary>
+    public TypeParameterConstraints? Constraints { get; internal set; }
+
     public TypeParameterType(string name, int ordinal)
     {
         Name = name;

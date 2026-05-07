@@ -212,6 +212,13 @@ internal sealed class CSharpSourceWriter
     /// unavailable (e.g., void methods where no widening can occur).
     /// </summary>
     private IType? _currentMethodReturnType;
+    /// <summary>
+    /// Type parameters of the current method being emitted that have parameterized
+    /// constructor constraints. Used by <c>new T(args)</c> emission to determine
+    /// whether to use a method parameter name (factoryT_...) vs. a class field name (_factoryT_...).
+    /// Null when not inside a generic method with factory parameters.
+    /// </summary>
+    private IReadOnlyList<TypeParameterType>? _currentMethodFactoryTypeParams;
     private readonly HashSet<string> _valueReturningVoidMethods = new(StringComparer.Ordinal);
     /// <summary>
     /// The name of the currently-being-emitted extension class. Set during
@@ -1303,15 +1310,34 @@ internal sealed class CSharpSourceWriter
             }
         }
         AppendLine($"{modifiers}class {name}{typeParams}{baseClause}");
+        // Emit constraint clauses (where T : ...) for constrained type parameters.
+        if (symbol?.DeclaredType is not null)
+        {
+            var typeParamsForConstraints = GetTypeParametersFromType(symbol.DeclaredType);
+            EmitConstraintClauses(typeParamsForConstraints);
+        }
         AppendLine("{");
         _indentLevel++;
+
+        // Emit factory delegate fields and constructor for parameterized constructor constraints.
+        var hasFactoryFields = false;
+        if (symbol?.DeclaredType is not null)
+        {
+            var typeParamsForFactory = GetTypeParametersFromType(symbol.DeclaredType);
+            if (HasParameterizedConstructorConstraints(typeParamsForFactory))
+            {
+                hasFactoryFields = true;
+                EmitFactoryDelegateFields(typeParamsForFactory);
+                EmitFactoryDelegateConstructor(name, typeParamsForFactory);
+            }
+        }
 
         // Emit every member in declaration order. No name-based grouping or
         // deduplication is performed, so overloaded methods and constructors
         // are each emitted as separate C# declarations.
         for (var i = 0; i < classDecl.Members.Length; i++)
         {
-            if (i > 0)
+            if (i > 0 || hasFactoryFields)
             {
                 AppendLine();
             }
@@ -1403,6 +1429,12 @@ internal sealed class CSharpSourceWriter
             interfaceList = $" : {EmitBaseListWithTypeArgs(interfaceDecl.Interfaces)}";
         }
         AppendLine($"interface {name}{typeParams}{interfaceList}");
+        // Emit constraint clauses (where T : ...) for constrained type parameters.
+        var interfaceSymbol = _model.GetDeclaredSymbol(interfaceDecl);
+        if (interfaceSymbol?.DeclaredType is InterfaceType interfaceTypeForConstraints)
+        {
+            EmitConstraintClauses(interfaceTypeForConstraints.TypeParameters);
+        }
         AppendLine("{");
         _indentLevel++;
 
@@ -1429,7 +1461,37 @@ internal sealed class CSharpSourceWriter
         var name = methodDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
         var parameters = EmitParameterList(methodDecl.Parameters);
-        AppendLine($"{returnType} {name}{typeParams}({parameters});");
+
+        // For generic interface methods with parameterized constructor constraints,
+        // append factory delegate parameters.
+        var methodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
+        var methodTypeParams = methodSymbol?.TypeParameters ?? (IReadOnlyList<TypeParameterType>)Array.Empty<TypeParameterType>();
+        var factoryParams = GetFactoryDelegateMethodParams(methodTypeParams);
+        if (factoryParams.Length > 0)
+        {
+            parameters = parameters.Length > 0
+                ? $"{parameters}, {factoryParams}"
+                : factoryParams;
+        }
+
+        // Check if there are constraint clauses to emit.
+        var hasConstraints = methodTypeParams.Any(tp => tp.Constraints is not null &&
+            (tp.Constraints.HasClassConstraint || tp.Constraints.HasStructConstraint ||
+             tp.Constraints.BaseClassConstraint is not null ||
+             tp.Constraints.InterfaceConstraints.Count > 0 ||
+             tp.Constraints.TraitConstraints.Count > 0 ||
+             tp.Constraints.ConstructorConstraints.Any(c => c.Count == 0)));
+
+        if (hasConstraints)
+        {
+            AppendLine($"{returnType} {name}{typeParams}({parameters})");
+            EmitConstraintClauses(methodTypeParams);
+            AppendLine(";");
+        }
+        else
+        {
+            AppendLine($"{returnType} {name}{typeParams}({parameters});");
+        }
     }
 
     private void EmitInterfacePropertyDeclaration(InterfacePropertyDeclarationNode propertyDecl)
@@ -1736,15 +1798,34 @@ internal sealed class CSharpSourceWriter
             }
         }
         AppendLine($"{modifiers}struct {name}{typeParams}{interfaceList}");
+        // Emit constraint clauses (where T : ...) for constrained type parameters.
+        if (symbol?.DeclaredType is not null)
+        {
+            var typeParamsForConstraints = GetTypeParametersFromType(symbol.DeclaredType);
+            EmitConstraintClauses(typeParamsForConstraints);
+        }
         AppendLine("{");
         _indentLevel++;
+
+        // Emit factory delegate fields and constructor for parameterized constructor constraints.
+        var hasFactoryFields = false;
+        if (symbol?.DeclaredType is not null)
+        {
+            var typeParamsForFactory = GetTypeParametersFromType(symbol.DeclaredType);
+            if (HasParameterizedConstructorConstraints(typeParamsForFactory))
+            {
+                hasFactoryFields = true;
+                EmitFactoryDelegateFields(typeParamsForFactory);
+                EmitFactoryDelegateConstructor(name, typeParamsForFactory);
+            }
+        }
 
         // Emit every member in declaration order. No name-based grouping or
         // deduplication is performed, so overloaded methods and constructors
         // are each emitted as separate C# declarations.
         for (var i = 0; i < structDecl.Members.Length; i++)
         {
-            if (i > 0)
+            if (i > 0 || hasFactoryFields)
             {
                 AppendLine();
             }
@@ -2121,7 +2202,21 @@ internal sealed class CSharpSourceWriter
             _needsMistVoidStruct = true;
         }
 
+        // For generic methods with parameterized constructor constraints,
+        // append factory delegate parameters to the method signature.
+        var methodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
+        var methodTypeParams = methodSymbol?.TypeParameters ?? (IReadOnlyList<TypeParameterType>)Array.Empty<TypeParameterType>();
+        var factoryParams = GetFactoryDelegateMethodParams(methodTypeParams);
+        if (factoryParams.Length > 0)
+        {
+            parameters = parameters.Length > 0
+                ? $"{parameters}, {factoryParams}"
+                : factoryParams;
+        }
+
         AppendLine($"{modifiers}{returnType} {name}{typeParams}({parameters})");
+        // Emit constraint clauses for the method's type parameters.
+        EmitConstraintClauses(methodTypeParams);
 
         // Set the flag so EmitReturnStatement knows to emit `return MistVoid.Instance;`
         var previousFlag = _inValueReturningVoidMethod;
@@ -2131,6 +2226,12 @@ internal sealed class CSharpSourceWriter
         // statements can detect covariant unknown widening against it.
         var previousReturnType = _currentMethodReturnType;
         _currentMethodReturnType = ResolveMethodReturnType(methodDecl);
+
+        // Track method-level factory type parameters for new T(args) emission.
+        var previousFactoryTypeParams = _currentMethodFactoryTypeParams;
+        _currentMethodFactoryTypeParams = HasParameterizedConstructorConstraints(methodTypeParams)
+            ? methodTypeParams
+            : null;
 
         if (methodDecl.Body.GetBlock() is BlockNode block)
         {
@@ -2144,6 +2245,7 @@ internal sealed class CSharpSourceWriter
 
         _inValueReturningVoidMethod = previousFlag;
         _currentMethodReturnType = previousReturnType;
+        _currentMethodFactoryTypeParams = previousFactoryTypeParams;
     }
 
     /// <summary>
@@ -4363,6 +4465,22 @@ internal sealed class CSharpSourceWriter
                     return intrinsicStaticTemplate;
                 }
 
+                // Call-site transformation for generic methods with parameterized constructor constraints:
+                // append factory lambda arguments when calling a method that has factory delegate parameters.
+                var calledMethodSymbol = _model.GetDeclaredSymbol(suffix) as Symbol;
+                if (calledMethodSymbol is not null && calledMethodSymbol.Kind == SymbolKind.Method &&
+                    calledMethodSymbol.TypeParameters.Count > 0 &&
+                    HasParameterizedConstructorConstraints(calledMethodSymbol.TypeParameters))
+                {
+                    var factoryLambdas = GenerateFactoryLambdas(calledMethodSymbol.TypeParameters, methodCall.TypeArgs);
+                    if (factoryLambdas.Length > 0)
+                    {
+                        args = args.Length > 0
+                            ? $"{args}, {factoryLambdas}"
+                            : factoryLambdas;
+                    }
+                }
+
                 return $"{target}.{name}{typeArgs}({args})";
             }
             case MemberAccessSuffixPostfixSuffixNode memberAccess:
@@ -4487,6 +4605,40 @@ internal sealed class CSharpSourceWriter
                 var type = ExtractQualifiedName(objCreation.Type);
                 var typeArgs = EmitTypeArgumentList(objCreation.TypeArgs);
 
+                // Check if the type being constructed is a type parameter with a parameterized
+                // constructor constraint — if so, emit as factory delegate invocation.
+                var exprType = _model.GetTypeOf(objCreation);
+                if (exprType is TypeParameterType typeParamType && typeParamType.Constraints is not null)
+                {
+                    var argCount = CountArguments(objCreation.Arguments);
+                    if (argCount > 0)
+                    {
+                        // Parameterized new T(args) → factory delegate invocation
+                        var matchingConstraint = FindMatchingParameterizedConstraint(typeParamType, argCount);
+                        if (matchingConstraint is not null)
+                        {
+                            // Determine whether to use field name or parameter name:
+                            // - Inside a method with factory params → use parameter name (factoryT_...)
+                            // - Inside a class with factory fields → use field name (_factoryT_...)
+                            string factoryName;
+                            if (_currentMethodFactoryTypeParams is not null &&
+                                _currentMethodFactoryTypeParams.Any(tp => tp.Name == typeParamType.Name))
+                            {
+                                factoryName = GetFactoryParamName(typeParamType, matchingConstraint);
+                            }
+                            else
+                            {
+                                factoryName = GetFactoryFieldName(typeParamType, matchingConstraint);
+                            }
+                            var args = EmitArgumentList(objCreation.Arguments);
+                            return $"{factoryName}({args})";
+                        }
+                    }
+                    // new T() with parameterless constraint → standard new T()
+                    var args0 = EmitArgumentList(objCreation.Arguments);
+                    return $"new {type}{typeArgs}({args0})";
+                }
+
                 // Type aliases are transparent — resolve to the underlying type name
                 // for object creation expressions (e.g., `new IntBox(42)` → `new GenericBox<int>(42)`).
                 var aliasSymbol = _model.AllSymbols
@@ -4515,8 +4667,28 @@ internal sealed class CSharpSourceWriter
                     }
                 }
 
-                var args = EmitArgumentList(objCreation.Arguments);
-                return $"new {type}{typeArgs}({args})";
+                var argsStr = EmitArgumentList(objCreation.Arguments);
+
+                // Call-site transformation: when constructing a type that has parameterized
+                // constructor constraints, append factory lambda arguments.
+                var constructedSymbol = _model.AllSymbols
+                    .FirstOrDefault(s => s.Name == type && s.Kind is SymbolKind.Class or SymbolKind.Struct);
+                if (constructedSymbol?.DeclaredType is not null)
+                {
+                    var constructedTypeParams = GetTypeParametersFromType(constructedSymbol.DeclaredType);
+                    if (HasParameterizedConstructorConstraints(constructedTypeParams))
+                    {
+                        var factoryLambdas = GenerateFactoryLambdas(constructedTypeParams, objCreation.TypeArgs);
+                        if (factoryLambdas.Length > 0)
+                        {
+                            argsStr = argsStr.Length > 0
+                                ? $"{argsStr}, {factoryLambdas}"
+                                : factoryLambdas;
+                        }
+                    }
+                }
+
+                return $"new {type}{typeArgs}({argsStr})";
             }
             case ParenthesizedExpressionPrimaryNode paren:
                 return $"({EmitExpression(paren.Inner)})";
@@ -4734,6 +4906,272 @@ internal sealed class CSharpSourceWriter
         }
 
         return qualifiedId.IDENTIFIER.Lexeme;
+    }
+
+    // ─── Generic Constraint Emission ────────────────────────────────────
+
+    /// <summary>
+    /// Emits C# <c>where</c> clauses for all constrained type parameters on a type or method.
+    /// Constraints are reordered to C#'s required order: class/struct → base class → interfaces/traits → new() last.
+    /// Parameterized constructor constraints are excluded from the where clause (they use factory delegate lowering).
+    /// </summary>
+    private void EmitConstraintClauses(IReadOnlyList<TypeParameterType> typeParameters)
+    {
+        foreach (var typeParam in typeParameters)
+        {
+            var constraints = typeParam.Constraints;
+            if (constraints is null) continue;
+
+            var parts = new List<string>();
+
+            // 1. class/struct first
+            if (constraints.HasClassConstraint)
+                parts.Add("class");
+            else if (constraints.HasStructConstraint)
+                parts.Add("struct");
+
+            // 2. Base class
+            if (constraints.BaseClassConstraint is not null)
+                parts.Add(CSharpTypeMap.GetTypeName(constraints.BaseClassConstraint));
+
+            // 3. Interfaces and traits
+            foreach (var iface in constraints.InterfaceConstraints)
+                parts.Add(CSharpTypeMap.GetTypeName(iface));
+            foreach (var trait in constraints.TraitConstraints)
+                parts.Add(CSharpTypeMap.GetTypeName(trait));
+
+            // 4. new() last (only parameterless constructor constraint)
+            var hasParameterlessNew = constraints.ConstructorConstraints
+                .Any(c => c.Count == 0);
+            if (hasParameterlessNew)
+                parts.Add("new()");
+
+            if (parts.Count > 0)
+            {
+                AppendLine($"    where {typeParam.Name} : {string.Join(", ", parts)}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the parameterized (non-parameterless) constructor constraints for a type parameter.
+    /// These are the constraints that require factory delegate lowering.
+    /// </summary>
+    private static IReadOnlyList<IReadOnlyList<IType>> GetParameterizedConstructorConstraints(TypeParameterConstraints? constraints)
+    {
+        if (constraints is null) return Array.Empty<IReadOnlyList<IType>>();
+        return constraints.ConstructorConstraints
+            .Where(c => c.Count > 0)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Generates the factory delegate field name for a parameterized constructor constraint.
+    /// E.g., for new(int, string) on T → "_factoryT_int_string"
+    /// </summary>
+    private static string GetFactoryFieldName(TypeParameterType typeParam, IReadOnlyList<IType> paramTypes)
+    {
+        var paramPart = string.Join("_", paramTypes.Select(t => SanitizeTypeName(t)));
+        return $"_factory{typeParam.Name}_{paramPart}";
+    }
+
+    /// <summary>
+    /// Generates the factory delegate parameter name for a parameterized constructor constraint.
+    /// E.g., for new(int, string) on T → "factoryT_int_string"
+    /// </summary>
+    private static string GetFactoryParamName(TypeParameterType typeParam, IReadOnlyList<IType> paramTypes)
+    {
+        var paramPart = string.Join("_", paramTypes.Select(t => SanitizeTypeName(t)));
+        return $"factory{typeParam.Name}_{paramPart}";
+    }
+
+    /// <summary>
+    /// Sanitizes a type name for use in identifiers (removes angle brackets, dots, etc.).
+    /// </summary>
+    private static string SanitizeTypeName(IType type)
+    {
+        var name = CSharpTypeMap.GetTypeName(type);
+        return name.Replace("<", "").Replace(">", "").Replace(",", "").Replace(" ", "").Replace(".", "");
+    }
+
+    /// <summary>
+    /// Generates the Func delegate type string for a factory delegate.
+    /// E.g., for new(int, string) on T → "Func&lt;int, string, T&gt;"
+    /// </summary>
+    private static string GetFactoryDelegateType(TypeParameterType typeParam, IReadOnlyList<IType> paramTypes)
+    {
+        var typeArgs = paramTypes.Select(t => CSharpTypeMap.GetTypeName(t)).ToList();
+        typeArgs.Add(typeParam.Name);
+        return $"Func<{string.Join(", ", typeArgs)}>";
+    }
+
+    /// <summary>
+    /// Emits factory delegate fields for all parameterized constructor constraints on the given type parameters.
+    /// </summary>
+    private void EmitFactoryDelegateFields(IReadOnlyList<TypeParameterType> typeParameters)
+    {
+        foreach (var typeParam in typeParameters)
+        {
+            var parameterizedConstraints = GetParameterizedConstructorConstraints(typeParam.Constraints);
+            foreach (var paramTypes in parameterizedConstraints)
+            {
+                var fieldName = GetFactoryFieldName(typeParam, paramTypes);
+                var delegateType = GetFactoryDelegateType(typeParam, paramTypes);
+                AppendLine($"private readonly {delegateType} {fieldName};");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks whether any type parameter has parameterized constructor constraints
+    /// that require factory delegate lowering.
+    /// </summary>
+    private static bool HasParameterizedConstructorConstraints(IReadOnlyList<TypeParameterType> typeParameters)
+    {
+        return typeParameters.Any(tp =>
+            tp.Constraints is not null &&
+            tp.Constraints.ConstructorConstraints.Any(c => c.Count > 0));
+    }
+
+    /// <summary>
+    /// Emits a synthetic constructor that accepts factory delegates for parameterized constructor constraints.
+    /// </summary>
+    private void EmitFactoryDelegateConstructor(string typeName, IReadOnlyList<TypeParameterType> typeParameters)
+    {
+        var parameters = new List<string>();
+        var assignments = new List<string>();
+
+        foreach (var typeParam in typeParameters)
+        {
+            var parameterizedConstraints = GetParameterizedConstructorConstraints(typeParam.Constraints);
+            foreach (var paramTypes in parameterizedConstraints)
+            {
+                var paramName = GetFactoryParamName(typeParam, paramTypes);
+                var fieldName = GetFactoryFieldName(typeParam, paramTypes);
+                var delegateType = GetFactoryDelegateType(typeParam, paramTypes);
+                parameters.Add($"{delegateType} {paramName}");
+                assignments.Add($"{fieldName} = {paramName};");
+            }
+        }
+
+        if (parameters.Count == 0) return;
+
+        AppendLine();
+        AppendLine($"public {typeName}({string.Join(", ", parameters)})");
+        AppendLine("{");
+        _indentLevel++;
+        foreach (var assignment in assignments)
+        {
+            AppendLine(assignment);
+        }
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    /// <summary>
+    /// Gets the additional factory delegate parameters that should be appended to a method signature
+    /// for generic methods with parameterized constructor constraints.
+    /// </summary>
+    private static string GetFactoryDelegateMethodParams(IReadOnlyList<TypeParameterType> typeParameters)
+    {
+        var parameters = new List<string>();
+        foreach (var typeParam in typeParameters)
+        {
+            var parameterizedConstraints = GetParameterizedConstructorConstraints(typeParam.Constraints);
+            foreach (var paramTypes in parameterizedConstraints)
+            {
+                var paramName = GetFactoryParamName(typeParam, paramTypes);
+                var delegateType = GetFactoryDelegateType(typeParam, paramTypes);
+                parameters.Add($"{delegateType} {paramName}");
+            }
+        }
+        return parameters.Count > 0 ? string.Join(", ", parameters) : "";
+    }
+
+    /// <summary>
+    /// Checks if a type parameter has a parameterized constructor constraint matching the given argument types.
+    /// Returns the matching constraint's parameter types, or null if no match.
+    /// </summary>
+    private static IReadOnlyList<IType>? FindMatchingParameterizedConstraint(
+        TypeParameterType typeParam, int argCount)
+    {
+        if (typeParam.Constraints is null) return null;
+        // Find the first parameterized constraint that matches the argument count.
+        return typeParam.Constraints.ConstructorConstraints
+            .FirstOrDefault(c => c.Count == argCount && c.Count > 0);
+    }
+
+    /// <summary>
+    /// Gets the type parameters for a declared type (class, struct, or interface).
+    /// </summary>
+    private static IReadOnlyList<TypeParameterType> GetTypeParametersFromType(IType? type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.TypeParameters,
+            StructType st => st.TypeParameters,
+            InterfaceType it => it.TypeParameters,
+            _ => Array.Empty<TypeParameterType>()
+        };
+    }
+
+    /// <summary>
+    /// Counts the number of arguments in an argument list node.
+    /// </summary>
+    private static int CountArguments(ArgumentListNode? argList)
+    {
+        if (argList is null) return 0;
+        var count = 1; // First expression
+        foreach (var child in argList.Children())
+        {
+            if (child is ExpressionNode expr && !ReferenceEquals(expr, argList.Expression))
+                count++;
+        }
+        return count;
+    }
+
+    /// <summary>
+    /// Generates factory lambda expressions for call-site transformation.
+    /// When constructing a type with parameterized constructor constraints,
+    /// the caller must supply lambda expressions that create instances.
+    /// E.g., for new(int) on T with type arg MyClass → "(arg0) => new MyClass(arg0)"
+    /// </summary>
+    private string GenerateFactoryLambdas(IReadOnlyList<TypeParameterType> typeParameters, TypeArgumentListNode? typeArgs)
+    {
+        var lambdas = new List<string>();
+
+        // Resolve type arguments from the type argument list node.
+        var resolvedTypeArgs = new List<string>();
+        if (typeArgs is not null)
+        {
+            resolvedTypeArgs.Add(EmitTypeReference(typeArgs.TypeReference));
+            foreach (var typeRef in typeArgs.TypeReferences)
+            {
+                resolvedTypeArgs.Add(EmitTypeReference(typeRef));
+            }
+        }
+
+        for (var i = 0; i < typeParameters.Count; i++)
+        {
+            var typeParam = typeParameters[i];
+            var parameterizedConstraints = GetParameterizedConstructorConstraints(typeParam.Constraints);
+            if (parameterizedConstraints.Count == 0) continue;
+
+            // Get the concrete type argument for this type parameter.
+            var concreteType = i < resolvedTypeArgs.Count ? resolvedTypeArgs[i] : typeParam.Name;
+
+            foreach (var paramTypes in parameterizedConstraints)
+            {
+                // Generate lambda: (arg0, arg1, ...) => new ConcreteType(arg0, arg1, ...)
+                var argNames = Enumerable.Range(0, paramTypes.Count)
+                    .Select(j => $"arg{j}")
+                    .ToList();
+                var argList = string.Join(", ", argNames);
+                lambdas.Add($"({argList}) => new {concreteType}({argList})");
+            }
+        }
+
+        return string.Join(", ", lambdas);
     }
 
     private void AppendLine(string text = "")

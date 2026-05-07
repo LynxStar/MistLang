@@ -67,6 +67,9 @@ token CHAR    = "char";
 token STRING  = "string";
 token UNKNOWN = "unknown";
 
+// Generic constraint keywords
+token WHERE = "where";
+
 // Pattern matching keywords
 token IS  = "is";
 token AND = "and";

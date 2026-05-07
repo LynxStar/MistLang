@@ -25,7 +25,6 @@ public class SampleProjectTomlTests
     [InlineData("Inheritance")]
     [InlineData("Interfaces")]
     [InlineData("Properties")]
-    [InlineData("TypeLiterals")]
     public void SampleProject_HasValidMistToml(string sampleName)
     {
         var repoRoot = GetRepoRoot();

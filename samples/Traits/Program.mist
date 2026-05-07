@@ -11,7 +11,7 @@ public class Program
         Console.WriteLine($"  Name: {item.Name}, Id: {item.Id}");
     }
 
-    public static void Main(string[] args)
+    public static void RunDemo()
     {
         // --- Structural match: User satisfies Printable by having matching public members ---
         Console.WriteLine("=== Structural trait satisfaction ===");

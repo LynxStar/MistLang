@@ -171,13 +171,6 @@ Extension Methods Demo
 System.String
 System.String
 Int32
-=== UnknownType Sample (AllFeatures) ===
---- Unknown local ---
-narrowed int: 123
---- Covariant widening ---
-widened tag: 7
-widened value: 99
-narrowed-back value: 42
 === Type Aliases Sample ===
 --- Simple aliases ---
 id=42 name=Alice score=98.5 active=True
@@ -197,4 +190,22 @@ intBox.value=42 strBox.value=Mist
 boxInt=Box(7) boxStr=Box(world)
 boxInt.value=7 boxStr.value=world
 Done!
+=== Structural trait satisfaction ===
+User created: Alice, id 42
+=== With-block trait satisfaction ===
+Product created: Widget, sku 1001
+=== Trait-typed variables ===
+  Assigned User to Printable: Name=Bob, Id=7
+  Assigned Product to Printable: Name=Gadget, Id=2002
+=== Passing to trait-typed parameter ===
+  Name: Alice, Id: 42
+  Name: Widget, Id: 1001
+Done!
+=== UnknownType Sample (AllFeatures) ===
+--- Unknown local ---
+narrowed int: 123
+--- Covariant widening ---
+widened tag: 7
+widened value: 99
+narrowed-back value: 42
 === Done! ===

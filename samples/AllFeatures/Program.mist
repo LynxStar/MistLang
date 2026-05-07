@@ -23,8 +23,9 @@ public class Program
         Tuples.Program.RunDemo();
         TypeUnions.Program.RunDemo();
         ExtensionMethods.Program.RunDemo();
-        UnknownTypeDemo.RunDemo();
         TypeAliases.Program.RunDemo();
+        Traits.Program.RunDemo();
+        UnknownTypeDemo.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

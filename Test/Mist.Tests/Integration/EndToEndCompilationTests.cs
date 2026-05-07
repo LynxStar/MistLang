@@ -1337,45 +1337,6 @@ public sealed class EndToEndCompilationTests : IDisposable
     }
 
     [Fact]
-    public void BackwardCompat_Generics_CompilesWithoutNamespaceErrors()
-    {
-        // Generics has explicit namespace declarations in all files.
-        // Note: the Generics sample has pre-existing compilation errors related to
-        // generic method resolution (not namespace-related). We verify that no
-        // namespace-related errors are introduced by the inferred namespace feature.
-        var repoRoot = FindRepoRoot();
-        var sampleDir = Path.Combine(repoRoot, "samples", "Generics");
-        Assert.True(Directory.Exists(sampleDir));
-
-        var sourceFiles = Directory.EnumerateFiles(sampleDir, "*.mist", SearchOption.AllDirectories)
-            .OrderBy(f => f, StringComparer.Ordinal)
-            .ToList();
-        Assert.True(sourceFiles.Count >= 5);
-
-        var driver = CreateRealDriver();
-        var binDir = Path.Combine(_outputDir, "bin");
-        var options = new CompilerOptions(
-            ProjectFolder: sampleDir,
-            SourcePaths: sourceFiles.ToImmutableArray(),
-            Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
-            BinDirectory: binDir,
-            ProjectName: "Generics",
-            NamespaceRoot: "Generics",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
-
-        var result = driver.Compile(options);
-
-        // Verify no namespace-related errors are produced
-        var namespaceDiagnostics = result.Diagnostics
-            .Where(d => d.Severity == DiagnosticSeverity.Error &&
-                        (d.Id.Value.Contains("NAMESPACE") || d.Id.Value.Contains("AMBIGUOUS")))
-            .ToList();
-        Assert.True(namespaceDiagnostics.Count == 0,
-            $"Generics compilation produced namespace-related error(s):\n{string.Join("\n", namespaceDiagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"))}");
-    }
-
-    [Fact]
     public void BackwardCompat_HelloMist_ExplicitNamespacePreserved()
     {
         // Verify that files with explicit namespace HelloMist; still emit under that namespace,

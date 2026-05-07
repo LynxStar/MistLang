@@ -22,10 +22,19 @@ public sealed class ProjectFileParserPropertyTests
 
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
-        var samples = gen.Sample(maxTests);
-        foreach (var sample in samples)
+        var samples = gen.Sample(maxTests).ToList();
+        for (var idx = 0; idx < samples.Count; idx++)
         {
-            check(sample);
+            try
+            {
+                check(samples[idx]);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(
+                    $"Property failed on sample {idx}/{samples.Count}: {samples[idx]}\n" +
+                    $"Inner: {ex.Message}", ex);
+            }
         }
     }
 
@@ -163,10 +172,14 @@ public sealed class ProjectFileParserPropertyTests
                 // Build mist.toml with unknown fields in the [[references]] entry
                 var toml = "name = \"TestProject\"\n\n[[references]]\n";
                 toml += $"path = \"{path}\"\n";
+                var seenKeys = new HashSet<string>();
                 foreach (var (key, value) in fields)
                 {
-                    // Ensure key doesn't collide with "path"
+                    // Ensure key doesn't collide with "path" or "name"
                     var safeKey = "extra_" + key;
+                    // Skip duplicate keys (TOML rejects them)
+                    if (!seenKeys.Add(safeKey))
+                        continue;
                     toml += $"{safeKey} = \"{value}\"\n";
                 }
 
@@ -175,8 +188,10 @@ public sealed class ProjectFileParserPropertyTests
                 var diagnostics = new DiagnosticBag();
                 var result = ProjectFileParser.Parse(projectDir, diagnostics);
 
+                Assert.False(diagnostics.HasErrors,
+                    $"Parse reported errors for path='{path}', fields=[{string.Join(", ", fields.Select(f => $"{f.Item1}={f.Item2}"))}], toml:\n{toml}\n" +
+                    string.Join("; ", diagnostics.ToImmutableArray().Select(d => $"{d.Id.Value}: {d.Message}")));
                 Assert.NotNull(result);
-                Assert.False(diagnostics.HasErrors);
                 Assert.Single(result.References);
 
                 // The path should be preserved (after normalization)

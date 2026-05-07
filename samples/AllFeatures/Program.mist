@@ -31,8 +31,7 @@ public class Program
         Inheritance.Program.RunDemo();
         Properties.Program.RunDemo();
         Namespaces.Program.RunDemo();
-        // TODO: Uncomment once GenericConstraints sample compiles through the full pipeline
-        // GenericConstraints.Program.RunDemo();
+        GenericConstraints.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

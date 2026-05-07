@@ -271,6 +271,28 @@ class Doubler : Transformable<Widget> {
     }
 }
 
+// ─── 17. generic trait with constraint that structurally matches ───────────────────────────────────
+
+class Tripler
+{
+    public Widget Transform(Widget input) 
+    {
+        return new Widget(input.Id * 2);
+    }
+    public Widget CreateDefault() 
+    {
+        return new Widget();
+    }
+}
+
+class TransformableHolder
+{
+    public static T UseTransformable<T>(Transformable<T> transformable) where T : new()
+    {
+        return transformable.CreateDefault();
+    }
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────
 
 public class Program {
@@ -355,6 +377,11 @@ public class Program {
         Widget doubled = doubler.Transform(new Widget(21));
         Widget defaultWidget = doubler.CreateDefault();
         Console.WriteLine($"16. generic trait: transformed=Widget({doubled.Id}), default=Widget({defaultWidget.Id})");
+
+        // // 17. generic trait with constraint structurally matched
+        // Tripler tripler = new Tripler();
+        // var tripled = TransformableHolder.UseTransformable(tripler);
+        // Console.WriteLine($"17. generic trait: default=Widget({tripled.Id})");
 
         Console.WriteLine("--- Generic Constraints Done ---");
     }

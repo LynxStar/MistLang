@@ -5762,12 +5762,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // 1. Structural matching: for each trait member, search the
                 //    type's public members for a match.
                 var structuralMatches = new Dictionary<string, ISymbol>();
+                var privateMatches = new Dictionary<string, ISymbol>();
 
                 foreach (var traitMember in trait.MemberScope.Members)
                 {
                     var matched = TryStructuralMatch(
                         traitMember, memberScope, typeName, globalScope, symbolTable,
-                        asts, compilation, diagnostics);
+                        asts, compilation, diagnostics, privateMatches);
 
                     if (matched is not null)
                     {
@@ -5833,9 +5834,45 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         CompilationUnitPath: null,
                         AnalyzerName: null));
                 }
-                // 4. No diagnostic for types without with blocks — trait
-                //    satisfaction is lazy (checked at assignment time by the
-                //    type checker).
+
+                // 4. Emit MIST_TRAIT_MEMBER_VISIBILITY only when the type is
+                //    actually attempting to satisfy the trait: it has a with
+                //    block, or ALL trait members are matched by name (some
+                //    public, some private) — indicating the developer intended
+                //    to satisfy the trait but forgot to make some members public.
+                if (privateMatches.Count > 0)
+                {
+                    var traitMemberCount = trait.MemberScope.Members.Count;
+                    var allMatchedByName = structuralMatches.Count + privateMatches.Count >= traitMemberCount;
+                    var hasAtLeastOnePublicMatch = structuralMatches.Count > 0;
+
+                    if (hasWithBlock || (allMatchedByName && hasAtLeastOnePublicMatch))
+                    {
+                        foreach (var (memberName, privateSym) in privateMatches)
+                        {
+                            var memberPath = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
+                            LinePositionSpan? location = null;
+                            var memberNode = symbolTable.GetDeclaringNode(privateSym);
+                            if (memberNode is not null)
+                            {
+                                var sourceText = FindSourceTextForType(typeName, symbolTable, asts, compilation);
+                                if (sourceText is not null && memberNode.Span.Length > 0)
+                                {
+                                    var mistSpan = new SourceSpan(memberNode.Span.Start, memberNode.Span.Length);
+                                    location = sourceText.ToLinePositionSpan(mistSpan);
+                                }
+                            }
+                            diagnostics.Add(new Diagnostic(
+                                TraitMemberVisibility,
+                                DiagnosticSeverity.Error,
+                                PipelineStage.SemanticModelConstruction,
+                                $"Member '{typeName}.{memberName}' exists but is not public; trait matching requires public visibility.",
+                                Location: location,
+                                CompilationUnitPath: memberPath,
+                                AnalyzerName: null));
+                        }
+                    }
+                }
             }
         }
 
@@ -5886,12 +5923,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 // 1. Structural matching with type argument substitution.
                 var structuralMatches = new Dictionary<string, ISymbol>();
+                var privateMatches = new Dictionary<string, ISymbol>();
 
                 foreach (var effectiveMember in effectiveMembers)
                 {
                     var matched = TryStructuralMatchWithSubstitution(
                         effectiveMember, memberScope, typeName, globalScope,
-                        symbolTable, asts, compilation, diagnostics);
+                        symbolTable, asts, compilation, diagnostics, privateMatches);
 
                     if (matched is not null)
                     {
@@ -5955,6 +5993,42 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         Location: null,
                         CompilationUnitPath: null,
                         AnalyzerName: null));
+                }
+
+                // 4. Emit MIST_TRAIT_MEMBER_VISIBILITY only when the type is
+                //    actually attempting to satisfy the trait.
+                if (privateMatches.Count > 0)
+                {
+                    var effectiveMemberCount = effectiveMembers.Count;
+                    var allMatchedByName = structuralMatches.Count + privateMatches.Count >= effectiveMemberCount;
+                    var hasAtLeastOnePublicMatch = structuralMatches.Count > 0;
+
+                    if (hasWithBlock || (allMatchedByName && hasAtLeastOnePublicMatch))
+                    {
+                        foreach (var (memberName, privateSym) in privateMatches)
+                        {
+                            var memberPath = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
+                            LinePositionSpan? location = null;
+                            var memberNode = symbolTable.GetDeclaringNode(privateSym);
+                            if (memberNode is not null)
+                            {
+                                var sourceText = FindSourceTextForType(typeName, symbolTable, asts, compilation);
+                                if (sourceText is not null && memberNode.Span.Length > 0)
+                                {
+                                    var mistSpan = new SourceSpan(memberNode.Span.Start, memberNode.Span.Length);
+                                    location = sourceText.ToLinePositionSpan(mistSpan);
+                                }
+                            }
+                            diagnostics.Add(new Diagnostic(
+                                TraitMemberVisibility,
+                                DiagnosticSeverity.Error,
+                                PipelineStage.SemanticModelConstruction,
+                                $"Member '{typeName}.{memberName}' exists but is not public; trait matching requires public visibility.",
+                                Location: location,
+                                CompilationUnitPath: memberPath,
+                                AnalyzerName: null));
+                        }
+                    }
                 }
             }
         }
@@ -6182,7 +6256,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        Dictionary<string, ISymbol>? privateMatches = null)
     {
         var traitMember = effectiveMember.Member;
         var typeParams = effectiveMember.TypeParams;
@@ -6193,7 +6268,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             return TryStructuralMatch(
                 traitMember, typeMemberScope, typeName, globalScope,
-                symbolTable, asts, compilation, diagnostics);
+                symbolTable, asts, compilation, diagnostics, privateMatches);
         }
 
         switch (traitMember.Kind)
@@ -6201,17 +6276,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case SymbolKind.Field:
                 return TryMatchTraitFieldWithSubstitution(
                     traitMember, typeMemberScope, typeName, typeParams, typeArgs,
-                    symbolTable, diagnostics);
+                    symbolTable, asts, compilation, diagnostics, privateMatches);
 
             case SymbolKind.Method:
                 return TryMatchTraitMethodWithSubstitution(
                     traitMember, typeMemberScope, typeName, typeParams, typeArgs,
-                    globalScope, symbolTable, asts, compilation, diagnostics);
+                    globalScope, symbolTable, asts, compilation, diagnostics, privateMatches);
 
             case SymbolKind.Property:
                 return TryMatchTraitPropertyWithSubstitution(
                     traitMember, typeMemberScope, typeName, typeParams, typeArgs,
-                    globalScope, symbolTable, asts, compilation, diagnostics);
+                    globalScope, symbolTable, asts, compilation, diagnostics, privateMatches);
 
             default:
                 return null;
@@ -6229,11 +6304,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IReadOnlyList<TypeParameterType> typeParams,
         IReadOnlyList<IType> typeArgs,
         SymbolTable symbolTable,
-        DiagnosticBag diagnostics)
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics,
+        Dictionary<string, ISymbol>? privateMatches = null)
     {
         var traitFieldName = traitField.Name;
         var traitTypeRef = GetTraitMemberTypeReference(traitField, symbolTable);
-        var foundPrivateMatch = false;
+        ISymbol? foundPrivateMatch = null;
 
         foreach (var member in typeMemberScope.Members)
         {
@@ -6245,7 +6323,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             if (!IsMemberPublic(member, symbolTable))
             {
-                foundPrivateMatch = true;
+                foundPrivateMatch ??= member;
                 continue;
             }
 
@@ -6261,16 +6339,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return member;
         }
 
-        if (foundPrivateMatch)
+        if (foundPrivateMatch is not null)
         {
-            diagnostics.Add(new Diagnostic(
-                TraitMemberVisibility,
-                DiagnosticSeverity.Error,
-                PipelineStage.SemanticModelConstruction,
-                $"Member '{typeName}.{traitFieldName}' exists but is not public; trait matching requires public visibility.",
-                Location: null,
-                CompilationUnitPath: null,
-                AnalyzerName: null));
+            privateMatches?.TryAdd(traitFieldName, foundPrivateMatch);
         }
 
         return null;
@@ -6291,7 +6362,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        Dictionary<string, ISymbol>? privateMatches = null)
     {
         var traitMethodName = traitMethod.Name;
         var traitNode = symbolTable.GetDeclaringNode(traitMethod);
@@ -6301,7 +6373,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var traitReturnType = traitMethodDecl.ReturnType;
         var traitParams = ExtractParameterTypes(traitMethodDecl.Parameters);
         var traitSourceText = FindSourceTextForNode(traitMethodDecl, asts, compilation);
-        var foundPrivateMatch = false;
+        ISymbol? foundPrivateMatch = null;
 
         foreach (var member in typeMemberScope.Members)
         {
@@ -6310,7 +6382,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             if (!IsMemberPublic(member, symbolTable))
             {
-                foundPrivateMatch = true;
+                foundPrivateMatch ??= member;
                 continue;
             }
 
@@ -6348,16 +6420,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return member;
         }
 
-        if (foundPrivateMatch)
+        if (foundPrivateMatch is not null)
         {
-            diagnostics.Add(new Diagnostic(
-                TraitMemberVisibility,
-                DiagnosticSeverity.Error,
-                PipelineStage.SemanticModelConstruction,
-                $"Member '{typeName}.{traitMethodName}' exists but is not public; trait matching requires public visibility.",
-                Location: null,
-                CompilationUnitPath: null,
-                AnalyzerName: null));
+            privateMatches?.TryAdd(traitMethodName, foundPrivateMatch);
         }
 
         return null;
@@ -6377,7 +6442,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        Dictionary<string, ISymbol>? privateMatches = null)
     {
         var traitPropName = traitProperty.Name;
         var traitTypeRef = GetTraitMemberTypeReference(traitProperty, symbolTable);
@@ -6386,7 +6452,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var traitSourceText = traitNode is null
             ? null
             : FindSourceTextForNode(traitNode, asts, compilation);
-        var foundPrivateMatch = false;
+        ISymbol? foundPrivateMatch = null;
 
         var traitHasSet = traitAccessors?.HasSet ?? false;
 
@@ -6397,7 +6463,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             if (!IsMemberPublic(member, symbolTable))
             {
-                foundPrivateMatch = true;
+                foundPrivateMatch ??= member;
                 continue;
             }
 
@@ -6430,16 +6496,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return member;
         }
 
-        if (foundPrivateMatch)
+        if (foundPrivateMatch is not null)
         {
-            diagnostics.Add(new Diagnostic(
-                TraitMemberVisibility,
-                DiagnosticSeverity.Error,
-                PipelineStage.SemanticModelConstruction,
-                $"Member '{typeName}.{traitPropName}' exists but is not public; trait matching requires public visibility.",
-                Location: null,
-                CompilationUnitPath: null,
-                AnalyzerName: null));
+            privateMatches?.TryAdd(traitPropName, foundPrivateMatch);
         }
 
         return null;
@@ -6485,8 +6544,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// public members. Returns the matching type member symbol, or <c>null</c>
     /// if no structural match was found.
     /// <para>
-    /// Also emits <c>MIST_TRAIT_MEMBER_VISIBILITY</c> when a private member
-    /// matches the trait member by name.
+    /// When a private member matches the trait member by name, it is recorded
+    /// in <paramref name="privateMatches"/> for deferred diagnostic emission
+    /// by the caller.
     /// </para>
     /// </summary>
     private static ISymbol? TryStructuralMatch(
@@ -6497,20 +6557,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        Dictionary<string, ISymbol>? privateMatches = null)
     {
         var traitMemberName = traitMember.Name;
 
         switch (traitMember.Kind)
         {
             case SymbolKind.Field:
-                return TryMatchTraitField(traitMember, typeMemberScope, typeName, symbolTable, diagnostics);
+                return TryMatchTraitField(traitMember, typeMemberScope, typeName, symbolTable, asts, compilation, diagnostics, privateMatches);
 
             case SymbolKind.Method:
-                return TryMatchTraitMethod(traitMember, typeMemberScope, typeName, globalScope, symbolTable, asts, compilation, diagnostics);
+                return TryMatchTraitMethod(traitMember, typeMemberScope, typeName, globalScope, symbolTable, asts, compilation, diagnostics, privateMatches);
 
             case SymbolKind.Property:
-                return TryMatchTraitProperty(traitMember, typeMemberScope, typeName, globalScope, symbolTable, asts, compilation, diagnostics);
+                return TryMatchTraitProperty(traitMember, typeMemberScope, typeName, globalScope, symbolTable, asts, compilation, diagnostics, privateMatches);
 
             default:
                 return null;
@@ -6526,11 +6587,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IScope typeMemberScope,
         string typeName,
         SymbolTable symbolTable,
-        DiagnosticBag diagnostics)
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics,
+        Dictionary<string, ISymbol>? privateMatches = null)
     {
         var traitFieldName = traitField.Name;
         var traitTypeRef = GetTraitMemberTypeReference(traitField, symbolTable);
-        var foundPrivateMatch = false;
+        ISymbol? foundPrivateMatch = null;
 
         foreach (var member in typeMemberScope.Members)
         {
@@ -6544,7 +6608,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Check visibility.
             if (!IsMemberPublic(member, symbolTable))
             {
-                foundPrivateMatch = true;
+                foundPrivateMatch ??= member;
                 continue;
             }
 
@@ -6559,16 +6623,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return member;
         }
 
-        if (foundPrivateMatch)
+        if (foundPrivateMatch is not null)
         {
-            diagnostics.Add(new Diagnostic(
-                TraitMemberVisibility,
-                DiagnosticSeverity.Error,
-                PipelineStage.SemanticModelConstruction,
-                $"Member '{typeName}.{traitFieldName}' exists but is not public; trait matching requires public visibility.",
-                Location: null,
-                CompilationUnitPath: null,
-                AnalyzerName: null));
+            privateMatches?.TryAdd(traitFieldName, foundPrivateMatch);
         }
 
         return null;
@@ -6588,7 +6645,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        Dictionary<string, ISymbol>? privateMatches = null)
     {
         var traitMethodName = traitMethod.Name;
         var traitNode = symbolTable.GetDeclaringNode(traitMethod);
@@ -6598,7 +6656,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var traitReturnType = traitMethodDecl.ReturnType;
         var traitParams = ExtractParameterTypes(traitMethodDecl.Parameters);
         var traitSourceText = FindSourceTextForNode(traitMethodDecl, asts, compilation);
-        var foundPrivateMatch = false;
+        ISymbol? foundPrivateMatch = null;
 
         foreach (var member in typeMemberScope.Members)
         {
@@ -6608,7 +6666,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Check visibility.
             if (!IsMemberPublic(member, symbolTable))
             {
-                foundPrivateMatch = true;
+                foundPrivateMatch ??= member;
                 continue;
             }
 
@@ -6652,16 +6710,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return member;
         }
 
-        if (foundPrivateMatch)
+        if (foundPrivateMatch is not null)
         {
-            diagnostics.Add(new Diagnostic(
-                TraitMemberVisibility,
-                DiagnosticSeverity.Error,
-                PipelineStage.SemanticModelConstruction,
-                $"Member '{typeName}.{traitMethodName}' exists but is not public; trait matching requires public visibility.",
-                Location: null,
-                CompilationUnitPath: null,
-                AnalyzerName: null));
+            privateMatches?.TryAdd(traitMethodName, foundPrivateMatch);
         }
 
         return null;
@@ -6684,7 +6735,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        Dictionary<string, ISymbol>? privateMatches = null)
     {
         var traitPropName = traitProperty.Name;
         var traitTypeRef = GetTraitMemberTypeReference(traitProperty, symbolTable);
@@ -6693,7 +6745,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var traitSourceText = traitNode is null
             ? null
             : FindSourceTextForNode(traitNode, asts, compilation);
-        var foundPrivateMatch = false;
+        ISymbol? foundPrivateMatch = null;
 
         // A trait property with a setter exposes the property type at a
         // parameter (write) position, which requires exact matching
@@ -6709,7 +6761,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Check visibility.
             if (!IsMemberPublic(member, symbolTable))
             {
-                foundPrivateMatch = true;
+                foundPrivateMatch ??= member;
                 continue;
             }
 
@@ -6742,16 +6794,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return member;
         }
 
-        if (foundPrivateMatch)
+        if (foundPrivateMatch is not null)
         {
-            diagnostics.Add(new Diagnostic(
-                TraitMemberVisibility,
-                DiagnosticSeverity.Error,
-                PipelineStage.SemanticModelConstruction,
-                $"Member '{typeName}.{traitPropName}' exists but is not public; trait matching requires public visibility.",
-                Location: null,
-                CompilationUnitPath: null,
-                AnalyzerName: null));
+            privateMatches?.TryAdd(traitPropName, foundPrivateMatch);
         }
 
         return null;

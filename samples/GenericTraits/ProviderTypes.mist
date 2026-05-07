@@ -1,0 +1,22 @@
+namespace GenericTraits;
+
+// Class satisfying Provider<string> — string Provide() matches T Provide() with T=string
+public class NameProvider
+{
+    private string name;
+
+    public NameProvider(string n)
+    {
+        name = n;
+    }
+
+    public string Provide()
+    {
+        return name;
+    }
+}
+
+with NameProvider : Provider<string>
+{
+    Provide as Provide;
+}

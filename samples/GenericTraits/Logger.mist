@@ -1,0 +1,18 @@
+namespace GenericTraits;
+
+// Type satisfying Writable via with-block mapping
+public class Logger
+{
+    public Logger()
+    {
+    }
+
+    public void Log(string data)
+    {
+    }
+}
+
+with Logger : Writable
+{
+    Log as Write;
+}

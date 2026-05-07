@@ -193,8 +193,8 @@
           }
         },
         {
-          "comment": "Generic class/struct/interface declaration: class Box<T>, struct Pair<T, U>, interface IContainer<T>",
-          "match": "\\b(class|struct|interface)\\s+([a-zA-Z_]\\w*)\\s*<([^>]+)>",
+          "comment": "Generic class/struct/interface/trait declaration: class Box<T>, struct Pair<T, U>, interface IContainer<T>, trait Comparable<T>",
+          "match": "\\b(class|struct|interface|trait)\\s+([a-zA-Z_]\\w*)\\s*<([^>]+)>",
           "captures": {
             "1": { "name": "keyword.declaration.mist" },
             "2": { "name": "entity.name.type.mist" },

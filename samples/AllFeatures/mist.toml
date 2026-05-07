@@ -56,3 +56,6 @@ path = "../Properties"
 
 [[references]]
 path = "../Namespaces"
+
+[[references]]
+path = "../GenericTraits"

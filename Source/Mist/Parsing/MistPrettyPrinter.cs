@@ -773,7 +773,13 @@ public sealed class MistPrettyPrinter
     private void EmitTraitDeclaration(TraitDeclarationNode traitDecl)
     {
         var name = traitDecl.Name.Lexeme;
-        AppendLine($"trait {name} {{");
+        var typeParams = EmitTypeParameterList(traitDecl.TypeParams);
+        var parentClause = "";
+        if (traitDecl.Parents is not null)
+        {
+            parentClause = $" : {EmitBaseList(traitDecl.Parents)}";
+        }
+        AppendLine($"trait {name}{typeParams}{parentClause} {{");
         _indentLevel++;
 
         for (var i = 0; i < traitDecl.Members.Length; i++)
@@ -916,7 +922,8 @@ public sealed class MistPrettyPrinter
     {
         var typeName = withDecl.TypeName.Lexeme;
         var traitName = withDecl.TraitName.Lexeme;
-        AppendLine($"with {typeName} : {traitName} {{");
+        var traitTypeArgs = EmitTypeArgumentList(withDecl.TraitTypeArgs);
+        AppendLine($"with {typeName} : {traitName}{traitTypeArgs} {{");
         _indentLevel++;
 
         foreach (var mapping in withDecl.Mappings)

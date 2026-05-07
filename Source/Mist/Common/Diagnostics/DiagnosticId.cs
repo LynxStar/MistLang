@@ -117,4 +117,15 @@ public readonly record struct DiagnosticId(string Value)
 
     /// <summary>Derived type's base class is not defaultable.</summary>
     public static readonly DiagnosticId DefaultBaseNotDefaultable = new("MIST_DEFAULT_BASE_NOT_DEFAULTABLE");
+
+    // ── Trait inheritance diagnostics ────────────────────────────────────
+
+    /// <summary>A parent reference in a trait's inheritance clause does not resolve to a trait.</summary>
+    public static readonly DiagnosticId TraitParentNotTrait = new("MIST_TRAIT_PARENT_NOT_TRAIT");
+
+    /// <summary>A trait lists the same parent trait more than once in its inheritance clause.</summary>
+    public static readonly DiagnosticId TraitDuplicateParent = new("MIST_TRAIT_DUPLICATE_PARENT");
+
+    /// <summary>A trait inheritance chain contains a cycle.</summary>
+    public static readonly DiagnosticId TraitInheritanceCycle = new("MIST_TRAIT_INHERITANCE_CYCLE");
 }

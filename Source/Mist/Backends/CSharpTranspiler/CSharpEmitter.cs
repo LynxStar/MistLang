@@ -235,6 +235,11 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private readonly List<string> _pendingUnionPatternBindings = new();
     private readonly bool _isReferencedProject;
+    /// <summary>
+    /// The namespace of the current compilation unit being emitted.
+    /// Used to scope type alias fallback resolution to the correct namespace.
+    /// </summary>
+    private string? _currentNamespace;
     private const string IndentUnit = "    ";
 
     /// <summary>
@@ -320,6 +325,7 @@ internal sealed class CSharpSourceWriter
                         AppendLine($"namespace {typeNamespace};");
                         AppendLine();
                         emittedInferredNamespace = typeNamespace;
+                        _currentNamespace = typeNamespace;
                     }
 
                     EmitTypeDeclaration(typeItem.TypeDeclaration);
@@ -771,6 +777,22 @@ internal sealed class CSharpSourceWriter
         };
     }
 
+    /// <summary>
+    /// Gets the containing namespace for a symbol by inspecting its DeclaredType.
+    /// Returns null if the symbol has no type or the type has no namespace.
+    /// </summary>
+    private static string? GetSymbolContainingNamespace(ISymbol symbol)
+    {
+        return symbol.DeclaredType switch
+        {
+            ClassType ct => ct.ContainingNamespace,
+            StructType st => st.ContainingNamespace,
+            InterfaceType it => it.ContainingNamespace,
+            TraitType tt => tt.ContainingNamespace,
+            _ => null,
+        };
+    }
+
     private void EmitNamespaceDeclaration(NamespaceDeclarationNode ns)
     {
         switch (ns)
@@ -778,6 +800,7 @@ internal sealed class CSharpSourceWriter
             case FileScopedNamespaceNamespaceDeclarationNode fileScopedNs:
             {
                 var name = ExtractQualifiedName(fileScopedNs.Name);
+                _currentNamespace = name;
                 AppendLine($"namespace {name};");
                 AppendLine();
 
@@ -1380,7 +1403,7 @@ internal sealed class CSharpSourceWriter
                 foreach (var (_, trait, _) in _model.TraitSatisfactionMap.All()
                     .Where(s => ReferenceEquals(s.Type, classTypeFromBase)))
                 {
-                    traitNames.Add(trait.DisplayName);
+                    traitNames.Add(CSharpTypeMap.GetTypeName(trait));
                 }
             }
 
@@ -1408,7 +1431,7 @@ internal sealed class CSharpSourceWriter
             foreach (var (_, trait, _) in _model.TraitSatisfactionMap.All()
                 .Where(s => ReferenceEquals(s.Type, classType)))
             {
-                parts.Add(trait.DisplayName);
+                parts.Add(CSharpTypeMap.GetTypeName(trait));
             }
 
             if (parts.Count > 0)
@@ -1628,7 +1651,13 @@ internal sealed class CSharpSourceWriter
     private void EmitTraitDeclaration(TraitDeclarationNode traitDecl)
     {
         var name = traitDecl.Name.Lexeme;
-        AppendLine($"interface {name}");
+        var typeParams = EmitTypeParameterList(traitDecl.TypeParams);
+        var inheritanceClause = "";
+        if (traitDecl.Parents is not null)
+        {
+            inheritanceClause = $" : {EmitBaseListWithTypeArgs(traitDecl.Parents)}";
+        }
+        AppendLine($"interface {name}{typeParams}{inheritanceClause}");
         AppendLine("{");
         _indentLevel++;
 
@@ -1704,12 +1733,38 @@ internal sealed class CSharpSourceWriter
             if (satisfaction.WithMappings.Count == 0)
                 continue;
 
-            var traitName = trait.DisplayName;
+            var traitName = CSharpTypeMap.GetTypeName(trait);
+
+            // Build type parameter substitution map for constructed traits.
+            // When the trait is ConstructedTraitType (e.g., Comparable<int>),
+            // type parameter names (T) in member signatures must be replaced
+            // with the concrete type arguments (int).
+            Dictionary<string, string>? typeParamSubstitutions = null;
+            if (trait is ConstructedTraitType ctt)
+            {
+                typeParamSubstitutions = new Dictionary<string, string>(StringComparer.Ordinal);
+                for (var i = 0; i < ctt.GenericTraitDefinition.TypeParameters.Count && i < ctt.TypeArguments.Count; i++)
+                {
+                    var paramName = ctt.GenericTraitDefinition.TypeParameters[i].Name;
+                    var argTypeName = CSharpTypeMap.GetTypeName(ctt.TypeArguments[i]);
+                    typeParamSubstitutions[paramName] = argTypeName;
+                }
+            }
+
+            // Get the trait's member scope (works for both TraitType and ConstructedTraitType).
+            var traitMemberScope = trait switch
+            {
+                TraitType tt => tt.MemberScope,
+                ConstructedTraitType constructedTt => constructedTt.MemberScope,
+                _ => null,
+            };
+            if (traitMemberScope is null)
+                continue;
 
             foreach (var (traitMemberName, sourceMemberSymbol) in satisfaction.WithMappings)
             {
                 // Look up the trait member symbol from the trait's member scope.
-                var traitMemberSymbol = trait.MemberScope.Lookup(traitMemberName);
+                var traitMemberSymbol = traitMemberScope.Lookup(traitMemberName);
                 if (traitMemberSymbol is null)
                     continue;
 
@@ -1728,17 +1783,17 @@ internal sealed class CSharpSourceWriter
                     case TraitFieldDeclarationNode fieldDecl:
                     {
                         // Field mapping: emit as property with expression body.
-                        // int ITraitName.x => this.a;
-                        var fieldType = EmitTypeReference(fieldDecl.Type);
+                        // int Comparable<int>.x => this.a;
+                        var fieldType = EmitTypeReferenceWithSubstitution(fieldDecl.Type, typeParamSubstitutions);
                         AppendLine($"{fieldType} {traitName}.{traitMemberName} => this.{sourceName};");
                         break;
                     }
                     case TraitMethodDeclarationNode methodDecl:
                     {
                         // Method mapping: emit as method with expression body delegating to source.
-                        // int ITraitName.calculate(int a) => this.compute(a);
-                        var returnType = EmitTypeReference(methodDecl.ReturnType);
-                        var parameters = EmitTraitMethodParameters(methodDecl.Parameters);
+                        // int Comparable<int>.CompareTo(int other) => this.Compare(other);
+                        var returnType = EmitTypeReferenceWithSubstitution(methodDecl.ReturnType, typeParamSubstitutions);
+                        var parameters = EmitTraitMethodParametersWithSubstitution(methodDecl.Parameters, typeParamSubstitutions);
                         var arguments = EmitTraitMethodArguments(methodDecl.Parameters);
                         AppendLine($"{returnType} {traitName}.{traitMemberName}({parameters}) => this.{sourceName}({arguments});");
                         break;
@@ -1746,9 +1801,9 @@ internal sealed class CSharpSourceWriter
                     case TraitPropertyDeclarationNode propertyDecl:
                     {
                         // Property mapping: emit as property delegating to source.
-                        // int ITraitName.x => this.a;  (for get-only)
+                        // int Comparable<int>.x => this.a;  (for get-only)
                         // or with get/set accessors
-                        var propType = EmitTypeReference(propertyDecl.Type);
+                        var propType = EmitTypeReferenceWithSubstitution(propertyDecl.Type, typeParamSubstitutions);
                         var hasGet = false;
                         var hasSet = false;
                         foreach (var accessor in propertyDecl.Accessors)
@@ -1787,6 +1842,138 @@ internal sealed class CSharpSourceWriter
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Emits a type reference, substituting type parameter names with their concrete
+    /// type argument names when a substitution map is provided. Used for explicit
+    /// interface implementations on constructed trait types.
+    /// </summary>
+    private string EmitTypeReferenceWithSubstitution(TypeReferenceNode typeRef, Dictionary<string, string>? substitutions)
+    {
+        if (substitutions is null)
+            return EmitTypeReference(typeRef);
+
+        // For named type references, check if the name is a type parameter that needs substitution.
+        if (typeRef is NamedTypeRefTypeReferenceNode namedRef)
+        {
+            var name = namedRef.Name.IDENTIFIER.Lexeme;
+            if (string.IsNullOrEmpty(name))
+            {
+                // Fallback: extract from source span via the qualified name helper.
+                name = ExtractQualifiedName(namedRef.Name);
+            }
+
+            // If name is still null/empty (node from a different source file where
+            // span-based extraction failed), attempt cross-file lookup immediately.
+            if (string.IsNullOrEmpty(name))
+            {
+                var span = namedRef.Name.Span;
+                if (span.Length > 0 && span.Length <= 128)
+                {
+                    foreach (var unit in _model.Units)
+                    {
+                        if (unit.Source is not null
+                            && span.Start + span.Length <= unit.Source.Contents.Length)
+                        {
+                            var crossFileName = unit.Source.Contents.Substring(span.Start, span.Length);
+                            if (substitutions.TryGetValue(crossFileName, out var crossFileSubstituted))
+                            {
+                                return namedRef.ArrayRank.HasValue ? $"{crossFileSubstituted}[]" : crossFileSubstituted;
+                            }
+                            // Use the cross-file name even if it's not a type parameter.
+                            if (!string.IsNullOrEmpty(crossFileName))
+                            {
+                                name = crossFileName;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // If still null after all attempts, fall back to emitting without substitution.
+                if (string.IsNullOrEmpty(name))
+                    return EmitTypeReference(typeRef);
+            }
+
+            if (substitutions.TryGetValue(name, out var substituted))
+            {
+                // Type parameter substituted with concrete type.
+                return namedRef.ArrayRank.HasValue ? $"{substituted}[]" : substituted;
+            }
+
+            // The name extraction may have failed because the node is from a
+            // different source file (e.g., a trait method parameter accessed
+            // during explicit interface implementation emission). Try to find
+            // the name from the correct compilation unit's source text.
+            var nameSpan = namedRef.Name.Span;
+            if (nameSpan.Length > 0 && nameSpan.Length <= 128)
+            {
+                foreach (var unit in _model.Units)
+                {
+                    if (unit.Source is not null
+                        && nameSpan.Start + nameSpan.Length <= unit.Source.Contents.Length)
+                    {
+                        var crossFileName = unit.Source.Contents.Substring(nameSpan.Start, nameSpan.Length);
+                        if (substitutions.TryGetValue(crossFileName, out var crossFileSubstituted))
+                        {
+                            return namedRef.ArrayRank.HasValue ? $"{crossFileSubstituted}[]" : crossFileSubstituted;
+                        }
+                    }
+                }
+            }
+
+            // Not a type parameter — emit normally but substitute type arguments recursively.
+            if (namedRef.TypeArgs is not null)
+            {
+                var typeArgs = EmitTypeArgumentListWithSubstitution(namedRef.TypeArgs, substitutions);
+                var mappedName = CSharpTypeMap.TryGetMappedName(name);
+                var finalName = mappedName ?? name;
+                return namedRef.ArrayRank.HasValue ? $"{finalName}{typeArgs}[]" : $"{finalName}{typeArgs}";
+            }
+
+            // No type args, not a type parameter — emit normally.
+            return EmitTypeReference(typeRef);
+        }
+
+        // Fallback: emit without substitution.
+        return EmitTypeReference(typeRef);
+    }
+
+    /// <summary>
+    /// Emits a type argument list with type parameter substitution applied.
+    /// </summary>
+    private string EmitTypeArgumentListWithSubstitution(TypeArgumentListNode typeArgs, Dictionary<string, string> substitutions)
+    {
+        var parts = new List<string>();
+        parts.Add(EmitTypeReferenceWithSubstitution(typeArgs.TypeReference, substitutions));
+        foreach (var typeRef in typeArgs.TypeReferences)
+        {
+            parts.Add(EmitTypeReferenceWithSubstitution(typeRef, substitutions));
+        }
+        return $"<{string.Join(", ", parts)}>";
+    }
+
+    /// <summary>
+    /// Emits the parameter declarations for a trait method with type parameter substitution.
+    /// Used when generating explicit interface implementations for constructed trait types.
+    /// </summary>
+    private string EmitTraitMethodParametersWithSubstitution(ParameterListNode? paramList, Dictionary<string, string>? substitutions)
+    {
+        if (paramList is null) return "";
+
+        var parts = new List<string>();
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode param)
+            {
+                var type = EmitTypeReferenceWithSubstitution(param.Type, substitutions);
+                var name = param.Name.Lexeme;
+                parts.Add($"{type} {name}");
+            }
+        }
+
+        return string.Join(", ", parts);
     }
 
     /// <summary>
@@ -1874,7 +2061,7 @@ internal sealed class CSharpSourceWriter
                 foreach (var (_, trait, _) in _model.TraitSatisfactionMap.All()
                     .Where(s => ReferenceEquals(s.Type, structTypeFromBase)))
                 {
-                    traitNames.Add(trait.DisplayName);
+                    traitNames.Add(CSharpTypeMap.GetTypeName(trait));
                 }
             }
 
@@ -1896,7 +2083,7 @@ internal sealed class CSharpSourceWriter
             foreach (var (_, trait, _) in _model.TraitSatisfactionMap.All()
                 .Where(s => ReferenceEquals(s.Type, structType)))
             {
-                parts.Add(trait.DisplayName);
+                parts.Add(CSharpTypeMap.GetTypeName(trait));
             }
 
             if (parts.Count > 0)
@@ -3149,12 +3336,29 @@ internal sealed class CSharpSourceWriter
                     return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
                 }
                 // Fallback: search all symbols for a type alias with this name.
-                var aliasSymbol = _model.AllSymbols
-                    .FirstOrDefault(s => s.Name == name && s.Kind == SymbolKind.TypeAlias);
-                if (aliasSymbol?.DeclaredType is TypeAliasType aliasType)
+                // Only apply if no concrete type (class/struct/interface) with the
+                // same name exists in the current namespace — prevents cross-namespace
+                // alias collisions when a class and a type alias share the same simple
+                // name in different namespaces compiled together.
+                if (resolvedType is null)
                 {
-                    var emittedType = ResolveAliasForEmission(aliasType, namedRef, isValueContext);
-                    return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
+                    var aliasSymbol = _model.AllSymbols
+                        .FirstOrDefault(s => s.Name == name && s.Kind == SymbolKind.TypeAlias);
+                    if (aliasSymbol?.DeclaredType is TypeAliasType aliasType)
+                    {
+                        // Check that no concrete type with this name exists in the
+                        // current namespace (which would take precedence over an alias
+                        // from a different namespace).
+                        var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
+                            && _model.AllSymbols.Any(s => s.Name == name
+                                && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                                && GetSymbolContainingNamespace(s) == _currentNamespace);
+                        if (!hasConcreteTypeInCurrentNamespace)
+                        {
+                            var emittedType = ResolveAliasForEmission(aliasType, namedRef, isValueContext);
+                            return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
+                        }
+                    }
                 }
 
                 // Handle "Void" identifier as equivalent to the void keyword.
@@ -4805,29 +5009,38 @@ internal sealed class CSharpSourceWriter
 
                 // Type aliases are transparent — resolve to the underlying type name
                 // for object creation expressions (e.g., `new IntBox(42)` → `new GenericBox<int>(42)`).
+                // Only apply if no concrete type with the same name exists in the
+                // current namespace, to prevent cross-namespace collisions.
                 var aliasSymbol = _model.AllSymbols
                     .FirstOrDefault(s => s.Name == type && s.Kind == SymbolKind.TypeAlias);
                 if (aliasSymbol?.DeclaredType is TypeAliasType objAlias)
                 {
-                    var underlying = objAlias.UnderlyingType;
-                    if (objCreation.TypeArgs is not null && objAlias.TypeParameters.Count > 0)
+                    var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
+                        && _model.AllSymbols.Any(s => s.Name == type
+                            && s.Kind is SymbolKind.Class or SymbolKind.Struct
+                            && GetSymbolContainingNamespace(s) == _currentNamespace);
+                    if (!hasConcreteTypeInCurrentNamespace)
                     {
-                        // Generic alias with type arguments: emit definition + substituted args.
-                        if (underlying is ConstructedType ct)
+                        var underlying = objAlias.UnderlyingType;
+                        if (objCreation.TypeArgs is not null && objAlias.TypeParameters.Count > 0)
                         {
-                            type = CSharpTypeMap.GetTypeName(ct.GenericDefinition);
+                            // Generic alias with type arguments: emit definition + substituted args.
+                            if (underlying is ConstructedType ct)
+                            {
+                                type = CSharpTypeMap.GetTypeName(ct.GenericDefinition);
+                            }
+                            else
+                            {
+                                type = CSharpTypeMap.GetTypeName(underlying);
+                                typeArgs = "";
+                            }
                         }
                         else
                         {
+                            // Non-generic alias or closed generic alias: emit the full resolved type.
                             type = CSharpTypeMap.GetTypeName(underlying);
                             typeArgs = "";
                         }
-                    }
-                    else
-                    {
-                        // Non-generic alias or closed generic alias: emit the full resolved type.
-                        type = CSharpTypeMap.GetTypeName(underlying);
-                        typeArgs = "";
                     }
                 }
 

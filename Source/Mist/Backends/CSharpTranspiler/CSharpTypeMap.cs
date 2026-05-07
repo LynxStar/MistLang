@@ -144,8 +144,15 @@ internal static class CSharpTypeMap
     /// dispatch that needs DLR support.
     /// </para>
     /// </remarks>
-    public static string GetTypeName(IType type, bool isValueContext = false) => type switch
+    public static string GetTypeName(IType type, bool isValueContext = false)
     {
+        // Defensive null check: type arguments in ConstructedTraitType or
+        // ConstructedType may be null if resolution failed upstream.
+        if (type is null)
+            return "object";
+
+        return type switch
+        {
         // Defensive: type aliases are resolved transparently during type checking,
         // so a TypeAliasType should never reach the type map. If one does leak
         // through, resolve to the underlying type and delegate to existing logic.
@@ -195,9 +202,11 @@ internal static class CSharpTypeMap
         ClassType c => c.DisplayName,
         StructType s => GetKeywordOrDisplayName(s),
         InterfaceType i => i.DisplayName,
+        ConstructedTraitType ctt => $"{ctt.GenericTraitDefinition.DisplayName}<{string.Join(", ", ctt.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
         TraitType t => t.DisplayName,
         _ => throw new ArgumentException($"Cannot map type to C#: {type.DisplayName}"),
-    };
+        };
+    }
 
     /// <summary>
     /// Structural test: returns <c>true</c> when <paramref name="ct"/> is a

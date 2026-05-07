@@ -23,17 +23,19 @@ public sealed class ValidatedMemberMapping
 }
 
 /// <summary>
-/// Stores validated <c>with</c> block mappings, keyed by (IType, TraitType) pairs.
+/// Stores validated <c>with</c> block mappings, keyed by (IType, IType) pairs.
 /// Populated by <c>Pass1_ResolveWithBlocks</c> and consumed by the trait satisfaction pass.
+/// The trait key is <see cref="IType"/> to support both <see cref="TraitType"/>
+/// (non-generic) and <see cref="ConstructedTraitType"/> (generic).
 /// </summary>
 public sealed class WithBlockRegistry
 {
-    private readonly Dictionary<(IType Type, TraitType Trait), List<ValidatedMemberMapping>> _mappings = new();
+    private readonly Dictionary<(IType Type, IType Trait), List<ValidatedMemberMapping>> _mappings = new();
 
     /// <summary>
     /// Registers a validated member mapping for a type-trait pair.
     /// </summary>
-    public void AddMapping(IType type, TraitType trait, ValidatedMemberMapping mapping)
+    public void AddMapping(IType type, IType trait, ValidatedMemberMapping mapping)
     {
         var key = (type, trait);
         if (!_mappings.TryGetValue(key, out var list))
@@ -47,13 +49,13 @@ public sealed class WithBlockRegistry
     /// <summary>
     /// Returns <c>true</c> if a <c>with</c> block has been registered for the given type-trait pair.
     /// </summary>
-    public bool HasMappings(IType type, TraitType trait)
+    public bool HasMappings(IType type, IType trait)
         => _mappings.ContainsKey((type, trait));
 
     /// <summary>
     /// Returns the validated member mappings for a type-trait pair, or an empty list if none exist.
     /// </summary>
-    public IReadOnlyList<ValidatedMemberMapping> GetMappings(IType type, TraitType trait)
+    public IReadOnlyList<ValidatedMemberMapping> GetMappings(IType type, IType trait)
         => _mappings.TryGetValue((type, trait), out var list)
             ? list
             : Array.Empty<ValidatedMemberMapping>();
@@ -61,6 +63,6 @@ public sealed class WithBlockRegistry
     /// <summary>
     /// Returns all registered type-trait pairs and their mappings.
     /// </summary>
-    public IEnumerable<(IType Type, TraitType Trait, IReadOnlyList<ValidatedMemberMapping> Mappings)> All()
+    public IEnumerable<(IType Type, IType Trait, IReadOnlyList<ValidatedMemberMapping> Mappings)> All()
         => _mappings.Select(kvp => (kvp.Key.Type, kvp.Key.Trait, (IReadOnlyList<ValidatedMemberMapping>)kvp.Value));
 }

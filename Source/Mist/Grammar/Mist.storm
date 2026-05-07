@@ -192,6 +192,8 @@ rule InterfaceAccessorDeclaration
 // ─── Parser Rules — Trait Declarations ───────────────────────────────────────
 
 rule TraitDeclaration = modifiers:Modifier* TRAIT name:IDENTIFIER
+    typeParams:TypeParameterList?
+    parentTraits:(COLON parents:BaseList)?
     LEFT_BRACE members:TraitMemberDeclaration* RIGHT_BRACE;
 
 rule TraitMemberDeclaration
@@ -220,7 +222,7 @@ rule EnumMember = name:IDENTIFIER value:(COLON Expression)?;
 
 // ─── Parser Rules — With Declarations ────────────────────────────────────────
 
-rule WithDeclaration = WITH typeName:IDENTIFIER COLON traitName:IDENTIFIER
+rule WithDeclaration = WITH typeName:IDENTIFIER COLON traitName:IDENTIFIER traitTypeArgs:TypeArgumentList?
     LEFT_BRACE mappings:MemberMapping+ RIGHT_BRACE;
 
 rule MemberMapping = sourceName:IDENTIFIER AS targetName:IDENTIFIER SEMICOLON;

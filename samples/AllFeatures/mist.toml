@@ -44,3 +44,6 @@ path = "../TypeAliases"
 
 [[references]]
 path = "../Traits"
+
+[[references]]
+path = "../GenericTraits"

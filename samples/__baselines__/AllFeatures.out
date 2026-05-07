@@ -201,6 +201,20 @@ Product created: Widget, sku 1001
   Name: Alice, Id: 42
   Name: Widget, Id: 1001
 Done!
+=== Generic Traits Demo ===
+--- 1. Comparable<T> with T in method signature ---
+  IntComparer(10).CompareTo(5) = 5
+--- 2. Comparable<string> substitution ---
+  StringComparer.CompareTo("world") = 0
+--- 3. Non-generic trait inheritance ---
+  trait ReadWriteStream : Readable, Writable { void Flush(); }
+--- 4. Structural satisfaction of non-generic trait ---
+  MemoryStream.Read() via Readable = data from memory
+--- 5. With-block mapping for non-generic trait ---
+  Logger.Write() via Writable called successfully
+--- 6. Passing to trait-typed parameter ---
+  PrintReadable: data from memory
+=== Generic Traits Demo Complete ===
 === UnknownType Sample (AllFeatures) ===
 --- Unknown local ---
 narrowed int: 123

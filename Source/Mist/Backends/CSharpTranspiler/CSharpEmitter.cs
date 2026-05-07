@@ -1266,7 +1266,7 @@ internal sealed class CSharpSourceWriter
                 foreach (var (_, trait, _) in _model.TraitSatisfactionMap.All()
                     .Where(s => ReferenceEquals(s.Type, classTypeFromBase)))
                 {
-                    traitNames.Add(trait.DisplayName);
+                    traitNames.Add(CSharpTypeMap.GetTypeName(trait));
                 }
             }
 
@@ -1294,7 +1294,7 @@ internal sealed class CSharpSourceWriter
             foreach (var (_, trait, _) in _model.TraitSatisfactionMap.All()
                 .Where(s => ReferenceEquals(s.Type, classType)))
             {
-                parts.Add(trait.DisplayName);
+                parts.Add(CSharpTypeMap.GetTypeName(trait));
             }
 
             if (parts.Count > 0)
@@ -1459,7 +1459,13 @@ internal sealed class CSharpSourceWriter
     private void EmitTraitDeclaration(TraitDeclarationNode traitDecl)
     {
         var name = traitDecl.Name.Lexeme;
-        AppendLine($"interface {name}");
+        var typeParams = EmitTypeParameterList(traitDecl.TypeParams);
+        var inheritanceClause = "";
+        if (traitDecl.Parents is not null)
+        {
+            inheritanceClause = $" : {EmitBaseListWithTypeArgs(traitDecl.Parents)}";
+        }
+        AppendLine($"interface {name}{typeParams}{inheritanceClause}");
         AppendLine("{");
         _indentLevel++;
 
@@ -1535,12 +1541,38 @@ internal sealed class CSharpSourceWriter
             if (satisfaction.WithMappings.Count == 0)
                 continue;
 
-            var traitName = trait.DisplayName;
+            var traitName = CSharpTypeMap.GetTypeName(trait);
+
+            // Build type parameter substitution map for constructed traits.
+            // When the trait is ConstructedTraitType (e.g., Comparable<int>),
+            // type parameter names (T) in member signatures must be replaced
+            // with the concrete type arguments (int).
+            Dictionary<string, string>? typeParamSubstitutions = null;
+            if (trait is ConstructedTraitType ctt)
+            {
+                typeParamSubstitutions = new Dictionary<string, string>(StringComparer.Ordinal);
+                for (var i = 0; i < ctt.GenericTraitDefinition.TypeParameters.Count && i < ctt.TypeArguments.Count; i++)
+                {
+                    var paramName = ctt.GenericTraitDefinition.TypeParameters[i].Name;
+                    var argTypeName = CSharpTypeMap.GetTypeName(ctt.TypeArguments[i]);
+                    typeParamSubstitutions[paramName] = argTypeName;
+                }
+            }
+
+            // Get the trait's member scope (works for both TraitType and ConstructedTraitType).
+            var traitMemberScope = trait switch
+            {
+                TraitType tt => tt.MemberScope,
+                ConstructedTraitType constructedTt => constructedTt.MemberScope,
+                _ => null,
+            };
+            if (traitMemberScope is null)
+                continue;
 
             foreach (var (traitMemberName, sourceMemberSymbol) in satisfaction.WithMappings)
             {
                 // Look up the trait member symbol from the trait's member scope.
-                var traitMemberSymbol = trait.MemberScope.Lookup(traitMemberName);
+                var traitMemberSymbol = traitMemberScope.Lookup(traitMemberName);
                 if (traitMemberSymbol is null)
                     continue;
 
@@ -1559,17 +1591,17 @@ internal sealed class CSharpSourceWriter
                     case TraitFieldDeclarationNode fieldDecl:
                     {
                         // Field mapping: emit as property with expression body.
-                        // int ITraitName.x => this.a;
-                        var fieldType = EmitTypeReference(fieldDecl.Type);
+                        // int Comparable<int>.x => this.a;
+                        var fieldType = EmitTypeReferenceWithSubstitution(fieldDecl.Type, typeParamSubstitutions);
                         AppendLine($"{fieldType} {traitName}.{traitMemberName} => this.{sourceName};");
                         break;
                     }
                     case TraitMethodDeclarationNode methodDecl:
                     {
                         // Method mapping: emit as method with expression body delegating to source.
-                        // int ITraitName.calculate(int a) => this.compute(a);
-                        var returnType = EmitTypeReference(methodDecl.ReturnType);
-                        var parameters = EmitTraitMethodParameters(methodDecl.Parameters);
+                        // int Comparable<int>.CompareTo(int other) => this.Compare(other);
+                        var returnType = EmitTypeReferenceWithSubstitution(methodDecl.ReturnType, typeParamSubstitutions);
+                        var parameters = EmitTraitMethodParametersWithSubstitution(methodDecl.Parameters, typeParamSubstitutions);
                         var arguments = EmitTraitMethodArguments(methodDecl.Parameters);
                         AppendLine($"{returnType} {traitName}.{traitMemberName}({parameters}) => this.{sourceName}({arguments});");
                         break;
@@ -1577,9 +1609,9 @@ internal sealed class CSharpSourceWriter
                     case TraitPropertyDeclarationNode propertyDecl:
                     {
                         // Property mapping: emit as property delegating to source.
-                        // int ITraitName.x => this.a;  (for get-only)
+                        // int Comparable<int>.x => this.a;  (for get-only)
                         // or with get/set accessors
-                        var propType = EmitTypeReference(propertyDecl.Type);
+                        var propType = EmitTypeReferenceWithSubstitution(propertyDecl.Type, typeParamSubstitutions);
                         var hasGet = false;
                         var hasSet = false;
                         foreach (var accessor in propertyDecl.Accessors)
@@ -1618,6 +1650,111 @@ internal sealed class CSharpSourceWriter
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Emits a type reference, substituting type parameter names with their concrete
+    /// type argument names when a substitution map is provided. Used for explicit
+    /// interface implementations on constructed trait types.
+    /// </summary>
+    private string EmitTypeReferenceWithSubstitution(TypeReferenceNode typeRef, Dictionary<string, string>? substitutions)
+    {
+        if (substitutions is null)
+            return EmitTypeReference(typeRef);
+
+        // For named type references, check if the name is a type parameter that needs substitution.
+        if (typeRef is NamedTypeRefTypeReferenceNode namedRef)
+        {
+            var name = namedRef.Name.IDENTIFIER.Lexeme;
+            if (string.IsNullOrEmpty(name))
+            {
+                // Fallback: extract from source span via the qualified name helper.
+                name = ExtractQualifiedName(namedRef.Name);
+            }
+
+            if (substitutions.TryGetValue(name, out var substituted))
+            {
+                // Type parameter substituted with concrete type.
+                return namedRef.ArrayRank.HasValue ? $"{substituted}[]" : substituted;
+            }
+
+            // The name extraction may have failed because the node is from a
+            // different source file (e.g., a trait method parameter accessed
+            // during explicit interface implementation emission). Try to find
+            // the name from the correct compilation unit's source text.
+            if (!string.IsNullOrEmpty(name))
+            {
+                // Check if the extracted name looks wrong (not a valid identifier
+                // or doesn't match any known type). If so, try cross-file lookup.
+                var span = namedRef.Name.Span;
+                if (span.Length > 0 && span.Length <= 128)
+                {
+                    foreach (var unit in _model.Units)
+                    {
+                        if (unit.Source is not null
+                            && span.Start + span.Length <= unit.Source.Contents.Length)
+                        {
+                            var crossFileName = unit.Source.Contents.Substring(span.Start, span.Length);
+                            if (substitutions.TryGetValue(crossFileName, out var crossFileSubstituted))
+                            {
+                                return namedRef.ArrayRank.HasValue ? $"{crossFileSubstituted}[]" : crossFileSubstituted;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Not a type parameter — emit normally but substitute type arguments recursively.
+            if (namedRef.TypeArgs is not null)
+            {
+                var typeArgs = EmitTypeArgumentListWithSubstitution(namedRef.TypeArgs, substitutions);
+                var mappedName = CSharpTypeMap.TryGetMappedName(name);
+                var finalName = mappedName ?? name;
+                return namedRef.ArrayRank.HasValue ? $"{finalName}{typeArgs}[]" : $"{finalName}{typeArgs}";
+            }
+
+            // No type args, not a type parameter — emit normally.
+            return EmitTypeReference(typeRef);
+        }
+
+        // Fallback: emit without substitution.
+        return EmitTypeReference(typeRef);
+    }
+
+    /// <summary>
+    /// Emits a type argument list with type parameter substitution applied.
+    /// </summary>
+    private string EmitTypeArgumentListWithSubstitution(TypeArgumentListNode typeArgs, Dictionary<string, string> substitutions)
+    {
+        var parts = new List<string>();
+        parts.Add(EmitTypeReferenceWithSubstitution(typeArgs.TypeReference, substitutions));
+        foreach (var typeRef in typeArgs.TypeReferences)
+        {
+            parts.Add(EmitTypeReferenceWithSubstitution(typeRef, substitutions));
+        }
+        return $"<{string.Join(", ", parts)}>";
+    }
+
+    /// <summary>
+    /// Emits the parameter declarations for a trait method with type parameter substitution.
+    /// Used when generating explicit interface implementations for constructed trait types.
+    /// </summary>
+    private string EmitTraitMethodParametersWithSubstitution(ParameterListNode? paramList, Dictionary<string, string>? substitutions)
+    {
+        if (paramList is null) return "";
+
+        var parts = new List<string>();
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode param)
+            {
+                var type = EmitTypeReferenceWithSubstitution(param.Type, substitutions);
+                var name = param.Name.Lexeme;
+                parts.Add($"{type} {name}");
+            }
+        }
+
+        return string.Join(", ", parts);
     }
 
     /// <summary>
@@ -1705,7 +1842,7 @@ internal sealed class CSharpSourceWriter
                 foreach (var (_, trait, _) in _model.TraitSatisfactionMap.All()
                     .Where(s => ReferenceEquals(s.Type, structTypeFromBase)))
                 {
-                    traitNames.Add(trait.DisplayName);
+                    traitNames.Add(CSharpTypeMap.GetTypeName(trait));
                 }
             }
 
@@ -1727,7 +1864,7 @@ internal sealed class CSharpSourceWriter
             foreach (var (_, trait, _) in _model.TraitSatisfactionMap.All()
                 .Where(s => ReferenceEquals(s.Type, structType)))
             {
-                parts.Add(trait.DisplayName);
+                parts.Add(CSharpTypeMap.GetTypeName(trait));
             }
 
             if (parts.Count > 0)

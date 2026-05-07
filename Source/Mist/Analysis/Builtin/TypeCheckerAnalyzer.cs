@@ -1192,6 +1192,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
         }
 
+        // Constructed trait assignability.
+        if (target is ConstructedTraitType targetConstructedTrait && model is not null)
+        {
+            if (SatisfiesTrait(source, targetConstructedTrait, model))
+                return true;
+        }
+
         // NOTE: No implicit cast operator fallback here — that's the whole
         // point of this method. Direct assignability only.
         return false;
@@ -3801,20 +3808,36 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Substitutes type parameters in a member's type when the target is a <see cref="ConstructedType"/>.
+    /// Substitutes type parameters in a member's type when the target is a <see cref="ConstructedType"/>
+    /// or a <see cref="ConstructedTraitType"/>.
     /// For example, if the member type is <c>T</c> and the target is <c>Box&lt;int&gt;</c>,
     /// the result is <c>int</c>.
     /// </summary>
     private static IType? SubstituteMemberType(IType? memberType, IType? targetType)
     {
-        if (memberType is null || targetType is not ConstructedType ct)
+        if (memberType is null)
             return memberType;
 
-        var typeParams = GetTypeParameters(ct.GenericDefinition);
-        if (typeParams is null)
-            return memberType;
+        if (targetType is ConstructedType ct)
+        {
+            var typeParams = GetTypeParameters(ct.GenericDefinition);
+            if (typeParams is null)
+                return memberType;
 
-        return SubstituteType(memberType, typeParams, ct.TypeArguments);
+            return SubstituteType(memberType, typeParams, ct.TypeArguments);
+        }
+
+        // Task 10.2: Substitute type parameters for ConstructedTraitType member access.
+        if (targetType is ConstructedTraitType ctt)
+        {
+            var typeParams = ctt.GenericTraitDefinition.TypeParameters;
+            if (typeParams.Count == 0)
+                return memberType;
+
+            return SubstituteType(memberType, typeParams, ctt.TypeArguments);
+        }
+
+        return memberType;
     }
 
     /// <summary>
@@ -4619,13 +4642,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             // Determine type parameter substitution context.
             // 1. If the target is a ConstructedType, substitute the enclosing type's type params.
-            // 2. If the method has its own type arguments, substitute those as well.
+            // 2. If the target is a ConstructedTraitType, substitute the trait's type params (Task 10.2).
+            // 3. If the method has its own type arguments, substitute those as well.
             IReadOnlyList<TypeParameterType>? enclosingTypeParams = null;
             IReadOnlyList<IType>? enclosingTypeArgs = null;
             if (targetType is ConstructedType targetCt)
             {
                 enclosingTypeParams = GetTypeParameters(targetCt.GenericDefinition);
                 enclosingTypeArgs = targetCt.TypeArguments;
+            }
+            else if (targetType is ConstructedTraitType targetCtt)
+            {
+                enclosingTypeParams = targetCtt.GenericTraitDefinition.TypeParameters.Count > 0
+                    ? targetCtt.GenericTraitDefinition.TypeParameters
+                    : null;
+                enclosingTypeArgs = targetCtt.TypeArguments;
             }
 
             // Resolve method-level type arguments if present.
@@ -5851,6 +5882,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     node,
                     model));
             }
+            else if (target is ConstructedTraitType targetConstructedTrait)
+            {
+                var unsatisfiedMembers = GetUnsatisfiedTraitMembers(source, targetConstructedTrait, model);
+                var memberList = unsatisfiedMembers.Count > 0
+                    ? string.Join(", ", unsatisfiedMembers)
+                    : "(unknown)";
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TRAIT_UNSATISFIED",
+                    $"Type '{source.DisplayName}' does not satisfy trait '{targetConstructedTrait.DisplayName}'. Missing members: {memberList}.",
+                    node,
+                    model));
+            }
             else
             {
                 diagnostics.Add(MakeDiagnostic(
@@ -5949,13 +5992,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Returns the list of trait member names that the source type does not satisfy
     /// (neither structurally nor via a <c>with</c> block).
     /// </summary>
-    private static List<string> GetUnsatisfiedTraitMembers(IType source, TraitType trait, ISemanticModel model)
+    private static List<string> GetUnsatisfiedTraitMembers(IType source, IType trait, ISemanticModel model)
     {
         var unsatisfied = new List<string>();
         var satisfaction = model.TraitSatisfactionMap.GetSatisfaction(source, trait);
 
-        foreach (var member in trait.MemberScope.Members)
+        var traitMemberScope = trait switch
         {
+            TraitType tt => tt.MemberScope,
+            ConstructedTraitType ctt => ctt.MemberScope,
+            _ => null,
+        };
+
+        if (traitMemberScope is null)
+            return unsatisfied;
+
+        foreach (var member in traitMemberScope.Members)
+        {
+            // Skip type parameter symbols (registered as SymbolKind.Class with TypeParameterType).
+            if (member.DeclaredType is TypeParameterType)
+                continue;
+
             var name = member.Name;
             if (satisfaction is not null)
             {
@@ -6316,6 +6373,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
         }
 
+        // Constructed trait assignability:
+        // A class/struct satisfying a constructed trait (e.g., Comparable<int>)
+        // is assignable to that constructed trait. Comparable<int> and
+        // Comparable<string> are distinct non-assignable types because they
+        // are different keys in the TraitSatisfactionMap.
+        if (target is ConstructedTraitType targetConstructedTrait && model is not null)
+        {
+            if (SatisfiesTrait(source, targetConstructedTrait, model))
+                return true;
+        }
+
         // Implicit cast operator search (fallback after all other assignability checks).
         // Search both source type and target type for an implicit cast operator.
         if (TryFindImplicitCast(source, target, out _) is not null)
@@ -6328,7 +6396,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Checks whether <paramref name="source"/> satisfies the given <paramref name="trait"/>
     /// by querying the <see cref="TraitSatisfactionMap"/> on the semantic model.
     /// </summary>
-    private static bool SatisfiesTrait(IType source, TraitType trait, ISemanticModel model)
+    private static bool SatisfiesTrait(IType source, IType trait, ISemanticModel model)
     {
         return model.TraitSatisfactionMap.Satisfies(source, trait);
     }

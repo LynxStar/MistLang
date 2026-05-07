@@ -25,6 +25,7 @@ public class Program
         ExtensionMethods.Program.RunDemo();
         TypeAliases.Program.RunDemo();
         Traits.Program.RunDemo();
+        GenericTraits.Program.RunDemo();
         UnknownTypeDemo.RunDemo();
         Console.WriteLine("=== Done! ===");
     }

@@ -1,0 +1,54 @@
+using System;
+
+namespace GenericTraits;
+
+// Entry point
+public class Program
+{
+    private static void PrintReadable(Readable item)
+    {
+        Console.WriteLine($"  PrintReadable: {item.Read()}");
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Generic Traits Demo ===");
+
+        // 1. Comparable<int>: T used as method parameter type
+        Console.WriteLine("--- 1. Comparable<T> with T in method signature ---");
+        var ic = new IntComparer(10);
+        Comparable<int> comp = ic;
+        var cmpResult = comp.CompareTo(5);
+        Console.WriteLine($"  IntComparer(10).CompareTo(5) = {cmpResult}");
+
+        // 2. Comparable<string>: T substituted with string
+        Console.WriteLine("--- 2. Comparable<string> substitution ---");
+        var sc = new StringComparer("hello");
+        Comparable<string> scomp = sc;
+        var scmpResult = scomp.CompareTo("world");
+        Console.WriteLine($"  StringComparer.CompareTo(\"world\") = {scmpResult}");
+
+        // 3. Non-generic trait inheritance
+        Console.WriteLine("--- 3. Non-generic trait inheritance ---");
+        Console.WriteLine("  trait ReadWriteStream : Readable, Writable { void Flush(); }");
+
+        // 4. Structural satisfaction of non-generic trait
+        Console.WriteLine("--- 4. Structural satisfaction of non-generic trait ---");
+        var stream = new MemoryStream();
+        Readable r = stream;
+        Console.WriteLine($"  MemoryStream.Read() via Readable = {r.Read()}");
+
+        // 5. With-block mapping for non-generic trait
+        Console.WriteLine("--- 5. With-block mapping for non-generic trait ---");
+        var logger = new Logger();
+        Writable w = logger;
+        w.Write("hello");
+        Console.WriteLine("  Logger.Write() via Writable called successfully");
+
+        // 6. Passing to trait-typed parameter
+        Console.WriteLine("--- 6. Passing to trait-typed parameter ---");
+        PrintReadable(stream);
+
+        Console.WriteLine("=== Generic Traits Demo Complete ===");
+    }
+}

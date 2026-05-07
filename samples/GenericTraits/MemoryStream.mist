@@ -1,0 +1,22 @@
+namespace GenericTraits;
+
+// Type structurally satisfying non-generic traits
+public class MemoryStream
+{
+    public MemoryStream()
+    {
+    }
+
+    public string Read()
+    {
+        return "data from memory";
+    }
+
+    public void Write(string data)
+    {
+    }
+
+    public void Flush()
+    {
+    }
+}

@@ -1,0 +1,24 @@
+namespace GenericTraits;
+
+// Generic trait with type parameter used in method parameter
+trait Comparable<T>
+{
+    int CompareTo(T other);
+}
+
+// Non-generic traits
+trait Readable
+{
+    string Read();
+}
+
+trait Writable
+{
+    void Write(string data);
+}
+
+// Trait extending multiple non-generic parent traits
+trait ReadWriteStream : Readable, Writable
+{
+    void Flush();
+}

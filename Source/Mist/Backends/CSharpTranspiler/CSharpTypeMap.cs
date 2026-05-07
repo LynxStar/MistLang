@@ -192,6 +192,7 @@ internal static class CSharpTypeMap
         ClassType c => c.DisplayName,
         StructType s => GetKeywordOrDisplayName(s),
         InterfaceType i => i.DisplayName,
+        ConstructedTraitType ctt => $"{ctt.GenericTraitDefinition.DisplayName}<{string.Join(", ", ctt.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
         TraitType t => t.DisplayName,
         _ => throw new ArgumentException($"Cannot map type to C#: {type.DisplayName}"),
     };

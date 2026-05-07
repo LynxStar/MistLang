@@ -151,6 +151,31 @@ For union underlying types, the `Value` parameter type uses the union helper str
 - Comma-separated member list with optional trailing comma
 - Member value expressions (`: Expression`)
 
+### TextMate Grammar Changes (`Editor/mist-syntax-highlighting/syntaxes/mist.tmLanguage.json`)
+
+Three updates to the TextMate grammar:
+
+1. **Declaration keyword** — Add `enum` to the `keyword.declaration.mist` pattern:
+```json
+{
+  "name": "keyword.declaration.mist",
+  "match": "\\b(namespace|using|class|struct|interface|trait|extension|type|enum)\\b"
+}
+```
+
+2. **Declaration name** — Add a new pattern in `declaration-names` to highlight the enum name as a type:
+```json
+{
+  "match": "\\b(enum)\\s+([a-zA-Z_]\\w*)",
+  "captures": {
+    "1": { "name": "keyword.declaration.mist" },
+    "2": { "name": "entity.name.type.enum.mist" }
+  }
+}
+```
+
+3. **Enum member names** — Enum members inside braces are bare identifiers optionally followed by `: value`. The existing grammar patterns (identifiers, literals, strings) already handle the value expressions. No additional pattern is strictly required for member names since they follow the same visual style as other identifiers, but a dedicated pattern could be added for richer highlighting if desired.
+
 ## Data Models
 
 ### EnumType

@@ -148,7 +148,17 @@ This document specifies the requirements for adding enum declarations to the Mis
 
 1. FOR ALL valid enum declarations, parsing the source then printing the syntax tree back to source then parsing again SHALL produce an equivalent syntax tree (round-trip property).
 
-### Requirement 13: Sample Application
+### Requirement 13: TextMate Grammar Update
+
+**User Story:** As a Mist developer using VS Code, I want `enum` declarations to be syntax-highlighted correctly, so that I get the same visual cues as other type declarations.
+
+#### Acceptance Criteria
+
+1. THE TextMate grammar SHALL recognize `enum` as a declaration keyword (scope `keyword.declaration.mist`).
+2. THE TextMate grammar SHALL highlight the identifier following `enum` as a type name (scope `entity.name.type.enum.mist`).
+3. THE TextMate grammar SHALL highlight enum member names appropriately within the enum body.
+
+### Requirement 14: Sample Application
 
 **User Story:** As a Mist developer, I want a comprehensive sample application demonstrating enums, so that I can see every supported usage pattern in one place and verify correctness.
 

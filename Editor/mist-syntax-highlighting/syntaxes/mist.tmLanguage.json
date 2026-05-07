@@ -35,6 +35,8 @@
           "match": "\\\\(\\\\|\\\"|n|r|t|0|')"
         },
         {
+          "comment": "Interpolation expression: {expr}",
+          "contentName": "meta.embedded.expression.mist",
           "begin": "\\{",
           "end": "\\}",
           "beginCaptures": {
@@ -44,7 +46,23 @@
             "0": { "name": "punctuation.definition.interpolation.end.mist" }
           },
           "patterns": [
-            { "include": "source.mist" }
+            { "include": "#keywords" },
+            { "include": "#types" },
+            { "include": "#literals" },
+            {
+              "comment": "Method call: identifier.method(...) or identifier(...)",
+              "match": "([a-zA-Z_]\\w*)\\s*(?=\\()",
+              "captures": {
+                "1": { "name": "entity.name.function.mist" }
+              }
+            },
+            {
+              "comment": "Variable/property access",
+              "name": "variable.other.mist",
+              "match": "[a-zA-Z_]\\w*"
+            },
+            { "include": "#operators" },
+            { "include": "#punctuation" }
           ]
         }
       ]

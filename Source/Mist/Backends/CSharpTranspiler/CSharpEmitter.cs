@@ -4982,11 +4982,11 @@ internal sealed class CSharpSourceWriter
                 var exprType = _model.GetTypeOf(objCreation);
                 if (exprType is TypeParameterType typeParamType && typeParamType.Constraints is not null)
                 {
-                    var argCount = CountArguments(objCreation.Arguments);
-                    if (argCount > 0)
+                    var argTypes = GetArgumentTypes(objCreation.Arguments);
+                    if (argTypes.Count > 0)
                     {
                         // Parameterized new T(args) → factory delegate invocation
-                        var matchingConstraint = FindMatchingParameterizedConstraint(typeParamType, argCount);
+                        var matchingConstraint = FindMatchingParameterizedConstraint(typeParamType, argTypes);
                         if (matchingConstraint is not null)
                         {
                             // Determine whether to use field name or parameter name:
@@ -5474,12 +5474,15 @@ internal sealed class CSharpSourceWriter
     /// Returns the matching constraint's parameter types, or null if no match.
     /// </summary>
     private static IReadOnlyList<IType>? FindMatchingParameterizedConstraint(
-        TypeParameterType typeParam, int argCount)
+        TypeParameterType typeParam, IReadOnlyList<IType> argTypes)
     {
         if (typeParam.Constraints is null) return null;
-        // Find the first parameterized constraint that matches the argument count.
+        // Find the constraint whose parameter types match the argument types by name.
+        // We compare using the sanitized C# type name (same mechanism used for factory naming)
+        // to ensure the correct factory delegate is selected.
         return typeParam.Constraints.ConstructorConstraints
-            .FirstOrDefault(c => c.Count == argCount && c.Count > 0);
+            .FirstOrDefault(c => c.Count == argTypes.Count && c.Count > 0 &&
+                c.Select(SanitizeTypeName).SequenceEqual(argTypes.Select(SanitizeTypeName)));
     }
 
     /// <summary>
@@ -5497,18 +5500,23 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
-    /// Counts the number of arguments in an argument list node.
+    /// Collects the resolved types of all arguments in an argument list node.
     /// </summary>
-    private static int CountArguments(ArgumentListNode? argList)
+    private IReadOnlyList<IType> GetArgumentTypes(ArgumentListNode? argList)
     {
-        if (argList is null) return 0;
-        var count = 1; // First expression
+        if (argList is null) return Array.Empty<IType>();
+        var types = new List<IType>();
+        var firstType = _model.GetTypeOf(argList.Expression);
+        if (firstType is not null) types.Add(firstType);
         foreach (var child in argList.Children())
         {
             if (child is ExpressionNode expr && !ReferenceEquals(expr, argList.Expression))
-                count++;
+            {
+                var t = _model.GetTypeOf(expr);
+                if (t is not null) types.Add(t);
+            }
         }
-        return count;
+        return types;
     }
 
     /// <summary>

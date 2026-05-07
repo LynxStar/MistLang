@@ -16,10 +16,36 @@ namespace Mist.Backends.CSharpTranspiler;
 /// </summary>
 public sealed class CSharpEmitter
 {
+    /// <summary>
+    /// Emits C# source files to the specified output directory on disk.
+    /// Delegates to <see cref="EmitToMemory"/> for content generation, then
+    /// writes each file to disk.
+    /// </summary>
     public static void Emit(ISemanticModel model, string outputDirectory, string projectName, DiagnosticBag diagnostics)
     {
         Directory.CreateDirectory(outputDirectory);
         EmitCsproj(outputDirectory, projectName);
+
+        var files = EmitToMemory(model, projectName, diagnostics);
+
+        foreach (var (relativePath, content) in files)
+        {
+            var fullPath = Path.Combine(outputDirectory, relativePath);
+            var dir = Path.GetDirectoryName(fullPath);
+            if (dir is not null)
+                Directory.CreateDirectory(dir);
+            File.WriteAllText(fullPath, content);
+        }
+    }
+
+    /// <summary>
+    /// Emits C# source content in memory without writing to disk.
+    /// Returns a dictionary mapping relative file paths to their C# content.
+    /// Useful for tests that need to inspect emitted content without disk I/O.
+    /// </summary>
+    public static Dictionary<string, string> EmitToMemory(ISemanticModel model, string projectName, DiagnosticBag diagnostics)
+    {
+        var files = new Dictionary<string, string>(StringComparer.Ordinal);
 
         // Collect namespaces from Backend-origin symbols for using directives.
         var backendNamespaces = CollectBackendNamespaces(model);
@@ -42,18 +68,16 @@ public sealed class CSharpEmitter
             // Units from referenced projects are emitted into a
             // .references/{ProjectName}/ subdirectory to avoid filename
             // collisions (e.g., multiple projects having Program.mist).
-            string csPath;
+            string relativePath;
             if (unit.OriginProjectPath is not null)
             {
                 var refProjectDir = Path.GetDirectoryName(unit.OriginProjectPath)!;
                 var refProjectName = Path.GetFileName(refProjectDir);
-                var refOutputDir = Path.Combine(outputDirectory, "references", refProjectName);
-                Directory.CreateDirectory(refOutputDir);
-                csPath = Path.Combine(refOutputDir, csFileName);
+                relativePath = Path.Combine("references", refProjectName, csFileName);
             }
             else
             {
-                csPath = Path.Combine(outputDirectory, csFileName);
+                relativePath = csFileName;
             }
 
             // Get the AST for this compilation unit (same index as the unit).
@@ -61,7 +85,7 @@ public sealed class CSharpEmitter
             {
                 var writer = new CSharpSourceWriter(model, backendNamespaces, unit.Source, diagnostics);
                 var csContent = writer.EmitCompilationUnit(compilationUnit);
-                File.WriteAllText(csPath, csContent);
+                files[relativePath] = csContent;
 
                 if (writer.NeedsMistVoidStruct)
                     anyNeedsMistVoid = true;
@@ -71,17 +95,17 @@ public sealed class CSharpEmitter
         // Emit the MistVoid helper struct once into a shared file if any compilation unit uses void as a value.
         if (anyNeedsMistVoid)
         {
-            var mistVoidPath = Path.Combine(outputDirectory, "MistVoid.g.cs");
-            File.WriteAllText(mistVoidPath, GenerateMistVoidFile());
+            files["MistVoid.g.cs"] = GenerateMistVoidFile();
         }
 
         // Emit union helper types into a single UnionHelpers.cs file if any union types are used.
         var unionTypes = UnionHelperGenerator.CollectUnionTypes(model);
         if (unionTypes.Count > 0)
         {
-            var unionHelpersPath = Path.Combine(outputDirectory, "UnionHelpers.cs");
-            File.WriteAllText(unionHelpersPath, UnionHelperGenerator.GenerateUnionHelpersFile(unionTypes));
+            files["UnionHelpers.cs"] = UnionHelperGenerator.GenerateUnionHelpersFile(unionTypes);
         }
+
+        return files;
     }
 
     private static void EmitCsproj(string outputDirectory, string projectName)

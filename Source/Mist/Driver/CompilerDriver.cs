@@ -18,6 +18,14 @@ namespace Mist.Driver;
 /// </summary>
 public sealed class CompilerDriver : ICompilerDriver
 {
+    // ── Stdlib lex/parse cache ────────────────────────────────────────────
+    // The stdlib files never change during a process lifetime. Caching the
+    // lexed token streams and parsed ASTs avoids re-lexing/re-parsing 19
+    // files on every Compile() call — a significant win for property-based
+    // tests that compile hundreds of programs in a single test run.
+    private static (ImmutableArray<TokenStream> Tokens, ImmutableArray<Storm.Runtime.SyntaxNode> Asts)? _stdlibCache;
+    private static readonly object _stdlibCacheLock = new();
+
     private ILexer lexer;
     private IParser parser;
     private ISemanticModelBuilder semanticModelBuilder;
@@ -218,9 +226,22 @@ public sealed class CompilerDriver : ICompilerDriver
         var lexingStopwatch = Stopwatch.StartNew();
         progressReporter.ReportStageStart(2, "Lexing");
 
+        // Try to retrieve cached stdlib lex/parse results.
+        var cachedStdlib = _stdlibCache;
+
         var tokenStreams = new Dictionary<CompilationUnit, TokenStream>();
+        var stdlibTokensForCache = cachedStdlib.HasValue
+            ? null
+            : ImmutableArray.CreateBuilder<TokenStream>();
+
         foreach(var unit in compilation.Units)
         {
+            if (unit.IsStdlib && cachedStdlib.HasValue)
+            {
+                // Stdlib tokens are already cached; skip lexing.
+                continue;
+            }
+
             var lexBag = new DiagnosticBag();
             var tokenStream = lexer.Lex(unit.Source, lexBag);
 
@@ -232,12 +253,16 @@ public sealed class CompilerDriver : ICompilerDriver
             if(!lexBag.HasErrors)
             {
                 tokenStreams[unit] = tokenStream;
+                if (unit.IsStdlib)
+                    stdlibTokensForCache?.Add(tokenStream);
             }
             // If lex errors, skip parse for this unit (R16.3)
         }
 
         lexingStopwatch.Stop();
         var totalTokens = tokenStreams.Values.Sum(ts => ts.DefaultChannelTokens.Length);
+        if (cachedStdlib.HasValue)
+            totalTokens += cachedStdlib.Value.Tokens.Sum(ts => ts.DefaultChannelTokens.Length);
         progressReporter.ReportStageComplete(2, lexingStopwatch.Elapsed, new[]
         {
             $"{totalTokens} tokens",
@@ -248,6 +273,16 @@ public sealed class CompilerDriver : ICompilerDriver
         progressReporter.ReportStageStart(3, "Parsing");
 
         var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
+        var stdlibAstsForCache = cachedStdlib.HasValue
+            ? null
+            : ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
+
+        // If we have cached stdlib ASTs, prepend them first.
+        if (cachedStdlib.HasValue)
+        {
+            asts.AddRange(cachedStdlib.Value.Asts);
+        }
+
         foreach(var (unit, tokenStream) in tokenStreams)
         {
             var parseBag = new DiagnosticBag();
@@ -266,8 +301,22 @@ public sealed class CompilerDriver : ICompilerDriver
             if(parseResult.Root is not null && !parseBag.HasErrors)
             {
                 asts.Add(parseResult.Root);
+                if (unit.IsStdlib)
+                    stdlibAstsForCache?.Add(parseResult.Root);
             }
             // If parse errors, exclude AST from semantic model (R16.4)
+        }
+
+        // Populate the stdlib cache if this is the first successful compile.
+        if (!cachedStdlib.HasValue && stdlibTokensForCache is not null && stdlibAstsForCache is not null)
+        {
+            lock (_stdlibCacheLock)
+            {
+                if (!_stdlibCache.HasValue)
+                {
+                    _stdlibCache = (stdlibTokensForCache.ToImmutable(), stdlibAstsForCache.ToImmutable());
+                }
+            }
         }
 
         parsingStopwatch.Stop();
@@ -364,7 +413,25 @@ public sealed class CompilerDriver : ICompilerDriver
 
         var backendBag = new DiagnosticBag();
         var projectName = options.ProjectName;
-        var backendResult = backend.Emit(semanticModel, options.OutputDirectory, options.BinDirectory, projectName, backendBag);
+
+        IReadOnlyDictionary<string, string>? emittedFiles = null;
+        BackendResult backendResult;
+
+        if (options.EmitToDisk)
+        {
+            backendResult = backend.Emit(semanticModel, options.OutputDirectory, options.BinDirectory, projectName, backendBag);
+        }
+        else
+        {
+            // In-memory emit: use CSharpEmitter.EmitToMemory directly to avoid disk I/O.
+            var files = Backends.CSharpTranspiler.CSharpEmitter.EmitToMemory(semanticModel, projectName, backendBag);
+            emittedFiles = files;
+            backendResult = new BackendResult(
+                Succeeded: !backendBag.HasErrors,
+                PrimaryArtifactPath: null,
+                Diagnostics: backendBag.ToImmutableArray(),
+                EmittedFileCount: files.Count);
+        }
 
         emitStopwatch.Stop();
         var emitDetails = new List<string> { $"{backendResult.EmittedFileCount} .cs files written" };
@@ -387,6 +454,7 @@ public sealed class CompilerDriver : ICompilerDriver
         return new CompilerResult(
             backendResult.Succeeded,
             backendResult.PrimaryArtifactPath,
-            allDiagnostics.ToImmutableArray());
+            allDiagnostics.ToImmutableArray(),
+            emittedFiles);
     }
 }

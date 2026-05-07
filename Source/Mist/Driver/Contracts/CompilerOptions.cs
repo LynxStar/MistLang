@@ -14,4 +14,5 @@ public sealed record CompilerOptions(
     string BinDirectory,
     string ProjectName,
     string NamespaceRoot,
-    ImmutableArray<string> EnabledAnalyzerIds);
+    ImmutableArray<string> EnabledAnalyzerIds,
+    bool EmitToDisk = true);

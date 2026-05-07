@@ -125,6 +125,7 @@ public sealed class UnionEmitterPropertyTests : IDisposable
     /// <summary>
     /// Builds a minimal Mist program that uses the given union type in a variable declaration,
     /// compiles it in-process, and returns the content of the emitted UnionHelpers.cs file.
+    /// Uses in-memory emit (EmitToDisk=false) to avoid disk I/O per iteration.
     /// </summary>
     private (bool Succeeded, string? UnionHelpersContent, string DiagnosticText) CompileAndGetHelpers(UnionScenario scenario)
     {
@@ -163,7 +164,8 @@ public sealed class UnionEmitterPropertyTests : IDisposable
                 BinDirectory: binDir,
                 ProjectName: "TestProgram",
                 NamespaceRoot: "TestProgram",
-                EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+                EnabledAnalyzerIds: ImmutableArray<string>.Empty,
+                EmitToDisk: false);
 
             var result = SharedDriver.Compile(options);
 
@@ -174,14 +176,12 @@ public sealed class UnionEmitterPropertyTests : IDisposable
                 return (false, null, diagnosticText);
             }
 
-            // Read the UnionHelpers.cs file
-            var helpersPath = Path.Combine(iterDir, "UnionHelpers.cs");
-            if (!File.Exists(helpersPath))
+            // Read the UnionHelpers.cs from in-memory emitted files
+            if (result.EmittedFiles is null || !result.EmittedFiles.TryGetValue("UnionHelpers.cs", out var content))
             {
                 return (false, null, "UnionHelpers.cs was not emitted");
             }
 
-            var content = File.ReadAllText(helpersPath);
             return (true, content, "");
         }
         finally

@@ -15,11 +15,21 @@ namespace Mist.Driver;
 /// </summary>
 public static class StdlibLoader
 {
+    // ── Static cache ─────────────────────────────────────────────────────
+    // The stdlib files never change during a process lifetime (they ship
+    // alongside the compiler binary). Caching the loaded CompilationUnits
+    // avoids re-reading 19 files from disk on every CompilerDriver.Compile()
+    // call — a significant win for property-based tests that compile
+    // hundreds of programs in a single test run.
+    private static ImmutableArray<CompilationUnit>? _cachedUnits;
+    private static readonly object _cacheLock = new();
+
     /// <summary>
     /// Loads every stdlib <c>.mist</c> file colocated with the compiler binary
     /// and returns them as <see cref="CompilationUnit"/>s. I/O failures are
     /// reported as <see cref="DiagnosticId.StdlibParse"/> errors on
     /// <paramref name="diagnostics"/> and do not throw.
+    /// Results are cached after the first successful load.
     /// </summary>
     /// <param name="backend">
     /// The resolved backend. Reserved for future backend-specific stdlib
@@ -29,8 +39,26 @@ public static class StdlibLoader
     public static ImmutableArray<CompilationUnit> LoadFor(IBackend backend, DiagnosticBag diagnostics)
     {
         _ = backend; // reserved for future backend-specific stdlib selection
-        var stdlibRoot = Path.Combine(AppContext.BaseDirectory, "Standard");
-        return LoadFrom(stdlibRoot, diagnostics);
+
+        // Fast path: return cached units if available.
+        if (_cachedUnits.HasValue)
+            return _cachedUnits.Value;
+
+        lock (_cacheLock)
+        {
+            // Double-check after acquiring lock.
+            if (_cachedUnits.HasValue)
+                return _cachedUnits.Value;
+
+            var stdlibRoot = Path.Combine(AppContext.BaseDirectory, "Standard");
+            var units = LoadFrom(stdlibRoot, diagnostics);
+
+            // Only cache if loading succeeded (no errors).
+            if (!diagnostics.HasErrors)
+                _cachedUnits = units;
+
+            return units;
+        }
     }
 
     /// <summary>

@@ -585,8 +585,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Determines whether the given AST node belongs to a referenced project
-    /// by checking span containment against the model's ASTs and units.
+    /// Determines whether the given method symbol belongs to a referenced project
+    /// by checking if its containing type's namespace matches a referenced project's
+    /// namespace root.
     /// </summary>
     private static bool IsFromReferencedProject(
         SyntaxNode node,
@@ -596,24 +597,76 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (referencedSourcePaths.Count == 0)
             return false;
 
-        var span = node.Span;
-        if (span.Length == 0)
-            return false;
-
-        // Find which AST root contains this node by checking span containment.
-        var asts = model.Asts;
+        // Check each referenced unit's source path against the compilation units.
+        // The declaring node belongs to a referenced project if it was parsed from
+        // a source file that belongs to a referenced project.
         var units = model.Units;
 
-        for (var i = 0; i < asts.Length; i++)
+        // Build a set of namespace roots from referenced projects.
+        var referencedNamespaceRoots = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var unit in units)
         {
-            var astSpan = asts[i].Span;
-            if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
+            if (unit.OriginProjectPath is not null && unit.NamespaceRoot is not null)
             {
-                if (i < units.Count)
+                referencedNamespaceRoots.Add(unit.NamespaceRoot);
+            }
+        }
+
+        if (referencedNamespaceRoots.Count == 0)
+            return false;
+
+        // Find the containing type of the method by walking up the scope chain.
+        // The method's declaring node is inside a class/struct. Check if that
+        // type's containing namespace matches a referenced project's namespace root.
+        if (node is not MethodDeclarationNode)
+            return false;
+
+        // Get the declared symbol for this node to find its containing scope.
+        var methodSymbol = model.GetDeclaredSymbol(node);
+        if (methodSymbol is null)
+            return false;
+
+        // Walk up the scope chain to find the containing type.
+        var typeScope = methodSymbol.ContainingScope;
+        var parentScope = typeScope?.Parent;
+        if (parentScope is null)
+            return false;
+
+        // Find the type symbol that owns this scope.
+        foreach (var member in parentScope.Members)
+        {
+            if (member.Kind is SymbolKind.Class or SymbolKind.Struct)
+            {
+                var memberScope = member.DeclaredType switch
                 {
-                    return referencedSourcePaths.Contains(units[i].Source.Path);
+                    ClassType ct => ct.MemberScope,
+                    StructType st => st.MemberScope,
+                    _ => null,
+                };
+
+                if (memberScope is not null && ReferenceEquals(memberScope, typeScope))
+                {
+                    // Found the containing type. Check its namespace.
+                    var containingNs = member.DeclaredType switch
+                    {
+                        ClassType ct => ct.ContainingNamespace,
+                        StructType st => st.ContainingNamespace,
+                        _ => null,
+                    };
+
+                    if (containingNs is not null && referencedNamespaceRoots.Contains(containingNs))
+                        return true;
+
+                    // Also check if the namespace starts with a referenced namespace root
+                    // (for nested namespaces like "Inheritance.Models").
+                    foreach (var nsRoot in referencedNamespaceRoots)
+                    {
+                        if (containingNs is not null && containingNs.StartsWith(nsRoot + ".", StringComparison.Ordinal))
+                            return true;
+                    }
+
+                    return false;
                 }
-                break;
             }
         }
 

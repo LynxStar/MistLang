@@ -259,6 +259,72 @@ Done!
   Severity.Info = Severity { Value = Enums.Label }
   Severity.Critical as Label = Label(CRITICAL, 1)
 --- Interface/Trait underlying types ---
-  (Deferred to future enhancement)
+  Pet.Dog = Pet { Value = Enums.Animal }
+  Pet.Cat = Pet { Value = Enums.Animal }
+  Pet.Fish = Pet { Value = Enums.Animal }
+  Pet.Dog as Animal = Animal(Dog)
+Done!
+=== Single-level inheritance ===
+Rex is a German Shepherd, age 5
+  Name: Rex
+  Age: 5
+  Breed: German Shepherd
+=== Multi-tier inheritance (3 levels) ===
+Buddy is a Labrador guide dog, age 3, handler: Alice
+  Name: Buddy
+  Age: 3
+  Breed: Labrador
+  Handler: Alice
+=== Subtype assignability ===
+Passing Dog to method accepting Animal:
+  Animal info: Rex (age 5)
+Passing GuideDog to method accepting Animal:
+  Animal info: Buddy (age 3)
+=== Base constructor chaining ===
+Base Animal: Cat (age 8)
+Dog via base chain: Max (age 1)
+GuideDog via base chain: Luna (age 2)
+Done!
+=== Properties Mist Sample ===
+--- Auto-Properties ---
+AutoProps(Name=Alice, Id=A001, Count=0, Label=default)
+AutoProps(Name=Bob, Id=A001, Count=5, Label=updated)
+--- Block Accessors ---
+BlockAccessors(Temperature=20)
+  After set 100: 20
+  After set -999 (clamped): -273
+--- Expression-Bodied ---
+ExpressionBodied(Width=5, Height=3, Area=15)
+  After Height=10: Area=50
+--- Field Keyword ---
+FieldKeyword(Name=Charlie, Age=0)
+FieldKeyword(Name=Dana, Age=25)
+  After invalid age: 25
+--- Mixed Accessors ---
+MixedAccessors(Score=0, Status=active)
+  After invalid score: 0
+--- Accessor Modifiers ---
+AccessorModifiers(Name=Eve, Value=10)
+AccessorModifiers(Name=Frank, Value=11)
+--- Init Accessors ---
+InitAccessors(Name=Grace, Year=0)
+--- Static Properties ---
+  HasInstances before: False
+StaticProps(name=One, total=2)
+  HasInstances after: True
+  InstanceCount: 2
+--- Computed Properties ---
+ComputedProps(Area=24, Perimeter=20, IsSquare=False)
+ComputedProps(Area=25, Perimeter=20, IsSquare=True)
+--- Interface Properties ---
+LabeledItem(Label=Widget, Value=99)
+  After edit: Label=Widget, Value=200
+--- Indexers ---
+  idx[0]=10 idx[1]=20 idx[2]=30
+IndexerDemo(length=3)
+=== Done! ===
+Player: Alice, HP: 100
+Level: 1, Active: True
+App: Namespace Demo v1.0
 Done!
 === Done! ===

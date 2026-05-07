@@ -44,3 +44,12 @@ path = "../TypeAliases"
 
 [[references]]
 path = "../Enums"
+
+[[references]]
+path = "../Inheritance"
+
+[[references]]
+path = "../Properties"
+
+[[references]]
+path = "../Namespaces"

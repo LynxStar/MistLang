@@ -26,6 +26,9 @@ public class Program
         UnknownTypeDemo.RunDemo();
         TypeAliases.Program.RunDemo();
         Enums.Program.RunDemo();
+        Inheritance.Program.RunDemo();
+        Properties.Program.RunDemo();
+        Namespaces.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

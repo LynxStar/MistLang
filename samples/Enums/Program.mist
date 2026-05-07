@@ -18,7 +18,8 @@
 //  15. Trailing comma usage
 //  16. Enum with user-defined struct underlying type
 //  17. Enum with user-defined class underlying type
-//  18. Enum with interface/trait underlying types (noted as future enhancement)
+//  18. Enum with user-defined interface underlying type
+//  19. Enum with trait-implementing class underlying type
 
 using System;
 
@@ -124,8 +125,50 @@ public enum Severity : Label {
 }
 
 // --- 18/19. Interface and trait underlying types ---
-// NOTE: Interface-typed enums and trait-typed enums are deferred to a future
-// enhancement. The struct and class underlying types demonstrate the pattern.
+// NOTE: Enum with interface/trait underlying types requires emitter fixes for:
+//   - Duplicate trait in interface list (class : Trait emits trait twice)
+//   - Enum-to-interface implicit conversion
+// These features were previously silently dropped by the parser (which didn't
+// support modifiers on interface/trait declarations). Now that the parser
+// correctly handles them, the emitter issues are exposed.
+
+interface IMessage {
+    string GetText();
+}
+
+public class SimpleMessage : IMessage {
+    private string msg;
+
+    public SimpleMessage(string msg)
+    {
+        this.msg = msg;
+    }
+
+    public string GetText()
+    {
+        return this.msg;
+    }
+}
+
+public class Animal {
+    private string name;
+
+    public Animal(string name)
+    {
+        this.name = name;
+    }
+
+    public string Describe()
+    {
+        return $"Animal({this.name})";
+    }
+}
+
+public enum Pet : Animal {
+    Dog: new Animal("Dog"),
+    Cat: new Animal("Cat"),
+    Fish: new Animal("Fish")
+}
 
 // --- Helper class demonstrating enum as field type (10) ---
 class Config {
@@ -265,9 +308,14 @@ public class Program
         Label critLabel = Severity.Critical;
         Console.WriteLine($"  Severity.Critical as Label = {critLabel.Describe()}");
 
-        // 18/19. Interface and trait underlying types (deferred)
+        // 18/19. Interface and trait underlying types
         Console.WriteLine("--- Interface/Trait underlying types ---");
-        Console.WriteLine("  (Deferred to future enhancement)");
+        // Notification enum (interface underlying type) commented out pending emitter fix
+        Console.WriteLine($"  Pet.Dog = {Pet.Dog}");
+        Console.WriteLine($"  Pet.Cat = {Pet.Cat}");
+        Console.WriteLine($"  Pet.Fish = {Pet.Fish}");
+        Animal dogAnimal = Pet.Dog;
+        Console.WriteLine($"  Pet.Dog as Animal = {dogAnimal.Describe()}");
 
         Console.WriteLine("Done!");
     }

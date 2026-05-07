@@ -143,7 +143,7 @@ rule StructDeclaration = modifiers:Modifier* STRUCT name:IDENTIFIER
     interfaceList:(COLON interfaces:BaseList)?
     LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
-rule InterfaceDeclaration = INTERFACE name:IDENTIFIER
+rule InterfaceDeclaration = modifiers:Modifier* INTERFACE name:IDENTIFIER
     typeParams:TypeParameterList?
     interfaceList:(COLON interfaces:BaseList)?
     LEFT_BRACE members:InterfaceMemberDeclaration* RIGHT_BRACE;
@@ -169,7 +169,7 @@ rule InterfaceAccessorDeclaration
 
 // ─── Parser Rules — Trait Declarations ───────────────────────────────────────
 
-rule TraitDeclaration = TRAIT name:IDENTIFIER
+rule TraitDeclaration = modifiers:Modifier* TRAIT name:IDENTIFIER
     LEFT_BRACE members:TraitMemberDeclaration* RIGHT_BRACE;
 
 rule TraitMemberDeclaration

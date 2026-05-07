@@ -1400,8 +1400,7 @@ internal sealed class CSharpSourceWriter
             var traitNames = new List<string>();
             if (symbol?.DeclaredType is ClassType classTypeFromBase)
             {
-                foreach (var (_, trait, _) in _model.TraitSatisfactionMap.All()
-                    .Where(s => ReferenceEquals(s.Type, classTypeFromBase)))
+                foreach (var trait in classTypeFromBase.SatisfiedTraits)
                 {
                     traitNames.Add(CSharpTypeMap.GetTypeName(trait));
                 }
@@ -1428,8 +1427,7 @@ internal sealed class CSharpSourceWriter
             }
 
             // Trait interfaces
-            foreach (var (_, trait, _) in _model.TraitSatisfactionMap.All()
-                .Where(s => ReferenceEquals(s.Type, classType)))
+            foreach (var trait in classType.SatisfiedTraits)
             {
                 parts.Add(CSharpTypeMap.GetTypeName(trait));
             }
@@ -2066,8 +2064,7 @@ internal sealed class CSharpSourceWriter
             var traitNames = new List<string>();
             if (symbol?.DeclaredType is StructType structTypeFromBase)
             {
-                foreach (var (_, trait, _) in _model.TraitSatisfactionMap.All()
-                    .Where(s => ReferenceEquals(s.Type, structTypeFromBase)))
+                foreach (var trait in structTypeFromBase.SatisfiedTraits)
                 {
                     traitNames.Add(CSharpTypeMap.GetTypeName(trait));
                 }
@@ -2088,8 +2085,7 @@ internal sealed class CSharpSourceWriter
             }
 
             // Trait interfaces
-            foreach (var (_, trait, _) in _model.TraitSatisfactionMap.All()
-                .Where(s => ReferenceEquals(s.Type, structType)))
+            foreach (var trait in structType.SatisfiedTraits)
             {
                 parts.Add(CSharpTypeMap.GetTypeName(trait));
             }

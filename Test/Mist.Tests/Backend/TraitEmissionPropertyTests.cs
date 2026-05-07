@@ -536,7 +536,10 @@ public sealed class TraitEmissionPropertyTests : IDisposable
             TypeDeclaration = new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl },
         });
 
-        // 3. With-block (if applicable)
+        // 3. With-block: required to trigger trait satisfaction registration.
+        // For with-block scenarios, use the explicit source→target mappings.
+        // For structural scenarios, use identity mappings (member name maps to itself)
+        // since the class members already match the trait members by name.
         if (scenario.Mode == SatisfactionMode.WithBlock && scenario.WithMappings is not null)
         {
             var withDecl = new WithDeclarationNode
@@ -548,6 +551,23 @@ public sealed class TraitEmissionPropertyTests : IDisposable
                     {
                         SourceName = Tok(m.sourceName),
                         TargetName = Tok(m.targetName),
+                    }).ToImmutableArray(),
+            };
+            items.Add(new WithItemTopLevelItemNode { WithDeclaration = withDecl });
+        }
+        else if (scenario.Mode == SatisfactionMode.Structural)
+        {
+            // Lazy model: structural satisfaction requires an explicit with-block
+            // to be registered during Pass 1. Use identity mappings.
+            var withDecl = new WithDeclarationNode
+            {
+                TypeName = Tok(scenario.ClassName),
+                TraitName = Tok(scenario.TraitName),
+                Mappings = scenario.TraitMembers.Select(m =>
+                    new MemberMappingNode
+                    {
+                        SourceName = Tok(m.MemberName),
+                        TargetName = Tok(m.MemberName),
                     }).ToImmutableArray(),
             };
             items.Add(new WithItemTopLevelItemNode { WithDeclaration = withDecl });
@@ -728,13 +748,23 @@ public sealed class TraitEmissionPropertyTests : IDisposable
         }
         sb.AppendLine("}");
 
-        // With-block
+        // With-block: required for lazy trait satisfaction registration.
         if (scenario.Mode == SatisfactionMode.WithBlock && scenario.WithMappings is not null)
         {
             sb.AppendLine($"with {scenario.ClassName} : {scenario.TraitName} {{");
             foreach (var mapping in scenario.WithMappings)
             {
                 sb.AppendLine($"    {mapping.sourceName} as {mapping.targetName};");
+            }
+            sb.AppendLine("}");
+        }
+        else if (scenario.Mode == SatisfactionMode.Structural)
+        {
+            // Lazy model: emit identity with-block for structural scenarios.
+            sb.AppendLine($"with {scenario.ClassName} : {scenario.TraitName} {{");
+            foreach (var member in scenario.TraitMembers)
+            {
+                sb.AppendLine($"    {member.MemberName} as {member.MemberName};");
             }
             sb.AppendLine("}");
         }

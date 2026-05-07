@@ -6934,12 +6934,359 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Checks whether <paramref name="source"/> satisfies the given <paramref name="trait"/>
-    /// by querying the <see cref="TraitSatisfactionMap"/> on the semantic model.
+    /// Checks whether <paramref name="source"/> satisfies the given <paramref name="trait"/>.
+    /// Uses a lazy evaluation model:
+    /// 1. Check the type's SatisfiedTraits list (populated by with-blocks and prior call-site checks)
+    /// 2. Check the TraitSatisfactionMap (backward compat)
+    /// 3. Perform on-demand structural matching
+    /// 4. If structural matching succeeds, upsert into the type's SatisfiedTraits list and the map
     /// </summary>
     private static bool SatisfiesTrait(IType source, IType trait, ISemanticModel model)
     {
-        return model.TraitSatisfactionMap.Satisfies(source, trait);
+        // 1. Check the type's SatisfiedTraits list.
+        var satisfiedTraits = source switch
+        {
+            ClassType ct => ct.SatisfiedTraits,
+            StructType st => st.SatisfiedTraits,
+            _ => null,
+        };
+
+        if (satisfiedTraits is not null)
+        {
+            foreach (var satisfied in satisfiedTraits)
+            {
+                if (ReferenceEquals(satisfied, trait))
+                    return true;
+                // Structural equality fallback for ConstructedTraitType.
+                if (satisfied is ConstructedTraitType sCtt && trait is ConstructedTraitType tCtt
+                    && ReferenceEquals(sCtt.GenericTraitDefinition, tCtt.GenericTraitDefinition)
+                    && sCtt.TypeArguments.Count == tCtt.TypeArguments.Count)
+                {
+                    var allMatch = true;
+                    for (var i = 0; i < sCtt.TypeArguments.Count; i++)
+                    {
+                        if (sCtt.TypeArguments[i].DisplayName != tCtt.TypeArguments[i].DisplayName)
+                        {
+                            allMatch = false;
+                            break;
+                        }
+                    }
+                    if (allMatch)
+                        return true;
+                }
+            }
+        }
+
+        // 2. Check the TraitSatisfactionMap (covers with-block registrations).
+        if (model.TraitSatisfactionMap.Satisfies(source, trait))
+            return true;
+
+        // 3. On-demand structural matching: check if all trait members are
+        //    present and public on the source type.
+        var traitMemberScope = trait switch
+        {
+            TraitType tt => tt.MemberScope,
+            ConstructedTraitType ctt => ctt.MemberScope,
+            _ => null,
+        };
+
+        var sourceMemberScope = GetMemberScope(source);
+
+        if (traitMemberScope is null || sourceMemberScope is null)
+            return false;
+
+        // Build type parameter substitution map for constructed traits.
+        Dictionary<string, IType>? typeSubstitutions = null;
+        if (trait is ConstructedTraitType constructedTrait)
+        {
+            typeSubstitutions = new Dictionary<string, IType>(StringComparer.Ordinal);
+            var typeParams = constructedTrait.GenericTraitDefinition.TypeParameters;
+            var typeArgs = constructedTrait.TypeArguments;
+            for (var i = 0; i < typeParams.Count && i < typeArgs.Count; i++)
+            {
+                typeSubstitutions[typeParams[i].DisplayName] = typeArgs[i];
+            }
+        }
+
+        var structuralMatches = new Dictionary<string, ISymbol>();
+        foreach (var traitMember in traitMemberScope.Members)
+        {
+            // Skip type parameter symbols (registered in the trait's scope but
+            // not actual trait members that need structural matching).
+            if (traitMember.Kind is SymbolKind.Class or SymbolKind.Struct
+                && traitMember.DeclaredType is TypeParameterType)
+                continue;
+
+            var matched = TryLazyStructuralMatch(traitMember, sourceMemberScope, model, typeSubstitutions);
+            if (matched is null)
+                return false; // Structural matching failed — not satisfied.
+            structuralMatches[traitMember.Name] = matched;
+        }
+
+        // 4. Structural matching succeeded — upsert into the type's SatisfiedTraits
+        //    list and the TraitSatisfactionMap.
+        satisfiedTraits?.Add(trait);
+        model.TraitSatisfactionMap.Register(source, trait, new TraitSatisfaction
+        {
+            StructuralMatches = structuralMatches,
+            WithMappings = new Dictionary<string, ISymbol>(),
+        });
+
+        return true;
+    }
+
+    /// <summary>
+    /// Performs a simplified structural match for a single trait member against
+    /// the type's public members. Used for lazy/on-demand trait satisfaction
+    /// at call sites. Returns the matching symbol or null.
+    /// <para>
+    /// For methods, checks name, visibility, return type compatibility, and
+    /// parameter count/type compatibility. For fields/properties, checks name,
+    /// visibility, and type compatibility.
+    /// </para>
+    /// </summary>
+    private static ISymbol? TryLazyStructuralMatch(
+        ISymbol traitMember, IScope typeMemberScope, ISemanticModel model,
+        Dictionary<string, IType>? typeSubstitutions)
+    {
+        var traitMemberName = traitMember.Name;
+
+        foreach (var member in typeMemberScope.Members)
+        {
+            if (member.Name != traitMemberName)
+                continue;
+
+            // Kind compatibility: trait fields can be matched by fields or properties;
+            // trait methods must be matched by methods; trait properties by properties or fields.
+            var kindCompatible = traitMember.Kind switch
+            {
+                SymbolKind.Field => member.Kind is SymbolKind.Field or SymbolKind.Property,
+                SymbolKind.Method => member.Kind is SymbolKind.Method,
+                SymbolKind.Property => member.Kind is SymbolKind.Property or SymbolKind.Field,
+                _ => member.Kind == traitMember.Kind,
+            };
+
+            if (!kindCompatible)
+                continue;
+
+            // Check visibility: must be public.
+            if (!IsMemberPublicViaModel(member, model))
+                continue;
+
+            // For methods, check signature compatibility (return type + parameters).
+            if (traitMember.Kind == SymbolKind.Method)
+            {
+                if (!MethodSignaturesCompatible(traitMember, member, model, typeSubstitutions))
+                    continue;
+            }
+            else
+            {
+                // For fields/properties, check type compatibility.
+                if (!MemberTypesCompatible(traitMember, member, typeSubstitutions))
+                    continue;
+            }
+
+            return member;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks whether a type member's method signature is compatible with a trait
+    /// method's signature (return type + parameter types).
+    /// </summary>
+    private static bool MethodSignaturesCompatible(
+        ISymbol traitMethod, ISymbol implMethod, ISemanticModel model,
+        Dictionary<string, IType>? typeSubstitutions)
+    {
+        SyntaxNode traitNode;
+        SyntaxNode implNode;
+        try
+        {
+            traitNode = model.GetDeclaringNode(traitMethod);
+            implNode = model.GetDeclaringNode(implMethod);
+        }
+        catch
+        {
+            return false;
+        }
+
+        // Get parameter counts.
+        var traitParams = traitNode switch
+        {
+            TraitMethodDeclarationNode tm => tm.Parameters,
+            _ => null,
+        };
+        var implParams = implNode switch
+        {
+            MethodDeclarationNode m => m.Parameters,
+            _ => null,
+        };
+
+        var traitParamCount = CountParameters(traitParams);
+        var implParamCount = CountParameters(implParams);
+
+        if (traitParamCount != implParamCount)
+            return false;
+
+        // Check return type compatibility.
+        // DeclaredType on method symbols is the resolved return type.
+        var traitReturnType = traitMethod.DeclaredType;
+        var implReturnType = implMethod.DeclaredType;
+
+        if (traitReturnType is not null && implReturnType is not null)
+        {
+            // Apply type substitution to the trait return type.
+            var effectiveTraitReturn = SubstituteType(traitReturnType, typeSubstitutions);
+            if (!ReturnTypeCompatibleForTrait(effectiveTraitReturn, implReturnType))
+                return false;
+        }
+        else if (traitReturnType is not null && implReturnType is null)
+        {
+            // Trait expects a return type but impl has none (void) — not compatible
+            // unless trait return is void too.
+            return false;
+        }
+
+        // Check parameter types (exact match required).
+        if (traitParamCount > 0 && traitParams is not null && implParams is not null)
+        {
+            if (!ParameterTypesCompatible(traitParams, implParams, model, typeSubstitutions))
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Counts parameters in a ParameterListNode (which may be null for zero-param methods).
+    /// </summary>
+    private static int CountParameters(object? paramList)
+    {
+        if (paramList is null)
+            return 0;
+        if (paramList is not ParameterListNode pln)
+            return 0;
+        return 1 + pln.Parameters.Length;
+    }
+
+    /// <summary>
+    /// Checks return type compatibility for trait matching.
+    /// Uses relaxed unknown-widening rules: a trait return of <c>unknown</c>
+    /// matches any non-void implementer return type. Also handles covariant
+    /// unknown widening for constructed types (e.g., List&lt;unknown&gt; matches List&lt;int&gt;).
+    /// </summary>
+    private static bool ReturnTypeCompatibleForTrait(IType traitReturn, IType implReturn)
+    {
+        // Exact match.
+        if (ReferenceEquals(traitReturn, implReturn))
+            return true;
+        if (traitReturn.DisplayName == implReturn.DisplayName)
+            return true;
+
+        // Unknown widening: trait returns `unknown` → impl can return any non-void type.
+        if (traitReturn is UnknownType)
+            return implReturn.DisplayName != "Void" && implReturn.DisplayName != "void";
+
+        // Covariant unknown widening for constructed types (Req 12.2, 8.1, 8.6):
+        // List<int> satisfies List<unknown> when the generic definition is a class.
+        if (traitReturn is ConstructedType targetCt && implReturn is ConstructedType sourceCt
+            && ReferenceEquals(targetCt.GenericDefinition, sourceCt.GenericDefinition)
+            && targetCt.TypeArguments.Count == sourceCt.TypeArguments.Count)
+        {
+            if (AssignableWithUnknownWidening(
+                    sourceCt.GenericDefinition, sourceCt.TypeArguments, targetCt.TypeArguments))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks parameter type compatibility between trait method and impl method.
+    /// Parameter matching is exact (no widening).
+    /// </summary>
+    private static bool ParameterTypesCompatible(
+        ParameterListNode traitParams, ParameterListNode implParams, ISemanticModel model,
+        Dictionary<string, IType>? typeSubstitutions)
+    {
+        // Collect all parameter nodes from both lists.
+        var traitParamNodes = new List<ParameterNode>();
+        var implParamNodes = new List<ParameterNode>();
+
+        foreach (var child in traitParams.Children())
+        {
+            if (child is ParameterNode pn)
+                traitParamNodes.Add(pn);
+        }
+        foreach (var child in implParams.Children())
+        {
+            if (child is ParameterNode pn)
+                implParamNodes.Add(pn);
+        }
+
+        if (traitParamNodes.Count != implParamNodes.Count)
+            return false;
+
+        for (var i = 0; i < traitParamNodes.Count; i++)
+        {
+            var traitParamSym = model.GetDeclaredSymbol(traitParamNodes[i]);
+            var implParamSym = model.GetDeclaredSymbol(implParamNodes[i]);
+
+            if (traitParamSym?.DeclaredType is null || implParamSym?.DeclaredType is null)
+                continue; // Can't verify — accept (best effort).
+
+            var effectiveTraitParamType = SubstituteType(traitParamSym.DeclaredType, typeSubstitutions);
+            if (effectiveTraitParamType.DisplayName != implParamSym.DeclaredType.DisplayName)
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Checks type compatibility for field/property trait members.
+    /// </summary>
+    private static bool MemberTypesCompatible(ISymbol traitMember, ISymbol implMember,
+        Dictionary<string, IType>? typeSubstitutions)
+    {
+        var traitType = traitMember.DeclaredType;
+        var implType = implMember.DeclaredType;
+
+        if (traitType is null || implType is null)
+            return true; // If types aren't resolved, accept (best effort).
+
+        // Apply type substitution to the trait member type.
+        var effectiveTraitType = SubstituteType(traitType, typeSubstitutions);
+
+        if (ReferenceEquals(effectiveTraitType, implType))
+            return true;
+
+        if (effectiveTraitType.DisplayName == implType.DisplayName)
+            return true;
+
+        // Unknown widening for return/field position.
+        if (effectiveTraitType is UnknownType)
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Substitutes a type parameter with its concrete type argument using the
+    /// provided substitution map. Returns the original type if no substitution applies.
+    /// </summary>
+    private static IType SubstituteType(IType type, Dictionary<string, IType>? substitutions)
+    {
+        if (substitutions is null || substitutions.Count == 0)
+            return type;
+
+        // Direct type parameter substitution.
+        if (type is TypeParameterType && substitutions.TryGetValue(type.DisplayName, out var substituted))
+            return substituted;
+
+        return type;
     }
 
     /// <summary>

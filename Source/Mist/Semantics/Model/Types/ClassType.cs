@@ -41,6 +41,11 @@ public sealed class ClassType : IType
     /// </summary>
     internal DefaultBlockDeclarationNode? DefaultBlockNode { get; set; }
 
+    /// <summary>
+    /// Traits that this type is known to satisfy (populated by with-blocks and call-site checking).
+    /// </summary>
+    public List<IType> SatisfiedTraits { get; } = new();
+
     public ClassType(
         string displayName,
         IScope memberScope,

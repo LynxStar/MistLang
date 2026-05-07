@@ -747,6 +747,9 @@ public class TraitEffectiveMembersPropertyTests
         // Arrange: trait Parent { int parentMethod(); }
         //          trait Child : Parent { int childMethod(); }
         //          class MyType { public int parentMethod() {} public int childMethod() {} }
+        //          with MyType : Child { childMethod as childMethod; }
+        // The with-block triggers lazy satisfaction registration for the Child trait,
+        // which in turn registers transitive satisfaction for the Parent trait.
         var parentDecl = MakeTraitWithMethod("Parent", "parentMethod");
         var childDecl = MakeTraitWithMethod("Child", "childMethod",
             parents: MakeBaseList(MakeBaseTypeRef("Parent")));
@@ -757,10 +760,23 @@ public class TraitEffectiveMembersPropertyTests
                 ("int", "childMethod", null),
             ]);
 
+        // With-block: explicitly bind MyType to Child trait (identity mapping)
+        var withDecl = new WithDeclarationNode
+        {
+            TypeName = Tok("MyType"),
+            TraitName = Tok("Child"),
+            Mappings = ImmutableArray.Create(new MemberMappingNode
+            {
+                SourceName = Tok("childMethod"),
+                TargetName = Tok("childMethod"),
+            }),
+        };
+
         var ast = MakeCompilationUnit(
             MakeTraitItem(parentDecl),
             MakeTraitItem(childDecl),
-            MakeClassItem(classDecl));
+            MakeClassItem(classDecl),
+            new WithItemTopLevelItemNode { WithDeclaration = withDecl });
 
         // Act
         var (model, diagnostics) = BuildModel(ast);

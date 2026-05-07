@@ -79,7 +79,7 @@
         },
         {
           "name": "keyword.declaration.mist",
-          "match": "\\b(namespace|using|class|struct|interface|trait|extension|type)\\b"
+          "match": "\\b(namespace|using|class|struct|interface|trait|extension|type|enum)\\b"
         },
         {
           "name": "storage.modifier.mist",
@@ -187,6 +187,13 @@
           "captures": {
             "1": { "name": "keyword.declaration.mist" },
             "2": { "name": "entity.name.type.trait.mist" }
+          }
+        },
+        {
+          "match": "\\b(enum)\\s+([a-zA-Z_]\\w*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.mist" },
+            "2": { "name": "entity.name.type.enum.mist" }
           }
         },
         {

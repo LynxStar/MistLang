@@ -10,6 +10,7 @@ public enum TypeKind
     Struct,
     Interface,
     Trait,
+    Enum,
 
     /// <summary>
     /// The user-facing <c>unknown</c> top type. Every non-<c>void</c> value is assignable

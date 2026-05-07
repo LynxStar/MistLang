@@ -179,6 +179,13 @@ internal static class UnionHelperGenerator
             case TypeAliasType alias:
                 CollectFromType(alias.UnderlyingType, seen);
                 break;
+
+            case EnumType enumType:
+                if (enumType.UnderlyingType is not null)
+                {
+                    CollectFromType(enumType.UnderlyingType, seen);
+                }
+                break;
         }
     }
 }

@@ -83,7 +83,8 @@ public sealed class CSharpEmitter
             // Get the AST for this compilation unit (same index as the unit).
             if (i < model.Asts.Length && model.Asts[i] is CompilationUnitNode compilationUnit)
             {
-                var writer = new CSharpSourceWriter(model, backendNamespaces, unit.Source, diagnostics);
+                var isReferencedProject = unit.OriginProjectPath is not null;
+                var writer = new CSharpSourceWriter(model, backendNamespaces, unit.Source, diagnostics, isReferencedProject);
                 var csContent = writer.EmitCompilationUnit(compilationUnit);
                 files[relativePath] = csContent;
 
@@ -226,6 +227,7 @@ internal sealed class CSharpSourceWriter
     /// is deferred to the start of the then-branch block.
     /// </summary>
     private readonly List<string> _pendingUnionPatternBindings = new();
+    private readonly bool _isReferencedProject;
     private const string IndentUnit = "    ";
 
     /// <summary>
@@ -238,13 +240,15 @@ internal sealed class CSharpSourceWriter
         ISemanticModel model,
         ImmutableArray<string> backendNamespaces,
         Common.Text.SourceText sourceText,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        bool isReferencedProject = false)
     {
         _model = model;
         _backendNamespaces = backendNamespaces;
         _sourceText = sourceText;
         _diagnostics = diagnostics;
         _intrinsicRegistry = new IntrinsicEmissionTable();
+        _isReferencedProject = isReferencedProject;
     }
 
     public string EmitCompilationUnit(CompilationUnitNode cu)
@@ -740,6 +744,7 @@ internal sealed class CSharpSourceWriter
             StructTypeTypeDeclarationNode structType => structType.StructDeclaration,
             InterfaceTypeTypeDeclarationNode interfaceType => interfaceType.InterfaceDeclaration,
             TraitTypeTypeDeclarationNode traitType => traitType.TraitDeclaration,
+            EnumTypeTypeDeclarationNode enumType => enumType.EnumDeclaration,
             _ => null,
         };
 
@@ -754,6 +759,7 @@ internal sealed class CSharpSourceWriter
             StructType st => st.ContainingNamespace,
             InterfaceType it => it.ContainingNamespace,
             TraitType tt => tt.ContainingNamespace,
+            EnumType et => et.ContainingNamespace,
             _ => null,
         };
     }
@@ -831,7 +837,108 @@ internal sealed class CSharpSourceWriter
             case InterfaceTypeTypeDeclarationNode interfaceType:
                 EmitInterfaceDeclaration(interfaceType.InterfaceDeclaration);
                 break;
+            case EnumTypeTypeDeclarationNode enumType:
+                EmitEnumDeclaration(enumType.EnumDeclaration);
+                break;
         }
+    }
+
+    // ─── Enum Declaration Emission ─────────────────────────────────────────
+
+    /// <summary>
+    /// Emits an enum declaration as a C# <c>record class</c> with:
+    /// - A primary constructor parameter <c>Value</c> of the underlying type
+    /// - A <c>public static readonly</c> field for each enum member
+    /// - An <c>implicit operator</c> converting to the underlying type
+    /// Access modifier defaults to <c>internal</c> when none is specified.
+    /// Enum members are always <c>public static readonly</c> regardless of the enum's visibility.
+    /// </summary>
+    private void EmitEnumDeclaration(EnumDeclarationNode enumDecl)
+    {
+        var symbol = _model.GetDeclaredSymbol(enumDecl);
+        if (symbol?.DeclaredType is not EnumType enumType) return;
+
+        var modifiers = EmitModifiers(enumDecl.Modifiers);
+        var name = enumDecl.Name.Lexeme;
+
+        // Determine the C# type name for the underlying type.
+        // For union types, use the union helper struct name.
+        var underlyingTypeName = enumType.UnderlyingType is UnionType ut
+            ? UnionHelperGenerator.GetHelperTypeName(ut)
+            : CSharpTypeMap.GetTypeName(enumType.UnderlyingType);
+
+        AppendLine($"{modifiers}record class {name}({underlyingTypeName} Value)");
+        AppendLine("{");
+        _indentLevel++;
+
+        // Emit public static readonly fields for each enum member.
+        var memberNodes = new List<EnumMemberNode>();
+        if (enumDecl.Members is not null)
+        {
+            memberNodes.Add(enumDecl.Members.EnumMember);
+            foreach (var member in enumDecl.Members.EnumMembers)
+            {
+                memberNodes.Add(member);
+            }
+        }
+
+        for (var i = 0; i < memberNodes.Count; i++)
+        {
+            var memberNode = memberNodes[i];
+            var memberName = memberNode.Name.Lexeme;
+            string valueExpr;
+
+            if (memberNode.Value is not null)
+            {
+                // Member has an explicit value expression — emit it.
+                valueExpr = EmitExpression(memberNode.Value);
+            }
+            else
+            {
+                // Name-only member — use the resolved sequential value from the semantic model.
+                var memberInfo = enumType.Members[i];
+                var resolvedValue = memberInfo.ResolvedValue;
+                valueExpr = EmitEnumMemberValue(resolvedValue, underlyingTypeName);
+            }
+
+            AppendLine($"public static readonly {name} {memberName} = new {name}({valueExpr});");
+        }
+
+        // Emit blank line before the implicit operator.
+        AppendLine();
+
+        // Emit implicit conversion operator to the underlying type.
+        AppendLine($"public static implicit operator {underlyingTypeName}({name} e) => e.Value;");
+
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emits the value expression for a name-only enum member.
+    /// For byte underlying types, emits <c>(byte)N</c>. For other integral types,
+    /// emits the numeric literal directly.
+    /// </summary>
+    private static string EmitEnumMemberValue(object? resolvedValue, string underlyingTypeName)
+    {
+        if (resolvedValue is long longVal)
+        {
+            return underlyingTypeName switch
+            {
+                "byte" => $"(byte){longVal}",
+                "sbyte" => $"(sbyte){longVal}",
+                "short" => $"(short){longVal}",
+                "ushort" => $"(ushort){longVal}",
+                "int" => $"{longVal}",
+                "uint" => $"{longVal}U",
+                "long" => $"{longVal}L",
+                "ulong" => $"{(ulong)longVal}UL",
+                _ => $"({underlyingTypeName}){longVal}",
+            };
+        }
+
+        // Fallback for non-integer resolved values.
+        return resolvedValue?.ToString() ?? "default";
     }
 
     // ─── Extension Block Emission (Tasks 9.1–9.4) ────────────────────────
@@ -2105,6 +2212,11 @@ internal sealed class CSharpSourceWriter
 
     private void EmitMethodDeclaration(MethodDeclarationNode methodDecl)
     {
+        // Skip Main methods from referenced projects to avoid multiple
+        // entry points in the generated C# project.
+        if (_isReferencedProject && methodDecl.Name.Lexeme == "Main")
+            return;
+
         var modifiers = EmitModifiers(methodDecl.Modifiers);
         var returnType = EmitTypeReference(methodDecl.ReturnType);
         var name = methodDecl.Name.Lexeme;
@@ -3584,6 +3696,12 @@ internal sealed class CSharpSourceWriter
                         return unionResult;
                 }
 
+                // Enum member pattern matching: emit value equality check
+                // (`scrutinee == EnumName.MemberName`) instead of C#'s `is` pattern.
+                var enumResult = TryEmitEnumPatternMatch(isExpr.Pattern, left);
+                if (enumResult is not null)
+                    return enumResult;
+
                 var pattern = EmitPattern(isExpr.Pattern, scrutineeType);
                 return $"{left} is {pattern}";
             }
@@ -3688,6 +3806,52 @@ internal sealed class CSharpSourceWriter
                 return UnionHelperGenerator.GetConstituentCSharpName(constituent);
             }
         }
+        return null;
+    }
+
+    // ─── Enum Pattern Matching ───────────────────────────────────────────
+
+    /// <summary>
+    /// Attempts to emit an enum member pattern match as a value equality check.
+    /// For <c>is EnumName.MemberName</c> patterns where the resolved type is an
+    /// <see cref="EnumType"/>, emits <c>scrutinee == EnumName.MemberName</c>
+    /// instead of C#'s native <c>is</c> pattern.
+    /// Returns <c>null</c> if the pattern is not a simple enum member pattern.
+    /// </summary>
+    private string? TryEmitEnumPatternMatch(PatternNode pattern, string scrutineeExpr)
+    {
+        // Navigate the pattern chain: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
+        // Only handle simple (non-compound) patterns for enum emission.
+        var orPattern = pattern.OrPattern;
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+            return null; // or-pattern — fall through to standard emission
+
+        var andPattern = orPattern.Left;
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+            return null; // and-pattern — fall through to standard emission
+
+        var unaryPattern = andPattern.Left;
+        if (unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+            return null; // not-pattern — fall through to standard emission
+
+        var primaryPattern = directPattern.Primary;
+
+        if (primaryPattern is not BareTypePatternPrimaryPatternNode bareTypePattern)
+            return null;
+
+        // Check if the resolved type for this pattern is an EnumType.
+        var patternType = _model.GetTypeOf(bareTypePattern.Type);
+        if (patternType is not EnumType)
+            return null;
+
+        // The type reference contains the qualified name (e.g., "Direction.North").
+        // Extract it directly — this is an enum member access, not a type reference.
+        if (bareTypePattern.Type is NamedTypeRefTypeReferenceNode namedRef)
+        {
+            var qualifiedName = ExtractQualifiedName(namedRef.Name);
+            return $"{scrutineeExpr} == {qualifiedName}";
+        }
+
         return null;
     }
 

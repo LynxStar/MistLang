@@ -1,0 +1,279 @@
+// Enums — Demonstrates enum declaration features in Mist.
+//
+// This sample showcases:
+//   1. Explicit type annotation
+//   2. Inferred underlying type (homogeneous values)
+//   3. Name-only enum with auto-assigned byte values
+//   4. Mixed explicit/implicit values
+//   5. Union underlying type
+//   6. Member access via dot notation
+//   7. Enum as variable type
+//   8. Enum as parameter type
+//   9. Enum as return type
+//  10. Enum as field type
+//  11. Implicit conversion to underlying type
+//  12. Pattern matching with `is` expressions
+//  13. Public visibility
+//  14. Default (internal) visibility
+//  15. Trailing comma usage
+//  16. Enum with user-defined struct underlying type
+//  17. Enum with user-defined class underlying type
+//  18. Enum with interface/trait underlying types (noted as future enhancement)
+
+using System;
+
+namespace Enums;
+
+// --- 1. Explicit type annotation ---
+public enum Direction : string {
+    North: "N",
+    South: "S",
+    East: "E",
+    West: "W"
+}
+
+// --- 2. Inferred underlying type (all members are int) ---
+public enum Priority : int {
+    High: 1,
+    Medium: 2,
+    Low: 3
+}
+
+// --- 3. Name-only enum (auto-assigned byte values starting from 0) ---
+public enum Color {
+    Red,
+    Green,
+    Blue
+}
+
+// --- 4. Mixed explicit/implicit values ---
+public enum HttpStatus : int {
+    Ok: 200,
+    Created: 201,
+    BadRequest: 400,
+    NotFound,
+    InternalError: 500
+}
+
+// --- 5. Union underlying type ---
+public enum MixedResult : int | string {
+    Success: 0,
+    ErrorMsg: "error"
+}
+
+// --- 14. Default (internal) visibility ---
+enum LogLevel : int {
+    Info: 0,
+    Warn: 1,
+    Error: 2
+}
+
+// --- 15. Trailing comma usage ---
+public enum Season : int {
+    Spring: 1,
+    Summer: 2,
+    Autumn: 3,
+    Winter: 4,
+}
+
+// --- 16. Enum with user-defined struct underlying type ---
+public struct Vec2 {
+    public int x;
+    public int y;
+
+    public Vec2(int x, int y)
+    {
+        this.x = x;
+        this.y = y;
+    }
+
+    public string Describe()
+    {
+        return $"({this.x}, {this.y})";
+    }
+}
+
+public enum CardinalDir : Vec2 {
+    Up: new Vec2(0, 1),
+    Down: new Vec2(0, -1),
+    Left: new Vec2(-1, 0),
+    Right: new Vec2(1, 0)
+}
+
+// --- 17. Enum with user-defined class underlying type ---
+public class Label {
+    public string text;
+    public int code;
+
+    public Label(string text, int code)
+    {
+        this.text = text;
+        this.code = code;
+    }
+
+    public string Describe()
+    {
+        return $"Label({this.text}, {this.code})";
+    }
+}
+
+public enum Severity : Label {
+    Critical: new Label("CRITICAL", 1),
+    Warning: new Label("WARNING", 2),
+    Info: new Label("INFO", 3)
+}
+
+// --- 18/19. Interface and trait underlying types ---
+// NOTE: Interface-typed enums and trait-typed enums are deferred to a future
+// enhancement. The struct and class underlying types demonstrate the pattern.
+
+// --- Helper class demonstrating enum as field type (10) ---
+class Config {
+    public LogLevel level;
+
+    public Config(LogLevel lvl)
+    {
+        this.level = lvl;
+    }
+}
+
+public class Program
+{
+    // --- 8. Enum as parameter type ---
+    private static void PrintDirection(Direction dir)
+    {
+        Console.WriteLine($"  Direction value: {dir}");
+    }
+
+    // --- 9. Enum as return type ---
+    private static Priority GetDefaultPriority()
+    {
+        return Priority.Medium;
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Enums Sample ===");
+
+        // 1. Explicit type annotation — enum with string underlying type
+        Console.WriteLine("--- Explicit type annotation ---");
+        Console.WriteLine($"  Direction.North = {Direction.North}");
+        Console.WriteLine($"  Direction.South = {Direction.South}");
+        Console.WriteLine($"  Direction.East = {Direction.East}");
+        Console.WriteLine($"  Direction.West = {Direction.West}");
+
+        // 2. Inferred underlying type (int)
+        Console.WriteLine("--- Inferred type (int) ---");
+        Console.WriteLine($"  Priority.High = {Priority.High}");
+        Console.WriteLine($"  Priority.Medium = {Priority.Medium}");
+        Console.WriteLine($"  Priority.Low = {Priority.Low}");
+
+        // 3. Name-only enum (auto-assigned byte values)
+        Console.WriteLine("--- Name-only enum (byte) ---");
+        Console.WriteLine($"  Color.Red = {Color.Red}");
+        Console.WriteLine($"  Color.Green = {Color.Green}");
+        Console.WriteLine($"  Color.Blue = {Color.Blue}");
+
+        // 4. Mixed explicit/implicit values
+        Console.WriteLine("--- Mixed explicit/implicit ---");
+        Console.WriteLine($"  HttpStatus.Ok = {HttpStatus.Ok}");
+        Console.WriteLine($"  HttpStatus.Created = {HttpStatus.Created}");
+        Console.WriteLine($"  HttpStatus.BadRequest = {HttpStatus.BadRequest}");
+        Console.WriteLine($"  HttpStatus.NotFound = {HttpStatus.NotFound}");
+        Console.WriteLine($"  HttpStatus.InternalError = {HttpStatus.InternalError}");
+
+        // 5. Union underlying type
+        Console.WriteLine("--- Union underlying type ---");
+        Console.WriteLine($"  MixedResult.Success = {MixedResult.Success}");
+        Console.WriteLine($"  MixedResult.ErrorMsg = {MixedResult.ErrorMsg}");
+
+        // 6. Member access via dot notation
+        Console.WriteLine("--- Member access (dot notation) ---");
+        Direction north = Direction.North;
+        Console.WriteLine($"  north = {north}");
+
+        // 7. Enum as variable type
+        Console.WriteLine("--- Enum as variable type ---");
+        Color favorite = Color.Blue;
+        Console.WriteLine($"  favorite = {favorite}");
+
+        // 8. Enum as parameter type
+        Console.WriteLine("--- Enum as parameter type ---");
+        Program.PrintDirection(Direction.East);
+
+        // 9. Enum as return type
+        Console.WriteLine("--- Enum as return type ---");
+        Priority defaultPri = Program.GetDefaultPriority();
+        Console.WriteLine($"  default priority = {defaultPri}");
+
+        // 10. Enum as field type
+        Console.WriteLine("--- Enum as field type ---");
+        Config cfg = new Config(LogLevel.Warn);
+        Console.WriteLine($"  config level = {cfg.level}");
+
+        // 11. Implicit conversion to underlying type
+        Console.WriteLine("--- Implicit conversion ---");
+        int priValue = Priority.High;
+        Console.WriteLine($"  Priority.High as int = {priValue}");
+        string dirValue = Direction.North;
+        Console.WriteLine($"  Direction.North as string = {dirValue}");
+        byte colorValue = Color.Red;
+        Console.WriteLine($"  Color.Red as byte = {colorValue}");
+
+        // 12. Pattern matching with `is` expressions
+        Console.WriteLine("--- Pattern matching ---");
+        Direction d = Direction.North;
+        bool isNorth = d is Direction.North;
+        bool isSouth = d is Direction.South;
+        Console.WriteLine($"  d is Direction.North = {isNorth}");
+        Console.WriteLine($"  d is Direction.South = {isSouth}");
+
+        Color c = Color.Green;
+        bool isGreen = c is Color.Green;
+        bool isRed = c is Color.Red;
+        Console.WriteLine($"  c is Color.Green = {isGreen}");
+        Console.WriteLine($"  c is Color.Red = {isRed}");
+
+        // 13. Public visibility (Direction, Priority, Color are all public)
+        Console.WriteLine("--- Public visibility ---");
+        Console.WriteLine($"  Public enum Direction.North = {Direction.North}");
+
+        // 14. Default visibility
+        Console.WriteLine("--- Default visibility ---");
+        Console.WriteLine($"  Default enum LogLevel.Info = {LogLevel.Info}");
+        Console.WriteLine($"  Default enum LogLevel.Error = {LogLevel.Error}");
+
+        // 15. Trailing comma
+        Console.WriteLine("--- Trailing comma ---");
+        Console.WriteLine($"  Season.Spring = {Season.Spring}");
+        Console.WriteLine($"  Season.Winter = {Season.Winter}");
+
+        // 16. Enum with user-defined struct underlying type
+        Console.WriteLine("--- Struct underlying type ---");
+        Console.WriteLine($"  CardinalDir.Up = {CardinalDir.Up}");
+        Console.WriteLine($"  CardinalDir.Down = {CardinalDir.Down}");
+        Console.WriteLine($"  CardinalDir.Left = {CardinalDir.Left}");
+        Console.WriteLine($"  CardinalDir.Right = {CardinalDir.Right}");
+        Vec2 upVec = CardinalDir.Up;
+        Console.WriteLine($"  CardinalDir.Up as Vec2 = {upVec.Describe()}");
+
+        // 17. Enum with user-defined class underlying type
+        Console.WriteLine("--- Class underlying type ---");
+        Console.WriteLine($"  Severity.Critical = {Severity.Critical}");
+        Console.WriteLine($"  Severity.Warning = {Severity.Warning}");
+        Console.WriteLine($"  Severity.Info = {Severity.Info}");
+        Label critLabel = Severity.Critical;
+        Console.WriteLine($"  Severity.Critical as Label = {critLabel.Describe()}");
+
+        // 18/19. Interface and trait underlying types (deferred)
+        Console.WriteLine("--- Interface/Trait underlying types ---");
+        Console.WriteLine("  (Deferred to future enhancement)");
+
+        Console.WriteLine("Done!");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

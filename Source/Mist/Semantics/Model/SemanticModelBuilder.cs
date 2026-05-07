@@ -361,6 +361,44 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId ExtensionMemberShadowsReceiver = new("MIST_TC_0083");
 
+    // ── Enum diagnostic IDs (Task 3.6, Requirements 3.5, 3.6, 3.7, 5.2) ──
+
+    /// <summary>
+    /// An enum member's value expression is not assignable to the explicitly
+    /// annotated underlying type (Requirement 3.5). Fires during Pass 2 when
+    /// the member value type does not match the declared type annotation.
+    /// </summary>
+    internal static readonly DiagnosticId EnumMemberValueNotAssignableToExplicitType = new("MIST_SB_0080");
+
+    /// <summary>
+    /// An enum member's value expression is not assignable to the inferred
+    /// underlying type (Requirement 3.7). Fires during Pass 2 when the
+    /// member value type does not conform to the type inferred from other
+    /// members.
+    /// </summary>
+    internal static readonly DiagnosticId EnumMemberValueNotAssignableToInferredType = new("MIST_SB_0081");
+
+    /// <summary>
+    /// An expression accesses a member name that does not exist on the enum
+    /// (Requirement 5.2). Fires when <c>EnumName.InvalidMember</c> is used
+    /// and <c>InvalidMember</c> is not a declared member of the enum.
+    /// </summary>
+    internal static readonly DiagnosticId UndefinedEnumMemberAccess = new("MIST_SB_0082");
+
+    /// <summary>
+    /// A value of the underlying type is assigned to a variable of the enum
+    /// type (Requirement 7.3). Reverse conversion from underlying type to
+    /// enum type is not supported; only enum-to-underlying is implicit.
+    /// </summary>
+    internal static readonly DiagnosticId CannotAssignUnderlyingToEnum = new("MIST_SB_0083");
+
+    /// <summary>
+    /// An enum declaration uses a name that is already defined in the same
+    /// scope (Requirement 5.2 — duplicate enum name). Fires during Pass 1
+    /// when a second enum with the same name is registered.
+    /// </summary>
+    internal static readonly DiagnosticId DuplicateEnumName = new("MIST_SB_0084");
+
     public ISemanticModel Build(
         MistCompilation compilation,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
@@ -844,6 +882,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     traitTypeNode.TraitDeclaration,
                     parentScope, symbolTable, namespaceName, sourceText, diagnostics);
                 break;
+            case EnumTypeTypeDeclarationNode enumTypeNode:
+                RegisterEnumDeclaration(
+                    enumTypeNode.EnumDeclaration,
+                    parentScope, symbolTable, namespaceName, sourceText, diagnostics);
+                break;
         }
     }
 
@@ -990,6 +1033,44 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     symbolTable.Register(propSymbol, propertyDecl);
                     break;
                 }
+            }
+        }
+    }
+
+    private static void RegisterEnumDeclaration(
+        EnumDeclarationNode enumDecl,
+        Scope parentScope,
+        SymbolTable symbolTable,
+        string? namespaceName,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var enumName = enumDecl.Name.Lexeme;
+        var typeScope = new Scope(parent: parentScope);
+        var enumType = new EnumType(enumName, typeScope, namespaceName);
+
+        var enumSpan = ToMistSourceSpan(enumDecl.Name.Span);
+        var enumSymbol = new Symbol(enumName, SymbolKind.Enum, SymbolOrigin.UserCode, parentScope, enumType, enumSpan);
+
+        parentScope.AddMember(enumSymbol);
+        symbolTable.Register(enumSymbol, enumDecl);
+
+        // Register each enum member as a field symbol in the enum's MemberScope.
+        if (enumDecl.Members is not null)
+        {
+            var members = new List<EnumMemberNode> { enumDecl.Members.EnumMember };
+            foreach (var member in enumDecl.Members.EnumMembers)
+            {
+                members.Add(member);
+            }
+
+            foreach (var member in members)
+            {
+                var memberName = member.Name.Lexeme;
+                var memberSpan = ToMistSourceSpan(member.Name.Span);
+                var memberSymbol = new Symbol(memberName, SymbolKind.Field, SymbolOrigin.UserCode, typeScope, declaredType: enumType, memberSpan);
+                typeScope.AddMember(memberSymbol);
+                symbolTable.Register(memberSymbol, member);
             }
         }
     }
@@ -6066,7 +6147,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
                 && symbol.Name == typeName)
             {
                 return FindCompilationUnitPathForSymbol(symbol, symbolTable, asts, compilation);
@@ -6086,7 +6167,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
                 && symbol.Name == typeName)
             {
                 return FindSourceTextForSymbol(symbol, symbolTable, asts, compilation);
@@ -6104,7 +6185,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
                 && symbol.Name == typeName)
             {
                 return symbolTable.GetDeclaringNode(symbol);
@@ -6817,7 +6898,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // belongs to the target namespace.
         foreach (var member in globalScope.Members)
         {
-            if (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait)
+            if (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.Enum)
             {
                 // Top-level types (no namespace) — skip.
                 continue;
@@ -6827,7 +6908,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Walk all registered symbols to find a type in this namespace.
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
                 && symbol.ContainingScope is Scope parentScope
                 && parentScope.Parent == globalScope)
             {
@@ -6845,6 +6926,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     return parentScope;
                 }
                 if (symbol.DeclaredType is TraitType tt && tt.ContainingNamespace == namespaceName)
+                {
+                    return parentScope;
+                }
+                if (symbol.DeclaredType is EnumType et && et.ContainingNamespace == namespaceName)
                 {
                     return parentScope;
                 }
@@ -6877,7 +6962,229 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case TraitTypeTypeDeclarationNode traitTypeNode:
                 ResolveTraitDeclaration(traitTypeNode.TraitDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 break;
+            case EnumTypeTypeDeclarationNode enumTypeNode:
+                ResolveEnumDeclaration(enumTypeNode.EnumDeclaration, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
         }
+    }
+
+    // ── Enum type resolution (Pass 2) ──────────────────────────────────
+
+    /// <summary>
+    /// Resolves the underlying type and member values for an enum declaration.
+    /// <list type="number">
+    ///   <item>If an explicit type annotation is present, resolves the <see cref="TypeReferenceNode"/>.</item>
+    ///   <item>If members have value expressions, infers the underlying type from member value types
+    ///         (homogeneous → that type, heterogeneous → union type).</item>
+    ///   <item>If name-only (no values), sets the underlying type to <c>byte</c>.</item>
+    /// </list>
+    /// Assigns sequential values (0, 1, 2, …) for name-only members, continuing after explicit values.
+    /// </summary>
+    private static void ResolveEnumDeclaration(
+        EnumDeclarationNode enumDecl,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var enumSymbol = symbolTable.GetDeclaredSymbol(enumDecl);
+        if (enumSymbol?.DeclaredType is not EnumType enumType) return;
+
+        // Collect all member AST nodes.
+        var memberNodes = new List<EnumMemberNode>();
+        if (enumDecl.Members is not null)
+        {
+            memberNodes.Add(enumDecl.Members.EnumMember);
+            foreach (var member in enumDecl.Members.EnumMembers)
+            {
+                memberNodes.Add(member);
+            }
+        }
+
+        // ── Step 1: Resolve the underlying type ──────────────────────────
+
+        IType underlyingType;
+
+        if (enumDecl.TypeAnnotation is not null)
+        {
+            // Explicit type annotation — resolve the TypeReference node.
+            underlyingType = ResolveTypeReference(
+                enumDecl.TypeAnnotation, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+            if (underlyingType is ErrorType)
+            {
+                // Cannot resolve the annotated type — assign ErrorType and skip member validation.
+                enumType.UnderlyingType = ErrorType.Instance;
+                enumType.Members = memberNodes.Select(m => new EnumMemberInfo(m.Name.Lexeme)).ToList();
+                return;
+            }
+        }
+        else if (memberNodes.Any(m => m.Value is not null))
+        {
+            // Members have value expressions — infer from member value types.
+            // First, resolve all member value expressions to determine their types.
+            var valueTypes = new List<IType>();
+            foreach (var memberNode in memberNodes)
+            {
+                if (memberNode.Value is not null)
+                {
+                    var valueType = ResolveExpression(
+                        memberNode.Value, (Scope)enumType.MemberScope, fileScope, enumType,
+                        isStatic: true, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    valueTypes.Add(valueType);
+                }
+            }
+
+            // Determine underlying type: homogeneous → that type, heterogeneous → union type.
+            var distinctTypes = valueTypes
+                .Where(t => t is not ErrorType)
+                .Select(t => t.DisplayName)
+                .Distinct()
+                .ToList();
+
+            if (distinctTypes.Count == 0)
+            {
+                // All values resolved to ErrorType — fall back to byte.
+                underlyingType = ResolvePrimitiveByKeyword("byte", fileScope, symbolTable);
+            }
+            else if (distinctTypes.Count == 1)
+            {
+                // Homogeneous — use that type.
+                underlyingType = valueTypes.First(t => t is not ErrorType);
+            }
+            else
+            {
+                // Heterogeneous — create a union type from the distinct value types.
+                var uniqueTypes = new List<IType>();
+                var seenNames = new HashSet<string>();
+                foreach (var vt in valueTypes)
+                {
+                    if (vt is not ErrorType && seenNames.Add(vt.DisplayName))
+                    {
+                        uniqueTypes.Add(vt);
+                    }
+                }
+                underlyingType = new UnionType(uniqueTypes);
+            }
+        }
+        else
+        {
+            // Name-only enum — default underlying type is byte.
+            underlyingType = ResolvePrimitiveByKeyword("byte", fileScope, symbolTable);
+        }
+
+        enumType.UnderlyingType = underlyingType;
+
+        // ── Step 2: Resolve member values ────────────────────────────────
+
+        var memberInfos = new List<EnumMemberInfo>();
+        long nextSequentialValue = 0;
+
+        foreach (var memberNode in memberNodes)
+        {
+            var memberInfo = new EnumMemberInfo(memberNode.Name.Lexeme);
+
+            if (memberNode.Value is not null)
+            {
+                // Member has an explicit value expression.
+                // If we already resolved this expression above (during type inference),
+                // retrieve its type from the expression types map. Otherwise resolve it now.
+                IType valueType;
+                if (expressionTypes.ContainsKey(memberNode.Value))
+                {
+                    valueType = expressionTypes[memberNode.Value];
+                }
+                else
+                {
+                    valueType = ResolveExpression(
+                        memberNode.Value, (Scope)enumType.MemberScope, fileScope, enumType,
+                        isStatic: true, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                }
+
+                memberInfo.ValueType = valueType;
+
+                // Try to extract a compile-time integer value for sequencing.
+                var literalValue = TryExtractIntegerLiteral(memberNode.Value);
+                if (literalValue.HasValue)
+                {
+                    memberInfo.ResolvedValue = literalValue.Value;
+                    nextSequentialValue = literalValue.Value + 1;
+                }
+                else
+                {
+                    // Non-integer or complex expression — store null as resolved value.
+                    // The next implicit member still gets nextSequentialValue.
+                    memberInfo.ResolvedValue = null;
+                    // Don't advance nextSequentialValue for non-integer explicit values.
+                }
+            }
+            else
+            {
+                // Name-only member — assign sequential value.
+                memberInfo.ResolvedValue = nextSequentialValue;
+                memberInfo.ValueType = underlyingType;
+                nextSequentialValue++;
+            }
+
+            memberInfos.Add(memberInfo);
+        }
+
+        enumType.Members = memberInfos;
+    }
+
+    /// <summary>
+    /// Attempts to extract a compile-time integer value from a simple literal expression.
+    /// Returns <c>null</c> for complex expressions or non-integer literals.
+    /// </summary>
+    private static long? TryExtractIntegerLiteral(ExpressionNode expr)
+    {
+        // Navigate: Expression → Assignment → LogicalOr → LogicalAnd → Equality
+        //         → Relational → Additive → Multiplicative → Unary → Postfix → Primary
+        var assignment = expr.Assignment;
+        if (assignment?.Value is not null) return null; // It's an assignment, not a simple literal.
+
+        var logicalOr = assignment?.Target;
+        if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left)) return null;
+
+        var logicalAnd = logicalOr?.Left;
+        if (logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left)) return null;
+
+        var equality = logicalAnd?.Left;
+        if (equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left)) return null;
+
+        // Relational is a discriminated union.
+        if (equality?.Left is not RelationalComparisonRelationalNode relCmp) return null;
+        if (relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left)) return null;
+
+        var additive = relCmp.Left;
+        if (additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left)) return null;
+
+        var multiplicative = additive?.Left;
+        if (multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left)) return null;
+
+        // Unary is a discriminated union.
+        if (multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary) return null;
+
+        var postfix = postfixUnary.Primary;
+        if (postfix.Suffix.Length > 0) return null; // Has postfix suffixes (method calls, member access, etc.)
+
+        if (postfix.Target is not IntegerLiteralExpressionPrimaryNode intLiteral) return null;
+
+        var lexeme = intLiteral.IntegerLiteral.Lexeme;
+        // Strip suffixes for parsing.
+        var upper = lexeme.ToUpperInvariant();
+        var numericPart = lexeme;
+        if (upper.EndsWith("UL") || upper.EndsWith("LU"))
+            numericPart = lexeme[..^2];
+        else if (upper.EndsWith("L") || upper.EndsWith("U"))
+            numericPart = lexeme[..^1];
+
+        if (long.TryParse(numericPart, out var value))
+            return value;
+
+        return null;
     }
 
     // ── Type alias visited-set for cycle detection (Pass 2) ──────────────
@@ -9077,7 +9384,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // 2. Search current scope → parent scopes (local → file → namespace → global).
         var symbol = fileScope.Lookup(typeName);
-        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.TypeAlias))
+        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.TypeAlias || symbol.Kind == SymbolKind.Enum))
         {
             // For type aliases that haven't been resolved yet, trigger
             // recursive resolution so that cycle detection via
@@ -9116,7 +9423,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach (var member in nsScope.Members)
                 {
                     if (member.Name == typeName &&
-                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias))
+                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias || member.Kind == SymbolKind.Enum))
                     {
                         if (userResolvedType is not null)
                         {
@@ -9329,7 +9636,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (wellKnown is null)
             {
                 var symbol = fileScope.Lookup(argName);
-                if (symbol is null || (symbol.Kind != SymbolKind.Class && symbol.Kind != SymbolKind.Struct && symbol.Kind != SymbolKind.Interface && symbol.Kind != SymbolKind.Trait && symbol.Kind != SymbolKind.TypeAlias))
+                if (symbol is null || (symbol.Kind != SymbolKind.Class && symbol.Kind != SymbolKind.Struct && symbol.Kind != SymbolKind.Interface && symbol.Kind != SymbolKind.Trait && symbol.Kind != SymbolKind.TypeAlias && symbol.Kind != SymbolKind.Enum))
                 {
                     // Check user-defined namespace scopes first.
                     var importedNamespaces = CollectImportedNamespaces(fileScope);
@@ -9347,7 +9654,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             foreach (var member in nsScope.Members)
                             {
                                 if (member.Name == argName &&
-                                    (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias))
+                                    (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias || member.Kind == SymbolKind.Enum))
                                 {
                                     userResolved = true;
                                     break;
@@ -9798,6 +10105,33 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Bare type pattern: resolve the type reference (no binding name).
                 // Store the resolved type in the expression-type map so the
                 // type checker can retrieve it via GetTypeOf(bareTypePattern.Type).
+                //
+                // Special case: if the type reference is a qualified name like
+                // EnumName.MemberName, ResolveTypeReference will fail (it's not a type).
+                // We detect this and resolve it as an enum member access pattern instead.
+                if (bareTypePattern.Type is NamedTypeRefTypeReferenceNode namedPatternRef)
+                {
+                    var qualifiedName = ExtractQualifiedName(namedPatternRef.Name, sourceText);
+                    var dotIndex = qualifiedName.LastIndexOf('.');
+                    if (dotIndex > 0)
+                    {
+                        // Qualified name with a dot — try to resolve as EnumName.MemberName.
+                        var enumName = qualifiedName.Substring(0, dotIndex);
+                        var memberName = qualifiedName.Substring(dotIndex + 1);
+                        var enumSymbol = fileScope.Lookup(enumName);
+                        if (enumSymbol is not null && enumSymbol.Kind == SymbolKind.Enum && enumSymbol.DeclaredType is EnumType enumType)
+                        {
+                            var enumMember = enumType.MemberScope.Lookup(memberName);
+                            if (enumMember is not null)
+                            {
+                                // Valid enum member pattern — store the EnumType.
+                                expressionTypes[bareTypePattern.Type] = enumType;
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 var resolvedType = ResolveTypeReference(bareTypePattern.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                 expressionTypes[bareTypePattern.Type] = resolvedType;
                 break;
@@ -10621,7 +10955,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Check scope chain for type symbols (local → file → namespace → global).
         var symbol = fileScope.Lookup(name);
-        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.TypeAlias))
+        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.TypeAlias || symbol.Kind == SymbolKind.Enum))
         {
             return symbol.DeclaredType;
         }
@@ -10642,7 +10976,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach (var member in nsScope.Members)
                 {
                     if (member.Name == name &&
-                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias))
+                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias || member.Kind == SymbolKind.Enum))
                     {
                         return member.DeclaredType;
                     }
@@ -10693,6 +11027,30 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (targetType is TypeAliasType aliasTarget)
         {
             targetType = aliasTarget.UnderlyingType;
+        }
+
+        // Enum member access: EnumName.MemberName resolves to the EnumType itself.
+        // Enum members are static fields in the enum's MemberScope. If the member
+        // exists, the result type is the EnumType (not the underlying type).
+        // If the member does not exist, report MIST_SB_0082.
+        if (targetType is EnumType enumTarget)
+        {
+            var enumMember = enumTarget.MemberScope.Lookup(memberName);
+            if (enumMember is not null)
+            {
+                return enumTarget;
+            }
+
+            diagnostics.Add(new Diagnostic(
+                UndefinedEnumMemberAccess,
+                DiagnosticSeverity.Error,
+                PipelineStage.SemanticModelConstruction,
+                $"Enum '{enumTarget.DisplayName}' does not contain a member '{memberName}'.",
+                Location: null,
+                CompilationUnitPath: sourceText?.Path,
+                AnalyzerName: null));
+
+            return ErrorType.Instance;
         }
 
         // For ConstructedType, unwrap to the generic definition and look up the member,

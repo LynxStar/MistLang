@@ -109,7 +109,7 @@ public class UnionPrettyPrinterPropertyTests
                 $"Could not find field declaration in pretty-printed output:\n{prettyPrinted}");
 
         // Strip "    public " prefix and " x;" suffix
-        var trimmed = fieldLine.TrimStart();
+        var trimmed = fieldLine.Trim();
         const string prefix = "public ";
         const string suffix = " x;";
         if (trimmed.StartsWith(prefix) && trimmed.EndsWith(suffix))

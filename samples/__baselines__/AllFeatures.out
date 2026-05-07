@@ -358,4 +358,22 @@ Player: Alice, HP: 100
 Level: 1, Active: True
 App: Namespace Demo v1.0
 Done!
+--- Generic Constraints ---
+1. class constraint: RefOnly: hello
+2. struct constraint: ValOnly: 42
+3. interface constraint: first order = 10
+4. trait constraint: Widget#7
+5. base class constraint: Dog
+6. new() constraint: created Widget(0)
+7. new(int) constraint: Widget(99)
+8. multi-ctor: default=Widget(0), int=Widget(5), bool=Widget(1)
+9. multiple constraints: Widget(0)
+10. multiple where clauses: key=1, value=Widget(0)
+11. method constraint: Widget(0)
+12. propagation: new=Widget(0)
+13. any position: value=77
+14. interface with constraint: Widget(42)
+15. struct with constraint: holds a Widget
+16. generic trait: transformed=Widget(42), default=Widget(0)
+--- Generic Constraints Done ---
 === Done! ===

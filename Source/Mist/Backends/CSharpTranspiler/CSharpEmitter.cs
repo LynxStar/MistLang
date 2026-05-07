@@ -220,6 +220,13 @@ internal sealed class CSharpSourceWriter
     /// Null when not inside a generic method with factory parameters.
     /// </summary>
     private IReadOnlyList<TypeParameterType>? _currentMethodFactoryTypeParams;
+    /// <summary>
+    /// Type parameters of the current class/struct being emitted that have parameterized
+    /// constructor constraints. Used by <see cref="EmitConstructorDeclaration"/> to append
+    /// factory delegate parameters to user-defined constructors.
+    /// Null when not inside a type with parameterized constructor constraints.
+    /// </summary>
+    private IReadOnlyList<TypeParameterType>? _currentClassFactoryTypeParams;
     private readonly HashSet<string> _valueReturningVoidMethods = new(StringComparer.Ordinal);
     /// <summary>
     /// The name of the currently-being-emitted extension class. Set during
@@ -1456,7 +1463,19 @@ internal sealed class CSharpSourceWriter
             {
                 hasFactoryFields = true;
                 EmitFactoryDelegateFields(typeParamsForFactory);
-                EmitFactoryDelegateConstructor(name, typeParamsForFactory);
+
+                // If the class has user-defined constructors, merge factory params into them
+                // instead of emitting a separate synthetic constructor.
+                var hasUserConstructors = classDecl.Members.Any(m =>
+                    m is ConstructorMemberMemberDeclarationNode);
+                if (hasUserConstructors)
+                {
+                    _currentClassFactoryTypeParams = typeParamsForFactory;
+                }
+                else
+                {
+                    EmitFactoryDelegateConstructor(name, typeParamsForFactory);
+                }
             }
         }
 
@@ -1471,6 +1490,9 @@ internal sealed class CSharpSourceWriter
             }
             EmitMemberDeclaration(classDecl.Members[i]);
         }
+
+        // Clear class-level factory tracking after emitting all members.
+        _currentClassFactoryTypeParams = null;
 
         // Emit explicit interface implementations for with-mapped trait members.
         if (symbol?.DeclaredType is ClassType classTypeForTraits)
@@ -2114,7 +2136,19 @@ internal sealed class CSharpSourceWriter
             {
                 hasFactoryFields = true;
                 EmitFactoryDelegateFields(typeParamsForFactory);
-                EmitFactoryDelegateConstructor(name, typeParamsForFactory);
+
+                // If the struct has user-defined constructors, merge factory params into them
+                // instead of emitting a separate synthetic constructor.
+                var hasUserConstructors = structDecl.Members.Any(m =>
+                    m is ConstructorMemberMemberDeclarationNode);
+                if (hasUserConstructors)
+                {
+                    _currentClassFactoryTypeParams = typeParamsForFactory;
+                }
+                else
+                {
+                    EmitFactoryDelegateConstructor(name, typeParamsForFactory);
+                }
             }
         }
 
@@ -2129,6 +2163,9 @@ internal sealed class CSharpSourceWriter
             }
             EmitMemberDeclaration(structDecl.Members[i]);
         }
+
+        // Clear class-level factory tracking after emitting all members.
+        _currentClassFactoryTypeParams = null;
 
         // Emit explicit interface implementations for with-mapped trait members.
         if (symbol?.DeclaredType is StructType structTypeForTraits)
@@ -2459,6 +2496,19 @@ internal sealed class CSharpSourceWriter
         var name = ctorDecl.Name.Lexeme;
         var parameters = EmitParameterList(ctorDecl.Parameters);
 
+        // Append factory delegate parameters when the enclosing type has parameterized
+        // constructor constraints and user-defined constructors (merged approach).
+        if (_currentClassFactoryTypeParams is not null)
+        {
+            var factoryParams = GetFactoryDelegateMethodParams(_currentClassFactoryTypeParams);
+            if (factoryParams.Length > 0)
+            {
+                parameters = parameters.Length > 0
+                    ? $"{parameters}, {factoryParams}"
+                    : factoryParams;
+            }
+        }
+
         var chain = "";
         if (ctorDecl.Chain is ThisChainConstructorChainNode thisChain)
         {
@@ -2472,7 +2522,20 @@ internal sealed class CSharpSourceWriter
         AppendLine($"{modifiers}{name}({parameters}){chain}");
         if (ctorDecl.Body.GetBlock() is BlockNode block)
         {
-            EmitBlock(block);
+            // Emit factory field assignments at the start of the constructor body.
+            if (_currentClassFactoryTypeParams is not null)
+            {
+                AppendLine("{");
+                _indentLevel++;
+                EmitFactoryFieldAssignments(_currentClassFactoryTypeParams);
+                EmitBlockStatements(block);
+                _indentLevel--;
+                AppendLine("}");
+            }
+            else
+            {
+                EmitBlock(block);
+            }
         }
         else
         {
@@ -3684,7 +3747,17 @@ internal sealed class CSharpSourceWriter
     {
         AppendLine("{");
         _indentLevel++;
+        EmitBlockStatements(block);
+        _indentLevel--;
+        AppendLine("}");
+    }
 
+    /// <summary>
+    /// Emits the statements within a block (including pending union pattern bindings)
+    /// without emitting the surrounding braces or adjusting indentation.
+    /// </summary>
+    private void EmitBlockStatements(BlockNode block)
+    {
         // Inject any pending union pattern variable bindings at the start of the block.
         // These are queued by TryEmitUnionPatternMatch when emitting `if (x.IsT)` conditions.
         if (_pendingUnionPatternBindings.Count > 0)
@@ -3700,9 +3773,6 @@ internal sealed class CSharpSourceWriter
         {
             EmitStatement(stmt);
         }
-
-        _indentLevel--;
-        AppendLine("}");
     }
 
     private void EmitStatement(StatementNode stmt)
@@ -5447,6 +5517,24 @@ internal sealed class CSharpSourceWriter
         }
         _indentLevel--;
         AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emits factory field assignment statements for use inside user-defined constructors.
+    /// E.g., "_factoryT_int = factoryT_int;"
+    /// </summary>
+    private void EmitFactoryFieldAssignments(IReadOnlyList<TypeParameterType> typeParameters)
+    {
+        foreach (var typeParam in typeParameters)
+        {
+            var parameterizedConstraints = GetParameterizedConstructorConstraints(typeParam.Constraints);
+            foreach (var paramTypes in parameterizedConstraints)
+            {
+                var paramName = GetFactoryParamName(typeParam, paramTypes);
+                var fieldName = GetFactoryFieldName(typeParam, paramTypes);
+                AppendLine($"{fieldName} = {paramName};");
+            }
+        }
     }
 
     /// <summary>

@@ -49,7 +49,9 @@ internal class Program
 
     private static int RunBuildPipeline(CliArguments cliArgs)
     {
-        var reporter = new ConsoleProgressReporter(Console.Out);
+        ICompilationProgressReporter reporter = cliArgs.Quiet
+            ? NullProgressReporter.Instance
+            : new ConsoleProgressReporter(Console.Out);
         var totalStopwatch = Stopwatch.StartNew();
 
         // Discover all .mist source files from the project folder, sorted ordinally.
@@ -187,7 +189,7 @@ internal class Program
         return hasErrors ? 1 : 0;
     }
 
-    private static int RunCompileMode(List<string> sourceFiles, CliArguments cliArgs, ConsoleProgressReporter reporter, Stopwatch totalStopwatch)
+    private static int RunCompileMode(List<string> sourceFiles, CliArguments cliArgs, ICompilationProgressReporter reporter, Stopwatch totalStopwatch)
     {
         var result = CompileProject(sourceFiles, cliArgs, reporter);
 
@@ -245,7 +247,9 @@ internal class Program
 
     private static int RunRunCommand(CliArguments cliArgs)
     {
-        var reporter = new ConsoleProgressReporter(Console.Out);
+        ICompilationProgressReporter reporter = cliArgs.Quiet
+            ? NullProgressReporter.Instance
+            : new ConsoleProgressReporter(Console.Out);
         var totalStopwatch = Stopwatch.StartNew();
 
         // Discover all .mist source files from the project folder, sorted ordinally.

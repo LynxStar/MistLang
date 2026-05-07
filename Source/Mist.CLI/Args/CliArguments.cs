@@ -20,7 +20,8 @@ public sealed record CliArguments(
     string BackendId = "csharp",
     string OutputDirectory = "",
     string BinDirectory = "",
-    CompilerMode Mode = CompilerMode.Compile);
+    CompilerMode Mode = CompilerMode.Compile,
+    bool Quiet = false);
 
 /// <summary>
 /// The compiler execution mode.

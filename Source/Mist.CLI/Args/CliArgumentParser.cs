@@ -24,6 +24,7 @@ public static class CliArgumentParser
         var outputDirectory = "";
         var binDirectory = "";
         var mode = CompilerMode.Compile;
+        var quiet = false;
 
         for(var i = 0; i < args.Length; i++)
         {
@@ -85,6 +86,10 @@ public static class CliArgumentParser
                         errors.Add(new CliParseError($"Unknown mode: '{args[i]}'. Valid modes: compile, lex"));
                     }
                 }
+            }
+            else if(arg == "--quiet" || arg == "-q")
+            {
+                quiet = true;
             }
             else if(arg.StartsWith("--"))
             {
@@ -162,7 +167,7 @@ public static class CliArgumentParser
         }
 
         return new CliParseResult(
-            new CliArguments(projectFolder!, Command: command, backendId, outputDirectory, binDirectory, mode),
+            new CliArguments(projectFolder!, Command: command, backendId, outputDirectory, binDirectory, mode, quiet),
             errors);
     }
 }

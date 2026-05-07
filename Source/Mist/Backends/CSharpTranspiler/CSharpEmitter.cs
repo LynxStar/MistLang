@@ -1658,6 +1658,14 @@ internal sealed class CSharpSourceWriter
             inheritanceClause = $" : {EmitBaseListWithTypeArgs(traitDecl.Parents)}";
         }
         AppendLine($"interface {name}{typeParams}{inheritanceClause}");
+
+        // Emit constraint clauses for the trait's type parameters.
+        var traitSymbol = _model.AllSymbols.FirstOrDefault(s => s.Name == name && s.DeclaredType is TraitType);
+        if (traitSymbol?.DeclaredType is TraitType traitTypeForConstraints)
+        {
+            EmitConstraintClauses(traitTypeForConstraints.TypeParameters);
+        }
+
         AppendLine("{");
         _indentLevel++;
 

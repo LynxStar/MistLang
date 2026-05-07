@@ -194,6 +194,7 @@ rule InterfaceAccessorDeclaration
 rule TraitDeclaration = modifiers:Modifier* TRAIT name:IDENTIFIER
     typeParams:TypeParameterList?
     parentTraits:(COLON parents:BaseList)?
+    constraints:ConstraintClause*
     LEFT_BRACE members:TraitMemberDeclaration* RIGHT_BRACE;
 
 rule TraitMemberDeclaration

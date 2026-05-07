@@ -779,7 +779,8 @@ public sealed class MistPrettyPrinter
         {
             parentClause = $" : {EmitBaseList(traitDecl.Parents)}";
         }
-        AppendLine($"trait {name}{typeParams}{parentClause} {{");
+        var constraintClauses = EmitConstraintClauses(traitDecl.Constraints);
+        AppendLine($"trait {name}{typeParams}{parentClause}{constraintClauses} {{");
         _indentLevel++;
 
         for (var i = 0; i < traitDecl.Members.Length; i++)

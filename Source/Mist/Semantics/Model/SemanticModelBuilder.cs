@@ -3314,10 +3314,44 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     return tpt;
                 }
 
+                // If the symbol found is not a type (e.g., a constructor with the same
+                // name as the class), skip it and look in the parent scope instead.
+                if (resolvedSymbol is not null
+                    && resolvedSymbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum))
+                {
+                    resolvedSymbol = null;
+                }
+
                 // Look up in the parent scope chain (for concrete types).
                 if (resolvedSymbol is null && memberScope?.Parent is not null)
                 {
                     resolvedSymbol = memberScope.Parent.Lookup(argName);
+                }
+
+                // If the parent scope lookup also found a non-type symbol, try
+                // walking further up the scope chain to find a type symbol.
+                if (resolvedSymbol is not null
+                    && resolvedSymbol.DeclaredType is null
+                    && resolvedSymbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum))
+                {
+                    // Walk up the scope chain manually to find a type symbol.
+                    IScope? searchScope = memberScope?.Parent?.Parent;
+                    resolvedSymbol = null;
+                    while (searchScope is not null && resolvedSymbol is null)
+                    {
+                        if (searchScope is Scope s)
+                        {
+                            foreach (var m in s.Members)
+                            {
+                                if (m.Name == argName && m.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum)
+                                {
+                                    resolvedSymbol = m;
+                                    break;
+                                }
+                            }
+                        }
+                        searchScope = searchScope.Parent;
+                    }
                 }
 
                 if (resolvedSymbol is not null && resolvedSymbol.DeclaredType is not null)
@@ -4065,7 +4099,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (constraintClauses.IsDefaultOrEmpty || typeParameters.Count == 0)
                 continue;
 
-            var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+            var sourceText = FindSourceTextForSymbol(symbol, symbolTable, asts, compilation)
+                ?? FindSourceTextForNode(declaringNode, asts, compilation);
             var declaringName = symbol.Name;
 
             // Track which type parameters have already been constrained to detect duplicates.
@@ -4103,7 +4138,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 // Resolve the constraints in this clause.
                 var constraints = ResolveConstraintClause(
-                    clause, typeParam, symbol, declaringNode, asts, compilation, diagnostics, sourceText);
+                    clause, typeParam, symbol, declaringNode, symbolTable, asts, compilation, diagnostics, sourceText);
 
                 // Store the resolved constraints on the type parameter.
                 typeParam.Constraints = constraints;
@@ -4129,6 +4164,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             case InterfaceDeclarationNode interfaceDecl when symbol.DeclaredType is InterfaceType interfaceType:
                 return (interfaceDecl.Constraints, interfaceType.TypeParameters);
+
+            case TraitDeclarationNode traitDecl when symbol.DeclaredType is TraitType traitType:
+                return (traitDecl.Constraints, traitType.TypeParameters);
 
             case MethodDeclarationNode methodDecl when symbol is Symbol methodSymbol:
                 return (methodDecl.Constraints, methodSymbol.TypeParameters);
@@ -4166,6 +4204,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         TypeParameterType typeParam,
         ISymbol declaringSymbol,
         Storm.Runtime.SyntaxNode declaringNode,
+        SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation,
         DiagnosticBag diagnostics,
@@ -4202,7 +4241,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 case ConstructorConstraintConstraintNode ctorConstraint:
                 {
                     var paramTypes = ResolveConstructorConstraintParams(
-                        ctorConstraint, declaringSymbol, declaringNode, asts, compilation, diagnostics, sourceText);
+                        ctorConstraint, declaringSymbol, declaringNode, symbolTable, asts, compilation, diagnostics, sourceText);
                     constructorConstraints.Add(paramTypes);
                     break;
                 }
@@ -4254,6 +4293,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ConstructorConstraintConstraintNode ctorConstraint,
         ISymbol declaringSymbol,
         Storm.Runtime.SyntaxNode declaringNode,
+        SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation,
         DiagnosticBag diagnostics,
@@ -4267,14 +4307,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Resolve the first parameter type.
         var firstType = ResolveConstraintParamType(
-            ctorConstraint.ParamTypes.TypeReference, scope, declaringNode, asts, compilation, diagnostics, sourceText);
+            ctorConstraint.ParamTypes.TypeReference, scope, symbolTable, declaringNode, asts, compilation, diagnostics, sourceText);
         paramTypes.Add(firstType);
 
         // Resolve additional parameter types.
         foreach (var typeRef in ctorConstraint.ParamTypes.TypeReferences)
         {
             var resolvedType = ResolveConstraintParamType(
-                typeRef, scope, declaringNode, asts, compilation, diagnostics, sourceText);
+                typeRef, scope, symbolTable, declaringNode, asts, compilation, diagnostics, sourceText);
             paramTypes.Add(resolvedType);
         }
 
@@ -4288,16 +4328,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static IType ResolveConstraintParamType(
         TypeReferenceNode typeRef,
         IScope scope,
+        SymbolTable symbolTable,
         Storm.Runtime.SyntaxNode declaringNode,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation,
         DiagnosticBag diagnostics,
         SourceText? sourceText)
     {
-        // For primitive type references, resolve directly via legacy primitives.
-        // In Pass 1b we don't have the full file scope, so we use the legacy path.
+        // For primitive type references, resolve through the stdlib path so
+        // that the resolved type is the same instance used during Pass 2
+        // (e.g., Standard.Int32 rather than the legacy "int" singleton).
+        // Falls back to legacy primitives when stdlib is not loaded (unit tests).
         if (typeRef is PrimitiveTypeRefTypeReferenceNode primitiveRef)
         {
+            try
+            {
+                var globalScope = FindGlobalScopeFromIScope(scope);
+                if (globalScope is not null)
+                    return ResolvePrimitiveKeyword(globalScope, symbolTable, primitiveRef.PrimitiveType);
+            }
+            catch (StdlibMissingException)
+            {
+                // Fall through to legacy path.
+            }
             return ResolveLegacyPrimitive(primitiveRef.PrimitiveType);
         }
 
@@ -9307,9 +9360,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         try
         {
+            // Create a resolution scope that includes the alias's type parameters
+            // so that type parameter names (e.g., T in type Box<T> = GenericBox<T>)
+            // can be resolved when resolving the target type reference.
+            var resolutionScope = fileScope;
+            if (aliasSymbol.TypeParameters.Count > 0)
+            {
+                resolutionScope = new Scope(parent: fileScope);
+                foreach (var tp in aliasSymbol.TypeParameters)
+                {
+                    var tpSymbol = new Symbol(tp.Name, SymbolKind.Class, SymbolOrigin.UserCode, resolutionScope, tp, null);
+                    resolutionScope.AddMember(tpSymbol);
+                }
+            }
+
             // Resolve the target type reference.
             var targetType = ResolveTypeReference(
-                aliasDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                aliasDecl.Type, resolutionScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
 
             // Check if the resolved type is an error (unresolved).
             if (targetType is ErrorType)
@@ -9356,14 +9423,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         var typeScope = (Scope)classType.MemberScope;
 
-        // Propagate type parameters from the type scope to the file scope so
-        // that type parameter names (e.g., T in GenericBox<T>) can be resolved
-        // when resolving member type references through the file scope.
-        PropagateTypeParameters(typeScope, fileScope);
+        // Create a per-class resolution scope that layers the class's type
+        // parameters on top of the file scope. This ensures that type parameter
+        // names (e.g., T in GenericBox<T>) resolve to the correct
+        // TypeParameterType instance for THIS class, not a same-named parameter
+        // from a different generic class in the same file.
+        var classFileScope = CreateTypeParameterScope(typeScope, fileScope);
 
         foreach (var memberDecl in classDecl.Members)
         {
-            ResolveMemberDeclaration(memberDecl, typeScope, fileScope, classType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            ResolveMemberDeclaration(memberDecl, typeScope, classFileScope, classType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
         }
     }
 
@@ -9381,12 +9450,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         var typeScope = (Scope)structType.MemberScope;
 
-        // Propagate type parameters from the type scope to the file scope.
-        PropagateTypeParameters(typeScope, fileScope);
+        // Create a per-struct resolution scope that layers the struct's type
+        // parameters on top of the file scope.
+        var structFileScope = CreateTypeParameterScope(typeScope, fileScope);
 
         foreach (var memberDecl in structDecl.Members)
         {
-            ResolveMemberDeclaration(memberDecl, typeScope, fileScope, structType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            ResolveMemberDeclaration(memberDecl, typeScope, structFileScope, structType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
         }
     }
 
@@ -9401,11 +9471,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var interfaceSymbol = symbolTable.GetDeclaredSymbol(interfaceDecl);
         if (interfaceSymbol?.DeclaredType is not InterfaceType interfaceType) return;
 
-        // Propagate type parameters from the interface's type scope to the file
-        // scope so that type parameter names (e.g., T in IGenericContainer<T>)
-        // can be resolved when resolving member type references.
+        // Create a per-interface resolution scope that layers the interface's
+        // type parameters on top of the file scope.
         var typeScope = (Scope)interfaceType.MemberScope;
-        PropagateTypeParameters(typeScope, fileScope);
+        var interfaceFileScope = CreateTypeParameterScope(typeScope, fileScope);
 
         // Resolve return types and parameter types for each interface member.
         foreach (var member in interfaceDecl.Members)
@@ -9415,7 +9484,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 case InterfaceMethodMemberInterfaceMemberDeclarationNode methodMember:
                 {
                     var methodDecl = methodMember.Method;
-                    var returnType = ResolveTypeReference(methodDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                    var returnType = ResolveTypeReference(methodDecl.ReturnType, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                     var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
                     if (methodSymbol is not null)
                     {
@@ -9426,15 +9495,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // parameter types for overload duplicate-signature detection.
                     if (methodDecl.Parameters is not null)
                     {
-                        var methodScope = new Scope(parent: fileScope);
-                        RegisterParameters(methodDecl.Parameters, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                        var methodScope = new Scope(parent: interfaceFileScope);
+                        RegisterParameters(methodDecl.Parameters, methodScope, interfaceFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                     }
                     break;
                 }
                 case InterfacePropertyMemberInterfaceMemberDeclarationNode propertyMember:
                 {
                     var propDecl = propertyMember.Property;
-                    var propType = ResolveTypeReference(propDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                    var propType = ResolveTypeReference(propDecl.Type, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                     var propSymbol = symbolTable.GetDeclaredSymbol(propDecl) as Symbol;
                     if (propSymbol is not null)
                     {
@@ -11607,6 +11676,71 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Finds the global scope by walking up the parent chain from an <see cref="IScope"/>.
+    /// Used in Pass 1b constraint resolution where only an IScope is available.
+    /// </summary>
+    private static Scope? FindGlobalScopeFromIScope(IScope scope)
+    {
+        IScope? current = scope;
+        while (current is not null)
+        {
+            if (current is Scope s && s.Parent is null)
+                return s;
+            current = current.Parent;
+        }
+        return scope as Scope;
+    }
+
+    /// <summary>
+    /// Substitutes type parameters in a type with the corresponding type arguments.
+    /// If the type is a <see cref="TypeParameterType"/> that matches one of the
+    /// type parameters, returns the corresponding type argument. Otherwise returns
+    /// the type unchanged. Handles constructed types recursively.
+    /// </summary>
+    private static IType SubstituteTypeParameters(
+        IType type,
+        IReadOnlyList<TypeParameterType> typeParameters,
+        IReadOnlyList<IType> typeArguments)
+    {
+        if (type is TypeParameterType tpt)
+        {
+            for (var i = 0; i < typeParameters.Count; i++)
+            {
+                if (ReferenceEquals(tpt, typeParameters[i]))
+                    return typeArguments[i];
+            }
+            // Type parameter not in the substitution list — return as-is.
+            return type;
+        }
+
+        if (type is ConstructedType ct)
+        {
+            var substitutedArgs = new List<IType>(ct.TypeArguments.Count);
+            var anyChanged = false;
+            foreach (var arg in ct.TypeArguments)
+            {
+                var substituted = SubstituteTypeParameters(arg, typeParameters, typeArguments);
+                substitutedArgs.Add(substituted);
+                if (!ReferenceEquals(substituted, arg))
+                    anyChanged = true;
+            }
+            if (anyChanged)
+                return new ConstructedType(ct.GenericDefinition, substitutedArgs);
+            return type;
+        }
+
+        if (type is ArrayType arrayType)
+        {
+            var substitutedElement = SubstituteTypeParameters(arrayType.ElementType, typeParameters, typeArguments);
+            if (!ReferenceEquals(substitutedElement, arrayType.ElementType))
+                return new ArrayType(substitutedElement);
+            return type;
+        }
+
+        return type;
+    }
+
+    /// <summary>
     /// Resolves type arguments on a type reference in Pass 2 context.
     /// Validates arity and emits diagnostics for mismatches and non-generic types.
     /// Returns a <see cref="ConstructedType"/> if the type is generic with matching arity,
@@ -11831,21 +11965,36 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Copies type parameter symbols from the type scope to the file scope so that
-    /// type parameter names (e.g., T) can be resolved when resolving member type
-    /// references through the file scope. Only symbols whose DeclaredType is
-    /// <see cref="TypeParameterType"/> are copied, avoiding constructor/method
-    /// name collisions.
+    /// Creates a new scope that layers the type parameters from <paramref name="typeScope"/>
+    /// on top of <paramref name="fileScope"/>. This ensures that type parameter names
+    /// resolve to the correct TypeParameterType instance for the current generic
+    /// declaration, without polluting the shared file scope with type parameters
+    /// from multiple generic types.
     /// </summary>
-    private static void PropagateTypeParameters(Scope typeScope, Scope fileScope)
+    private static Scope CreateTypeParameterScope(Scope typeScope, Scope fileScope)
     {
+        var hasTypeParams = false;
         foreach (var member in typeScope.Members)
         {
             if (member.DeclaredType is TypeParameterType)
             {
-                fileScope.AddMember(member);
+                hasTypeParams = true;
+                break;
             }
         }
+
+        if (!hasTypeParams)
+            return fileScope;
+
+        var scope = new Scope(parent: fileScope);
+        foreach (var member in typeScope.Members)
+        {
+            if (member.DeclaredType is TypeParameterType)
+            {
+                scope.AddMember(member);
+            }
+        }
+        return scope;
     }
 
     /// <summary>
@@ -12687,7 +12836,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 sourceText));
                             memberType = ErrorType.Instance;
                         }
-                        // Type arguments are valid — substitution will be handled by the type checker.
+                        else
+                        {
+                            // Substitute type parameters in the return type with
+                            // the resolved type arguments.
+                            memberType = SubstituteTypeParameters(memberType, sym.TypeParameters, resolvedTypeArgs);
+                        }
                     }
                     else if (methodSymbol is not null)
                     {
@@ -14423,11 +14577,32 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var span = qualifiedId.Span;
             if (span.Length > 0 && span.Start + span.Length <= sourceText.Contents.Length)
             {
-                return sourceText.Contents.Substring(span.Start, span.Length);
+                var extracted = sourceText.Contents.Substring(span.Start, span.Length);
+                // Validate that the extracted text looks like a qualified identifier
+                // (only letters, digits, underscores, and dots). If not, the source
+                // text is from the wrong file (overlapping AST spans across files).
+                if (IsValidQualifiedIdentifier(extracted))
+                    return extracted;
             }
         }
 
         return qualifiedId.IDENTIFIER.Lexeme;
+    }
+
+    /// <summary>
+    /// Checks whether a string looks like a valid qualified identifier (e.g., "Foo.Bar.Baz").
+    /// Used to validate source text extraction results.
+    /// </summary>
+    private static bool IsValidQualifiedIdentifier(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return false;
+        foreach (var ch in text)
+        {
+            if (!char.IsLetterOrDigit(ch) && ch != '_' && ch != '.')
+                return false;
+        }
+        return true;
     }
 
     // ─── Shared Utilities ────────────────────────────────────────────────

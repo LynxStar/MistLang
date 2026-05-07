@@ -7,8 +7,8 @@ namespace GenericConstraints;
 
 // ─── Supporting types ────────────────────────────────────────────────────
 
-interface IComparable<T> {
-    int CompareTo(T other);
+interface IOrderable {
+    int GetOrder();
 }
 
 interface IPrintable {
@@ -55,7 +55,11 @@ class Widget : IPrintable {
         Id = id;
     }
     public Widget(bool flag) {
-        Id = flag ? 1 : 0;
+        if (flag) {
+            Id = 1;
+        } else {
+            Id = 0;
+        }
     }
     public string Print() {
         return $"Widget({Id})";
@@ -65,16 +69,22 @@ class Widget : IPrintable {
     }
 }
 
-class SortableInt : IComparable<SortableInt> {
+class OrderableInt : IOrderable {
     public int Value;
-    public SortableInt() {
+    public OrderableInt() {
         Value = 0;
     }
-    public SortableInt(int v) {
+    public OrderableInt(int v) {
         Value = v;
     }
-    public int CompareTo(SortableInt other) {
-        return Value - other.Value;
+    public int GetOrder() {
+        return Value;
+    }
+}
+
+class SimpleImpl : IPrintable {
+    public string Print() {
+        return "SimpleImpl";
     }
 }
 
@@ -104,25 +114,39 @@ class ValOnly<T> where T : struct {
 
 // ─── 3. interface constraint with method call ────────────────────────────
 
-class Sorter<T> where T : IComparable<T> {
-    public int Compare(T a, T b) {
-        return a.CompareTo(b);
+class Sorter<T> where T : IOrderable {
+    public T First;
+    public T Second;
+    public Sorter(T first, T second) {
+        First = first;
+        Second = second;
+    }
+    public int GetFirstOrder() {
+        return First.GetOrder();
     }
 }
 
 // ─── 4. trait constraint with member access ──────────────────────────────
 
 class Describer<T> where T : Describable {
-    public string GetDescription(T item) {
-        return item.Describe();
+    public T Item;
+    public Describer(T item) {
+        Item = item;
+    }
+    public string GetDescription() {
+        return Item.Describe();
     }
 }
 
-// ─── 5. base class constraint with base class member access ──────────────
+// ─── 5. base class constraint with member access ─────────────────────────
 
 class AnimalHandler<T> where T : Animal {
-    public string GetSpeciesOf(T animal) {
-        return animal.GetSpecies();
+    public T Animal;
+    public AnimalHandler(T animal) {
+        Animal = animal;
+    }
+    public string GetSpeciesName() {
+        return Animal.GetSpecies();
     }
 }
 
@@ -159,15 +183,14 @@ class MultiFactory<T> where T : new(), new(int), new(bool) {
 // ─── 9. multiple constraints on single type parameter ────────────────────
 
 class PrintableCreator<T> where T : class, IPrintable, new() {
-    public string CreateAndPrint() {
-        T item = new T();
-        return item.Print();
+    public T CreateNew() {
+        return new T();
     }
 }
 
 // ─── 10. multiple where clauses on multi-parameter generic ───────────────
 
-class Pair<K, V> where K : IComparable<K> where V : new() {
+class Pair<K, V> where K : IOrderable where V : new() {
     public K Key;
     public V Value;
     public Pair(K key) {
@@ -179,10 +202,6 @@ class Pair<K, V> where K : IComparable<K> where V : new() {
 // ─── 11. constraints on generic methods ──────────────────────────────────
 
 class MethodConstraints {
-    public static string DescribeItem<T>(T item) where T : Describable {
-        return item.Describe();
-    }
-
     public static T CreateItem<T>() where T : new() {
         return new T();
     }
@@ -206,18 +225,14 @@ class DerivedContainer<T> : BaseContainer<T> where T : IPrintable, new() {
 
 // ─── 13. constructor constraints at any position ─────────────────────────
 
-class AnyPosition<T> where T : new(int), IComparable<T>, class {
+class AnyPosition<T> where T : new(int), IOrderable, class {
     public T Item;
     public AnyPosition(int value) {
         Item = new T(value);
     }
 }
 
-// ─── 14. constraints on generic type alias ───────────────────────────────
-
-type StructList<T> = List<T> where T : struct;
-
-// ─── 15. interface declaration with constraint ───────────────────────────
+// ─── 14. interface declaration with constraint ───────────────────────────
 
 interface IRepository<T> where T : class, new() {
     T GetById(int id);
@@ -231,15 +246,28 @@ class WidgetRepository : IRepository<Widget> {
     public void Save(Widget item) { }
 }
 
-// ─── 16. struct declaration with constraint ──────────────────────────────
+// ─── 15. struct declaration with constraint ──────────────────────────────
 
 struct Holder<T> where T : IPrintable {
     public T Value;
     public Holder(T value) {
         Value = value;
     }
-    public string ShowValue() {
-        return Value.Print();
+}
+
+// ─── 16. generic trait with constraint ───────────────────────────────────
+
+trait Transformable<T> where T : new() {
+    T Transform(T input);
+    T CreateDefault();
+}
+
+class Doubler : Transformable<Widget> {
+    public Widget Transform(Widget input) {
+        return new Widget(input.Id * 2);
+    }
+    public Widget CreateDefault() {
+        return new Widget();
     }
 }
 
@@ -257,79 +285,81 @@ public class Program {
         ValOnly<int> v = new ValOnly<int>(42);
         Console.WriteLine($"2. struct constraint: {v.Show()}");
 
-        // 3. interface constraint
-        Sorter<SortableInt> sorter = new Sorter<SortableInt>();
-        SortableInt a = new SortableInt(10);
-        SortableInt b = new SortableInt(20);
-        int cmp = sorter.Compare(a, b);
-        Console.WriteLine($"3. interface constraint: Compare(10, 20) = {cmp}");
+        // 3. interface constraint — call constrained method
+        OrderableInt a = new OrderableInt(10);
+        OrderableInt b = new OrderableInt(20);
+        Sorter<OrderableInt> sorter = new Sorter<OrderableInt>(a, b);
+        Console.WriteLine($"3. interface constraint: first order = {sorter.GetFirstOrder()}");
 
-        // 4. trait constraint
+        // 4. trait constraint — call constrained method
         Widget w = new Widget(7);
-        Describer<Widget> desc = new Describer<Widget>();
-        Console.WriteLine($"4. trait constraint: {desc.GetDescription(w)}");
+        Describer<Widget> desc = new Describer<Widget>(w);
+        Console.WriteLine($"4. trait constraint: {desc.GetDescription()}");
 
-        // 5. base class constraint
+        // 5. base class constraint — call constrained method
         Dog dog = new Dog();
-        AnimalHandler<Dog> handler = new AnimalHandler<Dog>();
-        Console.WriteLine($"5. base class constraint: {handler.GetSpeciesOf(dog)}");
+        AnimalHandler<Dog> handler = new AnimalHandler<Dog>(dog);
+        Console.WriteLine($"5. base class constraint: {handler.GetSpeciesName()}");
 
         // 6. parameterless new()
         Creator<Widget> creator = new Creator<Widget>();
         Widget created = creator.Create();
-        Console.WriteLine($"6. new() constraint: {created.Print()}");
+        Console.WriteLine($"6. new() constraint: created Widget({created.Id})");
 
         // 7. parameterized new(int)
         IntFactory<Widget> intFactory = new IntFactory<Widget>();
         Widget fromInt = intFactory.Create(99);
-        Console.WriteLine($"7. new(int) constraint: {fromInt.Print()}");
+        Console.WriteLine($"7. new(int) constraint: Widget({fromInt.Id})");
 
         // 8. multiple constructor constraints
         MultiFactory<Widget> multi = new MultiFactory<Widget>();
         Widget mDefault = multi.CreateDefault();
         Widget mInt = multi.CreateFromInt(5);
         Widget mBool = multi.CreateFromBool(true);
-        Console.WriteLine($"8. multi-ctor: default={mDefault.Print()}, int={mInt.Print()}, bool={mBool.Print()}");
+        Console.WriteLine($"8. multi-ctor: default=Widget({mDefault.Id}), int=Widget({mInt.Id}), bool=Widget({mBool.Id})");
 
         // 9. multiple constraints on single type parameter
         PrintableCreator<Widget> pc = new PrintableCreator<Widget>();
-        Console.WriteLine($"9. multiple constraints: {pc.CreateAndPrint()}");
+        Widget pcWidget = pc.CreateNew();
+        Console.WriteLine($"9. multiple constraints: Widget({pcWidget.Id})");
 
         // 10. multiple where clauses
-        Pair<SortableInt, Widget> pair = new Pair<SortableInt, Widget>(new SortableInt(1));
-        Console.WriteLine($"10. multiple where clauses: key={pair.Key.Value}, value={pair.Value.Print()}");
+        Pair<OrderableInt, Widget> pair = new Pair<OrderableInt, Widget>(new OrderableInt(1));
+        Console.WriteLine($"10. multiple where clauses: key={pair.Key.Value}, value=Widget({pair.Value.Id})");
 
         // 11. constraints on generic methods
-        Widget methodWidget = new Widget(42);
-        string methodDesc = MethodConstraints.DescribeItem<Widget>(methodWidget);
-        Console.WriteLine($"11. method constraint: {methodDesc}");
+        Widget methodWidget = MethodConstraints.CreateItem<Widget>();
+        Console.WriteLine($"11. method constraint: Widget({methodWidget.Id})");
 
         // 12. constraint propagation
         Widget propWidget = new Widget(3);
         DerivedContainer<Widget> dc = new DerivedContainer<Widget>(propWidget);
         Widget newFromDerived = dc.CreateNew();
-        Console.WriteLine($"12. propagation: item={dc.Item.Print()}, new={newFromDerived.Print()}");
+        Console.WriteLine($"12. propagation: new=Widget({newFromDerived.Id})");
 
         // 13. constructor constraints at any position
-        AnyPosition<SortableInt> ap = new AnyPosition<SortableInt>(77);
+        AnyPosition<OrderableInt> ap = new AnyPosition<OrderableInt>(77);
         Console.WriteLine($"13. any position: value={ap.Item.Value}");
 
-        // 14. type alias constraint (compile-time only, alias is erased)
-        Console.WriteLine("14. type alias constraint: StructList<int> compiles OK");
-
-        // 15. interface declaration with constraint
+        // 14. interface declaration with constraint
         WidgetRepository repo = new WidgetRepository();
         Widget fetched = repo.GetById(42);
-        Console.WriteLine($"15. interface with constraint: {fetched.Print()}");
+        Console.WriteLine($"14. interface with constraint: Widget({fetched.Id})");
 
-        // 16. struct declaration with constraint
+        // 15. struct declaration with constraint
         Holder<Widget> holder = new Holder<Widget>(new Widget(99));
-        Console.WriteLine($"16. struct with constraint: {holder.ShowValue()}");
+        Console.WriteLine($"15. struct with constraint: holds a Widget");
+
+        // 16. generic trait with constraint
+        Doubler doubler = new Doubler();
+        Widget doubled = doubler.Transform(new Widget(21));
+        Widget defaultWidget = doubler.CreateDefault();
+        Console.WriteLine($"16. generic trait: transformed=Widget({doubled.Id}), default=Widget({defaultWidget.Id})");
 
         Console.WriteLine("--- Generic Constraints Done ---");
     }
 
-    public static void Main() {
+    public static void Main(string[] args) {
         RunDemo();
     }
 }

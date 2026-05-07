@@ -183,6 +183,9 @@ public sealed class MistPrettyPrinter
             case TraitTypeTypeDeclarationNode traitType:
                 EmitTraitDeclaration(traitType.TraitDeclaration);
                 break;
+            case EnumTypeTypeDeclarationNode enumType:
+                EmitEnumDeclaration(enumType.EnumDeclaration);
+                break;
         }
     }
 
@@ -833,6 +836,78 @@ public sealed class MistPrettyPrinter
         }
 
         AppendLine($"{type} {name} {{ {string.Join(" ", accessors)} }}");
+    }
+
+    // ─── Enum Declarations ──────────────────────────────────────────────
+
+    private void EmitEnumDeclaration(EnumDeclarationNode enumDecl)
+    {
+        var modifiers = EmitModifiers(enumDecl.Modifiers);
+        var name = enumDecl.Name.Lexeme;
+
+        var typeAnnotation = "";
+        if (enumDecl.TypeAnnotation is not null)
+        {
+            typeAnnotation = $" : {EmitTypeReference(enumDecl.TypeAnnotation)}";
+        }
+
+        if (enumDecl.Members is null)
+        {
+            AppendLine($"{modifiers}enum {name}{typeAnnotation} {{");
+            AppendLine("}");
+            return;
+        }
+
+        AppendLine($"{modifiers}enum {name}{typeAnnotation} {{");
+        _indentLevel++;
+
+        EmitEnumMemberList(enumDecl.Members);
+
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    private void EmitEnumMemberList(EnumMemberListNode memberList)
+    {
+        var members = new List<EnumMemberNode> { memberList.EnumMember };
+        foreach (var member in memberList.EnumMembers)
+        {
+            members.Add(member);
+        }
+
+        var hasTrailingComma = memberList.COMMA.HasValue;
+
+        for (var i = 0; i < members.Count; i++)
+        {
+            var member = members[i];
+            var memberText = EmitEnumMember(member);
+
+            var isLast = i == members.Count - 1;
+            if (!isLast)
+            {
+                AppendLine($"{memberText},");
+            }
+            else if (hasTrailingComma)
+            {
+                AppendLine($"{memberText},");
+            }
+            else
+            {
+                AppendLine(memberText);
+            }
+        }
+    }
+
+    private string EmitEnumMember(EnumMemberNode member)
+    {
+        var name = member.Name.Lexeme;
+
+        if (member.Value is not null)
+        {
+            return $"{name}: {EmitExpression(member.Value)}";
+        }
+
+        return name;
     }
 
     // ─── With Declarations ──────────────────────────────────────────────

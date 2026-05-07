@@ -208,4 +208,134 @@ narrowed int: 123
 widened tag: 7
 widened value: 99
 narrowed-back value: 42
+=== Enums Sample ===
+--- Explicit type annotation ---
+  Direction.North = Direction { Value = N }
+  Direction.South = Direction { Value = S }
+  Direction.East = Direction { Value = E }
+  Direction.West = Direction { Value = W }
+--- Inferred type (int) ---
+  Priority.High = Priority { Value = 1 }
+  Priority.Medium = Priority { Value = 2 }
+  Priority.Low = Priority { Value = 3 }
+--- Name-only enum (byte) ---
+  Color.Red = Color { Value = 0 }
+  Color.Green = Color { Value = 1 }
+  Color.Blue = Color { Value = 2 }
+--- Mixed explicit/implicit ---
+  HttpStatus.Ok = HttpStatus { Value = 200 }
+  HttpStatus.Created = HttpStatus { Value = 201 }
+  HttpStatus.BadRequest = HttpStatus { Value = 400 }
+  HttpStatus.NotFound = HttpStatus { Value = 401 }
+  HttpStatus.InternalError = HttpStatus { Value = 500 }
+--- Union underlying type ---
+  MixedResult.Success = MixedResult { Value = Union_Int32_String }
+  MixedResult.ErrorMsg = MixedResult { Value = Union_Int32_String }
+--- Member access (dot notation) ---
+  north = Direction { Value = N }
+--- Enum as variable type ---
+  favorite = Color { Value = 2 }
+--- Enum as parameter type ---
+  Direction value: Direction { Value = E }
+--- Enum as return type ---
+  default priority = Priority { Value = 2 }
+--- Enum as field type ---
+  config level = LogLevel { Value = 1 }
+--- Implicit conversion ---
+  Priority.High as int = 1
+  Direction.North as string = N
+  Color.Red as byte = 0
+--- Pattern matching ---
+  d is Direction.North = True
+  d is Direction.South = False
+  c is Color.Green = True
+  c is Color.Red = False
+--- Public visibility ---
+  Public enum Direction.North = Direction { Value = N }
+--- Default visibility ---
+  Default enum LogLevel.Info = LogLevel { Value = 0 }
+  Default enum LogLevel.Error = LogLevel { Value = 2 }
+--- Trailing comma ---
+  Season.Spring = Season { Value = 1 }
+  Season.Winter = Season { Value = 4 }
+--- Struct underlying type ---
+  CardinalDir.Up = CardinalDir { Value = Enums.Vec2 }
+  CardinalDir.Down = CardinalDir { Value = Enums.Vec2 }
+  CardinalDir.Left = CardinalDir { Value = Enums.Vec2 }
+  CardinalDir.Right = CardinalDir { Value = Enums.Vec2 }
+  CardinalDir.Up as Vec2 = (0, 1)
+--- Class underlying type ---
+  Severity.Critical = Severity { Value = Enums.Label }
+  Severity.Warning = Severity { Value = Enums.Label }
+  Severity.Info = Severity { Value = Enums.Label }
+  Severity.Critical as Label = Label(CRITICAL, 1)
+--- Interface/Trait underlying types ---
+  Pet.Dog = Pet { Value = Enums.Animal }
+  Pet.Cat = Pet { Value = Enums.Animal }
+  Pet.Fish = Pet { Value = Enums.Animal }
+  Pet.Dog as Animal = Animal(Dog)
+Done!
+=== Single-level inheritance ===
+Rex is a German Shepherd, age 5
+  Name: Rex
+  Age: 5
+  Breed: German Shepherd
+=== Multi-tier inheritance (3 levels) ===
+Buddy is a Labrador guide dog, age 3, handler: Alice
+  Name: Buddy
+  Age: 3
+  Breed: Labrador
+  Handler: Alice
+=== Subtype assignability ===
+Passing Dog to method accepting Animal:
+  Animal info: Rex (age 5)
+Passing GuideDog to method accepting Animal:
+  Animal info: Buddy (age 3)
+=== Base constructor chaining ===
+Base Animal: Cat (age 8)
+Dog via base chain: Max (age 1)
+GuideDog via base chain: Luna (age 2)
+Done!
+=== Properties Mist Sample ===
+--- Auto-Properties ---
+AutoProps(Name=Alice, Id=A001, Count=0, Label=default)
+AutoProps(Name=Bob, Id=A001, Count=5, Label=updated)
+--- Block Accessors ---
+BlockAccessors(Temperature=20)
+  After set 100: 20
+  After set -999 (clamped): -273
+--- Expression-Bodied ---
+ExpressionBodied(Width=5, Height=3, Area=15)
+  After Height=10: Area=50
+--- Field Keyword ---
+FieldKeyword(Name=Charlie, Age=0)
+FieldKeyword(Name=Dana, Age=25)
+  After invalid age: 25
+--- Mixed Accessors ---
+MixedAccessors(Score=0, Status=active)
+  After invalid score: 0
+--- Accessor Modifiers ---
+AccessorModifiers(Name=Eve, Value=10)
+AccessorModifiers(Name=Frank, Value=11)
+--- Init Accessors ---
+InitAccessors(Name=Grace, Year=0)
+--- Static Properties ---
+  HasInstances before: False
+StaticProps(name=One, total=2)
+  HasInstances after: True
+  InstanceCount: 2
+--- Computed Properties ---
+ComputedProps(Area=24, Perimeter=20, IsSquare=False)
+ComputedProps(Area=25, Perimeter=20, IsSquare=True)
+--- Interface Properties ---
+LabeledItem(Label=Widget, Value=99)
+  After edit: Label=Widget, Value=200
+--- Indexers ---
+  idx[0]=10 idx[1]=20 idx[2]=30
+IndexerDemo(length=3)
+=== Done! ===
+Player: Alice, HP: 100
+Level: 1, Active: True
+App: Namespace Demo v1.0
+Done!
 === Done! ===

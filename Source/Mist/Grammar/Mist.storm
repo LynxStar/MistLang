@@ -114,6 +114,7 @@ rule TypeDeclaration
     | structDeclaration:StructDeclaration         as StructType
     | interfaceDeclaration:InterfaceDeclaration   as InterfaceType
     | traitDeclaration:TraitDeclaration           as TraitType
+    | enumDeclaration:EnumDeclaration             as EnumType
     ;
 
 rule TypeAliasDeclaration = TYPE name:IDENTIFIER typeParams:TypeParameterList? EQUAL type:TypeReference
@@ -161,7 +162,7 @@ rule StructDeclaration = modifiers:Modifier* STRUCT name:IDENTIFIER
     constraints:ConstraintClause*
     LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
-rule InterfaceDeclaration = INTERFACE name:IDENTIFIER
+rule InterfaceDeclaration = modifiers:Modifier* INTERFACE name:IDENTIFIER
     typeParams:TypeParameterList?
     interfaceList:(COLON interfaces:BaseList)?
     constraints:ConstraintClause*
@@ -190,7 +191,7 @@ rule InterfaceAccessorDeclaration
 
 // ─── Parser Rules — Trait Declarations ───────────────────────────────────────
 
-rule TraitDeclaration = TRAIT name:IDENTIFIER
+rule TraitDeclaration = modifiers:Modifier* TRAIT name:IDENTIFIER
     LEFT_BRACE members:TraitMemberDeclaration* RIGHT_BRACE;
 
 rule TraitMemberDeclaration
@@ -206,6 +207,16 @@ rule TraitMethodDeclaration = returnType:TypeReference name:IDENTIFIER
 
 rule TraitPropertyDeclaration = type:TypeReference name:IDENTIFIER
     LEFT_BRACE accessors:InterfaceAccessorDeclaration+ RIGHT_BRACE;
+
+// ─── Parser Rules — Enum Declarations ────────────────────────────────────────
+
+rule EnumDeclaration = modifiers:Modifier* ENUM name:IDENTIFIER
+    typeAnnotation:(COLON type:TypeReference)?
+    LEFT_BRACE members:EnumMemberList? RIGHT_BRACE;
+
+rule EnumMemberList = EnumMember (COMMA EnumMember)* COMMA?;
+
+rule EnumMember = name:IDENTIFIER value:(COLON Expression)?;
 
 // ─── Parser Rules — With Declarations ────────────────────────────────────────
 

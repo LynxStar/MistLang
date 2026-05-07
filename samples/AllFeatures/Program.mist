@@ -26,6 +26,10 @@ public class Program
         TypeAliases.Program.RunDemo();
         Traits.Program.RunDemo();
         UnknownTypeDemo.RunDemo();
+        Enums.Program.RunDemo();
+        Inheritance.Program.RunDemo();
+        Properties.Program.RunDemo();
+        Namespaces.Program.RunDemo();
         // TODO: Uncomment once GenericConstraints sample compiles through the full pipeline
         // GenericConstraints.Program.RunDemo();
         Console.WriteLine("=== Done! ===");

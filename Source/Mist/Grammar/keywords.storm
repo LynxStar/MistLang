@@ -26,6 +26,9 @@ token FALSE     = "false";
 token THIS      = "this";
 token BASE      = "base";
 
+// Enum keyword
+token ENUM = "enum";
+
 // Trait-related keywords
 token TRAIT = "trait";
 token WITH  = "with";

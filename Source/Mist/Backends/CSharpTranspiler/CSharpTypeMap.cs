@@ -151,6 +151,9 @@ internal static class CSharpTypeMap
         // through, resolve to the underlying type and delegate to existing logic.
         TypeAliasType alias => GetTypeName(alias.UnderlyingType, isValueContext),
 
+        // Enum types map to their record class name (the enum's DisplayName).
+        EnumType et => et.DisplayName,
+
         // Union types lower to the generated helper struct name.
         UnionType ut => UnionHelperGenerator.GetHelperTypeName(ut),
 

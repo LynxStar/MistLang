@@ -393,6 +393,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId ConstraintPropagationInsufficient = new("MIST_CONSTRAINT_0017");
 
+    // ── enums feature: assignability diagnostic ──────────────────────────
+
+    /// <summary>
+    /// Emitted when a value of the underlying type is assigned to a variable
+    /// of the enum type. Reverse conversion from underlying type to enum is
+    /// not implicit; only enum-to-underlying is allowed (Requirement 7.3).
+    /// Uses the diagnostic ID defined in <see cref="SemanticModelBuilder"/>
+    /// (<c>MIST_SB_0083</c>).
+    /// </summary>
+    internal static readonly DiagnosticId CannotAssignUnderlyingToEnum = new("MIST_SB_0083");
+
     /// <summary>
     /// Feature flag gating the operator overload-resolution path introduced by
     /// Task 14 of the Mist Standard Library spec. When <c>true</c> (the
@@ -637,8 +648,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Determines whether the given AST node belongs to a referenced project
-    /// by checking span containment against the model's ASTs and units.
+    /// Determines whether the given method symbol belongs to a referenced project
+    /// by checking if its containing type's namespace matches a referenced project's
+    /// namespace root.
     /// </summary>
     private static bool IsFromReferencedProject(
         SyntaxNode node,
@@ -648,24 +660,76 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (referencedSourcePaths.Count == 0)
             return false;
 
-        var span = node.Span;
-        if (span.Length == 0)
-            return false;
-
-        // Find which AST root contains this node by checking span containment.
-        var asts = model.Asts;
+        // Check each referenced unit's source path against the compilation units.
+        // The declaring node belongs to a referenced project if it was parsed from
+        // a source file that belongs to a referenced project.
         var units = model.Units;
 
-        for (var i = 0; i < asts.Length; i++)
+        // Build a set of namespace roots from referenced projects.
+        var referencedNamespaceRoots = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var unit in units)
         {
-            var astSpan = asts[i].Span;
-            if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
+            if (unit.OriginProjectPath is not null && unit.NamespaceRoot is not null)
             {
-                if (i < units.Count)
+                referencedNamespaceRoots.Add(unit.NamespaceRoot);
+            }
+        }
+
+        if (referencedNamespaceRoots.Count == 0)
+            return false;
+
+        // Find the containing type of the method by walking up the scope chain.
+        // The method's declaring node is inside a class/struct. Check if that
+        // type's containing namespace matches a referenced project's namespace root.
+        if (node is not MethodDeclarationNode)
+            return false;
+
+        // Get the declared symbol for this node to find its containing scope.
+        var methodSymbol = model.GetDeclaredSymbol(node);
+        if (methodSymbol is null)
+            return false;
+
+        // Walk up the scope chain to find the containing type.
+        var typeScope = methodSymbol.ContainingScope;
+        var parentScope = typeScope?.Parent;
+        if (parentScope is null)
+            return false;
+
+        // Find the type symbol that owns this scope.
+        foreach (var member in parentScope.Members)
+        {
+            if (member.Kind is SymbolKind.Class or SymbolKind.Struct)
+            {
+                var memberScope = member.DeclaredType switch
                 {
-                    return referencedSourcePaths.Contains(units[i].Source.Path);
+                    ClassType ct => ct.MemberScope,
+                    StructType st => st.MemberScope,
+                    _ => null,
+                };
+
+                if (memberScope is not null && ReferenceEquals(memberScope, typeScope))
+                {
+                    // Found the containing type. Check its namespace.
+                    var containingNs = member.DeclaredType switch
+                    {
+                        ClassType ct => ct.ContainingNamespace,
+                        StructType st => st.ContainingNamespace,
+                        _ => null,
+                    };
+
+                    if (containingNs is not null && referencedNamespaceRoots.Contains(containingNs))
+                        return true;
+
+                    // Also check if the namespace starts with a referenced namespace root
+                    // (for nested namespaces like "Inheritance.Models").
+                    foreach (var nsRoot in referencedNamespaceRoots)
+                    {
+                        if (containingNs is not null && containingNs.StartsWith(nsRoot + ".", StringComparison.Ordinal))
+                            return true;
+                    }
+
+                    return false;
                 }
-                break;
             }
         }
 
@@ -1254,6 +1318,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (SatisfiesTrait(source, targetTrait, model))
                 return true;
         }
+
+        // ── enums feature: implicit conversion to underlying type (Req 7.1, 7.2) ──
+        // An enum value is directly assignable to its underlying type without
+        // requiring an implicit cast operator lookup.
+        if (source is EnumType sourceEnum && IsDirectlyAssignable(sourceEnum.UnderlyingType, target, model))
+            return true;
 
         // NOTE: No implicit cast operator fallback here — that's the whole
         // point of this method. Direct assignability only.
@@ -2536,6 +2606,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         // Targeted union diagnostic emitted; skip generic.
                     }
+                    // enums feature (Req 7.3): emit a targeted diagnostic
+                    // for reverse conversion (underlying type → enum).
+                    else if (TryEmitEnumAssignabilityDiagnostic(valueType, methodReturnType, returnStmt, diagnostics, model))
+                    {
+                        // Targeted enum diagnostic emitted; skip generic.
+                    }
                     else
                     {
                         diagnostics.Add(MakeDiagnostic(
@@ -2748,6 +2824,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             else if (TryEmitUnionAssignabilityDiagnostic(rhsType, propType, assignment, diagnostics, model))
                             {
                                 // Targeted union diagnostic emitted; skip generic.
+                            }
+                            // enums feature (Req 7.3): emit a targeted diagnostic
+                            // for reverse conversion (underlying type → enum).
+                            else if (TryEmitEnumAssignabilityDiagnostic(rhsType, propType, assignment, diagnostics, model))
+                            {
+                                // Targeted enum diagnostic emitted; skip generic.
                             }
                             else
                             {
@@ -3139,6 +3221,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         $"Type '{ExtractTypeReferenceName(bareTypePattern.Type)}' could not be found in pattern",
                         bareTypePattern,
                         model));
+                }
+                else if (patternType is EnumType)
+                {
+                    // Enum member pattern: `is EnumName.MemberName` — value equality check.
+                    // The semantic model builder resolved this as an enum member access.
+                    // Accept it without error; the emitter will generate a == comparison.
+                    // Verify the scrutinee type is compatible (must be the same enum type
+                    // or the enum's underlying type).
+                    if (!IsAssignable(scrutineeType, patternType)
+                        && !(patternType is EnumType enumPatternType
+                             && IsAssignable(scrutineeType, enumPatternType.UnderlyingType)))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            PatternConstantTypeMismatch.Value,
+                            $"Enum pattern of type '{patternType.DisplayName}' is not compatible with scrutinee type '{scrutineeType.DisplayName}'",
+                            bareTypePattern,
+                            model));
+                    }
                 }
                 else if (patternType is UnknownType)
                 {
@@ -4090,6 +4190,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         var unionMemberResult = CheckUnionMemberAccess(
                             memberAccess.Name.Lexeme, unionForMemberAccess, memberAccess, model, diagnostics);
                         currentType = unionMemberResult;
+                        targetIsTypeName = false;
+                        break;
+                    }
+                    // Enum member access: members are always public and static,
+                    // so skip access modifier checks. The semantic model builder
+                    // already validates member existence and reports MIST_SB_0082
+                    // for undefined members.
+                    if (currentType is EnumType)
+                    {
+                        currentType = model.GetTypeOf(suffix) ?? ErrorType.Instance;
                         targetIsTypeName = false;
                         break;
                     }
@@ -5164,6 +5274,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         // Targeted union diagnostic emitted; skip generic.
                     }
+                    // enums feature (Req 7.3): emit a targeted diagnostic
+                    // for reverse conversion (underlying type → enum).
+                    else if (TryEmitEnumAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    {
+                        // Targeted enum diagnostic emitted; skip generic.
+                    }
                     else
                     {
                         diagnostics.Add(MakeDiagnostic(
@@ -5265,6 +5381,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     else if (TryEmitUnionAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
                     {
                         // Targeted union diagnostic emitted; skip generic.
+                    }
+                    // enums feature (Req 7.3): emit a targeted diagnostic
+                    // for reverse conversion (underlying type → enum).
+                    else if (TryEmitEnumAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    {
+                        // Targeted enum diagnostic emitted; skip generic.
                     }
                     else
                     {
@@ -5977,7 +6099,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     return false;
                 }
-                if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct)
+                if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Enum)
                 {
                     return true;
                 }
@@ -5987,7 +6109,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Fallback: check the expression type for ambient types (e.g. Console)
         // that may not have a symbol in the user-defined symbol table.
         var resolvedType = model.GetTypeOf(target);
-        return resolvedType is ClassType or StructType;
+        return resolvedType is ClassType or StructType or EnumType;
     }
 
     /// <summary>
@@ -6099,6 +6221,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             ClassType ct2 => ct2.MemberScope,
             StructType st => st.MemberScope,
             InterfaceType it => it.MemberScope,
+            EnumType et => et.MemberScope,
             _ => null,
         };
 
@@ -6241,6 +6364,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // the generic type-mismatch diagnostic, detect union-specific
             // failure modes and emit the targeted code.
             if (TryEmitUnionAssignabilityDiagnostic(source, target, node, diagnostics, model))
+                return;
+
+            // enums feature (Req 7.3): detect reverse conversion from
+            // underlying type to enum type and emit the targeted diagnostic.
+            if (TryEmitEnumAssignabilityDiagnostic(source, target, node, diagnostics, model))
                 return;
 
             // Emit a trait-specific diagnostic when the target is a TraitType.
@@ -6393,6 +6521,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             StructType st => st.MemberScope,
             InterfaceType it => it.MemberScope,
             ConstructedType cst => cst.MemberScope,
+            EnumType et => et.MemberScope,
             _ => null,
         };
     }
@@ -6720,6 +6849,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (SatisfiesTrait(source, targetTrait, model))
                 return true;
         }
+
+        // ── enums feature: implicit conversion to underlying type (Req 7.1, 7.2) ──
+        // An enum value is assignable to its underlying type. This is a direct
+        // structural rule (not an implicit cast operator) so it takes precedence
+        // over the operator fallback below.
+        if (source is EnumType sourceEnum && IsAssignable(sourceEnum.UnderlyingType, target, model))
+            return true;
 
         // Implicit cast operator search (fallback after all other assignability checks).
         // Search both source type and target type for an implicit cast operator.
@@ -8452,6 +8588,43 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     model));
                 return true;
             }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Detects the enum-specific assignability failure mode: assigning a value
+    /// of the underlying type to a variable of the enum type (reverse conversion).
+    /// When this case matches, emits <c>MIST_SB_0083</c> and returns <c>true</c>.
+    /// Returns <c>false</c> if the case does not apply.
+    /// </summary>
+    private static bool TryEmitEnumAssignabilityDiagnostic(
+        IType source,
+        IType target,
+        SyntaxNode node,
+        DiagnosticBag diagnostics,
+        ISemanticModel model)
+    {
+        // Unwrap type aliases for both source and target before checking.
+        var unwrappedSource = source;
+        while (unwrappedSource is TypeAliasType srcAlias)
+            unwrappedSource = srcAlias.UnderlyingType;
+        var unwrappedTarget = target;
+        while (unwrappedTarget is TypeAliasType tgtAlias)
+            unwrappedTarget = tgtAlias.UnderlyingType;
+
+        // underlying type → enum (Req 7.3): reverse conversion rejected.
+        if (unwrappedTarget is EnumType targetEnum &&
+            unwrappedSource is not EnumType &&
+            IsAssignable(unwrappedSource, targetEnum.UnderlyingType, model))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                CannotAssignUnderlyingToEnum.Value,
+                $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}': implicit conversion from the underlying type to an enum type is not supported. Use an explicit enum member instead.",
+                node,
+                model));
+            return true;
         }
 
         return false;

@@ -1522,23 +1522,24 @@ internal sealed class CSharpSourceWriter
 
             if (!hasParameterlessCtor)
             {
-                emittedDefaultCtor = true;
                 var classTypeForCtor = (ClassType)symbol!.DeclaredType!;
                 var ownFields = classTypeForCtor.DefaultValues!
                     .Where(kvp => kvp.Value.ValueKind != DefaultValueKind.InheritedDefault)
                     .ToList();
 
-                if (classDecl.Members.Length > 0)
+                // Only emit a protected parameterless constructor if there are own fields
+                // to initialize. Zero-field classes can rely on the implicit public
+                // parameterless constructor — emitting a protected one would suppress it
+                // and make the class unconstructable from outside.
+                if (ownFields.Count > 0)
                 {
-                    AppendLine();
-                }
+                    emittedDefaultCtor = true;
 
-                if (ownFields.Count == 0)
-                {
-                    AppendLine($"protected {classDecl.Name.Lexeme}() {{ }}");
-                }
-                else
-                {
+                    if (classDecl.Members.Length > 0)
+                    {
+                        AppendLine();
+                    }
+
                     AppendLine($"protected {classDecl.Name.Lexeme}()");
                     AppendLine("{");
                     _indentLevel++;

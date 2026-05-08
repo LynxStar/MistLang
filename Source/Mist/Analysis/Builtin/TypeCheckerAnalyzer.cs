@@ -492,6 +492,45 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId ConstraintPropagationInsufficient = new("MIST_CONSTRAINT_0017");
 
+    // ── property-initializers feature: validation diagnostics ──────────────
+
+    /// <summary>
+    /// Emitted when a property initializer block references a member name
+    /// that does not exist as a property or field on the constructed type.
+    /// </summary>
+    internal static readonly DiagnosticId PropertyInitializerMemberNotFound = new("MIST_PI_0001");
+
+    /// <summary>
+    /// Emitted when the value expression type in a property initializer
+    /// assignment is not assignable to the target member's declared type.
+    /// </summary>
+    internal static readonly DiagnosticId PropertyInitializerTypeMismatch = new("MIST_PI_0002");
+
+    /// <summary>
+    /// Emitted when a property initializer targets a property that has no
+    /// accessible <c>set</c> or <c>init</c> accessor.
+    /// </summary>
+    internal static readonly DiagnosticId PropertyInitializerNoSetOrInit = new("MIST_PI_0003");
+
+    /// <summary>
+    /// Emitted when a property initializer targets a field that is readonly
+    /// (explicit, inferred, or implicit).
+    /// </summary>
+    internal static readonly DiagnosticId PropertyInitializerReadonlyField = new("MIST_PI_0004");
+
+    /// <summary>
+    /// Emitted when a property initializer targets a member that is
+    /// inaccessible due to its protection level (e.g., private from outside
+    /// the declaring type).
+    /// </summary>
+    internal static readonly DiagnosticId PropertyInitializerInaccessible = new("MIST_PI_0005");
+
+    /// <summary>
+    /// Emitted when the same member name appears more than once in a
+    /// property initializer block.
+    /// </summary>
+    internal static readonly DiagnosticId PropertyInitializerDuplicate = new("MIST_PI_0006");
+
     // ── array-literals feature: incompatible element types ──────────────
 
     /// <summary>
@@ -5409,6 +5448,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CheckObjectCreation(objectCreation, model, diagnostics);
                 break;
 
+            case ObjectCreationExpressionNoArgsPrimaryNode objectCreationNoArgs:
+                CheckObjectCreationNoArgs(objectCreationNoArgs, model, diagnostics);
+                break;
+
             case ParenthesizedExpressionPrimaryNode paren:
                 CheckExpression(paren.Inner, model, diagnostics);
                 break;
@@ -6902,13 +6945,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     $"Type '{createdType.DisplayName}' does not contain a constructor matching the given arguments",
                     objectCreation,
                     model));
+                return;
             }
-            return;
         }
-
-        // When multiple constructors exist, use overload resolution.
-        if (constructors.Count > 1)
+        else if (constructors.Count > 1)
         {
+            // When multiple constructors exist, use overload resolution.
             // When the created type is a ConstructedType (e.g., Optional<int>),
             // pass the type substitution context so the resolver maps T → Int32
             // in constructor parameter types before the applicability check.
@@ -6945,8 +6987,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return;
 
                 case OverloadResolutionStatus.Success:
-                    // Resolved successfully — no diagnostic needed.
-                    return;
+                    // Resolved successfully — fall through to initializer check.
+                    break;
             }
         }
         else
@@ -6959,6 +7001,256 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     "MIST_TC_0011",
                     $"Type '{createdType.DisplayName}' does not contain a constructor matching the given arguments",
                     objectCreation,
+                    model));
+            }
+        }
+
+        // ── Property initializer block validation ────────────────────────
+        if (objectCreation.Initializer is not null)
+        {
+            CheckPropertyInitializerBlock(objectCreation.Initializer, createdType, objectCreation, model, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Validates a <c>new Type { ... }</c> expression (no constructor arguments).
+    /// Resolves the type, verifies a parameterless constructor exists, then
+    /// validates the property initializer block.
+    /// </summary>
+    private void CheckObjectCreationNoArgs(
+        ObjectCreationExpressionNoArgsPrimaryNode objectCreation,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Get the type being constructed.
+        var createdType = model.GetTypeOf(objectCreation);
+        if (createdType is null || IsErrorType(createdType))
+            return;
+
+        // Type aliases are transparent — unwrap to the underlying type.
+        if (createdType is TypeAliasType aliasCreated)
+            createdType = aliasCreated.UnderlyingType;
+
+        // ── unknown-type storage ban ─────────────────────────────────────
+        if (createdType is UnknownType)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                SemanticModelBuilder.UnknownCannotBeInstantiated.Value,
+                "'unknown' cannot be instantiated. The 'unknown' type has no constructor and no declared members; use a concrete type instead.",
+                objectCreation,
+                model));
+            return;
+        }
+
+        if (TypeContainment.IsStorageBanned(createdType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                SemanticModelBuilder.UnknownInGenericConstruction.Value,
+                $"Cannot construct '{createdType.DisplayName}' because one or more type arguments are 'unknown'. A generic type cannot be constructed with 'unknown' as a type argument; use concrete type arguments or pattern-match from an already-widened value.",
+                objectCreation,
+                model));
+            return;
+        }
+
+        // ── Constraint satisfaction checking for generic type arguments ──
+        if (createdType is ConstructedType constructedForConstraints)
+        {
+            var typeParams = GetTypeParameters(constructedForConstraints.GenericDefinition);
+            if (typeParams is not null)
+            {
+                var typeArgs = constructedForConstraints.TypeArguments;
+                var genericName = constructedForConstraints.GenericDefinition.DisplayName;
+                for (var i = 0; i < typeParams.Count && i < typeArgs.Count; i++)
+                {
+                    CheckConstraintSatisfaction(typeArgs[i], typeParams[i], objectCreation, genericName, model, diagnostics);
+                }
+            }
+        }
+
+        // ── Verify parameterless constructor exists ──────────────────────
+        // The no-args variant invokes the parameterless constructor.
+        // If no constructors are defined, a default parameterless constructor
+        // is implied. If constructors exist, at least one must be parameterless.
+        var constructors = CollectConstructorOverloads(createdType);
+        if (constructors.Count > 0)
+        {
+            var hasParameterless = false;
+            foreach (var ctor in constructors)
+            {
+                var paramTypes = ParameterSignature.Extract(ctor, model);
+                if (paramTypes.Count == 0)
+                {
+                    hasParameterless = true;
+                    break;
+                }
+            }
+
+            if (!hasParameterless)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0011",
+                    $"Type '{createdType.DisplayName}' does not contain a constructor matching the given arguments",
+                    objectCreation,
+                    model));
+            }
+        }
+
+        // ── Property initializer block validation ────────────────────────
+        CheckPropertyInitializerBlock(objectCreation.Initializer, createdType, objectCreation, model, diagnostics);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Property initializer block validation (MIST_PI_0001–MIST_PI_0006)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates each assignment in a property initializer block against the
+    /// constructed type. Checks member existence, type compatibility,
+    /// writability, accessibility, and duplicate detection.
+    /// </summary>
+    private void CheckPropertyInitializerBlock(
+        PropertyInitializerBlockNode initializerBlock,
+        IType constructedType,
+        SyntaxNode parentNode,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        if (initializerBlock.Assignments is null)
+            return;
+
+        // Unwrap type aliases and ConstructedType for member lookup.
+        var lookupType = constructedType;
+        if (lookupType is TypeAliasType aliasType)
+            lookupType = aliasType.UnderlyingType;
+
+        // For ConstructedType, look up members on the generic definition.
+        var memberLookupType = lookupType is ConstructedType cst ? cst.GenericDefinition : lookupType;
+
+        IScope? memberScope = memberLookupType switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            _ => null,
+        };
+
+        if (memberScope is null)
+            return;
+
+        var seenNames = new HashSet<string>(StringComparer.Ordinal);
+
+        // Iterate over all assignments: first + rest.
+        var assignments = initializerBlock.Assignments;
+        CheckSinglePropertyAssignment(assignments.PropertyAssignment, memberScope, memberLookupType, seenNames, model, diagnostics);
+        foreach (var assignment in assignments.PropertyAssignments)
+        {
+            CheckSinglePropertyAssignment(assignment, memberScope, memberLookupType, seenNames, model, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Validates a single property assignment within an initializer block.
+    /// </summary>
+    private void CheckSinglePropertyAssignment(
+        PropertyAssignmentNode assignment,
+        IScope memberScope,
+        IType memberLookupType,
+        HashSet<string> seenNames,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var memberName = assignment.Name.Lexeme;
+
+        // ── 6. Duplicate detection ───────────────────────────────────────
+        if (!seenNames.Add(memberName))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                PropertyInitializerDuplicate.Value,
+                $"Member '{memberName}' is assigned more than once in the initializer",
+                assignment,
+                model));
+            return;
+        }
+
+        // ── 1. Member existence ──────────────────────────────────────────
+        var symbol = memberScope.Lookup(memberName);
+        if (symbol is null || symbol.Kind is not (SymbolKind.Property or SymbolKind.Field))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                PropertyInitializerMemberNotFound.Value,
+                $"Type '{memberLookupType.DisplayName}' does not contain a property or field named '{memberName}'",
+                assignment,
+                model));
+            return;
+        }
+
+        // ── 5. Accessibility ─────────────────────────────────────────────
+        // Backend symbols are assumed public; only check user-defined members.
+        if (symbol.Origin != SymbolOrigin.Backend)
+        {
+            SyntaxNode? declaringNode;
+            try { declaringNode = model.GetDeclaringNode(symbol); }
+            catch { declaringNode = null; }
+
+            var modifiers = GetMemberModifiers(declaringNode);
+            if (!modifiers.IsPublic)
+            {
+                // Private members are only accessible within the declaring type.
+                var declaringType = GetDeclaringTypeOfMember(symbol);
+                if (declaringType is not null && !IsSameType(declaringType, _currentEnclosingType))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        PropertyInitializerInaccessible.Value,
+                        $"'{memberName}' is inaccessible due to its protection level",
+                        assignment,
+                        model));
+                    return;
+                }
+            }
+        }
+
+        // ── 3. Writability (property) ────────────────────────────────────
+        if (symbol.Kind == SymbolKind.Property)
+        {
+            var propInfo = GetPropertyMetadata(symbol);
+            if (propInfo is not null && !propInfo.HasSet && !propInfo.HasInit)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    PropertyInitializerNoSetOrInit.Value,
+                    $"Property '{memberName}' has no accessible 'set' or 'init' accessor and cannot be assigned in an initializer",
+                    assignment,
+                    model));
+                return;
+            }
+        }
+
+        // ── 4. Writability (field) ───────────────────────────────────────
+        if (symbol.Kind == SymbolKind.Field && symbol is Symbol concreteField)
+        {
+            if (concreteField.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly
+                or ReadonlyStatus.InferredReadonly
+                or ReadonlyStatus.ImplicitReadonly)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    PropertyInitializerReadonlyField.Value,
+                    $"Field '{memberName}' is readonly and cannot be assigned in an initializer",
+                    assignment,
+                    model));
+                return;
+            }
+        }
+
+        // ── 2. Type compatibility ────────────────────────────────────────
+        var memberType = symbol.DeclaredType;
+        var valueType = model.GetTypeOf(assignment.Value);
+        if (memberType is not null && valueType is not null
+            && !IsErrorType(memberType) && !IsErrorType(valueType))
+        {
+            if (!IsAssignable(valueType, memberType, model))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    PropertyInitializerTypeMismatch.Value,
+                    $"Cannot assign '{valueType.DisplayName}' to '{memberName}' of type '{memberType.DisplayName}'",
+                    assignment,
                     model));
             }
         }

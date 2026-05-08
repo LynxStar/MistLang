@@ -514,7 +514,8 @@ rule Primary
     | THIS                                                                         as ThisExpression
     | FIELD                                                                        as FieldKeywordExpression
     | NEW type:TypeReference LEFT_BRACKET size:Expression RIGHT_BRACKET            as ArrayCreationExpression
-    | NEW type:QualifiedIdentifier typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as ObjectCreationExpression
+    | NEW type:QualifiedIdentifier typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS initializer:PropertyInitializerBlock? as ObjectCreationExpression
+    | NEW type:QualifiedIdentifier typeArgs:TypeArgumentList? initializer:PropertyInitializerBlock as ObjectCreationExpressionNoArgs
     | LEFT_PARENTHESIS first:TupleLiteralElement COMMA rest:TupleLiteralElement (COMMA additional:TupleLiteralElement)* RIGHT_PARENTHESIS as TupleLiteralExpression
     | LEFT_PARENTHESIS inner:Expression RIGHT_PARENTHESIS                          as ParenthesizedExpression
     | DEFAULT LEFT_PARENTHESIS type:TypeReference RIGHT_PARENTHESIS               as DefaultExpression
@@ -536,6 +537,14 @@ rule InterpolatedPart
     = text:INTERPOLATED_STRING_TEXT  as TextPart
     | INTERPOLATION_OPEN expression:Expression RIGHT_BRACE      as ExpressionPart
     ;
+
+// ─── Parser Rules — Property Initializers ───────────────────────────────────
+
+rule PropertyInitializerBlock = LEFT_BRACE assignments:PropertyAssignmentList? RIGHT_BRACE;
+
+rule PropertyAssignmentList = PropertyAssignment (COMMA PropertyAssignment)* COMMA?;
+
+rule PropertyAssignment = name:IDENTIFIER EQUAL value:Expression;
 
 // ─── Parser Rules — Patterns ────────────────────────────────────────────────
 // Pattern grammar for `is` expressions. Precedence: or < and < not < primary.

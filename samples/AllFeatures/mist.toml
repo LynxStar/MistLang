@@ -70,4 +70,7 @@ path = "../ReadonlyContexts"
 path = "../SwitchExpressions"
 
 [[references]]
+path = "../PropertyInitializers"
+
+[[references]]
 path = "../ArrayLiterals"

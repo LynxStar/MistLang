@@ -8,6 +8,7 @@
     { "include": "#strings" },
     { "include": "#chars" },
     { "include": "#declaration-names" },
+    { "include": "#property-initializer-names" },
     { "include": "#keywords" },
     { "include": "#types" },
     { "include": "#literals" },
@@ -267,6 +268,14 @@
           }
         }
       ]
+    },
+    "property-initializer-names": {
+      "comment": "Property name in initializer block: identifier = (but not ==)",
+      "match": "(\\b[a-zA-Z_]\\w*)\\s*(=)(?!=)",
+      "captures": {
+        "1": { "name": "variable.other.property.mist" },
+        "2": { "name": "keyword.operator.assignment.mist" }
+      }
     },
     "operators": {
       "patterns": [

@@ -34,6 +34,7 @@ public class Program
         GenericConstraints.Program.RunDemo();
         ReadonlyContexts.Program.RunDemo();
         SwitchExpressions.Program.RunDemo();
+        PropertyInitializers.Program.RunDemo();
         ArrayLiterals.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }

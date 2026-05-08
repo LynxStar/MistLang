@@ -4190,6 +4190,92 @@ internal sealed class CSharpSourceWriter
         return null;
     }
 
+    // ─── Union Switch Arm Pattern Emission ───────────────────────────────
+
+    /// <summary>
+    /// Attempts to emit a switch arm pattern for a union type scrutinee using
+    /// the union's discriminator properties (<c>Is{T}</c> / <c>As{T}</c>).
+    /// <para>
+    /// For type patterns (e.g., <c>int n</c>), emits a C# property pattern:
+    /// <c>{ IsInt32: true, AsInt32: var n }</c>.
+    /// </para>
+    /// <para>
+    /// For bare type patterns (e.g., <c>int</c>), emits:
+    /// <c>{ IsInt32: true }</c>.
+    /// </para>
+    /// <para>
+    /// For var and discard patterns, returns <c>null</c> to fall through to
+    /// standard emission (they work directly against the union helper type).
+    /// </para>
+    /// Returns <c>null</c> if the pattern cannot be emitted as a union property
+    /// pattern (compound patterns, non-type patterns, etc.).
+    /// </summary>
+    private string? TryEmitUnionSwitchArmPattern(PatternNode pattern, UnionType unionType, string scrutineeExpr)
+    {
+        // Navigate the pattern chain: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
+        // Only handle simple (non-compound) patterns for union emission.
+        var orPattern = pattern.OrPattern;
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+            return null; // or-pattern — fall through to standard emission
+
+        var andPattern = orPattern.Left;
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+            return null; // and-pattern — fall through to standard emission
+
+        var unaryPattern = andPattern.Left;
+        if (unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+            return null; // not-pattern — fall through to standard emission
+
+        var primaryPattern = directPattern.Primary;
+
+        switch (primaryPattern)
+        {
+            case TypePatternPrimaryPatternNode typePattern:
+            {
+                // Resolve the pattern type to find the matching constituent.
+                var patternType = _model.GetTypeOf(typePattern.Type);
+                patternType ??= _model.GetDeclaredSymbol(typePattern)?.DeclaredType;
+                if (patternType is null)
+                    return null;
+
+                var constituentName = FindConstituentName(patternType, unionType);
+                if (constituentName is null)
+                    return null;
+
+                var bindingName = typePattern.Name.Lexeme;
+
+                // Emit property pattern: { Is{T}: true, As{T}: var name }
+                if (bindingName != "_")
+                {
+                    return $"{{ Is{constituentName}: true, As{constituentName}: var {bindingName} }}";
+                }
+
+                // No binding needed — just check the discriminator.
+                return $"{{ Is{constituentName}: true }}";
+            }
+
+            case BareTypePatternPrimaryPatternNode bareTypePattern:
+            {
+                // Resolve the pattern type to find the matching constituent.
+                var patternType = _model.GetTypeOf(bareTypePattern.Type);
+                if (patternType is null)
+                    return null;
+
+                var constituentName = FindConstituentName(patternType, unionType);
+                if (constituentName is null)
+                    return null;
+
+                // Emit property pattern: { Is{T}: true }
+                return $"{{ Is{constituentName}: true }}";
+            }
+
+            default:
+                // var patterns, discard patterns, constant patterns, etc.
+                // fall through to standard emission.
+                return null;
+        }
+    }
+
     // ─── Enum Pattern Matching ───────────────────────────────────────────
 
     /// <summary>
@@ -4949,6 +5035,64 @@ internal sealed class CSharpSourceWriter
             {
                 var args = EmitArgumentList(invocation.Arguments);
                 return $"{target}({args})";
+            }
+            case SwitchExpressionSuffixPostfixSuffixNode switchExpr:
+            {
+                var sb = new StringBuilder();
+                sb.Append($"{target} switch");
+                sb.Append('\n');
+                // Emit opening brace at current indent level
+                for (var i = 0; i < _indentLevel; i++)
+                    sb.Append(IndentUnit);
+                sb.Append('{');
+                _indentLevel++;
+
+                if (switchExpr.Arms is not null)
+                {
+                    void EmitArm(SwitchArmNode arm)
+                    {
+                        sb.Append('\n');
+                        for (var i = 0; i < _indentLevel; i++)
+                            sb.Append(IndentUnit);
+
+                        // Union type scrutinee: emit property patterns using Is{T}/As{T}
+                        // discriminator properties instead of C#'s native type patterns.
+                        if (receiverType is UnionType unionType)
+                        {
+                            var unionPattern = TryEmitUnionSwitchArmPattern(arm.Pattern, unionType, target);
+                            if (unionPattern is not null)
+                            {
+                                sb.Append(unionPattern);
+                                if (arm.Guard is not null)
+                                {
+                                    sb.Append($" when {EmitExpression(arm.Guard.Condition)}");
+                                }
+                                sb.Append($" => {EmitExpression(arm.Result)},");
+                                return;
+                            }
+                        }
+
+                        sb.Append(EmitPattern(arm.Pattern, receiverType));
+                        if (arm.Guard is not null)
+                        {
+                            sb.Append($" when {EmitExpression(arm.Guard.Condition)}");
+                        }
+                        sb.Append($" => {EmitExpression(arm.Result)},");
+                    }
+
+                    EmitArm(switchExpr.Arms.SwitchArm);
+                    foreach (var arm in switchExpr.Arms.SwitchArms)
+                    {
+                        EmitArm(arm);
+                    }
+                }
+
+                _indentLevel--;
+                sb.Append('\n');
+                for (var i = 0; i < _indentLevel; i++)
+                    sb.Append(IndentUnit);
+                sb.Append('}');
+                return sb.ToString();
             }
             default:
                 return target;

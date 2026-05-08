@@ -376,4 +376,37 @@ Done!
 15. struct with constraint: holds a Widget
 16. generic trait: transformed=Widget(42), default=Widget(0)
 --- Generic Constraints Done ---
+=== Switch Expressions Sample ===
+--- Constant patterns: integer ---
+Day 3 is Wednesday
+--- Constant patterns: string ---
+Command 'quit' => Goodbye!
+--- Constant patterns: boolean ---
+isActive=True => Active
+--- Discard pattern (var _) ---
+Code 99 => Other
+--- Var pattern catch-all ---
+Value 42 => many (42)
+--- Type patterns with type union ---
+mixed (int) => integer: 123
+mixed (string) => string: hello
+--- Relational patterns ---
+Temperature 75 => Comfortable
+--- Logical patterns ---
+Score 85 => Grade B
+--- Property patterns ---
+Word 'extraordinary' (length 13) => long
+--- List patterns ---
+Array [1,2,3] => starts with 1, 2
+--- When guards ---
+Number -5 => negative
+Amount 150 => premium (value=150)
+--- Expression contexts: assignment ---
+num2=2 parity=even
+--- Expression contexts: method argument ---
+Level: Advanced
+--- Expression contexts: tuple scrutinee ---
+(0,0) => origin
+(1,0) => on x-axis
+Done!
 === Done! ===

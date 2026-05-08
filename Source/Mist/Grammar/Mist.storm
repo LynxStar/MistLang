@@ -486,7 +486,14 @@ rule PostfixSuffix
     | DOT name:IDENTIFIER                                                         as MemberAccessSuffix
     | LEFT_BRACKET index:Expression RIGHT_BRACKET                                 as IndexSuffix
     | LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS                       as InvocationSuffix
+    | SWITCH LEFT_BRACE arms:SwitchArmList? RIGHT_BRACE                           as SwitchExpressionSuffix
     ;
+
+rule SwitchArmList = SwitchArm (COMMA SwitchArm)* COMMA?;
+
+rule SwitchArm = pattern:Pattern guard:WhenGuard? SUCH_THAT result:Expression;
+
+rule WhenGuard = WHEN condition:Expression;
 
 rule Primary
     = integerLiteral:INTEGER_LITERAL                                               as IntegerLiteralExpression

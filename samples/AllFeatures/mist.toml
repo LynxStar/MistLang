@@ -62,3 +62,6 @@ path = "../GenericTraits"
 
 [[references]]
 path = "../GenericConstraints"
+
+[[references]]
+path = "../SwitchExpressions"

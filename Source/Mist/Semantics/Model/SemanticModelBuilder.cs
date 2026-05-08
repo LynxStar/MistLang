@@ -13111,9 +13111,227 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 expressionTypes[suffix] = targetType;
                 return targetType;
             }
+            case SwitchExpressionSuffixPostfixSuffixNode switchExpr:
+            {
+                // The scrutinee type is the accumulated postfix expression type
+                // (already resolved as targetType by the time this suffix is processed).
+                var scrutineeType = targetType;
+
+                if (switchExpr.Arms is not null)
+                {
+                    // Process the first arm.
+                    ResolveSwitchArm(switchExpr.Arms.SwitchArm, scrutineeType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                    // Process remaining arms.
+                    foreach (var arm in switchExpr.Arms.SwitchArms)
+                    {
+                        ResolveSwitchArm(arm, scrutineeType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+                }
+
+                // Determine the unified result type from all arm result expressions.
+                var resultType = DetermineUnifiedSwitchResultType(switchExpr, expressionTypes);
+                expressionTypes[suffix] = resultType;
+                return resultType;
+            }
             default:
                 return targetType;
         }
+    }
+
+    // ─── Switch Arm Resolution ───────────────────────────────────────────
+
+    /// <summary>
+    /// Resolves a single switch arm: creates a child scope for pattern variables,
+    /// registers pattern variables from the arm's pattern, resolves the guard
+    /// expression (if present), and resolves the result expression.
+    /// </summary>
+    private static void ResolveSwitchArm(
+        SwitchArmNode arm,
+        IType scrutineeType,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Create a child scope for this arm's pattern variables.
+        var armScope = new Scope(parent: currentScope);
+
+        // Resolve type references within the pattern (e.g., the type in a type pattern).
+        ResolvePattern(arm.Pattern, scrutineeType, armScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        // Register pattern variables introduced by the arm's pattern into the arm scope.
+        // This reuses the same logic used by `is` expressions for pattern variable collection.
+        CollectFromPattern(arm.Pattern, scrutineeType, armScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+
+        // Resolve the guard expression (if present) within the arm scope.
+        if (arm.Guard is not null)
+        {
+            ResolveExpression(arm.Guard.Condition, armScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        }
+
+        // Resolve the result expression within the arm scope.
+        ResolveExpression(arm.Result, armScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    /// <summary>
+    /// Determines the unified result type of a switch expression by collecting
+    /// all arm result expression types and finding the common type.
+    /// </summary>
+    /// <remarks>
+    /// Algorithm:
+    /// <list type="bullet">
+    ///   <item>If there are no arms, returns <see cref="UnknownType.Instance"/>.</item>
+    ///   <item>If all arms have the same type, returns that type.</item>
+    ///   <item>If types differ but share a common base class, returns the common base.</item>
+    ///   <item>If no common type exists, returns <see cref="UnknownType.Instance"/>
+    ///         (the type checker will report the incompatibility error).</item>
+    /// </list>
+    /// </remarks>
+    private static IType DetermineUnifiedSwitchResultType(
+        SwitchExpressionSuffixPostfixSuffixNode switchExpr,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes)
+    {
+        if (switchExpr.Arms is null)
+            return UnknownType.Instance;
+
+        // Collect all arm result expression types.
+        var armTypes = new List<IType>();
+
+        if (expressionTypes.TryGetValue(switchExpr.Arms.SwitchArm.Result, out var firstType))
+        {
+            armTypes.Add(firstType);
+        }
+
+        foreach (var arm in switchExpr.Arms.SwitchArms)
+        {
+            if (expressionTypes.TryGetValue(arm.Result, out var armType))
+            {
+                armTypes.Add(armType);
+            }
+        }
+
+        if (armTypes.Count == 0)
+            return UnknownType.Instance;
+
+        // Check if all arms have the same type.
+        var unified = armTypes[0];
+        var allSame = true;
+        for (var i = 1; i < armTypes.Count; i++)
+        {
+            if (!TypesMatch(unified, armTypes[i]))
+            {
+                allSame = false;
+                break;
+            }
+        }
+
+        if (allSame)
+            return unified;
+
+        // Types differ — attempt to find a common base class.
+        // Walk the base type chain of the first type and check if all other
+        // types are assignable to each ancestor. The first ancestor that all
+        // types are assignable to is the common base.
+        var commonBase = FindCommonBaseType(armTypes);
+        return commonBase ?? UnknownType.Instance;
+    }
+
+    /// <summary>
+    /// Returns true if two types are considered the same for result type unification.
+    /// Uses display name comparison (consistent with the identity check in
+    /// <see cref="TypeCheckerAnalyzer.IsAssignable"/>).
+    /// </summary>
+    private static bool TypesMatch(IType a, IType b)
+    {
+        if (ReferenceEquals(a, b))
+            return true;
+        if (a is ErrorType || b is ErrorType)
+            return true; // Suppress cascading errors.
+        return a.DisplayName == b.DisplayName;
+    }
+
+    /// <summary>
+    /// Attempts to find a common base type for a list of types by walking
+    /// the inheritance chain of the first type and checking if all other
+    /// types share that ancestor.
+    /// </summary>
+    /// <returns>The common base type, or null if none exists.</returns>
+    private static IType? FindCommonBaseType(List<IType> types)
+    {
+        if (types.Count == 0)
+            return null;
+
+        // Skip ErrorType entries — they should not influence the result.
+        var nonErrorTypes = new List<IType>();
+        foreach (var t in types)
+        {
+            if (t is not ErrorType)
+                nonErrorTypes.Add(t);
+        }
+
+        if (nonErrorTypes.Count == 0)
+            return ErrorType.Instance;
+        if (nonErrorTypes.Count == 1)
+            return nonErrorTypes[0];
+
+        // Try to find a common base by walking the first type's ancestor chain.
+        // For each candidate ancestor, check if all other types are assignable to it.
+        var first = nonErrorTypes[0];
+        if (first is ClassType firstClass)
+        {
+            var candidate = firstClass.BaseType as ClassType;
+            while (candidate is not null)
+            {
+                var allAssignable = true;
+                for (var i = 1; i < nonErrorTypes.Count; i++)
+                {
+                    if (!IsSubtypeOf(nonErrorTypes[i], candidate))
+                    {
+                        allAssignable = false;
+                        break;
+                    }
+                }
+
+                if (allAssignable)
+                    return candidate;
+
+                candidate = candidate.BaseType as ClassType;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks if <paramref name="source"/> is a subtype of <paramref name="target"/>
+    /// by walking the base type chain. Used for common base type resolution in
+    /// switch expression result type unification.
+    /// </summary>
+    private static bool IsSubtypeOf(IType source, ClassType target)
+    {
+        if (ReferenceEquals(source, target))
+            return true;
+        if (source.DisplayName == target.DisplayName)
+            return true;
+
+        if (source is ClassType sourceClass)
+        {
+            var current = sourceClass.BaseType as ClassType;
+            while (current is not null)
+            {
+                if (ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
+                    return true;
+                current = current.BaseType as ClassType;
+            }
+        }
+
+        return false;
     }
 
     // ─── Primary Expression Resolution ───────────────────────────────────

@@ -1001,9 +1001,10 @@ public sealed class MistPrettyPrinter
 
     private string EmitParameter(ParameterNode param)
     {
+        var prefix = param.Modifier is not null ? "readonly " : "";
         var type = EmitTypeReference(param.Type);
         var name = param.Name.Lexeme;
-        return $"{type} {name}";
+        return $"{prefix}{type} {name}";
     }
 
     private string EmitArgumentList(ArgumentListNode? argList)
@@ -1195,6 +1196,16 @@ public sealed class MistPrettyPrinter
                 break;
             case BreakStatementStatementNode:
                 AppendLine("break;");
+                break;
+            case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
+                AppendLine("readonly {");
+                _indentLevel++;
+                foreach (var bodyStmt in readonlyBlockStmt.ReadonlyBlock.Body.Statements)
+                {
+                    EmitStatement(bodyStmt);
+                }
+                _indentLevel--;
+                AppendLine("}");
                 break;
             case ExpressionStatementStatementNode exprStmt:
                 AppendLine($"{EmitExpression(exprStmt.ExpressionStatement.Expression)};");
@@ -1889,6 +1900,9 @@ public sealed class MistPrettyPrinter
                 case IntrinsicModifierModifierNode:
                     parts.Add("intrinsic");
                     break;
+                case ReadonlyModifierModifierNode:
+                    parts.Add("readonly");
+                    break;
             }
         }
 
@@ -2040,6 +2054,10 @@ public sealed class MistPrettyPrinter
                 return "class";
             case StructConstraintConstraintNode:
                 return "struct";
+            case ReadonlyConstraintConstraintNode:
+                return "readonly";
+            case MutableConstraintConstraintNode:
+                return "mutable";
             case ConstructorConstraintConstraintNode ctorConstraint:
             {
                 if (ctorConstraint.ParamTypes is null)

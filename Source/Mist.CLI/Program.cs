@@ -236,7 +236,7 @@ internal class Program
         var lexer = new MistLexer();
         var parser = new MistParser();
         var semanticModelBuilder = new SemanticModelBuilder();
-        ImmutableArray<IAnalyzer> analyzers = [new TypeCheckerAnalyzer()];
+        ImmutableArray<IAnalyzer> analyzers = [new TypeCheckerAnalyzer(), new ReadonlyAnalyzer()];
         ImmutableArray<IBackend> backends = [new CSharpTranspilerBackend()];
 
         var driver = new CompilerDriver(lexer, parser, semanticModelBuilder, analyzers, backends, progressReporter);

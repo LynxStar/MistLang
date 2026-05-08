@@ -138,6 +138,8 @@ rule ConstraintList = Constraint (COMMA Constraint)*;
 rule Constraint
     = CLASS                                                                    as ClassConstraint
     | STRUCT                                                                   as StructConstraint
+    | READONLY                                                                 as ReadonlyConstraint
+    | MUTABLE                                                                  as MutableConstraint
     | NEW LEFT_PARENTHESIS paramTypes:ConstraintParameterTypeList? RIGHT_PARENTHESIS  as ConstructorConstraint
     | type:TypeReference                                                       as TypeConstraint
     ;
@@ -246,6 +248,7 @@ rule Modifier
     | PRIVATE   as PrivateModifier
     | STATIC    as StaticModifier
     | INTRINSIC as IntrinsicModifier
+    | READONLY  as ReadonlyModifier
     ;
 
 rule MemberDeclaration
@@ -362,7 +365,7 @@ rule OperatorSymbol
     ;
 
 rule ParameterList = Parameter (COMMA Parameter)*;
-rule Parameter = type:TypeReference name:IDENTIFIER;
+rule Parameter = modifier:READONLY? type:TypeReference name:IDENTIFIER;
 
 rule ArgumentList = Expression (COMMA Expression)*;
 
@@ -409,8 +412,11 @@ rule Statement
     | forStatement:ForStatement                           as ForStatement
     | foreachStatement:ForeachStatement                   as ForeachStatement
     | breakStatement:BreakStatement                       as BreakStatement
+    | readonlyBlock:ReadonlyBlockStatement                as ReadonlyBlockStatement
     | expressionStatement:ExpressionStatement             as ExpressionStatement
     ;
+
+rule ReadonlyBlockStatement = READONLY body:Block;
 
 rule VariableDeclarationStatement
     = type:TypeReference name:IDENTIFIER EQUAL initializer:Expression SEMICOLON  as TypedVariableDeclaration

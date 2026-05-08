@@ -34,4 +34,10 @@ public sealed class TypeParameterConstraints
     /// Multiple entries use OR semantics.
     /// </summary>
     public IReadOnlyList<IReadOnlyList<IType>> ConstructorConstraints { get; init; } = Array.Empty<IReadOnlyList<IType>>();
+
+    /// <summary>Whether the 'readonly' constraint is present.</summary>
+    public bool HasReadonlyConstraint { get; init; }
+
+    /// <summary>Whether the 'mutable' constraint is present.</summary>
+    public bool HasMutableConstraint { get; init; }
 }

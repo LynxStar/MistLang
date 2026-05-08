@@ -100,10 +100,10 @@ public class Program
 
         // 6. Reassignment across constituent types
         Console.WriteLine("--- Reassignment ---");
-        int | string mutable = 1;
+        int | string reassignable = 1;
         Console.WriteLine($"  before: assigned int");
-        mutable = "switched";
-        if (mutable is string ms)
+        reassignable = "switched";
+        if (reassignable is string ms)
         {
             Console.WriteLine($"  after: {ms}");
         }

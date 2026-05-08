@@ -1,4 +1,5 @@
 using Mist.Generated;
+using Mist.Semantics.Model;
 
 namespace Mist.Semantics.Contracts;
 
@@ -17,6 +18,13 @@ public sealed class PropertyInfo
     public AccessorInfo? SetAccessor { get; init; }
     public AccessorInfo? InitAccessor { get; init; }
     public ISymbol? BackingField { get; init; }
+
+    /// <summary>
+    /// Tracks the readonly classification of this property or indexer.
+    /// Defaults to <see cref="ReadonlyStatus.Unknown"/> until the semantic model
+    /// builder or inference engine classifies it.
+    /// </summary>
+    public ReadonlyStatus ReadonlyStatus { get; init; } = ReadonlyStatus.Unknown;
 }
 
 /// <summary>

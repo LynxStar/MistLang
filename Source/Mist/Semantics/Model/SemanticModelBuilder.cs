@@ -975,6 +975,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var isBackendBacked = HasIntrinsicModifier(classDecl.Modifiers);
         var classType = new ClassType(className, typeScope, namespaceName, isBackendBacked);
 
+        var isReadonly = HasReadonlyModifier(classDecl.Modifiers);
+        classType.IsReadonly = isReadonly;
+
         var classSpan = ToMistSourceSpan(classDecl.Name.Span);
         var classSymbol = new Symbol(className, SymbolKind.Class, SymbolOrigin.UserCode, parentScope, classType, classSpan);
 
@@ -987,6 +990,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach (var memberDecl in classDecl.Members)
         {
             RegisterMemberDeclaration(memberDecl, typeScope, symbolTable, sourceText, diagnostics);
+        }
+
+        // If the type is readonly, set all members to ImplicitReadonly.
+        if (isReadonly)
+        {
+            SetMembersImplicitReadonly(typeScope);
         }
     }
 
@@ -1003,6 +1012,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var isBackendBacked = HasIntrinsicModifier(structDecl.Modifiers);
         var structType = new StructType(structName, typeScope, namespaceName, isBackendBacked);
 
+        var isReadonly = HasReadonlyModifier(structDecl.Modifiers);
+        structType.IsReadonly = isReadonly;
+
         var structSpan = ToMistSourceSpan(structDecl.Name.Span);
         var structSymbol = new Symbol(structName, SymbolKind.Struct, SymbolOrigin.UserCode, parentScope, structType, structSpan);
 
@@ -1015,6 +1027,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach (var memberDecl in structDecl.Members)
         {
             RegisterMemberDeclaration(memberDecl, typeScope, symbolTable, sourceText, diagnostics);
+        }
+
+        // If the type is readonly, set all members to ImplicitReadonly.
+        if (isReadonly)
+        {
+            SetMembersImplicitReadonly(typeScope);
         }
     }
 
@@ -1029,6 +1047,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var interfaceName = interfaceDecl.Name.Lexeme;
         var typeScope = new Scope(parent: parentScope);
         var interfaceType = new InterfaceType(interfaceName, typeScope, namespaceName);
+
+        var isReadonly = HasReadonlyModifier(interfaceDecl.Modifiers);
+        interfaceType.IsReadonly = isReadonly;
 
         var interfaceSpan = ToMistSourceSpan(interfaceDecl.Name.Span);
         var interfaceSymbol = new Symbol(interfaceName, SymbolKind.Interface, SymbolOrigin.UserCode, parentScope, interfaceType, interfaceSpan);
@@ -1051,6 +1072,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
             }
         }
+
+        // If the interface is readonly, set all members to ImplicitReadonly.
+        if (isReadonly)
+        {
+            SetMembersImplicitReadonly(typeScope);
+        }
     }
 
     private static void RegisterTraitDeclaration(
@@ -1064,6 +1091,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var traitName = traitDecl.Name.Lexeme;
         var typeScope = new Scope(parent: parentScope);
         var traitType = new TraitType(traitName, typeScope, namespaceName);
+
+        var isReadonly = HasReadonlyModifier(traitDecl.Modifiers);
+        traitType.IsReadonly = isReadonly;
 
         var traitSpan = ToMistSourceSpan(traitDecl.Name.Span);
         var traitSymbol = new Symbol(traitName, SymbolKind.Trait, SymbolOrigin.UserCode, parentScope, traitType, traitSpan);
@@ -1109,6 +1139,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
                 }
             }
+        }
+
+        // If the trait is readonly, set all members to ImplicitReadonly.
+        if (isReadonly)
+        {
+            SetMembersImplicitReadonly(typeScope);
         }
     }
 
@@ -1930,6 +1966,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var fieldName = fieldDecl.Name.Lexeme;
         var fieldSpan = ToMistSourceSpan(fieldDecl.Name.Span);
         var fieldSymbol = new Symbol(fieldName, SymbolKind.Field, SymbolOrigin.UserCode, typeScope, declaredType: null, fieldSpan);
+
+        if (HasReadonlyModifier(fieldDecl.Modifiers))
+        {
+            fieldSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+        }
+
         typeScope.AddMember(fieldSymbol);
         symbolTable.Register(fieldSymbol, fieldDecl);
     }
@@ -1944,6 +1986,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ctorName, SymbolKind.Constructor, SymbolOrigin.UserCode, typeScope,
             declaredType: null, ctorSpan,
             isIntrinsic: isIntrinsic, hasBody: hasBody);
+
+        if (HasReadonlyModifier(ctorDecl.Modifiers))
+        {
+            ctorSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+        }
+
         typeScope.AddMember(ctorSymbol);
         symbolTable.Register(ctorSymbol, ctorDecl);
     }
@@ -1958,6 +2006,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             methodName, SymbolKind.Method, SymbolOrigin.UserCode, typeScope,
             declaredType: null, methodSpan,
             isIntrinsic: isIntrinsic, hasBody: hasBody);
+
+        if (HasReadonlyModifier(methodDecl.Modifiers))
+        {
+            methodSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+        }
+
         typeScope.AddMember(methodSymbol);
         symbolTable.Register(methodSymbol, methodDecl);
 
@@ -2101,6 +2155,54 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
         }
         return false;
+    }
+
+    private static bool HasReadonlyModifier(ImmutableArray<ModifierNode> modifiers)
+    {
+        foreach (var modifier in modifiers)
+        {
+            if (modifier is ReadonlyModifierModifierNode)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Sets all member symbols in the given type scope to <see cref="ReadonlyStatus.ImplicitReadonly"/>,
+    /// unless they are already explicitly marked readonly. Called when a type is declared as readonly.
+    /// </summary>
+    private static void SetMembersImplicitReadonly(Scope typeScope)
+    {
+        foreach (var member in typeScope.Members)
+        {
+            if (member is Symbol symbol &&
+                symbol.Kind is SymbolKind.Field or SymbolKind.Property or SymbolKind.Indexer or SymbolKind.Method or SymbolKind.Constructor)
+            {
+                if (symbol.ReadonlyStatus == ReadonlyStatus.Unknown)
+                {
+                    symbol.ReadonlyStatus = ReadonlyStatus.ImplicitReadonly;
+                }
+
+                // Also update PropertyInfo.ReadonlyStatus for properties and indexers.
+                if (symbol.PropertyMetadata is { ReadonlyStatus: ReadonlyStatus.Unknown } propInfo)
+                {
+                    symbol.PropertyMetadata = new PropertyInfo
+                    {
+                        HasGet = propInfo.HasGet,
+                        HasSet = propInfo.HasSet,
+                        HasInit = propInfo.HasInit,
+                        IsComputed = propInfo.IsComputed,
+                        IsStatic = propInfo.IsStatic,
+                        IsExpressionBodied = propInfo.IsExpressionBodied,
+                        GetAccessor = propInfo.GetAccessor,
+                        SetAccessor = propInfo.SetAccessor,
+                        InitAccessor = propInfo.InitAccessor,
+                        BackingField = propInfo.BackingField,
+                        ReadonlyStatus = ReadonlyStatus.ImplicitReadonly,
+                    };
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -2399,10 +2501,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             SetAccessor = setAccessor,
             InitAccessor = initAccessor,
             BackingField = backingFieldSymbol,
+            ReadonlyStatus = HasReadonlyModifier(blockProp.Modifiers) ? ReadonlyStatus.ExplicitReadonly : ReadonlyStatus.Unknown,
         };
 
         var propSymbol = new Symbol(propName, SymbolKind.Property, SymbolOrigin.UserCode, typeScope, declaredType: null, propSpan);
         propSymbol.PropertyMetadata = propertyInfo;
+
+        if (HasReadonlyModifier(blockProp.Modifiers))
+        {
+            propSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+        }
+
         typeScope.AddMember(propSymbol);
         symbolTable.Register(propSymbol, blockProp);
     }
@@ -2428,10 +2537,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             SetAccessor = null,
             InitAccessor = null,
             BackingField = null,
+            ReadonlyStatus = HasReadonlyModifier(exprProp.Modifiers) ? ReadonlyStatus.ExplicitReadonly : ReadonlyStatus.Unknown,
         };
 
         var propSymbol = new Symbol(propName, SymbolKind.Property, SymbolOrigin.UserCode, typeScope, declaredType: null, propSpan);
         propSymbol.PropertyMetadata = propertyInfo;
+
+        if (HasReadonlyModifier(exprProp.Modifiers))
+        {
+            propSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+        }
+
         typeScope.AddMember(propSymbol);
         symbolTable.Register(propSymbol, exprProp);
     }
@@ -2500,10 +2616,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             SetAccessor = setAccessor,
             InitAccessor = initAccessor,
             BackingField = null,
+            ReadonlyStatus = HasReadonlyModifier(blockIndexer.Modifiers) ? ReadonlyStatus.ExplicitReadonly : ReadonlyStatus.Unknown,
         };
 
         var indexerSymbol = new Symbol(indexerName, SymbolKind.Indexer, SymbolOrigin.UserCode, typeScope, declaredType: null, indexerSpan);
         indexerSymbol.PropertyMetadata = propertyInfo;
+
+        if (HasReadonlyModifier(blockIndexer.Modifiers))
+        {
+            indexerSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+        }
+
         typeScope.AddMember(indexerSymbol);
         symbolTable.Register(indexerSymbol, blockIndexer);
     }
@@ -4212,6 +4335,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var hasClassConstraint = false;
         var hasStructConstraint = false;
+        var hasReadonlyConstraint = false;
+        var hasMutableConstraint = false;
         IType? baseClassConstraint = null;
         var interfaceConstraints = new List<IType>();
         var traitConstraints = new List<IType>();
@@ -4236,6 +4361,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 case StructConstraintConstraintNode:
                     hasStructConstraint = true;
+                    break;
+
+                case ReadonlyConstraintConstraintNode:
+                    hasReadonlyConstraint = true;
+                    break;
+
+                case MutableConstraintConstraintNode:
+                    hasMutableConstraint = true;
                     break;
 
                 case ConstructorConstraintConstraintNode ctorConstraint:
@@ -4282,6 +4415,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             InterfaceConstraints = interfaceConstraints,
             TraitConstraints = traitConstraints,
             ConstructorConstraints = constructorConstraints,
+            HasReadonlyConstraint = hasReadonlyConstraint,
+            HasMutableConstraint = hasMutableConstraint,
         };
     }
 
@@ -10344,6 +10479,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         var paramSymbol = new Symbol(paramName, SymbolKind.Parameter, SymbolOrigin.UserCode, methodScope, paramType, paramSpan);
+
+        // Detect readonly modifier on the parameter.
+        if (param.Modifier is not null)
+        {
+            paramSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+        }
+
         methodScope.AddMember(paramSymbol);
         symbolTable.Register(paramSymbol, param);
     }

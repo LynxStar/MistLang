@@ -243,6 +243,12 @@ internal sealed class CSharpSourceWriter
     private readonly List<string> _pendingUnionPatternBindings = new();
     private readonly bool _isReferencedProject;
     /// <summary>
+    /// Tracks whether the emitter is currently inside a struct declaration.
+    /// Used by <see cref="EmitMethodDeclaration"/> to emit the C# <c>readonly</c>
+    /// modifier on struct methods (C# has no readonly method concept for classes).
+    /// </summary>
+    private bool _insideStruct;
+    /// <summary>
     /// The namespace of the current compilation unit being emitted.
     /// Used to scope type alias fallback resolution to the correct namespace.
     /// </summary>
@@ -560,6 +566,10 @@ internal sealed class CSharpSourceWriter
             case ForeachStatementStatementNode foreachStmt:
                 ScanExpressionForValueReturningCalls(foreachStmt.ForeachStatement.Collection, voidMethodNames);
                 ScanBlockForValueReturningCalls(foreachStmt.ForeachStatement.Body, voidMethodNames);
+                break;
+
+            case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
+                ScanBlockForValueReturningCalls(readonlyBlockStmt.ReadonlyBlock.Body, voidMethodNames);
                 break;
         }
     }
@@ -2118,7 +2128,14 @@ internal sealed class CSharpSourceWriter
                 interfaceList = $" : {string.Join(", ", parts)}";
             }
         }
-        AppendLine($"{modifiers}struct {name}{typeParams}{interfaceList}");
+
+        // Task 12.3 — Emit `readonly struct` for readonly struct types.
+        var readonlyPrefix = "";
+        if (symbol?.DeclaredType is StructType readonlyCheck && readonlyCheck.IsReadonly)
+        {
+            readonlyPrefix = "readonly ";
+        }
+        AppendLine($"{modifiers}{readonlyPrefix}struct {name}{typeParams}{interfaceList}");
         // Emit constraint clauses (where T : ...) for constrained type parameters.
         if (symbol?.DeclaredType is not null)
         {
@@ -2127,6 +2144,11 @@ internal sealed class CSharpSourceWriter
         }
         AppendLine("{");
         _indentLevel++;
+
+        // Task 12.4 — Track that we're inside a struct so method emission can
+        // emit the C# `readonly` modifier on struct methods.
+        var previousInsideStruct = _insideStruct;
+        _insideStruct = true;
 
         // Emit factory delegate fields and constructor for parameterized constructor constraints.
         var hasFactoryFields = false;
@@ -2183,6 +2205,7 @@ internal sealed class CSharpSourceWriter
             EmitCreateDefaultMethod(defaultableStruct.DisplayName, defaultableStruct.DefaultValues, hasExistingMembers);
         }
 
+        _insideStruct = previousInsideStruct;
         _indentLevel--;
         AppendLine("}");
     }
@@ -2458,15 +2481,23 @@ internal sealed class CSharpSourceWriter
         var type = EmitTypeReference(fieldDecl.Type, isValueContext: true);
         var name = fieldDecl.Name.Lexeme;
 
+        // Task 12.1 — Emit C# `readonly` modifier on fields with ReadonlyStatus != Mutable.
+        var readonlyPrefix = "";
+        var fieldSymbol = _model.GetDeclaredSymbol(fieldDecl) as Symbol;
+        if (fieldSymbol is not null && fieldSymbol.ReadonlyStatus is not ReadonlyStatus.Mutable and not ReadonlyStatus.Unknown)
+        {
+            readonlyPrefix = "readonly ";
+        }
+
         if (fieldDecl.Initializer != null)
         {
             // The field has an initializer expression.
             // With the bugfix, the Initializer property is now ExpressionNode? directly.
-            AppendLine($"{modifiers}{type} {name} = {EmitExpression(fieldDecl.Initializer)};");
+            AppendLine($"{modifiers}{readonlyPrefix}{type} {name} = {EmitExpression(fieldDecl.Initializer)};");
         }
         else
         {
-            AppendLine($"{modifiers}{type} {name};");
+            AppendLine($"{modifiers}{readonlyPrefix}{type} {name};");
         }
     }
 
@@ -2559,6 +2590,16 @@ internal sealed class CSharpSourceWriter
         var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
         var parameters = EmitParameterList(methodDecl.Parameters);
 
+        // Task 12.4 — Emit C# `readonly` modifier on struct methods with ReadonlyStatus != Mutable.
+        // C# has no `readonly` method concept for classes, so only emit for structs.
+        var readonlyPrefix = "";
+        var methodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
+        if (_insideStruct && methodSymbol is not null
+            && methodSymbol.ReadonlyStatus is not ReadonlyStatus.Mutable and not ReadonlyStatus.Unknown)
+        {
+            readonlyPrefix = "readonly ";
+        }
+
         // Context-sensitive void return type: if this void method's return value
         // is consumed at any call site, emit MistVoid instead of void.
         var isValueReturningVoid = methodDecl.ReturnType is VoidTypeRefTypeReferenceNode
@@ -2571,7 +2612,6 @@ internal sealed class CSharpSourceWriter
 
         // For generic methods with parameterized constructor constraints,
         // append factory delegate parameters to the method signature.
-        var methodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
         var methodTypeParams = methodSymbol?.TypeParameters ?? (IReadOnlyList<TypeParameterType>)Array.Empty<TypeParameterType>();
         var factoryParams = GetFactoryDelegateMethodParams(methodTypeParams);
         if (factoryParams.Length > 0)
@@ -2581,7 +2621,7 @@ internal sealed class CSharpSourceWriter
                 : factoryParams;
         }
 
-        AppendLine($"{modifiers}{returnType} {name}{typeParams}({parameters})");
+        AppendLine($"{modifiers}{readonlyPrefix}{returnType} {name}{typeParams}({parameters})");
         // Emit constraint clauses for the method's type parameters.
         EmitConstraintClauses(methodTypeParams);
 
@@ -2672,6 +2712,11 @@ internal sealed class CSharpSourceWriter
         var type = EmitTypeReference(blockProp.Type);
         var name = blockProp.Name.Lexeme;
 
+        // Task 12.2 — Determine if this property is readonly (emit `init` instead of `set`).
+        var propSymbol = _model.GetDeclaredSymbol(blockProp) as Symbol;
+        var isReadonlyProperty = propSymbol is not null
+            && propSymbol.ReadonlyStatus is not ReadonlyStatus.Mutable and not ReadonlyStatus.Unknown;
+
         // Check if any accessor uses the 'field' keyword — if so, emit a backing field first.
         var backingFieldName = $"_{name}_k__BackingField";
         var usesField = AccessorsUseFieldKeyword(blockProp.Accessors);
@@ -2684,7 +2729,7 @@ internal sealed class CSharpSourceWriter
         var accessorParts = new List<string>();
         foreach (var accessor in blockProp.Accessors)
         {
-            accessorParts.Add(EmitAccessorDeclaration(accessor, usesField ? backingFieldName : null));
+            accessorParts.Add(EmitAccessorDeclaration(accessor, usesField ? backingFieldName : null, isReadonlyProperty));
         }
 
         var accessorBody = string.Join(" ", accessorParts);
@@ -2711,7 +2756,7 @@ internal sealed class CSharpSourceWriter
         AppendLine($"{modifiers}{type} {name} => {body};");
     }
 
-    private string EmitAccessorDeclaration(AccessorDeclarationNode accessor, string? backingFieldName)
+    private string EmitAccessorDeclaration(AccessorDeclarationNode accessor, string? backingFieldName, bool isReadonlyProperty = false)
     {
         switch (accessor)
         {
@@ -2735,22 +2780,26 @@ internal sealed class CSharpSourceWriter
             }
 
             // ── Set accessors ──
+            // Task 12.2 — When the property is readonly, emit `init` instead of `set`.
             case AutoSetAccessorAccessorDeclarationNode autoSet:
             {
                 var mod = EmitAccessorModifier(autoSet.AccessorModifier);
-                return $"{mod}set;";
+                var keyword = isReadonlyProperty ? "init" : "set";
+                return $"{mod}{keyword};";
             }
             case BlockSetAccessorAccessorDeclarationNode blockSet:
             {
                 var mod = EmitAccessorModifier(blockSet.AccessorModifier);
                 var body = EmitAccessorBlock(blockSet.Body, backingFieldName);
-                return $"{mod}set {body}";
+                var keyword = isReadonlyProperty ? "init" : "set";
+                return $"{mod}{keyword} {body}";
             }
             case ExpressionSetAccessorAccessorDeclarationNode exprSet:
             {
                 var mod = EmitAccessorModifier(exprSet.AccessorModifier);
                 var expr = EmitAccessorExpression(exprSet.Expression, backingFieldName);
-                return $"{mod}set => {expr};";
+                var keyword = isReadonlyProperty ? "init" : "set";
+                return $"{mod}{keyword} => {expr};";
             }
 
             // ── Init accessors ──
@@ -2977,11 +3026,16 @@ internal sealed class CSharpSourceWriter
         var type = EmitTypeReference(blockIndexer.Type);
         var parameters = EmitParameterList(blockIndexer.Parameters);
 
+        // Task 12.2 — Determine if this indexer is readonly (emit `init` instead of `set`).
+        var indexerSymbol = _model.GetDeclaredSymbol(blockIndexer) as Symbol;
+        var isReadonlyIndexer = indexerSymbol is not null
+            && indexerSymbol.ReadonlyStatus is not ReadonlyStatus.Mutable and not ReadonlyStatus.Unknown;
+
         // Build accessor list.
         var accessorParts = new List<string>();
         foreach (var accessor in blockIndexer.Accessors)
         {
-            accessorParts.Add(EmitAccessorDeclaration(accessor, null));
+            accessorParts.Add(EmitAccessorDeclaration(accessor, null, isReadonlyIndexer));
         }
 
         var accessorBody = string.Join(" ", accessorParts);
@@ -3023,7 +3077,8 @@ internal sealed class CSharpSourceWriter
                 && !TypeReferenceContainsUnknown(firstType)
                 && !ContainsVoidOrUnknownKeyword(sourceText)
                 && !ContainsPipeOperator(sourceText)
-                && !ParameterListContainsTypeAlias(paramList, sourceText))
+                && !ParameterListContainsTypeAlias(paramList, sourceText)
+                && !ContainsReadonlyKeyword(sourceText))
             {
                 return sourceText;
             }
@@ -3049,6 +3104,18 @@ internal sealed class CSharpSourceWriter
     private static bool ContainsVoidOrUnknownKeyword(string source)
     {
         return ContainsWord(source, "unknown") || ContainsWord(source, "void");
+    }
+
+    /// <summary>
+    /// Task 12.5 — Returns <c>true</c> if <paramref name="source"/> contains the
+    /// Mist keyword <c>readonly</c> as a standalone identifier (matched at word
+    /// boundaries). Used as a lexical fallback in <see cref="EmitParameterList"/>
+    /// to detect readonly parameter modifiers that must be erased in C# emission
+    /// (readonly parameters have no C# equivalent — enforcement is compile-time only).
+    /// </summary>
+    private static bool ContainsReadonlyKeyword(string source)
+    {
+        return ContainsWord(source, "readonly");
     }
 
     /// <summary>
@@ -3803,6 +3870,10 @@ internal sealed class CSharpSourceWriter
                 break;
             case ExpressionStatementStatementNode exprStmt:
                 AppendLine($"{EmitExpression(exprStmt.ExpressionStatement.Expression)};");
+                break;
+            // Task 12.5 — Readonly blocks emit as regular blocks (no C# equivalent).
+            case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
+                EmitBlock(readonlyBlockStmt.ReadonlyBlock.Body);
                 break;
         }
     }

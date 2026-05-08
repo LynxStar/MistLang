@@ -334,6 +334,68 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId UnionDegenerateType = new("MIST_TC_0075");
 
+    // ── Readonly parameter call-site diagnostic ID ───────────────────────
+    //
+    // Note on numbering: the readonly-contexts design document's Diagnostic
+    // ID Allocation table proposed MIST_TC_0073 for this diagnostic. That
+    // code was already allocated to the type-unions feature (see
+    // UnionMemberNotOnAllConstituents above), so the readonly parameter
+    // call-site diagnostic was reallocated to MIST_TC_0076 — the next free
+    // code after the union diagnostics (MIST_TC_0073, 0074, 0075) — to
+    // avoid overloading a diagnostic ID with two distinct meanings.
+
+    /// <summary>
+    /// Emitted when a readonly type is passed as an argument to a parameter
+    /// that is not marked <c>readonly</c>. A readonly type can only be
+    /// passed to a readonly parameter to ensure the callee cannot mutate it
+    /// (Requirement 14.5).
+    /// </summary>
+    internal static readonly DiagnosticId ReadonlyTypeToNonReadonlyParam = new("MIST_TC_0076");
+
+    // ── Readonly generic constraint diagnostic IDs ─────────────────────
+    //
+    // Note on numbering: the readonly-contexts design document's Diagnostic
+    // ID Allocation table proposed MIST_TC_0070 / MIST_TC_0071 for the
+    // readonly/mutable constraint violations. Those codes were already
+    // allocated to the type-unions feature (see UnionNonConstituentAssignment
+    // and UnionToNonUnionAssignment above), so the readonly constraint
+    // diagnostics were reallocated to MIST_TC_0077 / MIST_TC_0078 — the
+    // next free codes after the readonly parameter call-site diagnostic
+    // (MIST_TC_0076) — to avoid overloading diagnostic IDs with two
+    // distinct meanings.
+
+    /// <summary>
+    /// Emitted when a type argument does not satisfy the 'readonly' constraint
+    /// on a type parameter. The type argument must be a readonly type
+    /// (Requirement 12.1, 12.7).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintReadonlyViolation = new("MIST_TC_0077");
+
+    /// <summary>
+    /// Emitted when a type argument does not satisfy the 'mutable' constraint
+    /// on a type parameter. The type argument must not be a readonly type
+    /// (Requirement 12.2, 12.7).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintMutableViolation = new("MIST_TC_0078");
+
+    // ── Readonly interface/trait contract diagnostic ID ───────────────────
+    //
+    // Note on numbering: the readonly-contexts design document's Diagnostic
+    // ID Allocation table proposed MIST_TC_0072 for this diagnostic. That
+    // code was already allocated to the type-unions feature (see
+    // UnionIncompatibleConstituents above), so the readonly contract
+    // diagnostic was reallocated to MIST_TC_0079 — the next free code
+    // after the readonly constraint diagnostics (MIST_TC_0077, 0078) — to
+    // avoid overloading a diagnostic ID with two distinct meanings.
+
+    /// <summary>
+    /// Emitted when a type implements a readonly interface or trait but the
+    /// implementing member is not readonly (explicit or inferred). The
+    /// implementing member must be readonly to satisfy the contract
+    /// (Requirement 13.2, 13.3, 13.4, 13.5, 13.6).
+    /// </summary>
+    internal static readonly DiagnosticId ReadonlyContractViolation = new("MIST_TC_0079");
+
     // ── Generic constraint satisfaction diagnostic IDs ────────────────────
 
     /// <summary>
@@ -502,6 +564,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Task 5.10: Check for missing interface property implementations (MIST_TC_0030).
         CheckMissingInterfaceProperties(model, diagnostics);
+
+        // Task 10.1: Check readonly interface/trait contract enforcement (MIST_TC_0079).
+        CheckReadonlyInterfaceAndTraitContracts(model, diagnostics);
 
         // Task 6.2: Check constraint satisfaction for inheritance clauses where
         // constrained generics are used as base types or implemented interfaces.
@@ -2334,6 +2399,343 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         return null;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Readonly interface/trait contract checking (MIST_TC_0079)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Verifies that when a type implements a readonly interface or trait, each
+    /// implementing member is also readonly (explicit, inferred, or implicit).
+    /// If an implementing member is not readonly, emits <c>MIST_TC_0079</c>.
+    /// The implementing type itself does not need to be readonly — only the
+    /// specific members that correspond to readonly interface/trait members.
+    /// (Requirements 13.1, 13.2, 13.3, 13.4, 13.5, 13.6)
+    /// </summary>
+    private static void CheckReadonlyInterfaceAndTraitContracts(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Origin == SymbolOrigin.Backend)
+                continue;
+
+            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+                continue;
+
+            var type = symbol.DeclaredType;
+
+            // Check interface contracts.
+            IReadOnlyList<IType>? interfaces = type switch
+            {
+                ClassType ct => ct.Interfaces,
+                StructType st => st.Interfaces,
+                _ => null,
+            };
+
+            IScope? memberScope = type switch
+            {
+                ClassType ct => ct.MemberScope,
+                StructType st => st.MemberScope,
+                _ => null,
+            };
+
+            if (memberScope is not null && interfaces is not null && interfaces.Count > 0)
+            {
+                CheckReadonlyInterfaceContracts(symbol, interfaces, memberScope, model, diagnostics);
+            }
+
+            // Check trait contracts via the TraitSatisfactionMap.
+            if (memberScope is not null)
+            {
+                CheckReadonlyTraitContracts(symbol, type!, memberScope, model, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks readonly contracts for all interfaces implemented by a type.
+    /// For each readonly interface member, verifies the implementing member is also readonly.
+    /// </summary>
+    private static void CheckReadonlyInterfaceContracts(
+        ISymbol typeSymbol,
+        IReadOnlyList<IType> interfaces,
+        IScope memberScope,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var ifaceType in interfaces)
+        {
+            if (ifaceType is not InterfaceType iface)
+                continue;
+
+            // Only check readonly interfaces (all members are implicitly readonly).
+            if (!iface.IsReadonly)
+            {
+                // Even if the interface itself is not readonly, individual members
+                // might be explicitly readonly. Check those too.
+                CheckReadonlyMembersOfInterface(typeSymbol, iface, memberScope, model, diagnostics);
+                continue;
+            }
+
+            // The interface is readonly — all its members are implicitly readonly.
+            foreach (var ifaceMember in iface.MemberScope.Members)
+            {
+                if (ifaceMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer))
+                    continue;
+
+                var implMember = FindMemberInScope(ifaceMember.Name, ifaceMember.Kind, memberScope);
+                if (implMember is null)
+                    continue; // Missing implementation is reported by CheckMissingInterfaceProperties.
+
+                if (!IsMemberReadonly(implMember))
+                {
+                    EmitReadonlyContractViolation(typeSymbol, implMember, ifaceMember, iface.DisplayName, model, diagnostics);
+                }
+            }
+
+            // Recurse into parent interfaces.
+            if (iface.Interfaces.Count > 0)
+            {
+                CheckReadonlyInterfaceContracts(typeSymbol, iface.Interfaces, memberScope, model, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks individual readonly members of a non-readonly interface.
+    /// </summary>
+    private static void CheckReadonlyMembersOfInterface(
+        ISymbol typeSymbol,
+        InterfaceType iface,
+        IScope memberScope,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var ifaceMember in iface.MemberScope.Members)
+        {
+            if (ifaceMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer))
+                continue;
+
+            // Check if this specific interface member is readonly.
+            if (!IsMemberReadonly(ifaceMember))
+                continue;
+
+            var implMember = FindMemberInScope(ifaceMember.Name, ifaceMember.Kind, memberScope);
+            if (implMember is null)
+                continue;
+
+            if (!IsMemberReadonly(implMember))
+            {
+                EmitReadonlyContractViolation(typeSymbol, implMember, ifaceMember, iface.DisplayName, model, diagnostics);
+            }
+        }
+
+        // Recurse into parent interfaces.
+        if (iface.Interfaces.Count > 0)
+        {
+            foreach (var parentIface in iface.Interfaces)
+            {
+                if (parentIface is InterfaceType parentIfaceType)
+                {
+                    if (parentIfaceType.IsReadonly)
+                    {
+                        CheckReadonlyInterfaceContracts(typeSymbol, new[] { parentIfaceType }, memberScope, model, diagnostics);
+                    }
+                    else
+                    {
+                        CheckReadonlyMembersOfInterface(typeSymbol, parentIfaceType, memberScope, model, diagnostics);
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks readonly contracts for all traits satisfied by a type.
+    /// For each readonly trait member, verifies the implementing member is also readonly.
+    /// </summary>
+    private static void CheckReadonlyTraitContracts(
+        ISymbol typeSymbol,
+        IType type,
+        IScope memberScope,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var (satisfiedType, trait, satisfaction) in model.TraitSatisfactionMap.All())
+        {
+            if (!ReferenceEquals(satisfiedType, type))
+                continue;
+
+            var traitType = trait as TraitType;
+            if (traitType is null)
+                continue;
+
+            // Only check readonly traits (all members are implicitly readonly).
+            if (!traitType.IsReadonly)
+            {
+                // Check individual readonly members of non-readonly traits.
+                CheckReadonlyMembersOfTrait(typeSymbol, traitType, satisfaction, memberScope, model, diagnostics);
+                continue;
+            }
+
+            // The trait is readonly — all its members are implicitly readonly.
+            foreach (var traitMember in traitType.MemberScope.Members)
+            {
+                if (traitMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer or SymbolKind.Field))
+                    continue;
+
+                // Skip type parameter symbols.
+                if (traitMember.DeclaredType is TypeParameterType)
+                    continue;
+
+                // Find the implementing member via the satisfaction map or scope lookup.
+                var implMember = FindTraitImplementingMember(traitMember, satisfaction, memberScope);
+                if (implMember is null)
+                    continue;
+
+                if (!IsMemberReadonly(implMember))
+                {
+                    EmitReadonlyContractViolation(typeSymbol, implMember, traitMember, traitType.DisplayName, model, diagnostics);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks individual readonly members of a non-readonly trait.
+    /// </summary>
+    private static void CheckReadonlyMembersOfTrait(
+        ISymbol typeSymbol,
+        TraitType traitType,
+        TraitSatisfaction satisfaction,
+        IScope memberScope,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var traitMember in traitType.MemberScope.Members)
+        {
+            if (traitMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer or SymbolKind.Field))
+                continue;
+
+            // Skip type parameter symbols.
+            if (traitMember.DeclaredType is TypeParameterType)
+                continue;
+
+            if (!IsMemberReadonly(traitMember))
+                continue;
+
+            var implMember = FindTraitImplementingMember(traitMember, satisfaction, memberScope);
+            if (implMember is null)
+                continue;
+
+            if (!IsMemberReadonly(implMember))
+            {
+                EmitReadonlyContractViolation(typeSymbol, implMember, traitMember, traitType.DisplayName, model, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Finds the implementing member for a trait member, first checking the
+    /// satisfaction map (structural matches and with-mappings), then falling
+    /// back to a scope lookup.
+    /// </summary>
+    private static ISymbol? FindTraitImplementingMember(
+        ISymbol traitMember,
+        TraitSatisfaction satisfaction,
+        IScope memberScope)
+    {
+        if (satisfaction.StructuralMatches.TryGetValue(traitMember.Name, out var structMatch))
+            return structMatch;
+
+        if (satisfaction.WithMappings.TryGetValue(traitMember.Name, out var withMatch))
+            return withMatch;
+
+        return FindMemberInScope(traitMember.Name, traitMember.Kind, memberScope);
+    }
+
+    /// <summary>
+    /// Finds a member by name and kind in a scope.
+    /// </summary>
+    private static ISymbol? FindMemberInScope(string name, SymbolKind kind, IScope scope)
+    {
+        foreach (var member in scope.Members)
+        {
+            if (member.Name == name && member.Kind == kind)
+                return member;
+
+            // Properties can satisfy property requirements, fields can satisfy field requirements.
+            if (member.Name == name)
+            {
+                var kindCompatible = kind switch
+                {
+                    SymbolKind.Field => member.Kind is SymbolKind.Field or SymbolKind.Property,
+                    SymbolKind.Property => member.Kind is SymbolKind.Property or SymbolKind.Field,
+                    _ => false,
+                };
+                if (kindCompatible)
+                    return member;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Determines whether a symbol is readonly (explicit, inferred, or implicit).
+    /// </summary>
+    private static bool IsMemberReadonly(ISymbol symbol)
+    {
+        if (symbol is Symbol concreteSymbol)
+        {
+            return concreteSymbol.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly
+                or ReadonlyStatus.InferredReadonly
+                or ReadonlyStatus.ImplicitReadonly;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Emits the <c>MIST_TC_0079</c> diagnostic for a readonly contract violation.
+    /// </summary>
+    private static void EmitReadonlyContractViolation(
+        ISymbol typeSymbol,
+        ISymbol implMember,
+        ISymbol contractMember,
+        string contractSourceName,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        SyntaxNode? implNode;
+        try { implNode = model.GetDeclaringNode(implMember); }
+        catch { implNode = null; }
+
+        // Fall back to the type declaration node if the member node is unavailable.
+        if (implNode is null)
+        {
+            try { implNode = model.GetDeclaringNode(typeSymbol); }
+            catch { implNode = null; }
+        }
+
+        if (implNode is null)
+            return;
+
+        var memberKind = contractMember.Kind switch
+        {
+            SymbolKind.Method => "Method",
+            SymbolKind.Property => "Property",
+            SymbolKind.Indexer => "Indexer",
+            SymbolKind.Field => "Field",
+            _ => "Member",
+        };
+
+        diagnostics.Add(MakeDiagnostic(
+            ReadonlyContractViolation.Value,
+            $"{memberKind} '{implMember.Name}' must be readonly to satisfy readonly contract from '{contractSourceName}'",
+            implNode,
+            model));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -5327,6 +5729,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
         }
+
+        // Readonly type argument passing check (Req 14.5, 14.6):
+        // If an argument's type is readonly, the corresponding parameter must be readonly.
+        CheckReadonlyTypeArgumentPassing(argList, methodSymbol, model, diagnostics, callSite);
     }
 
     /// <summary>
@@ -5435,6 +5841,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
         }
+
+        // Readonly type argument passing check (Req 14.5, 14.6):
+        // If an argument's type is readonly, the corresponding parameter must be readonly.
+        CheckReadonlyTypeArgumentPassing(argList, methodSymbol, model, diagnostics, callSite);
     }
 
     /// <summary>
@@ -5450,6 +5860,118 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Readonly type argument call-site checking (MIST_TC_0076)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Returns true if the given type is marked as readonly (has <c>IsReadonly == true</c>).
+    /// Checks ClassType, StructType, InterfaceType, and TraitType.
+    /// </summary>
+    private static bool IsTypeReadonly(IType type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.IsReadonly,
+            StructType st => st.IsReadonly,
+            InterfaceType it => it.IsReadonly,
+            TraitType tt => tt.IsReadonly,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Checks that readonly types are only passed to readonly parameters at a call site.
+    /// If an argument's type is readonly and the corresponding parameter is NOT marked
+    /// <c>readonly</c>, emits <c>MIST_TC_0076</c>.
+    /// If the argument's type is mutable, either parameter kind is acceptable.
+    /// (Requirement 14.5, 14.6)
+    /// </summary>
+    private static void CheckReadonlyTypeArgumentPassing(
+        ArgumentListNode? argList,
+        ISymbol methodSymbol,
+        ISemanticModel model,
+        DiagnosticBag diagnostics,
+        SyntaxNode callSite)
+    {
+        if (argList is null)
+            return;
+
+        // Extract readonly flags for each parameter of the method.
+        var readonlyFlags = ParameterSignature.ExtractIsReadonly(methodSymbol, model);
+        if (readonlyFlags.Count == 0)
+            return;
+
+        // Collect argument expressions.
+        var argExprs = new List<ExpressionNode>();
+        foreach (var child in argList.Children())
+        {
+            if (child is ExpressionNode expr)
+                argExprs.Add(expr);
+        }
+
+        // Check each argument: if its type is readonly, the parameter must be readonly.
+        var count = Math.Min(argExprs.Count, readonlyFlags.Count);
+        for (var i = 0; i < count; i++)
+        {
+            var argType = model.GetTypeOf(argExprs[i]);
+            if (argType is null)
+                continue;
+
+            // Only check if the argument's type is readonly (Req 14.5).
+            // If the argument's type is mutable, either parameter kind is acceptable (Req 14.6).
+            if (!IsTypeReadonly(argType))
+                continue;
+
+            // The argument's type is readonly — the parameter MUST be marked readonly.
+            if (!readonlyFlags[i])
+            {
+                // Extract parameter name for the diagnostic message.
+                var paramName = GetParameterName(methodSymbol, i, model);
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0076",
+                    $"Cannot pass readonly type '{argType.DisplayName}' to non-readonly parameter '{paramName}'",
+                    argExprs[i],
+                    model));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the name of the parameter at the given index from a method's declaring node.
+    /// Returns a fallback string if the name cannot be resolved.
+    /// </summary>
+    private static string GetParameterName(ISymbol methodSymbol, int index, ISemanticModel model)
+    {
+        Storm.Runtime.SyntaxNode declaringNode;
+        try { declaringNode = model.GetDeclaringNode(methodSymbol); }
+        catch { return $"param{index}"; }
+
+        var paramList = declaringNode switch
+        {
+            MethodDeclarationNode method => method.Parameters,
+            ConstructorDeclarationNode ctor => ctor.Parameters,
+            _ => null,
+        };
+
+        if (paramList is null)
+            return $"param{index}";
+
+        var currentIndex = 0;
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode paramNode)
+            {
+                if (currentIndex == index)
+                    return paramNode.Name.Lexeme;
+                currentIndex++;
+            }
+        }
+
+        return $"param{index}";
+    }
+
 
     /// <summary>
     /// Resolves type arguments from a <see cref="TypeArgumentListNode"/> AST node
@@ -9260,6 +9782,32 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             CheckConstructorConstraints(
                 typeArgument, typeParameter, constraints.ConstructorConstraints,
                 genericTypeName, node, model, diagnostics);
+        }
+
+        // Check readonly constraint: type argument must be a readonly type.
+        if (constraints.HasReadonlyConstraint)
+        {
+            if (!IsTypeReadonly(typeArgument))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    ConstraintReadonlyViolation.Value,
+                    $"Type argument '{typeArgument.DisplayName}' does not satisfy the 'readonly' constraint on type parameter '{typeParameter.Name}'.",
+                    node,
+                    model));
+            }
+        }
+
+        // Check mutable constraint: type argument must NOT be a readonly type.
+        if (constraints.HasMutableConstraint)
+        {
+            if (IsTypeReadonly(typeArgument))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    ConstraintMutableViolation.Value,
+                    $"Type argument '{typeArgument.DisplayName}' does not satisfy the 'mutable' constraint on type parameter '{typeParameter.Name}' (type is readonly).",
+                    node,
+                    model));
+            }
         }
     }
 

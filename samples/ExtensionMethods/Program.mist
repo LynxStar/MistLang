@@ -38,6 +38,7 @@ public class Program
 
         Console.WriteLine(empty.GetType());
         Console.WriteLine(string);
+        Console.WriteLine(int.Name);
 
     }
 }

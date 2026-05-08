@@ -3229,6 +3229,32 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
+    /// Checks if a type reference contains dependent type arguments (literal values like
+    /// <c>&lt;5&gt;</c>, <c>&lt;true&gt;</c>, <c>&lt;'x'&gt;</c>). Used to distinguish
+    /// dependent type static member access (e.g., <c>FixedBuffer&lt;5&gt;.Size</c>) from
+    /// reflection property access on type literals (e.g., <c>int.Name</c> → <c>typeof(int).Name</c>).
+    /// </summary>
+    private static bool TypeReferenceHasDependentTypeArguments(TypeReferenceNode typeRef)
+    {
+        if (typeRef is not NamedTypeRefTypeReferenceNode named)
+            return false;
+        if (named.TypeArgs is null)
+            return false;
+
+        return IsDependentTypeArgument(named.TypeArgs.TypeArgument)
+            || named.TypeArgs.TypeArguments.Any(IsDependentTypeArgument);
+    }
+
+    /// <summary>
+    /// Returns true if a type argument is a literal value (integer, boolean, char, hex, binary,
+    /// negated integer, or const reference) rather than a type reference.
+    /// </summary>
+    private static bool IsDependentTypeArgument(TypeArgumentNode arg)
+    {
+        return arg is not TypeReferenceTypeArgumentTypeArgumentNode;
+    }
+
+    /// <summary>
     /// Resolves a type alias for C# emission. For non-generic aliases, returns
     /// the C# name of the underlying type directly. For generic aliases with
     /// type arguments on the reference node, substitutes the type arguments
@@ -4933,9 +4959,14 @@ internal sealed class CSharpSourceWriter
     private string EmitPostfix(PostfixNode postfix)
     {
         // Special case: TypeLiteralExpression followed by member access or method call
-        // represents a static member access (e.g., FixedBuffer<5>.Size).
+        // represents a static member access on a dependent type (e.g., FixedBuffer<5>.Size).
         // Emit the type name directly without typeof() wrapping.
-        if (postfix.Target is TypeLiteralExpressionPrimaryNode typeLiteral && postfix.Suffix.Length > 0)
+        // This ONLY applies when the type reference contains dependent type arguments
+        // (literal values like <5>, <true>, etc.). For plain types like `int.Name`,
+        // we fall through to the normal typeof() path below.
+        if (postfix.Target is TypeLiteralExpressionPrimaryNode typeLiteral
+            && postfix.Suffix.Length > 0
+            && TypeReferenceHasDependentTypeArguments(typeLiteral.TypeRef))
         {
             var result = EmitTypeReference(typeLiteral.TypeRef, isValueContext: true);
 

@@ -170,6 +170,7 @@ Done!
 Extension Methods Demo
 System.String
 System.String
+Int32
 === Type Aliases Sample ===
 --- Simple aliases ---
 id=42 name=Alice score=98.5 active=True

@@ -3265,15 +3265,44 @@ internal sealed class CSharpSourceWriter
     /// dependent type static member access (e.g., <c>FixedBuffer&lt;5&gt;.Size</c>) from
     /// reflection property access on type literals (e.g., <c>int.Name</c> → <c>typeof(int).Name</c>).
     /// </summary>
-    private static bool TypeReferenceHasDependentTypeArguments(TypeReferenceNode typeRef)
+    private bool TypeReferenceHasDependentTypeArguments(TypeReferenceNode typeRef)
     {
         if (typeRef is not NamedTypeRefTypeReferenceNode named)
             return false;
         if (named.TypeArgs is null)
             return false;
 
-        return IsDependentTypeArgument(named.TypeArgs.TypeArgument)
-            || named.TypeArgs.TypeArguments.Any(IsDependentTypeArgument);
+        // Check if any type argument is a literal (non-type-reference) dependent value.
+        if (IsDependentTypeArgument(named.TypeArgs.TypeArgument)
+            || named.TypeArgs.TypeArguments.Any(IsDependentTypeArgument))
+            return true;
+
+        // Check if the target type has dependent type parameters and any type argument
+        // in a dependent position is an identifier (forwarded dependent parameter).
+        var typeName = ExtractQualifiedName(named.Name);
+        var targetTypeParams = GetTypeParamsForName(typeName);
+        if (targetTypeParams is not null)
+        {
+            var allArgs = new List<TypeArgumentNode> { named.TypeArgs.TypeArgument };
+            foreach (var arg in named.TypeArgs.TypeArguments)
+                allArgs.Add(arg);
+
+            for (var i = 0; i < allArgs.Count && i < targetTypeParams.Count; i++)
+            {
+                if (targetTypeParams[i] is DependentTypeParameterType
+                    && allArgs[i] is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg
+                    && typeRefArg.Type is NamedTypeRefTypeReferenceNode argNamedRef
+                    && argNamedRef.TypeArgs is null
+                    && !argNamedRef.ArrayRank.HasValue)
+                {
+                    // This position expects a dependent value, but we have an identifier.
+                    // It's a forwarded dependent parameter that needs T-prefix rewriting.
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -3300,6 +3329,13 @@ internal sealed class CSharpSourceWriter
 
         // Non-generic alias or no type arguments provided — emit underlying directly.
         if (aliasType.TypeParameters.Count == 0 || namedRef.TypeArgs is null)
+        {
+            return CSharpTypeMap.GetTypeName(underlying, isValueContext);
+        }
+
+        // If all type parameters are dependent (value) parameters, the underlying
+        // type doesn't use them — emit the underlying type without type arguments.
+        if (aliasType.TypeParameters.All(tp => tp is DependentTypeParameterType))
         {
             return CSharpTypeMap.GetTypeName(underlying, isValueContext);
         }
@@ -3651,6 +3687,18 @@ internal sealed class CSharpSourceWriter
                     && TypeReferenceContainsUnknown(namedRef))
                 {
                     return namedRef.ArrayRank.HasValue ? "dynamic[]" : "dynamic";
+                }
+
+                // Check if this named type reference is a dependent type parameter
+                // (e.g., `N` in `FixedBuffer<N>` where N is a method-level dependent param).
+                // Dependent type parameters are emitted with a T-prefix in C#.
+                if (namedRef.TypeArgs is null && !namedRef.ArrayRank.HasValue)
+                {
+                    var resolvedNamedType = _model.GetTypeOf(namedRef);
+                    if (resolvedNamedType is DependentTypeParameterType depParamType)
+                    {
+                        return $"T{depParamType.Name}";
+                    }
                 }
 
                 var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs, GetTypeParamsForName(name));
@@ -5679,6 +5727,20 @@ internal sealed class CSharpSourceWriter
                     if (IsDependentTypeParameterName(name))
                     {
                         return $"T{name}";
+                    }
+                    // If we have an expectedKeyword, this position expects a dependent
+                    // value argument. A bare identifier here that doesn't resolve to a
+                    // known type is a forwarded parameter.
+                    if (expectedKeyword is not null)
+                    {
+                        // Verify it's not a known type before treating as forwarded param.
+                        var isKnownType = _model.AllSymbols.Any(s =>
+                            s.Name == name && s.Kind is SymbolKind.Class or SymbolKind.Struct
+                                or SymbolKind.Interface or SymbolKind.Enum or SymbolKind.TypeAlias);
+                        if (!isKnownType)
+                        {
+                            return $"T{name}";
+                        }
                     }
                 }
 

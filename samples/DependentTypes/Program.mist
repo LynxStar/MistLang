@@ -29,10 +29,19 @@ public class TypedBuffer<T, Size:int>
     public string Describe() { return $"TypedBuffer<{Size}>(value={this.Value})"; }
 }
 
+// ─── 4. Struct with dependent type parameter ─────────────────────────────────
+
+public struct FixedSpan<Length:int>
+{
+    public int GetLength() { return Length; }
+    public string Describe() { return $"FixedSpan<{Length}>"; }
+}
+
 // ─── 6. Dependent types on interfaces ────────────────────────────────────────
 
 interface IFixedCollection<Size:int>
 {
+    int GetSize();
     string GetInfo();
 }
 
@@ -45,22 +54,54 @@ public class ResizableBuffer<N:int> : FixedBuffer<N> { }
 
 public class TinyCollection : IFixedCollection<8>
 {
-    public string GetInfo() { return "TinyCollection(size=8)"; }
+    public int GetSize() { return 8; }
+    public string GetInfo() { return $"TinyCollection(size={this.GetSize()})"; }
 }
 
 public class FlexCollection<N:int> : IFixedCollection<N>
 {
-    public string GetInfo() { return $"FlexCollection<{N}>"; }
+    public int GetSize() { return N; }
+    public string GetInfo() { return $"FlexCollection<{N}>(size={this.GetSize()})"; }
 }
+
+// ─── 8. Dependent types on traits ────────────────────────────────────────────
+
+trait ISized<N:int>
+{
+    int GetCapacity();
+}
+
+public class SizedBox<N:int>
+{
+    public int GetCapacity() { return N; }
+}
+
+// ─── 10. Dependent types on type aliases ─────────────────────────────────────
+
+type SmallInt<V:int> = int;
 
 // ─── 13. All allowed value types ─────────────────────────────────────────────
 
 public class IntParam<V:int> { public int GetValue() { return V; } }
-public class UintParam<V:uint> { }
-public class LongParam<V:long> { }
-public class ShortParam<V:short> { }
-public class BoolParam<V:bool> { }
-public class CharParam<V:char> { }
+public class UintParam<V:uint> { public string Describe() { return $"UintParam<{V}>"; } }
+public class LongParam<V:long> { public string Describe() { return $"LongParam<{V}>"; } }
+public class UlongParam<V:ulong> { public string Describe() { return $"UlongParam<{V}>"; } }
+public class ShortParam<V:short> { public string Describe() { return $"ShortParam<{V}>"; } }
+public class UshortParam<V:ushort> { public string Describe() { return $"UshortParam<{V}>"; } }
+public class ByteParam<V:byte> { public string Describe() { return $"ByteParam<{V}>"; } }
+public class SbyteParam<V:sbyte> { public string Describe() { return $"SbyteParam<{V}>"; } }
+public class BoolParam<V:bool> { public string Describe() { return $"BoolParam<{V}>"; } }
+public class CharParam<V:char> { public string Describe() { return $"CharParam<{V}>"; } }
+
+// ─── 7. Type identity / type safety ──────────────────────────────────────────
+
+public class TypeIdentity
+{
+    public static string AcceptFive(FixedBuffer<5> buf)
+    {
+        return $"Accepted FixedBuffer<{buf.GetSize()}>";
+    }
+}
 
 // ─── 9. Dependent types on methods ───────────────────────────────────────────
 
@@ -69,6 +110,11 @@ public class DependentMethods
     public static void Repeat<N:int>(string text)
     {
         Console.WriteLine($"  Repeat<{N}>: {text}");
+    }
+
+    public static string Process<N:int>(FixedBuffer<N> buf)
+    {
+        return $"Processed buffer of size {buf.GetSize()}";
     }
 }
 
@@ -93,23 +139,38 @@ public class Program
         var tbuf = new TypedBuffer<string, 16>("hello");
         Console.WriteLine($"  tbuf.Describe() = {tbuf.Describe()}");
 
-        Console.WriteLine("--- 4. Construction with literal values ---");
+        Console.WriteLine("--- 4. Struct with dependent parameter ---");
+        var span3 = new FixedSpan<3>();
+        Console.WriteLine($"  span3.Describe() = {span3.Describe()}");
+        Console.WriteLine($"  span3.GetLength() = {span3.GetLength()}");
+
+        Console.WriteLine("--- 5. Construction with literal values ---");
         var buf10 = new FixedBuffer<10>();
         var buf99 = new FixedBuffer<99>();
         Console.WriteLine($"  buf10.Describe() = {buf10.Describe()}");
         Console.WriteLine($"  buf99.Describe() = {buf99.Describe()}");
 
-        Console.WriteLine("--- 5. Dependent property access ---");
+        Console.WriteLine("--- 6. Dependent property access ---");
         Console.WriteLine($"  buf5.GetSize() = {buf5.GetSize()}");
         Console.WriteLine($"  buf10.GetSize() = {buf10.GetSize()}");
         var intP = new IntParam<42>();
         Console.WriteLine($"  IntParam<42>.GetValue() = {intP.GetValue()}");
 
-        Console.WriteLine("--- 6. Dependent types on interfaces ---");
+        Console.WriteLine("--- 7. Type identity / type safety ---");
+        var b5 = new FixedBuffer<5>();
+        var result = TypeIdentity.AcceptFive(b5);
+        Console.WriteLine($"  {result}");
+
+        Console.WriteLine("--- 8. Dependent types on interfaces ---");
         var tiny = new TinyCollection();
         Console.WriteLine($"  tiny.GetInfo() = {tiny.GetInfo()}");
+        Console.WriteLine($"  tiny.GetSize() = {tiny.GetSize()}");
 
-        Console.WriteLine("--- 9. Dependent types on methods ---");
+        Console.WriteLine("--- 9. Dependent types on traits ---");
+        var sizedBox = new SizedBox<12>();
+        Console.WriteLine($"  SizedBox<12>.GetCapacity() = {sizedBox.GetCapacity()}");
+
+        Console.WriteLine("--- 10. Dependent types on methods ---");
         DependentMethods.Repeat<3>("hello");
         DependentMethods.Repeat<1>("world");
 
@@ -121,7 +182,12 @@ public class Program
         var flex = new FlexCollection<16>();
         Console.WriteLine($"  flex.GetInfo() = {flex.GetInfo()}");
 
-        Console.WriteLine("--- 12. Pattern matching ---");
+        Console.WriteLine("--- 12. Generic function accepting any dependent value ---");
+        var bufForProcess = new FixedBuffer<7>();
+        var processResult = DependentMethods.Process<7>(bufForProcess);
+        Console.WriteLine($"  {processResult}");
+
+        Console.WriteLine("--- 13. Pattern matching ---");
         var target = new FixedBuffer<5>();
         if (target is FixedBuffer<5> matched)
         {
@@ -133,21 +199,32 @@ public class Program
             Console.WriteLine("  target10 is FixedBuffer<10> = true");
         }
 
-        Console.WriteLine("--- 13. All allowed value types ---");
+        Console.WriteLine("--- 14. Type aliases with dependent parameter ---");
+        Console.WriteLine("  SmallInt<V:int> = int (alias declared)");
+
+        Console.WriteLine("--- 15. All allowed value types ---");
         var intBuf = new IntParam<42>();
         Console.WriteLine($"  IntParam<42>.GetValue() = {intBuf.GetValue()}");
         var intNeg = new IntParam<-1>();
         Console.WriteLine($"  IntParam<-1>.GetValue() = {intNeg.GetValue()}");
         var uintBuf = new UintParam<100>();
-        Console.WriteLine("  UintParam<100> constructed");
+        Console.WriteLine($"  UintParam<100>.Describe() = {uintBuf.Describe()}");
         var longBuf = new LongParam<999>();
-        Console.WriteLine("  LongParam<999> constructed");
+        Console.WriteLine($"  LongParam<999>.Describe() = {longBuf.Describe()}");
+        var ulongBuf = new UlongParam<500>();
+        Console.WriteLine($"  UlongParam<500>.Describe() = {ulongBuf.Describe()}");
         var shortBuf = new ShortParam<7>();
-        Console.WriteLine("  ShortParam<7> constructed");
+        Console.WriteLine($"  ShortParam<7>.Describe() = {shortBuf.Describe()}");
+        var ushortBuf = new UshortParam<200>();
+        Console.WriteLine($"  UshortParam<200>.Describe() = {ushortBuf.Describe()}");
+        var byteBuf = new ByteParam<255>();
+        Console.WriteLine($"  ByteParam<255>.Describe() = {byteBuf.Describe()}");
+        var sbyteBuf = new SbyteParam<-50>();
+        Console.WriteLine($"  SbyteParam<-50>.Describe() = {sbyteBuf.Describe()}");
         var boolBuf = new BoolParam<true>();
-        Console.WriteLine("  BoolParam<true> constructed");
+        Console.WriteLine($"  BoolParam<true>.Describe() = {boolBuf.Describe()}");
         var charBuf = new CharParam<'X'>();
-        Console.WriteLine("  CharParam<'X'> constructed");
+        Console.WriteLine($"  CharParam<'X'>.Describe() = {charBuf.Describe()}");
 
         Console.WriteLine("=== Dependent Types Done ===");
     }

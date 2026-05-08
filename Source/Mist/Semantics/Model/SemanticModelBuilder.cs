@@ -6142,6 +6142,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (member.DeclaredType is TypeParameterType)
                 continue;
 
+            // Skip dependent type parameter symbols (e.g., Max:int in trait Bounded<Max:int>).
+            if (member.DeclaredType is DependentTypeParameterType)
+                continue;
+
             // Skip non-trait-member kinds (only fields, methods, properties are trait members).
             if (member.Kind is not (SymbolKind.Field or SymbolKind.Method or SymbolKind.Property))
                 continue;
@@ -6252,6 +6256,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 foreach (var traitMember in trait.MemberScope.Members)
                 {
+                    // Skip dependent type parameter symbols — they are not
+                    // members that need structural satisfaction.
+                    if (traitMember.DeclaredType is DependentTypeParameterType)
+                        continue;
+
                     var matched = TryStructuralMatch(
                         traitMember, memberScope, typeName, globalScope, symbolTable,
                         asts, compilation, diagnostics, privateMatches);
@@ -6280,6 +6289,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var unsatisfiedMembers = new List<string>();
                 foreach (var traitMember in trait.MemberScope.Members)
                 {
+                    // Skip dependent type parameter symbols.
+                    if (traitMember.DeclaredType is DependentTypeParameterType)
+                        continue;
+
                     if (!structuralMatches.ContainsKey(traitMember.Name)
                         && !withMappings.ContainsKey(traitMember.Name))
                     {

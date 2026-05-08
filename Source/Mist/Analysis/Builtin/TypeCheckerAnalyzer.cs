@@ -6696,6 +6696,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (member.DeclaredType is TypeParameterType)
                 continue;
 
+            // Skip dependent type parameter symbols (e.g., Size:int in trait Bounded<Size:int>).
+            if (member.DeclaredType is DependentTypeParameterType)
+                continue;
+
             var name = member.Name;
             if (satisfaction is not null)
             {
@@ -7179,6 +7183,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // not actual trait members that need structural matching).
             if (traitMember.Kind is SymbolKind.Class or SymbolKind.Struct
                 && traitMember.DeclaredType is TypeParameterType)
+                continue;
+
+            // Skip dependent type parameter symbols (e.g., Max:int in trait Bounded<Max:int>).
+            if (traitMember.DeclaredType is DependentTypeParameterType)
                 continue;
 
             var matched = TryLazyStructuralMatch(traitMember, sourceMemberScope, model, typeSubstitutions);

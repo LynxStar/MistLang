@@ -254,21 +254,20 @@ Dependent type parameters can appear on classes, structs, interfaces, traits, ty
 3. The sample SHALL demonstrate a class with multiple dependent type parameters (e.g., `class Matrix<Rows:int, Cols:int>`).
 4. The sample SHALL demonstrate a Mixed_Parameter_List with both regular and dependent type parameters (e.g., `class TypedBuffer<T, Size:int>`).
 5. The sample SHALL demonstrate constructing dependent types with literal values (e.g., `new FixedBuffer<5>()`).
-6. The sample SHALL demonstrate constructing dependent types with `const` references (e.g., `new FixedBuffer<MAX_SIZE>()`).
-7. The sample SHALL demonstrate accessing the Dependent_Property (e.g., `FixedBuffer<5>.Size`).
-8. The sample SHALL demonstrate dependent types on interfaces (e.g., `interface IFixedCollection<Size:int>`).
-9. The sample SHALL demonstrate dependent types on traits.
-10. The sample SHALL demonstrate dependent types on type aliases (e.g., `type Foo<T:int> = string | bool;` and accessing `Foo<7>.T`).
-11. The sample SHALL demonstrate dependent types on methods (e.g., `void Repeat<N:int>(string text)`).
-12. The sample SHALL demonstrate a generic function accepting any dependent value (e.g., `void Process<N:int>(FixedBuffer<N> buf)`).
-13. The sample SHALL demonstrate inheritance with dependent types: a derived class fixing a dependent value and a derived class forwarding a dependent parameter.
-14. The sample SHALL demonstrate pattern matching against closed dependent types (e.g., `if (x is FixedBuffer<5>)`).
-15. The sample SHALL demonstrate each allowed value type: `int`, `uint`, `long`, `ulong`, `short`, `ushort`, `byte`, `sbyte`, `bool`, `char`.
-16. Each demonstrated permutation SHALL print labeled output to stdout so correctness is observable.
-17. The sample SHALL include a `public static void RunDemo()` entry point.
-18. `samples/AllFeatures/Program.mist` SHALL call `DependentTypes.Program.RunDemo()` to include the feature in the full-suite sample run.
-19. The sample SHALL compile and run without errors using the Mist compiler.
-20. The sample SHALL NOT use `Array` as a type name to avoid collision with `System.Array` in the C# emission.
+6. The sample SHALL demonstrate accessing the Dependent_Property (e.g., `FixedBuffer<5>.Size`).
+7. The sample SHALL demonstrate dependent types on interfaces (e.g., `interface IFixedCollection<Size:int>`).
+8. The sample SHALL demonstrate dependent types on traits.
+9. The sample SHALL demonstrate dependent types on type aliases (e.g., `type Foo<T:int> = string | bool;` and accessing `Foo<7>.T`).
+10. The sample SHALL demonstrate dependent types on methods (e.g., `void Repeat<N:int>(string text)`).
+11. The sample SHALL demonstrate a generic function accepting any dependent value (e.g., `void Process<N:int>(FixedBuffer<N> buf)`).
+12. The sample SHALL demonstrate inheritance with dependent types: a derived class fixing a dependent value and a derived class forwarding a dependent parameter.
+13. The sample SHALL demonstrate pattern matching against closed dependent types (e.g., `if (x is FixedBuffer<5>)`).
+14. The sample SHALL demonstrate each allowed value type: `int`, `uint`, `long`, `ulong`, `short`, `ushort`, `byte`, `sbyte`, `bool`, `char`.
+15. Each demonstrated permutation SHALL print labeled output to stdout so correctness is observable.
+16. The sample SHALL include a `public static void RunDemo()` entry point.
+17. `samples/AllFeatures/Program.mist` SHALL call `DependentTypes.Program.RunDemo()` to include the feature in the full-suite sample run.
+18. The sample SHALL compile and run without errors using the Mist compiler.
+19. The sample SHALL NOT use `Array` as a type name to avoid collision with `System.Array` in the C# emission.
 
 ### Requirement 18: Feature Coverage Documentation Update
 

@@ -1838,7 +1838,19 @@ public sealed class MistPrettyPrinter
                 var type = ExtractQualifiedName(objCreation.Type);
                 var typeArgs = EmitTypeArgumentList(objCreation.TypeArgs);
                 var args = EmitArgumentList(objCreation.Arguments);
+                if (objCreation.Initializer is not null)
+                {
+                    var assignments = EmitPropertyAssignmentList(objCreation.Initializer);
+                    return $"new {type}{typeArgs}({args}) {{ {assignments} }}";
+                }
                 return $"new {type}{typeArgs}({args})";
+            }
+            case ObjectCreationExpressionNoArgsPrimaryNode objCreationNoArgs:
+            {
+                var type = ExtractQualifiedName(objCreationNoArgs.Type);
+                var typeArgs = EmitTypeArgumentList(objCreationNoArgs.TypeArgs);
+                var assignments = EmitPropertyAssignmentList(objCreationNoArgs.Initializer);
+                return $"new {type}{typeArgs} {{ {assignments} }}";
             }
             case ParenthesizedExpressionPrimaryNode paren:
                 return $"({EmitExpression(paren.Inner)})";
@@ -2106,6 +2118,22 @@ public sealed class MistPrettyPrinter
             default:
                 return "";
         }
+    }
+
+    // ─── Property Initializer Emission ─────────────────────────────────
+
+    private string EmitPropertyAssignmentList(PropertyInitializerBlockNode block)
+    {
+        if (block.Assignments is null)
+            return "";
+
+        var parts = new List<string>();
+        parts.Add($"{block.Assignments.PropertyAssignment.Name.Lexeme} = {EmitExpression(block.Assignments.PropertyAssignment.Value)}");
+        foreach (var assignment in block.Assignments.PropertyAssignments)
+        {
+            parts.Add($"{assignment.Name.Lexeme} = {EmitExpression(assignment.Value)}");
+        }
+        return string.Join(", ", parts);
     }
 
     private void AppendLine(string text = "")

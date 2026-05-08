@@ -1,0 +1,239 @@
+// PropertyInitializers — Demonstrates property initializer blocks on new expressions.
+//
+// This sample showcases:
+//   1. new with constructor args and property initializer block
+//   2. new with property initializer block but no constructor args
+//   3. new with empty property initializer block
+//   4. Initializing init-only properties
+//   5. Initializing set properties
+//   6. Multiple properties in a single block
+//   7. Property initializer as method argument
+//   8. Property initializer in variable declaration with type inference
+//   9. Property initializer on generic type
+//  10. Property initializer on struct type
+//  11. Initializing a public field
+//  12. Complex value expressions in initializer
+
+using System;
+
+namespace PropertyInitializers;
+
+// --- Helper types ---
+
+// A class with settable properties (set accessors)
+public class Config
+{
+    public int Timeout { get; set; }
+    public bool Verbose { get; set; }
+    public string Name { get; set; }
+
+    public Config()
+    {
+        this.Timeout = 0;
+        this.Verbose = false;
+        this.Name = "";
+    }
+
+    public string Describe()
+    {
+        return $"Config(Timeout={this.Timeout}, Verbose={this.Verbose}, Name={this.Name})";
+    }
+}
+
+// A class with init-only properties
+public class Record
+{
+    public string Id { get; init; }
+    public int Version { get; init; }
+    public string Tag { get; set; }
+
+    public Record(string id)
+    {
+        this.Id = id;
+        this.Version = 0;
+        this.Tag = "";
+    }
+
+    public string Describe()
+    {
+        return $"Record(Id={this.Id}, Version={this.Version}, Tag={this.Tag})";
+    }
+}
+
+// A class with a constructor that takes arguments, plus settable properties
+public class Point
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+
+    public Point(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    public string Describe()
+    {
+        return $"Point(X={this.X}, Y={this.Y})";
+    }
+}
+
+// A class with public fields
+public class Data
+{
+    public int Count;
+    public string Label;
+
+    public Data()
+    {
+        this.Count = 0;
+        this.Label = "";
+    }
+
+    public string Describe()
+    {
+        return $"Data(Count={this.Count}, Label={this.Label})";
+    }
+}
+
+// A struct with settable properties
+public struct MyStruct
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+
+    public string Describe()
+    {
+        return $"MyStruct(X={this.X}, Y={this.Y})";
+    }
+}
+
+// A generic class with a settable property
+public class Box<T>
+{
+    public T Value { get; set; }
+    public string Tag { get; set; }
+
+    public Box(T value)
+    {
+        this.Value = value;
+        this.Tag = "";
+    }
+
+    public string Describe()
+    {
+        return $"Box(Value={this.Value}, Tag={this.Tag})";
+    }
+}
+
+// A class with both init and set properties
+public class MixedProps
+{
+    public string ReadOnlyName { get; init; }
+    public int MutableCount { get; set; }
+
+    public MixedProps(string name)
+    {
+        this.ReadOnlyName = name;
+        this.MutableCount = 0;
+    }
+
+    public string Describe()
+    {
+        return $"MixedProps(ReadOnlyName={this.ReadOnlyName}, MutableCount={this.MutableCount})";
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    // Helper method for demonstrating property initializer as method argument
+    private static void ProcessConfig(Config cfg)
+    {
+        Console.WriteLine($"  ProcessConfig: {cfg.Describe()}");
+    }
+
+    // Helper method for complex expression demo
+    private static int GetCount()
+    {
+        return 10;
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== PropertyInitializers Sample ===");
+
+        // 1. new with constructor args and property initializer block
+        Console.WriteLine("--- Constructor args + initializer ---");
+        var p = new Point(0, 0) { X = 3, Y = 4 };
+        Console.WriteLine($"  Point: {p.Describe()}");
+
+        // 2. new with property initializer block but no constructor args
+        Console.WriteLine("--- No constructor args + initializer ---");
+        var cfg = new Config { Timeout = 30, Verbose = true };
+        Console.WriteLine($"  Config: {cfg.Describe()}");
+
+        // 3. new with empty property initializer block
+        Console.WriteLine("--- Empty initializer block ---");
+        var empty = new Config() { };
+        Console.WriteLine($"  Empty: {empty.Describe()}");
+
+        // 4. Initializing init-only properties
+        Console.WriteLine("--- Init-only properties ---");
+        var rec = new Record("abc-123") { Version = 5, Tag = "release" };
+        Console.WriteLine($"  Record: {rec.Describe()}");
+
+        // 5. Initializing set properties
+        Console.WriteLine("--- Set properties ---");
+        var setCfg = new Config { Timeout = 60, Verbose = false, Name = "production" };
+        Console.WriteLine($"  Config: {setCfg.Describe()}");
+
+        // 6. Multiple properties in a single block
+        Console.WriteLine("--- Multiple properties ---");
+        var multi = new Config { Timeout = 30, Verbose = true, Name = "test" };
+        Console.WriteLine($"  Config: {multi.Describe()}");
+
+        // 7a. Property initializer as method argument
+        Console.WriteLine("--- As method argument ---");
+        Program.ProcessConfig(new Config { Verbose = true, Name = "arg-demo" });
+
+        // 7b. Property initializer in variable declaration with type inference
+        Console.WriteLine("--- Variable declaration with var ---");
+        var c = new Config { Timeout = 10 };
+        Console.WriteLine($"  var c: {c.Describe()}");
+
+        // 8. Property initializer on generic type
+        Console.WriteLine("--- Generic type ---");
+        var box = new Box<int>(42) { Tag = "integer" };
+        Console.WriteLine($"  Box<int>: {box.Describe()}");
+        var boxStr = new Box<string>("hello") { Tag = "text" };
+        Console.WriteLine($"  Box<string>: {boxStr.Describe()}");
+
+        // 9. Property initializer on struct type
+        Console.WriteLine("--- Struct type ---");
+        var s = new MyStruct { X = 1, Y = 2 };
+        Console.WriteLine($"  MyStruct: {s.Describe()}");
+
+        // 10. Initializing a public field
+        Console.WriteLine("--- Public field ---");
+        var data = new Data { Count = 7, Label = "items" };
+        Console.WriteLine($"  Data: {data.Describe()}");
+
+        // 11. Complex value expressions in initializer
+        Console.WriteLine("--- Complex expressions ---");
+        int id = 42;
+        var complex = new Data { Count = Program.GetCount() + 1, Label = $"item-{id}" };
+        Console.WriteLine($"  Data: {complex.Describe()}");
+
+        // 12. Both init and set properties in one block
+        Console.WriteLine("--- Mixed init/set properties ---");
+        var mixed = new MixedProps("immutable") { MutableCount = 99 };
+        Console.WriteLine($"  MixedProps: {mixed.Describe()}");
+
+        Console.WriteLine("Done!");
+    }
+}

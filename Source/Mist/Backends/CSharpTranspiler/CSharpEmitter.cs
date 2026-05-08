@@ -5379,7 +5379,38 @@ internal sealed class CSharpSourceWriter
                     }
                 }
 
+                if (objCreation.Initializer is not null)
+                {
+                    var initParts = new List<string>();
+                    if (objCreation.Initializer.Assignments is not null)
+                    {
+                        var assignments = objCreation.Initializer.Assignments;
+                        initParts.Add($"{assignments.PropertyAssignment.Name.Lexeme} = {EmitExpression(assignments.PropertyAssignment.Value)}");
+                        foreach (var assignment in assignments.PropertyAssignments)
+                        {
+                            initParts.Add($"{assignment.Name.Lexeme} = {EmitExpression(assignment.Value)}");
+                        }
+                    }
+                    return $"new {type}{typeArgs}({argsStr}) {{ {string.Join(", ", initParts)} }}";
+                }
+
                 return $"new {type}{typeArgs}({argsStr})";
+            }
+            case ObjectCreationExpressionNoArgsPrimaryNode objCreationNoArgs:
+            {
+                var type = ExtractQualifiedName(objCreationNoArgs.Type);
+                var typeArgs = EmitTypeArgumentList(objCreationNoArgs.TypeArgs);
+                var initParts = new List<string>();
+                if (objCreationNoArgs.Initializer.Assignments is not null)
+                {
+                    var assignments = objCreationNoArgs.Initializer.Assignments;
+                    initParts.Add($"{assignments.PropertyAssignment.Name.Lexeme} = {EmitExpression(assignments.PropertyAssignment.Value)}");
+                    foreach (var assignment in assignments.PropertyAssignments)
+                    {
+                        initParts.Add($"{assignment.Name.Lexeme} = {EmitExpression(assignment.Value)}");
+                    }
+                }
+                return $"new {type}{typeArgs}() {{ {string.Join(", ", initParts)} }}";
             }
             case ParenthesizedExpressionPrimaryNode paren:
                 return $"({EmitExpression(paren.Inner)})";

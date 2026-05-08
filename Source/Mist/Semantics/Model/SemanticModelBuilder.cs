@@ -13587,6 +13587,44 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     ResolveArgumentList(objCreation.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 }
+
+                // Resolve value expressions in the property initializer block.
+                if (objCreation.Initializer is not null && objCreation.Initializer.Assignments is not null)
+                {
+                    var assignments = objCreation.Initializer.Assignments;
+                    ResolveExpression(assignments.PropertyAssignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    foreach (var assignment in assignments.PropertyAssignments)
+                    {
+                        ResolveExpression(assignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+                }
+
+                result = createdType;
+                break;
+            }
+
+            case ObjectCreationExpressionNoArgsPrimaryNode objCreationNoArgs:
+            {
+                var typeName = ExtractQualifiedName(objCreationNoArgs.Type, sourceText);
+                var createdType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+                // Handle type arguments on new expressions (e.g., new Box<int> { ... }).
+                if (objCreationNoArgs.TypeArgs is not null)
+                {
+                    createdType = ResolvePass2TypeArguments(createdType, typeName, objCreationNoArgs.TypeArgs, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                }
+
+                // Resolve value expressions in the property initializer block.
+                if (objCreationNoArgs.Initializer.Assignments is not null)
+                {
+                    var assignments = objCreationNoArgs.Initializer.Assignments;
+                    ResolveExpression(assignments.PropertyAssignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    foreach (var assignment in assignments.PropertyAssignments)
+                    {
+                        ResolveExpression(assignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+                }
+
                 result = createdType;
                 break;
             }

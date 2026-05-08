@@ -6951,6 +6951,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (ArePrimitiveEquivalent(source, target))
             return true;
 
+        // Dependent type parameters are assignable to their value type.
+        // E.g., a dependent parameter `Size:int` resolves to DependentTypeParameterType
+        // but should be assignable to `int`/`Int32` (its ValueType).
+        if (source is DependentTypeParameterType depSource && depSource.ValueType is not DependentTypeParameterType)
+            return IsAssignable(depSource.ValueType, target, model);
+        if (target is DependentTypeParameterType depTarget && depTarget.ValueType is not DependentTypeParameterType)
+            return IsAssignable(source, depTarget.ValueType, model);
+
         // Tuple assignability with name erasure: two TupleType instances are
         // assignable if they have the same arity and each element type is
         // assignable. Element names are ignored (name erasure).

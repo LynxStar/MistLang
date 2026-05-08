@@ -3096,7 +3096,9 @@ internal sealed class CSharpSourceWriter
                 && !TypeReferenceContainsUnknown(firstType)
                 && !ContainsVoidOrUnknownKeyword(sourceText)
                 && !ContainsPipeOperator(sourceText)
-                && !ParameterListContainsTypeAlias(paramList, sourceText))
+                && !ParameterListContainsTypeAlias(paramList, sourceText)
+                && !TypeReferenceHasDependentTypeArguments(firstType)
+                && !SourceContainsDependentTypeArguments(sourceText))
             {
                 return sourceText;
             }
@@ -3148,6 +3150,35 @@ internal sealed class CSharpSourceWriter
                 if (i > 0 && source[i - 1] == '|')
                     continue;
                 return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the source text contains a dependent type argument
+    /// (a literal value inside angle brackets, like <c>&lt;5&gt;</c> or <c>&lt;true&gt;</c>).
+    /// Used to bypass the raw source text path in parameter list emission.
+    /// </summary>
+    private static bool SourceContainsDependentTypeArguments(string source)
+    {
+        for (var i = 0; i < source.Length - 1; i++)
+        {
+            if (source[i] == '<')
+            {
+                var next = i + 1;
+                while (next < source.Length && source[next] == ' ') next++;
+                if (next < source.Length)
+                {
+                    var c = source[next];
+                    // Check for digit, minus (negated), quote (char), or true/false
+                    if (char.IsDigit(c) || c == '-' || c == '\'')
+                        return true;
+                    if (next + 4 <= source.Length && source.Substring(next, 4) == "true")
+                        return true;
+                    if (next + 5 <= source.Length && source.Substring(next, 5) == "false")
+                        return true;
+                }
             }
         }
         return false;
@@ -3369,7 +3400,9 @@ internal sealed class CSharpSourceWriter
         // applying Void.Void → MistVoid.Instance substitution if needed.
         // However, if any argument contains a type literal (e.g., int.Name),
         // we must fall through to the expression emitter so typeof() is applied.
-        if (!ArgumentContainsTypeLiteral(argExprs))
+        // Similarly, if any argument contains a dependent type parameter reference,
+        // we must fall through so TN.Value substitution is applied.
+        if (!ArgumentContainsTypeLiteral(argExprs) && !ArgumentContainsDependentTypeParam(argExprs))
         {
             var span = argList.Span;
             if (span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
@@ -3398,6 +3431,44 @@ internal sealed class CSharpSourceWriter
         foreach (var expr in argExprs)
         {
             if (ExpressionContainsTypeLiteral(expr))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Returns true if any argument expression contains a reference to a dependent type parameter.
+    /// When true, the source-text fast path must be bypassed so the expression emitter can
+    /// apply TN.Value substitution.
+    /// </summary>
+    private bool ArgumentContainsDependentTypeParam(List<ExpressionNode> argExprs)
+    {
+        foreach (var expr in argExprs)
+        {
+            if (ExpressionContainsDependentTypeParam(expr))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Recursively checks if an expression tree contains an identifier that references
+    /// a dependent type parameter.
+    /// </summary>
+    private bool ExpressionContainsDependentTypeParam(Storm.Runtime.SyntaxNode node)
+    {
+        if (node is IdentifierExpressionPrimaryNode ident)
+        {
+            var resolvedType = _model.GetTypeOf(ident);
+            if (resolvedType is DependentTypeParameterType)
+                return true;
+            if (IsDependentTypeParameterName(ident.Name.Lexeme))
+                return true;
+        }
+
+        foreach (var child in node.Children())
+        {
+            if (child is not null && ExpressionContainsDependentTypeParam(child))
                 return true;
         }
         return false;
@@ -3582,7 +3653,7 @@ internal sealed class CSharpSourceWriter
                     return namedRef.ArrayRank.HasValue ? "dynamic[]" : "dynamic";
                 }
 
-                var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs);
+                var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs, GetTypeParamsForName(name));
                 if (namedRef.ArrayRank.HasValue)
                 {
                     return $"{name}{typeArgs}[]";
@@ -5198,7 +5269,12 @@ internal sealed class CSharpSourceWriter
             case ObjectCreationExpressionPrimaryNode objCreation:
             {
                 var type = ExtractQualifiedName(objCreation.Type);
-                var typeArgs = EmitTypeArgumentList(objCreation.TypeArgs);
+                // Look up the type's parameters to correctly emit carrier struct names
+                // for non-int dependent type arguments (uint, long, etc.).
+                var typeSymbol = _model.AllSymbols
+                    .FirstOrDefault(s => s.Name == type && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface);
+                var targetTypeParams = typeSymbol is not null ? GetTypeParametersFromType(typeSymbol.DeclaredType) : null;
+                var typeArgs = EmitTypeArgumentList(objCreation.TypeArgs, targetTypeParams);
 
                 // Check if the type being constructed is a type parameter with a parameterized
                 // constructor constraint — if so, emit as factory delegate invocation.
@@ -5323,7 +5399,24 @@ internal sealed class CSharpSourceWriter
                 return $"({string.Join(", ", parts)})";
             }
             case IdentifierExpressionPrimaryNode ident:
-                return ident.Name.Lexeme;
+            {
+                var identName = ident.Name.Lexeme;
+                // Check if this identifier resolves to a dependent type parameter.
+                // If so, emit TName.Value to access the carrier struct's value.
+                var resolvedType = _model.GetTypeOf(ident);
+                if (resolvedType is DependentTypeParameterType)
+                {
+                    return $"T{identName}.Value";
+                }
+                // Fallback: check if the name matches a dependent type parameter
+                // (the semantic model may resolve it to the value type rather than
+                // the DependentTypeParameterType itself in some contexts).
+                if (IsDependentTypeParameterName(identName))
+                {
+                    return $"T{identName}.Value";
+                }
+                return identName;
+            }
             case FieldKeywordExpressionPrimaryNode:
                 return "field";
             case TypeLiteralExpressionPrimaryNode typeLiteral:
@@ -5516,13 +5609,32 @@ internal sealed class CSharpSourceWriter
 
     private string EmitTypeArgumentList(TypeArgumentListNode? typeArgs)
     {
+        return EmitTypeArgumentList(typeArgs, targetTypeParams: null);
+    }
+
+    /// <summary>
+    /// Emits a type argument list, optionally using the target type's parameters to determine
+    /// the correct carrier struct type for literal dependent type arguments.
+    /// </summary>
+    private string EmitTypeArgumentList(TypeArgumentListNode? typeArgs, IReadOnlyList<IType>? targetTypeParams)
+    {
         if (typeArgs is null) return "";
 
-        var parts = new List<string>();
-        parts.Add(EmitSingleTypeArgument(typeArgs.TypeArgument));
+        var allArgs = new List<TypeArgumentNode> { typeArgs.TypeArgument };
         foreach (var arg in typeArgs.TypeArguments)
+            allArgs.Add(arg);
+
+        var parts = new List<string>(allArgs.Count);
+        for (var i = 0; i < allArgs.Count; i++)
         {
-            parts.Add(EmitSingleTypeArgument(arg));
+            string? expectedKeyword = null;
+            if (targetTypeParams is not null && i < targetTypeParams.Count
+                && targetTypeParams[i] is DependentTypeParameterType depParam)
+            {
+                try { expectedKeyword = CSharpTypeMap.GetKeyword(depParam.ValueType); }
+                catch { /* ignore if type can't be mapped */ }
+            }
+            parts.Add(EmitSingleTypeArgument(allArgs[i], expectedKeyword));
         }
         return $"<{string.Join(", ", parts)}>";
     }
@@ -5533,6 +5645,17 @@ internal sealed class CSharpSourceWriter
     /// (e.g., <c>5</c> → <c>Const_Int_5</c>) or the T-prefixed parameter name for forwarded parameters.
     /// </summary>
     private string EmitSingleTypeArgument(TypeArgumentNode arg)
+    {
+        return EmitSingleTypeArgument(arg, expectedKeyword: null);
+    }
+
+    /// <summary>
+    /// Emits a single type argument with an optional expected type keyword for carrier struct naming.
+    /// When <paramref name="expectedKeyword"/> is provided (e.g., "uint", "long"), integer literals
+    /// will generate carrier structs with the correct type (e.g., <c>Const_Uint_100</c> instead of
+    /// <c>Const_Int_100</c>).
+    /// </summary>
+    private string EmitSingleTypeArgument(TypeArgumentNode arg, string? expectedKeyword)
     {
         switch (arg)
         {
@@ -5563,14 +5686,15 @@ internal sealed class CSharpSourceWriter
             }
 
             // For literal type arguments, we emit the carrier struct name based on the literal value.
+            // When expectedKeyword is provided, use it for the type prefix instead of defaulting to "int".
             case IntegerLiteralTypeArgumentTypeArgumentNode intLit:
-                return GetCarrierStructNameForIntLiteral(intLit.Literal.Lexeme, negated: false);
+                return GetCarrierStructNameForIntLiteral(intLit.Literal.Lexeme, negated: false, expectedKeyword);
             case NegatedIntegerTypeArgumentTypeArgumentNode negLit:
-                return GetCarrierStructNameForIntLiteral(negLit.Literal.Lexeme, negated: true);
+                return GetCarrierStructNameForIntLiteral(negLit.Literal.Lexeme, negated: true, expectedKeyword);
             case HexLiteralTypeArgumentTypeArgumentNode hexLit:
-                return GetCarrierStructNameForHexLiteral(hexLit.Literal.Lexeme);
+                return GetCarrierStructNameForHexLiteral(hexLit.Literal.Lexeme, expectedKeyword);
             case BinaryLiteralTypeArgumentTypeArgumentNode binLit:
-                return GetCarrierStructNameForBinaryLiteral(binLit.Literal.Lexeme);
+                return GetCarrierStructNameForBinaryLiteral(binLit.Literal.Lexeme, expectedKeyword);
             case TrueLiteralTypeArgumentTypeArgumentNode:
                 return "Const_Bool_True";
             case FalseLiteralTypeArgumentTypeArgumentNode:
@@ -5591,11 +5715,22 @@ internal sealed class CSharpSourceWriter
     {
         foreach (var symbol in _model.AllSymbols)
         {
+            // Check type-level type parameters.
             var typeParams = GetTypeParametersFromType(symbol.DeclaredType);
             foreach (var tp in typeParams)
             {
                 if (tp is DependentTypeParameterType depParam && depParam.Name == name)
                     return true;
+            }
+
+            // Check method-level type parameters.
+            if (symbol is Symbol sym && sym.TypeParameters.Count > 0)
+            {
+                foreach (var tp in sym.TypeParameters)
+                {
+                    if (tp is DependentTypeParameterType depParam && depParam.Name == name)
+                        return true;
+                }
             }
         }
         return false;
@@ -5603,9 +5738,11 @@ internal sealed class CSharpSourceWriter
 
     /// <summary>
     /// Gets the carrier struct name for an integer literal type argument.
+    /// When <paramref name="expectedKeyword"/> is provided, uses it for the type prefix.
     /// </summary>
-    private static string GetCarrierStructNameForIntLiteral(string lexeme, bool negated)
+    private static string GetCarrierStructNameForIntLiteral(string lexeme, bool negated, string? expectedKeyword = null)
     {
+        var typePrefix = GetCapitalizedTypePrefix(expectedKeyword ?? "int");
         // Parse the integer value
         if (long.TryParse(lexeme, System.Globalization.NumberStyles.Integer,
             System.Globalization.CultureInfo.InvariantCulture, out var value))
@@ -5614,44 +5751,85 @@ internal sealed class CSharpSourceWriter
             var suffix = value < 0
                 ? $"Neg{(-value).ToString(System.Globalization.CultureInfo.InvariantCulture)}"
                 : value.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            return $"Const_Int_{suffix}";
+            return $"Const_{typePrefix}_{suffix}";
         }
-        return $"Const_Int_{(negated ? "Neg" : "")}{lexeme}";
+        return $"Const_{typePrefix}_{(negated ? "Neg" : "")}{lexeme}";
     }
 
     /// <summary>
     /// Gets the carrier struct name for a hex literal type argument.
     /// </summary>
-    private static string GetCarrierStructNameForHexLiteral(string lexeme)
+    private static string GetCarrierStructNameForHexLiteral(string lexeme, string? expectedKeyword = null)
     {
+        var typePrefix = GetCapitalizedTypePrefix(expectedKeyword ?? "int");
         // Hex literals like 0xFF — parse to long
         var hex = lexeme.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
             ? lexeme[2..] : lexeme;
         if (long.TryParse(hex, System.Globalization.NumberStyles.HexNumber,
             System.Globalization.CultureInfo.InvariantCulture, out var value))
         {
-            return $"Const_Int_{value.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+            return $"Const_{typePrefix}_{value.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
         }
-        return $"Const_Int_{lexeme}";
+        return $"Const_{typePrefix}_{lexeme}";
     }
 
     /// <summary>
     /// Gets the carrier struct name for a binary literal type argument.
     /// </summary>
-    private static string GetCarrierStructNameForBinaryLiteral(string lexeme)
+    private static string GetCarrierStructNameForBinaryLiteral(string lexeme, string? expectedKeyword = null)
     {
+        var typePrefix = GetCapitalizedTypePrefix(expectedKeyword ?? "int");
         // Binary literals like 0b1010 — parse to long
         var bin = lexeme.StartsWith("0b", StringComparison.OrdinalIgnoreCase)
             ? lexeme[2..] : lexeme;
         try
         {
             var value = Convert.ToInt64(bin, 2);
-            return $"Const_Int_{value.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+            return $"Const_{typePrefix}_{value.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
         }
         catch
         {
-            return $"Const_Int_{lexeme}";
+            return $"Const_{typePrefix}_{lexeme}";
         }
+    }
+
+    /// <summary>
+    /// Maps a C# keyword to its capitalized form for carrier struct naming.
+    /// </summary>
+    private static string GetCapitalizedTypePrefix(string keyword)
+    {
+        return keyword switch
+        {
+            "int" => "Int",
+            "uint" => "Uint",
+            "long" => "Long",
+            "ulong" => "Ulong",
+            "short" => "Short",
+            "ushort" => "Ushort",
+            "byte" => "Byte",
+            "sbyte" => "Sbyte",
+            "bool" => "Bool",
+            "char" => "Char",
+            _ => "Int"
+        };
+    }
+
+    /// <summary>
+    /// Looks up the type parameters for a named type by searching the model's symbols.
+    /// Returns null if the type is not found or has no type parameters.
+    /// </summary>
+    private IReadOnlyList<IType>? GetTypeParamsForName(string name)
+    {
+        foreach (var symbol in _model.AllSymbols)
+        {
+            if (symbol.Name == name && symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface)
+            {
+                var typeParams = GetTypeParametersFromType(symbol.DeclaredType);
+                if (typeParams.Count > 0)
+                    return typeParams;
+            }
+        }
+        return null;
     }
 
     /// <summary>

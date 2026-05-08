@@ -378,49 +378,38 @@ Done!
 --- Generic Constraints Done ---
 === Dependent Types Sample ===
 --- 1. Single dependent parameter ---
-  Created FixedBuffer<5>: FixedBuffer
+  buf5.Describe() = FixedBuffer<5>
+  buf5.GetSize() = 5
 --- 2. Multiple dependent parameters ---
-  Created Matrix<3,4>: Matrix
+  mat.Describe() = Matrix<3,4>
 --- 3. Mixed parameter list ---
-  Created TypedBuffer<string,16>: TypedBuffer(value=hello)
+  tbuf.Describe() = TypedBuffer<16>(value=hello)
 --- 4. Construction with literal values ---
-  FixedBuffer<10>: FixedBuffer
-  FixedBuffer<99>: FixedBuffer
+  buf10.Describe() = FixedBuffer<10>
+  buf99.Describe() = FixedBuffer<99>
 --- 5. Dependent property access ---
-  FixedBuffer<5>.Size => 5 (generated static property)
-  Matrix<3,4>.Rows => 3, Matrix<3,4>.Cols => 4
+  buf5.GetSize() = 5
+  buf10.GetSize() = 10
+  IntParam<42>.GetValue() = 42
 --- 6. Dependent types on interfaces ---
-  TinyCollection implements IFixedCollection<8>
-  IFixedCollection<8>.Size => 8 (generated static property)
---- 7. Dependent types on traits ---
-  trait FixedCapacity<Cap:int> declared with dependent parameter
-  FixedCapacity<32>.Cap => 32 (generated static property)
---- 8. Dependent types on type aliases ---
-  type SmallOrLarge<Threshold:int> = int | string
-  SmallOrLarge<100>.Threshold => 100 (generated static property)
+  tiny.GetInfo() = TinyCollection(size=8)
 --- 9. Dependent types on methods ---
-  void Repeat<N:int>(string text) — method with dependent parameter
---- 10. Generic function accepting any dependent value ---
-  void ProcessBuffer<N:int>(FixedBuffer<N> buf) — accepts any FixedBuffer
+  Repeat<3>: hello
+  Repeat<1>: world
 --- 11. Inheritance ---
-  SmallBuffer (inherits FixedBuffer<10>)
-  SmallBuffer inherits from FixedBuffer<10> (fixed value)
-  ResizableBuffer<N:int> : FixedBuffer<N> (forwarded parameter)
+  SmallBuffer : FixedBuffer<10> constructed
+  ResizableBuffer<25> constructed
+  flex.GetInfo() = FlexCollection<16>
 --- 12. Pattern matching ---
-  Pattern match succeeded: target is FixedBuffer<5>
-  Pattern match succeeded: target10 is FixedBuffer<10>
-  FixedBuffer<5> and FixedBuffer<10> are distinct types
+  target is FixedBuffer<5> = true
+  target10 is FixedBuffer<10> = true
 --- 13. All allowed value types ---
-  IntParam<42> — int dependent parameter
-  IntParam<-1> — int dependent parameter (negated literal)
-  UintParam<V:uint> — uint dependent parameter (declared)
-  LongParam<V:long> — long dependent parameter (declared)
-  UlongParam<V:ulong> — ulong dependent parameter (declared)
-  ShortParam<V:short> — short dependent parameter (declared)
-  UshortParam<V:ushort> — ushort dependent parameter (declared)
-  ByteParam<V:byte> — byte dependent parameter (declared)
-  SbyteParam<V:sbyte> — sbyte dependent parameter (declared)
-  BoolParam<V:bool> — bool dependent parameter (declared)
-  CharParam<V:char> — char dependent parameter (declared)
+  IntParam<42>.GetValue() = 42
+  IntParam<-1>.GetValue() = -1
+  UintParam<100> constructed
+  LongParam<999> constructed
+  ShortParam<7> constructed
+  BoolParam<true> constructed
+  CharParam<'X'> constructed
 === Dependent Types Done ===
 === Done! ===

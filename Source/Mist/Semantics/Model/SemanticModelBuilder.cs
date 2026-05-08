@@ -13776,8 +13776,28 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var methodSymbol = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
                     if (methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
                     {
-                        // Resolve the type arguments.
-                        var resolvedTypeArgs = ResolvePass2TypeArgumentList(methodCall.TypeArgs, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                        // Resolve the type arguments. Use the dependent-aware resolver
+                        // if the method has any dependent type parameters.
+                        var hasDependentParams = false;
+                        foreach (var tp in sym.TypeParameters)
+                        {
+                            if (tp is DependentTypeParameterType)
+                            {
+                                hasDependentParams = true;
+                                break;
+                            }
+                        }
+                        IReadOnlyList<IType> resolvedTypeArgs;
+                        if (hasDependentParams)
+                        {
+                            var (typeArgs, _) = ResolvePass2TypeArgumentListWithDependents(
+                                methodCall.TypeArgs, sym.TypeParameters, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                            resolvedTypeArgs = typeArgs;
+                        }
+                        else
+                        {
+                            resolvedTypeArgs = ResolvePass2TypeArgumentList(methodCall.TypeArgs, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                        }
 
                         if (resolvedTypeArgs.Count != sym.TypeParameters.Count)
                         {

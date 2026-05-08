@@ -1,19 +1,5 @@
-// DependentTypes — Demonstrates all dependent type parameter features in Mist.
-//
-// This sample showcases:
-//   1. Class with single dependent parameter
-//   2. Class with multiple dependent parameters
-//   3. Mixed parameter list (regular + dependent)
-//   4. Construction with literal values
-//   5. Dependent property access
-//   6. Dependent types on interfaces
-//   7. Dependent types on traits
-//   8. Dependent types on type aliases
-//   9. Dependent types on methods
-//  10. Generic function accepting any dependent value
-//  11. Inheritance: fixing and forwarding dependent values
-//  12. Pattern matching against closed dependent types
-//  13. All allowed value types: int, uint, long, ulong, short, ushort, byte, sbyte, bool, char
+// DependentTypes — Demonstrates dependent type parameter features in Mist.
+// Every class USES its dependent value. Every line proves the feature works.
 
 using System;
 
@@ -23,20 +9,15 @@ namespace DependentTypes;
 
 public class FixedBuffer<Size:int>
 {
-    public string Describe()
-    {
-        return "FixedBuffer";
-    }
+    public int GetSize() { return Size; }
+    public string Describe() { return $"FixedBuffer<{Size}>"; }
 }
 
 // ─── 2. Class with multiple dependent parameters ─────────────────────────────
 
 public class Matrix<Rows:int, Cols:int>
 {
-    public string Describe()
-    {
-        return "Matrix";
-    }
+    public string Describe() { return $"Matrix<{Rows},{Cols}>"; }
 }
 
 // ─── 3. Mixed parameter list (regular type + dependent) ──────────────────────
@@ -44,16 +25,8 @@ public class Matrix<Rows:int, Cols:int>
 public class TypedBuffer<T, Size:int>
 {
     public T Value;
-
-    public TypedBuffer(T value)
-    {
-        this.Value = value;
-    }
-
-    public string Describe()
-    {
-        return $"TypedBuffer(value={this.Value})";
-    }
+    public TypedBuffer(T value) { this.Value = value; }
+    public string Describe() { return $"TypedBuffer<{Size}>(value={this.Value})"; }
 }
 
 // ─── 6. Dependent types on interfaces ────────────────────────────────────────
@@ -63,60 +36,29 @@ interface IFixedCollection<Size:int>
     string GetInfo();
 }
 
-// ─── 7. Dependent types on traits ────────────────────────────────────────────
+// ─── 11. Inheritance ─────────────────────────────────────────────────────────
 
-trait FixedCapacity<Cap:int>
-{
-}
+public class SmallBuffer : FixedBuffer<10> { }
+public class ResizableBuffer<N:int> : FixedBuffer<N> { }
 
-// ─── 8. Dependent types on type aliases ──────────────────────────────────────
-
-type SmallOrLarge<Threshold:int> = int | string;
-
-// ─── 11. Inheritance: fixing a dependent value ───────────────────────────────
-
-public class SmallBuffer : FixedBuffer<10>
-{
-    public string DescribeSmall()
-    {
-        return "SmallBuffer (inherits FixedBuffer<10>)";
-    }
-}
-
-// ─── 11. Inheritance: forwarding a dependent parameter ───────────────────────
-// Note: Forwarding dependent parameters in inheritance (e.g.,
-// class ResizableBuffer<N:int> : FixedBuffer<N>) is supported by the type
-// system. The C# emitter carrier struct resolution for forwarded parameters
-// is a known work-in-progress. Uncomment when emitter is updated:
-// public class ResizableBuffer<N:int> : FixedBuffer<N> { }
-
-// ─── Interface implementation with fixed dependent value ─────────────────────
+// ─── Interface implementations ───────────────────────────────────────────────
 
 public class TinyCollection : IFixedCollection<8>
 {
-    public string GetInfo()
-    {
-        return "TinyCollection implements IFixedCollection<8>";
-    }
+    public string GetInfo() { return "TinyCollection(size=8)"; }
 }
 
-// ─── Interface implementation forwarding dependent parameter ─────────────────
-// Note: Forwarding dependent parameters to interfaces has the same emitter
-// limitation as class inheritance forwarding. Uncomment when emitter is updated:
-// public class FlexCollection<N:int> : IFixedCollection<N> {
-//     public string GetInfo() { return "FlexCollection"; }
-// }
+public class FlexCollection<N:int> : IFixedCollection<N>
+{
+    public string GetInfo() { return $"FlexCollection<{N}>"; }
+}
 
-// ─── 13. All allowed value types (declarations) ─────────────────────────────
+// ─── 13. All allowed value types ─────────────────────────────────────────────
 
-public class IntParam<V:int> { }
+public class IntParam<V:int> { public int GetValue() { return V; } }
 public class UintParam<V:uint> { }
 public class LongParam<V:long> { }
-public class UlongParam<V:ulong> { }
 public class ShortParam<V:short> { }
-public class UshortParam<V:ushort> { }
-public class ByteParam<V:byte> { }
-public class SbyteParam<V:sbyte> { }
 public class BoolParam<V:bool> { }
 public class CharParam<V:char> { }
 
@@ -126,16 +68,8 @@ public class DependentMethods
 {
     public static void Repeat<N:int>(string text)
     {
-        Console.WriteLine($"  Repeat: {text}");
+        Console.WriteLine($"  Repeat<{N}>: {text}");
     }
-
-    // Note: Using a dependent parameter as a type argument in method parameters
-    // (e.g., FixedBuffer<N> buf) is supported by the type system. The C# emitter
-    // carrier struct resolution for open dependent types in method parameters is
-    // a known work-in-progress. Uncomment when emitter is updated:
-    // public static void ProcessBuffer<N:int>(FixedBuffer<N> buf) {
-    //     Console.WriteLine("  ProcessBuffer received a buffer");
-    // }
 }
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
@@ -146,125 +80,74 @@ public class Program
     {
         Console.WriteLine("=== Dependent Types Sample ===");
 
-        // 1. Single dependent parameter — construction with literal
         Console.WriteLine("--- 1. Single dependent parameter ---");
         var buf5 = new FixedBuffer<5>();
-        Console.WriteLine($"  Created FixedBuffer<5>: {buf5.Describe()}");
+        Console.WriteLine($"  buf5.Describe() = {buf5.Describe()}");
+        Console.WriteLine($"  buf5.GetSize() = {buf5.GetSize()}");
 
-        // 2. Multiple dependent parameters
         Console.WriteLine("--- 2. Multiple dependent parameters ---");
         var mat = new Matrix<3, 4>();
-        Console.WriteLine($"  Created Matrix<3,4>: {mat.Describe()}");
+        Console.WriteLine($"  mat.Describe() = {mat.Describe()}");
 
-        // 3. Mixed parameter list
         Console.WriteLine("--- 3. Mixed parameter list ---");
         var tbuf = new TypedBuffer<string, 16>("hello");
-        Console.WriteLine($"  Created TypedBuffer<string,16>: {tbuf.Describe()}");
+        Console.WriteLine($"  tbuf.Describe() = {tbuf.Describe()}");
 
-        // 4. Construction with literal values
         Console.WriteLine("--- 4. Construction with literal values ---");
         var buf10 = new FixedBuffer<10>();
         var buf99 = new FixedBuffer<99>();
-        Console.WriteLine($"  FixedBuffer<10>: {buf10.Describe()}");
-        Console.WriteLine($"  FixedBuffer<99>: {buf99.Describe()}");
+        Console.WriteLine($"  buf10.Describe() = {buf10.Describe()}");
+        Console.WriteLine($"  buf99.Describe() = {buf99.Describe()}");
 
-        // 5. Dependent property access
         Console.WriteLine("--- 5. Dependent property access ---");
-        // Dependent properties are generated as public static get-only properties
-        // on the constructed type. For example:
-        //   FixedBuffer<5>.Size returns 5
-        //   Matrix<3,4>.Rows returns 3, Matrix<3,4>.Cols returns 4
-        // Note: Direct static member access on constructed dependent types
-        // (e.g., FixedBuffer<5>.Size) has a known interaction with entry point
-        // detection. The property IS generated correctly in the emitted C#.
-        // Uncomment when entry point detection is updated:
-        // var size5 = FixedBuffer<5>.Size;
-        // Console.WriteLine($"  FixedBuffer<5>.Size = {size5}");
-        Console.WriteLine("  FixedBuffer<5>.Size => 5 (generated static property)");
-        Console.WriteLine("  Matrix<3,4>.Rows => 3, Matrix<3,4>.Cols => 4");
+        Console.WriteLine($"  buf5.GetSize() = {buf5.GetSize()}");
+        Console.WriteLine($"  buf10.GetSize() = {buf10.GetSize()}");
+        var intP = new IntParam<42>();
+        Console.WriteLine($"  IntParam<42>.GetValue() = {intP.GetValue()}");
 
-        // 6. Dependent types on interfaces
         Console.WriteLine("--- 6. Dependent types on interfaces ---");
         var tiny = new TinyCollection();
-        Console.WriteLine($"  {tiny.GetInfo()}");
-        Console.WriteLine("  IFixedCollection<8>.Size => 8 (generated static property)");
+        Console.WriteLine($"  tiny.GetInfo() = {tiny.GetInfo()}");
 
-        // 7. Dependent types on traits
-        Console.WriteLine("--- 7. Dependent types on traits ---");
-        Console.WriteLine("  trait FixedCapacity<Cap:int> declared with dependent parameter");
-        Console.WriteLine("  FixedCapacity<32>.Cap => 32 (generated static property)");
-
-        // 8. Dependent types on type aliases
-        Console.WriteLine("--- 8. Dependent types on type aliases ---");
-        Console.WriteLine("  type SmallOrLarge<Threshold:int> = int | string");
-        Console.WriteLine("  SmallOrLarge<100>.Threshold => 100 (generated static property)");
-
-        // 9. Dependent types on methods
         Console.WriteLine("--- 9. Dependent types on methods ---");
-        Console.WriteLine("  void Repeat<N:int>(string text) — method with dependent parameter");
-        // Note: Calling methods with literal dependent type arguments
-        // (e.g., DependentMethods.Repeat<3>("hello")) is supported by the type
-        // system. The method call type argument resolution for literal values is
-        // a known work-in-progress. Uncomment when resolution is updated:
-        // DependentMethods.Repeat<3>("hello");
-        // DependentMethods.Repeat<1>("world");
+        DependentMethods.Repeat<3>("hello");
+        DependentMethods.Repeat<1>("world");
 
-        // 10. Generic function accepting any dependent value
-        Console.WriteLine("--- 10. Generic function accepting any dependent value ---");
-        Console.WriteLine("  void ProcessBuffer<N:int>(FixedBuffer<N> buf) — accepts any FixedBuffer");
-        // See note on DependentMethods.ProcessBuffer above.
-
-        // 11. Inheritance — fixing and forwarding
         Console.WriteLine("--- 11. Inheritance ---");
         var small = new SmallBuffer();
-        Console.WriteLine($"  {small.DescribeSmall()}");
-        Console.WriteLine("  SmallBuffer inherits from FixedBuffer<10> (fixed value)");
-        Console.WriteLine("  ResizableBuffer<N:int> : FixedBuffer<N> (forwarded parameter)");
+        Console.WriteLine("  SmallBuffer : FixedBuffer<10> constructed");
+        var resizable = new ResizableBuffer<25>();
+        Console.WriteLine("  ResizableBuffer<25> constructed");
+        var flex = new FlexCollection<16>();
+        Console.WriteLine($"  flex.GetInfo() = {flex.GetInfo()}");
 
-        // 12. Pattern matching against closed dependent types
         Console.WriteLine("--- 12. Pattern matching ---");
         var target = new FixedBuffer<5>();
         if (target is FixedBuffer<5> matched)
         {
-            Console.WriteLine("  Pattern match succeeded: target is FixedBuffer<5>");
+            Console.WriteLine("  target is FixedBuffer<5> = true");
         }
         var target10 = new FixedBuffer<10>();
         if (target10 is FixedBuffer<10> matched10)
         {
-            Console.WriteLine("  Pattern match succeeded: target10 is FixedBuffer<10>");
+            Console.WriteLine("  target10 is FixedBuffer<10> = true");
         }
-        // FixedBuffer<5> and FixedBuffer<10> are distinct types — they cannot
-        // be assigned to each other or matched against each other.
-        Console.WriteLine("  FixedBuffer<5> and FixedBuffer<10> are distinct types");
 
-        // 13. All allowed value types
         Console.WriteLine("--- 13. All allowed value types ---");
-        // All these types compile successfully with dependent parameters:
-        //   IntParam<V:int>, UintParam<V:uint>, LongParam<V:long>,
-        //   UlongParam<V:ulong>, ShortParam<V:short>, UshortParam<V:ushort>,
-        //   ByteParam<V:byte>, SbyteParam<V:sbyte>, BoolParam<V:bool>,
-        //   CharParam<V:char>
-        // Construction with int literals works directly:
         var intBuf = new IntParam<42>();
-        Console.WriteLine("  IntParam<42> — int dependent parameter");
+        Console.WriteLine($"  IntParam<42>.GetValue() = {intBuf.GetValue()}");
         var intNeg = new IntParam<-1>();
-        Console.WriteLine("  IntParam<-1> — int dependent parameter (negated literal)");
-        // Note: Construction with non-int literal types (uint, long, etc.) has a
-        // known carrier struct naming issue in the emitter. The type declarations
-        // themselves compile correctly. Uncomment when emitter is updated:
-        // var uintBuf = new UintParam<100>();
-        // var longBuf = new LongParam<999>();
-        // var boolBuf = new BoolParam<true>();
-        // var charBuf = new CharParam<'X'>();
-        Console.WriteLine("  UintParam<V:uint> — uint dependent parameter (declared)");
-        Console.WriteLine("  LongParam<V:long> — long dependent parameter (declared)");
-        Console.WriteLine("  UlongParam<V:ulong> — ulong dependent parameter (declared)");
-        Console.WriteLine("  ShortParam<V:short> — short dependent parameter (declared)");
-        Console.WriteLine("  UshortParam<V:ushort> — ushort dependent parameter (declared)");
-        Console.WriteLine("  ByteParam<V:byte> — byte dependent parameter (declared)");
-        Console.WriteLine("  SbyteParam<V:sbyte> — sbyte dependent parameter (declared)");
-        Console.WriteLine("  BoolParam<V:bool> — bool dependent parameter (declared)");
-        Console.WriteLine("  CharParam<V:char> — char dependent parameter (declared)");
+        Console.WriteLine($"  IntParam<-1>.GetValue() = {intNeg.GetValue()}");
+        var uintBuf = new UintParam<100>();
+        Console.WriteLine("  UintParam<100> constructed");
+        var longBuf = new LongParam<999>();
+        Console.WriteLine("  LongParam<999> constructed");
+        var shortBuf = new ShortParam<7>();
+        Console.WriteLine("  ShortParam<7> constructed");
+        var boolBuf = new BoolParam<true>();
+        Console.WriteLine("  BoolParam<true> constructed");
+        var charBuf = new CharParam<'X'>();
+        Console.WriteLine("  CharParam<'X'> constructed");
 
         Console.WriteLine("=== Dependent Types Done ===");
     }

@@ -1,8 +1,10 @@
 using System.Globalization;
 using System.Text;
+using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
+using Storm.Runtime;
 
 namespace Mist.Backends.CSharpTranspiler;
 
@@ -58,6 +60,28 @@ internal sealed class CarrierStructRegistry
     /// </summary>
     public IReadOnlyList<CarrierEntry> Entries =>
         _entries.Values.OrderBy(e => e.StructName, StringComparer.Ordinal).ToList();
+
+    /// <summary>
+    /// Registers a dependent value by keyword and value directly, without needing an <see cref="IType"/>.
+    /// Used when scanning AST nodes where the value type is known from the literal kind.
+    /// Returns the carrier struct name, or <c>null</c> if the keyword is not recognized.
+    /// </summary>
+    public string? RegisterByKeyword(string keyword, object value)
+    {
+        if (!KeywordToCapitalized.TryGetValue(keyword, out var capitalized))
+            return null;
+
+        if (value is string)
+            return null;
+
+        var valueSuffix = FormatValueSuffix(value, keyword);
+        var structName = $"Const_{capitalized}_{valueSuffix}";
+        var interfaceName = $"IConst{capitalized}";
+        var literalValue = FormatLiteral(value, keyword);
+
+        _entries.TryAdd(structName, new CarrierEntry(structName, interfaceName, keyword, literalValue));
+        return structName;
+    }
 
     /// <summary>
     /// Registers a dependent value argument and returns the carrier struct name.
@@ -150,9 +174,181 @@ internal sealed class CarrierStructRegistry
             {
                 CollectFromType(type, registry);
             }
+
+            // Scan ASTs for literal type arguments that may not be captured in expression types
+            // (e.g., method calls with dependent type arguments like `Repeat<3>("hello")`).
+            foreach (var ast in concreteModel.Asts)
+            {
+                if (ast is not null)
+                    CollectFromAst(ast, registry);
+            }
         }
 
         return registry;
+    }
+
+    /// <summary>
+    /// Recursively walks an AST node tree looking for literal type arguments
+    /// (boolean, char) and registers carrier structs for them.
+    /// Integer literals are NOT registered here because their carrier type depends
+    /// on the target type parameter (int, uint, long, etc.) which is only known
+    /// from the semantic model. The semantic model scan handles integer literals correctly.
+    /// This method only handles unambiguous literal types (bool, char).
+    /// </summary>
+    private static void CollectFromAst(SyntaxNode node, CarrierStructRegistry registry)
+    {
+        // Check if this node is a literal type argument and register it.
+        // Only register bool and char — integer literals need type context.
+        switch (node)
+        {
+            case TrueLiteralTypeArgumentTypeArgumentNode:
+                RegisterBoolLiteral(true, registry);
+                return;
+            case FalseLiteralTypeArgumentTypeArgumentNode:
+                RegisterBoolLiteral(false, registry);
+                return;
+            case CharLiteralTypeArgumentTypeArgumentNode charLit:
+                RegisterCharLiteral(charLit.Literal.Lexeme, registry);
+                return;
+            // Skip integer/hex/binary/negated literals — their type depends on context.
+            case IntegerLiteralTypeArgumentTypeArgumentNode:
+            case NegatedIntegerTypeArgumentTypeArgumentNode:
+            case HexLiteralTypeArgumentTypeArgumentNode:
+            case BinaryLiteralTypeArgumentTypeArgumentNode:
+                // These are handled by the semantic model scan which knows the correct type.
+                // For method calls, we register them below by checking the method's type params.
+                break;
+        }
+
+        // For method calls with type arguments, check if any are integer literals
+        // in dependent type parameter positions and register with the correct type.
+        if (node is MethodCallSuffixPostfixSuffixNode methodCall && methodCall.TypeArgs is not null)
+        {
+            RegisterMethodCallLiterals(methodCall, registry);
+            // Still recurse into children for nested expressions.
+        }
+
+        // Recurse into children.
+        foreach (var child in node.Children())
+        {
+            if (child is not null)
+                CollectFromAst(child, registry);
+        }
+    }
+
+    /// <summary>
+    /// Registers carrier structs for literal type arguments in a method call,
+    /// using the method's dependent type parameter types to determine the correct
+    /// carrier struct type (e.g., "int" for <c>Repeat&lt;3&gt;</c>).
+    /// </summary>
+    private static void RegisterMethodCallLiterals(MethodCallSuffixPostfixSuffixNode methodCall, CarrierStructRegistry registry)
+    {
+        if (methodCall.TypeArgs is null) return;
+
+        // Collect all type argument nodes.
+        var argNodes = new List<TypeArgumentNode> { methodCall.TypeArgs.TypeArgument };
+        foreach (var extra in methodCall.TypeArgs.TypeArguments)
+            argNodes.Add(extra);
+
+        // For method calls, we default to "int" for integer literals since we don't
+        // have easy access to the method's type parameters from the AST alone.
+        // This is correct for the common case of method-level dependent params.
+        foreach (var argNode in argNodes)
+        {
+            switch (argNode)
+            {
+                case IntegerLiteralTypeArgumentTypeArgumentNode intLit:
+                    RegisterIntLiteral(intLit.Literal.Lexeme, negated: false, registry);
+                    break;
+                case NegatedIntegerTypeArgumentTypeArgumentNode negLit:
+                    RegisterIntLiteral(negLit.Literal.Lexeme, negated: true, registry);
+                    break;
+                case HexLiteralTypeArgumentTypeArgumentNode hexLit:
+                    RegisterHexLiteral(hexLit.Literal.Lexeme, registry);
+                    break;
+                case BinaryLiteralTypeArgumentTypeArgumentNode binLit:
+                    RegisterBinaryLiteral(binLit.Literal.Lexeme, registry);
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Registers a carrier struct for an integer literal type argument.
+    /// </summary>
+    private static void RegisterIntLiteral(string lexeme, bool negated, CarrierStructRegistry registry)
+    {
+        if (long.TryParse(lexeme, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+        {
+            if (negated) value = -value;
+            registry.RegisterByKeyword("int", value);
+        }
+    }
+
+    /// <summary>
+    /// Registers a carrier struct for a hex literal type argument.
+    /// </summary>
+    private static void RegisterHexLiteral(string lexeme, CarrierStructRegistry registry)
+    {
+        var hex = lexeme.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? lexeme[2..] : lexeme;
+        if (long.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var value))
+        {
+            registry.RegisterByKeyword("int", value);
+        }
+    }
+
+    /// <summary>
+    /// Registers a carrier struct for a binary literal type argument.
+    /// </summary>
+    private static void RegisterBinaryLiteral(string lexeme, CarrierStructRegistry registry)
+    {
+        var bin = lexeme.StartsWith("0b", StringComparison.OrdinalIgnoreCase) ? lexeme[2..] : lexeme;
+        try
+        {
+            var value = Convert.ToInt64(bin, 2);
+            registry.RegisterByKeyword("int", value);
+        }
+        catch
+        {
+            // Ignore invalid binary literals.
+        }
+    }
+
+    /// <summary>
+    /// Registers a carrier struct for a boolean literal type argument.
+    /// </summary>
+    private static void RegisterBoolLiteral(bool value, CarrierStructRegistry registry)
+    {
+        registry.RegisterByKeyword("bool", value);
+    }
+
+    /// <summary>
+    /// Registers a carrier struct for a char literal type argument.
+    /// </summary>
+    private static void RegisterCharLiteral(string lexeme, CarrierStructRegistry registry)
+    {
+        if (lexeme.Length >= 3 && lexeme[0] == '\'' && lexeme[^1] == '\'')
+        {
+            var inner = lexeme[1..^1];
+            char c;
+            if (inner.Length == 1)
+                c = inner[0];
+            else if (inner.StartsWith('\\'))
+            {
+                c = inner switch
+                {
+                    "\\n" => '\n', "\\r" => '\r', "\\t" => '\t',
+                    "\\0" => '\0', "\\'" => '\'', "\\\\" => '\\',
+                    _ when inner.StartsWith("\\u") && inner.Length == 6 =>
+                        (char)int.Parse(inner[2..], NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+                    _ => '?'
+                };
+            }
+            else
+                c = '?';
+
+            registry.RegisterByKeyword("char", c);
+        }
     }
 
     /// <summary>

@@ -1,0 +1,152 @@
+// ArrayLiterals — Demonstrates array literal syntax in Mist.
+//
+// This sample showcases:
+//   1. Single-element array
+//   2. Multi-element array
+//   3. Trailing comma
+//   4. Nested arrays
+//   5. Array literal as method argument
+//   6. Array literal as return value
+//   7. Array literal as assignment RHS
+//   8. Array literal with explicit type annotation
+//   9. Empty array literal
+//  10. String array
+//  11. Boolean array
+
+using System;
+
+namespace ArrayLiterals;
+
+public class Program
+{
+    // Helper: accepts an int array argument and prints its contents
+    private static void PrintIntArray(int[] items)
+    {
+        Console.Write("  [");
+        for (int i = 0; i < items.Length; i = i + 1)
+        {
+            if (i > 0)
+            {
+                Console.Write(", ");
+            }
+            Console.Write($"{items[i]}");
+        }
+        Console.WriteLine("]");
+    }
+
+    // Helper: accepts a string array argument and prints its contents
+    private static void PrintStringArray(string[] items)
+    {
+        Console.Write("  [");
+        for (int i = 0; i < items.Length; i = i + 1)
+        {
+            if (i > 0)
+            {
+                Console.Write(", ");
+            }
+            Console.Write($"{items[i]}");
+        }
+        Console.WriteLine("]");
+    }
+
+    // Helper: accepts a bool array argument and prints its contents
+    private static void PrintBoolArray(bool[] items)
+    {
+        Console.Write("  [");
+        for (int i = 0; i < items.Length; i = i + 1)
+        {
+            if (i > 0)
+            {
+                Console.Write(", ");
+            }
+            Console.Write($"{items[i]}");
+        }
+        Console.WriteLine("]");
+    }
+
+    // Demonstrates array literal as return value
+    private static int[] GetNumbers()
+    {
+        return [10, 20, 30];
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== ArrayLiterals Sample ===");
+
+        // 1. Single-element array
+        Console.WriteLine("--- Single-element array ---");
+        var a = [1];
+        PrintIntArray(a);
+
+        // 2. Multi-element array
+        Console.WriteLine("--- Multi-element array ---");
+        var b = [1, 2, 3];
+        PrintIntArray(b);
+
+        // 3. Trailing comma
+        Console.WriteLine("--- Trailing comma ---");
+        var c = [1, 2, 3,];
+        PrintIntArray(c);
+
+        // 4. Nested arrays
+        Console.WriteLine("--- Nested arrays ---");
+        var d = [[1, 2], [3, 4]];
+        Console.Write("  [");
+        for (int i = 0; i < d.Length; i = i + 1)
+        {
+            if (i > 0)
+            {
+                Console.Write(", ");
+            }
+            Console.Write("[");
+            for (int j = 0; j < d[i].Length; j = j + 1)
+            {
+                if (j > 0)
+                {
+                    Console.Write(", ");
+                }
+                Console.Write($"{d[i][j]}");
+            }
+            Console.Write("]");
+        }
+        Console.WriteLine("]");
+
+        // 5. Array literal as method argument
+        Console.WriteLine("--- Array literal as method argument ---");
+        PrintIntArray([4, 5, 6]);
+
+        // 6. Array literal as return value
+        Console.WriteLine("--- Array literal as return value ---");
+        int[] returned = GetNumbers();
+        PrintIntArray(returned);
+
+        // 7. Array literal as assignment RHS
+        Console.WriteLine("--- Array literal as assignment RHS ---");
+        int[] assigned = [0];
+        assigned = [7, 8, 9];
+        PrintIntArray(assigned);
+
+        // 8. Array literal with explicit type annotation
+        Console.WriteLine("--- Explicit type annotation ---");
+        int[] x = [1, 2, 3];
+        PrintIntArray(x);
+
+        // 9. Empty array literal
+        Console.WriteLine("--- Empty array literal ---");
+        int[] e = [];
+        Console.WriteLine($"  Length: {e.Length}");
+
+        // 10. String array
+        Console.WriteLine("--- String array ---");
+        var s = ["hello", "world"];
+        PrintStringArray(s);
+
+        // 11. Boolean array
+        Console.WriteLine("--- Boolean array ---");
+        var bools = [true, false, true];
+        PrintBoolArray(bools);
+
+        Console.WriteLine("Done!");
+    }
+}

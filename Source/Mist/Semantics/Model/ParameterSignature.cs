@@ -113,4 +113,61 @@ public static class ParameterSignature
             _ => null,
         };
     }
+
+    /// <summary>
+    /// Extracts the readonly flags for each parameter of a method or constructor.
+    /// Returns a list of booleans parallel to the parameter list, where <c>true</c>
+    /// indicates the parameter has the <c>readonly</c> modifier.
+    /// Returns an empty list for parameterless methods/constructors.
+    /// </summary>
+    public static IReadOnlyList<bool> ExtractIsReadonly(ISymbol symbol, ISemanticModel model)
+    {
+        Storm.Runtime.SyntaxNode declaringNode;
+        try
+        {
+            declaringNode = model.GetDeclaringNode(symbol);
+        }
+        catch
+        {
+            return Array.Empty<bool>();
+        }
+
+        return ExtractIsReadonlyFromNode(declaringNode);
+    }
+
+    /// <summary>
+    /// Extracts the readonly flags for each parameter of a method or constructor
+    /// using a <see cref="SymbolTable"/> directly. This overload is used during semantic
+    /// model construction (before the <see cref="ISemanticModel"/> is built).
+    /// Returns an empty list for parameterless methods/constructors.
+    /// </summary>
+    public static IReadOnlyList<bool> ExtractIsReadonly(ISymbol symbol, SymbolTable symbolTable)
+    {
+        var declaringNode = symbolTable.GetDeclaringNode(symbol);
+        if (declaringNode is null)
+            return Array.Empty<bool>();
+
+        return ExtractIsReadonlyFromNode(declaringNode);
+    }
+
+    /// <summary>
+    /// Extracts readonly flags from a declaring node's parameter list.
+    /// </summary>
+    private static IReadOnlyList<bool> ExtractIsReadonlyFromNode(Storm.Runtime.SyntaxNode declaringNode)
+    {
+        var paramList = GetParameterList(declaringNode);
+        if (paramList is null)
+            return Array.Empty<bool>();
+
+        var flags = new List<bool>();
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode paramNode)
+            {
+                flags.Add(paramNode.Modifier is not null);
+            }
+        }
+
+        return flags;
+    }
 }

@@ -46,6 +46,12 @@ public sealed class ClassType : IType
     /// </summary>
     public List<IType> SatisfiedTraits { get; } = new();
 
+    /// <summary>
+    /// Indicates whether this type is declared as readonly.
+    /// When true, all members are implicitly readonly.
+    /// </summary>
+    public bool IsReadonly { get; internal set; }
+
     public ClassType(
         string displayName,
         IScope memberScope,

@@ -1001,9 +1001,10 @@ public sealed class MistPrettyPrinter
 
     private string EmitParameter(ParameterNode param)
     {
+        var prefix = param.Modifier is not null ? "readonly " : "";
         var type = EmitTypeReference(param.Type);
         var name = param.Name.Lexeme;
-        return $"{type} {name}";
+        return $"{prefix}{type} {name}";
     }
 
     private string EmitArgumentList(ArgumentListNode? argList)
@@ -1195,6 +1196,16 @@ public sealed class MistPrettyPrinter
                 break;
             case BreakStatementStatementNode:
                 AppendLine("break;");
+                break;
+            case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
+                AppendLine("readonly {");
+                _indentLevel++;
+                foreach (var bodyStmt in readonlyBlockStmt.ReadonlyBlock.Body.Statements)
+                {
+                    EmitStatement(bodyStmt);
+                }
+                _indentLevel--;
+                AppendLine("}");
                 break;
             case ExpressionStatementStatementNode exprStmt:
                 AppendLine($"{EmitExpression(exprStmt.ExpressionStatement.Expression)};");
@@ -1758,6 +1769,35 @@ public sealed class MistPrettyPrinter
                 var args = EmitArgumentList(invocation.Arguments);
                 return $"{target}({args})";
             }
+            case SwitchExpressionSuffixPostfixSuffixNode switchExpr:
+            {
+                var sb = new StringBuilder();
+                sb.Append($"{target} switch {{");
+
+                if (switchExpr.Arms is not null)
+                {
+                    void AppendArm(StringBuilder builder, SwitchArmNode arm)
+                    {
+                        builder.Append(' ');
+                        builder.Append(EmitPattern(arm.Pattern));
+                        if (arm.Guard is not null)
+                        {
+                            builder.Append($" when {EmitExpression(arm.Guard.Condition)}");
+                        }
+                        builder.Append($" => {EmitExpression(arm.Result)}");
+                        builder.Append(',');
+                    }
+
+                    AppendArm(sb, switchExpr.Arms.SwitchArm);
+                    foreach (var arm in switchExpr.Arms.SwitchArms)
+                    {
+                        AppendArm(sb, arm);
+                    }
+                }
+
+                sb.Append(" }");
+                return sb.ToString();
+            }
             default:
                 return target;
         }
@@ -1798,7 +1838,19 @@ public sealed class MistPrettyPrinter
                 var type = ExtractQualifiedName(objCreation.Type);
                 var typeArgs = EmitTypeArgumentList(objCreation.TypeArgs);
                 var args = EmitArgumentList(objCreation.Arguments);
+                if (objCreation.Initializer is not null)
+                {
+                    var assignments = EmitPropertyAssignmentList(objCreation.Initializer);
+                    return $"new {type}{typeArgs}({args}) {{ {assignments} }}";
+                }
                 return $"new {type}{typeArgs}({args})";
+            }
+            case ObjectCreationExpressionNoArgsPrimaryNode objCreationNoArgs:
+            {
+                var type = ExtractQualifiedName(objCreationNoArgs.Type);
+                var typeArgs = EmitTypeArgumentList(objCreationNoArgs.TypeArgs);
+                var assignments = EmitPropertyAssignmentList(objCreationNoArgs.Initializer);
+                return $"new {type}{typeArgs} {{ {assignments} }}";
             }
             case ParenthesizedExpressionPrimaryNode paren:
                 return $"({EmitExpression(paren.Inner)})";
@@ -1837,6 +1889,15 @@ public sealed class MistPrettyPrinter
                 return $"default({EmitTypeReference(defaultExpr.Type)})";
             case DefaultLiteralExpressionPrimaryNode:
                 return "default";
+            case ArrayLiteralExpressionPrimaryNode arrayLiteral:
+            {
+                var elements = new List<string> { EmitExpression(arrayLiteral.First) };
+                foreach (var elem in arrayLiteral.Expressions)
+                    elements.Add(EmitExpression(elem));
+                return $"[{string.Join(", ", elements)}]";
+            }
+            case EmptyArrayLiteralExpressionPrimaryNode:
+                return "[]";
             default:
                 return "";
         }
@@ -1888,6 +1949,9 @@ public sealed class MistPrettyPrinter
                     break;
                 case IntrinsicModifierModifierNode:
                     parts.Add("intrinsic");
+                    break;
+                case ReadonlyModifierModifierNode:
+                    parts.Add("readonly");
                     break;
             }
         }
@@ -2073,6 +2137,10 @@ public sealed class MistPrettyPrinter
                 return "class";
             case StructConstraintConstraintNode:
                 return "struct";
+            case ReadonlyConstraintConstraintNode:
+                return "readonly";
+            case MutableConstraintConstraintNode:
+                return "mutable";
             case ConstructorConstraintConstraintNode ctorConstraint:
             {
                 if (ctorConstraint.ParamTypes is null)
@@ -2092,6 +2160,22 @@ public sealed class MistPrettyPrinter
             default:
                 return "";
         }
+    }
+
+    // ─── Property Initializer Emission ─────────────────────────────────
+
+    private string EmitPropertyAssignmentList(PropertyInitializerBlockNode block)
+    {
+        if (block.Assignments is null)
+            return "";
+
+        var parts = new List<string>();
+        parts.Add($"{block.Assignments.PropertyAssignment.Name.Lexeme} = {EmitExpression(block.Assignments.PropertyAssignment.Value)}");
+        foreach (var assignment in block.Assignments.PropertyAssignments)
+        {
+            parts.Add($"{assignment.Name.Lexeme} = {EmitExpression(assignment.Value)}");
+        }
+        return string.Join(", ", parts);
     }
 
     private void AppendLine(string text = "")

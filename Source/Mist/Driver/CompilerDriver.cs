@@ -8,6 +8,7 @@ using Mist.Common.Text;
 using Mist.Driver.Contracts;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
+using Mist.Semantics;
 using Mist.Semantics.Contracts;
 
 namespace Mist.Driver;
@@ -378,6 +379,11 @@ public sealed class CompilerDriver : ICompilerDriver
         {
             return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
         }
+
+        // Stage 4b: Readonly Inference
+        // Run the inference engine after the semantic model is built but before
+        // analyzers. This classifies members as InferredReadonly or Mutable.
+        ReadonlyInferenceEngine.RunInference(semanticModel);
 
         // Stage 5: Analysis
         var analysisStopwatch = Stopwatch.StartNew();

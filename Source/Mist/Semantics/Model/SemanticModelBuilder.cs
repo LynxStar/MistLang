@@ -27,6 +27,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     [ThreadStatic]
     private static ExtensionRegistry? _extensionRegistryContext;
 
+    // ── Target type context for empty array literal inference ─────────────
+    // Set before resolving a typed variable declaration's initializer so that
+    // EmptyArrayLiteralExpressionPrimaryNode can infer its element type from
+    // the declared array type. Cleared immediately after resolution.
+    [ThreadStatic]
+    private static IType? _emptyArrayTargetType;
+
     // ── Intrinsic-marker diagnostic IDs (Task 9, Requirements 5.3, 5.6, 5.13, 5.15) ──
     /// <summary>
     /// An intrinsic member was declared with a body. Per Requirement 5.3,
@@ -1008,6 +1015,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var isBackendBacked = HasIntrinsicModifier(classDecl.Modifiers);
         var classType = new ClassType(className, typeScope, namespaceName, isBackendBacked);
 
+        var isReadonly = HasReadonlyModifier(classDecl.Modifiers);
+        classType.IsReadonly = isReadonly;
+
         var classSpan = ToMistSourceSpan(classDecl.Name.Span);
         var classSymbol = new Symbol(className, SymbolKind.Class, SymbolOrigin.UserCode, parentScope, classType, classSpan);
 
@@ -1020,6 +1030,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach (var memberDecl in classDecl.Members)
         {
             RegisterMemberDeclaration(memberDecl, typeScope, symbolTable, sourceText, diagnostics);
+        }
+
+        // If the type is readonly, set all members to ImplicitReadonly.
+        if (isReadonly)
+        {
+            SetMembersImplicitReadonly(typeScope);
         }
     }
 
@@ -1036,6 +1052,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var isBackendBacked = HasIntrinsicModifier(structDecl.Modifiers);
         var structType = new StructType(structName, typeScope, namespaceName, isBackendBacked);
 
+        var isReadonly = HasReadonlyModifier(structDecl.Modifiers);
+        structType.IsReadonly = isReadonly;
+
         var structSpan = ToMistSourceSpan(structDecl.Name.Span);
         var structSymbol = new Symbol(structName, SymbolKind.Struct, SymbolOrigin.UserCode, parentScope, structType, structSpan);
 
@@ -1048,6 +1067,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach (var memberDecl in structDecl.Members)
         {
             RegisterMemberDeclaration(memberDecl, typeScope, symbolTable, sourceText, diagnostics);
+        }
+
+        // If the type is readonly, set all members to ImplicitReadonly.
+        if (isReadonly)
+        {
+            SetMembersImplicitReadonly(typeScope);
         }
     }
 
@@ -1062,6 +1087,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var interfaceName = interfaceDecl.Name.Lexeme;
         var typeScope = new Scope(parent: parentScope);
         var interfaceType = new InterfaceType(interfaceName, typeScope, namespaceName);
+
+        var isReadonly = HasReadonlyModifier(interfaceDecl.Modifiers);
+        interfaceType.IsReadonly = isReadonly;
 
         var interfaceSpan = ToMistSourceSpan(interfaceDecl.Name.Span);
         var interfaceSymbol = new Symbol(interfaceName, SymbolKind.Interface, SymbolOrigin.UserCode, parentScope, interfaceType, interfaceSpan);
@@ -1084,6 +1112,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
             }
         }
+
+        // If the interface is readonly, set all members to ImplicitReadonly.
+        if (isReadonly)
+        {
+            SetMembersImplicitReadonly(typeScope);
+        }
     }
 
     private static void RegisterTraitDeclaration(
@@ -1097,6 +1131,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var traitName = traitDecl.Name.Lexeme;
         var typeScope = new Scope(parent: parentScope);
         var traitType = new TraitType(traitName, typeScope, namespaceName);
+
+        var isReadonly = HasReadonlyModifier(traitDecl.Modifiers);
+        traitType.IsReadonly = isReadonly;
 
         var traitSpan = ToMistSourceSpan(traitDecl.Name.Span);
         var traitSymbol = new Symbol(traitName, SymbolKind.Trait, SymbolOrigin.UserCode, parentScope, traitType, traitSpan);
@@ -1142,6 +1179,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
                 }
             }
+        }
+
+        // If the trait is readonly, set all members to ImplicitReadonly.
+        if (isReadonly)
+        {
+            SetMembersImplicitReadonly(typeScope);
         }
     }
 
@@ -1964,6 +2007,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var fieldName = fieldDecl.Name.Lexeme;
         var fieldSpan = ToMistSourceSpan(fieldDecl.Name.Span);
         var fieldSymbol = new Symbol(fieldName, SymbolKind.Field, SymbolOrigin.UserCode, typeScope, declaredType: null, fieldSpan);
+
+        if (HasReadonlyModifier(fieldDecl.Modifiers))
+        {
+            fieldSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+        }
+
         typeScope.AddMember(fieldSymbol);
         symbolTable.Register(fieldSymbol, fieldDecl);
     }
@@ -1978,6 +2027,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ctorName, SymbolKind.Constructor, SymbolOrigin.UserCode, typeScope,
             declaredType: null, ctorSpan,
             isIntrinsic: isIntrinsic, hasBody: hasBody);
+
+        if (HasReadonlyModifier(ctorDecl.Modifiers))
+        {
+            ctorSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+        }
+
         typeScope.AddMember(ctorSymbol);
         symbolTable.Register(ctorSymbol, ctorDecl);
     }
@@ -1992,6 +2047,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             methodName, SymbolKind.Method, SymbolOrigin.UserCode, typeScope,
             declaredType: null, methodSpan,
             isIntrinsic: isIntrinsic, hasBody: hasBody);
+
+        if (HasReadonlyModifier(methodDecl.Modifiers))
+        {
+            methodSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+        }
+
         typeScope.AddMember(methodSymbol);
         symbolTable.Register(methodSymbol, methodDecl);
 
@@ -2135,6 +2196,54 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
         }
         return false;
+    }
+
+    private static bool HasReadonlyModifier(ImmutableArray<ModifierNode> modifiers)
+    {
+        foreach (var modifier in modifiers)
+        {
+            if (modifier is ReadonlyModifierModifierNode)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Sets all member symbols in the given type scope to <see cref="ReadonlyStatus.ImplicitReadonly"/>,
+    /// unless they are already explicitly marked readonly. Called when a type is declared as readonly.
+    /// </summary>
+    private static void SetMembersImplicitReadonly(Scope typeScope)
+    {
+        foreach (var member in typeScope.Members)
+        {
+            if (member is Symbol symbol &&
+                symbol.Kind is SymbolKind.Field or SymbolKind.Property or SymbolKind.Indexer or SymbolKind.Method or SymbolKind.Constructor)
+            {
+                if (symbol.ReadonlyStatus == ReadonlyStatus.Unknown)
+                {
+                    symbol.ReadonlyStatus = ReadonlyStatus.ImplicitReadonly;
+                }
+
+                // Also update PropertyInfo.ReadonlyStatus for properties and indexers.
+                if (symbol.PropertyMetadata is { ReadonlyStatus: ReadonlyStatus.Unknown } propInfo)
+                {
+                    symbol.PropertyMetadata = new PropertyInfo
+                    {
+                        HasGet = propInfo.HasGet,
+                        HasSet = propInfo.HasSet,
+                        HasInit = propInfo.HasInit,
+                        IsComputed = propInfo.IsComputed,
+                        IsStatic = propInfo.IsStatic,
+                        IsExpressionBodied = propInfo.IsExpressionBodied,
+                        GetAccessor = propInfo.GetAccessor,
+                        SetAccessor = propInfo.SetAccessor,
+                        InitAccessor = propInfo.InitAccessor,
+                        BackingField = propInfo.BackingField,
+                        ReadonlyStatus = ReadonlyStatus.ImplicitReadonly,
+                    };
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -2611,10 +2720,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             SetAccessor = setAccessor,
             InitAccessor = initAccessor,
             BackingField = backingFieldSymbol,
+            ReadonlyStatus = HasReadonlyModifier(blockProp.Modifiers) ? ReadonlyStatus.ExplicitReadonly : ReadonlyStatus.Unknown,
         };
 
         var propSymbol = new Symbol(propName, SymbolKind.Property, SymbolOrigin.UserCode, typeScope, declaredType: null, propSpan);
         propSymbol.PropertyMetadata = propertyInfo;
+
+        if (HasReadonlyModifier(blockProp.Modifiers))
+        {
+            propSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+        }
+
         typeScope.AddMember(propSymbol);
         symbolTable.Register(propSymbol, blockProp);
     }
@@ -2640,10 +2756,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             SetAccessor = null,
             InitAccessor = null,
             BackingField = null,
+            ReadonlyStatus = HasReadonlyModifier(exprProp.Modifiers) ? ReadonlyStatus.ExplicitReadonly : ReadonlyStatus.Unknown,
         };
 
         var propSymbol = new Symbol(propName, SymbolKind.Property, SymbolOrigin.UserCode, typeScope, declaredType: null, propSpan);
         propSymbol.PropertyMetadata = propertyInfo;
+
+        if (HasReadonlyModifier(exprProp.Modifiers))
+        {
+            propSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+        }
+
         typeScope.AddMember(propSymbol);
         symbolTable.Register(propSymbol, exprProp);
     }
@@ -2712,10 +2835,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             SetAccessor = setAccessor,
             InitAccessor = initAccessor,
             BackingField = null,
+            ReadonlyStatus = HasReadonlyModifier(blockIndexer.Modifiers) ? ReadonlyStatus.ExplicitReadonly : ReadonlyStatus.Unknown,
         };
 
         var indexerSymbol = new Symbol(indexerName, SymbolKind.Indexer, SymbolOrigin.UserCode, typeScope, declaredType: null, indexerSpan);
         indexerSymbol.PropertyMetadata = propertyInfo;
+
+        if (HasReadonlyModifier(blockIndexer.Modifiers))
+        {
+            indexerSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+        }
+
         typeScope.AddMember(indexerSymbol);
         symbolTable.Register(indexerSymbol, blockIndexer);
     }
@@ -4655,6 +4785,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var hasClassConstraint = false;
         var hasStructConstraint = false;
+        var hasReadonlyConstraint = false;
+        var hasMutableConstraint = false;
         IType? baseClassConstraint = null;
         var interfaceConstraints = new List<IType>();
         var traitConstraints = new List<IType>();
@@ -4679,6 +4811,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 case StructConstraintConstraintNode:
                     hasStructConstraint = true;
+                    break;
+
+                case ReadonlyConstraintConstraintNode:
+                    hasReadonlyConstraint = true;
+                    break;
+
+                case MutableConstraintConstraintNode:
+                    hasMutableConstraint = true;
                     break;
 
                 case ConstructorConstraintConstraintNode ctorConstraint:
@@ -4725,6 +4865,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             InterfaceConstraints = interfaceConstraints,
             TraitConstraints = traitConstraints,
             ConstructorConstraints = constructorConstraints,
+            HasReadonlyConstraint = hasReadonlyConstraint,
+            HasMutableConstraint = hasMutableConstraint,
         };
     }
 
@@ -10373,7 +10515,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (fieldDecl.Initializer is ExpressionNode initExpr)
         {
             var isStatic = fieldDecl.Modifiers.Any(m => m is StaticModifierModifierNode);
+            _emptyArrayTargetType = fieldType;
             ResolveExpression(initExpr, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _emptyArrayTargetType = null;
         }
     }
 
@@ -10857,6 +11001,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         var paramSymbol = new Symbol(paramName, SymbolKind.Parameter, SymbolOrigin.UserCode, methodScope, paramType, paramSpan);
+
+        // Detect readonly modifier on the parameter.
+        if (param.Modifier is not null)
+        {
+            paramSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+        }
+
         methodScope.AddMember(paramSymbol);
         symbolTable.Register(paramSymbol, param);
     }
@@ -10945,7 +11096,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case TypedVariableDeclarationVariableDeclarationStatementNode typed:
             {
                 var declaredType = ResolveTypeReference(typed.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+                // Set target type context so EmptyArrayLiteralExpressionPrimaryNode
+                // can infer its element type from the declared array type.
+                _emptyArrayTargetType = declaredType;
                 var initType = ResolveExpression(typed.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                _emptyArrayTargetType = null;
 
                 var varName = typed.Name.Lexeme;
                 var varSpan = ToMistSourceSpan(typed.Name.Span);
@@ -13910,9 +14066,227 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 expressionTypes[suffix] = targetType;
                 return targetType;
             }
+            case SwitchExpressionSuffixPostfixSuffixNode switchExpr:
+            {
+                // The scrutinee type is the accumulated postfix expression type
+                // (already resolved as targetType by the time this suffix is processed).
+                var scrutineeType = targetType;
+
+                if (switchExpr.Arms is not null)
+                {
+                    // Process the first arm.
+                    ResolveSwitchArm(switchExpr.Arms.SwitchArm, scrutineeType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                    // Process remaining arms.
+                    foreach (var arm in switchExpr.Arms.SwitchArms)
+                    {
+                        ResolveSwitchArm(arm, scrutineeType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+                }
+
+                // Determine the unified result type from all arm result expressions.
+                var resultType = DetermineUnifiedSwitchResultType(switchExpr, expressionTypes);
+                expressionTypes[suffix] = resultType;
+                return resultType;
+            }
             default:
                 return targetType;
         }
+    }
+
+    // ─── Switch Arm Resolution ───────────────────────────────────────────
+
+    /// <summary>
+    /// Resolves a single switch arm: creates a child scope for pattern variables,
+    /// registers pattern variables from the arm's pattern, resolves the guard
+    /// expression (if present), and resolves the result expression.
+    /// </summary>
+    private static void ResolveSwitchArm(
+        SwitchArmNode arm,
+        IType scrutineeType,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Create a child scope for this arm's pattern variables.
+        var armScope = new Scope(parent: currentScope);
+
+        // Resolve type references within the pattern (e.g., the type in a type pattern).
+        ResolvePattern(arm.Pattern, scrutineeType, armScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        // Register pattern variables introduced by the arm's pattern into the arm scope.
+        // This reuses the same logic used by `is` expressions for pattern variable collection.
+        CollectFromPattern(arm.Pattern, scrutineeType, armScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+
+        // Resolve the guard expression (if present) within the arm scope.
+        if (arm.Guard is not null)
+        {
+            ResolveExpression(arm.Guard.Condition, armScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        }
+
+        // Resolve the result expression within the arm scope.
+        ResolveExpression(arm.Result, armScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    /// <summary>
+    /// Determines the unified result type of a switch expression by collecting
+    /// all arm result expression types and finding the common type.
+    /// </summary>
+    /// <remarks>
+    /// Algorithm:
+    /// <list type="bullet">
+    ///   <item>If there are no arms, returns <see cref="UnknownType.Instance"/>.</item>
+    ///   <item>If all arms have the same type, returns that type.</item>
+    ///   <item>If types differ but share a common base class, returns the common base.</item>
+    ///   <item>If no common type exists, returns <see cref="UnknownType.Instance"/>
+    ///         (the type checker will report the incompatibility error).</item>
+    /// </list>
+    /// </remarks>
+    private static IType DetermineUnifiedSwitchResultType(
+        SwitchExpressionSuffixPostfixSuffixNode switchExpr,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes)
+    {
+        if (switchExpr.Arms is null)
+            return UnknownType.Instance;
+
+        // Collect all arm result expression types.
+        var armTypes = new List<IType>();
+
+        if (expressionTypes.TryGetValue(switchExpr.Arms.SwitchArm.Result, out var firstType))
+        {
+            armTypes.Add(firstType);
+        }
+
+        foreach (var arm in switchExpr.Arms.SwitchArms)
+        {
+            if (expressionTypes.TryGetValue(arm.Result, out var armType))
+            {
+                armTypes.Add(armType);
+            }
+        }
+
+        if (armTypes.Count == 0)
+            return UnknownType.Instance;
+
+        // Check if all arms have the same type.
+        var unified = armTypes[0];
+        var allSame = true;
+        for (var i = 1; i < armTypes.Count; i++)
+        {
+            if (!TypesMatch(unified, armTypes[i]))
+            {
+                allSame = false;
+                break;
+            }
+        }
+
+        if (allSame)
+            return unified;
+
+        // Types differ — attempt to find a common base class.
+        // Walk the base type chain of the first type and check if all other
+        // types are assignable to each ancestor. The first ancestor that all
+        // types are assignable to is the common base.
+        var commonBase = FindCommonBaseType(armTypes);
+        return commonBase ?? UnknownType.Instance;
+    }
+
+    /// <summary>
+    /// Returns true if two types are considered the same for result type unification.
+    /// Uses display name comparison (consistent with the identity check in
+    /// <see cref="TypeCheckerAnalyzer.IsAssignable"/>).
+    /// </summary>
+    private static bool TypesMatch(IType a, IType b)
+    {
+        if (ReferenceEquals(a, b))
+            return true;
+        if (a is ErrorType || b is ErrorType)
+            return true; // Suppress cascading errors.
+        return a.DisplayName == b.DisplayName;
+    }
+
+    /// <summary>
+    /// Attempts to find a common base type for a list of types by walking
+    /// the inheritance chain of the first type and checking if all other
+    /// types share that ancestor.
+    /// </summary>
+    /// <returns>The common base type, or null if none exists.</returns>
+    private static IType? FindCommonBaseType(List<IType> types)
+    {
+        if (types.Count == 0)
+            return null;
+
+        // Skip ErrorType entries — they should not influence the result.
+        var nonErrorTypes = new List<IType>();
+        foreach (var t in types)
+        {
+            if (t is not ErrorType)
+                nonErrorTypes.Add(t);
+        }
+
+        if (nonErrorTypes.Count == 0)
+            return ErrorType.Instance;
+        if (nonErrorTypes.Count == 1)
+            return nonErrorTypes[0];
+
+        // Try to find a common base by walking the first type's ancestor chain.
+        // For each candidate ancestor, check if all other types are assignable to it.
+        var first = nonErrorTypes[0];
+        if (first is ClassType firstClass)
+        {
+            var candidate = firstClass.BaseType as ClassType;
+            while (candidate is not null)
+            {
+                var allAssignable = true;
+                for (var i = 1; i < nonErrorTypes.Count; i++)
+                {
+                    if (!IsSubtypeOf(nonErrorTypes[i], candidate))
+                    {
+                        allAssignable = false;
+                        break;
+                    }
+                }
+
+                if (allAssignable)
+                    return candidate;
+
+                candidate = candidate.BaseType as ClassType;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks if <paramref name="source"/> is a subtype of <paramref name="target"/>
+    /// by walking the base type chain. Used for common base type resolution in
+    /// switch expression result type unification.
+    /// </summary>
+    private static bool IsSubtypeOf(IType source, ClassType target)
+    {
+        if (ReferenceEquals(source, target))
+            return true;
+        if (source.DisplayName == target.DisplayName)
+            return true;
+
+        if (source is ClassType sourceClass)
+        {
+            var current = sourceClass.BaseType as ClassType;
+            while (current is not null)
+            {
+                if (ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
+                    return true;
+                current = current.BaseType as ClassType;
+            }
+        }
+
+        return false;
     }
 
     // ─── Primary Expression Resolution ───────────────────────────────────
@@ -14026,6 +14400,44 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     ResolveArgumentList(objCreation.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 }
+
+                // Resolve value expressions in the property initializer block.
+                if (objCreation.Initializer is not null && objCreation.Initializer.Assignments is not null)
+                {
+                    var assignments = objCreation.Initializer.Assignments;
+                    ResolveExpression(assignments.PropertyAssignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    foreach (var assignment in assignments.PropertyAssignments)
+                    {
+                        ResolveExpression(assignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+                }
+
+                result = createdType;
+                break;
+            }
+
+            case ObjectCreationExpressionNoArgsPrimaryNode objCreationNoArgs:
+            {
+                var typeName = ExtractQualifiedName(objCreationNoArgs.Type, sourceText);
+                var createdType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+                // Handle type arguments on new expressions (e.g., new Box<int> { ... }).
+                if (objCreationNoArgs.TypeArgs is not null)
+                {
+                    createdType = ResolvePass2TypeArguments(createdType, typeName, objCreationNoArgs.TypeArgs, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                }
+
+                // Resolve value expressions in the property initializer block.
+                if (objCreationNoArgs.Initializer.Assignments is not null)
+                {
+                    var assignments = objCreationNoArgs.Initializer.Assignments;
+                    ResolveExpression(assignments.PropertyAssignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    foreach (var assignment in assignments.PropertyAssignments)
+                    {
+                        ResolveExpression(assignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+                }
+
                 result = createdType;
                 break;
             }
@@ -14144,6 +14556,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var referencedType = ResolveTypeReference(
                     typeLiteral.TypeRef, fileScope, ambientTypeResolver,
                     symbolTable, sourceText, diagnostics);
+
                 // The expression type of a type literal is always the metatype Type.
                 try
                 {
@@ -14176,6 +14589,44 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // the actual type from context or emit a diagnostic if
                 // inference is not possible.
                 result = ErrorType.Instance;
+                break;
+            }
+
+            case EmptyArrayLiteralExpressionPrimaryNode:
+            {
+                // Empty array literal [] — if a target type is available (from variable
+                // declaration annotation) and is an ArrayType, use the target element type.
+                // Otherwise, produce ErrorType (the type checker will emit a diagnostic
+                // indicating that empty array literals require an explicit element type).
+                if (_emptyArrayTargetType is ArrayType targetArrayType)
+                {
+                    result = targetArrayType;
+                }
+                else
+                {
+                    result = ErrorType.Instance;
+                }
+                break;
+            }
+
+            case ArrayLiteralExpressionPrimaryNode arrayLiteral:
+            {
+                // Resolve all element expressions and produce an ArrayType
+                // with the common element type.
+                var elementType = ResolveExpression(arrayLiteral.First, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                foreach (var elem in arrayLiteral.Expressions)
+                {
+                    var elemType = ResolveExpression(elem, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    if (!TypesMatch(elementType, elemType))
+                    {
+                        // Types differ — attempt to find a common base type.
+                        var commonBase = FindCommonBaseType(new List<IType> { elementType, elemType });
+                        elementType = commonBase ?? elementType;
+                    }
+                }
+
+                result = new ArrayType(elementType);
                 break;
             }
 

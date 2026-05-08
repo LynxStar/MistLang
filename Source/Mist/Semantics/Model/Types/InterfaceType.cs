@@ -14,6 +14,12 @@ public sealed class InterfaceType : IType
     public IReadOnlyList<IType> Interfaces { get; internal set; } = Array.Empty<IType>();
     public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
 
+    /// <summary>
+    /// Indicates whether this interface is declared as readonly.
+    /// When true, all members are implicitly readonly.
+    /// </summary>
+    public bool IsReadonly { get; internal set; }
+
     public InterfaceType(string displayName, IScope memberScope, string? containingNamespace)
     {
         DisplayName = displayName;

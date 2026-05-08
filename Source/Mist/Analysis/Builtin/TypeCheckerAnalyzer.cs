@@ -334,6 +334,105 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId UnionDegenerateType = new("MIST_TC_0075");
 
+    // ── Readonly parameter call-site diagnostic ID ───────────────────────
+    //
+    // Note on numbering: the readonly-contexts design document's Diagnostic
+    // ID Allocation table proposed MIST_TC_0073 for this diagnostic. That
+    // code was already allocated to the type-unions feature (see
+    // UnionMemberNotOnAllConstituents above), so the readonly parameter
+    // call-site diagnostic was reallocated to MIST_TC_0076 — the next free
+    // code after the union diagnostics (MIST_TC_0073, 0074, 0075) — to
+    // avoid overloading a diagnostic ID with two distinct meanings.
+
+    /// <summary>
+    /// Emitted when a readonly type is passed as an argument to a parameter
+    /// that is not marked <c>readonly</c>. A readonly type can only be
+    /// passed to a readonly parameter to ensure the callee cannot mutate it
+    /// (Requirement 14.5).
+    /// </summary>
+    internal static readonly DiagnosticId ReadonlyTypeToNonReadonlyParam = new("MIST_TC_0076");
+
+    // ── Readonly generic constraint diagnostic IDs ─────────────────────
+    //
+    // Note on numbering: the readonly-contexts design document's Diagnostic
+    // ID Allocation table proposed MIST_TC_0070 / MIST_TC_0071 for the
+    // readonly/mutable constraint violations. Those codes were already
+    // allocated to the type-unions feature (see UnionNonConstituentAssignment
+    // and UnionToNonUnionAssignment above), so the readonly constraint
+    // diagnostics were reallocated to MIST_TC_0077 / MIST_TC_0078 — the
+    // next free codes after the readonly parameter call-site diagnostic
+    // (MIST_TC_0076) — to avoid overloading diagnostic IDs with two
+    // distinct meanings.
+
+    /// <summary>
+    /// Emitted when a type argument does not satisfy the 'readonly' constraint
+    /// on a type parameter. The type argument must be a readonly type
+    /// (Requirement 12.1, 12.7).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintReadonlyViolation = new("MIST_TC_0077");
+
+    /// <summary>
+    /// Emitted when a type argument does not satisfy the 'mutable' constraint
+    /// on a type parameter. The type argument must not be a readonly type
+    /// (Requirement 12.2, 12.7).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintMutableViolation = new("MIST_TC_0078");
+
+    // ── Readonly interface/trait contract diagnostic ID ───────────────────
+    //
+    // Note on numbering: the readonly-contexts design document's Diagnostic
+    // ID Allocation table proposed MIST_TC_0072 for this diagnostic. That
+    // code was already allocated to the type-unions feature (see
+    // UnionIncompatibleConstituents above), so the readonly contract
+    // diagnostic was reallocated to MIST_TC_0079 — the next free code
+    // after the readonly constraint diagnostics (MIST_TC_0077, 0078) — to
+    // avoid overloading a diagnostic ID with two distinct meanings.
+
+    /// <summary>
+    /// Emitted when a type implements a readonly interface or trait but the
+    /// implementing member is not readonly (explicit or inferred). The
+    /// implementing member must be readonly to satisfy the contract
+    /// (Requirement 13.2, 13.3, 13.4, 13.5, 13.6).
+    /// </summary>
+    internal static readonly DiagnosticId ReadonlyContractViolation = new("MIST_TC_0079");
+
+    // ── switch-expressions feature: type checker diagnostics ─────────────
+    //
+    // Note on numbering: the switch-expressions design document's Diagnostic
+    // ID Allocation table originally proposed MIST_TC_0060–0063 for the four
+    // switch expression diagnostics below. Those codes were already allocated
+    // to the unknown-type feature (see UnknownToNonUnknown, VoidToUnknown,
+    // UnknownClosedGenericMemberFiltered, and PatternNarrowToUnknown above),
+    // so the switch-expressions diagnostics were reallocated to
+    // MIST_TC_0090–0093 — the next free codes after the extension-methods
+    // diagnostics (MIST_TC_0080–0083). This continues the same reallocation
+    // strategy used throughout this file.
+
+    /// <summary>
+    /// Emitted when a switch expression does not cover all possible values
+    /// of the scrutinee's static type. The diagnostic message lists the
+    /// missing cases (Requirement 6.6).
+    /// </summary>
+    internal static readonly DiagnosticId SwitchNotExhaustive = new("MIST_TC_0090");
+
+    /// <summary>
+    /// Emitted when the result expressions of switch arms have incompatible
+    /// types — no common type can be determined (Requirement 5.4).
+    /// </summary>
+    internal static readonly DiagnosticId SwitchIncompatibleArmTypes = new("MIST_TC_0091");
+
+    /// <summary>
+    /// Emitted when a <c>when</c> guard expression in a switch arm does not
+    /// evaluate to type <c>bool</c> (Requirement 8.2).
+    /// </summary>
+    internal static readonly DiagnosticId SwitchGuardNotBool = new("MIST_TC_0092");
+
+    /// <summary>
+    /// Emitted as a warning when a switch arm is unreachable because it is
+    /// subsumed by a preceding arm (Requirement 7.1).
+    /// </summary>
+    internal static readonly DiagnosticId SwitchUnreachableArm = new("MIST_TC_0093");
+
     // ── Generic constraint satisfaction diagnostic IDs ────────────────────
 
     /// <summary>
@@ -392,6 +491,54 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// corresponding type parameter (Requirement 7.1, 7.2, 7.3).
     /// </summary>
     internal static readonly DiagnosticId ConstraintPropagationInsufficient = new("MIST_CONSTRAINT_0017");
+
+    // ── property-initializers feature: validation diagnostics ──────────────
+
+    /// <summary>
+    /// Emitted when a property initializer block references a member name
+    /// that does not exist as a property or field on the constructed type.
+    /// </summary>
+    internal static readonly DiagnosticId PropertyInitializerMemberNotFound = new("MIST_PI_0001");
+
+    /// <summary>
+    /// Emitted when the value expression type in a property initializer
+    /// assignment is not assignable to the target member's declared type.
+    /// </summary>
+    internal static readonly DiagnosticId PropertyInitializerTypeMismatch = new("MIST_PI_0002");
+
+    /// <summary>
+    /// Emitted when a property initializer targets a property that has no
+    /// accessible <c>set</c> or <c>init</c> accessor.
+    /// </summary>
+    internal static readonly DiagnosticId PropertyInitializerNoSetOrInit = new("MIST_PI_0003");
+
+    /// <summary>
+    /// Emitted when a property initializer targets a field that is readonly
+    /// (explicit, inferred, or implicit).
+    /// </summary>
+    internal static readonly DiagnosticId PropertyInitializerReadonlyField = new("MIST_PI_0004");
+
+    /// <summary>
+    /// Emitted when a property initializer targets a member that is
+    /// inaccessible due to its protection level (e.g., private from outside
+    /// the declaring type).
+    /// </summary>
+    internal static readonly DiagnosticId PropertyInitializerInaccessible = new("MIST_PI_0005");
+
+    /// <summary>
+    /// Emitted when the same member name appears more than once in a
+    /// property initializer block.
+    /// </summary>
+    internal static readonly DiagnosticId PropertyInitializerDuplicate = new("MIST_PI_0006");
+
+    // ── array-literals feature: incompatible element types ──────────────
+
+    /// <summary>
+    /// Emitted when an array literal contains elements whose types are
+    /// incompatible — no common type can be determined. The diagnostic
+    /// message names the two conflicting types (Requirement 5.2).
+    /// </summary>
+    internal static readonly DiagnosticId ArrayLiteralIncompatibleTypes = new("MIST_TC_0095");
 
     // ── enums feature: assignability diagnostic ──────────────────────────
 
@@ -533,6 +680,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Task 5.10: Check for missing interface property implementations (MIST_TC_0030).
         CheckMissingInterfaceProperties(model, diagnostics);
+
+        // Task 10.1: Check readonly interface/trait contract enforcement (MIST_TC_0079).
+        CheckReadonlyInterfaceAndTraitContracts(model, diagnostics);
 
         // Task 6.2: Check constraint satisfaction for inheritance clauses where
         // constrained generics are used as base types or implemented interfaces.
@@ -2378,6 +2528,343 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         return null;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Readonly interface/trait contract checking (MIST_TC_0079)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Verifies that when a type implements a readonly interface or trait, each
+    /// implementing member is also readonly (explicit, inferred, or implicit).
+    /// If an implementing member is not readonly, emits <c>MIST_TC_0079</c>.
+    /// The implementing type itself does not need to be readonly — only the
+    /// specific members that correspond to readonly interface/trait members.
+    /// (Requirements 13.1, 13.2, 13.3, 13.4, 13.5, 13.6)
+    /// </summary>
+    private static void CheckReadonlyInterfaceAndTraitContracts(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Origin == SymbolOrigin.Backend)
+                continue;
+
+            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+                continue;
+
+            var type = symbol.DeclaredType;
+
+            // Check interface contracts.
+            IReadOnlyList<IType>? interfaces = type switch
+            {
+                ClassType ct => ct.Interfaces,
+                StructType st => st.Interfaces,
+                _ => null,
+            };
+
+            IScope? memberScope = type switch
+            {
+                ClassType ct => ct.MemberScope,
+                StructType st => st.MemberScope,
+                _ => null,
+            };
+
+            if (memberScope is not null && interfaces is not null && interfaces.Count > 0)
+            {
+                CheckReadonlyInterfaceContracts(symbol, interfaces, memberScope, model, diagnostics);
+            }
+
+            // Check trait contracts via the TraitSatisfactionMap.
+            if (memberScope is not null)
+            {
+                CheckReadonlyTraitContracts(symbol, type!, memberScope, model, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks readonly contracts for all interfaces implemented by a type.
+    /// For each readonly interface member, verifies the implementing member is also readonly.
+    /// </summary>
+    private static void CheckReadonlyInterfaceContracts(
+        ISymbol typeSymbol,
+        IReadOnlyList<IType> interfaces,
+        IScope memberScope,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var ifaceType in interfaces)
+        {
+            if (ifaceType is not InterfaceType iface)
+                continue;
+
+            // Only check readonly interfaces (all members are implicitly readonly).
+            if (!iface.IsReadonly)
+            {
+                // Even if the interface itself is not readonly, individual members
+                // might be explicitly readonly. Check those too.
+                CheckReadonlyMembersOfInterface(typeSymbol, iface, memberScope, model, diagnostics);
+                continue;
+            }
+
+            // The interface is readonly — all its members are implicitly readonly.
+            foreach (var ifaceMember in iface.MemberScope.Members)
+            {
+                if (ifaceMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer))
+                    continue;
+
+                var implMember = FindMemberInScope(ifaceMember.Name, ifaceMember.Kind, memberScope);
+                if (implMember is null)
+                    continue; // Missing implementation is reported by CheckMissingInterfaceProperties.
+
+                if (!IsMemberReadonly(implMember))
+                {
+                    EmitReadonlyContractViolation(typeSymbol, implMember, ifaceMember, iface.DisplayName, model, diagnostics);
+                }
+            }
+
+            // Recurse into parent interfaces.
+            if (iface.Interfaces.Count > 0)
+            {
+                CheckReadonlyInterfaceContracts(typeSymbol, iface.Interfaces, memberScope, model, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks individual readonly members of a non-readonly interface.
+    /// </summary>
+    private static void CheckReadonlyMembersOfInterface(
+        ISymbol typeSymbol,
+        InterfaceType iface,
+        IScope memberScope,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var ifaceMember in iface.MemberScope.Members)
+        {
+            if (ifaceMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer))
+                continue;
+
+            // Check if this specific interface member is readonly.
+            if (!IsMemberReadonly(ifaceMember))
+                continue;
+
+            var implMember = FindMemberInScope(ifaceMember.Name, ifaceMember.Kind, memberScope);
+            if (implMember is null)
+                continue;
+
+            if (!IsMemberReadonly(implMember))
+            {
+                EmitReadonlyContractViolation(typeSymbol, implMember, ifaceMember, iface.DisplayName, model, diagnostics);
+            }
+        }
+
+        // Recurse into parent interfaces.
+        if (iface.Interfaces.Count > 0)
+        {
+            foreach (var parentIface in iface.Interfaces)
+            {
+                if (parentIface is InterfaceType parentIfaceType)
+                {
+                    if (parentIfaceType.IsReadonly)
+                    {
+                        CheckReadonlyInterfaceContracts(typeSymbol, new[] { parentIfaceType }, memberScope, model, diagnostics);
+                    }
+                    else
+                    {
+                        CheckReadonlyMembersOfInterface(typeSymbol, parentIfaceType, memberScope, model, diagnostics);
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks readonly contracts for all traits satisfied by a type.
+    /// For each readonly trait member, verifies the implementing member is also readonly.
+    /// </summary>
+    private static void CheckReadonlyTraitContracts(
+        ISymbol typeSymbol,
+        IType type,
+        IScope memberScope,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var (satisfiedType, trait, satisfaction) in model.TraitSatisfactionMap.All())
+        {
+            if (!ReferenceEquals(satisfiedType, type))
+                continue;
+
+            var traitType = trait as TraitType;
+            if (traitType is null)
+                continue;
+
+            // Only check readonly traits (all members are implicitly readonly).
+            if (!traitType.IsReadonly)
+            {
+                // Check individual readonly members of non-readonly traits.
+                CheckReadonlyMembersOfTrait(typeSymbol, traitType, satisfaction, memberScope, model, diagnostics);
+                continue;
+            }
+
+            // The trait is readonly — all its members are implicitly readonly.
+            foreach (var traitMember in traitType.MemberScope.Members)
+            {
+                if (traitMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer or SymbolKind.Field))
+                    continue;
+
+                // Skip type parameter symbols.
+                if (traitMember.DeclaredType is TypeParameterType)
+                    continue;
+
+                // Find the implementing member via the satisfaction map or scope lookup.
+                var implMember = FindTraitImplementingMember(traitMember, satisfaction, memberScope);
+                if (implMember is null)
+                    continue;
+
+                if (!IsMemberReadonly(implMember))
+                {
+                    EmitReadonlyContractViolation(typeSymbol, implMember, traitMember, traitType.DisplayName, model, diagnostics);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks individual readonly members of a non-readonly trait.
+    /// </summary>
+    private static void CheckReadonlyMembersOfTrait(
+        ISymbol typeSymbol,
+        TraitType traitType,
+        TraitSatisfaction satisfaction,
+        IScope memberScope,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var traitMember in traitType.MemberScope.Members)
+        {
+            if (traitMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer or SymbolKind.Field))
+                continue;
+
+            // Skip type parameter symbols.
+            if (traitMember.DeclaredType is TypeParameterType)
+                continue;
+
+            if (!IsMemberReadonly(traitMember))
+                continue;
+
+            var implMember = FindTraitImplementingMember(traitMember, satisfaction, memberScope);
+            if (implMember is null)
+                continue;
+
+            if (!IsMemberReadonly(implMember))
+            {
+                EmitReadonlyContractViolation(typeSymbol, implMember, traitMember, traitType.DisplayName, model, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Finds the implementing member for a trait member, first checking the
+    /// satisfaction map (structural matches and with-mappings), then falling
+    /// back to a scope lookup.
+    /// </summary>
+    private static ISymbol? FindTraitImplementingMember(
+        ISymbol traitMember,
+        TraitSatisfaction satisfaction,
+        IScope memberScope)
+    {
+        if (satisfaction.StructuralMatches.TryGetValue(traitMember.Name, out var structMatch))
+            return structMatch;
+
+        if (satisfaction.WithMappings.TryGetValue(traitMember.Name, out var withMatch))
+            return withMatch;
+
+        return FindMemberInScope(traitMember.Name, traitMember.Kind, memberScope);
+    }
+
+    /// <summary>
+    /// Finds a member by name and kind in a scope.
+    /// </summary>
+    private static ISymbol? FindMemberInScope(string name, SymbolKind kind, IScope scope)
+    {
+        foreach (var member in scope.Members)
+        {
+            if (member.Name == name && member.Kind == kind)
+                return member;
+
+            // Properties can satisfy property requirements, fields can satisfy field requirements.
+            if (member.Name == name)
+            {
+                var kindCompatible = kind switch
+                {
+                    SymbolKind.Field => member.Kind is SymbolKind.Field or SymbolKind.Property,
+                    SymbolKind.Property => member.Kind is SymbolKind.Property or SymbolKind.Field,
+                    _ => false,
+                };
+                if (kindCompatible)
+                    return member;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Determines whether a symbol is readonly (explicit, inferred, or implicit).
+    /// </summary>
+    private static bool IsMemberReadonly(ISymbol symbol)
+    {
+        if (symbol is Symbol concreteSymbol)
+        {
+            return concreteSymbol.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly
+                or ReadonlyStatus.InferredReadonly
+                or ReadonlyStatus.ImplicitReadonly;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Emits the <c>MIST_TC_0079</c> diagnostic for a readonly contract violation.
+    /// </summary>
+    private static void EmitReadonlyContractViolation(
+        ISymbol typeSymbol,
+        ISymbol implMember,
+        ISymbol contractMember,
+        string contractSourceName,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        SyntaxNode? implNode;
+        try { implNode = model.GetDeclaringNode(implMember); }
+        catch { implNode = null; }
+
+        // Fall back to the type declaration node if the member node is unavailable.
+        if (implNode is null)
+        {
+            try { implNode = model.GetDeclaringNode(typeSymbol); }
+            catch { implNode = null; }
+        }
+
+        if (implNode is null)
+            return;
+
+        var memberKind = contractMember.Kind switch
+        {
+            SymbolKind.Method => "Method",
+            SymbolKind.Property => "Property",
+            SymbolKind.Indexer => "Indexer",
+            SymbolKind.Field => "Field",
+            _ => "Member",
+        };
+
+        diagnostics.Add(MakeDiagnostic(
+            ReadonlyContractViolation.Value,
+            $"{memberKind} '{implMember.Name}' must be readonly to satisfy readonly contract from '{contractSourceName}'",
+            implNode,
+            model));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -4316,6 +4803,46 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     targetIsTypeName = false;
                     break;
 
+                case SwitchExpressionSuffixPostfixSuffixNode switchExpr:
+                    // Walk each switch arm: check guard type and recurse into sub-expressions.
+                    if (switchExpr.Arms is not null)
+                    {
+                        CheckSwitchArm(switchExpr.Arms.SwitchArm, model, diagnostics);
+                        foreach (var arm in switchExpr.Arms.SwitchArms)
+                        {
+                            CheckSwitchArm(arm, model, diagnostics);
+                        }
+
+                        // Task 5.3: Arm result type compatibility checking.
+                        // If the semantic model determined that no common type exists
+                        // (unified type is UnknownType), emit MIST_TC_0091.
+                        CheckSwitchArmResultTypeCompatibility(switchExpr, model, diagnostics);
+
+                        // Task 5.5: Exhaustiveness checking.
+                        // The scrutinee type is `currentType` at this point (the type
+                        // of the expression before the switch suffix was applied).
+                        if (currentType is not null && currentType is not ErrorType)
+                        {
+                            var armTuples = BuildSwitchArmTuples(switchExpr.Arms);
+                            var missingCases = ExhaustivenessChecker.CheckExhaustiveness(currentType, armTuples);
+                            if (missingCases.Count > 0)
+                            {
+                                var casesStr = string.Join(", ", missingCases);
+                                diagnostics.Add(MakeDiagnostic(
+                                    SwitchNotExhaustive.Value,
+                                    $"Switch expression is not exhaustive. Missing cases: {casesStr}",
+                                    switchExpr,
+                                    model));
+                            }
+                        }
+
+                        // Task 5.6: Unreachable arm detection.
+                        CheckSwitchUnreachableArms(switchExpr.Arms, model, diagnostics);
+                    }
+                    currentType = model.GetTypeOf(suffix) ?? currentType;
+                    targetIsTypeName = false;
+                    break;
+
                 case MemberAccessSuffixPostfixSuffixNode memberAccess:
                     // Task 25.1: bare-unknown member access rejection.
                     // A member access on a receiver whose static type is
@@ -4380,6 +4907,274 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Checks a single switch arm: validates the guard expression type (must be bool)
+    /// and recursively walks the guard and result sub-expressions.
+    /// Emits <see cref="SwitchGuardNotBool"/> (MIST_TC_0092) if the guard type is not bool.
+    /// </summary>
+    private void CheckSwitchArm(SwitchArmNode arm, ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        // Walk the guard expression (if present) and verify it resolves to bool.
+        if (arm.Guard is not null)
+        {
+            CheckExpression(arm.Guard.Condition, model, diagnostics);
+            var guardType = model.GetTypeOf(arm.Guard.Condition);
+            if (guardType is not null && !IsErrorType(guardType) && !IsBoolLike(guardType))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    SwitchGuardNotBool.Value,
+                    $"When guard must be a boolean expression, got '{guardType.DisplayName}'",
+                    arm.Guard.Condition,
+                    model));
+            }
+        }
+
+        // Walk the result expression to check its sub-expressions.
+        CheckExpression(arm.Result, model, diagnostics);
+    }
+
+    /// <summary>
+    /// Checks that all switch arm result expressions have compatible types.
+    /// If the semantic model's unified result type is <see cref="UnknownType"/>
+    /// (indicating no common type could be determined), emits
+    /// <see cref="SwitchIncompatibleArmTypes"/> (MIST_TC_0091) with the first
+    /// pair of incompatible types found.
+    /// </summary>
+    private static void CheckSwitchArmResultTypeCompatibility(
+        SwitchExpressionSuffixPostfixSuffixNode switchExpr,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // The unified result type stored by the semantic model is UnknownType.Instance
+        // when no common type could be determined across all arms.
+        var unifiedType = model.GetTypeOf(switchExpr);
+        if (unifiedType is not UnknownType)
+            return;
+
+        // Collect arm result types to find the first incompatible pair.
+        var arms = switchExpr.Arms!;
+        var firstArmType = model.GetTypeOf(arms.SwitchArm.Result);
+        if (firstArmType is null || IsErrorType(firstArmType))
+            return;
+
+        // Check the first arm against remaining arms to find the incompatible pair.
+        foreach (var arm in arms.SwitchArms)
+        {
+            var armType = model.GetTypeOf(arm.Result);
+            if (armType is null || IsErrorType(armType))
+                continue;
+
+            if (!IsAssignable(armType, firstArmType) && !IsAssignable(firstArmType, armType))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    SwitchIncompatibleArmTypes.Value,
+                    $"Switch arms have incompatible types: '{firstArmType.DisplayName}' and '{armType.DisplayName}'",
+                    switchExpr,
+                    model));
+                return;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Builds the list of <c>(PatternNode, bool HasGuard)</c> tuples from a
+    /// <see cref="SwitchArmListNode"/> for use by the exhaustiveness checker.
+    /// </summary>
+    private static IReadOnlyList<(PatternNode Pattern, bool HasGuard)> BuildSwitchArmTuples(
+        SwitchArmListNode armList)
+    {
+        var result = new List<(PatternNode, bool)>();
+        result.Add((armList.SwitchArm.Pattern, armList.SwitchArm.Guard is not null));
+        foreach (var arm in armList.SwitchArms)
+        {
+            result.Add((arm.Pattern, arm.Guard is not null));
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Detects unreachable switch arms and emits <see cref="SwitchUnreachableArm"/>
+    /// (MIST_TC_0093) for each one. An arm is unreachable if:
+    /// <list type="bullet">
+    ///   <item>An unguarded catch-all (<c>_</c> or <c>var</c>) appears at an earlier position.</item>
+    ///   <item>An unguarded constant pattern duplicates a preceding unguarded constant pattern.</item>
+    ///   <item>An unguarded type pattern duplicates a preceding unguarded type pattern for the same type.</item>
+    /// </list>
+    /// </summary>
+    private static void CheckSwitchUnreachableArms(
+        SwitchArmListNode armList,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Collect all arms into a flat list for positional iteration.
+        var arms = new List<SwitchArmNode> { armList.SwitchArm };
+        foreach (var arm in armList.SwitchArms)
+        {
+            arms.Add(arm);
+        }
+
+        var catchAllSeenAtIndex = -1;
+        var seenConstants = new HashSet<string>(StringComparer.Ordinal);
+        var seenTypes = new HashSet<string>(StringComparer.Ordinal);
+
+        for (var i = 0; i < arms.Count; i++)
+        {
+            var arm = arms[i];
+            var hasGuard = arm.Guard is not null;
+
+            // Rule 1: If an unguarded catch-all was seen at an earlier position,
+            // all subsequent arms are unreachable.
+            if (catchAllSeenAtIndex >= 0 && i > catchAllSeenAtIndex)
+            {
+                diagnostics.Add(MakeDiagnosticWarning(
+                    SwitchUnreachableArm.Value,
+                    "Switch arm is unreachable",
+                    arm,
+                    model));
+                continue;
+            }
+
+            // Extract the primary pattern for classification.
+            var primary = TryGetSinglePrimaryPattern(arm.Pattern);
+            if (primary is null)
+                continue;
+
+            // Check if this arm is a catch-all (discard or var pattern).
+            if (!hasGuard && IsCatchAllPrimaryPattern(primary))
+            {
+                catchAllSeenAtIndex = i;
+                continue;
+            }
+
+            // Rule 2: Duplicate unguarded constant patterns.
+            if (!hasGuard && primary is ConstantPatternPrimaryPatternNode constantPattern)
+            {
+                var key = GetConstantKey(constantPattern.Literal);
+                if (key is not null && !seenConstants.Add(key))
+                {
+                    diagnostics.Add(MakeDiagnosticWarning(
+                        SwitchUnreachableArm.Value,
+                        "Switch arm is unreachable",
+                        arm,
+                        model));
+                }
+                continue;
+            }
+
+            // Rule 3: Duplicate unguarded type patterns for the same type.
+            if (!hasGuard)
+            {
+                string? typeName = primary switch
+                {
+                    TypePatternPrimaryPatternNode typePattern =>
+                        ExtractTypeDisplayNameFromRef(typePattern.Type),
+                    BareTypePatternPrimaryPatternNode bareTypePattern =>
+                        ExtractTypeDisplayNameFromRef(bareTypePattern.Type),
+                    _ => null,
+                };
+
+                if (typeName is not null && !seenTypes.Add(typeName))
+                {
+                    diagnostics.Add(MakeDiagnosticWarning(
+                        SwitchUnreachableArm.Value,
+                        "Switch arm is unreachable",
+                        arm,
+                        model));
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Attempts to extract the single <see cref="PrimaryPatternNode"/> from a
+    /// <see cref="PatternNode"/>, navigating through the Or → And → Unary chain.
+    /// Returns <c>null</c> if the pattern is compound.
+    /// </summary>
+    private static PrimaryPatternNode? TryGetSinglePrimaryPattern(PatternNode pattern)
+    {
+        var orPattern = pattern.OrPattern;
+
+        // If there are multiple or-alternatives, this is not a simple pattern.
+        if (orPattern.AndPatterns.Length > 0)
+            return null;
+
+        var andPattern = orPattern.Left;
+
+        // If there are multiple and-conjuncts, this is not a simple pattern.
+        if (andPattern.UnaryPatterns.Length > 0)
+            return null;
+
+        var unaryPattern = andPattern.Left;
+
+        // Only direct patterns (not negated) can be catch-alls or simple patterns.
+        if (unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+            return null;
+
+        // Handle parenthesized patterns by recursing into the inner pattern.
+        if (directPattern.Primary is ParenthesizedPatternPrimaryPatternNode parenthesized)
+            return TryGetSinglePrimaryPattern(parenthesized.Inner);
+
+        return directPattern.Primary;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the given primary pattern is a catch-all
+    /// (discard <c>_</c> or <c>var x</c>).
+    /// </summary>
+    private static bool IsCatchAllPrimaryPattern(PrimaryPatternNode primary)
+    {
+        return primary is VarPatternPrimaryPatternNode;
+    }
+
+    /// <summary>
+    /// Returns a string key representing a constant literal for duplicate detection.
+    /// Returns <c>null</c> if the literal type is not recognized.
+    /// </summary>
+    private static string? GetConstantKey(ConstantLiteralNode literal)
+    {
+        return literal switch
+        {
+            IntegerConstantConstantLiteralNode intConst => $"int:{intConst.Value.Lexeme}",
+            FloatConstantConstantLiteralNode floatConst => $"float:{floatConst.Value.Lexeme}",
+            StringConstantConstantLiteralNode strConst => $"string:{strConst.Value.Lexeme}",
+            CharConstantConstantLiteralNode charConst => $"char:{charConst.Value.Lexeme}",
+            TrueConstantConstantLiteralNode => "bool:true",
+            FalseConstantConstantLiteralNode => "bool:false",
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Extracts the display name from a <see cref="TypeReferenceNode"/> for
+    /// type pattern duplicate detection.
+    /// </summary>
+    private static string? ExtractTypeDisplayNameFromRef(TypeReferenceNode typeRef)
+    {
+        return typeRef switch
+        {
+            PrimitiveTypeRefTypeReferenceNode primitiveRef => primitiveRef.PrimitiveType switch
+            {
+                IntTypePrimitiveTypeNode => "int",
+                UintTypePrimitiveTypeNode => "uint",
+                LongTypePrimitiveTypeNode => "long",
+                UlongTypePrimitiveTypeNode => "ulong",
+                ShortTypePrimitiveTypeNode => "short",
+                UshortTypePrimitiveTypeNode => "ushort",
+                ByteTypePrimitiveTypeNode => "byte",
+                SbyteTypePrimitiveTypeNode => "sbyte",
+                FloatTypePrimitiveTypeNode => "float",
+                DoubleTypePrimitiveTypeNode => "double",
+                DecimalTypePrimitiveTypeNode => "decimal",
+                BoolTypePrimitiveTypeNode => "bool",
+                CharTypePrimitiveTypeNode => "char",
+                StringTypePrimitiveTypeNode => "string",
+                _ => null,
+            },
+            NamedTypeRefTypeReferenceNode namedRef => namedRef.Name.IDENTIFIER.Lexeme,
+            _ => null,
+        };
     }
 
     /// <summary>
@@ -4801,6 +5596,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CheckObjectCreation(objectCreation, model, diagnostics);
                 break;
 
+            case ObjectCreationExpressionNoArgsPrimaryNode objectCreationNoArgs:
+                CheckObjectCreationNoArgs(objectCreationNoArgs, model, diagnostics);
+                break;
+
             case ParenthesizedExpressionPrimaryNode paren:
                 CheckExpression(paren.Inner, model, diagnostics);
                 break;
@@ -4818,6 +5617,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             case TypeLiteralExpressionPrimaryNode:
                 // Type literals are always valid primary expressions.
                 // Type checking is handled by assignability checks at usage sites.
+                break;
+
+            case EmptyArrayLiteralExpressionPrimaryNode emptyArrayLiteral:
+                // Empty array literal [] — when no target type is available (resolved
+                // as ErrorType by the semantic model builder), emit a diagnostic error.
+                // When assigned to a typed variable, the type is inferred from the
+                // annotation and no error is needed.
+                {
+                    var resolvedType = model.GetTypeOf(emptyArrayLiteral);
+                    if (resolvedType is Mist.Semantics.Model.Types.ErrorType)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0096",
+                            "Cannot infer element type for empty array literal '[]'. Provide an explicit array type annotation (e.g., 'int[] x = [];').",
+                            emptyArrayLiteral,
+                            model));
+                    }
+                }
                 break;
 
             case FieldKeywordExpressionPrimaryNode fieldKeyword:
@@ -4843,6 +5660,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             case DefaultLiteralExpressionPrimaryNode defaultLiteral:
                 CheckDefaultLiteralExpression(defaultLiteral, model, diagnostics);
+                break;
+
+            case ArrayLiteralExpressionPrimaryNode arrayLiteral:
+                CheckArrayLiteral(arrayLiteral, model, diagnostics);
                 break;
 
             // Literals and identifiers don't need type checking.
@@ -5476,6 +6297,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
         }
+
+        // Readonly type argument passing check (Req 14.5, 14.6):
+        // If an argument's type is readonly, the corresponding parameter must be readonly.
+        CheckReadonlyTypeArgumentPassing(argList, methodSymbol, model, diagnostics, callSite);
     }
 
     /// <summary>
@@ -5584,6 +6409,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
         }
+
+        // Readonly type argument passing check (Req 14.5, 14.6):
+        // If an argument's type is readonly, the corresponding parameter must be readonly.
+        CheckReadonlyTypeArgumentPassing(argList, methodSymbol, model, diagnostics, callSite);
     }
 
     /// <summary>
@@ -5599,6 +6428,118 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Readonly type argument call-site checking (MIST_TC_0076)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Returns true if the given type is marked as readonly (has <c>IsReadonly == true</c>).
+    /// Checks ClassType, StructType, InterfaceType, and TraitType.
+    /// </summary>
+    private static bool IsTypeReadonly(IType type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.IsReadonly,
+            StructType st => st.IsReadonly,
+            InterfaceType it => it.IsReadonly,
+            TraitType tt => tt.IsReadonly,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Checks that readonly types are only passed to readonly parameters at a call site.
+    /// If an argument's type is readonly and the corresponding parameter is NOT marked
+    /// <c>readonly</c>, emits <c>MIST_TC_0076</c>.
+    /// If the argument's type is mutable, either parameter kind is acceptable.
+    /// (Requirement 14.5, 14.6)
+    /// </summary>
+    private static void CheckReadonlyTypeArgumentPassing(
+        ArgumentListNode? argList,
+        ISymbol methodSymbol,
+        ISemanticModel model,
+        DiagnosticBag diagnostics,
+        SyntaxNode callSite)
+    {
+        if (argList is null)
+            return;
+
+        // Extract readonly flags for each parameter of the method.
+        var readonlyFlags = ParameterSignature.ExtractIsReadonly(methodSymbol, model);
+        if (readonlyFlags.Count == 0)
+            return;
+
+        // Collect argument expressions.
+        var argExprs = new List<ExpressionNode>();
+        foreach (var child in argList.Children())
+        {
+            if (child is ExpressionNode expr)
+                argExprs.Add(expr);
+        }
+
+        // Check each argument: if its type is readonly, the parameter must be readonly.
+        var count = Math.Min(argExprs.Count, readonlyFlags.Count);
+        for (var i = 0; i < count; i++)
+        {
+            var argType = model.GetTypeOf(argExprs[i]);
+            if (argType is null)
+                continue;
+
+            // Only check if the argument's type is readonly (Req 14.5).
+            // If the argument's type is mutable, either parameter kind is acceptable (Req 14.6).
+            if (!IsTypeReadonly(argType))
+                continue;
+
+            // The argument's type is readonly — the parameter MUST be marked readonly.
+            if (!readonlyFlags[i])
+            {
+                // Extract parameter name for the diagnostic message.
+                var paramName = GetParameterName(methodSymbol, i, model);
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0076",
+                    $"Cannot pass readonly type '{argType.DisplayName}' to non-readonly parameter '{paramName}'",
+                    argExprs[i],
+                    model));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the name of the parameter at the given index from a method's declaring node.
+    /// Returns a fallback string if the name cannot be resolved.
+    /// </summary>
+    private static string GetParameterName(ISymbol methodSymbol, int index, ISemanticModel model)
+    {
+        Storm.Runtime.SyntaxNode declaringNode;
+        try { declaringNode = model.GetDeclaringNode(methodSymbol); }
+        catch { return $"param{index}"; }
+
+        var paramList = declaringNode switch
+        {
+            MethodDeclarationNode method => method.Parameters,
+            ConstructorDeclarationNode ctor => ctor.Parameters,
+            _ => null,
+        };
+
+        if (paramList is null)
+            return $"param{index}";
+
+        var currentIndex = 0;
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode paramNode)
+            {
+                if (currentIndex == index)
+                    return paramNode.Name.Lexeme;
+                currentIndex++;
+            }
+        }
+
+        return $"param{index}";
+    }
+
 
     /// <summary>
     /// Resolves type arguments from a <see cref="TypeArgumentListNode"/> AST node
@@ -5828,6 +6769,135 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // Array literal checking (MIST_TC_0034, MIST_TC_0095, MIST_SB_0055)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private void CheckArrayLiteral(
+        ArrayLiteralExpressionPrimaryNode arrayLiteral,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Recursively type-check the first element expression.
+        CheckExpression(arrayLiteral.First, model, diagnostics);
+
+        // Recursively type-check each remaining element expression.
+        foreach (var elem in arrayLiteral.Expressions)
+        {
+            CheckExpression(elem, model, diagnostics);
+        }
+
+        // Get the type of the first element.
+        var firstType = model.GetTypeOf(arrayLiteral.First);
+
+        // Validate the first element is not void (MIST_TC_0034).
+        if (firstType is not null && !IsErrorType(firstType) && firstType.IsVoid())
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0034",
+                "Cannot create an array of type 'void'. Void is not permitted as an array element type.",
+                arrayLiteral.First,
+                model));
+        }
+
+        // Validate the first element does not contain unknown (MIST_SB_0055).
+        if (firstType is not null && !IsErrorType(firstType) && TypeContainment.IsStorageBanned(firstType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                SemanticModelBuilder.UnknownAsArrayElement.Value,
+                $"Cannot create an array with element type '{firstType.DisplayName}' because it contains 'unknown'. Array elements are writable storage and cannot hold an 'unknown'-typed value.",
+                arrayLiteral.First,
+                model));
+        }
+
+        // Validate each remaining element.
+        foreach (var elem in arrayLiteral.Expressions)
+        {
+            var elemType = model.GetTypeOf(elem);
+            if (elemType is null || IsErrorType(elemType))
+                continue;
+
+            // Reject void elements (MIST_TC_0034).
+            if (elemType.IsVoid())
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0034",
+                    "Cannot create an array of type 'void'. Void is not permitted as an array element type.",
+                    elem,
+                    model));
+                continue;
+            }
+
+            // Reject unknown elements (MIST_SB_0055).
+            if (TypeContainment.IsStorageBanned(elemType))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    SemanticModelBuilder.UnknownAsArrayElement.Value,
+                    $"Cannot create an array with element type '{elemType.DisplayName}' because it contains 'unknown'. Array elements are writable storage and cannot hold an 'unknown'-typed value.",
+                    elem,
+                    model));
+                continue;
+            }
+
+            // Validate element type compatibility with the first element (MIST_TC_0095).
+            if (firstType is not null && !IsErrorType(firstType) && !firstType.IsVoid()
+                && !TypeContainment.IsStorageBanned(firstType))
+            {
+                if (!IsAssignable(elemType, firstType, model) && !IsAssignable(firstType, elemType, model))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        ArrayLiteralIncompatibleTypes.Value,
+                        $"Array literal elements have incompatible types: '{firstType.DisplayName}' and '{elemType.DisplayName}'. All elements must share a common type.",
+                        elem,
+                        model));
+                }
+            }
+        }
+
+        // When the array literal has a known target type (from the semantic model),
+        // validate each element is assignable to the target element type.
+        var arrayType = model.GetTypeOf(arrayLiteral);
+        if (arrayType is ArrayType targetArrayType)
+        {
+            var targetElementType = targetArrayType.ElementType;
+            if (!IsErrorType(targetElementType) && !targetElementType.IsVoid()
+                && !TypeContainment.IsStorageBanned(targetElementType))
+            {
+                // Check first element against target element type.
+                if (firstType is not null && !IsErrorType(firstType) && !firstType.IsVoid()
+                    && !TypeContainment.IsStorageBanned(firstType))
+                {
+                    if (!IsAssignable(firstType, targetElementType, model))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            ArrayLiteralIncompatibleTypes.Value,
+                            $"Array literal elements have incompatible types: '{firstType.DisplayName}' and '{targetElementType.DisplayName}'. All elements must share a common type.",
+                            arrayLiteral.First,
+                            model));
+                    }
+                }
+
+                // Check remaining elements against target element type.
+                foreach (var elem in arrayLiteral.Expressions)
+                {
+                    var elemType = model.GetTypeOf(elem);
+                    if (elemType is null || IsErrorType(elemType) || elemType.IsVoid()
+                        || TypeContainment.IsStorageBanned(elemType))
+                        continue;
+
+                    if (!IsAssignable(elemType, targetElementType, model))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            ArrayLiteralIncompatibleTypes.Value,
+                            $"Array literal elements have incompatible types: '{elemType.DisplayName}' and '{targetElementType.DisplayName}'. All elements must share a common type.",
+                            elem,
+                            model));
+                    }
+                }
+            }
+        }
+    }
+
     private void CheckIndexSuffix(
         IndexSuffixPostfixSuffixNode indexSuffix,
         IType? targetType,
@@ -6025,13 +7095,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     $"Type '{createdType.DisplayName}' does not contain a constructor matching the given arguments",
                     objectCreation,
                     model));
+                return;
             }
-            return;
         }
-
-        // When multiple constructors exist, use overload resolution.
-        if (constructors.Count > 1)
+        else if (constructors.Count > 1)
         {
+            // When multiple constructors exist, use overload resolution.
             // When the created type is a ConstructedType (e.g., Optional<int>),
             // pass the type substitution context so the resolver maps T → Int32
             // in constructor parameter types before the applicability check.
@@ -6068,8 +7137,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return;
 
                 case OverloadResolutionStatus.Success:
-                    // Resolved successfully — no diagnostic needed.
-                    return;
+                    // Resolved successfully — fall through to initializer check.
+                    break;
             }
         }
         else
@@ -6082,6 +7151,257 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     "MIST_TC_0011",
                     $"Type '{createdType.DisplayName}' does not contain a constructor matching the given arguments",
                     objectCreation,
+                    model));
+            }
+        }
+
+        // ── Property initializer block validation ────────────────────────
+        if (objectCreation.Initializer is not null)
+        {
+            CheckPropertyInitializerBlock(objectCreation.Initializer, createdType, objectCreation, model, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Validates a <c>new Type { ... }</c> expression (no constructor arguments).
+    /// Resolves the type, verifies a parameterless constructor exists, then
+    /// validates the property initializer block.
+    /// </summary>
+    private void CheckObjectCreationNoArgs(
+        ObjectCreationExpressionNoArgsPrimaryNode objectCreation,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Get the type being constructed.
+        var createdType = model.GetTypeOf(objectCreation);
+        if (createdType is null || IsErrorType(createdType))
+            return;
+
+        // Type aliases are transparent — unwrap to the underlying type.
+        if (createdType is TypeAliasType aliasCreated)
+            createdType = aliasCreated.UnderlyingType;
+
+        // ── unknown-type storage ban ─────────────────────────────────────
+        if (createdType is UnknownType)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                SemanticModelBuilder.UnknownCannotBeInstantiated.Value,
+                "'unknown' cannot be instantiated. The 'unknown' type has no constructor and no declared members; use a concrete type instead.",
+                objectCreation,
+                model));
+            return;
+        }
+
+        if (TypeContainment.IsStorageBanned(createdType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                SemanticModelBuilder.UnknownInGenericConstruction.Value,
+                $"Cannot construct '{createdType.DisplayName}' because one or more type arguments are 'unknown'. A generic type cannot be constructed with 'unknown' as a type argument; use concrete type arguments or pattern-match from an already-widened value.",
+                objectCreation,
+                model));
+            return;
+        }
+
+        // ── Constraint satisfaction checking for generic type arguments ──
+        if (createdType is ConstructedType constructedForConstraints)
+        {
+            var typeParams = GetTypeParameters(constructedForConstraints.GenericDefinition);
+            if (typeParams is not null)
+            {
+                var typeArgs = constructedForConstraints.TypeArguments;
+                var genericName = constructedForConstraints.GenericDefinition.DisplayName;
+                for (var i = 0; i < typeParams.Count && i < typeArgs.Count; i++)
+                {
+                    if (typeParams[i] is TypeParameterType tp)
+                        CheckConstraintSatisfaction(typeArgs[i], tp, objectCreation, genericName, model, diagnostics);
+                }
+            }
+        }
+
+        // ── Verify parameterless constructor exists ──────────────────────
+        // The no-args variant invokes the parameterless constructor.
+        // If no constructors are defined, a default parameterless constructor
+        // is implied. If constructors exist, at least one must be parameterless.
+        var constructors = CollectConstructorOverloads(createdType);
+        if (constructors.Count > 0)
+        {
+            var hasParameterless = false;
+            foreach (var ctor in constructors)
+            {
+                var paramTypes = ParameterSignature.Extract(ctor, model);
+                if (paramTypes.Count == 0)
+                {
+                    hasParameterless = true;
+                    break;
+                }
+            }
+
+            if (!hasParameterless)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0011",
+                    $"Type '{createdType.DisplayName}' does not contain a constructor matching the given arguments",
+                    objectCreation,
+                    model));
+            }
+        }
+
+        // ── Property initializer block validation ────────────────────────
+        CheckPropertyInitializerBlock(objectCreation.Initializer, createdType, objectCreation, model, diagnostics);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Property initializer block validation (MIST_PI_0001–MIST_PI_0006)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates each assignment in a property initializer block against the
+    /// constructed type. Checks member existence, type compatibility,
+    /// writability, accessibility, and duplicate detection.
+    /// </summary>
+    private void CheckPropertyInitializerBlock(
+        PropertyInitializerBlockNode initializerBlock,
+        IType constructedType,
+        SyntaxNode parentNode,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        if (initializerBlock.Assignments is null)
+            return;
+
+        // Unwrap type aliases and ConstructedType for member lookup.
+        var lookupType = constructedType;
+        if (lookupType is TypeAliasType aliasType)
+            lookupType = aliasType.UnderlyingType;
+
+        // For ConstructedType, look up members on the generic definition.
+        var memberLookupType = lookupType is ConstructedType cst ? cst.GenericDefinition : lookupType;
+
+        IScope? memberScope = memberLookupType switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            _ => null,
+        };
+
+        if (memberScope is null)
+            return;
+
+        var seenNames = new HashSet<string>(StringComparer.Ordinal);
+
+        // Iterate over all assignments: first + rest.
+        var assignments = initializerBlock.Assignments;
+        CheckSinglePropertyAssignment(assignments.PropertyAssignment, memberScope, memberLookupType, seenNames, model, diagnostics);
+        foreach (var assignment in assignments.PropertyAssignments)
+        {
+            CheckSinglePropertyAssignment(assignment, memberScope, memberLookupType, seenNames, model, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Validates a single property assignment within an initializer block.
+    /// </summary>
+    private void CheckSinglePropertyAssignment(
+        PropertyAssignmentNode assignment,
+        IScope memberScope,
+        IType memberLookupType,
+        HashSet<string> seenNames,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var memberName = assignment.Name.Lexeme;
+
+        // ── 6. Duplicate detection ───────────────────────────────────────
+        if (!seenNames.Add(memberName))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                PropertyInitializerDuplicate.Value,
+                $"Member '{memberName}' is assigned more than once in the initializer",
+                assignment,
+                model));
+            return;
+        }
+
+        // ── 1. Member existence ──────────────────────────────────────────
+        var symbol = memberScope.Lookup(memberName);
+        if (symbol is null || symbol.Kind is not (SymbolKind.Property or SymbolKind.Field))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                PropertyInitializerMemberNotFound.Value,
+                $"Type '{memberLookupType.DisplayName}' does not contain a property or field named '{memberName}'",
+                assignment,
+                model));
+            return;
+        }
+
+        // ── 5. Accessibility ─────────────────────────────────────────────
+        // Backend symbols are assumed public; only check user-defined members.
+        if (symbol.Origin != SymbolOrigin.Backend)
+        {
+            SyntaxNode? declaringNode;
+            try { declaringNode = model.GetDeclaringNode(symbol); }
+            catch { declaringNode = null; }
+
+            var modifiers = GetMemberModifiers(declaringNode);
+            if (!modifiers.IsPublic)
+            {
+                // Private members are only accessible within the declaring type.
+                var declaringType = GetDeclaringTypeOfMember(symbol);
+                if (declaringType is not null && !IsSameType(declaringType, _currentEnclosingType))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        PropertyInitializerInaccessible.Value,
+                        $"'{memberName}' is inaccessible due to its protection level",
+                        assignment,
+                        model));
+                    return;
+                }
+            }
+        }
+
+        // ── 3. Writability (property) ────────────────────────────────────
+        if (symbol.Kind == SymbolKind.Property)
+        {
+            var propInfo = GetPropertyMetadata(symbol);
+            if (propInfo is not null && !propInfo.HasSet && !propInfo.HasInit)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    PropertyInitializerNoSetOrInit.Value,
+                    $"Property '{memberName}' has no accessible 'set' or 'init' accessor and cannot be assigned in an initializer",
+                    assignment,
+                    model));
+                return;
+            }
+        }
+
+        // ── 4. Writability (field) ───────────────────────────────────────
+        if (symbol.Kind == SymbolKind.Field && symbol is Symbol concreteField)
+        {
+            if (concreteField.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly
+                or ReadonlyStatus.InferredReadonly
+                or ReadonlyStatus.ImplicitReadonly)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    PropertyInitializerReadonlyField.Value,
+                    $"Field '{memberName}' is readonly and cannot be assigned in an initializer",
+                    assignment,
+                    model));
+                return;
+            }
+        }
+
+        // ── 2. Type compatibility ────────────────────────────────────────
+        var memberType = symbol.DeclaredType;
+        var valueType = model.GetTypeOf(assignment.Value);
+        if (memberType is not null && valueType is not null
+            && !IsErrorType(memberType) && !IsErrorType(valueType))
+        {
+            if (!IsAssignable(valueType, memberType, model))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    PropertyInitializerTypeMismatch.Value,
+                    $"Cannot assign '{valueType.DisplayName}' to '{memberName}' of type '{memberType.DisplayName}'",
+                    assignment,
                     model));
             }
         }
@@ -9466,6 +10786,32 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             CheckConstructorConstraints(
                 typeArgument, typeParameter, constraints.ConstructorConstraints,
                 genericTypeName, node, model, diagnostics);
+        }
+
+        // Check readonly constraint: type argument must be a readonly type.
+        if (constraints.HasReadonlyConstraint)
+        {
+            if (!IsTypeReadonly(typeArgument))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    ConstraintReadonlyViolation.Value,
+                    $"Type argument '{typeArgument.DisplayName}' does not satisfy the 'readonly' constraint on type parameter '{typeParameter.Name}'.",
+                    node,
+                    model));
+            }
+        }
+
+        // Check mutable constraint: type argument must NOT be a readonly type.
+        if (constraints.HasMutableConstraint)
+        {
+            if (IsTypeReadonly(typeArgument))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    ConstraintMutableViolation.Value,
+                    $"Type argument '{typeArgument.DisplayName}' does not satisfy the 'mutable' constraint on type parameter '{typeParameter.Name}' (type is readonly).",
+                    node,
+                    model));
+            }
         }
     }
 

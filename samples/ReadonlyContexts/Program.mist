@@ -1,0 +1,532 @@
+// ReadonlyContexts — Comprehensive sample exercising every readonly feature in Mist.
+// Each permutation prints labeled output to stdout for correctness verification.
+
+using System;
+
+namespace ReadonlyContexts;
+
+// ─── 1. Readonly fields ──────────────────────────────────────────────────
+
+public class ReadonlyFieldDemo
+{
+    public readonly int Id;
+    public readonly string Label;
+    public int MutableCounter;
+
+    public ReadonlyFieldDemo(int id, string label)
+    {
+        // Constructor privilege: can assign to readonly fields
+        this.Id = id;
+        this.Label = label;
+        this.MutableCounter = 0;
+    }
+
+    public string Describe()
+    {
+        return $"ReadonlyFieldDemo(Id={Id}, Label={Label}, Counter={MutableCounter})";
+    }
+
+    public void Increment()
+    {
+        this.MutableCounter = MutableCounter + 1;
+    }
+}
+
+// ─── 2. Readonly properties (auto-getter) ────────────────────────────────
+
+public class AutoGetterDemo
+{
+    public readonly string Name { get; }
+    public readonly int Value { get; }
+
+    public AutoGetterDemo(string name, int value)
+    {
+        this.Name = name;
+        this.Value = value;
+    }
+
+    public string Describe()
+    {
+        return $"AutoGetterDemo(Name={Name}, Value={Value})";
+    }
+}
+
+// ─── 3. Readonly properties (custom getter and setter) ───────────────────
+
+public class CustomAccessorDemo
+{
+    public readonly int Score
+    {
+        get
+        {
+            return field;
+        }
+        set
+        {
+            // Backing field exemption: field = value is allowed in readonly setter
+            if (value >= 0)
+            {
+                field = value;
+            }
+        }
+    }
+
+    public CustomAccessorDemo(int score)
+    {
+        // Constructor privilege: can call readonly property setter
+        this.Score = score;
+    }
+
+    public string Describe()
+    {
+        return $"CustomAccessorDemo(Score={Score})";
+    }
+}
+
+// ─── 4. Readonly methods ─────────────────────────────────────────────────
+
+public class ReadonlyMethodDemo
+{
+    public int X;
+    public int Y;
+
+    public ReadonlyMethodDemo(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    // Explicitly readonly method — can only read fields, call readonly methods
+    public readonly int Sum()
+    {
+        return X + Y;
+    }
+
+    public readonly int Product()
+    {
+        return X * Y;
+    }
+
+    public readonly string Describe()
+    {
+        return $"ReadonlyMethodDemo(X={X}, Y={Y}, Sum={Sum()}, Product={Product()})";
+    }
+
+    // Mutable method — can assign to fields
+    public void SetX(int x)
+    {
+        this.X = x;
+    }
+}
+
+// ─── 5. Readonly type (class) ────────────────────────────────────────────
+
+public readonly class ImmutablePoint
+{
+    public int X;
+    public int Y;
+
+    // Constructor of readonly type has constructor privilege
+    public ImmutablePoint(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    // All methods are implicitly readonly in a readonly class
+    public int DistanceSquared()
+    {
+        return X * X + Y * Y;
+    }
+
+    public string Describe()
+    {
+        return $"ImmutablePoint(X={X}, Y={Y})";
+    }
+
+    public ImmutablePoint Translate(int dx, int dy)
+    {
+        // Allocation of readonly type is permitted (constructor is readonly)
+        return new ImmutablePoint(X + dx, Y + dy);
+    }
+}
+
+// ─── 6. Readonly methods on struct ───────────────────────────────────────
+
+public struct ImmutableVec
+{
+    public int X;
+    public int Y;
+
+    public ImmutableVec(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    // Readonly methods on a struct — emits C# `readonly` modifier on the method
+    public readonly int Magnitude()
+    {
+        return X * X + Y * Y;
+    }
+
+    public readonly string Describe()
+    {
+        return $"ImmutableVec(X={X}, Y={Y})";
+    }
+
+    public readonly ImmutableVec Add(readonly ImmutableVec other)
+    {
+        return new ImmutableVec(X + other.X, Y + other.Y);
+    }
+}
+
+// ─── 7. Readonly constructors ────────────────────────────────────────────
+
+public class ReadonlyCtorDemo
+{
+    public int A;
+    public int B;
+
+    // Explicitly readonly constructor
+    public readonly ReadonlyCtorDemo(int a, int b)
+    {
+        this.A = a;
+        this.B = b;
+    }
+
+    public string Describe()
+    {
+        return $"ReadonlyCtorDemo(A={A}, B={B})";
+    }
+}
+
+// ─── 8. Readonly blocks ──────────────────────────────────────────────────
+
+public class ReadonlyBlockDemo
+{
+    public int Value;
+
+    public ReadonlyBlockDemo(int value)
+    {
+        this.Value = value;
+    }
+
+    // Readonly block in a method: enforces readonly rules within the block
+    public string SafeRead()
+    {
+        var result = "";
+        readonly
+        {
+            // Inside readonly block: can read fields, call readonly methods
+            var v = Value;
+            result = $"SafeRead={v}";
+        }
+        return result;
+    }
+
+    // Mutable method that uses a readonly block for a safe section
+    public string MixedMethod()
+    {
+        var before = Value;
+        this.Value = Value + 1;
+        var after = 0;
+        readonly
+        {
+            after = Value;
+        }
+        return $"before={before}, after={after}";
+    }
+}
+
+// ─── 9. Readonly block in constructor (privilege removal) ────────────────
+
+public readonly class PrivilegeRemovalDemo
+{
+    public int X;
+    public int Y;
+
+    public PrivilegeRemovalDemo(int x, int y)
+    {
+        // Constructor privilege: can assign fields
+        this.X = x;
+        this.Y = y;
+
+        // Readonly block inside constructor: privilege is suspended
+        readonly
+        {
+            // Can only read fields here, not assign
+            var sum = X + Y;
+        }
+    }
+
+    public string Describe()
+    {
+        return $"PrivilegeRemovalDemo(X={X}, Y={Y})";
+    }
+}
+
+// ─── 10. Readonly inference ──────────────────────────────────────────────
+
+public class InferenceDemo
+{
+    public int Data;
+
+    public InferenceDemo(int data)
+    {
+        this.Data = data;
+    }
+
+    // This method will be inferred as readonly (only reads fields)
+    public int GetData()
+    {
+        return Data;
+    }
+
+    // This method will be inferred as readonly (only uses literals and locals)
+    public int Compute(int x)
+    {
+        var doubled = x * 2;
+        return doubled + 1;
+    }
+
+    // This method is mutable (assigns to a field)
+    public void SetData(int value)
+    {
+        this.Data = value;
+    }
+
+    public string Describe()
+    {
+        return $"InferenceDemo(Data={Data}, GetData={GetData()}, Compute(5)={Compute(5)})";
+    }
+}
+
+// ─── 11. Readonly parameters ─────────────────────────────────────────────
+
+public class ReadonlyParamDemo
+{
+    public int Value;
+
+    public ReadonlyParamDemo(int value)
+    {
+        this.Value = value;
+    }
+
+    public readonly int GetValue()
+    {
+        return Value;
+    }
+
+    // Method with a readonly parameter: promises not to mutate the argument
+    public static string DescribePoint(readonly ImmutablePoint point)
+    {
+        // Can call readonly methods on the readonly parameter
+        var desc = point.Describe();
+        return $"Param: {desc}";
+    }
+
+    // Non-readonly method that accepts a readonly parameter
+    public static int SumFields(readonly ImmutablePoint point)
+    {
+        return point.X + point.Y;
+    }
+}
+
+// ─── 12. Generic constraints (where T : readonly) ────────────────────────
+
+public class ReadonlyContainer<T> where T : readonly
+{
+    public T Item;
+
+    public ReadonlyContainer(T item)
+    {
+        this.Item = item;
+    }
+
+    public string Describe()
+    {
+        return $"ReadonlyContainer({Item})";
+    }
+}
+
+// ─── 13. Generic constraints (where T : mutable) ─────────────────────────
+
+public class MutableContainer<T> where T : mutable
+{
+    public T Item;
+
+    public MutableContainer(T item)
+    {
+        this.Item = item;
+    }
+
+    public string Describe()
+    {
+        return $"MutableContainer({Item})";
+    }
+}
+
+// ─── 14. Allocation within readonly contexts ─────────────────────────────
+
+public readonly class AllocDemo
+{
+    public int Value;
+
+    public AllocDemo(int value)
+    {
+        this.Value = value;
+    }
+
+    // Readonly method that allocates a readonly type (permitted)
+    public AllocDemo Double()
+    {
+        return new AllocDemo(Value * 2);
+    }
+
+    public string Describe()
+    {
+        return $"AllocDemo(Value={Value})";
+    }
+}
+
+// ─── 15. Readonly interface contract enforcement ─────────────────────────
+
+public readonly interface IReadable
+{
+    string Read();
+    int GetLength();
+}
+
+public class Document : IReadable
+{
+    public string Content;
+
+    public Document(string content)
+    {
+        this.Content = content;
+    }
+
+    // Must be readonly to satisfy readonly interface contract
+    public readonly string Read()
+    {
+        return Content;
+    }
+
+    // Must be readonly to satisfy readonly interface contract
+    public readonly int GetLength()
+    {
+        return Content.Length;
+    }
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("--- Readonly Contexts ---");
+
+        // 1. Readonly fields
+        Console.WriteLine("1. Readonly fields:");
+        var rf = new ReadonlyFieldDemo(42, "hello");
+        Console.WriteLine($"  {rf.Describe()}");
+        rf.Increment();
+        Console.WriteLine($"  After increment: Counter={rf.MutableCounter}");
+
+        // 2. Readonly properties (auto-getter)
+        Console.WriteLine("2. Readonly auto-getter properties:");
+        var ag = new AutoGetterDemo("Alice", 100);
+        Console.WriteLine($"  {ag.Describe()}");
+
+        // 3. Readonly properties (custom getter/setter)
+        Console.WriteLine("3. Readonly custom accessor properties:");
+        var ca = new CustomAccessorDemo(75);
+        Console.WriteLine($"  {ca.Describe()}");
+
+        // 4. Readonly methods
+        Console.WriteLine("4. Readonly methods:");
+        var rm = new ReadonlyMethodDemo(3, 7);
+        Console.WriteLine($"  {rm.Describe()}");
+        rm.SetX(10);
+        Console.WriteLine($"  After SetX(10): Sum={rm.Sum()}");
+
+        // 5. Readonly type (class)
+        Console.WriteLine("5. Readonly class:");
+        var ip = new ImmutablePoint(3, 4);
+        Console.WriteLine($"  {ip.Describe()}");
+        Console.WriteLine($"  DistanceSquared={ip.DistanceSquared()}");
+        var translated = ip.Translate(1, 2);
+        Console.WriteLine($"  Translated: {translated.Describe()}");
+
+        // 6. Readonly methods on struct
+        Console.WriteLine("6. Readonly struct methods:");
+        var v1 = new ImmutableVec(1, 2);
+        var v2 = new ImmutableVec(3, 4);
+        var v3 = v1.Add(v2);
+        Console.WriteLine($"  v1={v1.Describe()}");
+        Console.WriteLine($"  v2={v2.Describe()}");
+        Console.WriteLine($"  v1+v2={v3.Describe()}");
+        Console.WriteLine($"  v3.Magnitude={v3.Magnitude()}");
+
+        // 7. Readonly constructors
+        Console.WriteLine("7. Readonly constructors:");
+        var rc = new ReadonlyCtorDemo(10, 20);
+        Console.WriteLine($"  {rc.Describe()}");
+
+        // 8. Readonly blocks in methods
+        Console.WriteLine("8. Readonly blocks:");
+        var rb = new ReadonlyBlockDemo(99);
+        Console.WriteLine($"  {rb.SafeRead()}");
+        Console.WriteLine($"  {rb.MixedMethod()}");
+
+        // 9. Readonly block in constructor (privilege removal)
+        Console.WriteLine("9. Readonly block privilege removal:");
+        var pr = new PrivilegeRemovalDemo(5, 10);
+        Console.WriteLine($"  {pr.Describe()}");
+
+        // 10. Readonly inference
+        Console.WriteLine("10. Readonly inference:");
+        var inf = new InferenceDemo(42);
+        Console.WriteLine($"  {inf.Describe()}");
+        inf.SetData(100);
+        Console.WriteLine($"  After SetData(100): GetData={inf.GetData()}");
+
+        // 11. Readonly parameters
+        Console.WriteLine("11. Readonly parameters:");
+        var point = new ImmutablePoint(7, 3);
+        Console.WriteLine($"  {ReadonlyParamDemo.DescribePoint(point)}");
+        Console.WriteLine($"  SumFields={ReadonlyParamDemo.SumFields(point)}");
+
+        // 12. Generic constraints (where T : readonly)
+        Console.WriteLine("12. Generic readonly constraint:");
+        var roContainer = new ReadonlyContainer<ImmutablePoint>(new ImmutablePoint(1, 2));
+        Console.WriteLine($"  {roContainer.Describe()}");
+
+        // 13. Generic constraints (where T : mutable)
+        Console.WriteLine("13. Generic mutable constraint:");
+        var mutContainer = new MutableContainer<ReadonlyBlockDemo>(new ReadonlyBlockDemo(55));
+        Console.WriteLine($"  {mutContainer.Describe()}");
+
+        // 14. Allocation within readonly contexts
+        Console.WriteLine("14. Allocation in readonly context:");
+        var alloc = new AllocDemo(21);
+        var doubled = alloc.Double();
+        Console.WriteLine($"  Original: {alloc.Describe()}");
+        Console.WriteLine($"  Doubled: {doubled.Describe()}");
+
+        // 15. Readonly interface contract enforcement
+        Console.WriteLine("15. Readonly interface contract:");
+        var doc = new Document("Hello, Mist!");
+        Console.WriteLine($"  Read={doc.Read()}");
+        Console.WriteLine($"  Length={doc.GetLength()}");
+
+        Console.WriteLine("--- Readonly Contexts Done ---");
+    }
+}

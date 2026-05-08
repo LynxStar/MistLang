@@ -65,3 +65,15 @@ path = "../GenericConstraints"
 
 [[references]]
 path = "../DependentTypes"
+
+[[references]]
+path = "../ReadonlyContexts"
+
+[[references]]
+path = "../SwitchExpressions"
+
+[[references]]
+path = "../PropertyInitializers"
+
+[[references]]
+path = "../ArrayLiterals"

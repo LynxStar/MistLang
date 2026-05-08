@@ -8,6 +8,7 @@
     { "include": "#strings" },
     { "include": "#chars" },
     { "include": "#declaration-names" },
+    { "include": "#property-initializer-names" },
     { "include": "#keywords" },
     { "include": "#types" },
     { "include": "#literals" },
@@ -93,7 +94,7 @@
       "patterns": [
         {
           "name": "keyword.control.mist",
-          "match": "\\b(if|else|while|for|foreach|in|break|return)\\b"
+          "match": "\\b(if|else|while|for|foreach|in|break|return|switch|when)\\b"
         },
         {
           "name": "keyword.declaration.mist",
@@ -101,7 +102,7 @@
         },
         {
           "name": "storage.modifier.mist",
-          "match": "\\b(public|private|static|intrinsic|implicit|explicit)\\b"
+          "match": "\\b(public|private|static|intrinsic|implicit|explicit|readonly|mutable)\\b"
         },
         {
           "name": "keyword.other.mist",
@@ -341,6 +342,14 @@
           }
         }
       ]
+    },
+    "property-initializer-names": {
+      "comment": "Property name in initializer block: identifier = (but not ==)",
+      "match": "(\\b[a-zA-Z_]\\w*)\\s*(=)(?!=)",
+      "captures": {
+        "1": { "name": "variable.other.property.mist" },
+        "2": { "name": "keyword.operator.assignment.mist" }
+      }
     },
     "operators": {
       "patterns": [

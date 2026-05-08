@@ -428,4 +428,134 @@ Done!
   BoolParam<true>.Describe() = BoolParam<True>
   CharParam<'X'>.Describe() = CharParam<X>
 === Dependent Types Done ===
+--- Readonly Contexts ---
+1. Readonly fields:
+  ReadonlyFieldDemo(Id=42, Label=hello, Counter=0)
+  After increment: Counter=1
+2. Readonly auto-getter properties:
+  AutoGetterDemo(Name=Alice, Value=100)
+3. Readonly custom accessor properties:
+  CustomAccessorDemo(Score=75)
+4. Readonly methods:
+  ReadonlyMethodDemo(X=3, Y=7, Sum=10, Product=21)
+  After SetX(10): Sum=17
+5. Readonly class:
+  ImmutablePoint(X=3, Y=4)
+  DistanceSquared=25
+  Translated: ImmutablePoint(X=4, Y=6)
+6. Readonly struct methods:
+  v1=ImmutableVec(X=1, Y=2)
+  v2=ImmutableVec(X=3, Y=4)
+  v1+v2=ImmutableVec(X=4, Y=6)
+  v3.Magnitude=52
+7. Readonly constructors:
+  ReadonlyCtorDemo(A=10, B=20)
+8. Readonly blocks:
+  SafeRead=99
+  before=99, after=100
+9. Readonly block privilege removal:
+  PrivilegeRemovalDemo(X=5, Y=10)
+10. Readonly inference:
+  InferenceDemo(Data=42, GetData=42, Compute(5)=11)
+  After SetData(100): GetData=100
+11. Readonly parameters:
+  Param: ImmutablePoint(X=7, Y=3)
+  SumFields=10
+12. Generic readonly constraint:
+  ReadonlyContainer(ReadonlyContexts.ImmutablePoint)
+13. Generic mutable constraint:
+  MutableContainer(ReadonlyContexts.ReadonlyBlockDemo)
+14. Allocation in readonly context:
+  Original: AllocDemo(Value=21)
+  Doubled: AllocDemo(Value=42)
+15. Readonly interface contract:
+  Read=Hello, Mist!
+  Length=12
+--- Readonly Contexts Done ---
+=== Switch Expressions Sample ===
+--- Constant patterns: integer ---
+Day 3 is Wednesday
+--- Constant patterns: string ---
+Command 'quit' => Goodbye!
+--- Constant patterns: boolean ---
+isActive=True => Active
+--- Discard pattern (var _) ---
+Code 99 => Other
+--- Var pattern catch-all ---
+Value 42 => many (42)
+--- Type patterns with type union ---
+mixed (int) => integer: 123
+mixed (string) => string: hello
+--- Relational patterns ---
+Temperature 75 => Comfortable
+--- Logical patterns ---
+Score 85 => Grade B
+--- Property patterns ---
+Word 'extraordinary' (length 13) => long
+--- List patterns ---
+Array [1,2,3] => starts with 1, 2
+--- When guards ---
+Number -5 => negative
+Amount 150 => premium (value=150)
+--- Expression contexts: assignment ---
+num2=2 parity=even
+--- Expression contexts: method argument ---
+Level: Advanced
+--- Expression contexts: tuple scrutinee ---
+(0,0) => origin
+(1,0) => on x-axis
+Done!
+=== PropertyInitializers Sample ===
+--- Constructor args + initializer ---
+  Point: Point(X=3, Y=4)
+--- No constructor args + initializer ---
+  Config: Config(Timeout=30, Verbose=True, Name=)
+--- Empty initializer block ---
+  Empty: Config(Timeout=0, Verbose=False, Name=)
+--- Init-only properties ---
+  Record: Record(Id=abc-123, Version=5, Tag=release)
+--- Set properties ---
+  Config: Config(Timeout=60, Verbose=False, Name=production)
+--- Multiple properties ---
+  Config: Config(Timeout=30, Verbose=True, Name=test)
+--- As method argument ---
+  ProcessConfig: Config(Timeout=0, Verbose=True, Name=arg-demo)
+--- Variable declaration with var ---
+  var c: Config(Timeout=10, Verbose=False, Name=)
+--- Generic type ---
+  Box<int>: Box(Value=42, Tag=integer)
+  Box<string>: Box(Value=hello, Tag=text)
+--- Struct type ---
+  MyStruct: MyStruct(X=1, Y=2)
+--- Public field ---
+  Data: Data(Count=7, Label=items)
+--- Complex expressions ---
+  Data: Data(Count=11, Label=item-42)
+--- Mixed init/set properties ---
+  MixedProps: MixedProps(ReadOnlyName=immutable, MutableCount=99)
+Done!
+=== ArrayLiterals Sample ===
+--- Single-element array ---
+  [1]
+--- Multi-element array ---
+  [1, 2, 3]
+--- Trailing comma ---
+  [1, 2, 3]
+--- Nested arrays ---
+  [[1, 2], [3, 4]]
+--- Array literal as method argument ---
+  [4, 5, 6]
+--- Array literal as return value ---
+  [10, 20, 30]
+--- Array literal as assignment RHS ---
+  [7, 8, 9]
+--- Explicit type annotation ---
+  [1, 2, 3]
+--- Empty array literal ---
+  Length: 0
+--- String array ---
+  [hello, world]
+--- Boolean array ---
+  [True, False, True]
+Done!
 === Done! ===

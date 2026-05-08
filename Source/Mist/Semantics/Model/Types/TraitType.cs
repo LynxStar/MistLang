@@ -27,6 +27,12 @@ public sealed class TraitType : IType
     /// </summary>
     public bool IsCyclic { get; internal set; }
 
+    /// <summary>
+    /// Indicates whether this trait is declared as readonly.
+    /// When true, all members are implicitly readonly.
+    /// </summary>
+    public bool IsReadonly { get; internal set; }
+
     public TraitType(string displayName, IScope memberScope, string? containingNamespace)
     {
         DisplayName = displayName;

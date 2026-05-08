@@ -71,6 +71,13 @@ public sealed class Symbol : ISymbol
     /// Type parameters for generic method symbols. Empty for non-generic methods and non-method symbols.
     /// </summary>
     public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
+
+    /// <summary>
+    /// Tracks the readonly classification of this symbol. Applies to fields, properties,
+    /// indexers, methods, constructors, and parameters. Defaults to <see cref="Model.ReadonlyStatus.Unknown"/>
+    /// until the semantic model builder or inference engine classifies it.
+    /// </summary>
+    public ReadonlyStatus ReadonlyStatus { get; internal set; } = ReadonlyStatus.Unknown;
 }
 
 /// <summary>

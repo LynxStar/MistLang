@@ -152,6 +152,8 @@ rule ConstraintList = Constraint (COMMA Constraint)*;
 rule Constraint
     = CLASS                                                                    as ClassConstraint
     | STRUCT                                                                   as StructConstraint
+    | READONLY                                                                 as ReadonlyConstraint
+    | MUTABLE                                                                  as MutableConstraint
     | NEW LEFT_PARENTHESIS paramTypes:ConstraintParameterTypeList? RIGHT_PARENTHESIS  as ConstructorConstraint
     | type:TypeReference                                                       as TypeConstraint
     ;
@@ -260,6 +262,7 @@ rule Modifier
     | PRIVATE   as PrivateModifier
     | STATIC    as StaticModifier
     | INTRINSIC as IntrinsicModifier
+    | READONLY  as ReadonlyModifier
     ;
 
 rule MemberDeclaration
@@ -376,7 +379,7 @@ rule OperatorSymbol
     ;
 
 rule ParameterList = Parameter (COMMA Parameter)*;
-rule Parameter = type:TypeReference name:IDENTIFIER;
+rule Parameter = modifier:READONLY? type:TypeReference name:IDENTIFIER;
 
 rule ArgumentList = Expression (COMMA Expression)*;
 
@@ -423,8 +426,11 @@ rule Statement
     | forStatement:ForStatement                           as ForStatement
     | foreachStatement:ForeachStatement                   as ForeachStatement
     | breakStatement:BreakStatement                       as BreakStatement
+    | readonlyBlock:ReadonlyBlockStatement                as ReadonlyBlockStatement
     | expressionStatement:ExpressionStatement             as ExpressionStatement
     ;
+
+rule ReadonlyBlockStatement = READONLY body:Block;
 
 rule VariableDeclarationStatement
     = type:TypeReference name:IDENTIFIER EQUAL initializer:Expression SEMICOLON  as TypedVariableDeclaration
@@ -500,7 +506,14 @@ rule PostfixSuffix
     | DOT name:IDENTIFIER                                                         as MemberAccessSuffix
     | LEFT_BRACKET index:Expression RIGHT_BRACKET                                 as IndexSuffix
     | LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS                       as InvocationSuffix
+    | SWITCH LEFT_BRACE arms:SwitchArmList? RIGHT_BRACE                           as SwitchExpressionSuffix
     ;
+
+rule SwitchArmList = SwitchArm (COMMA SwitchArm)* COMMA?;
+
+rule SwitchArm = pattern:Pattern guard:WhenGuard? SUCH_THAT result:Expression;
+
+rule WhenGuard = WHEN condition:Expression;
 
 rule Primary
     = integerLiteral:INTEGER_LITERAL                                               as IntegerLiteralExpression
@@ -515,11 +528,14 @@ rule Primary
     | THIS                                                                         as ThisExpression
     | FIELD                                                                        as FieldKeywordExpression
     | NEW type:TypeReference LEFT_BRACKET size:Expression RIGHT_BRACKET            as ArrayCreationExpression
-    | NEW type:QualifiedIdentifier typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as ObjectCreationExpression
+    | NEW type:QualifiedIdentifier typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS initializer:PropertyInitializerBlock? as ObjectCreationExpression
+    | NEW type:QualifiedIdentifier typeArgs:TypeArgumentList? initializer:PropertyInitializerBlock as ObjectCreationExpressionNoArgs
     | LEFT_PARENTHESIS first:TupleLiteralElement COMMA rest:TupleLiteralElement (COMMA additional:TupleLiteralElement)* RIGHT_PARENTHESIS as TupleLiteralExpression
     | LEFT_PARENTHESIS inner:Expression RIGHT_PARENTHESIS                          as ParenthesizedExpression
     | DEFAULT LEFT_PARENTHESIS type:TypeReference RIGHT_PARENTHESIS               as DefaultExpression
     | DEFAULT                                                                      as DefaultLiteralExpression
+    | LEFT_BRACKET RIGHT_BRACKET                                                    as EmptyArrayLiteralExpression
+    | LEFT_BRACKET first:Expression (COMMA rest:Expression)* COMMA? RIGHT_BRACKET  as ArrayLiteralExpression
     | name:IDENTIFIER                                                              as IdentifierExpression
     | typeRef:TypeReference                                                        as TypeLiteralExpression
     ;
@@ -535,6 +551,14 @@ rule InterpolatedPart
     = text:INTERPOLATED_STRING_TEXT  as TextPart
     | INTERPOLATION_OPEN expression:Expression RIGHT_BRACE      as ExpressionPart
     ;
+
+// ─── Parser Rules — Property Initializers ───────────────────────────────────
+
+rule PropertyInitializerBlock = LEFT_BRACE assignments:PropertyAssignmentList? RIGHT_BRACE;
+
+rule PropertyAssignmentList = PropertyAssignment (COMMA PropertyAssignment)* COMMA?;
+
+rule PropertyAssignment = name:IDENTIFIER EQUAL value:Expression;
 
 // ─── Parser Rules — Patterns ────────────────────────────────────────────────
 // Pattern grammar for `is` expressions. Precedence: or < and < not < primary.

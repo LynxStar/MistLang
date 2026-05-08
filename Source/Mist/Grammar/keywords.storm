@@ -73,8 +73,16 @@ token UNKNOWN = "unknown";
 // Generic constraint keywords
 token WHERE = "where";
 
+// Readonly context keywords
+token READONLY = "readonly";
+token MUTABLE  = "mutable";
+
 // Pattern matching keywords
 token IS  = "is";
 token AND = "and";
 token OR  = "or";
 token NOT = "not";
+
+// Switch expression keywords
+token SWITCH = "switch";
+token WHEN   = "when";

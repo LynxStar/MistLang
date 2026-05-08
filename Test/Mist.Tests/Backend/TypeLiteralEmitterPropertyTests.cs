@@ -1,4 +1,6 @@
 // Feature: type-literals, Property 8: C# emitter wraps type literals in typeof()
+// Updated: array type literals (e.g., int[]) in expression position now emit typeof(T[]),
+// NOT Array.Empty<T>(). The empty array literal is now [] (bare brackets).
 
 using System.Collections.Immutable;
 using FsCheck;
@@ -18,7 +20,10 @@ namespace Mist.Tests.Backend;
 /// Property-based tests for C# emitter typeof() wrapping of type literals.
 ///
 /// Property 8: C# emitter wraps type literals in typeof()
-/// For any TypeLiteralExpression, the C# emitter SHALL produce typeof(&lt;type_reference&gt;).
+/// For any TypeLiteralExpression (including array types like int[]),
+/// the C# emitter SHALL produce typeof(&lt;type_reference&gt;).
+/// Array type literals in expression position are type references (not empty arrays).
+/// The empty array literal is now [] (bare brackets), handled separately.
 ///
 /// **Validates: Requirements 5.1, 5.3, 5.4**
 /// </summary>
@@ -70,17 +75,18 @@ public sealed class TypeLiteralEmitterPropertyTests : IDisposable
 
     /// <summary>
     /// Represents a test case: a type keyword used as a type literal in a Mist program,
-    /// along with the expected typeof() expression in the emitted C#.
+    /// along with the expected emitted C# fragment.
+    /// All type literals (including array types) emit typeof(T) or typeof(T[]).
     /// </summary>
 #pragma warning disable CA1034
     public record TypeLiteralEmitterTestCase(
         string MistKeyword,
-        string ExpectedTypeof,
+        string ExpectedFragment,
         bool IsArray,
         string Source)
     {
         public override string ToString() =>
-            IsArray ? $"{MistKeyword}[] → typeof({ExpectedTypeof})" : $"{MistKeyword} → typeof({ExpectedTypeof})";
+            IsArray ? $"{MistKeyword}[] → {ExpectedFragment}" : $"{MistKeyword} → {ExpectedFragment}";
     }
 #pragma warning restore CA1034
 
@@ -101,9 +107,10 @@ public sealed class TypeLiteralEmitterPropertyTests : IDisposable
             from isArray in Gen.Elements(true, false)
             let mistKeyword = PrimitiveTypes[typeIndex].MistKeyword
             let csKeyword = PrimitiveTypes[typeIndex].CSharpKeyword
-            let expectedTypeof = isArray ? $"{csKeyword}[]" : csKeyword
+            // All type literals in expression position emit typeof(T) or typeof(T[])
+            let expectedFragment = isArray ? $"typeof({csKeyword}[])" : $"typeof({csKeyword})"
             let source = BuildVarInitSource(mistKeyword, isArray)
-            select new TypeLiteralEmitterTestCase(mistKeyword, expectedTypeof, isArray, source);
+            select new TypeLiteralEmitterTestCase(mistKeyword, expectedFragment, isArray, source);
 
         return gen.ToArbitrary();
     }
@@ -148,14 +155,15 @@ public sealed class TypeLiteralEmitterPropertyTests : IDisposable
     }
 
     // ═════════════════════════════════════════════════════════════════════
-    // Property 8: C# emitter wraps type literals in typeof()
+    // Property 8: C# emitter wraps ALL type literals in typeof()
     //
     // **Validates: Requirements 5.1, 5.3, 5.4**
     //
-    // For any TypeLiteralExpression containing a type reference (primitive
-    // or array), the C# emitter SHALL produce typeof(<type_reference>)
-    // where <type_reference> is the C# representation of the referenced
-    // type.
+    // For any TypeLiteralExpression (including array type references like
+    // int[], string[]), the C# emitter SHALL produce typeof(<type_reference>).
+    // Array type literals in expression position are type references only —
+    // they do NOT represent empty arrays. The empty array literal is now []
+    // (bare brackets), which is a separate grammar alternative.
     // ═════════════════════════════════════════════════════════════════════
 
     [Property(
@@ -169,8 +177,7 @@ public sealed class TypeLiteralEmitterPropertyTests : IDisposable
         if (csOutput is null)
             return false;
 
-        // The emitted C# must contain typeof(<expected>)
-        var expectedFragment = $"typeof({testCase.ExpectedTypeof})";
-        return csOutput.Contains(expectedFragment);
+        // The emitted C# must contain the expected fragment
+        return csOutput.Contains(testCase.ExpectedFragment);
     }
 }

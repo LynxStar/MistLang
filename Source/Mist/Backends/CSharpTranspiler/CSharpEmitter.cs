@@ -86,7 +86,11 @@ public sealed class CSharpEmitter
                 var isReferencedProject = unit.OriginProjectPath is not null;
                 var writer = new CSharpSourceWriter(model, backendNamespaces, unit.Source, diagnostics, isReferencedProject);
                 var csContent = writer.EmitCompilationUnit(compilationUnit);
-                files[relativePath] = csContent;
+
+                // Skip emitting files that contain no meaningful type declarations
+                // (e.g., stdlib files where all types are backend-backed and were skipped).
+                if (!IsEmptyEmission(csContent))
+                    files[relativePath] = csContent;
 
                 if (writer.NeedsMistVoidStruct)
                     anyNeedsMistVoid = true;
@@ -115,6 +119,26 @@ public sealed class CSharpEmitter
         }
 
         return files;
+    }
+
+    /// <summary>
+    /// Returns true if the emitted C# content contains no meaningful type declarations —
+    /// just a namespace line and whitespace. This happens for stdlib files where all types
+    /// are backend-backed (e.g., Boolean.mist, Int32.mist) and were skipped during emission.
+    /// </summary>
+    private static bool IsEmptyEmission(string content)
+    {
+        // A non-empty emission will contain at least one type keyword (class, struct, interface, enum).
+        // An empty emission is just "namespace X;\n\n" or "namespace X\n{\n}\n".
+        var trimmed = content.AsSpan().Trim();
+        if (trimmed.IsEmpty)
+            return true;
+
+        // Check if the content contains any type declaration keywords after the namespace line.
+        return !content.Contains("class ")
+            && !content.Contains("struct ")
+            && !content.Contains("interface ")
+            && !content.Contains("enum ");
     }
 
     private static void EmitCsproj(string outputDirectory, string projectName)
@@ -251,10 +275,23 @@ internal sealed class CSharpSourceWriter
     private readonly List<string> _pendingUnionPatternBindings = new();
     private readonly bool _isReferencedProject;
     /// <summary>
+    /// Tracks whether the emitter is currently inside a struct declaration.
+    /// Used by <see cref="EmitMethodDeclaration"/> to emit the C# <c>readonly</c>
+    /// modifier on struct methods (C# has no readonly method concept for classes).
+    /// </summary>
+    private bool _insideStruct;
+    /// <summary>
     /// The namespace of the current compilation unit being emitted.
     /// Used to scope type alias fallback resolution to the correct namespace.
     /// </summary>
     private string? _currentNamespace;
+    /// <summary>
+    /// When non-null, indicates that the current expression being emitted is the
+    /// initializer of a typed variable declaration whose type is an array type.
+    /// The emitter uses this to emit <c>new T[] { ... }</c> instead of <c>new[] { ... }</c>
+    /// for array literals assigned to explicitly-typed array variables.
+    /// </summary>
+    private IType? _arrayLiteralTargetElementType;
     private const string IndentUnit = "    ";
 
     /// <summary>
@@ -568,6 +605,10 @@ internal sealed class CSharpSourceWriter
             case ForeachStatementStatementNode foreachStmt:
                 ScanExpressionForValueReturningCalls(foreachStmt.ForeachStatement.Collection, voidMethodNames);
                 ScanBlockForValueReturningCalls(foreachStmt.ForeachStatement.Body, voidMethodNames);
+                break;
+
+            case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
+                ScanBlockForValueReturningCalls(readonlyBlockStmt.ReadonlyBlock.Body, voidMethodNames);
                 break;
         }
     }
@@ -2184,7 +2225,14 @@ internal sealed class CSharpSourceWriter
         {
             EmitDependentTypeAttributes(GetTypeParametersFromType(symbol.DeclaredType));
         }
-        AppendLine($"{modifiers}struct {name}{typeParams}{interfaceList}");
+
+        // Task 12.3 — Emit `readonly struct` for readonly struct types.
+        var readonlyPrefix = "";
+        if (symbol?.DeclaredType is StructType readonlyCheck && readonlyCheck.IsReadonly)
+        {
+            readonlyPrefix = "readonly ";
+        }
+        AppendLine($"{modifiers}{readonlyPrefix}struct {name}{typeParams}{interfaceList}");
         // Emit constraint clauses (where T : ...) for constrained type parameters.
         if (symbol?.DeclaredType is not null)
         {
@@ -2200,6 +2248,11 @@ internal sealed class CSharpSourceWriter
         {
             hasDependentProperties = EmitDependentTypeProperties(GetTypeParametersFromType(symbol.DeclaredType));
         }
+
+        // Task 12.4 — Track that we're inside a struct so method emission can
+        // emit the C# `readonly` modifier on struct methods.
+        var previousInsideStruct = _insideStruct;
+        _insideStruct = true;
 
         // Emit factory delegate fields and constructor for parameterized constructor constraints.
         var hasFactoryFields = false;
@@ -2256,6 +2309,7 @@ internal sealed class CSharpSourceWriter
             EmitCreateDefaultMethod(defaultableStruct.DisplayName, defaultableStruct.DefaultValues, hasExistingMembers);
         }
 
+        _insideStruct = previousInsideStruct;
         _indentLevel--;
         AppendLine("}");
     }
@@ -2531,15 +2585,23 @@ internal sealed class CSharpSourceWriter
         var type = EmitTypeReference(fieldDecl.Type, isValueContext: true);
         var name = fieldDecl.Name.Lexeme;
 
+        // Task 12.1 — Emit C# `readonly` modifier on fields with ReadonlyStatus != Mutable.
+        var readonlyPrefix = "";
+        var fieldSymbol = _model.GetDeclaredSymbol(fieldDecl) as Symbol;
+        if (fieldSymbol is not null && fieldSymbol.ReadonlyStatus is not ReadonlyStatus.Mutable and not ReadonlyStatus.Unknown)
+        {
+            readonlyPrefix = "readonly ";
+        }
+
         if (fieldDecl.Initializer != null)
         {
             // The field has an initializer expression.
             // With the bugfix, the Initializer property is now ExpressionNode? directly.
-            AppendLine($"{modifiers}{type} {name} = {EmitExpression(fieldDecl.Initializer)};");
+            AppendLine($"{modifiers}{readonlyPrefix}{type} {name} = {EmitExpression(fieldDecl.Initializer)};");
         }
         else
         {
-            AppendLine($"{modifiers}{type} {name};");
+            AppendLine($"{modifiers}{readonlyPrefix}{type} {name};");
         }
     }
 
@@ -2632,6 +2694,16 @@ internal sealed class CSharpSourceWriter
         var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
         var parameters = EmitParameterList(methodDecl.Parameters);
 
+        // Task 12.4 — Emit C# `readonly` modifier on struct methods with ReadonlyStatus != Mutable.
+        // C# has no `readonly` method concept for classes, so only emit for structs.
+        var readonlyPrefix = "";
+        var methodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
+        if (_insideStruct && methodSymbol is not null
+            && methodSymbol.ReadonlyStatus is not ReadonlyStatus.Mutable and not ReadonlyStatus.Unknown)
+        {
+            readonlyPrefix = "readonly ";
+        }
+
         // Context-sensitive void return type: if this void method's return value
         // is consumed at any call site, emit MistVoid instead of void.
         var isValueReturningVoid = methodDecl.ReturnType is VoidTypeRefTypeReferenceNode
@@ -2644,7 +2716,6 @@ internal sealed class CSharpSourceWriter
 
         // For generic methods with parameterized constructor constraints,
         // append factory delegate parameters to the method signature.
-        var methodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
         var methodTypeParams = methodSymbol?.TypeParameters ?? (IReadOnlyList<IType>)Array.Empty<IType>();
         var factoryParams = GetFactoryDelegateMethodParams(methodTypeParams);
         if (factoryParams.Length > 0)
@@ -2654,7 +2725,7 @@ internal sealed class CSharpSourceWriter
                 : factoryParams;
         }
 
-        AppendLine($"{modifiers}{returnType} {name}{typeParams}({parameters})");
+        AppendLine($"{modifiers}{readonlyPrefix}{returnType} {name}{typeParams}({parameters})");
         // Emit constraint clauses for the method's type parameters.
         EmitConstraintClauses(methodTypeParams);
 
@@ -2745,6 +2816,11 @@ internal sealed class CSharpSourceWriter
         var type = EmitTypeReference(blockProp.Type);
         var name = blockProp.Name.Lexeme;
 
+        // Task 12.2 — Determine if this property is readonly (emit `init` instead of `set`).
+        var propSymbol = _model.GetDeclaredSymbol(blockProp) as Symbol;
+        var isReadonlyProperty = propSymbol is not null
+            && propSymbol.ReadonlyStatus is not ReadonlyStatus.Mutable and not ReadonlyStatus.Unknown;
+
         // Check if any accessor uses the 'field' keyword — if so, emit a backing field first.
         var backingFieldName = $"_{name}_k__BackingField";
         var usesField = AccessorsUseFieldKeyword(blockProp.Accessors);
@@ -2757,7 +2833,7 @@ internal sealed class CSharpSourceWriter
         var accessorParts = new List<string>();
         foreach (var accessor in blockProp.Accessors)
         {
-            accessorParts.Add(EmitAccessorDeclaration(accessor, usesField ? backingFieldName : null));
+            accessorParts.Add(EmitAccessorDeclaration(accessor, usesField ? backingFieldName : null, isReadonlyProperty));
         }
 
         var accessorBody = string.Join(" ", accessorParts);
@@ -2784,7 +2860,7 @@ internal sealed class CSharpSourceWriter
         AppendLine($"{modifiers}{type} {name} => {body};");
     }
 
-    private string EmitAccessorDeclaration(AccessorDeclarationNode accessor, string? backingFieldName)
+    private string EmitAccessorDeclaration(AccessorDeclarationNode accessor, string? backingFieldName, bool isReadonlyProperty = false)
     {
         switch (accessor)
         {
@@ -2808,22 +2884,26 @@ internal sealed class CSharpSourceWriter
             }
 
             // ── Set accessors ──
+            // Task 12.2 — When the property is readonly, emit `init` instead of `set`.
             case AutoSetAccessorAccessorDeclarationNode autoSet:
             {
                 var mod = EmitAccessorModifier(autoSet.AccessorModifier);
-                return $"{mod}set;";
+                var keyword = isReadonlyProperty ? "init" : "set";
+                return $"{mod}{keyword};";
             }
             case BlockSetAccessorAccessorDeclarationNode blockSet:
             {
                 var mod = EmitAccessorModifier(blockSet.AccessorModifier);
                 var body = EmitAccessorBlock(blockSet.Body, backingFieldName);
-                return $"{mod}set {body}";
+                var keyword = isReadonlyProperty ? "init" : "set";
+                return $"{mod}{keyword} {body}";
             }
             case ExpressionSetAccessorAccessorDeclarationNode exprSet:
             {
                 var mod = EmitAccessorModifier(exprSet.AccessorModifier);
                 var expr = EmitAccessorExpression(exprSet.Expression, backingFieldName);
-                return $"{mod}set => {expr};";
+                var keyword = isReadonlyProperty ? "init" : "set";
+                return $"{mod}{keyword} => {expr};";
             }
 
             // ── Init accessors ──
@@ -3050,11 +3130,16 @@ internal sealed class CSharpSourceWriter
         var type = EmitTypeReference(blockIndexer.Type);
         var parameters = EmitParameterList(blockIndexer.Parameters);
 
+        // Task 12.2 — Determine if this indexer is readonly (emit `init` instead of `set`).
+        var indexerSymbol = _model.GetDeclaredSymbol(blockIndexer) as Symbol;
+        var isReadonlyIndexer = indexerSymbol is not null
+            && indexerSymbol.ReadonlyStatus is not ReadonlyStatus.Mutable and not ReadonlyStatus.Unknown;
+
         // Build accessor list.
         var accessorParts = new List<string>();
         foreach (var accessor in blockIndexer.Accessors)
         {
-            accessorParts.Add(EmitAccessorDeclaration(accessor, null));
+            accessorParts.Add(EmitAccessorDeclaration(accessor, null, isReadonlyIndexer));
         }
 
         var accessorBody = string.Join(" ", accessorParts);
@@ -3098,7 +3183,8 @@ internal sealed class CSharpSourceWriter
                 && !ContainsPipeOperator(sourceText)
                 && !ParameterListContainsTypeAlias(paramList, sourceText)
                 && !TypeReferenceHasDependentTypeArguments(firstType)
-                && !SourceContainsDependentTypeArguments(sourceText))
+                && !SourceContainsDependentTypeArguments(sourceText)
+                && !ContainsReadonlyKeyword(sourceText))
             {
                 return sourceText;
             }
@@ -3124,6 +3210,18 @@ internal sealed class CSharpSourceWriter
     private static bool ContainsVoidOrUnknownKeyword(string source)
     {
         return ContainsWord(source, "unknown") || ContainsWord(source, "void");
+    }
+
+    /// <summary>
+    /// Task 12.5 — Returns <c>true</c> if <paramref name="source"/> contains the
+    /// Mist keyword <c>readonly</c> as a standalone identifier (matched at word
+    /// boundaries). Used as a lexical fallback in <see cref="EmitParameterList"/>
+    /// to detect readonly parameter modifiers that must be erased in C# emission
+    /// (readonly parameters have no C# equivalent — enforcement is compile-time only).
+    /// </summary>
+    private static bool ContainsReadonlyKeyword(string source)
+    {
+        return ContainsWord(source, "readonly");
     }
 
     /// <summary>
@@ -3575,6 +3673,34 @@ internal sealed class CSharpSourceWriter
     private static bool PostfixContainsTypeLiteral(PostfixNode postfix)
     {
         return postfix.Target is TypeLiteralExpressionPrimaryNode;
+    }
+
+    /// <summary>
+    /// Returns true if the given type reference represents an array type
+    /// (i.e., has an ArrayRank suffix like <c>int[]</c> or <c>MyClass[]</c>).
+    /// </summary>
+    private static bool IsArrayTypeReference(TypeReferenceNode typeRef)
+    {
+        return typeRef switch
+        {
+            PrimitiveTypeRefTypeReferenceNode primitiveRef => primitiveRef.ArrayRank.HasValue,
+            NamedTypeRefTypeReferenceNode namedRef => namedRef.ArrayRank.HasValue,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Emits the element type name for an array type reference (without the <c>[]</c> suffix).
+    /// Used to produce the type argument in <c>Array.Empty&lt;T&gt;()</c> emission.
+    /// </summary>
+    private string EmitArrayElementTypeName(TypeReferenceNode typeRef)
+    {
+        return typeRef switch
+        {
+            PrimitiveTypeRefTypeReferenceNode primitiveRef => EmitPrimitiveType(primitiveRef.PrimitiveType),
+            NamedTypeRefTypeReferenceNode namedRef => ExtractQualifiedName(namedRef.Name) + EmitTypeArgumentList(namedRef.TypeArgs),
+            _ => "object",
+        };
     }
 
     private string EmitTypeReference(TypeReferenceNode typeRef, bool isValueContext = false)
@@ -4051,6 +4177,10 @@ internal sealed class CSharpSourceWriter
             case ExpressionStatementStatementNode exprStmt:
                 AppendLine($"{EmitExpression(exprStmt.ExpressionStatement.Expression)};");
                 break;
+            // Task 12.5 — Readonly blocks emit as regular blocks (no C# equivalent).
+            case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
+                EmitBlock(readonlyBlockStmt.ReadonlyBlock.Body);
+                break;
         }
     }
 
@@ -4062,13 +4192,21 @@ internal sealed class CSharpSourceWriter
             {
                 var type = EmitTypeReference(typed.Type, isValueContext: true);
                 var name = typed.Name.Lexeme;
+
+                // When the declared type is an array type, set the target element type
+                // so that array literal emission produces `new T[] { ... }` instead of `new[] { ... }`.
+                var declaredType = _model.GetDeclaredSymbol(typed)?.DeclaredType;
+                if (declaredType is ArrayType targetArrayType)
+                    _arrayLiteralTargetElementType = targetArrayType.ElementType;
+
                 var init = EmitExpression(typed.Initializer);
+                _arrayLiteralTargetElementType = null;
+
                 init = WrapWithImplicitCastIfNeeded(typed.Initializer, init);
                 // Task 31.1 — covariant unknown widening at the typed local
                 // declaration's assignment site. The declared type is
                 // recorded on the local variable's symbol; the initializer
                 // expression type comes from the expression-type map.
-                var declaredType = _model.GetDeclaredSymbol(typed)?.DeclaredType;
                 var initType = _model.GetTypeOf(typed.Initializer);
                 var widened = TryEmitCovariantUnknownCast(initType, declaredType, init);
                 if (widened is not null)
@@ -4435,6 +4573,92 @@ internal sealed class CSharpSourceWriter
             }
         }
         return null;
+    }
+
+    // ─── Union Switch Arm Pattern Emission ───────────────────────────────
+
+    /// <summary>
+    /// Attempts to emit a switch arm pattern for a union type scrutinee using
+    /// the union's discriminator properties (<c>Is{T}</c> / <c>As{T}</c>).
+    /// <para>
+    /// For type patterns (e.g., <c>int n</c>), emits a C# property pattern:
+    /// <c>{ IsInt32: true, AsInt32: var n }</c>.
+    /// </para>
+    /// <para>
+    /// For bare type patterns (e.g., <c>int</c>), emits:
+    /// <c>{ IsInt32: true }</c>.
+    /// </para>
+    /// <para>
+    /// For var and discard patterns, returns <c>null</c> to fall through to
+    /// standard emission (they work directly against the union helper type).
+    /// </para>
+    /// Returns <c>null</c> if the pattern cannot be emitted as a union property
+    /// pattern (compound patterns, non-type patterns, etc.).
+    /// </summary>
+    private string? TryEmitUnionSwitchArmPattern(PatternNode pattern, UnionType unionType, string scrutineeExpr)
+    {
+        // Navigate the pattern chain: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
+        // Only handle simple (non-compound) patterns for union emission.
+        var orPattern = pattern.OrPattern;
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+            return null; // or-pattern — fall through to standard emission
+
+        var andPattern = orPattern.Left;
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+            return null; // and-pattern — fall through to standard emission
+
+        var unaryPattern = andPattern.Left;
+        if (unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+            return null; // not-pattern — fall through to standard emission
+
+        var primaryPattern = directPattern.Primary;
+
+        switch (primaryPattern)
+        {
+            case TypePatternPrimaryPatternNode typePattern:
+            {
+                // Resolve the pattern type to find the matching constituent.
+                var patternType = _model.GetTypeOf(typePattern.Type);
+                patternType ??= _model.GetDeclaredSymbol(typePattern)?.DeclaredType;
+                if (patternType is null)
+                    return null;
+
+                var constituentName = FindConstituentName(patternType, unionType);
+                if (constituentName is null)
+                    return null;
+
+                var bindingName = typePattern.Name.Lexeme;
+
+                // Emit property pattern: { Is{T}: true, As{T}: var name }
+                if (bindingName != "_")
+                {
+                    return $"{{ Is{constituentName}: true, As{constituentName}: var {bindingName} }}";
+                }
+
+                // No binding needed — just check the discriminator.
+                return $"{{ Is{constituentName}: true }}";
+            }
+
+            case BareTypePatternPrimaryPatternNode bareTypePattern:
+            {
+                // Resolve the pattern type to find the matching constituent.
+                var patternType = _model.GetTypeOf(bareTypePattern.Type);
+                if (patternType is null)
+                    return null;
+
+                var constituentName = FindConstituentName(patternType, unionType);
+                if (constituentName is null)
+                    return null;
+
+                // Emit property pattern: { Is{T}: true }
+                return $"{{ Is{constituentName}: true }}";
+            }
+
+            default:
+                // var patterns, discard patterns, constant patterns, etc.
+                // fall through to standard emission.
+                return null;
+        }
     }
 
     // ─── Enum Pattern Matching ───────────────────────────────────────────
@@ -5221,6 +5445,64 @@ internal sealed class CSharpSourceWriter
                 var args = EmitArgumentList(invocation.Arguments);
                 return $"{target}({args})";
             }
+            case SwitchExpressionSuffixPostfixSuffixNode switchExpr:
+            {
+                var sb = new StringBuilder();
+                sb.Append($"{target} switch");
+                sb.Append('\n');
+                // Emit opening brace at current indent level
+                for (var i = 0; i < _indentLevel; i++)
+                    sb.Append(IndentUnit);
+                sb.Append('{');
+                _indentLevel++;
+
+                if (switchExpr.Arms is not null)
+                {
+                    void EmitArm(SwitchArmNode arm)
+                    {
+                        sb.Append('\n');
+                        for (var i = 0; i < _indentLevel; i++)
+                            sb.Append(IndentUnit);
+
+                        // Union type scrutinee: emit property patterns using Is{T}/As{T}
+                        // discriminator properties instead of C#'s native type patterns.
+                        if (receiverType is UnionType unionType)
+                        {
+                            var unionPattern = TryEmitUnionSwitchArmPattern(arm.Pattern, unionType, target);
+                            if (unionPattern is not null)
+                            {
+                                sb.Append(unionPattern);
+                                if (arm.Guard is not null)
+                                {
+                                    sb.Append($" when {EmitExpression(arm.Guard.Condition)}");
+                                }
+                                sb.Append($" => {EmitExpression(arm.Result)},");
+                                return;
+                            }
+                        }
+
+                        sb.Append(EmitPattern(arm.Pattern, receiverType));
+                        if (arm.Guard is not null)
+                        {
+                            sb.Append($" when {EmitExpression(arm.Guard.Condition)}");
+                        }
+                        sb.Append($" => {EmitExpression(arm.Result)},");
+                    }
+
+                    EmitArm(switchExpr.Arms.SwitchArm);
+                    foreach (var arm in switchExpr.Arms.SwitchArms)
+                    {
+                        EmitArm(arm);
+                    }
+                }
+
+                _indentLevel--;
+                sb.Append('\n');
+                for (var i = 0; i < _indentLevel; i++)
+                    sb.Append(IndentUnit);
+                sb.Append('}');
+                return sb.ToString();
+            }
             default:
                 return target;
         }
@@ -5416,7 +5698,38 @@ internal sealed class CSharpSourceWriter
                     }
                 }
 
+                if (objCreation.Initializer is not null)
+                {
+                    var initParts = new List<string>();
+                    if (objCreation.Initializer.Assignments is not null)
+                    {
+                        var assignments = objCreation.Initializer.Assignments;
+                        initParts.Add($"{assignments.PropertyAssignment.Name.Lexeme} = {EmitExpression(assignments.PropertyAssignment.Value)}");
+                        foreach (var assignment in assignments.PropertyAssignments)
+                        {
+                            initParts.Add($"{assignment.Name.Lexeme} = {EmitExpression(assignment.Value)}");
+                        }
+                    }
+                    return $"new {type}{typeArgs}({argsStr}) {{ {string.Join(", ", initParts)} }}";
+                }
+
                 return $"new {type}{typeArgs}({argsStr})";
+            }
+            case ObjectCreationExpressionNoArgsPrimaryNode objCreationNoArgs:
+            {
+                var type = ExtractQualifiedName(objCreationNoArgs.Type);
+                var typeArgs = EmitTypeArgumentList(objCreationNoArgs.TypeArgs);
+                var initParts = new List<string>();
+                if (objCreationNoArgs.Initializer.Assignments is not null)
+                {
+                    var assignments = objCreationNoArgs.Initializer.Assignments;
+                    initParts.Add($"{assignments.PropertyAssignment.Name.Lexeme} = {EmitExpression(assignments.PropertyAssignment.Value)}");
+                    foreach (var assignment in assignments.PropertyAssignments)
+                    {
+                        initParts.Add($"{assignment.Name.Lexeme} = {EmitExpression(assignment.Value)}");
+                    }
+                }
+                return $"new {type}{typeArgs}() {{ {string.Join(", ", initParts)} }}";
             }
             case ParenthesizedExpressionPrimaryNode paren:
                 return $"({EmitExpression(paren.Inner)})";
@@ -5446,6 +5759,36 @@ internal sealed class CSharpSourceWriter
 
                 return $"({string.Join(", ", parts)})";
             }
+            case EmptyArrayLiteralExpressionPrimaryNode:
+            {
+                // Empty array literal [] — emit Array.Empty<T>() when target type is known.
+                // When no target type is available, this is a compile error (the type checker
+                // will have already reported MIST_TC_0096), so we emit a fallback.
+                if (_arrayLiteralTargetElementType is not null)
+                {
+                    var elementTypeName = CSharpTypeMap.GetTypeName(_arrayLiteralTargetElementType);
+                    return $"Array.Empty<{elementTypeName}>()";
+                }
+                // Fallback for error case — should not normally reach here because
+                // the type checker rejects empty array literals without target type.
+                return "Array.Empty<object>()";
+            }
+            case ArrayLiteralExpressionPrimaryNode arrayLiteral:
+            {
+                var elements = new List<string> { EmitExpression(arrayLiteral.First) };
+                foreach (var elem in arrayLiteral.Expressions)
+                    elements.Add(EmitExpression(elem));
+
+                // When the array literal is assigned to a variable with an explicit
+                // array type annotation, emit `new T[] { ... }` instead of `new[] { ... }`.
+                if (_arrayLiteralTargetElementType is not null)
+                {
+                    var elementTypeName = CSharpTypeMap.GetTypeName(_arrayLiteralTargetElementType);
+                    return $"new {elementTypeName}[] {{ {string.Join(", ", elements)} }}";
+                }
+
+                return $"new[] {{ {string.Join(", ", elements)} }}";
+            }
             case IdentifierExpressionPrimaryNode ident:
             {
                 var identName = ident.Name.Lexeme;
@@ -5468,7 +5811,9 @@ internal sealed class CSharpSourceWriter
             case FieldKeywordExpressionPrimaryNode:
                 return "field";
             case TypeLiteralExpressionPrimaryNode typeLiteral:
+            {
                 return $"typeof({EmitTypeReference(typeLiteral.TypeRef)})";
+            }
             case DefaultExpressionPrimaryNode defaultExpr:
             {
                 // Resolve the type from the semantic model's expression type map.

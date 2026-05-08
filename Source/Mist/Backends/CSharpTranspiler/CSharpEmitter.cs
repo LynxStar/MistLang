@@ -86,7 +86,11 @@ public sealed class CSharpEmitter
                 var isReferencedProject = unit.OriginProjectPath is not null;
                 var writer = new CSharpSourceWriter(model, backendNamespaces, unit.Source, diagnostics, isReferencedProject);
                 var csContent = writer.EmitCompilationUnit(compilationUnit);
-                files[relativePath] = csContent;
+
+                // Skip emitting files that contain no meaningful type declarations
+                // (e.g., stdlib files where all types are backend-backed and were skipped).
+                if (!IsEmptyEmission(csContent))
+                    files[relativePath] = csContent;
 
                 if (writer.NeedsMistVoidStruct)
                     anyNeedsMistVoid = true;
@@ -107,6 +111,26 @@ public sealed class CSharpEmitter
         }
 
         return files;
+    }
+
+    /// <summary>
+    /// Returns true if the emitted C# content contains no meaningful type declarations —
+    /// just a namespace line and whitespace. This happens for stdlib files where all types
+    /// are backend-backed (e.g., Boolean.mist, Int32.mist) and were skipped during emission.
+    /// </summary>
+    private static bool IsEmptyEmission(string content)
+    {
+        // A non-empty emission will contain at least one type keyword (class, struct, interface, enum).
+        // An empty emission is just "namespace X;\n\n" or "namespace X\n{\n}\n".
+        var trimmed = content.AsSpan().Trim();
+        if (trimmed.IsEmpty)
+            return true;
+
+        // Check if the content contains any type declaration keywords after the namespace line.
+        return !content.Contains("class ")
+            && !content.Contains("struct ")
+            && !content.Contains("interface ")
+            && !content.Contains("enum ");
     }
 
     private static void EmitCsproj(string outputDirectory, string projectName)

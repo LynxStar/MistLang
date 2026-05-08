@@ -1877,6 +1877,15 @@ public sealed class MistPrettyPrinter
                 return $"default({EmitTypeReference(defaultExpr.Type)})";
             case DefaultLiteralExpressionPrimaryNode:
                 return "default";
+            case ArrayLiteralExpressionPrimaryNode arrayLiteral:
+            {
+                var elements = new List<string> { EmitExpression(arrayLiteral.First) };
+                foreach (var elem in arrayLiteral.Expressions)
+                    elements.Add(EmitExpression(elem));
+                return $"[{string.Join(", ", elements)}]";
+            }
+            case EmptyArrayLiteralExpressionPrimaryNode:
+                return "[]";
             default:
                 return "";
         }

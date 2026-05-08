@@ -27,6 +27,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     [ThreadStatic]
     private static ExtensionRegistry? _extensionRegistryContext;
 
+    // ── Target type context for empty array literal inference ─────────────
+    // Set before resolving a typed variable declaration's initializer so that
+    // EmptyArrayLiteralExpressionPrimaryNode can infer its element type from
+    // the declared array type. Cleared immediately after resolution.
+    [ThreadStatic]
+    private static IType? _emptyArrayTargetType;
+
     // ── Intrinsic-marker diagnostic IDs (Task 9, Requirements 5.3, 5.6, 5.13, 5.15) ──
     /// <summary>
     /// An intrinsic member was declared with a body. Per Requirement 5.3,
@@ -10001,7 +10008,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (fieldDecl.Initializer is ExpressionNode initExpr)
         {
             var isStatic = fieldDecl.Modifiers.Any(m => m is StaticModifierModifierNode);
+            _emptyArrayTargetType = fieldType;
             ResolveExpression(initExpr, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _emptyArrayTargetType = null;
         }
     }
 
@@ -10574,7 +10583,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case TypedVariableDeclarationVariableDeclarationStatementNode typed:
             {
                 var declaredType = ResolveTypeReference(typed.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+                // Set target type context so EmptyArrayLiteralExpressionPrimaryNode
+                // can infer its element type from the declared array type.
+                _emptyArrayTargetType = declaredType;
                 var initType = ResolveExpression(typed.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                _emptyArrayTargetType = null;
 
                 var varName = typed.Name.Lexeme;
                 var varSpan = ToMistSourceSpan(typed.Name.Span);
@@ -13705,6 +13719,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var referencedType = ResolveTypeReference(
                     typeLiteral.TypeRef, fileScope, ambientTypeResolver,
                     symbolTable, sourceText, diagnostics);
+
                 // The expression type of a type literal is always the metatype Type.
                 try
                 {
@@ -13737,6 +13752,44 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // the actual type from context or emit a diagnostic if
                 // inference is not possible.
                 result = ErrorType.Instance;
+                break;
+            }
+
+            case EmptyArrayLiteralExpressionPrimaryNode:
+            {
+                // Empty array literal [] — if a target type is available (from variable
+                // declaration annotation) and is an ArrayType, use the target element type.
+                // Otherwise, produce ErrorType (the type checker will emit a diagnostic
+                // indicating that empty array literals require an explicit element type).
+                if (_emptyArrayTargetType is ArrayType targetArrayType)
+                {
+                    result = targetArrayType;
+                }
+                else
+                {
+                    result = ErrorType.Instance;
+                }
+                break;
+            }
+
+            case ArrayLiteralExpressionPrimaryNode arrayLiteral:
+            {
+                // Resolve all element expressions and produce an ArrayType
+                // with the common element type.
+                var elementType = ResolveExpression(arrayLiteral.First, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                foreach (var elem in arrayLiteral.Expressions)
+                {
+                    var elemType = ResolveExpression(elem, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    if (!TypesMatch(elementType, elemType))
+                    {
+                        // Types differ — attempt to find a common base type.
+                        var commonBase = FindCommonBaseType(new List<IType> { elementType, elemType });
+                        elementType = commonBase ?? elementType;
+                    }
+                }
+
+                result = new ArrayType(elementType);
                 break;
             }
 

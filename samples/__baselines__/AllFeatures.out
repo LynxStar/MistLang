@@ -453,4 +453,28 @@ Level: Advanced
 (0,0) => origin
 (1,0) => on x-axis
 Done!
+=== ArrayLiterals Sample ===
+--- Single-element array ---
+  [1]
+--- Multi-element array ---
+  [1, 2, 3]
+--- Trailing comma ---
+  [1, 2, 3]
+--- Nested arrays ---
+  [[1, 2], [3, 4]]
+--- Array literal as method argument ---
+  [4, 5, 6]
+--- Array literal as return value ---
+  [10, 20, 30]
+--- Array literal as assignment RHS ---
+  [7, 8, 9]
+--- Explicit type annotation ---
+  [1, 2, 3]
+--- Empty array literal ---
+  Length: 0
+--- String array ---
+  [hello, world]
+--- Boolean array ---
+  [True, False, True]
+Done!
 === Done! ===

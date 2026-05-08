@@ -492,6 +492,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId ConstraintPropagationInsufficient = new("MIST_CONSTRAINT_0017");
 
+    // ── array-literals feature: incompatible element types ──────────────
+
+    /// <summary>
+    /// Emitted when an array literal contains elements whose types are
+    /// incompatible — no common type can be determined. The diagnostic
+    /// message names the two conflicting types (Requirement 5.2).
+    /// </summary>
+    internal static readonly DiagnosticId ArrayLiteralIncompatibleTypes = new("MIST_TC_0095");
+
     // ── enums feature: assignability diagnostic ──────────────────────────
 
     /// <summary>
@@ -5419,6 +5428,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Type checking is handled by assignability checks at usage sites.
                 break;
 
+            case EmptyArrayLiteralExpressionPrimaryNode emptyArrayLiteral:
+                // Empty array literal [] — when no target type is available (resolved
+                // as ErrorType by the semantic model builder), emit a diagnostic error.
+                // When assigned to a typed variable, the type is inferred from the
+                // annotation and no error is needed.
+                {
+                    var resolvedType = model.GetTypeOf(emptyArrayLiteral);
+                    if (resolvedType is Mist.Semantics.Model.Types.ErrorType)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0096",
+                            "Cannot infer element type for empty array literal '[]'. Provide an explicit array type annotation (e.g., 'int[] x = [];').",
+                            emptyArrayLiteral,
+                            model));
+                    }
+                }
+                break;
+
             case FieldKeywordExpressionPrimaryNode fieldKeyword:
                 // MIST_TC_0023: 'field' keyword used outside property accessor body.
                 // If we reach here during method/constructor body checking, it means
@@ -5442,6 +5469,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             case DefaultLiteralExpressionPrimaryNode defaultLiteral:
                 CheckDefaultLiteralExpression(defaultLiteral, model, diagnostics);
+                break;
+
+            case ArrayLiteralExpressionPrimaryNode arrayLiteral:
+                CheckArrayLiteral(arrayLiteral, model, diagnostics);
                 break;
 
             // Literals and identifiers don't need type checking.
@@ -6542,6 +6573,135 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     $"Array size must be of type 'int', but found '{sizeType.DisplayName}'",
                     arrayCreation.Size,
                     model));
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Array literal checking (MIST_TC_0034, MIST_TC_0095, MIST_SB_0055)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private void CheckArrayLiteral(
+        ArrayLiteralExpressionPrimaryNode arrayLiteral,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Recursively type-check the first element expression.
+        CheckExpression(arrayLiteral.First, model, diagnostics);
+
+        // Recursively type-check each remaining element expression.
+        foreach (var elem in arrayLiteral.Expressions)
+        {
+            CheckExpression(elem, model, diagnostics);
+        }
+
+        // Get the type of the first element.
+        var firstType = model.GetTypeOf(arrayLiteral.First);
+
+        // Validate the first element is not void (MIST_TC_0034).
+        if (firstType is not null && !IsErrorType(firstType) && firstType.IsVoid())
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0034",
+                "Cannot create an array of type 'void'. Void is not permitted as an array element type.",
+                arrayLiteral.First,
+                model));
+        }
+
+        // Validate the first element does not contain unknown (MIST_SB_0055).
+        if (firstType is not null && !IsErrorType(firstType) && TypeContainment.IsStorageBanned(firstType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                SemanticModelBuilder.UnknownAsArrayElement.Value,
+                $"Cannot create an array with element type '{firstType.DisplayName}' because it contains 'unknown'. Array elements are writable storage and cannot hold an 'unknown'-typed value.",
+                arrayLiteral.First,
+                model));
+        }
+
+        // Validate each remaining element.
+        foreach (var elem in arrayLiteral.Expressions)
+        {
+            var elemType = model.GetTypeOf(elem);
+            if (elemType is null || IsErrorType(elemType))
+                continue;
+
+            // Reject void elements (MIST_TC_0034).
+            if (elemType.IsVoid())
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0034",
+                    "Cannot create an array of type 'void'. Void is not permitted as an array element type.",
+                    elem,
+                    model));
+                continue;
+            }
+
+            // Reject unknown elements (MIST_SB_0055).
+            if (TypeContainment.IsStorageBanned(elemType))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    SemanticModelBuilder.UnknownAsArrayElement.Value,
+                    $"Cannot create an array with element type '{elemType.DisplayName}' because it contains 'unknown'. Array elements are writable storage and cannot hold an 'unknown'-typed value.",
+                    elem,
+                    model));
+                continue;
+            }
+
+            // Validate element type compatibility with the first element (MIST_TC_0095).
+            if (firstType is not null && !IsErrorType(firstType) && !firstType.IsVoid()
+                && !TypeContainment.IsStorageBanned(firstType))
+            {
+                if (!IsAssignable(elemType, firstType, model) && !IsAssignable(firstType, elemType, model))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        ArrayLiteralIncompatibleTypes.Value,
+                        $"Array literal elements have incompatible types: '{firstType.DisplayName}' and '{elemType.DisplayName}'. All elements must share a common type.",
+                        elem,
+                        model));
+                }
+            }
+        }
+
+        // When the array literal has a known target type (from the semantic model),
+        // validate each element is assignable to the target element type.
+        var arrayType = model.GetTypeOf(arrayLiteral);
+        if (arrayType is ArrayType targetArrayType)
+        {
+            var targetElementType = targetArrayType.ElementType;
+            if (!IsErrorType(targetElementType) && !targetElementType.IsVoid()
+                && !TypeContainment.IsStorageBanned(targetElementType))
+            {
+                // Check first element against target element type.
+                if (firstType is not null && !IsErrorType(firstType) && !firstType.IsVoid()
+                    && !TypeContainment.IsStorageBanned(firstType))
+                {
+                    if (!IsAssignable(firstType, targetElementType, model))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            ArrayLiteralIncompatibleTypes.Value,
+                            $"Array literal elements have incompatible types: '{firstType.DisplayName}' and '{targetElementType.DisplayName}'. All elements must share a common type.",
+                            arrayLiteral.First,
+                            model));
+                    }
+                }
+
+                // Check remaining elements against target element type.
+                foreach (var elem in arrayLiteral.Expressions)
+                {
+                    var elemType = model.GetTypeOf(elem);
+                    if (elemType is null || IsErrorType(elemType) || elemType.IsVoid()
+                        || TypeContainment.IsStorageBanned(elemType))
+                        continue;
+
+                    if (!IsAssignable(elemType, targetElementType, model))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            ArrayLiteralIncompatibleTypes.Value,
+                            $"Array literal elements have incompatible types: '{elemType.DisplayName}' and '{targetElementType.DisplayName}'. All elements must share a common type.",
+                            elem,
+                            model));
+                    }
+                }
             }
         }
     }

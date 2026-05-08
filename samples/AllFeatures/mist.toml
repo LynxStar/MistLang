@@ -68,3 +68,6 @@ path = "../ReadonlyContexts"
 
 [[references]]
 path = "../SwitchExpressions"
+
+[[references]]
+path = "../ArrayLiterals"

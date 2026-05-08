@@ -277,6 +277,13 @@ internal sealed class CSharpSourceWriter
     /// Used to scope type alias fallback resolution to the correct namespace.
     /// </summary>
     private string? _currentNamespace;
+    /// <summary>
+    /// When non-null, indicates that the current expression being emitted is the
+    /// initializer of a typed variable declaration whose type is an array type.
+    /// The emitter uses this to emit <c>new T[] { ... }</c> instead of <c>new[] { ... }</c>
+    /// for array literals assigned to explicitly-typed array variables.
+    /// </summary>
+    private IType? _arrayLiteralTargetElementType;
     private const string IndentUnit = "    ";
 
     /// <summary>
@@ -3448,6 +3455,34 @@ internal sealed class CSharpSourceWriter
         return postfix.Target is TypeLiteralExpressionPrimaryNode;
     }
 
+    /// <summary>
+    /// Returns true if the given type reference represents an array type
+    /// (i.e., has an ArrayRank suffix like <c>int[]</c> or <c>MyClass[]</c>).
+    /// </summary>
+    private static bool IsArrayTypeReference(TypeReferenceNode typeRef)
+    {
+        return typeRef switch
+        {
+            PrimitiveTypeRefTypeReferenceNode primitiveRef => primitiveRef.ArrayRank.HasValue,
+            NamedTypeRefTypeReferenceNode namedRef => namedRef.ArrayRank.HasValue,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Emits the element type name for an array type reference (without the <c>[]</c> suffix).
+    /// Used to produce the type argument in <c>Array.Empty&lt;T&gt;()</c> emission.
+    /// </summary>
+    private string EmitArrayElementTypeName(TypeReferenceNode typeRef)
+    {
+        return typeRef switch
+        {
+            PrimitiveTypeRefTypeReferenceNode primitiveRef => EmitPrimitiveType(primitiveRef.PrimitiveType),
+            NamedTypeRefTypeReferenceNode namedRef => ExtractQualifiedName(namedRef.Name) + EmitTypeArgumentList(namedRef.TypeArgs),
+            _ => "object",
+        };
+    }
+
     private string EmitTypeReference(TypeReferenceNode typeRef, bool isValueContext = false)
     {
         switch (typeRef)
@@ -3910,13 +3945,21 @@ internal sealed class CSharpSourceWriter
             {
                 var type = EmitTypeReference(typed.Type, isValueContext: true);
                 var name = typed.Name.Lexeme;
+
+                // When the declared type is an array type, set the target element type
+                // so that array literal emission produces `new T[] { ... }` instead of `new[] { ... }`.
+                var declaredType = _model.GetDeclaredSymbol(typed)?.DeclaredType;
+                if (declaredType is ArrayType targetArrayType)
+                    _arrayLiteralTargetElementType = targetArrayType.ElementType;
+
                 var init = EmitExpression(typed.Initializer);
+                _arrayLiteralTargetElementType = null;
+
                 init = WrapWithImplicitCastIfNeeded(typed.Initializer, init);
                 // Task 31.1 — covariant unknown widening at the typed local
                 // declaration's assignment site. The declared type is
                 // recorded on the local variable's symbol; the initializer
                 // expression type comes from the expression-type map.
-                var declaredType = _model.GetDeclaredSymbol(typed)?.DeclaredType;
                 var initType = _model.GetTypeOf(typed.Initializer);
                 var widened = TryEmitCovariantUnknownCast(initType, declaredType, init);
                 if (widened is not null)
@@ -5409,12 +5452,44 @@ internal sealed class CSharpSourceWriter
 
                 return $"({string.Join(", ", parts)})";
             }
+            case EmptyArrayLiteralExpressionPrimaryNode:
+            {
+                // Empty array literal [] — emit Array.Empty<T>() when target type is known.
+                // When no target type is available, this is a compile error (the type checker
+                // will have already reported MIST_TC_0096), so we emit a fallback.
+                if (_arrayLiteralTargetElementType is not null)
+                {
+                    var elementTypeName = CSharpTypeMap.GetTypeName(_arrayLiteralTargetElementType);
+                    return $"Array.Empty<{elementTypeName}>()";
+                }
+                // Fallback for error case — should not normally reach here because
+                // the type checker rejects empty array literals without target type.
+                return "Array.Empty<object>()";
+            }
+            case ArrayLiteralExpressionPrimaryNode arrayLiteral:
+            {
+                var elements = new List<string> { EmitExpression(arrayLiteral.First) };
+                foreach (var elem in arrayLiteral.Expressions)
+                    elements.Add(EmitExpression(elem));
+
+                // When the array literal is assigned to a variable with an explicit
+                // array type annotation, emit `new T[] { ... }` instead of `new[] { ... }`.
+                if (_arrayLiteralTargetElementType is not null)
+                {
+                    var elementTypeName = CSharpTypeMap.GetTypeName(_arrayLiteralTargetElementType);
+                    return $"new {elementTypeName}[] {{ {string.Join(", ", elements)} }}";
+                }
+
+                return $"new[] {{ {string.Join(", ", elements)} }}";
+            }
             case IdentifierExpressionPrimaryNode ident:
                 return ident.Name.Lexeme;
             case FieldKeywordExpressionPrimaryNode:
                 return "field";
             case TypeLiteralExpressionPrimaryNode typeLiteral:
+            {
                 return $"typeof({EmitTypeReference(typeLiteral.TypeRef)})";
+            }
             case DefaultExpressionPrimaryNode defaultExpr:
             {
                 // Resolve the type from the semantic model's expression type map.

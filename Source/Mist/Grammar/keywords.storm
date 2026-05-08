@@ -82,3 +82,7 @@ token IS  = "is";
 token AND = "and";
 token OR  = "or";
 token NOT = "not";
+
+// Switch expression keywords
+token SWITCH = "switch";
+token WHEN   = "when";

@@ -33,6 +33,7 @@ public class Program
         Namespaces.Program.RunDemo();
         GenericConstraints.Program.RunDemo();
         ReadonlyContexts.Program.RunDemo();
+        SwitchExpressions.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

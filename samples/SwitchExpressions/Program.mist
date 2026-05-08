@@ -1,0 +1,197 @@
+// SwitchExpressions — Demonstrates exhaustive switch expressions in Mist.
+
+using System;
+
+namespace SwitchExpressions;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Switch Expressions Sample ===");
+
+        // 1. Constant patterns: integer
+        Console.WriteLine("--- Constant patterns: integer ---");
+        int day = 3;
+        var dayName = day switch {
+            1 => "Monday",
+            2 => "Tuesday",
+            3 => "Wednesday",
+            4 => "Thursday",
+            5 => "Friday",
+            var _ => "Weekend",
+        };
+        Console.WriteLine($"Day {day} is {dayName}");
+
+        // 2. Constant patterns: string
+        Console.WriteLine("--- Constant patterns: string ---");
+        string command = "quit";
+        var response = command switch {
+            "start" => "Starting...",
+            "stop" => "Stopping...",
+            "quit" => "Goodbye!",
+            var _ => "Unknown command",
+        };
+        Console.WriteLine($"Command '{command}' => {response}");
+
+        // 3. Constant patterns: boolean (exhaustive without wildcard)
+        Console.WriteLine("--- Constant patterns: boolean ---");
+        bool isActive = true;
+        var status = isActive switch {
+            true => "Active",
+            false => "Inactive",
+        };
+        Console.WriteLine($"isActive={isActive} => {status}");
+
+        // 4. Discard pattern (var _) as catch-all
+        Console.WriteLine("--- Discard pattern (var _) ---");
+        int code = 99;
+        var meaning = code switch {
+            0 => "Zero",
+            1 => "One",
+            var _ => "Other",
+        };
+        Console.WriteLine($"Code {code} => {meaning}");
+
+        // 5. Var pattern as catch-all that binds the value
+        Console.WriteLine("--- Var pattern catch-all ---");
+        int value = 42;
+        var description = value switch {
+            0 => "nothing",
+            1 => "single",
+            var x => $"many ({x})",
+        };
+        Console.WriteLine($"Value {value} => {description}");
+
+        // 6. Type patterns with type union scrutinee
+        Console.WriteLine("--- Type patterns with type union ---");
+        int | string mixed = 123;
+        var typeResult = mixed switch {
+            int n => $"integer: {n}",
+            string s => $"string: {s}",
+        };
+        Console.WriteLine($"mixed (int) => {typeResult}");
+
+        int | string mixed2 = "hello";
+        var typeResult2 = mixed2 switch {
+            int n => $"integer: {n}",
+            string s => $"string: {s}",
+        };
+        Console.WriteLine($"mixed (string) => {typeResult2}");
+
+        // 7. Relational patterns
+        Console.WriteLine("--- Relational patterns ---");
+        int temp = 75;
+        var comfort = temp switch {
+            < 32 => "Freezing",
+            < 60 => "Cold",
+            <= 80 => "Comfortable",
+            var _ => "Hot",
+        };
+        Console.WriteLine($"Temperature {temp} => {comfort}");
+
+        // 8. Logical patterns
+        Console.WriteLine("--- Logical patterns ---");
+        int score = 85;
+        var grade = score switch {
+            >= 90 and <= 100 => "A",
+            >= 80 and < 90 => "B",
+            >= 70 and < 80 => "C",
+            >= 60 and < 70 => "D",
+            var _ => "F",
+        };
+        Console.WriteLine($"Score {score} => Grade {grade}");
+
+        // 9. Property patterns
+        Console.WriteLine("--- Property patterns ---");
+        string word = "extraordinary";
+        var lengthCategory = word switch {
+            { Length: <= 3 } => "short",
+            { Length: > 3 and <= 8 } => "medium",
+            var _ => "long",
+        };
+        Console.WriteLine($"Word '{word}' (length {word.Length}) => {lengthCategory}");
+
+        // 10. List patterns
+        Console.WriteLine("--- List patterns ---");
+        int[] nums = new int[3];
+        nums[0] = 1;
+        nums[1] = 2;
+        nums[2] = 3;
+        var listDesc = nums switch {
+            [1, 2, ..] => "starts with 1, 2",
+            var _ => "other",
+        };
+        Console.WriteLine($"Array [1,2,3] => {listDesc}");
+
+        // 11. When guards
+        Console.WriteLine("--- When guards ---");
+        int number = -5;
+        var sign = number switch {
+            int n when n > 0 => "positive",
+            int n when n < 0 => "negative",
+            var _ => "zero",
+        };
+        Console.WriteLine($"Number {number} => {sign}");
+
+        int amount = 150;
+        var tier = amount switch {
+            int n when n >= 100 => $"premium (value={n})",
+            int n when n >= 50 => $"standard (value={n})",
+            var _ => "basic",
+        };
+        Console.WriteLine($"Amount {amount} => {tier}");
+
+        // 12. Switch as variable assignment
+        Console.WriteLine("--- Expression contexts: assignment ---");
+        int num2 = 2;
+        var parity = num2 switch {
+            1 => "odd",
+            2 => "even",
+            3 => "odd",
+            var _ => "unknown",
+        };
+        Console.WriteLine($"num2={num2} parity={parity}");
+
+        // 13. Switch as method argument
+        Console.WriteLine("--- Expression contexts: method argument ---");
+        int level = 3;
+        Console.WriteLine(level switch {
+            1 => "Level: Beginner",
+            2 => "Level: Intermediate",
+            3 => "Level: Advanced",
+            var _ => "Level: Unknown",
+        });
+
+        // 14. Switch with tuple scrutinee
+        Console.WriteLine("--- Expression contexts: tuple scrutinee ---");
+        int row = 0;
+        int col = 0;
+        var coords = (row, col);
+        var position = coords switch {
+            { Item1: 0, Item2: 0 } => "origin",
+            { Item1: 0 } => "on y-axis",
+            { Item2: 0 } => "on x-axis",
+            var _ => "elsewhere",
+        };
+        Console.WriteLine($"({row},{col}) => {position}");
+
+        int row2 = 1;
+        int col2 = 0;
+        var coords2 = (row2, col2);
+        var position2 = coords2 switch {
+            { Item1: 0, Item2: 0 } => "origin",
+            { Item1: 0 } => "on y-axis",
+            { Item2: 0 } => "on x-axis",
+            var _ => "elsewhere",
+        };
+        Console.WriteLine($"({row2},{col2}) => {position2}");
+
+        Console.WriteLine("Done!");
+    }
+}

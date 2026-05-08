@@ -65,3 +65,6 @@ path = "../GenericConstraints"
 
 [[references]]
 path = "../ReadonlyContexts"
+
+[[references]]
+path = "../SwitchExpressions"

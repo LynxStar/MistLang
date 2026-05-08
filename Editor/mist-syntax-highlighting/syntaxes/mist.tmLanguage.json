@@ -93,7 +93,7 @@
       "patterns": [
         {
           "name": "keyword.control.mist",
-          "match": "\\b(if|else|while|for|foreach|in|break|return)\\b"
+          "match": "\\b(if|else|while|for|foreach|in|break|return|switch|when)\\b"
         },
         {
           "name": "keyword.declaration.mist",

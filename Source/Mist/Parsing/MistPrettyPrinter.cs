@@ -1769,6 +1769,35 @@ public sealed class MistPrettyPrinter
                 var args = EmitArgumentList(invocation.Arguments);
                 return $"{target}({args})";
             }
+            case SwitchExpressionSuffixPostfixSuffixNode switchExpr:
+            {
+                var sb = new StringBuilder();
+                sb.Append($"{target} switch {{");
+
+                if (switchExpr.Arms is not null)
+                {
+                    void AppendArm(StringBuilder builder, SwitchArmNode arm)
+                    {
+                        builder.Append(' ');
+                        builder.Append(EmitPattern(arm.Pattern));
+                        if (arm.Guard is not null)
+                        {
+                            builder.Append($" when {EmitExpression(arm.Guard.Condition)}");
+                        }
+                        builder.Append($" => {EmitExpression(arm.Result)}");
+                        builder.Append(',');
+                    }
+
+                    AppendArm(sb, switchExpr.Arms.SwitchArm);
+                    foreach (var arm in switchExpr.Arms.SwitchArms)
+                    {
+                        AppendArm(sb, arm);
+                    }
+                }
+
+                sb.Append(" }");
+                return sb.ToString();
+            }
             default:
                 return target;
         }

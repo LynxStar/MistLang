@@ -396,6 +396,43 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId ReadonlyContractViolation = new("MIST_TC_0079");
 
+    // ── switch-expressions feature: type checker diagnostics ─────────────
+    //
+    // Note on numbering: the switch-expressions design document's Diagnostic
+    // ID Allocation table originally proposed MIST_TC_0060–0063 for the four
+    // switch expression diagnostics below. Those codes were already allocated
+    // to the unknown-type feature (see UnknownToNonUnknown, VoidToUnknown,
+    // UnknownClosedGenericMemberFiltered, and PatternNarrowToUnknown above),
+    // so the switch-expressions diagnostics were reallocated to
+    // MIST_TC_0090–0093 — the next free codes after the extension-methods
+    // diagnostics (MIST_TC_0080–0083). This continues the same reallocation
+    // strategy used throughout this file.
+
+    /// <summary>
+    /// Emitted when a switch expression does not cover all possible values
+    /// of the scrutinee's static type. The diagnostic message lists the
+    /// missing cases (Requirement 6.6).
+    /// </summary>
+    internal static readonly DiagnosticId SwitchNotExhaustive = new("MIST_TC_0090");
+
+    /// <summary>
+    /// Emitted when the result expressions of switch arms have incompatible
+    /// types — no common type can be determined (Requirement 5.4).
+    /// </summary>
+    internal static readonly DiagnosticId SwitchIncompatibleArmTypes = new("MIST_TC_0091");
+
+    /// <summary>
+    /// Emitted when a <c>when</c> guard expression in a switch arm does not
+    /// evaluate to type <c>bool</c> (Requirement 8.2).
+    /// </summary>
+    internal static readonly DiagnosticId SwitchGuardNotBool = new("MIST_TC_0092");
+
+    /// <summary>
+    /// Emitted as a warning when a switch arm is unreachable because it is
+    /// subsumed by a preceding arm (Requirement 7.1).
+    /// </summary>
+    internal static readonly DiagnosticId SwitchUnreachableArm = new("MIST_TC_0093");
+
     // ── Generic constraint satisfaction diagnostic IDs ────────────────────
 
     /// <summary>
@@ -4571,6 +4608,46 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     targetIsTypeName = false;
                     break;
 
+                case SwitchExpressionSuffixPostfixSuffixNode switchExpr:
+                    // Walk each switch arm: check guard type and recurse into sub-expressions.
+                    if (switchExpr.Arms is not null)
+                    {
+                        CheckSwitchArm(switchExpr.Arms.SwitchArm, model, diagnostics);
+                        foreach (var arm in switchExpr.Arms.SwitchArms)
+                        {
+                            CheckSwitchArm(arm, model, diagnostics);
+                        }
+
+                        // Task 5.3: Arm result type compatibility checking.
+                        // If the semantic model determined that no common type exists
+                        // (unified type is UnknownType), emit MIST_TC_0091.
+                        CheckSwitchArmResultTypeCompatibility(switchExpr, model, diagnostics);
+
+                        // Task 5.5: Exhaustiveness checking.
+                        // The scrutinee type is `currentType` at this point (the type
+                        // of the expression before the switch suffix was applied).
+                        if (currentType is not null && currentType is not ErrorType)
+                        {
+                            var armTuples = BuildSwitchArmTuples(switchExpr.Arms);
+                            var missingCases = ExhaustivenessChecker.CheckExhaustiveness(currentType, armTuples);
+                            if (missingCases.Count > 0)
+                            {
+                                var casesStr = string.Join(", ", missingCases);
+                                diagnostics.Add(MakeDiagnostic(
+                                    SwitchNotExhaustive.Value,
+                                    $"Switch expression is not exhaustive. Missing cases: {casesStr}",
+                                    switchExpr,
+                                    model));
+                            }
+                        }
+
+                        // Task 5.6: Unreachable arm detection.
+                        CheckSwitchUnreachableArms(switchExpr.Arms, model, diagnostics);
+                    }
+                    currentType = model.GetTypeOf(suffix) ?? currentType;
+                    targetIsTypeName = false;
+                    break;
+
                 case MemberAccessSuffixPostfixSuffixNode memberAccess:
                     // Task 25.1: bare-unknown member access rejection.
                     // A member access on a receiver whose static type is
@@ -4635,6 +4712,274 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Checks a single switch arm: validates the guard expression type (must be bool)
+    /// and recursively walks the guard and result sub-expressions.
+    /// Emits <see cref="SwitchGuardNotBool"/> (MIST_TC_0092) if the guard type is not bool.
+    /// </summary>
+    private void CheckSwitchArm(SwitchArmNode arm, ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        // Walk the guard expression (if present) and verify it resolves to bool.
+        if (arm.Guard is not null)
+        {
+            CheckExpression(arm.Guard.Condition, model, diagnostics);
+            var guardType = model.GetTypeOf(arm.Guard.Condition);
+            if (guardType is not null && !IsErrorType(guardType) && !IsBoolLike(guardType))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    SwitchGuardNotBool.Value,
+                    $"When guard must be a boolean expression, got '{guardType.DisplayName}'",
+                    arm.Guard.Condition,
+                    model));
+            }
+        }
+
+        // Walk the result expression to check its sub-expressions.
+        CheckExpression(arm.Result, model, diagnostics);
+    }
+
+    /// <summary>
+    /// Checks that all switch arm result expressions have compatible types.
+    /// If the semantic model's unified result type is <see cref="UnknownType"/>
+    /// (indicating no common type could be determined), emits
+    /// <see cref="SwitchIncompatibleArmTypes"/> (MIST_TC_0091) with the first
+    /// pair of incompatible types found.
+    /// </summary>
+    private static void CheckSwitchArmResultTypeCompatibility(
+        SwitchExpressionSuffixPostfixSuffixNode switchExpr,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // The unified result type stored by the semantic model is UnknownType.Instance
+        // when no common type could be determined across all arms.
+        var unifiedType = model.GetTypeOf(switchExpr);
+        if (unifiedType is not UnknownType)
+            return;
+
+        // Collect arm result types to find the first incompatible pair.
+        var arms = switchExpr.Arms!;
+        var firstArmType = model.GetTypeOf(arms.SwitchArm.Result);
+        if (firstArmType is null || IsErrorType(firstArmType))
+            return;
+
+        // Check the first arm against remaining arms to find the incompatible pair.
+        foreach (var arm in arms.SwitchArms)
+        {
+            var armType = model.GetTypeOf(arm.Result);
+            if (armType is null || IsErrorType(armType))
+                continue;
+
+            if (!IsAssignable(armType, firstArmType) && !IsAssignable(firstArmType, armType))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    SwitchIncompatibleArmTypes.Value,
+                    $"Switch arms have incompatible types: '{firstArmType.DisplayName}' and '{armType.DisplayName}'",
+                    switchExpr,
+                    model));
+                return;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Builds the list of <c>(PatternNode, bool HasGuard)</c> tuples from a
+    /// <see cref="SwitchArmListNode"/> for use by the exhaustiveness checker.
+    /// </summary>
+    private static IReadOnlyList<(PatternNode Pattern, bool HasGuard)> BuildSwitchArmTuples(
+        SwitchArmListNode armList)
+    {
+        var result = new List<(PatternNode, bool)>();
+        result.Add((armList.SwitchArm.Pattern, armList.SwitchArm.Guard is not null));
+        foreach (var arm in armList.SwitchArms)
+        {
+            result.Add((arm.Pattern, arm.Guard is not null));
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Detects unreachable switch arms and emits <see cref="SwitchUnreachableArm"/>
+    /// (MIST_TC_0093) for each one. An arm is unreachable if:
+    /// <list type="bullet">
+    ///   <item>An unguarded catch-all (<c>_</c> or <c>var</c>) appears at an earlier position.</item>
+    ///   <item>An unguarded constant pattern duplicates a preceding unguarded constant pattern.</item>
+    ///   <item>An unguarded type pattern duplicates a preceding unguarded type pattern for the same type.</item>
+    /// </list>
+    /// </summary>
+    private static void CheckSwitchUnreachableArms(
+        SwitchArmListNode armList,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Collect all arms into a flat list for positional iteration.
+        var arms = new List<SwitchArmNode> { armList.SwitchArm };
+        foreach (var arm in armList.SwitchArms)
+        {
+            arms.Add(arm);
+        }
+
+        var catchAllSeenAtIndex = -1;
+        var seenConstants = new HashSet<string>(StringComparer.Ordinal);
+        var seenTypes = new HashSet<string>(StringComparer.Ordinal);
+
+        for (var i = 0; i < arms.Count; i++)
+        {
+            var arm = arms[i];
+            var hasGuard = arm.Guard is not null;
+
+            // Rule 1: If an unguarded catch-all was seen at an earlier position,
+            // all subsequent arms are unreachable.
+            if (catchAllSeenAtIndex >= 0 && i > catchAllSeenAtIndex)
+            {
+                diagnostics.Add(MakeDiagnosticWarning(
+                    SwitchUnreachableArm.Value,
+                    "Switch arm is unreachable",
+                    arm,
+                    model));
+                continue;
+            }
+
+            // Extract the primary pattern for classification.
+            var primary = TryGetSinglePrimaryPattern(arm.Pattern);
+            if (primary is null)
+                continue;
+
+            // Check if this arm is a catch-all (discard or var pattern).
+            if (!hasGuard && IsCatchAllPrimaryPattern(primary))
+            {
+                catchAllSeenAtIndex = i;
+                continue;
+            }
+
+            // Rule 2: Duplicate unguarded constant patterns.
+            if (!hasGuard && primary is ConstantPatternPrimaryPatternNode constantPattern)
+            {
+                var key = GetConstantKey(constantPattern.Literal);
+                if (key is not null && !seenConstants.Add(key))
+                {
+                    diagnostics.Add(MakeDiagnosticWarning(
+                        SwitchUnreachableArm.Value,
+                        "Switch arm is unreachable",
+                        arm,
+                        model));
+                }
+                continue;
+            }
+
+            // Rule 3: Duplicate unguarded type patterns for the same type.
+            if (!hasGuard)
+            {
+                string? typeName = primary switch
+                {
+                    TypePatternPrimaryPatternNode typePattern =>
+                        ExtractTypeDisplayNameFromRef(typePattern.Type),
+                    BareTypePatternPrimaryPatternNode bareTypePattern =>
+                        ExtractTypeDisplayNameFromRef(bareTypePattern.Type),
+                    _ => null,
+                };
+
+                if (typeName is not null && !seenTypes.Add(typeName))
+                {
+                    diagnostics.Add(MakeDiagnosticWarning(
+                        SwitchUnreachableArm.Value,
+                        "Switch arm is unreachable",
+                        arm,
+                        model));
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Attempts to extract the single <see cref="PrimaryPatternNode"/> from a
+    /// <see cref="PatternNode"/>, navigating through the Or → And → Unary chain.
+    /// Returns <c>null</c> if the pattern is compound.
+    /// </summary>
+    private static PrimaryPatternNode? TryGetSinglePrimaryPattern(PatternNode pattern)
+    {
+        var orPattern = pattern.OrPattern;
+
+        // If there are multiple or-alternatives, this is not a simple pattern.
+        if (orPattern.AndPatterns.Length > 0)
+            return null;
+
+        var andPattern = orPattern.Left;
+
+        // If there are multiple and-conjuncts, this is not a simple pattern.
+        if (andPattern.UnaryPatterns.Length > 0)
+            return null;
+
+        var unaryPattern = andPattern.Left;
+
+        // Only direct patterns (not negated) can be catch-alls or simple patterns.
+        if (unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+            return null;
+
+        // Handle parenthesized patterns by recursing into the inner pattern.
+        if (directPattern.Primary is ParenthesizedPatternPrimaryPatternNode parenthesized)
+            return TryGetSinglePrimaryPattern(parenthesized.Inner);
+
+        return directPattern.Primary;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the given primary pattern is a catch-all
+    /// (discard <c>_</c> or <c>var x</c>).
+    /// </summary>
+    private static bool IsCatchAllPrimaryPattern(PrimaryPatternNode primary)
+    {
+        return primary is VarPatternPrimaryPatternNode;
+    }
+
+    /// <summary>
+    /// Returns a string key representing a constant literal for duplicate detection.
+    /// Returns <c>null</c> if the literal type is not recognized.
+    /// </summary>
+    private static string? GetConstantKey(ConstantLiteralNode literal)
+    {
+        return literal switch
+        {
+            IntegerConstantConstantLiteralNode intConst => $"int:{intConst.Value.Lexeme}",
+            FloatConstantConstantLiteralNode floatConst => $"float:{floatConst.Value.Lexeme}",
+            StringConstantConstantLiteralNode strConst => $"string:{strConst.Value.Lexeme}",
+            CharConstantConstantLiteralNode charConst => $"char:{charConst.Value.Lexeme}",
+            TrueConstantConstantLiteralNode => "bool:true",
+            FalseConstantConstantLiteralNode => "bool:false",
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Extracts the display name from a <see cref="TypeReferenceNode"/> for
+    /// type pattern duplicate detection.
+    /// </summary>
+    private static string? ExtractTypeDisplayNameFromRef(TypeReferenceNode typeRef)
+    {
+        return typeRef switch
+        {
+            PrimitiveTypeRefTypeReferenceNode primitiveRef => primitiveRef.PrimitiveType switch
+            {
+                IntTypePrimitiveTypeNode => "int",
+                UintTypePrimitiveTypeNode => "uint",
+                LongTypePrimitiveTypeNode => "long",
+                UlongTypePrimitiveTypeNode => "ulong",
+                ShortTypePrimitiveTypeNode => "short",
+                UshortTypePrimitiveTypeNode => "ushort",
+                ByteTypePrimitiveTypeNode => "byte",
+                SbyteTypePrimitiveTypeNode => "sbyte",
+                FloatTypePrimitiveTypeNode => "float",
+                DoubleTypePrimitiveTypeNode => "double",
+                DecimalTypePrimitiveTypeNode => "decimal",
+                BoolTypePrimitiveTypeNode => "bool",
+                CharTypePrimitiveTypeNode => "char",
+                StringTypePrimitiveTypeNode => "string",
+                _ => null,
+            },
+            NamedTypeRefTypeReferenceNode namedRef => namedRef.Name.IDENTIFIER.Lexeme,
+            _ => null,
+        };
     }
 
     /// <summary>

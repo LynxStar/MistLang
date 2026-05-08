@@ -81,11 +81,11 @@ public class ConstraintResolutionTests
     {
         var typeSymbol = model.AllSymbols.FirstOrDefault(s => s.Name == typeName);
         if (typeSymbol?.DeclaredType is ClassType classType)
-            return classType.TypeParameters.FirstOrDefault(tp => tp.Name == typeParamName);
+            return classType.TypeParameters.OfType<TypeParameterType>().FirstOrDefault(tp => tp.Name == typeParamName);
         if (typeSymbol?.DeclaredType is StructType structType)
-            return structType.TypeParameters.FirstOrDefault(tp => tp.Name == typeParamName);
+            return structType.TypeParameters.OfType<TypeParameterType>().FirstOrDefault(tp => tp.Name == typeParamName);
         if (typeSymbol?.DeclaredType is InterfaceType interfaceType)
-            return interfaceType.TypeParameters.FirstOrDefault(tp => tp.Name == typeParamName);
+            return interfaceType.TypeParameters.OfType<TypeParameterType>().FirstOrDefault(tp => tp.Name == typeParamName);
         return null;
     }
 

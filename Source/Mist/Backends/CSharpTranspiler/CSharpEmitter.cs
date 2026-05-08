@@ -106,6 +106,14 @@ public sealed class CSharpEmitter
             files["UnionHelpers.cs"] = UnionHelperGenerator.GenerateUnionHelpersFile(unionTypes);
         }
 
+        // Emit const-carrier interfaces and carrier structs for dependent type parameters.
+        var usedDependentValueTypes = DependentTypeHelpersGenerator.CollectUsedDependentValueTypes(model);
+        var carrierRegistry = CarrierStructRegistry.CollectFromModel(model);
+        if (usedDependentValueTypes.Count > 0 || carrierRegistry.Entries.Count > 0)
+        {
+            files["DependentTypeHelpers.g.cs"] = DependentTypeHelpersGenerator.GenerateHelpersFile(usedDependentValueTypes, carrierRegistry);
+        }
+
         return files;
     }
 
@@ -219,14 +227,14 @@ internal sealed class CSharpSourceWriter
     /// whether to use a method parameter name (factoryT_...) vs. a class field name (_factoryT_...).
     /// Null when not inside a generic method with factory parameters.
     /// </summary>
-    private IReadOnlyList<TypeParameterType>? _currentMethodFactoryTypeParams;
+    private IReadOnlyList<IType>? _currentMethodFactoryTypeParams;
     /// <summary>
     /// Type parameters of the current class/struct being emitted that have parameterized
     /// constructor constraints. Used by <see cref="EmitConstructorDeclaration"/> to append
     /// factory delegate parameters to user-defined constructors.
     /// Null when not inside a type with parameterized constructor constraints.
     /// </summary>
-    private IReadOnlyList<TypeParameterType>? _currentClassFactoryTypeParams;
+    private IReadOnlyList<IType>? _currentClassFactoryTypeParams;
     private readonly HashSet<string> _valueReturningVoidMethods = new(StringComparer.Ordinal);
     /// <summary>
     /// The name of the currently-being-emitted extension class. Set during
@@ -1194,10 +1202,10 @@ internal sealed class CSharpSourceWriter
         {
             // Flatten type args into the name: List<T> → ListOfT
             var typeArgNames = new List<string>();
-            typeArgNames.Add(GetTypeArgName(namedRef.TypeArgs.TypeReference));
-            foreach (var arg in namedRef.TypeArgs.TypeReferences)
+            typeArgNames.Add(GetTypeArgNameFromTypeArgument(namedRef.TypeArgs.TypeArgument));
+            foreach (var arg in namedRef.TypeArgs.TypeArguments)
             {
-                typeArgNames.Add(GetTypeArgName(arg));
+                typeArgNames.Add(GetTypeArgNameFromTypeArgument(arg));
             }
             return $"{name}Of{string.Join("", typeArgNames)}";
         }
@@ -1215,6 +1223,26 @@ internal sealed class CSharpSourceWriter
             NamedTypeRefTypeReferenceNode named => ExtractSimpleTypeName(named),
             PrimitiveTypeRefTypeReferenceNode prim => GetPrimitiveTypeName(prim),
             UnknownTypeRefTypeReferenceNode => "Unknown",
+            _ => "T"
+        };
+    }
+
+    /// <summary>
+    /// Gets a simple name for a type argument node (handles both type references and literal values).
+    /// Used in extension class naming where dependent type arguments may appear.
+    /// </summary>
+    private string GetTypeArgNameFromTypeArgument(TypeArgumentNode arg)
+    {
+        return arg switch
+        {
+            TypeReferenceTypeArgumentTypeArgumentNode typeRefArg => GetTypeArgName(typeRefArg.Type),
+            IntegerLiteralTypeArgumentTypeArgumentNode intLit => intLit.Literal.Lexeme,
+            NegatedIntegerTypeArgumentTypeArgumentNode negLit => $"Neg{negLit.Literal.Lexeme}",
+            HexLiteralTypeArgumentTypeArgumentNode hexLit => hexLit.Literal.Lexeme,
+            BinaryLiteralTypeArgumentTypeArgumentNode binLit => binLit.Literal.Lexeme,
+            TrueLiteralTypeArgumentTypeArgumentNode => "True",
+            FalseLiteralTypeArgumentTypeArgumentNode => "False",
+            CharLiteralTypeArgumentTypeArgumentNode charLit => charLit.Literal.Lexeme,
             _ => "T"
         };
     }
@@ -1444,6 +1472,11 @@ internal sealed class CSharpSourceWriter
                 baseClause = $" : {string.Join(", ", parts)}";
             }
         }
+        // Emit [DependentType(...)] attributes for each dependent type parameter.
+        if (symbol?.DeclaredType is not null)
+        {
+            EmitDependentTypeAttributes(GetTypeParametersFromType(symbol.DeclaredType));
+        }
         AppendLine($"{modifiers}class {name}{typeParams}{baseClause}");
         // Emit constraint clauses (where T : ...) for constrained type parameters.
         if (symbol?.DeclaredType is not null)
@@ -1453,6 +1486,13 @@ internal sealed class CSharpSourceWriter
         }
         AppendLine("{");
         _indentLevel++;
+
+        // Emit dependent type properties (e.g., `public static int Size => TSize.Value;`)
+        var hasDependentProperties = false;
+        if (symbol?.DeclaredType is not null)
+        {
+            hasDependentProperties = EmitDependentTypeProperties(GetTypeParametersFromType(symbol.DeclaredType));
+        }
 
         // Emit factory delegate fields and constructor for parameterized constructor constraints.
         var hasFactoryFields = false;
@@ -1484,7 +1524,7 @@ internal sealed class CSharpSourceWriter
         // are each emitted as separate C# declarations.
         for (var i = 0; i < classDecl.Members.Length; i++)
         {
-            if (i > 0 || hasFactoryFields)
+            if (i > 0 || hasFactoryFields || hasDependentProperties)
             {
                 AppendLine();
             }
@@ -1579,9 +1619,14 @@ internal sealed class CSharpSourceWriter
         {
             interfaceList = $" : {EmitBaseListWithTypeArgs(interfaceDecl.Interfaces)}";
         }
+        // Emit [DependentType(...)] attributes for each dependent type parameter.
+        var interfaceSymbol = _model.GetDeclaredSymbol(interfaceDecl);
+        if (interfaceSymbol?.DeclaredType is InterfaceType interfaceTypeForAttrs)
+        {
+            EmitDependentTypeAttributes(interfaceTypeForAttrs.TypeParameters);
+        }
         AppendLine($"interface {name}{typeParams}{interfaceList}");
         // Emit constraint clauses (where T : ...) for constrained type parameters.
-        var interfaceSymbol = _model.GetDeclaredSymbol(interfaceDecl);
         if (interfaceSymbol?.DeclaredType is InterfaceType interfaceTypeForConstraints)
         {
             EmitConstraintClauses(interfaceTypeForConstraints.TypeParameters);
@@ -1616,7 +1661,7 @@ internal sealed class CSharpSourceWriter
         // For generic interface methods with parameterized constructor constraints,
         // append factory delegate parameters.
         var methodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
-        var methodTypeParams = methodSymbol?.TypeParameters ?? (IReadOnlyList<TypeParameterType>)Array.Empty<TypeParameterType>();
+        var methodTypeParams = methodSymbol?.TypeParameters ?? (IReadOnlyList<IType>)Array.Empty<IType>();
         var factoryParams = GetFactoryDelegateMethodParams(methodTypeParams);
         if (factoryParams.Length > 0)
         {
@@ -1625,13 +1670,15 @@ internal sealed class CSharpSourceWriter
                 : factoryParams;
         }
 
-        // Check if there are constraint clauses to emit.
-        var hasConstraints = methodTypeParams.Any(tp => tp.Constraints is not null &&
-            (tp.Constraints.HasClassConstraint || tp.Constraints.HasStructConstraint ||
-             tp.Constraints.BaseClassConstraint is not null ||
-             tp.Constraints.InterfaceConstraints.Count > 0 ||
-             tp.Constraints.TraitConstraints.Count > 0 ||
-             tp.Constraints.ConstructorConstraints.Any(c => c.Count == 0)));
+        // Check if there are constraint clauses to emit (regular constraints or dependent type parameters).
+        var hasConstraints = methodTypeParams.Any(tp =>
+            tp is DependentTypeParameterType ||
+            (tp is TypeParameterType tpc && tpc.Constraints is not null &&
+            (tpc.Constraints.HasClassConstraint || tpc.Constraints.HasStructConstraint ||
+             tpc.Constraints.BaseClassConstraint is not null ||
+             tpc.Constraints.InterfaceConstraints.Count > 0 ||
+             tpc.Constraints.TraitConstraints.Count > 0 ||
+             tpc.Constraints.ConstructorConstraints.Any(c => c.Count == 0))));
 
         if (hasConstraints)
         {
@@ -1774,7 +1821,7 @@ internal sealed class CSharpSourceWriter
                 typeParamSubstitutions = new Dictionary<string, string>(StringComparer.Ordinal);
                 for (var i = 0; i < ctt.GenericTraitDefinition.TypeParameters.Count && i < ctt.TypeArguments.Count; i++)
                 {
-                    var paramName = ctt.GenericTraitDefinition.TypeParameters[i].Name;
+                    var paramName = ctt.GenericTraitDefinition.TypeParameters[i].DisplayName;
                     var argTypeName = CSharpTypeMap.GetTypeName(ctt.TypeArguments[i]);
                     typeParamSubstitutions[paramName] = argTypeName;
                 }
@@ -1971,16 +2018,30 @@ internal sealed class CSharpSourceWriter
 
     /// <summary>
     /// Emits a type argument list with type parameter substitution applied.
+    /// Handles both type reference arguments and literal dependent type arguments.
     /// </summary>
     private string EmitTypeArgumentListWithSubstitution(TypeArgumentListNode typeArgs, Dictionary<string, string> substitutions)
     {
         var parts = new List<string>();
-        parts.Add(EmitTypeReferenceWithSubstitution(typeArgs.TypeReference, substitutions));
-        foreach (var typeRef in typeArgs.TypeReferences)
+        parts.Add(EmitSingleTypeArgumentWithSubstitution(typeArgs.TypeArgument, substitutions));
+        foreach (var arg in typeArgs.TypeArguments)
         {
-            parts.Add(EmitTypeReferenceWithSubstitution(typeRef, substitutions));
+            parts.Add(EmitSingleTypeArgumentWithSubstitution(arg, substitutions));
         }
         return $"<{string.Join(", ", parts)}>";
+    }
+
+    /// <summary>
+    /// Emits a single type argument with substitution. For type reference arguments,
+    /// applies substitution. For literal dependent type arguments, emits the carrier struct name.
+    /// </summary>
+    private string EmitSingleTypeArgumentWithSubstitution(TypeArgumentNode arg, Dictionary<string, string> substitutions)
+    {
+        if (arg is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg)
+            return EmitTypeReferenceWithSubstitution(typeRefArg.Type, substitutions);
+
+        // Literal type arguments (dependent types) — emit carrier struct name directly.
+        return EmitSingleTypeArgument(arg);
     }
 
     /// <summary>
@@ -2118,6 +2179,11 @@ internal sealed class CSharpSourceWriter
                 interfaceList = $" : {string.Join(", ", parts)}";
             }
         }
+        // Emit [DependentType(...)] attributes for each dependent type parameter.
+        if (symbol?.DeclaredType is not null)
+        {
+            EmitDependentTypeAttributes(GetTypeParametersFromType(symbol.DeclaredType));
+        }
         AppendLine($"{modifiers}struct {name}{typeParams}{interfaceList}");
         // Emit constraint clauses (where T : ...) for constrained type parameters.
         if (symbol?.DeclaredType is not null)
@@ -2127,6 +2193,13 @@ internal sealed class CSharpSourceWriter
         }
         AppendLine("{");
         _indentLevel++;
+
+        // Emit dependent type properties (e.g., `public static int Size => TSize.Value;`)
+        var hasDependentProperties = false;
+        if (symbol?.DeclaredType is not null)
+        {
+            hasDependentProperties = EmitDependentTypeProperties(GetTypeParametersFromType(symbol.DeclaredType));
+        }
 
         // Emit factory delegate fields and constructor for parameterized constructor constraints.
         var hasFactoryFields = false;
@@ -2158,7 +2231,7 @@ internal sealed class CSharpSourceWriter
         // are each emitted as separate C# declarations.
         for (var i = 0; i < structDecl.Members.Length; i++)
         {
-            if (i > 0 || hasFactoryFields)
+            if (i > 0 || hasFactoryFields || hasDependentProperties)
             {
                 AppendLine();
             }
@@ -2572,7 +2645,7 @@ internal sealed class CSharpSourceWriter
         // For generic methods with parameterized constructor constraints,
         // append factory delegate parameters to the method signature.
         var methodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
-        var methodTypeParams = methodSymbol?.TypeParameters ?? (IReadOnlyList<TypeParameterType>)Array.Empty<TypeParameterType>();
+        var methodTypeParams = methodSymbol?.TypeParameters ?? (IReadOnlyList<IType>)Array.Empty<IType>();
         var factoryParams = GetFactoryDelegateMethodParams(methodTypeParams);
         if (factoryParams.Length > 0)
         {
@@ -3127,11 +3200,14 @@ internal sealed class CSharpSourceWriter
 
             case NamedTypeRefTypeReferenceNode named:
                 if (named.TypeArgs is null) return false;
-                if (TypeReferenceContainsUnknown(named.TypeArgs.TypeReference))
+                // Check all type arguments — only TypeReferenceTypeArgument variants
+                // can contain unknown. Literal type arguments (int, bool, char, etc.)
+                // used for dependent types can never contain unknown.
+                if (TypeArgumentContainsUnknown(named.TypeArgs.TypeArgument))
                     return true;
-                foreach (var arg in named.TypeArgs.TypeReferences)
+                foreach (var arg in named.TypeArgs.TypeArguments)
                 {
-                    if (TypeReferenceContainsUnknown(arg))
+                    if (TypeArgumentContainsUnknown(arg))
                         return true;
                 }
                 return false;
@@ -3139,6 +3215,17 @@ internal sealed class CSharpSourceWriter
             default:
                 return false;
         }
+    }
+
+    /// <summary>
+    /// Checks if a single type argument contains <see cref="UnknownTypeRefTypeReferenceNode"/>.
+    /// Only <see cref="TypeReferenceTypeArgumentTypeArgumentNode"/> variants can contain unknown;
+    /// literal type arguments (integers, booleans, chars) for dependent types never contain unknown.
+    /// </summary>
+    private static bool TypeArgumentContainsUnknown(TypeArgumentNode arg)
+    {
+        return arg is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg
+            && TypeReferenceContainsUnknown(typeRefArg.Type);
     }
 
     /// <summary>
@@ -3608,15 +3695,30 @@ internal sealed class CSharpSourceWriter
 
     /// <summary>
     /// Collects constituent names from a type argument list for use in helper type naming.
+    /// Handles both type reference arguments and literal dependent type arguments.
     /// </summary>
     private void CollectTypeArgConstituentNames(TypeArgumentListNode typeArgs, List<string> names)
     {
-        // TypeArgumentList has TypeReference (first) and TypeReferences (rest).
-        names.Add(GetConstituentNameFromTypeRef(typeArgs.TypeReference));
-        foreach (var additional in typeArgs.TypeReferences)
+        // TypeArgumentList has TypeArgument (first) and TypeArguments (rest).
+        names.Add(GetConstituentNameFromTypeArgument(typeArgs.TypeArgument));
+        foreach (var additional in typeArgs.TypeArguments)
         {
-            names.Add(GetConstituentNameFromTypeRef(additional));
+            names.Add(GetConstituentNameFromTypeArgument(additional));
         }
+    }
+
+    /// <summary>
+    /// Gets the constituent name from a type argument node for union helper type naming.
+    /// For type reference arguments, delegates to <see cref="GetConstituentNameFromTypeRef"/>.
+    /// For literal dependent type arguments, returns the carrier struct name.
+    /// </summary>
+    private string GetConstituentNameFromTypeArgument(TypeArgumentNode arg)
+    {
+        if (arg is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg)
+            return GetConstituentNameFromTypeRef(typeRefArg.Type);
+
+        // Literal type arguments — use the carrier struct name as the constituent name.
+        return EmitSingleTypeArgument(arg);
     }
 
     /// <summary>
@@ -4681,7 +4783,7 @@ internal sealed class CSharpSourceWriter
                 DiagnosticSeverity.Error,
                 PipelineStage.Backend,
                 $"No emission template found for intrinsic '{memberSig}' in backend 'CSharp'.",
-                Location: null,
+                Location: default,
                 CompilationUnitPath: _sourceText.Path,
                 AnalyzerName: null));
             return "";
@@ -4730,7 +4832,7 @@ internal sealed class CSharpSourceWriter
                 DiagnosticSeverity.Error,
                 PipelineStage.Backend,
                 $"No emission template found for intrinsic '{memberSig}' in backend 'CSharp'.",
-                Location: null,
+                Location: default,
                 CompilationUnitPath: _sourceText.Path,
                 AnalyzerName: null));
             return "";
@@ -4830,23 +4932,42 @@ internal sealed class CSharpSourceWriter
 
     private string EmitPostfix(PostfixNode postfix)
     {
-        var result = EmitPrimary(postfix.Target);
+        // Special case: TypeLiteralExpression followed by member access or method call
+        // represents a static member access (e.g., FixedBuffer<5>.Size).
+        // Emit the type name directly without typeof() wrapping.
+        if (postfix.Target is TypeLiteralExpressionPrimaryNode typeLiteral && postfix.Suffix.Length > 0)
+        {
+            var result = EmitTypeReference(typeLiteral.TypeRef, isValueContext: true);
+
+            IType? receiverType = _model.GetTypeOf(postfix.Target);
+
+            for (var i = 0; i < postfix.Suffix.Length; i++)
+            {
+                var suffix = postfix.Suffix[i];
+                result = EmitPostfixSuffix(result, suffix, receiverType);
+                receiverType = _model.GetTypeOf(suffix);
+            }
+
+            return result;
+        }
+
+        var primaryResult = EmitPrimary(postfix.Target);
 
         // Track the receiver type through the suffix chain for extension property rewriting.
         // The receiver type for the first suffix is the type of the primary target.
         // For subsequent suffixes, it's the result type of the previous suffix.
-        IType? receiverType = _model.GetTypeOf(postfix.Target);
+        IType? primaryReceiverType = _model.GetTypeOf(postfix.Target);
 
         for (var i = 0; i < postfix.Suffix.Length; i++)
         {
             var suffix = postfix.Suffix[i];
-            result = EmitPostfixSuffix(result, suffix, receiverType);
+            primaryResult = EmitPostfixSuffix(primaryResult, suffix, primaryReceiverType);
 
             // Update receiver type for the next suffix.
-            receiverType = _model.GetTypeOf(suffix);
+            primaryReceiverType = _model.GetTypeOf(suffix);
         }
 
-        return result;
+        return primaryResult;
     }
 
     /// <summary>
@@ -5065,7 +5186,7 @@ internal sealed class CSharpSourceWriter
                             // - Inside a class with factory fields → use field name (_factoryT_...)
                             string factoryName;
                             if (_currentMethodFactoryTypeParams is not null &&
-                                _currentMethodFactoryTypeParams.Any(tp => tp.Name == typeParamType.Name))
+                                _currentMethodFactoryTypeParams.Any(tp => tp.DisplayName == typeParamType.Name))
                             {
                                 factoryName = GetFactoryParamName(typeParamType, matchingConstraint);
                             }
@@ -5294,6 +5415,45 @@ internal sealed class CSharpSourceWriter
         return string.Join(" ", parts) + " ";
     }
 
+    // ─── Dependent Type Emission Helpers ─────────────────────────────────
+
+    /// <summary>
+    /// Emits <c>[DependentType("ParamName", typeof(valueType))]</c> attributes for each
+    /// dependent type parameter on a type declaration.
+    /// </summary>
+    private void EmitDependentTypeAttributes(IReadOnlyList<IType> typeParameters)
+    {
+        foreach (var typeParam in typeParameters)
+        {
+            if (typeParam is DependentTypeParameterType depParam)
+            {
+                var keyword = CSharpTypeMap.GetKeyword(depParam.ValueType);
+                AppendLine($"[DependentType(\"{depParam.Name}\", typeof({keyword}))]");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Emits dependent type properties (e.g., <c>public static int Size =&gt; TSize.Value;</c>)
+    /// for each dependent type parameter. Returns <c>true</c> if any properties were emitted.
+    /// </summary>
+    private bool EmitDependentTypeProperties(IReadOnlyList<IType> typeParameters)
+    {
+        var emitted = false;
+        foreach (var typeParam in typeParameters)
+        {
+            if (typeParam is DependentTypeParameterType depParam)
+            {
+                var keyword = CSharpTypeMap.GetKeyword(depParam.ValueType);
+                if (emitted)
+                    AppendLine();
+                AppendLine($"public static {keyword} {depParam.Name} => T{depParam.Name}.Value;");
+                emitted = true;
+            }
+        }
+        return emitted;
+    }
+
     // ─── Utilities ───────────────────────────────────────────────────────
 
     private static string EmitTypeParameterList(TypeParameterListNode? typeParams)
@@ -5301,12 +5461,26 @@ internal sealed class CSharpSourceWriter
         if (typeParams is null) return "";
 
         var parts = new List<string>();
-        parts.Add(typeParams.TypeParameter.Name.Lexeme);
+        parts.Add(EmitSingleTypeParameterName(typeParams.TypeParameter));
         foreach (var tp in typeParams.TypeParameters)
         {
-            parts.Add(tp.Name.Lexeme);
+            parts.Add(EmitSingleTypeParameterName(tp));
         }
         return $"<{string.Join(", ", parts)}>";
+    }
+
+    /// <summary>
+    /// Emits the C# name for a single type parameter node.
+    /// Dependent type parameters are prefixed with <c>T</c> (e.g., <c>Size</c> → <c>TSize</c>)
+    /// to follow C# generic naming conventions and avoid collisions with the generated property name.
+    /// </summary>
+    private static string EmitSingleTypeParameterName(TypeParameterNode typeParam)
+    {
+        return typeParam switch
+        {
+            DependentTypeParameterTypeParameterNode dep => $"T{dep.Name.Lexeme}",
+            _ => typeParam.GetName().Lexeme,
+        };
     }
 
     private string EmitTypeArgumentList(TypeArgumentListNode? typeArgs)
@@ -5314,12 +5488,181 @@ internal sealed class CSharpSourceWriter
         if (typeArgs is null) return "";
 
         var parts = new List<string>();
-        parts.Add(EmitTypeReference(typeArgs.TypeReference, isValueContext: true));
-        foreach (var typeRef in typeArgs.TypeReferences)
+        parts.Add(EmitSingleTypeArgument(typeArgs.TypeArgument));
+        foreach (var arg in typeArgs.TypeArguments)
         {
-            parts.Add(EmitTypeReference(typeRef, isValueContext: true));
+            parts.Add(EmitSingleTypeArgument(arg));
         }
         return $"<{string.Join(", ", parts)}>";
+    }
+
+    /// <summary>
+    /// Emits a single type argument. For regular type references, delegates to <see cref="EmitTypeReference"/>.
+    /// For dependent value arguments (literals, const references), emits the carrier struct name
+    /// (e.g., <c>5</c> → <c>Const_Int_5</c>) or the T-prefixed parameter name for forwarded parameters.
+    /// </summary>
+    private string EmitSingleTypeArgument(TypeArgumentNode arg)
+    {
+        switch (arg)
+        {
+            case TypeReferenceTypeArgumentTypeArgumentNode typeRefArg:
+            {
+                // Check if this type reference resolves to a DependentTypeParameterType
+                // (forwarded dependent parameter like `FixedBuffer<N>` where N is a dependent param).
+                var resolvedType = _model.GetTypeOf(typeRefArg.Type);
+                if (resolvedType is DependentTypeParameterType depParam)
+                {
+                    return $"T{depParam.Name}";
+                }
+
+                // Also check by name: if the type reference is a simple identifier that matches
+                // a dependent type parameter name on any type in the model, emit T-prefixed.
+                if (typeRefArg.Type is NamedTypeRefTypeReferenceNode namedRef
+                    && namedRef.TypeArgs is null
+                    && !namedRef.ArrayRank.HasValue)
+                {
+                    var name = ExtractQualifiedName(namedRef.Name);
+                    if (IsDependentTypeParameterName(name))
+                    {
+                        return $"T{name}";
+                    }
+                }
+
+                return EmitTypeReference(typeRefArg.Type, isValueContext: true);
+            }
+
+            // For literal type arguments, we emit the carrier struct name based on the literal value.
+            case IntegerLiteralTypeArgumentTypeArgumentNode intLit:
+                return GetCarrierStructNameForIntLiteral(intLit.Literal.Lexeme, negated: false);
+            case NegatedIntegerTypeArgumentTypeArgumentNode negLit:
+                return GetCarrierStructNameForIntLiteral(negLit.Literal.Lexeme, negated: true);
+            case HexLiteralTypeArgumentTypeArgumentNode hexLit:
+                return GetCarrierStructNameForHexLiteral(hexLit.Literal.Lexeme);
+            case BinaryLiteralTypeArgumentTypeArgumentNode binLit:
+                return GetCarrierStructNameForBinaryLiteral(binLit.Literal.Lexeme);
+            case TrueLiteralTypeArgumentTypeArgumentNode:
+                return "Const_Bool_True";
+            case FalseLiteralTypeArgumentTypeArgumentNode:
+                return "Const_Bool_False";
+            case CharLiteralTypeArgumentTypeArgumentNode charLit:
+                return GetCarrierStructNameForCharLiteral(charLit.Literal.Lexeme);
+
+            default:
+                return "object"; // Fallback — should not happen for well-formed programs
+        }
+    }
+
+    /// <summary>
+    /// Checks if a name corresponds to a dependent type parameter on any type in the model.
+    /// Used to detect forwarded dependent parameters in type argument positions.
+    /// </summary>
+    private bool IsDependentTypeParameterName(string name)
+    {
+        foreach (var symbol in _model.AllSymbols)
+        {
+            var typeParams = GetTypeParametersFromType(symbol.DeclaredType);
+            foreach (var tp in typeParams)
+            {
+                if (tp is DependentTypeParameterType depParam && depParam.Name == name)
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Gets the carrier struct name for an integer literal type argument.
+    /// </summary>
+    private static string GetCarrierStructNameForIntLiteral(string lexeme, bool negated)
+    {
+        // Parse the integer value
+        if (long.TryParse(lexeme, System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture, out var value))
+        {
+            if (negated) value = -value;
+            var suffix = value < 0
+                ? $"Neg{(-value).ToString(System.Globalization.CultureInfo.InvariantCulture)}"
+                : value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return $"Const_Int_{suffix}";
+        }
+        return $"Const_Int_{(negated ? "Neg" : "")}{lexeme}";
+    }
+
+    /// <summary>
+    /// Gets the carrier struct name for a hex literal type argument.
+    /// </summary>
+    private static string GetCarrierStructNameForHexLiteral(string lexeme)
+    {
+        // Hex literals like 0xFF — parse to long
+        var hex = lexeme.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            ? lexeme[2..] : lexeme;
+        if (long.TryParse(hex, System.Globalization.NumberStyles.HexNumber,
+            System.Globalization.CultureInfo.InvariantCulture, out var value))
+        {
+            return $"Const_Int_{value.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+        }
+        return $"Const_Int_{lexeme}";
+    }
+
+    /// <summary>
+    /// Gets the carrier struct name for a binary literal type argument.
+    /// </summary>
+    private static string GetCarrierStructNameForBinaryLiteral(string lexeme)
+    {
+        // Binary literals like 0b1010 — parse to long
+        var bin = lexeme.StartsWith("0b", StringComparison.OrdinalIgnoreCase)
+            ? lexeme[2..] : lexeme;
+        try
+        {
+            var value = Convert.ToInt64(bin, 2);
+            return $"Const_Int_{value.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+        }
+        catch
+        {
+            return $"Const_Int_{lexeme}";
+        }
+    }
+
+    /// <summary>
+    /// Gets the carrier struct name for a char literal type argument.
+    /// </summary>
+    private static string GetCarrierStructNameForCharLiteral(string lexeme)
+    {
+        // Char literals are like 'X' or '\n' — extract the character
+        if (lexeme.Length >= 3 && lexeme[0] == '\'' && lexeme[^1] == '\'')
+        {
+            var inner = lexeme[1..^1];
+            char c;
+            if (inner.Length == 1)
+            {
+                c = inner[0];
+            }
+            else if (inner.StartsWith('\\'))
+            {
+                c = inner switch
+                {
+                    "\\n" => '\n',
+                    "\\r" => '\r',
+                    "\\t" => '\t',
+                    "\\0" => '\0',
+                    "\\'" => '\'',
+                    "\\\\" => '\\',
+                    _ when inner.StartsWith("\\u") && inner.Length == 6
+                        => (char)Convert.ToInt32(inner[2..], 16),
+                    _ => inner[1],
+                };
+            }
+            else
+            {
+                c = inner[0];
+            }
+
+            var suffix = char.IsLetterOrDigit(c)
+                ? c.ToString()
+                : $"0x{((int)c).ToString("X2", System.Globalization.CultureInfo.InvariantCulture)}";
+            return $"Const_Char_{suffix}";
+        }
+        return $"Const_Char_{lexeme}";
     }
 
     private string EmitBaseTypeRef(BaseTypeRefNode baseTypeRef)
@@ -5367,11 +5710,34 @@ internal sealed class CSharpSourceWriter
     /// Constraints are reordered to C#'s required order: class/struct → base class → interfaces/traits → new() last.
     /// Parameterized constructor constraints are excluded from the where clause (they use factory delegate lowering).
     /// </summary>
-    private void EmitConstraintClauses(IReadOnlyList<TypeParameterType> typeParameters)
+    private void EmitConstraintClauses(IReadOnlyList<IType> typeParameters)
     {
         foreach (var typeParam in typeParameters)
         {
-            var constraints = typeParam.Constraints;
+            // Emit carrier interface constraint for dependent type parameters.
+            if (typeParam is DependentTypeParameterType depParam)
+            {
+                var keyword = CSharpTypeMap.GetKeyword(depParam.ValueType);
+                var capitalized = keyword switch
+                {
+                    "int" => "Int",
+                    "uint" => "Uint",
+                    "long" => "Long",
+                    "ulong" => "Ulong",
+                    "short" => "Short",
+                    "ushort" => "Ushort",
+                    "byte" => "Byte",
+                    "sbyte" => "Sbyte",
+                    "bool" => "Bool",
+                    "char" => "Char",
+                    _ => keyword,
+                };
+                AppendLine($"    where T{depParam.Name} : IConst{capitalized}");
+                continue;
+            }
+
+            if (typeParam is not TypeParameterType tpt) continue;
+            var constraints = tpt.Constraints;
             if (constraints is null) continue;
 
             var parts = new List<string>();
@@ -5400,7 +5766,7 @@ internal sealed class CSharpSourceWriter
 
             if (parts.Count > 0)
             {
-                AppendLine($"    where {typeParam.Name} : {string.Join(", ", parts)}");
+                AppendLine($"    where {tpt.Name} : {string.Join(", ", parts)}");
             }
         }
     }
@@ -5460,10 +5826,11 @@ internal sealed class CSharpSourceWriter
     /// <summary>
     /// Emits factory delegate fields for all parameterized constructor constraints on the given type parameters.
     /// </summary>
-    private void EmitFactoryDelegateFields(IReadOnlyList<TypeParameterType> typeParameters)
+    private void EmitFactoryDelegateFields(IReadOnlyList<IType> typeParameters)
     {
-        foreach (var typeParam in typeParameters)
+        foreach (var tp in typeParameters)
         {
+            if (tp is not TypeParameterType typeParam) continue;
             var parameterizedConstraints = GetParameterizedConstructorConstraints(typeParam.Constraints);
             foreach (var paramTypes in parameterizedConstraints)
             {
@@ -5478,23 +5845,24 @@ internal sealed class CSharpSourceWriter
     /// Checks whether any type parameter has parameterized constructor constraints
     /// that require factory delegate lowering.
     /// </summary>
-    private static bool HasParameterizedConstructorConstraints(IReadOnlyList<TypeParameterType> typeParameters)
+    private static bool HasParameterizedConstructorConstraints(IReadOnlyList<IType> typeParameters)
     {
         return typeParameters.Any(tp =>
-            tp.Constraints is not null &&
-            tp.Constraints.ConstructorConstraints.Any(c => c.Count > 0));
+            tp is TypeParameterType tpt && tpt.Constraints is not null &&
+            tpt.Constraints.ConstructorConstraints.Any(c => c.Count > 0));
     }
 
     /// <summary>
     /// Emits a synthetic constructor that accepts factory delegates for parameterized constructor constraints.
     /// </summary>
-    private void EmitFactoryDelegateConstructor(string typeName, IReadOnlyList<TypeParameterType> typeParameters)
+    private void EmitFactoryDelegateConstructor(string typeName, IReadOnlyList<IType> typeParameters)
     {
         var parameters = new List<string>();
         var assignments = new List<string>();
 
-        foreach (var typeParam in typeParameters)
+        foreach (var tp in typeParameters)
         {
+            if (tp is not TypeParameterType typeParam) continue;
             var parameterizedConstraints = GetParameterizedConstructorConstraints(typeParam.Constraints);
             foreach (var paramTypes in parameterizedConstraints)
             {
@@ -5524,10 +5892,11 @@ internal sealed class CSharpSourceWriter
     /// Emits factory field assignment statements for use inside user-defined constructors.
     /// E.g., "_factoryT_int = factoryT_int;"
     /// </summary>
-    private void EmitFactoryFieldAssignments(IReadOnlyList<TypeParameterType> typeParameters)
+    private void EmitFactoryFieldAssignments(IReadOnlyList<IType> typeParameters)
     {
-        foreach (var typeParam in typeParameters)
+        foreach (var tp in typeParameters)
         {
+            if (tp is not TypeParameterType typeParam) continue;
             var parameterizedConstraints = GetParameterizedConstructorConstraints(typeParam.Constraints);
             foreach (var paramTypes in parameterizedConstraints)
             {
@@ -5542,11 +5911,12 @@ internal sealed class CSharpSourceWriter
     /// Gets the additional factory delegate parameters that should be appended to a method signature
     /// for generic methods with parameterized constructor constraints.
     /// </summary>
-    private static string GetFactoryDelegateMethodParams(IReadOnlyList<TypeParameterType> typeParameters)
+    private static string GetFactoryDelegateMethodParams(IReadOnlyList<IType> typeParameters)
     {
         var parameters = new List<string>();
-        foreach (var typeParam in typeParameters)
+        foreach (var tp in typeParameters)
         {
+            if (tp is not TypeParameterType typeParam) continue;
             var parameterizedConstraints = GetParameterizedConstructorConstraints(typeParam.Constraints);
             foreach (var paramTypes in parameterizedConstraints)
             {
@@ -5577,14 +5947,14 @@ internal sealed class CSharpSourceWriter
     /// <summary>
     /// Gets the type parameters for a declared type (class, struct, or interface).
     /// </summary>
-    private static IReadOnlyList<TypeParameterType> GetTypeParametersFromType(IType? type)
+    private static IReadOnlyList<IType> GetTypeParametersFromType(IType? type)
     {
         return type switch
         {
             ClassType ct => ct.TypeParameters,
             StructType st => st.TypeParameters,
             InterfaceType it => it.TypeParameters,
-            _ => Array.Empty<TypeParameterType>()
+            _ => Array.Empty<IType>()
         };
     }
 
@@ -5614,7 +5984,7 @@ internal sealed class CSharpSourceWriter
     /// the caller must supply lambda expressions that create instances.
     /// E.g., for new(int) on T with type arg MyClass → "(arg0) => new MyClass(arg0)"
     /// </summary>
-    private string GenerateFactoryLambdas(IReadOnlyList<TypeParameterType> typeParameters, TypeArgumentListNode? typeArgs)
+    private string GenerateFactoryLambdas(IReadOnlyList<IType> typeParameters, TypeArgumentListNode? typeArgs)
     {
         var lambdas = new List<string>();
 
@@ -5622,16 +5992,16 @@ internal sealed class CSharpSourceWriter
         var resolvedTypeArgs = new List<string>();
         if (typeArgs is not null)
         {
-            resolvedTypeArgs.Add(EmitTypeReference(typeArgs.TypeReference));
-            foreach (var typeRef in typeArgs.TypeReferences)
+            resolvedTypeArgs.Add(EmitSingleTypeArgument(typeArgs.TypeArgument));
+            foreach (var arg in typeArgs.TypeArguments)
             {
-                resolvedTypeArgs.Add(EmitTypeReference(typeRef));
+                resolvedTypeArgs.Add(EmitSingleTypeArgument(arg));
             }
         }
 
         for (var i = 0; i < typeParameters.Count; i++)
         {
-            var typeParam = typeParameters[i];
+            if (typeParameters[i] is not TypeParameterType typeParam) continue;
             var parameterizedConstraints = GetParameterizedConstructorConstraints(typeParam.Constraints);
             if (parameterizedConstraints.Count == 0) continue;
 

@@ -80,7 +80,7 @@ public static class StdlibLoader
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Failed to load Standard Library source: {stdlibRoot}: {ex.Message}",
-                Location: null,
+                Location: default,
                 CompilationUnitPath: stdlibRoot,
                 AnalyzerName: null));
             return ImmutableArray<CompilationUnit>.Empty;
@@ -104,7 +104,7 @@ public static class StdlibLoader
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Failed to load Standard Library source: {path}: {ex.Message}",
-                    Location: null,
+                    Location: default,
                     CompilationUnitPath: path,
                     AnalyzerName: null));
                 continue;

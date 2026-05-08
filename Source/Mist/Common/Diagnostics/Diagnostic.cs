@@ -10,6 +10,6 @@ public sealed record Diagnostic(
     DiagnosticSeverity Severity,
     PipelineStage Stage,
     string Message,
-    LinePositionSpan? Location,
-    string? CompilationUnitPath,
+    LinePositionSpan Location,
+    string CompilationUnitPath,
     string? AnalyzerName);

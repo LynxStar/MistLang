@@ -193,12 +193,21 @@
           }
         },
         {
-          "comment": "Generic class/struct/interface/trait declaration: class Box<T>, struct Pair<T, U>, interface IContainer<T>, trait Comparable<T>",
-          "match": "\\b(class|struct|interface|trait)\\s+([a-zA-Z_]\\w*)\\s*<([^>]+)>",
+          "comment": "Generic class/struct/interface/trait declaration with type parameter list: class Box<T>, class Array<Size:int>",
+          "match": "\\b(class|struct|interface|trait)\\s+([a-zA-Z_]\\w*)\\s*(<)",
           "captures": {
             "1": { "name": "keyword.declaration.mist" },
             "2": { "name": "entity.name.type.mist" },
-            "3": { "name": "entity.name.type.parameter.mist" }
+            "3": { "name": "punctuation.definition.typeparameters.begin.mist" }
+          }
+        },
+        {
+          "comment": "Dependent type parameter annotation: Size:int, N:bool, Cap:char etc. inside angle brackets",
+          "match": "([a-zA-Z_]\\w*)(:)(int|uint|long|ulong|short|ushort|byte|sbyte|bool|char)\\b",
+          "captures": {
+            "1": { "name": "entity.name.type.parameter.mist" },
+            "2": { "name": "punctuation.separator.annotation.mist" },
+            "3": { "name": "storage.type.primitive.mist" }
           }
         },
         {
@@ -252,12 +261,77 @@
           }
         },
         {
-          "comment": "Type arguments in type references: List<int>, Box<string>, Map<string, int>",
-          "match": "([A-Z]\\w*)\\s*<([^>]+)>",
-          "captures": {
+          "comment": "Type reference with type arguments containing literals: Array<5>, Buffer<true>, Mask<0xFF>",
+          "begin": "([A-Z]\\w*)\\s*(<)",
+          "end": "(>)",
+          "beginCaptures": {
             "1": { "name": "entity.name.type.mist" },
-            "2": { "name": "entity.name.type.mist" }
-          }
+            "2": { "name": "punctuation.definition.typeparameters.begin.mist" }
+          },
+          "endCaptures": {
+            "1": { "name": "punctuation.definition.typeparameters.end.mist" }
+          },
+          "patterns": [
+            {
+              "comment": "Negated integer literal in type argument position: -1, -42",
+              "match": "(-)(\\d+)",
+              "captures": {
+                "1": { "name": "keyword.operator.arithmetic.mist" },
+                "2": { "name": "constant.numeric.integer.mist" }
+              }
+            },
+            {
+              "comment": "Binary literal in type argument position: 0b1010",
+              "name": "constant.numeric.binary.mist",
+              "match": "0[bB][01](?:_?[01])*"
+            },
+            {
+              "comment": "Hex literal in type argument position: 0xFF",
+              "name": "constant.numeric.hex.mist",
+              "match": "0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*"
+            },
+            {
+              "comment": "Integer literal in type argument position: 5, 42",
+              "name": "constant.numeric.integer.mist",
+              "match": "\\b[0-9](?:_?[0-9])*\\b"
+            },
+            {
+              "comment": "Boolean literal in type argument position: true, false",
+              "name": "constant.language.boolean.mist",
+              "match": "\\b(true|false)\\b"
+            },
+            {
+              "comment": "Char literal in type argument position: 'x'",
+              "name": "string.quoted.single.mist",
+              "begin": "'",
+              "end": "'",
+              "patterns": [
+                {
+                  "name": "constant.character.escape.mist",
+                  "match": "\\\\(\\\\|\\\"|n|r|t|0|')"
+                }
+              ]
+            },
+            {
+              "comment": "Primitive type in type argument position",
+              "name": "storage.type.primitive.mist",
+              "match": "\\b(int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|unknown)\\b"
+            },
+            {
+              "comment": "Type name in type argument position",
+              "name": "entity.name.type.mist",
+              "match": "\\b[A-Z]\\w*\\b"
+            },
+            {
+              "comment": "Const reference or type parameter in type argument position",
+              "name": "variable.other.mist",
+              "match": "\\b[a-zA-Z_]\\w*\\b"
+            },
+            {
+              "name": "punctuation.separator.comma.mist",
+              "match": ","
+            }
+          ]
         },
         {
           "comment": "Property declaration: type followed by identifier followed by { or =>",

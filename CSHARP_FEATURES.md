@@ -494,6 +494,7 @@ Mist supports TypeScript-style type unions (`int | string`) allowing a value to 
 | Generic methods (`void Foo<T>()`) | ✅ | |
 | Generic interfaces | ✅ | |
 | Type constraints (`where T : class`) | ✅ | |
+| Dependent type parameters | ✅ | `<Size:int>` syntax for compile-time constant values |
 | Covariance / contravariance | 🔲 | |
 | Generic delegates | 🔲 | |
 
@@ -865,7 +866,7 @@ Features introduced by Mist that don't map directly to a single C# feature. Thes
 | Type Unions — Semantic Model | 4 | 0 | 0 |
 | Type Unions — Type Checking | 9 | 0 | 0 |
 | Type Unions — C# Emission | 6 | 0 | 0 |
-| Generics | 4 | 2 | 0 |
+| Generics | 5 | 2 | 0 |
 | Async | 0 | 5 | 1 |
 | Namespaces & Imports | 3 | 3 | 1 |
 | Comments | 1 | 2 | 0 |

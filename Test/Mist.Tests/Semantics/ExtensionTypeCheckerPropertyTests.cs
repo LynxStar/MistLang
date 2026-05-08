@@ -317,9 +317,9 @@ public class ExtensionTypeCheckerPropertyTests
 
     private static TypeParameterListNode MakeTypeParamList(params string[] names)
     {
-        var first = new TypeParameterNode { Name = Tok(names[0]) };
+        var first = new RegularTypeParameterTypeParameterNode { Name = Tok(names[0]) };
         var rest = names.Skip(1)
-            .Select(n => new TypeParameterNode { Name = Tok(n) })
+            .Select(n => (TypeParameterNode)new RegularTypeParameterTypeParameterNode { Name = Tok(n) })
             .ToImmutableArray();
         return new TypeParameterListNode
         {
@@ -331,8 +331,8 @@ public class ExtensionTypeCheckerPropertyTests
     private static TypeArgumentListNode MakeTypeArgList(params TypeReferenceNode[] typeRefs) =>
         new()
         {
-            TypeReference = typeRefs[0],
-            TypeReferences = typeRefs.Skip(1).ToImmutableArray(),
+            TypeArgument = new TypeReferenceTypeArgumentTypeArgumentNode { Type = typeRefs[0] },
+            TypeArguments = typeRefs.Skip(1).Select(t => (TypeArgumentNode)new TypeReferenceTypeArgumentTypeArgumentNode { Type = t }).ToImmutableArray(),
         };
 
     private static ClassDeclarationNode MakeClass(string name, ImmutableArray<MemberDeclarationNode>? members = null) =>

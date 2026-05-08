@@ -1,0 +1,83 @@
+// SYNTAX TEST "source.mist"
+
+// ===== Dependent type parameter annotations (Req 16.1, 16.2) =====
+
+class FixedBuffer<Size:int> {
+//    ^^^^^^^^^^^ entity.name.type.mist
+//                ^^^^ entity.name.type.parameter.mist
+//                    ^ punctuation.separator.annotation.mist
+//                     ^^^ storage.type.primitive.mist
+}
+
+class Matrix<Rows:int, Cols:int> {
+//    ^^^^^^ entity.name.type.mist
+//           ^^^^ entity.name.type.parameter.mist
+//               ^ punctuation.separator.annotation.mist
+//                ^^^ storage.type.primitive.mist
+//                     ^^^^ entity.name.type.parameter.mist
+//                         ^ punctuation.separator.annotation.mist
+//                          ^^^ storage.type.primitive.mist
+}
+
+struct Flag<Enabled:bool> {
+//     ^^^^ entity.name.type.mist
+//          ^^^^^^^ entity.name.type.parameter.mist
+//                 ^ punctuation.separator.annotation.mist
+//                  ^^^^ storage.type.primitive.mist
+}
+
+interface IBuffer<Cap:ulong> {
+//        ^^^^^^^ entity.name.type.mist
+//                ^^^ entity.name.type.parameter.mist
+//                   ^ punctuation.separator.annotation.mist
+//                    ^^^^^ storage.type.primitive.mist
+}
+
+trait Bounded<Limit:byte> {
+//    ^^^^^^^ entity.name.type.mist
+//            ^^^^^ entity.name.type.parameter.mist
+//                 ^ punctuation.separator.annotation.mist
+//                  ^^^^ storage.type.primitive.mist
+}
+
+// ===== Constant literals in type argument positions (Req 16.3) =====
+
+  FixedBuffer<5>
+//^^^^^^^^^^^ entity.name.type.mist
+//            ^ constant.numeric.integer.mist
+
+  FixedBuffer<42>
+//^^^^^^^^^^^ entity.name.type.mist
+//            ^^ constant.numeric.integer.mist
+
+  Flag<true>
+//^^^^ entity.name.type.mist
+//     ^^^^ constant.language.boolean.mist
+
+  Flag<false>
+//^^^^ entity.name.type.mist
+//     ^^^^^ constant.language.boolean.mist
+
+  Mask<0xFF>
+//^^^^ entity.name.type.mist
+//     ^^^^ constant.numeric.hex.mist
+
+  Bits<0b1010>
+//^^^^ entity.name.type.mist
+//     ^^^^^^ constant.numeric.binary.mist
+
+  Offset<-1>
+//^^^^^^ entity.name.type.mist
+//        ^ constant.numeric.integer.mist
+
+// ===== Mixed type arguments (types and literals) =====
+
+  TypedBuffer<int, 5>
+//^^^^^^^^^^^ entity.name.type.mist
+//            ^^^ storage.type.primitive.mist
+//                 ^ constant.numeric.integer.mist
+
+  Map<string, 10>
+//^^^ entity.name.type.mist
+//    ^^^^^^ storage.type.primitive.mist
+//            ^^ constant.numeric.integer.mist

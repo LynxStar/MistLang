@@ -61,8 +61,8 @@ public sealed class CompilerDriver : ICompilerDriver
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Unknown backend '{options.Backend.Value}'.",
-                Location: null,
-                CompilationUnitPath: null,
+                Location: default,
+                CompilationUnitPath: "<unknown>",
                 AnalyzerName: null));
 
             return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
@@ -89,7 +89,7 @@ public sealed class CompilerDriver : ICompilerDriver
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Failed to read source file '{path}': {ex.Message}",
-                    Location: null,
+                    Location: default,
                     CompilationUnitPath: path,
                     AnalyzerName: null));
             }
@@ -182,7 +182,7 @@ public sealed class CompilerDriver : ICompilerDriver
                                     DiagnosticSeverity.Error,
                                     PipelineStage.Driver,
                                     $"Failed to read referenced source file '{path}': {ex.Message}",
-                                    Location: null,
+                                    Location: default,
                                     CompilationUnitPath: path,
                                     AnalyzerName: null));
                             }
@@ -344,8 +344,8 @@ public sealed class CompilerDriver : ICompilerDriver
                 DiagnosticSeverity.Error,
                 PipelineStage.SemanticModelConstruction,
                 $"Semantic model construction failed: {ex.Message}",
-                Location: null,
-                CompilationUnitPath: null,
+                Location: default,
+                CompilationUnitPath: "<unknown>",
                 AnalyzerName: null));
             semanticModel = null;
         }

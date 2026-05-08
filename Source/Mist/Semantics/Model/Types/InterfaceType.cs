@@ -12,7 +12,7 @@ public sealed class InterfaceType : IType
     public IScope MemberScope { get; }
     public string? ContainingNamespace { get; }
     public IReadOnlyList<IType> Interfaces { get; internal set; } = Array.Empty<IType>();
-    public IReadOnlyList<TypeParameterType> TypeParameters { get; internal set; } = Array.Empty<TypeParameterType>();
+    public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
 
     public InterfaceType(string displayName, IScope memberScope, string? containingNamespace)
     {

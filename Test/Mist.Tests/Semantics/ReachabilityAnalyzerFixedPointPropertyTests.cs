@@ -142,7 +142,7 @@ public class ReachabilityAnalyzerFixedPointPropertyTests
     // Synthetic ISymbol/IType construction for a single generic type G<T>.
     // ═══════════════════════════════════════════════════════════════════════
 
-    private static (List<ISymbol> methods, TypeParameterType T, Dictionary<ISymbol, ReachabilityAnalyzer.MemberCallInfo> callGraph, Dictionary<ReachabilityAnalyzer.MemberTypeParamKey, MemberClassification> classifications, List<(List<ISymbol> Members, IReadOnlyList<TypeParameterType> TypeParameters)> perGeneric)
+    private static (List<ISymbol> methods, TypeParameterType T, Dictionary<ISymbol, ReachabilityAnalyzer.MemberCallInfo> callGraph, Dictionary<ReachabilityAnalyzer.MemberTypeParamKey, MemberClassification> classifications, List<(List<ISymbol> Members, IReadOnlyList<IType> TypeParameters)> perGeneric)
         BuildSyntheticWorld(CallGraphScenario scenario)
     {
         var fileScope = new Scope(parent: null);
@@ -197,7 +197,7 @@ public class ReachabilityAnalyzerFixedPointPropertyTests
                 : MemberClassification.DoesNotWriteT;
         }
 
-        var perGeneric = new List<(List<ISymbol> Members, IReadOnlyList<TypeParameterType> TypeParameters)>
+        var perGeneric = new List<(List<ISymbol> Members, IReadOnlyList<IType> TypeParameters)>
         {
             (methods, new[] { typeParameter }),
         };

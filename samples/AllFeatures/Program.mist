@@ -32,6 +32,7 @@ public class Program
         Properties.Program.RunDemo();
         Namespaces.Program.RunDemo();
         GenericConstraints.Program.RunDemo();
+        DependentTypes.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

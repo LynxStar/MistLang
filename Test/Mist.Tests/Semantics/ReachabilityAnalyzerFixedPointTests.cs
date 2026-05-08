@@ -89,7 +89,7 @@ public class ReachabilityAnalyzerFixedPointTests
             _ => throw new InvalidOperationException($"Type '{typeName}' has no type parameters container."),
         };
         Assert.NotEmpty(typeParameters);
-        return (typeSymbol, typeParameters[0]);
+        return (typeSymbol, (TypeParameterType)typeParameters[0]);
     }
 
     private static ISymbol GetMember(ISymbol typeSymbol, string memberName)

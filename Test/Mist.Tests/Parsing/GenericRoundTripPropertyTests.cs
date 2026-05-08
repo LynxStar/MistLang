@@ -65,9 +65,9 @@ public class GenericRoundTripPropertyTests
         return Gen.Choose(1, 4).SelectMany(count =>
         {
             var names = TypeParamNames.Take(count).ToArray();
-            var first = new TypeParameterNode { Name = Tok(names[0]) };
+            var first = new RegularTypeParameterTypeParameterNode { Name = Tok(names[0]) };
             var rest = names.Skip(1)
-                .Select(n => new TypeParameterNode { Name = Tok(n) })
+                .Select(n => (TypeParameterNode)new RegularTypeParameterTypeParameterNode { Name = Tok(n) })
                 .ToImmutableArray();
 
             return Gen.Constant(new TypeParameterListNode
@@ -90,8 +90,8 @@ public class GenericRoundTripPropertyTests
                 {
                     return new TypeArgumentListNode
                     {
-                        TypeReference = args[0],
-                        TypeReferences = args.Skip(1).ToImmutableArray(),
+                        TypeArgument = new TypeReferenceTypeArgumentTypeArgumentNode { Type = args[0] },
+                        TypeArguments = args.Skip(1).Select(t => (TypeArgumentNode)new TypeReferenceTypeArgumentTypeArgumentNode { Type = t }).ToImmutableArray(),
                     };
                 });
         });

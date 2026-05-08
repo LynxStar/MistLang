@@ -136,9 +136,9 @@ public class TypeAliasRegistrationPropertyTests
 
     private static TypeParameterListNode MakeTypeParamList(IReadOnlyList<string> names)
     {
-        var first = new TypeParameterNode { Name = Tok(names[0]) };
+        var first = new RegularTypeParameterTypeParameterNode { Name = Tok(names[0]) };
         var rest = names.Skip(1)
-            .Select(n => new TypeParameterNode { Name = Tok(n) })
+            .Select(n => (TypeParameterNode)new RegularTypeParameterTypeParameterNode { Name = Tok(n) })
             .ToImmutableArray();
         return new TypeParameterListNode
         {
@@ -246,10 +246,10 @@ public class TypeAliasRegistrationPropertyTests
         // Verify each type parameter name matches
         for (var i = 0; i < expectedCount; i++)
         {
-            if (registeredParams[i].Name != scenario.TypeParameterNames[i])
+            if (registeredParams[i].DisplayName != scenario.TypeParameterNames[i])
                 return false.ToProperty()
                     .Label($"Type parameter at index {i}: expected '{scenario.TypeParameterNames[i]}', " +
-                           $"got '{registeredParams[i].Name}'. Scenario: {scenario}");
+                           $"got '{registeredParams[i].DisplayName}'. Scenario: {scenario}");
         }
 
         return true.ToProperty()

@@ -44,8 +44,8 @@ public sealed class AnalyzerRunner
                     DiagnosticSeverity.Error,
                     PipelineStage.Analysis,
                     $"Analyzer '{analyzer.AnalyzerId}' threw an unhandled exception: {ex.Message}",
-                    Location: null,
-                    CompilationUnitPath: null,
+                    Location: default,
+                    CompilationUnitPath: "<unknown>",
                     AnalyzerName: analyzer.AnalyzerId));
             }
             sw.Stop();

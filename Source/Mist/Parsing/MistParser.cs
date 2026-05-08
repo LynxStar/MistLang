@@ -34,7 +34,7 @@ public sealed class MistParser : IParser
                 DiagnosticSeverity.Warning,
                 PipelineStage.Parsing,
                 "Parser is not yet implemented (Storm-generated parser is skeletal). Source file was lexed but not parsed.",
-                Location: null,
+                Location: default,
                 CompilationUnitPath: tokens.Source.Path,
                 AnalyzerName: null));
         }
@@ -46,7 +46,7 @@ public sealed class MistParser : IParser
                 ? new LinePositionSpan(
                     new LinePosition(entry.Line, entry.Column),
                     new LinePosition(entry.Line, entry.Column))
-                : (LinePositionSpan?)null;
+                : default;
 
             diagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_PARSE_ERROR"),

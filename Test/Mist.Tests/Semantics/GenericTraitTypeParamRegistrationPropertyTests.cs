@@ -71,9 +71,9 @@ public class GenericTraitTypeParamRegistrationPropertyTests
 
     private static TypeParameterListNode MakeTypeParamList(string[] names)
     {
-        var first = new TypeParameterNode { Name = Tok(names[0]) };
+        var first = new RegularTypeParameterTypeParameterNode { Name = Tok(names[0]) };
         var rest = names.Skip(1)
-            .Select(n => new TypeParameterNode { Name = Tok(n) })
+            .Select(n => (TypeParameterNode)new RegularTypeParameterTypeParameterNode { Name = Tok(n) })
             .ToImmutableArray();
         return new TypeParameterListNode
         {
@@ -302,9 +302,9 @@ public class GenericTraitTypeParamRegistrationPropertyTests
         for (var i = 0; i < scenario.TypeParamNames.Length; i++)
         {
             var tp = traitType.TypeParameters[i];
-            if (tp.Name != scenario.TypeParamNames[i])
+            if (tp.DisplayName != scenario.TypeParamNames[i])
                 return false;
-            if (tp.Ordinal != i)
+            if (tp is TypeParameterType tpt && tpt.Ordinal != i)
                 return false;
         }
 
@@ -332,12 +332,14 @@ public class GenericTraitTypeParamRegistrationPropertyTests
         // Each type parameter name should be resolvable in the trait's member scope
         foreach (var tp in traitType.TypeParameters)
         {
-            var resolved = traitType.MemberScope.Lookup(tp.Name);
+            var resolved = traitType.MemberScope.Lookup(tp.DisplayName);
             if (resolved is null)
                 return false;
             if (resolved.DeclaredType is not TypeParameterType resolvedTp)
                 return false;
-            if (resolvedTp.Name != tp.Name || resolvedTp.Ordinal != tp.Ordinal)
+            if (tp is not TypeParameterType tpCast)
+                return false;
+            if (resolvedTp.Name != tpCast.Name || resolvedTp.Ordinal != tpCast.Ordinal)
                 return false;
         }
 
@@ -456,8 +458,8 @@ public class GenericTraitTypeParamRegistrationPropertyTests
 
         // Verify type parameters
         Assert.Single(traitType.TypeParameters);
-        Assert.Equal("T", traitType.TypeParameters[0].Name);
-        Assert.Equal(0, traitType.TypeParameters[0].Ordinal);
+        Assert.Equal("T", traitType.TypeParameters[0].DisplayName);
+        Assert.Equal(0, ((TypeParameterType)traitType.TypeParameters[0]).Ordinal);
 
         // Verify resolvable in member scope
         var resolved = traitType.MemberScope.Lookup("T");
@@ -505,10 +507,10 @@ public class GenericTraitTypeParamRegistrationPropertyTests
 
         // Verify type parameters
         Assert.Equal(2, traitType.TypeParameters.Count);
-        Assert.Equal("T", traitType.TypeParameters[0].Name);
-        Assert.Equal(0, traitType.TypeParameters[0].Ordinal);
-        Assert.Equal("U", traitType.TypeParameters[1].Name);
-        Assert.Equal(1, traitType.TypeParameters[1].Ordinal);
+        Assert.Equal("T", traitType.TypeParameters[0].DisplayName);
+        Assert.Equal(0, ((TypeParameterType)traitType.TypeParameters[0]).Ordinal);
+        Assert.Equal("U", traitType.TypeParameters[1].DisplayName);
+        Assert.Equal(1, ((TypeParameterType)traitType.TypeParameters[1]).Ordinal);
 
         // Verify both are resolvable in member scope
         var resolvedT = traitType.MemberScope.Lookup("T");

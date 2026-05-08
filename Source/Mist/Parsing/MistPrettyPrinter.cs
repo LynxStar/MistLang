@@ -1921,35 +1921,68 @@ public sealed class MistPrettyPrinter
     }
 
     /// <summary>
-    /// Emits a type parameter list (e.g., &lt;T, U&gt;) or empty string if null.
+    /// Emits a type parameter list (e.g., &lt;T, U&gt; or &lt;T, Size:int&gt;) or empty string if null.
+    /// Dependent type parameters are emitted as Name:Type with no spaces around the colon.
     /// </summary>
     private static string EmitTypeParameterList(TypeParameterListNode? typeParams)
     {
         if (typeParams is null) return "";
 
         var parts = new List<string>();
-        parts.Add(typeParams.TypeParameter.Name.Lexeme);
+        parts.Add(EmitTypeParameter(typeParams.TypeParameter));
         foreach (var tp in typeParams.TypeParameters)
         {
-            parts.Add(tp.Name.Lexeme);
+            parts.Add(EmitTypeParameter(tp));
         }
         return $"<{string.Join(", ", parts)}>";
     }
 
+    private static string EmitTypeParameter(TypeParameterNode tp)
+    {
+        return tp switch
+        {
+            DependentTypeParameterTypeParameterNode dep =>
+                $"{dep.Name.Lexeme}:{EmitPrimitiveType(dep.ValueType)}",
+            RegularTypeParameterTypeParameterNode reg =>
+                reg.Name.Lexeme,
+            _ => tp.GetName().Lexeme,
+        };
+    }
+
     /// <summary>
-    /// Emits a type argument list (e.g., &lt;int, string&gt;) or empty string if null.
+    /// Emits a type argument list (e.g., &lt;int, string&gt;, &lt;5&gt;, &lt;true&gt;) or empty string if null.
+    /// Handles all TypeArgument node variants including literal values for dependent type arguments.
     /// </summary>
     private string EmitTypeArgumentList(TypeArgumentListNode? typeArgs)
     {
         if (typeArgs is null) return "";
 
         var parts = new List<string>();
-        parts.Add(EmitTypeReference(typeArgs.TypeReference));
-        foreach (var typeRef in typeArgs.TypeReferences)
+        parts.Add(EmitTypeArgument(typeArgs.TypeArgument));
+        foreach (var arg in typeArgs.TypeArguments)
         {
-            parts.Add(EmitTypeReference(typeRef));
+            parts.Add(EmitTypeArgument(arg));
         }
         return $"<{string.Join(", ", parts)}>";
+    }
+
+    /// <summary>
+    /// Emits a single type argument node, handling all variants (literal values and type references).
+    /// </summary>
+    private string EmitTypeArgument(TypeArgumentNode arg)
+    {
+        return arg switch
+        {
+            NegatedIntegerTypeArgumentTypeArgumentNode neg => $"-{neg.Literal.Lexeme}",
+            IntegerLiteralTypeArgumentTypeArgumentNode intLit => intLit.Literal.Lexeme,
+            HexLiteralTypeArgumentTypeArgumentNode hexLit => hexLit.Literal.Lexeme,
+            BinaryLiteralTypeArgumentTypeArgumentNode binLit => binLit.Literal.Lexeme,
+            TrueLiteralTypeArgumentTypeArgumentNode => "true",
+            FalseLiteralTypeArgumentTypeArgumentNode => "false",
+            CharLiteralTypeArgumentTypeArgumentNode charLit => charLit.Literal.Lexeme,
+            TypeReferenceTypeArgumentTypeArgumentNode typeRef => EmitTypeReference(typeRef.Type),
+            _ => "",
+        };
     }
 
     /// <summary>

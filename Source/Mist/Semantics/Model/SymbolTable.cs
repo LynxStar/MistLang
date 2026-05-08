@@ -70,7 +70,7 @@ public sealed class Symbol : ISymbol
     /// <summary>
     /// Type parameters for generic method symbols. Empty for non-generic methods and non-method symbols.
     /// </summary>
-    public IReadOnlyList<TypeParameterType> TypeParameters { get; internal set; } = Array.Empty<TypeParameterType>();
+    public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
 }
 
 /// <summary>

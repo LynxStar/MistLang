@@ -12,8 +12,8 @@ namespace Mist.Tests.Semantics;
 ///
 /// These tests replicate the private MakeDiagnosticWithLocation helper logic:
 ///
-///   LinePositionSpan? location = null;
-///   string? compilationUnitPath = sourceText?.Path;
+///   LinePositionSpan location = default;
+///   string compilationUnitPath = sourceText?.Path ?? "&lt;unknown&gt;";
 ///   if (sourceText is not null &amp;&amp; node.Span.Length > 0)
 ///   {
 ///       var mistSpan = new SourceSpan(node.Span.Start, node.Span.Length);
@@ -32,8 +32,8 @@ public class SemanticModelBuilderFallbackTests
         int spanStart,
         int spanLength)
     {
-        LinePositionSpan? location = null;
-        string? compilationUnitPath = sourceText?.Path;
+        LinePositionSpan location = default;
+        string compilationUnitPath = sourceText?.Path ?? "<unknown>";
 
         if (sourceText is not null && spanLength > 0)
         {
@@ -52,29 +52,29 @@ public class SemanticModelBuilderFallbackTests
     }
 
     [Fact]
-    public void NullSourceText_ProducesNullLocation()
+    public void NullSourceText_ProducesDefaultLocation()
     {
         var diagnostic = MakeDiagnostic(sourceText: null, spanStart: 0, spanLength: 5);
 
-        Assert.Null(diagnostic.Location);
+        Assert.Equal(default, diagnostic.Location);
     }
 
     [Fact]
-    public void NullSourceText_ProducesNullCompilationUnitPath()
+    public void NullSourceText_ProducesUnknownCompilationUnitPath()
     {
         var diagnostic = MakeDiagnostic(sourceText: null, spanStart: 0, spanLength: 5);
 
-        Assert.Null(diagnostic.CompilationUnitPath);
+        Assert.Equal("<unknown>", diagnostic.CompilationUnitPath);
     }
 
     [Fact]
-    public void ZeroLengthSpan_ProducesNullLocation()
+    public void ZeroLengthSpan_ProducesDefaultLocation()
     {
         var sourceText = new SourceText("test.mist", "let x = 42;");
 
         var diagnostic = MakeDiagnostic(sourceText, spanStart: 0, spanLength: 0);
 
-        Assert.Null(diagnostic.Location);
+        Assert.Equal(default, diagnostic.Location);
     }
 
     [Fact]
@@ -88,13 +88,13 @@ public class SemanticModelBuilderFallbackTests
     }
 
     [Fact]
-    public void NonNullSourceText_WithPositiveSpan_ProducesNonNullLocation()
+    public void NonNullSourceText_WithPositiveSpan_ProducesNonDefaultLocation()
     {
         var sourceText = new SourceText("test.mist", "let x = 42;");
 
         var diagnostic = MakeDiagnostic(sourceText, spanStart: 0, spanLength: 3);
 
-        Assert.NotNull(diagnostic.Location);
+        Assert.NotEqual(default, diagnostic.Location);
         Assert.Equal("test.mist", diagnostic.CompilationUnitPath);
     }
 }

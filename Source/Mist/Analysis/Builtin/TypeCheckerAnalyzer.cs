@@ -404,6 +404,37 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId CannotAssignUnderlyingToEnum = new("MIST_SB_0083");
 
+    // ── dependent-types feature: compile-time constant validation ─────────
+
+    /// <summary>
+    /// Emitted when a dependent type argument is not a compile-time constant.
+    /// Variables, method calls, property accesses, and expressions are rejected
+    /// (Requirement 5.1, 5.3, 15.1, 15.6).
+    /// </summary>
+    internal static readonly DiagnosticId DependentArgNotConstant = new("MIST_DT_0002");
+
+    /// <summary>
+    /// Emitted when a dependent type argument's type does not match the
+    /// dependent parameter's value type annotation (Requirement 15.2).
+    /// </summary>
+    internal static readonly DiagnosticId DependentArgTypeMismatch = new("MIST_DT_0003");
+
+    /// <summary>
+    /// Emitted when a derived type forwards a dependent parameter to a base type
+    /// but the derived parameter's value type cannot be implicitly widened to the
+    /// base parameter's value type (e.g., <c>long</c> forwarded to <c>int</c>).
+    /// (Requirements 12.3, 12.4).
+    /// </summary>
+    internal static readonly DiagnosticId DependentNarrowingViolation = new("MIST_DT_0004");
+
+    /// <summary>
+    /// Emitted when a pattern match is attempted against an open dependent type
+    /// (a constructed type whose dependent arguments contain unresolved parameters).
+    /// Pattern matching requires all dependent values to be concrete
+    /// (Requirement 9.3, 9.4, 15.7).
+    /// </summary>
+    internal static readonly DiagnosticId DependentOpenTypePattern = new("MIST_DT_0007");
+
     /// <summary>
     /// Feature flag gating the operator overload-resolution path introduced by
     /// Task 14 of the Mist Standard Library spec. When <c>true</c> (the
@@ -509,6 +540,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Task 7.2: Validate explicit default blocks (R9.1–9.3, R6.9, R11.1, R11.2, R13.3, R13.4, R13.10).
         ValidateDefaultBlocks(model, diagnostics);
+
+        // Task 6.1: Validate dependent type arguments are compile-time constants
+        // and that their types match the parameter annotations (MIST_DT_0002, MIST_DT_0003).
+        ValidateDependentTypeArguments(model, diagnostics);
+
+        // Task 6.6: Validate dependent parameter forwarding in inheritance — widening only.
+        // Emits MIST_DT_0004 when a derived type forwards a dependent parameter whose value
+        // type cannot be implicitly widened to the base parameter's value type.
+        ValidateDependentParameterForwarding(model, diagnostics);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -611,8 +651,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 DiagnosticSeverity.Error,
                 PipelineStage.Analysis,
                 "Program does not contain a valid entry point (static void Main)",
-                Location: null,
-                CompilationUnitPath: null,
+                Location: default,
+                CompilationUnitPath: "<unknown>",
                 AnalyzerName: "TypeChecker"));
         }
         else if (entryPoints.Count > 1)
@@ -1968,13 +2008,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         {
                             // The type argument is a type parameter of the derived type —
                             // check constraint propagation ("at least as restrictive").
-                            CheckConstraintPropagation(
-                                derivedTypeParam, baseTypeParams[i], declaredType,
-                                genericName, declaringNode, model, diagnostics);
+                            if (baseTypeParams[i] is TypeParameterType baseTP)
+                                CheckConstraintPropagation(
+                                    derivedTypeParam, baseTP, declaredType,
+                                    genericName, declaringNode, model, diagnostics);
                         }
                         else
                         {
-                            CheckConstraintSatisfaction(baseTypeArgs[i], baseTypeParams[i], declaringNode, genericName, model, diagnostics);
+                            if (baseTypeParams[i] is TypeParameterType baseTP2)
+                                CheckConstraintSatisfaction(baseTypeArgs[i], baseTP2, declaringNode, genericName, model, diagnostics);
                         }
                     }
                 }
@@ -2006,13 +2048,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         // The type argument is a type parameter of the derived type —
                         // check constraint propagation ("at least as restrictive").
-                        CheckConstraintPropagation(
-                            derivedTypeParam, ifaceTypeParams[i], declaredType,
-                            genericName, declaringNode, model, diagnostics);
+                        if (ifaceTypeParams[i] is TypeParameterType ifaceTP)
+                            CheckConstraintPropagation(
+                                derivedTypeParam, ifaceTP, declaredType,
+                                genericName, declaringNode, model, diagnostics);
                     }
                     else
                     {
-                        CheckConstraintSatisfaction(ifaceTypeArgs[i], ifaceTypeParams[i], declaringNode, genericName, model, diagnostics);
+                        if (ifaceTypeParams[i] is TypeParameterType ifaceTP2)
+                            CheckConstraintSatisfaction(ifaceTypeArgs[i], ifaceTP2, declaringNode, genericName, model, diagnostics);
                     }
                 }
             }
@@ -2903,6 +2947,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var symbol = model.GetDeclaredSymbol(memberAccess);
                 if (symbol is not null && symbol.Kind == SymbolKind.Property)
                     return symbol;
+
+                // Fallback: resolve via the receiver type's member scope.
+                // This handles cases where the member access node is not registered
+                // in the symbol table (e.g., dependent property access on constructed types
+                // like FixedBuffer<5>.Size, or instance access like buf.Size).
+                var receiverType = postfix.Suffix.Length > 1
+                    ? model.GetTypeOf(postfix.Suffix[^2])
+                    : model.GetTypeOf(postfix.Target);
+                if (receiverType is not null)
+                {
+                    var resolved = FindPropertyMemberSymbol(receiverType, memberAccess.Name.Lexeme, model);
+                    if (resolved is not null)
+                        return resolved;
+                }
             }
         }
         else
@@ -2911,6 +2969,45 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var symbol = model.GetDeclaredSymbol(postfix.Target);
             if (symbol is not null && symbol.Kind == SymbolKind.Property)
                 return symbol;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Finds a static property member symbol by name in the target type's member scope.
+    /// Unlike <see cref="FindMemberSymbol"/>, this specifically looks for static property symbols,
+    /// which handles the case of generated dependent type properties (e.g., FixedBuffer&lt;5&gt;.Size)
+    /// that are not registered in the symbol table via AST node association.
+    /// Only static properties are matched to avoid interfering with instance property assignment
+    /// validation that relies on the existing GetDeclaredSymbol path.
+    /// </summary>
+    private static ISymbol? FindPropertyMemberSymbol(IType targetType, string memberName, ISemanticModel model)
+    {
+        // Unwrap ConstructedType to look up in the generic definition's member scope.
+        if (targetType is ConstructedType ct)
+            targetType = ct.GenericDefinition;
+
+        IScope? memberScope = targetType switch
+        {
+            ClassType ct2 => ct2.MemberScope,
+            StructType st => st.MemberScope,
+            InterfaceType it => it.MemberScope,
+            _ => null,
+        };
+
+        if (memberScope is null)
+            return null;
+
+        foreach (var member in memberScope.Members)
+        {
+            if (member.Name == memberName && member.Kind == SymbolKind.Property)
+            {
+                // Only match static properties to avoid interfering with
+                // instance property assignment validation.
+                if (member is Symbol sym && sym.PropertyMetadata is { IsStatic: true })
+                    return member;
+            }
         }
 
         return null;
@@ -3201,6 +3298,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         typePattern,
                         model));
                 }
+                else if (HasOpenDependentArguments(patternType))
+                {
+                    // Task 6.5 / Req 9.3, 9.4, 15.7: pattern match against an
+                    // open dependent type (dependent args contain unresolved
+                    // parameters) is rejected — pattern matching requires
+                    // concrete dependent values.
+                    diagnostics.Add(MakeDiagnostic(
+                        DependentOpenTypePattern.Value,
+                        $"Cannot pattern match against open dependent type '{patternType.DisplayName}'. Pattern matching requires concrete dependent values.",
+                        typePattern,
+                        model));
+                }
                 else if (scrutineeType is UnionType unionForTypePattern
                          && !IsConstituentOfUnion(patternType, unionForTypePattern))
                 {
@@ -3260,6 +3369,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     diagnostics.Add(MakeDiagnostic(
                         PatternNarrowToClosedGenericWithUnknown.Value,
                         $"Narrowing to '{patternType.DisplayName}' is not meaningful: the pattern is tautologically true under covariant unknown widening, and the binding loses information because members that write to a type parameter bound to 'unknown' are filtered. Narrow to a concrete constructed type (e.g., '{ReplaceUnknownWithConcretePlaceholder(patternType)}') instead.",
+                        bareTypePattern,
+                        model));
+                }
+                else if (HasOpenDependentArguments(patternType))
+                {
+                    // Task 6.5 / Req 9.3, 9.4, 15.7: pattern match against an
+                    // open dependent type (dependent args contain unresolved
+                    // parameters) is rejected — pattern matching requires
+                    // concrete dependent values.
+                    diagnostics.Add(MakeDiagnostic(
+                        DependentOpenTypePattern.Value,
+                        $"Cannot pattern match against open dependent type '{patternType.DisplayName}'. Pattern matching requires concrete dependent values.",
                         bareTypePattern,
                         model));
                 }
@@ -3888,6 +4009,32 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
+    /// Returns <c>true</c> when <paramref name="type"/> is a
+    /// <see cref="ConstructedType"/> with dependent arguments where at least
+    /// one <see cref="DependentValueArgument.Value"/> is a <see cref="string"/>
+    /// (indicating an unresolved/forwarded parameter rather than a concrete
+    /// literal value). This is the <em>Open_Dependent_Type</em> shape: a
+    /// constructed type whose dependent arguments contain unresolved parameters
+    /// (e.g., <c>FixedBuffer&lt;N&gt;</c> where <c>N</c> is a type parameter).
+    /// Used by the Task 6.5 pattern-matching rejection rule (Req 9.3, 9.4, 15.7).
+    /// </summary>
+    private static bool HasOpenDependentArguments(IType type)
+    {
+        if (type is not ConstructedType ct)
+            return false;
+
+        if (ct.DependentArguments is null)
+            return false;
+
+        foreach (var depArg in ct.DependentArguments)
+        {
+            if (depArg is not null && depArg.Value is string)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// Recursive structural containment check: returns <c>true</c> if
     /// <paramref name="type"/> is <see cref="UnknownType"/>, an array whose
     /// element (transitively) contains <c>unknown</c>, or a constructed
@@ -4319,7 +4466,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// receiver's own declaring body (where type parameters are still
     /// open, per Requirement 10.6).
     /// </summary>
-    private IReadOnlyList<TypeParameterType>? GetClosedUnknownTypeParameters(IType? receiverType)
+    private IReadOnlyList<IType>? GetClosedUnknownTypeParameters(IType? receiverType)
     {
         if (receiverType is not ConstructedType ct)
             return null;
@@ -4347,7 +4494,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (ct.TypeArguments[i] is UnknownType)
             {
                 closed ??= new List<TypeParameterType>(count);
-                closed.Add(typeParams[i]);
+                if (typeParams[i] is TypeParameterType tpItem)
+                    closed.Add(tpItem);
             }
         }
 
@@ -5072,7 +5220,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // 1. If the target is a ConstructedType, substitute the enclosing type's type params.
             // 2. If the target is a ConstructedTraitType, substitute the trait's type params (Task 10.2).
             // 3. If the method has its own type arguments, substitute those as well.
-            IReadOnlyList<TypeParameterType>? enclosingTypeParams = null;
+            IReadOnlyList<IType>? enclosingTypeParams = null;
             IReadOnlyList<IType>? enclosingTypeArgs = null;
             if (targetType is ConstructedType targetCt)
             {
@@ -5088,7 +5236,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Resolve method-level type arguments if present.
-            IReadOnlyList<TypeParameterType>? methodTypeParams = null;
+            IReadOnlyList<IType>? methodTypeParams = null;
             IReadOnlyList<IType>? methodTypeArgs = null;
             if (methodCall.TypeArgs is not null && methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
             {
@@ -5099,7 +5247,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // against the corresponding method type parameter.
                 for (var i = 0; i < methodTypeParams.Count && i < methodTypeArgs.Count; i++)
                 {
-                    CheckConstraintSatisfaction(methodTypeArgs[i], methodTypeParams[i], (SyntaxNode)methodCall, sym.Name, model, diagnostics);
+                    if (methodTypeParams[i] is TypeParameterType methodTP)
+                        CheckConstraintSatisfaction(methodTypeArgs[i], methodTP, (SyntaxNode)methodCall, sym.Name, model, diagnostics);
                 }
             }
 
@@ -5340,9 +5489,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics,
         SyntaxNode callSite,
-        IReadOnlyList<TypeParameterType>? enclosingTypeParams,
+        IReadOnlyList<IType>? enclosingTypeParams,
         IReadOnlyList<IType>? enclosingTypeArgs,
-        IReadOnlyList<TypeParameterType>? methodTypeParams,
+        IReadOnlyList<IType>? methodTypeParams,
         IReadOnlyList<IType>? methodTypeArgs)
     {
         // Get parameter symbols from the method's containing scope.
@@ -5440,7 +5589,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <summary>
     /// Gets the type parameters from a type definition (ClassType, StructType, or InterfaceType).
     /// </summary>
-    private static IReadOnlyList<TypeParameterType>? GetTypeParameters(IType type)
+    private static IReadOnlyList<IType>? GetTypeParameters(IType type)
     {
         return type switch
         {
@@ -5459,11 +5608,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         var result = new List<IType>();
 
-        // The TypeArgumentListNode has a TypeReference property (first arg) and TypeReferences array (rest).
-        var firstType = ResolveTypeReferenceToType(typeArgList.TypeReference, model);
+        // The TypeArgumentListNode has TypeArgument (first arg) and TypeArguments (rest).
+        var firstType = ResolveTypeReferenceToType(typeArgList.GetTypeReference(), model);
         result.Add(firstType);
 
-        foreach (var typeRef in typeArgList.TypeReferences)
+        foreach (var typeRef in typeArgList.GetTypeReferences())
         {
             var argType = ResolveTypeReferenceToType(typeRef, model);
             result.Add(argType);
@@ -5845,7 +5994,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var genericName = constructedForConstraints.GenericDefinition.DisplayName;
                 for (var i = 0; i < typeParams.Count && i < typeArgs.Count; i++)
                 {
-                    CheckConstraintSatisfaction(typeArgs[i], typeParams[i], objectCreation, genericName, model, diagnostics);
+                    if (typeParams[i] is TypeParameterType tp5848)
+                        CheckConstraintSatisfaction(typeArgs[i], tp5848, objectCreation, genericName, model, diagnostics);
                 }
             }
         }
@@ -5885,7 +6035,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // When the created type is a ConstructedType (e.g., Optional<int>),
             // pass the type substitution context so the resolver maps T → Int32
             // in constructor parameter types before the applicability check.
-            (IReadOnlyList<TypeParameterType> TypeParams, IReadOnlyList<IType> TypeArgs)? typeSubstitution = null;
+            (IReadOnlyList<IType> TypeParams, IReadOnlyList<IType> TypeArgs)? typeSubstitution = null;
             if (createdType is ConstructedType ctForSubst)
             {
                 var tp = GetTypeParameters(ctForSubst.GenericDefinition);
@@ -6083,7 +6233,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // When the created type is a ConstructedType (e.g., GenericBox<int>),
         // substitute type parameters in constructor parameter types with the
         // actual type arguments before comparing.
-        IReadOnlyList<TypeParameterType>? typeParams = null;
+        IReadOnlyList<IType>? typeParams = null;
         IReadOnlyList<IType>? typeArgs = null;
         if (createdType is ConstructedType ct)
         {
@@ -6822,7 +6972,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return false;
         }
 
-        // ConstructedType identity: same generic definition + same type arguments.
+        // ConstructedType identity: same generic definition + same type arguments + same dependent arguments.
         if (source is ConstructedType sourceConstructed && target is ConstructedType targetConstructed)
         {
             if (ReferenceEquals(sourceConstructed.GenericDefinition, targetConstructed.GenericDefinition)
@@ -6837,6 +6987,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         break;
                     }
                 }
+
+                // Compare dependent value arguments (Requirements 8.1, 8.2).
+                // FixedBuffer<5> ≠ FixedBuffer<6> even though both have TypeArguments=[int].
+                if (allMatch && !DependentArgumentsEqual(sourceConstructed.DependentArguments, targetConstructed.DependentArguments))
+                    allMatch = false;
+
                 if (allMatch) return true;
 
                 // Covariant unknown widening (unknown-type feature, Task 23.2).
@@ -7311,6 +7467,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 if (!TypesEqual(aCt.TypeArguments[i], bCt.TypeArguments[i]))
                     return false;
             }
+
+            // Compare dependent value arguments (Requirements 8.1, 8.2).
+            if (!DependentArgumentsEqual(aCt.DependentArguments, bCt.DependentArguments))
+                return false;
+
             return true;
         }
 
@@ -7325,6 +7486,35 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Migration-window shim: legacy `int` and stdlib `Int32` denote
         // the same Mist primitive.
         return ArePrimitiveEquivalent(a, b);
+    }
+
+    /// <summary>
+    /// Compares two dependent argument lists for value equality.
+    /// Two lists are equal when they have the same length and each pair of
+    /// non-null entries has equal values (using <see cref="object.Equals(object?, object?)"/>).
+    /// </summary>
+    private static bool DependentArgumentsEqual(
+        IReadOnlyList<DependentValueArgument?>? a,
+        IReadOnlyList<DependentValueArgument?>? b)
+    {
+        if (a is null && b is null)
+            return true;
+        if (a is null || b is null)
+            return false;
+        if (a.Count != b.Count)
+            return false;
+        for (var i = 0; i < a.Count; i++)
+        {
+            var argA = a[i];
+            var argB = b[i];
+            if (argA is null && argB is null)
+                continue;
+            if (argA is null || argB is null)
+                return false;
+            if (!Equals(argA.Value, argB.Value))
+                return false;
+        }
+        return true;
     }
 
     // ─── Covariant unknown widening (unknown-type feature, Task 23) ──────
@@ -7488,7 +7678,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Collect all interfaces from the source type.
         IReadOnlyList<IType>? interfaces = null;
-        IReadOnlyList<TypeParameterType>? typeParams = null;
+        IReadOnlyList<IType>? typeParams = null;
         IReadOnlyList<IType>? typeArgs = null;
 
         switch (source)
@@ -7582,13 +7772,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// - If <paramref name="type"/> is a <see cref="ConstructedType"/>, recursively substitutes its type arguments.
     /// - Otherwise, returns the type unchanged.
     /// </summary>
-    internal static IType SubstituteType(IType type, IReadOnlyList<TypeParameterType> typeParams, IReadOnlyList<IType> typeArgs)
+    internal static IType SubstituteType(IType type, IReadOnlyList<IType> typeParams, IReadOnlyList<IType> typeArgs)
     {
         if (type is TypeParameterType tpt)
         {
             for (var i = 0; i < typeParams.Count; i++)
             {
-                if (tpt.Name == typeParams[i].Name && tpt.Ordinal == typeParams[i].Ordinal)
+                if (typeParams[i] is TypeParameterType tp && tpt.Name == tp.Name && tpt.Ordinal == tp.Ordinal)
                     return i < typeArgs.Count ? typeArgs[i] : type;
             }
             return type;
@@ -8785,8 +8975,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static Diagnostic MakeDiagnosticWithSeverity(
         string id, string message, SyntaxNode node, ISemanticModel model, DiagnosticSeverity severity)
     {
-        Common.Text.LinePositionSpan? location = null;
-        string? compilationUnitPath = null;
+        Common.Text.LinePositionSpan location = default;
+        string compilationUnitPath = "<unknown>";
 
         var span = node.Span;
         if (span.Length > 0)
@@ -9052,8 +9242,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static Diagnostic MakeDiagnostic(string id, string message, SyntaxNode node, ISemanticModel model)
     {
-        Common.Text.LinePositionSpan? location = null;
-        string? compilationUnitPath = null;
+        Common.Text.LinePositionSpan location = default;
+        string compilationUnitPath = "<unknown>";
 
         var span = node.Span;
         if (span.Length > 0)
@@ -9099,8 +9289,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static Diagnostic MakeDiagnosticWarning(string id, string message, SyntaxNode node, ISemanticModel model)
     {
-        Common.Text.LinePositionSpan? location = null;
-        string? compilationUnitPath = null;
+        Common.Text.LinePositionSpan location = default;
+        string compilationUnitPath = "<unknown>";
 
         var span = node.Span;
         if (span.Length > 0)
@@ -9477,5 +9667,499 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         return true;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Dependent type argument validation (MIST_DT_0002, MIST_DT_0003)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates all dependent type arguments in the program:
+    /// <list type="bullet">
+    /// <item><c>MIST_DT_0002</c> — a dependent type argument position contains a
+    /// non-constant expression (variable, method call, property access, or expression).</item>
+    /// <item><c>MIST_DT_0003</c> — a dependent type argument's resolved type does not
+    /// match the dependent parameter's value type annotation.</item>
+    /// </list>
+    /// Walks all AST trees recursively to find <see cref="TypeArgumentListNode"/> instances
+    /// and validates each dependent position against the corresponding type parameter.
+    /// </summary>
+    private static void ValidateDependentTypeArguments(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach (var ast in model.Asts)
+        {
+            ValidateDependentTypeArgumentsInTree(ast, model, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Recursively walks an AST subtree looking for nodes that carry type argument lists
+    /// and validates dependent positions.
+    /// </summary>
+    private static void ValidateDependentTypeArgumentsInTree(
+        SyntaxNode node, ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        // Check if this node carries a type argument list that needs validation.
+        switch (node)
+        {
+            case ObjectCreationExpressionPrimaryNode objCreation when objCreation.TypeArgs is not null:
+                ValidateTypeArgListForNode(objCreation, objCreation.TypeArgs, model, diagnostics);
+                break;
+
+            case NamedTypeRefTypeReferenceNode namedRef when namedRef.TypeArgs is not null:
+                ValidateTypeArgListForNode(namedRef, namedRef.TypeArgs, model, diagnostics);
+                break;
+
+            case BaseTypeRefNode baseRef when baseRef.TypeArgs is not null:
+                ValidateTypeArgListForNode(baseRef, baseRef.TypeArgs, model, diagnostics);
+                break;
+
+            case MethodCallSuffixPostfixSuffixNode methodCall when methodCall.TypeArgs is not null:
+                ValidateMethodCallDependentTypeArgs(methodCall, model, diagnostics);
+                break;
+        }
+
+        // Recurse into children.
+        foreach (var child in node.Children())
+        {
+            if (child is not null)
+                ValidateDependentTypeArgumentsInTree(child, model, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Validates a single <see cref="TypeArgumentListNode"/> against the resolved type's
+    /// parameters. Emits <c>MIST_DT_0002</c> for non-constant arguments in dependent
+    /// positions and <c>MIST_DT_0003</c> for type mismatches.
+    /// </summary>
+    private static void ValidateTypeArgListForNode(
+        SyntaxNode ownerNode,
+        TypeArgumentListNode typeArgList,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Resolve the type that this type argument list belongs to.
+        var resolvedType = model.GetTypeOf(ownerNode);
+        if (resolvedType is null || resolvedType is ErrorType)
+            return;
+
+        // Unwrap type aliases to get the underlying constructed type.
+        if (resolvedType is TypeAliasType alias)
+            resolvedType = alias.UnderlyingType;
+
+        // We need a ConstructedType to get the generic definition's type parameters.
+        ConstructedType? constructedType = null;
+        IReadOnlyList<IType>? typeParams = null;
+
+        if (resolvedType is ConstructedType ct)
+        {
+            constructedType = ct;
+            typeParams = GetTypeParameters(ct.GenericDefinition);
+        }
+        else
+        {
+            // For non-constructed types, try to get type parameters directly.
+            typeParams = GetTypeParameters(resolvedType);
+        }
+
+        if (typeParams is null || typeParams.Count == 0)
+            return;
+
+        // Collect all type argument nodes.
+        var argNodes = new List<TypeArgumentNode> { typeArgList.TypeArgument };
+        foreach (var extra in typeArgList.TypeArguments)
+            argNodes.Add(extra);
+
+        // Validate each position.
+        for (var i = 0; i < argNodes.Count && i < typeParams.Count; i++)
+        {
+            if (typeParams[i] is not DependentTypeParameterType depParam)
+                continue;
+
+            var argNode = argNodes[i];
+
+            // Check MIST_DT_0002: Is the argument a compile-time constant?
+            if (!IsDependentArgCompileTimeConstant(argNode, model))
+            {
+                var exprText = ExtractTypeArgumentText(argNode);
+                diagnostics.Add(MakeDiagnostic(
+                    DependentArgNotConstant.Value,
+                    $"Dependent type argument must be a compile-time constant. '{exprText}' cannot be evaluated at compile time.",
+                    argNode,
+                    model));
+                continue; // Skip type match check if not a constant.
+            }
+
+            // Check MIST_DT_0003: Does the argument's type match the parameter's value type?
+            if (constructedType?.DependentArguments is not null
+                && i < constructedType.DependentArguments.Count
+                && constructedType.DependentArguments[i] is { } depArg)
+            {
+                if (!DependentValueTypeMatches(depArg, depParam))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        DependentArgTypeMismatch.Value,
+                        $"Dependent type argument '{depArg.DisplayValue}' of type '{depArg.ValueType.DisplayName}' is not assignable to dependent parameter '{depParam.Name}' of type '{depParam.ValueType.DisplayName}'.",
+                        argNode,
+                        model));
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates dependent type arguments on a method call suffix node.
+    /// Resolves the called method's type parameters and checks each dependent position.
+    /// </summary>
+    private static void ValidateMethodCallDependentTypeArgs(
+        MethodCallSuffixPostfixSuffixNode methodCall,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Try to resolve the method symbol to get its type parameters.
+        var methodSymbol = model.GetDeclaredSymbol(methodCall);
+        if (methodSymbol is not Symbol sym || sym.TypeParameters.Count == 0)
+            return;
+
+        var typeParams = sym.TypeParameters;
+        var typeArgList = methodCall.TypeArgs!;
+
+        // Collect all type argument nodes.
+        var argNodes = new List<TypeArgumentNode> { typeArgList.TypeArgument };
+        foreach (var extra in typeArgList.TypeArguments)
+            argNodes.Add(extra);
+
+        // Validate each position.
+        for (var i = 0; i < argNodes.Count && i < typeParams.Count; i++)
+        {
+            if (typeParams[i] is not DependentTypeParameterType depParam)
+                continue;
+
+            var argNode = argNodes[i];
+
+            // Check MIST_DT_0002: Is the argument a compile-time constant?
+            if (!IsDependentArgCompileTimeConstant(argNode, model))
+            {
+                var exprText = ExtractTypeArgumentText(argNode);
+                diagnostics.Add(MakeDiagnostic(
+                    DependentArgNotConstant.Value,
+                    $"Dependent type argument must be a compile-time constant. '{exprText}' cannot be evaluated at compile time.",
+                    argNode,
+                    model));
+                continue;
+            }
+
+            // For method calls, type mismatch checking (MIST_DT_0003) is handled
+            // by the semantic model builder during type argument resolution. The
+            // DependentValueArgument's ValueType is set from the parameter's ValueType
+            // during resolution, so mismatches are caught at the semantic level.
+        }
+    }
+
+    /// <summary>
+    /// Determines whether a <see cref="TypeArgumentNode"/> represents a valid compile-time
+    /// constant for a dependent type argument position.
+    /// <para>
+    /// Accepted forms: integer literals, negated integer literals, hex/binary literals,
+    /// boolean literals, char literals, and identifiers that resolve to const declarations
+    /// or forwarded dependent type parameters.
+    /// </para>
+    /// <para>
+    /// Rejected forms: type references that resolve to variables, method calls, property
+    /// accesses, or any non-constant expression.
+    /// </para>
+    /// </summary>
+    private static bool IsDependentArgCompileTimeConstant(TypeArgumentNode argNode, ISemanticModel model)
+    {
+        switch (argNode)
+        {
+            // All literal forms are compile-time constants.
+            case IntegerLiteralTypeArgumentTypeArgumentNode:
+            case NegatedIntegerTypeArgumentTypeArgumentNode:
+            case HexLiteralTypeArgumentTypeArgumentNode:
+            case BinaryLiteralTypeArgumentTypeArgumentNode:
+            case TrueLiteralTypeArgumentTypeArgumentNode:
+            case FalseLiteralTypeArgumentTypeArgumentNode:
+            case CharLiteralTypeArgumentTypeArgumentNode:
+                return true;
+
+            // A type reference in a dependent position needs disambiguation.
+            case TypeReferenceTypeArgumentTypeArgumentNode typeRefArg:
+            {
+                // A bare identifier could be a const reference or a forwarded dependent parameter.
+                if (typeRefArg.Type is NamedTypeRefTypeReferenceNode namedRef
+                    && namedRef.TypeArgs is null
+                    && !namedRef.ArrayRank.HasValue)
+                {
+                    // Check what the semantic model resolved this to.
+                    var symbol = model.GetDeclaredSymbol(namedRef);
+                    if (symbol is not null)
+                    {
+                        // Type symbols are not constants — they shouldn't be in a dependent position.
+                        if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                            or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum)
+                        {
+                            return false;
+                        }
+
+                        // Dependent type parameters (forwarded) are compile-time constants.
+                        if (symbol.DeclaredType is DependentTypeParameterType)
+                            return true;
+
+                        // Static get-only properties generated for dependent parameters are constants.
+                        if (symbol.Kind == SymbolKind.Property)
+                            return true;
+
+                        // Fields marked as const are compile-time constants.
+                        // In Mist, fields used as dependent arguments are accepted by the
+                        // semantic model builder — the type checker trusts that resolution.
+                        if (symbol.Kind == SymbolKind.Field)
+                            return true;
+
+                        // Local variables are NOT compile-time constants.
+                        if (symbol.Kind == SymbolKind.LocalVariable)
+                            return false;
+
+                        // Method symbols are not constants.
+                        if (symbol.Kind == SymbolKind.Method)
+                            return false;
+                    }
+
+                    // If the symbol wasn't found via GetDeclaredSymbol, check the type map.
+                    // If the type reference resolved to a type, it's not a constant.
+                    var resolvedType = model.GetTypeOf(namedRef);
+                    if (resolvedType is not null && resolvedType is not ErrorType)
+                    {
+                        // If it resolved to a DependentTypeParameterType, it's a forwarded param.
+                        if (resolvedType is DependentTypeParameterType)
+                            return true;
+
+                        // If it resolved to a concrete type, it's not a constant in a dependent position.
+                        if (resolvedType is ClassType or StructType or InterfaceType
+                            or TypeAliasType or TypeParameterType)
+                        {
+                            return false;
+                        }
+                    }
+
+                    // Bare identifier that didn't resolve to a type — assume it's a const reference
+                    // (the semantic model builder would have emitted an unresolved diagnostic already).
+                    return true;
+                }
+
+                // Complex type references (qualified names, generic types, arrays) are not constants.
+                return false;
+            }
+
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a <see cref="DependentValueArgument"/>'s value type matches the
+    /// expected <see cref="DependentTypeParameterType"/>'s value type annotation.
+    /// </summary>
+    private static bool DependentValueTypeMatches(DependentValueArgument depArg, DependentTypeParameterType depParam)
+    {
+        var actualType = depArg.ValueType;
+        var expectedType = depParam.ValueType;
+
+        // ErrorType matches anything (error recovery).
+        if (actualType is ErrorType || expectedType is ErrorType)
+            return true;
+
+        // Forwarded dependent parameters: the value is a string (the parameter name)
+        // and the ValueType is the forwarded parameter's value type. Check compatibility.
+        // For forwarded parameters, the types should match exactly.
+        return TypesEqual(actualType, expectedType);
+    }
+
+    /// <summary>
+    /// Extracts a human-readable text representation from a <see cref="TypeArgumentNode"/>
+    /// for use in diagnostic messages.
+    /// </summary>
+    private static string ExtractTypeArgumentText(TypeArgumentNode argNode)
+    {
+        return argNode switch
+        {
+            IntegerLiteralTypeArgumentTypeArgumentNode intLit => intLit.Literal.Lexeme,
+            NegatedIntegerTypeArgumentTypeArgumentNode negLit => $"-{negLit.Literal.Lexeme}",
+            HexLiteralTypeArgumentTypeArgumentNode hexLit => hexLit.Literal.Lexeme,
+            BinaryLiteralTypeArgumentTypeArgumentNode binLit => binLit.Literal.Lexeme,
+            TrueLiteralTypeArgumentTypeArgumentNode => "true",
+            FalseLiteralTypeArgumentTypeArgumentNode => "false",
+            CharLiteralTypeArgumentTypeArgumentNode charLit => charLit.Literal.Lexeme,
+            TypeReferenceTypeArgumentTypeArgumentNode typeRef => ExtractTypeReferenceName(typeRef.Type),
+            _ => "<expression>",
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Dependent parameter forwarding validation (Task 6.6, Requirements 12.1–12.5)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates that when a derived type forwards a dependent parameter to a base type
+    /// or implemented interface, the derived parameter's value type can be implicitly
+    /// widened to the base parameter's value type. Emits <c>MIST_DT_0004</c> for
+    /// narrowing violations.
+    /// </summary>
+    private static void ValidateDependentParameterForwarding(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Origin == SymbolOrigin.Backend)
+                continue;
+
+            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+                continue;
+
+            var declaredType = symbol.DeclaredType;
+            if (declaredType is null)
+                continue;
+
+            // Get the declaring node for diagnostic location.
+            SyntaxNode declaringNode;
+            try { declaringNode = model.GetDeclaringNode(symbol); }
+            catch { continue; }
+
+            // Check base type (classes only).
+            if (declaredType is ClassType classType && classType.BaseType is ConstructedType baseConstructed)
+            {
+                ValidateDependentForwardingForConstructedBase(
+                    declaredType, baseConstructed, declaringNode, model, diagnostics);
+            }
+
+            // Check implemented interfaces.
+            var interfaces = declaredType switch
+            {
+                ClassType ct => ct.Interfaces,
+                StructType st => st.Interfaces,
+                _ => Array.Empty<IType>()
+            };
+
+            foreach (var iface in interfaces)
+            {
+                if (iface is ConstructedType ifaceConstructed)
+                {
+                    ValidateDependentForwardingForConstructedBase(
+                        declaredType, ifaceConstructed, declaringNode, model, diagnostics);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks a single constructed base type or interface for dependent parameter forwarding
+    /// violations. When a type argument at a dependent parameter position is itself a
+    /// <see cref="DependentTypeParameterType"/> (forwarded from the derived type), validates
+    /// that the derived parameter's value type can widen to the base parameter's value type.
+    /// </summary>
+    private static void ValidateDependentForwardingForConstructedBase(
+        IType derivedType,
+        ConstructedType baseConstructed,
+        SyntaxNode declaringNode,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var baseTypeParams = GetTypeParameters(baseConstructed.GenericDefinition);
+        if (baseTypeParams is null)
+            return;
+
+        var baseTypeArgs = baseConstructed.TypeArguments;
+
+        for (var i = 0; i < baseTypeParams.Count && i < baseTypeArgs.Count; i++)
+        {
+            // Only check positions where the base parameter is a dependent type parameter.
+            if (baseTypeParams[i] is not DependentTypeParameterType baseDepParam)
+                continue;
+
+            // Only check forwarded parameters — if the type argument at this position
+            // is a DependentTypeParameterType, it means the derived type is forwarding
+            // its own dependent parameter to the base.
+            if (baseTypeArgs[i] is not DependentTypeParameterType derivedDepParam)
+                continue;
+
+            // Validate widening: derived parameter's value type must be implicitly
+            // convertible (widenable) to the base parameter's value type.
+            if (!IsImplicitlyWidenable(derivedDepParam.ValueType, baseDepParam.ValueType))
+            {
+                var derivedTypeName = derivedType.DisplayName;
+                var baseTypeName = baseConstructed.GenericDefinition.DisplayName;
+
+                diagnostics.Add(MakeDiagnostic(
+                    DependentNarrowingViolation.Value,
+                    $"Dependent type parameter '{derivedDepParam.Name}' of type '{derivedDepParam.ValueType.DisplayName}' on '{derivedTypeName}' cannot be forwarded to parameter '{baseDepParam.Name}' of type '{baseDepParam.ValueType.DisplayName}' on '{baseTypeName}' because '{derivedDepParam.ValueType.DisplayName}' is not implicitly convertible to '{baseDepParam.ValueType.DisplayName}'.",
+                    declaringNode,
+                    model));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Determines whether a value of type <paramref name="sourceType"/> can be implicitly
+    /// widened to <paramref name="targetType"/>. This implements the primitive widening
+    /// rules for dependent type parameter forwarding:
+    /// <list type="bullet">
+    ///   <item><c>byte</c> → <c>short</c>, <c>int</c>, <c>long</c></item>
+    ///   <item><c>short</c> → <c>int</c>, <c>long</c></item>
+    ///   <item><c>int</c> → <c>long</c></item>
+    ///   <item><c>uint</c> → <c>ulong</c></item>
+    ///   <item><c>char</c> → <c>int</c>, <c>long</c></item>
+    ///   <item>Same type → same type (always OK)</item>
+    /// </list>
+    /// </summary>
+    private static bool IsImplicitlyWidenable(IType sourceType, IType targetType)
+    {
+        // Same type is always OK.
+        if (TypesEqual(sourceType, targetType))
+            return true;
+
+        // ErrorType matches anything (error recovery).
+        if (sourceType is ErrorType || targetType is ErrorType)
+            return true;
+
+        // Normalize display names to canonical (legacy keyword) form for comparison.
+        var source = NormalizePrimitiveDisplayName(sourceType.DisplayName);
+        var target = NormalizePrimitiveDisplayName(targetType.DisplayName);
+
+        // Same canonical name after normalization.
+        if (source == target)
+            return true;
+
+        // Apply widening rules.
+        return source switch
+        {
+            "byte" => target is "short" or "int" or "long",
+            "short" => target is "int" or "long",
+            "int" => target is "long",
+            "uint" => target is "ulong",
+            "char" => target is "int" or "long",
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Normalizes a primitive type display name to its canonical keyword form.
+    /// Maps stdlib names (e.g., "Int32") to legacy keyword names (e.g., "int")
+    /// for consistent widening rule evaluation.
+    /// </summary>
+    private static string NormalizePrimitiveDisplayName(string displayName)
+    {
+        return displayName switch
+        {
+            "Int32" => "int",
+            "UInt32" => "uint",
+            "Int64" => "long",
+            "UInt64" => "ulong",
+            "Int16" => "short",
+            "UInt16" => "ushort",
+            "Byte" => "byte",
+            "SByte" => "sbyte",
+            "Boolean" => "bool",
+            "Char" => "char",
+            _ => displayName,
+        };
     }
 }

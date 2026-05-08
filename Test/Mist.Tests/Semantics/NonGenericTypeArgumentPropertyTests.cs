@@ -61,8 +61,8 @@ public class NonGenericTypeArgumentPropertyTests
     {
         return new TypeArgumentListNode
         {
-            TypeReference = typeRefs[0],
-            TypeReferences = typeRefs.Skip(1).ToImmutableArray(),
+            TypeArgument = new TypeReferenceTypeArgumentTypeArgumentNode { Type = typeRefs[0] },
+            TypeArguments = typeRefs.Skip(1).Select(t => (TypeArgumentNode)new TypeReferenceTypeArgumentTypeArgumentNode { Type = t }).ToImmutableArray(),
         };
     }
 

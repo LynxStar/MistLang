@@ -56,8 +56,8 @@ public sealed class CSharpTranspilerBackend : IBackend
                 DiagnosticSeverity.Error,
                 PipelineStage.Backend,
                 fullMessage,
-                Location: null,
-                CompilationUnitPath: null,
+                Location: default,
+                CompilationUnitPath: "<unknown>",
                 AnalyzerName: null));
 
             return new BackendResult(

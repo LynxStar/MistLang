@@ -198,6 +198,9 @@ internal static class CSharpTypeMap
         ConstructedType ctUnknown when ConstructedTypeContainsUnknown(ctUnknown)
             => "dynamic",
 
+        ConstructedType ct when ct.DependentArguments is not null
+            => EmitConstructedTypeWithDependentArgs(ct, isValueContext),
+
         ConstructedType ct => $"{GetTypeName(ct.GenericDefinition, isValueContext)}<{string.Join(", ", ct.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
         ClassType c => c.DisplayName,
         StructType s => GetKeywordOrDisplayName(s),
@@ -206,6 +209,39 @@ internal static class CSharpTypeMap
         TraitType t => t.DisplayName,
         _ => throw new ArgumentException($"Cannot map type to C#: {type.DisplayName}"),
         };
+    }
+
+    /// <summary>
+    /// Emits a <see cref="ConstructedType"/> that has dependent value arguments.
+    /// For positions with a concrete dependent value, emits the carrier struct name.
+    /// For positions with a forwarded (open) dependent parameter, emits the T-prefixed parameter name.
+    /// For regular type argument positions, emits the standard type name.
+    /// </summary>
+    private static string EmitConstructedTypeWithDependentArgs(ConstructedType ct, bool isValueContext)
+    {
+        var argParts = new string[ct.TypeArguments.Count];
+        for (var i = 0; i < ct.TypeArguments.Count; i++)
+        {
+            if (ct.DependentArguments is not null && i < ct.DependentArguments.Count && ct.DependentArguments[i] is { } depArg)
+            {
+                // Concrete dependent value → carrier struct name
+                var structName = CarrierStructRegistry.GetStructName(depArg);
+                if (structName is not null)
+                {
+                    argParts[i] = structName;
+                }
+                else
+                {
+                    // Open/forwarded parameter — the Value is a string (the parameter name)
+                    argParts[i] = depArg.Value is string paramName ? $"T{paramName}" : GetTypeName(ct.TypeArguments[i], isValueContext);
+                }
+            }
+            else
+            {
+                argParts[i] = GetTypeName(ct.TypeArguments[i], isValueContext);
+            }
+        }
+        return $"{GetTypeName(ct.GenericDefinition, isValueContext)}<{string.Join(", ", argParts)}>";
     }
 
     /// <summary>

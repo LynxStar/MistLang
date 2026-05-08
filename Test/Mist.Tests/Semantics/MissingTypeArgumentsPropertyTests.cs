@@ -59,9 +59,9 @@ public class MissingTypeArgumentsPropertyTests
 
     private static TypeParameterListNode MakeTypeParamList(string[] names)
     {
-        var first = new TypeParameterNode { Name = MakeToken(names[0]) };
+        var first = new RegularTypeParameterTypeParameterNode { Name = MakeToken(names[0]) };
         var rest = names.Skip(1)
-            .Select(n => new TypeParameterNode { Name = MakeToken(n) })
+            .Select(n => (TypeParameterNode)new RegularTypeParameterTypeParameterNode { Name = MakeToken(n) })
             .ToImmutableArray();
         return new TypeParameterListNode
         {
@@ -432,5 +432,102 @@ public class MissingTypeArgumentsPropertyTests
 
         Assert.Single(missingArgsDiags);
         Assert.Contains("Map", missingArgsDiags[0].Message);
+    }
+
+    // ─── Task 6.8: Verify MIST_MISSING_TYPE_ARGUMENTS fires for dependent types ─
+
+    [Fact]
+    public void DependentTypeParam_MissingArgs_EmitsMissingTypeArgsDiagnostic()
+    {
+        // class FixedBuffer<Size:int> { }
+        // class Program : FixedBuffer { }  ← missing dependent type arguments
+        var depParam = new DependentTypeParameterTypeParameterNode
+        {
+            Name = MakeToken("Size"),
+            ValueType = new IntTypePrimitiveTypeNode(),
+        };
+
+        var typeParamList = new TypeParameterListNode
+        {
+            TypeParameter = depParam,
+            TypeParameters = ImmutableArray<TypeParameterNode>.Empty,
+        };
+
+        var baseClassDecl = new ClassDeclarationNode
+        {
+            Name = MakeToken("FixedBuffer"),
+            TypeParams = typeParamList,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
+        };
+
+        var baseList = MakeBaseList([MakeBaseTypeRef("FixedBuffer")]);
+        var derivedClassDecl = new ClassDeclarationNode
+        {
+            Name = MakeToken("Program"),
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
+            BaseClause = baseList,
+            BaseList = baseList,
+        };
+
+        var ast = MakeCompilationUnit(
+            new ClassTypeTypeDeclarationNode { ClassDeclaration = baseClassDecl },
+            new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl });
+
+        var (_, diagnostics) = BuildModelWithDiagnostics(ast);
+
+        var missingArgsDiags = diagnostics
+            .Where(d => d.Id == DiagnosticId.MissingTypeArguments)
+            .ToList();
+
+        Assert.Single(missingArgsDiags);
+        Assert.Contains("FixedBuffer", missingArgsDiags[0].Message);
+    }
+
+    [Fact]
+    public void MixedTypeParams_DependentAndRegular_MissingArgs_EmitsDiagnostic()
+    {
+        // class TypedBuffer<T, Size:int> { }
+        // class Program : TypedBuffer { }  ← missing type arguments (both regular and dependent)
+        var regularParam = new RegularTypeParameterTypeParameterNode { Name = MakeToken("T") };
+        var depParam = new DependentTypeParameterTypeParameterNode
+        {
+            Name = MakeToken("Size"),
+            ValueType = new IntTypePrimitiveTypeNode(),
+        };
+
+        var typeParamList = new TypeParameterListNode
+        {
+            TypeParameter = regularParam,
+            TypeParameters = ImmutableArray.Create<TypeParameterNode>(depParam),
+        };
+
+        var baseClassDecl = new ClassDeclarationNode
+        {
+            Name = MakeToken("TypedBuffer"),
+            TypeParams = typeParamList,
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
+        };
+
+        var baseList = MakeBaseList([MakeBaseTypeRef("TypedBuffer")]);
+        var derivedClassDecl = new ClassDeclarationNode
+        {
+            Name = MakeToken("Program"),
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
+            BaseClause = baseList,
+            BaseList = baseList,
+        };
+
+        var ast = MakeCompilationUnit(
+            new ClassTypeTypeDeclarationNode { ClassDeclaration = baseClassDecl },
+            new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl });
+
+        var (_, diagnostics) = BuildModelWithDiagnostics(ast);
+
+        var missingArgsDiags = diagnostics
+            .Where(d => d.Id == DiagnosticId.MissingTypeArguments)
+            .ToList();
+
+        Assert.Single(missingArgsDiags);
+        Assert.Contains("TypedBuffer", missingArgsDiags[0].Message);
     }
 }

@@ -72,9 +72,9 @@ public class TypeAliasParserPropertyTests
         if (typeParams is null)
             return Array.Empty<string>();
 
-        var names = new List<string> { typeParams.TypeParameter.Name.Lexeme };
+        var names = new List<string> { typeParams.TypeParameter.GetName().Lexeme };
         foreach (var param in typeParams.TypeParameters)
-            names.Add(param.Name.Lexeme);
+            names.Add(param.GetName().Lexeme);
 
         return names;
     }

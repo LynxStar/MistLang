@@ -87,7 +87,7 @@ public static class ProjectReferenceResolver
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Circular project reference detected: {cycleChain}.",
-                Location: null,
+                Location: default,
                 CompilationUnitPath: canonicalTomlPath,
                 AnalyzerName: null));
             return;
@@ -110,7 +110,7 @@ public static class ProjectReferenceResolver
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Referenced directory '{directory}' does not contain a 'mist.toml' file.",
-                    Location: null,
+                    Location: default,
                     CompilationUnitPath: canonicalTomlPath,
                     AnalyzerName: null));
             }
@@ -121,7 +121,7 @@ public static class ProjectReferenceResolver
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Referenced project path '{canonicalTomlPath}' does not exist.",
-                    Location: null,
+                    Location: default,
                     CompilationUnitPath: canonicalTomlPath,
                     AnalyzerName: null));
             }
@@ -138,7 +138,7 @@ public static class ProjectReferenceResolver
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Referenced project path '{canonicalTomlPath}' does not exist.",
-                Location: null,
+                Location: default,
                 CompilationUnitPath: canonicalTomlPath,
                 AnalyzerName: null));
             return;

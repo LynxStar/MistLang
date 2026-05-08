@@ -58,7 +58,7 @@ public static class OverloadResolver
         IReadOnlyList<IType> argumentTypes,
         ISemanticModel model,
         IReadOnlyList<int>? candidateOrigin = null,
-        (IReadOnlyList<Mist.Semantics.Model.Types.TypeParameterType> TypeParams, IReadOnlyList<IType> TypeArgs)? typeSubstitution = null)
+        (IReadOnlyList<IType> TypeParams, IReadOnlyList<IType> TypeArgs)? typeSubstitution = null)
     {
         // Validate origin vector length — callers must supply one entry per
         // candidate when they opt into the tiebreaker. Mismatched lengths are

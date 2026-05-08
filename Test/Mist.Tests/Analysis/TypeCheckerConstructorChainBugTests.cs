@@ -445,7 +445,7 @@ public class TypeCheckerConstructorChainBugTests
         if (tcDiagnostics.Count == 0)
             return true;
 
-        return tcDiagnostics.All(d => d.CompilationUnitPath is not null);
+        return tcDiagnostics.All(d => d.CompilationUnitPath != "<unknown>");
     }
 
     /// <summary>
@@ -479,12 +479,12 @@ public class TypeCheckerConstructorChainBugTests
         // Assert: every type checker diagnostic with a location must have Line >= 1
         // Bug 2: On unfixed code, MakeDiagnostic uses LinePosition(0, offset) — line is always 0
         var tcDiagnostics = diagnostics
-            .Where(d => d.AnalyzerName == "TypeChecker" && d.Location is not null)
+            .Where(d => d.AnalyzerName == "TypeChecker" && d.Location != default)
             .ToList();
 
         if (tcDiagnostics.Count == 0)
             return true;
 
-        return tcDiagnostics.All(d => d.Location!.Value.Start.Line >= 1);
+        return tcDiagnostics.All(d => d.Location.Start.Line >= 1);
     }
 }

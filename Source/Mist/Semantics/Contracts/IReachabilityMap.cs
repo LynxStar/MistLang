@@ -116,7 +116,7 @@ public interface IReachabilityMap
     /// A type parameter of the generic type that declares
     /// <paramref name="member"/>.
     /// </param>
-    MemberClassification GetMethodClassification(ISymbol member, TypeParameterType typeParameter);
+    MemberClassification GetMethodClassification(ISymbol member, IType typeParameter);
 
     /// <summary>
     /// Returns the write-classification of a field with respect to the given
@@ -132,7 +132,7 @@ public interface IReachabilityMap
     /// A type parameter of the generic type that declares
     /// <paramref name="member"/>.
     /// </param>
-    MemberClassification GetFieldClassification(ISymbol member, TypeParameterType typeParameter);
+    MemberClassification GetFieldClassification(ISymbol member, IType typeParameter);
 
     /// <summary>
     /// Returns the (read, write) classification pair of a property or indexer
@@ -150,5 +150,5 @@ public interface IReachabilityMap
     /// A type parameter of the generic type that declares
     /// <paramref name="member"/>.
     /// </param>
-    PropertyClassification GetPropertyClassification(ISymbol member, TypeParameterType typeParameter);
+    PropertyClassification GetPropertyClassification(ISymbol member, IType typeParameter);
 }

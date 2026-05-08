@@ -229,8 +229,8 @@ public sealed class CSharpCompilationDriver
                 DiagnosticSeverity.Error,
                 PipelineStage.Backend,
                 "No C# source files found to compile.",
-                Location: null,
-                CompilationUnitPath: null,
+                Location: default,
+                CompilationUnitPath: "<unknown>",
                 AnalyzerName: null));
             return new BackendResult(false, null, diagnostics.ToImmutableArray(), EmittedFileCount: emittedFileCount);
         }
@@ -280,8 +280,8 @@ public sealed class CSharpCompilationDriver
                     MistDiagnosticSeverity.Error,
                     PipelineStage.Backend,
                     roslynDiag.GetMessage(),
-                    Location: null,
-                    CompilationUnitPath: location,
+                    Location: default,
+                    CompilationUnitPath: location ?? "<unknown>",
                     AnalyzerName: null));
             }
         }

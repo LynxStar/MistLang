@@ -27,7 +27,7 @@ public sealed class MistLexer : ILexer
                 ? new LinePositionSpan(
                     new LinePosition(entry.Line, entry.Column),
                     new LinePosition(entry.Line, entry.Column))
-                : (LinePositionSpan?)null;
+                : default;
 
             diagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_LEX_ERROR"),

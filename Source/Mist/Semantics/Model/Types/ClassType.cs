@@ -14,7 +14,7 @@ public sealed class ClassType : IType
     public string? ContainingNamespace { get; }
     public IType? BaseType { get; internal set; }
     public IReadOnlyList<IType> Interfaces { get; internal set; } = Array.Empty<IType>();
-    public IReadOnlyList<TypeParameterType> TypeParameters { get; internal set; } = Array.Empty<TypeParameterType>();
+    public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
 
     /// <summary>
     /// Indicates the type has a target-language backing participating in the

@@ -61,9 +61,9 @@ public class ArityMismatchPropertyTests
 
     private static TypeParameterListNode MakeTypeParamList(string[] names)
     {
-        var first = new TypeParameterNode { Name = MakeToken(names[0]) };
+        var first = new RegularTypeParameterTypeParameterNode { Name = MakeToken(names[0]) };
         var rest = names.Skip(1)
-            .Select(n => new TypeParameterNode { Name = MakeToken(n) })
+            .Select(n => (TypeParameterNode)new RegularTypeParameterTypeParameterNode { Name = MakeToken(n) })
             .ToImmutableArray();
         return new TypeParameterListNode
         {
@@ -76,8 +76,8 @@ public class ArityMismatchPropertyTests
     {
         return new TypeArgumentListNode
         {
-            TypeReference = typeRefs[0],
-            TypeReferences = typeRefs.Skip(1).ToImmutableArray(),
+            TypeArgument = new TypeReferenceTypeArgumentTypeArgumentNode { Type = typeRefs[0] },
+            TypeArguments = typeRefs.Skip(1).Select(t => (TypeArgumentNode)new TypeReferenceTypeArgumentTypeArgumentNode { Type = t }).ToImmutableArray(),
         };
     }
 

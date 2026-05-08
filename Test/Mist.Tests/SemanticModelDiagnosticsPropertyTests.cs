@@ -172,16 +172,16 @@ public class SemanticModelDiagnosticsPropertyTests
             Assert.NotEmpty(diag.Message);
 
             // If location is present, Start ≤ End
-            if(diag.Location is not null)
+            if(diag.Location != default)
             {
-                var loc = diag.Location.Value;
+                var loc = diag.Location;
                 Assert.True(
                     loc.Start.Line < loc.End.Line ||
                     (loc.Start.Line == loc.End.Line && loc.Start.Column <= loc.End.Column),
                     $"Diagnostic {diag.Id.Value} has invalid location: Start ({loc.Start.Line},{loc.Start.Column}) > End ({loc.End.Line},{loc.End.Column})");
 
-                // If location is present, CompilationUnitPath should be non-null
-                Assert.NotNull(diag.CompilationUnitPath);
+                // If location is present, CompilationUnitPath should not be the unknown sentinel
+                Assert.NotEqual("<unknown>", diag.CompilationUnitPath);
             }
         }
     }
@@ -223,9 +223,9 @@ public class SemanticModelDiagnosticsPropertyTests
             Assert.True(Enum.IsDefined(typeof(PipelineStage), diag.Stage));
             Assert.NotNull(diag.Message);
 
-            if(diag.Location is not null)
+            if(diag.Location != default)
             {
-                var loc = diag.Location.Value;
+                var loc = diag.Location;
                 Assert.True(
                     loc.Start.Line < loc.End.Line ||
                     (loc.Start.Line == loc.End.Line && loc.Start.Column <= loc.End.Column));
@@ -257,8 +257,8 @@ public class SemanticModelDiagnosticsPropertyTests
                 DiagnosticSeverity.Warning,
                 PipelineStage.SemanticModelConstruction,
                 "Unused variable",
-                null,
-                null,
+                default,
+                "<unknown>",
                 null),
             new Diagnostic(
                 new DiagnosticId("MIST_TYPE_ERROR"),
@@ -273,8 +273,8 @@ public class SemanticModelDiagnosticsPropertyTests
                 DiagnosticSeverity.Error,
                 PipelineStage.Backend,
                 "Compilation failed",
-                null,
-                null,
+                default,
+                "<unknown>",
                 null)
         );
     }

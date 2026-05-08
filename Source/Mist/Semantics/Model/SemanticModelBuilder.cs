@@ -449,6 +449,39 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId DuplicateEnumName = new("MIST_SB_0084");
 
+    // ── Dependent type parameter diagnostic IDs (Requirements 4.1–4.6, 6.1, 6.4) ──
+
+    /// <summary>
+    /// A type annotation used as a dependent type parameter is not in the
+    /// allowed set {int, uint, long, ulong, short, ushort, byte, sbyte, bool, char}.
+    /// The parameter is still registered with <see cref="Types.ErrorType"/> as its
+    /// value type to allow downstream analysis to continue without cascading errors.
+    /// </summary>
+    internal static readonly DiagnosticId DependentTypeDisallowedAnnotation = new("MIST_DT_0001");
+
+    /// <summary>
+    /// A dependent type parameter name conflicts with a member declared in the
+    /// same type. The dependent parameter takes precedence in scope resolution
+    /// (consistent with how type parameters shadow members in C#), but the
+    /// diagnostic warns the user to rename one or the other.
+    /// </summary>
+    internal static readonly DiagnosticId DependentTypeParameterNameCollision = new("MIST_DT_0005");
+
+    /// <summary>
+    /// A type with dependent parameters is used without providing the required
+    /// dependent type arguments. Also used for duplicate dependent parameter names
+    /// within the same type parameter list.
+    /// </summary>
+    internal static readonly DiagnosticId DependentTypeMissingArguments = new("MIST_DT_0006");
+
+    /// <summary>
+    /// The set of primitive type keywords allowed as dependent type parameter annotations.
+    /// </summary>
+    private static readonly HashSet<string> AllowedDependentTypeAnnotations = new(StringComparer.Ordinal)
+    {
+        "int", "uint", "long", "ulong", "short", "ushort", "byte", "sbyte", "bool", "char",
+    };
+
     public ISemanticModel Build(
         MistCompilation compilation,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
@@ -509,8 +542,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"Error during semantic model construction: {ex.Message}",
-                    Location: null,
-                    CompilationUnitPath: null,
+                    Location: default,
+                    CompilationUnitPath: "<unknown>",
                     AnalyzerName: null));
             }
         }
@@ -668,8 +701,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"Error during type resolution: {ex.Message}",
-                    Location: null,
-                    CompilationUnitPath: null,
+                    Location: default,
+                    CompilationUnitPath: "<unknown>",
                     AnalyzerName: null));
             }
         }
@@ -1221,8 +1254,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var typeParams = ExtractTypeParameters(extDecl.TypeParams, enclosingTypeName: null, sourceText, diagnostics);
             foreach (var tp in typeParams)
             {
-                var tpSpan = GetTypeParameterSpan(extDecl.TypeParams, tp.Ordinal);
-                var tpSymbol = new Symbol(tp.Name, SymbolKind.Class, SymbolOrigin.UserCode, extensionScope, tp, tpSpan);
+                var (tpName, tpOrdinal) = GetTypeParameterNameAndOrdinal(tp);
+                var tpSpan = GetTypeParameterSpan(extDecl.TypeParams, tpOrdinal);
+                var tpSymbol = new Symbol(tpName, SymbolKind.Class, SymbolOrigin.UserCode, extensionScope, tp, tpSpan);
                 extensionScope.AddMember(tpSymbol);
             }
         }
@@ -1718,8 +1752,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 DiagnosticSeverity.Error,
                 PipelineStage.SemanticModelConstruction,
                 message,
-                Location: null,
-                CompilationUnitPath: null,
+                Location: default,
+                CompilationUnitPath: "<unknown>",
                 AnalyzerName: null));
         }
     }
@@ -2131,31 +2165,30 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Extracts type parameter names from a <see cref="TypeParameterListNode"/> and returns
-    /// them as a list of <see cref="TypeParameterType"/> instances with correct ordinals.
+    /// them as a list of <see cref="IType"/> instances (either <see cref="TypeParameterType"/>
+    /// or <see cref="DependentTypeParameterType"/>) with correct ordinals.
     /// Also checks for duplicate names and shadowing of the enclosing type name.
     /// </summary>
-    private static IReadOnlyList<TypeParameterType> ExtractTypeParameters(
+    private static IReadOnlyList<IType> ExtractTypeParameters(
         TypeParameterListNode? typeParamList,
         string? enclosingTypeName,
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
         if (typeParamList is null)
-            return Array.Empty<TypeParameterType>();
+            return Array.Empty<IType>();
 
-        var typeParams = new List<TypeParameterType>();
+        var typeParams = new List<IType>();
         var seenNames = new HashSet<string>();
         var ordinal = 0;
 
         // Process the first type parameter.
-        var firstName = typeParamList.TypeParameter.Name.Lexeme;
-        ProcessTypeParameter(firstName, ordinal++, typeParamList.TypeParameter, enclosingTypeName, seenNames, typeParams, sourceText, diagnostics);
+        ProcessTypeParameter(typeParamList.TypeParameter, ordinal++, enclosingTypeName, seenNames, typeParams, sourceText, diagnostics);
 
         // Process the rest of the type parameters.
         foreach (var tp in typeParamList.TypeParameters)
         {
-            var name = tp.Name.Lexeme;
-            ProcessTypeParameter(name, ordinal++, tp, enclosingTypeName, seenNames, typeParams, sourceText, diagnostics);
+            ProcessTypeParameter(tp, ordinal++, enclosingTypeName, seenNames, typeParams, sourceText, diagnostics);
         }
 
         return typeParams;
@@ -2163,18 +2196,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Processes a single type parameter: checks for duplicates and shadowing,
-    /// then creates and adds a <see cref="TypeParameterType"/> to the list.
+    /// then creates either a <see cref="TypeParameterType"/> or a
+    /// <see cref="DependentTypeParameterType"/> and adds it to the list.
     /// </summary>
     private static void ProcessTypeParameter(
-        string name,
-        int ordinal,
         TypeParameterNode node,
+        int ordinal,
         string? enclosingTypeName,
         HashSet<string> seenNames,
-        List<TypeParameterType> typeParams,
+        List<IType> typeParams,
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
+        var name = node.GetName().Lexeme;
+
         // Check for duplicate type parameter names.
         if (!seenNames.Add(name))
         {
@@ -2197,13 +2232,43 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 sourceText));
         }
 
-        typeParams.Add(new TypeParameterType(name, ordinal));
+        // Determine whether this is a dependent type parameter or a regular one.
+        if (node is DependentTypeParameterTypeParameterNode depNode)
+        {
+            var valueTypeKeyword = FormatPrimitiveType(depNode.ValueType);
+
+            if (!AllowedDependentTypeAnnotations.Contains(valueTypeKeyword))
+            {
+                // Emit MIST_DT_0001 and use ErrorType as the value type.
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    DependentTypeDisallowedAnnotation.Value,
+                    DiagnosticSeverity.Error,
+                    $"Type '{valueTypeKeyword}' cannot be used as a dependent type parameter. Only primitive integral types, bool, and char are allowed.",
+                    depNode,
+                    sourceText));
+
+                typeParams.Add(new DependentTypeParameterType(name, ordinal, ErrorType.Instance));
+            }
+            else
+            {
+                // Resolve the value type using the legacy primitive type mapping.
+                // During Pass 1, stdlib types may not be fully registered yet,
+                // so we use the LegacyPrimitiveTypes singletons directly.
+                var valueType = ResolvePrimitiveType(depNode.ValueType);
+                typeParams.Add(new DependentTypeParameterType(name, ordinal, valueType));
+            }
+        }
+        else
+        {
+            typeParams.Add(new TypeParameterType(name, ordinal));
+        }
     }
 
     /// <summary>
     /// Registers type parameters for a class, struct, or interface declaration.
-    /// Creates <see cref="TypeParameterType"/> instances, stores them on the declaring type,
-    /// and registers each as a symbol in the type's member scope.
+    /// Creates <see cref="TypeParameterType"/> or <see cref="DependentTypeParameterType"/>
+    /// instances, stores them on the declaring type, and registers each as a symbol
+    /// in the type's member scope.
     /// </summary>
     private static void RegisterTypeParameters(
         TypeParameterListNode? typeParamList,
@@ -2238,16 +2303,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // so it can be resolved as a type within the type body.
         foreach (var tp in typeParams)
         {
-            var tpSpan = GetTypeParameterSpan(typeParamList!, tp.Ordinal);
-            var tpSymbol = new Symbol(tp.Name, SymbolKind.Class, SymbolOrigin.UserCode, typeScope, tp, tpSpan);
+            var (tpName, tpOrdinal) = GetTypeParameterNameAndOrdinal(tp);
+            var tpSpan = GetTypeParameterSpan(typeParamList!, tpOrdinal);
+            var tpSymbol = new Symbol(tpName, SymbolKind.Class, SymbolOrigin.UserCode, typeScope, tp, tpSpan);
             typeScope.AddMember(tpSymbol);
         }
     }
 
     /// <summary>
     /// Registers type parameters for a method declaration (both regular and interface methods).
-    /// Creates <see cref="TypeParameterType"/> instances, stores them on the method symbol,
-    /// and registers each in the method's enclosing type scope so they can be resolved.
+    /// Creates <see cref="TypeParameterType"/> or <see cref="DependentTypeParameterType"/>
+    /// instances, stores them on the method symbol, and registers each in the method's
+    /// enclosing type scope so they can be resolved.
     /// </summary>
     private static void RegisterMethodTypeParameters(
         TypeParameterListNode? typeParamList,
@@ -2272,10 +2339,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // take precedence over enclosing type parameters during resolution.
         foreach (var tp in typeParams)
         {
-            var tpSpan = GetTypeParameterSpan(typeParamList, tp.Ordinal);
-            var tpSymbol = new Symbol(tp.Name, SymbolKind.Class, SymbolOrigin.UserCode, typeScope, tp, tpSpan);
+            var (tpName, tpOrdinal) = GetTypeParameterNameAndOrdinal(tp);
+            var tpSpan = GetTypeParameterSpan(typeParamList, tpOrdinal);
+            var tpSymbol = new Symbol(tpName, SymbolKind.Class, SymbolOrigin.UserCode, typeScope, tp, tpSpan);
             typeScope.AddMember(tpSymbol);
         }
+    }
+
+    /// <summary>
+    /// Extracts the name and ordinal from a type parameter (either regular or dependent).
+    /// </summary>
+    private static (string Name, int Ordinal) GetTypeParameterNameAndOrdinal(IType typeParam)
+    {
+        return typeParam switch
+        {
+            TypeParameterType tpt => (tpt.Name, tpt.Ordinal),
+            DependentTypeParameterType dpt => (dpt.Name, dpt.Ordinal),
+            _ => (typeParam.DisplayName, 0),
+        };
     }
 
     /// <summary>
@@ -2284,13 +2365,144 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static Common.Text.SourceSpan? GetTypeParameterSpan(TypeParameterListNode typeParamList, int ordinal)
     {
         if (ordinal == 0)
-            return ToMistSourceSpan(typeParamList.TypeParameter.Name.Span);
+            return ToMistSourceSpan(typeParamList.TypeParameter.GetName().Span);
 
         var index = ordinal - 1;
         if (index < typeParamList.TypeParameters.Length)
-            return ToMistSourceSpan(typeParamList.TypeParameters[index].Name.Span);
+            return ToMistSourceSpan(typeParamList.TypeParameters[index].GetName().Span);
 
         return null;
+    }
+
+    /// <summary>
+    /// Generates implicit public static get-only property symbols for each
+    /// <see cref="DependentTypeParameterType"/> on a type. Called during Pass 2
+    /// (member resolution) after the type symbol is retrieved.
+    /// <para>
+    /// For each dependent parameter, this method:
+    /// <list type="number">
+    ///   <item>Checks for name collisions with existing members → emits <c>MIST_DT_0005</c>.</item>
+    ///   <item>Checks for duplicate dependent parameter names → emits <c>MIST_DT_0006</c>.</item>
+    ///   <item>Creates a public static get-only property symbol with the parameter's value type.</item>
+    ///   <item>Registers the property in the type's member scope.</item>
+    /// </list>
+    /// </para>
+    /// </summary>
+    private static void GenerateDependentTypeProperties(
+        IReadOnlyList<IType> typeParameters,
+        Scope typeScope,
+        IType declaringType,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        if (typeParameters.Count == 0)
+            return;
+
+        var seenDependentNames = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var tp in typeParameters)
+        {
+            if (tp is not DependentTypeParameterType depParam)
+                continue;
+
+            var paramName = depParam.Name;
+
+            // Check for duplicate dependent parameter names.
+            if (!seenDependentNames.Add(paramName))
+            {
+                diagnostics.Add(new Diagnostic(
+                    DependentTypeMissingArguments,
+                    DiagnosticSeverity.Error,
+                    PipelineStage.SemanticModelConstruction,
+                    $"Duplicate dependent type parameter name '{paramName}' in type '{declaringType.DisplayName}'.",
+                    Location: default,
+                    CompilationUnitPath: sourceText?.Path ?? "<unknown>",
+                    AnalyzerName: null));
+                continue;
+            }
+
+            // Check for name collisions with existing members (fields, methods, properties).
+            foreach (var member in typeScope.Members)
+            {
+                if (member.Name == paramName &&
+                    member.Kind is SymbolKind.Field or SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer)
+                {
+                    diagnostics.Add(new Diagnostic(
+                        DependentTypeParameterNameCollision,
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        $"Dependent type parameter '{paramName}' conflicts with member '{paramName}' declared in type '{declaringType.DisplayName}'. Rename either the parameter or the member.",
+                        Location: default,
+                        CompilationUnitPath: sourceText?.Path ?? "<unknown>",
+                        AnalyzerName: null));
+                    break;
+                }
+            }
+
+            // Generate the implicit property even if there's a collision
+            // (the dependent parameter takes precedence per design doc).
+            var propertyInfo = new PropertyInfo
+            {
+                HasGet = true,
+                HasSet = false,
+                HasInit = false,
+                IsComputed = true,
+                IsStatic = true,
+                IsExpressionBodied = true,
+            };
+
+            var propSymbol = new Symbol(
+                paramName,
+                SymbolKind.Property,
+                SymbolOrigin.UserCode,
+                typeScope,
+                declaredType: depParam.ValueType,
+                declarationSpan: null);
+            propSymbol.PropertyMetadata = propertyInfo;
+            typeScope.AddMember(propSymbol);
+        }
+    }
+
+    /// <summary>
+    /// Registers dependent type parameter names as compile-time constants in a
+    /// method's lexical scope. Called during Pass 2 for method-level dependent
+    /// parameters.
+    /// </summary>
+    private static void RegisterMethodDependentParameters(
+        IReadOnlyList<IType> typeParameters,
+        Scope methodScope,
+        IType enclosingType,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        if (typeParameters.Count == 0)
+            return;
+
+        foreach (var tp in typeParameters)
+        {
+            if (tp is not DependentTypeParameterType depParam)
+                continue;
+
+            // Register the dependent parameter name as a compile-time constant
+            // in the method's lexical scope so it can be resolved within the method body.
+            var constSymbol = new Symbol(
+                depParam.Name,
+                SymbolKind.Property,
+                SymbolOrigin.UserCode,
+                methodScope,
+                declaredType: depParam.ValueType,
+                declarationSpan: null);
+            constSymbol.PropertyMetadata = new PropertyInfo
+            {
+                HasGet = true,
+                HasSet = false,
+                HasInit = false,
+                IsComputed = true,
+                IsStatic = true,
+                IsExpressionBodied = true,
+            };
+            methodScope.AddMember(constSymbol);
+        }
     }
 
     /// <summary>
@@ -3184,25 +3396,56 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return resolvedType;
             }
 
-            // Resolve the type arguments.
-            var resolvedTypeArgs = ResolveTypeArgumentList(typeArgs!, declaringType, declaringNode, asts, compilation, diagnostics);
-            var typeArgCount = resolvedTypeArgs.Count;
+            // Check if the resolved type has any dependent type parameters.
+            // If so, use the dependent-aware resolution path that handles
+            // literal type arguments and forwarded dependent parameters.
+            var hasDependentParams = typeParams.Any(p => p is DependentTypeParameterType);
 
-            if (typeArgCount != typeParamCount)
+            if (hasDependentParams)
             {
-                // Arity mismatch — emit MIST_ARITY_MISMATCH.
-                var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
-                diagnostics.Add(MakeDiagnosticWithLocation(
-                    DiagnosticId.ArityMismatch.Value,
-                    DiagnosticSeverity.Error,
-                    $"Type '{typeName}' expects {typeParamCount} type argument(s) but received {typeArgCount}.",
-                    declaringNode,
-                    sourceText));
-                return resolvedType;
-            }
+                // Use dependent-aware resolution (handles literals, const refs, forwarding).
+                var (resolvedTypeArgs, dependentArgs) = ResolvePass1TypeArgumentListWithDependents(
+                    typeArgs!, typeParams, declaringType, declaringNode, asts, compilation, diagnostics);
+                var typeArgCount = resolvedTypeArgs.Count;
 
-            // Construct the ConstructedType.
-            return new ConstructedType(resolvedType, resolvedTypeArgs);
+                if (typeArgCount != typeParamCount)
+                {
+                    // Arity mismatch — emit MIST_ARITY_MISMATCH.
+                    var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        DiagnosticId.ArityMismatch.Value,
+                        DiagnosticSeverity.Error,
+                        $"Type '{typeName}' expects {typeParamCount} type argument(s) but received {typeArgCount}.",
+                        declaringNode,
+                        sourceText));
+                    return resolvedType;
+                }
+
+                // Construct the ConstructedType with dependent arguments.
+                return new ConstructedType(resolvedType, resolvedTypeArgs, dependentArgs);
+            }
+            else
+            {
+                // No dependent parameters — use the standard resolution path.
+                var resolvedTypeArgs = ResolveTypeArgumentList(typeArgs!, declaringType, declaringNode, asts, compilation, diagnostics);
+                var typeArgCount = resolvedTypeArgs.Count;
+
+                if (typeArgCount != typeParamCount)
+                {
+                    // Arity mismatch — emit MIST_ARITY_MISMATCH.
+                    var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        DiagnosticId.ArityMismatch.Value,
+                        DiagnosticSeverity.Error,
+                        $"Type '{typeName}' expects {typeParamCount} type argument(s) but received {typeArgCount}.",
+                        declaringNode,
+                        sourceText));
+                    return resolvedType;
+                }
+
+                // Construct the ConstructedType.
+                return new ConstructedType(resolvedType, resolvedTypeArgs);
+            }
         }
         else
         {
@@ -3247,17 +3490,217 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var resolvedArgs = new List<IType>();
 
         // Resolve the first type argument.
-        var firstType = ResolveTypeArgFromTypeReference(typeArgList.TypeReference, declaringType, declaringNode, asts, compilation, diagnostics);
+        var firstType = ResolveTypeArgFromTypeReference(typeArgList.GetTypeReference(), declaringType, declaringNode, asts, compilation, diagnostics);
         resolvedArgs.Add(firstType);
 
         // Resolve the rest of the type arguments.
-        foreach (var typeRef in typeArgList.TypeReferences)
+        foreach (var typeRef in typeArgList.GetTypeReferences())
         {
             var argType = ResolveTypeArgFromTypeReference(typeRef, declaringType, declaringNode, asts, compilation, diagnostics);
             resolvedArgs.Add(argType);
         }
 
         return resolvedArgs;
+    }
+
+    /// <summary>
+    /// Resolves a <see cref="TypeArgumentListNode"/> to a list of <see cref="IType"/> instances
+    /// and a parallel list of <see cref="DependentValueArgument"/> entries in the Pass 1
+    /// inheritance context. This handles literal type arguments (e.g., <c>16</c> in
+    /// <c>IFixedCollection&lt;16&gt;</c>) and forwarded dependent parameters (e.g., <c>N</c>
+    /// in <c>class Buffer&lt;N:int&gt; : IFixedCollection&lt;N&gt;</c>).
+    /// </summary>
+    private static (IReadOnlyList<IType> TypeArgs, IReadOnlyList<DependentValueArgument?>? DependentArgs) ResolvePass1TypeArgumentListWithDependents(
+        TypeArgumentListNode typeArgList,
+        IReadOnlyList<IType> typeParams,
+        IType declaringType,
+        Storm.Runtime.SyntaxNode declaringNode,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // Collect all TypeArgumentNode entries in order.
+        var argNodes = new List<TypeArgumentNode> { typeArgList.TypeArgument };
+        foreach (var extra in typeArgList.TypeArguments)
+            argNodes.Add(extra);
+
+        var resolvedTypeArgs = new List<IType>(argNodes.Count);
+        List<DependentValueArgument?>? dependentArgs = null;
+
+        for (var i = 0; i < argNodes.Count; i++)
+        {
+            var argNode = argNodes[i];
+            var correspondingParam = i < typeParams.Count ? typeParams[i] : null;
+            var isDependentPosition = correspondingParam is DependentTypeParameterType;
+
+            if (isDependentPosition)
+            {
+                var depParam = (DependentTypeParameterType)correspondingParam!;
+                var (depArg, forwardedType) = TryResolvePass1DependentValueArgument(
+                    argNode, depParam, declaringType, declaringNode, asts, compilation, diagnostics);
+                if (depArg is not null)
+                {
+                    // Successfully resolved as a dependent value argument.
+                    // If a forwarded DependentTypeParameterType was detected, use it as the
+                    // type argument so ValidateDependentForwardingForConstructedBase can detect it.
+                    // Otherwise, use the dependent parameter's value type as a placeholder.
+                    resolvedTypeArgs.Add(forwardedType ?? depParam.ValueType);
+                    dependentArgs ??= new List<DependentValueArgument?>(new DependentValueArgument?[argNodes.Count]);
+                    dependentArgs[i] = depArg;
+                    continue;
+                }
+                // If resolution returned null, fall through to normal type resolution.
+            }
+
+            // Normal type argument resolution (for regular type parameters or when
+            // a dependent position has a type reference that isn't a const).
+            if (argNode is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg)
+            {
+                var resolved = ResolveTypeArgFromTypeReference(
+                    typeRefArg.Type, declaringType, declaringNode, asts, compilation, diagnostics);
+                resolvedTypeArgs.Add(resolved);
+            }
+            else
+            {
+                // A literal type argument in a non-dependent position — this is an error
+                // that will be caught by the type checker later. For now, use ErrorType.
+                resolvedTypeArgs.Add(ErrorType.Instance);
+            }
+        }
+
+        return (resolvedTypeArgs, dependentArgs);
+    }
+
+    /// <summary>
+    /// Attempts to resolve a <see cref="TypeArgumentNode"/> as a <see cref="DependentValueArgument"/>
+    /// in the Pass 1 inheritance context. Returns <c>(null, null)</c> if the argument is a type reference
+    /// (not a const or literal), indicating normal type argument resolution should proceed.
+    /// When a forwarded dependent parameter is detected, the second tuple element contains the
+    /// <see cref="DependentTypeParameterType"/> so it can be placed in the TypeArguments list
+    /// for forwarding validation.
+    /// </summary>
+    private static (DependentValueArgument? DepArg, DependentTypeParameterType? ForwardedType) TryResolvePass1DependentValueArgument(
+        TypeArgumentNode argNode,
+        DependentTypeParameterType depParam,
+        IType declaringType,
+        Storm.Runtime.SyntaxNode declaringNode,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        switch (argNode)
+        {
+            case IntegerLiteralTypeArgumentTypeArgumentNode intLit:
+            {
+                var valueText = intLit.Literal.Lexeme;
+                if (long.TryParse(valueText, out var value))
+                    return (new DependentValueArgument(value, depParam.ValueType, valueText), null);
+                return (new DependentValueArgument(0L, depParam.ValueType, valueText), null);
+            }
+
+            case NegatedIntegerTypeArgumentTypeArgumentNode negLit:
+            {
+                var valueText = negLit.Literal.Lexeme;
+                if (long.TryParse(valueText, out var value))
+                    return (new DependentValueArgument(-value, depParam.ValueType, $"-{valueText}"), null);
+                return (new DependentValueArgument(0L, depParam.ValueType, $"-{valueText}"), null);
+            }
+
+            case HexLiteralTypeArgumentTypeArgumentNode hexLit:
+            {
+                var valueText = hexLit.Literal.Lexeme;
+                var hexStr = valueText.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+                    ? valueText[2..] : valueText;
+                if (long.TryParse(hexStr, System.Globalization.NumberStyles.HexNumber, null, out var value))
+                    return (new DependentValueArgument(value, depParam.ValueType, valueText), null);
+                return (new DependentValueArgument(0L, depParam.ValueType, valueText), null);
+            }
+
+            case BinaryLiteralTypeArgumentTypeArgumentNode binLit:
+            {
+                var valueText = binLit.Literal.Lexeme;
+                var binStr = valueText.StartsWith("0b", StringComparison.OrdinalIgnoreCase)
+                    ? valueText[2..] : valueText;
+                try
+                {
+                    var value = Convert.ToInt64(binStr, 2);
+                    return (new DependentValueArgument(value, depParam.ValueType, valueText), null);
+                }
+                catch
+                {
+                    return (new DependentValueArgument(0L, depParam.ValueType, valueText), null);
+                }
+            }
+
+            case TrueLiteralTypeArgumentTypeArgumentNode:
+                return (new DependentValueArgument(true, depParam.ValueType, "true"), null);
+
+            case FalseLiteralTypeArgumentTypeArgumentNode:
+                return (new DependentValueArgument(false, depParam.ValueType, "false"), null);
+
+            case CharLiteralTypeArgumentTypeArgumentNode charLit:
+            {
+                var valueText = charLit.Literal.Lexeme;
+                // Strip surrounding quotes to get the char value.
+                var charValue = valueText.Length >= 3 ? valueText[1] : '\0';
+                return (new DependentValueArgument(charValue, depParam.ValueType, valueText), null);
+            }
+
+            case TypeReferenceTypeArgumentTypeArgumentNode typeRefArg:
+            {
+                // Disambiguation: check if this is a bare identifier that resolves to a
+                // forwarded dependent parameter from the declaring type.
+                if (typeRefArg.Type is NamedTypeRefTypeReferenceNode namedRef
+                    && namedRef.TypeArgs is null
+                    && !namedRef.ArrayRank.HasValue)
+                {
+                    var argName = namedRef.Name.IDENTIFIER.Lexeme;
+                    if (string.IsNullOrEmpty(argName))
+                    {
+                        var span = namedRef.Name.Span;
+                        if (span.Length > 0)
+                        {
+                            var srcTextForArg = FindSourceTextByContainment(declaringNode, asts, compilation);
+                            if (srcTextForArg is not null && span.Start + span.Length <= srcTextForArg.Contents.Length)
+                                argName = srcTextForArg.Contents.Substring(span.Start, span.Length);
+                        }
+                    }
+
+                    // Look up in the declaring type's member scope for dependent parameters.
+                    var memberScope = GetMemberScope(declaringType);
+                    var resolvedSymbol = memberScope?.Lookup(argName);
+
+                    if (resolvedSymbol is not null && resolvedSymbol.DeclaredType is DependentTypeParameterType forwardedParam)
+                    {
+                        // This is a forwarded dependent parameter (e.g., class Buffer<N:int> : IFixedCollection<N>).
+                        // Return a DependentValueArgument with the parameter name as the value,
+                        // and the forwarded DependentTypeParameterType for the TypeArguments list.
+                        return (new DependentValueArgument(argName, forwardedParam.ValueType, argName), forwardedParam);
+                    }
+
+                    // If it resolves to a type, fall through to normal resolution.
+                    if (resolvedSymbol is not null
+                        && resolvedSymbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                            or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum)
+                    {
+                        return (null, null);
+                    }
+
+                    // If it resolves to a field (potential const), treat as dependent value.
+                    if (resolvedSymbol is not null
+                        && resolvedSymbol.Kind is SymbolKind.Field or SymbolKind.LocalVariable)
+                    {
+                        return (new DependentValueArgument(argName, resolvedSymbol.DeclaredType ?? depParam.ValueType, argName), null);
+                    }
+                }
+
+                // Not a dependent value — fall through to normal type resolution.
+                return (null, null);
+            }
+
+            default:
+                return (null, null);
+        }
     }
 
     /// <summary>
@@ -3449,7 +3892,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Gets the type parameters from a type (ClassType, StructType, or InterfaceType).
     /// Returns an empty list for types that don't have type parameters.
     /// </summary>
-    private static IReadOnlyList<TypeParameterType> GetTypeParameters(IType type)
+    private static IReadOnlyList<IType> GetTypeParameters(IType type)
     {
         return type switch
         {
@@ -3458,7 +3901,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             InterfaceType it => it.TypeParameters,
             TraitType tt => tt.TypeParameters,
             TypeAliasType at => at.TypeParameters,
-            _ => Array.Empty<TypeParameterType>(),
+            _ => Array.Empty<IType>(),
         };
     }
 
@@ -3867,8 +4310,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
                         $"The interface type '{name}' could not be found.",
-                        Location: null,
-                        CompilationUnitPath: compilationUnitPath,
+                        Location: default,
+                        CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                         AnalyzerName: null));
                 }
                 continue;
@@ -3903,8 +4346,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
                         $"'{name}' is not an interface; only interfaces can appear in an interface list.",
-                        Location: null,
-                        CompilationUnitPath: compilationUnitPath,
+                        Location: default,
+                        CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                         AnalyzerName: null));
                 }
             }
@@ -3964,8 +4407,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
                         $"The interface type '{name}' could not be found.",
-                        Location: null,
-                        CompilationUnitPath: compilationUnitPath,
+                        Location: default,
+                        CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                         AnalyzerName: null));
                 }
                 continue;
@@ -4015,8 +4458,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         PipelineStage.SemanticModelConstruction,
                         $"'{declaringType.DisplayName}' cannot reference 'unknown' as a base or implemented type. " +
                         "'unknown' is the user-facing top type and does not participate in inheritance.",
-                        Location: null,
-                        CompilationUnitPath: compilationUnitPath,
+                        Location: default,
+                        CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                         AnalyzerName: null));
                 }
             }
@@ -4045,8 +4488,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
                         $"'{name}' is not an interface; only interfaces can appear in an interface list.",
-                        Location: null,
-                        CompilationUnitPath: compilationUnitPath,
+                        Location: default,
+                        CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                         AnalyzerName: null));
                 }
             }
@@ -4150,7 +4593,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Extracts constraint clauses and type parameters from a symbol's declaring node.
     /// Returns empty/default values for declarations that don't support constraints.
     /// </summary>
-    private static (ImmutableArray<ConstraintClauseNode> Clauses, IReadOnlyList<TypeParameterType> TypeParams) GetConstraintClausesAndTypeParams(
+    private static (ImmutableArray<ConstraintClauseNode> Clauses, IReadOnlyList<IType> TypeParams) GetConstraintClausesAndTypeParams(
         ISymbol symbol,
         Storm.Runtime.SyntaxNode declaringNode)
     {
@@ -4178,19 +4621,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return (aliasDecl.Constraints, aliasSymbol.TypeParameters);
 
             default:
-                return (ImmutableArray<ConstraintClauseNode>.Empty, Array.Empty<TypeParameterType>());
+                return (ImmutableArray<ConstraintClauseNode>.Empty, Array.Empty<IType>());
         }
     }
 
     /// <summary>
     /// Finds a type parameter by name in the given list.
     /// </summary>
-    private static TypeParameterType? FindTypeParameter(IReadOnlyList<TypeParameterType> typeParameters, string name)
+    private static TypeParameterType? FindTypeParameter(IReadOnlyList<IType> typeParameters, string name)
     {
         foreach (var tp in typeParameters)
         {
-            if (tp.Name == name)
-                return tp;
+            if (tp is TypeParameterType tpt && tpt.Name == name)
+                return tpt;
         }
         return null;
     }
@@ -4911,6 +5354,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (!AreSameTypeArgument(ctA.TypeArguments[i], ctB.TypeArguments[i]))
                     return false;
             }
+
+            // Compare dependent value arguments (Requirements 8.1, 8.2).
+            if (!DependentArgumentsEqual(ctA.DependentArguments, ctB.DependentArguments))
+                return false;
+
             return true;
         }
 
@@ -4921,6 +5369,35 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Compares two dependent argument lists for value equality.
+    /// Two lists are equal when they have the same length and each pair of
+    /// non-null entries has equal values (using <see cref="object.Equals(object?, object?)"/>).
+    /// </summary>
+    private static bool DependentArgumentsEqual(
+        IReadOnlyList<DependentValueArgument?>? a,
+        IReadOnlyList<DependentValueArgument?>? b)
+    {
+        if (a is null && b is null)
+            return true;
+        if (a is null || b is null)
+            return false;
+        if (a.Count != b.Count)
+            return false;
+        for (var i = 0; i < a.Count; i++)
+        {
+            var argA = a[i];
+            var argB = b[i];
+            if (argA is null && argB is null)
+                continue;
+            if (argA is null || argB is null)
+                return false;
+            if (!Equals(argA.Value, argB.Value))
+                return false;
+        }
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -5047,8 +5524,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
                             $"Trait inheritance cycle detected: {chainStr}.",
-                            Location: null,
-                            CompilationUnitPath: null,
+                            Location: default,
+                            CompilationUnitPath: "<unknown>",
                             AnalyzerName: null));
                     }
                 }
@@ -5112,8 +5589,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"The type '{typeName}' in the `with` block could not be found.",
-                    Location: null,
-                    CompilationUnitPath: null,
+                    Location: default,
+                    CompilationUnitPath: "<unknown>",
                     AnalyzerName: null));
                 continue; // Skip this with block.
             }
@@ -5127,8 +5604,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"The trait '{traitName}' in the `with` block could not be found.",
-                    Location: null,
-                    CompilationUnitPath: null,
+                    Location: default,
+                    CompilationUnitPath: "<unknown>",
                     AnalyzerName: null));
                 continue; // Skip this with block.
             }
@@ -5137,7 +5614,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Resolve traitName + traitTypeArgs to either a TraitType (non-generic)
             // or ConstructedTraitType (generic).
             IType resolvedTrait;
-            IReadOnlyList<TypeParameterType>? typeParams = null;
+            IReadOnlyList<IType>? typeParams = null;
             IReadOnlyList<IType>? typeArgs = null;
 
             var traitTypeParams = resolvedTraitType.TypeParameters;
@@ -5165,8 +5642,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
                             $"Trait '{traitName}' expects {traitTypeParams.Count} type argument(s) but received {resolvedTypeArgs.Count}.",
-                            Location: null,
-                            CompilationUnitPath: null,
+                            Location: default,
+                            CompilationUnitPath: "<unknown>",
                             AnalyzerName: null));
                         continue; // Skip this with block.
                     }
@@ -5188,8 +5665,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
                         $"Generic trait '{traitName}' requires type arguments.",
-                        Location: null,
-                        CompilationUnitPath: null,
+                        Location: default,
+                        CompilationUnitPath: "<unknown>",
                         AnalyzerName: null));
                     continue; // Skip this with block.
                 }
@@ -5206,8 +5683,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"Duplicate `with` block for type '{typeName}' and trait '{resolvedTrait.DisplayName}'.",
-                    Location: null,
-                    CompilationUnitPath: null,
+                    Location: default,
+                    CompilationUnitPath: "<unknown>",
                     AnalyzerName: null));
                 continue; // Skip duplicate.
             }
@@ -5227,8 +5704,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
                         $"The member '{sourceName}' does not exist as a public member on type '{typeName}'.",
-                        Location: null,
-                        CompilationUnitPath: null,
+                        Location: default,
+                        CompilationUnitPath: "<unknown>",
                         AnalyzerName: null));
                     continue; // Skip this mapping.
                 }
@@ -5242,8 +5719,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
                         $"The member '{targetName}' does not exist in trait '{traitName}'.",
-                        Location: null,
-                        CompilationUnitPath: null,
+                        Location: default,
+                        CompilationUnitPath: "<unknown>",
                         AnalyzerName: null));
                     continue; // Skip this mapping.
                 }
@@ -5300,8 +5777,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
                             $"Cannot map '{typeName}.{sourceName}' to '{resolvedTrait.DisplayName}.{targetName}': expected type '{expectedTypeStr}', found '{actualTypeStr}'.",
-                            Location: null,
-                            CompilationUnitPath: null,
+                            Location: default,
+                            CompilationUnitPath: "<unknown>",
                             AnalyzerName: null));
                         continue; // Skip this mapping.
                     }
@@ -5556,7 +6033,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </param>
     internal readonly record struct EffectiveMember(
         ISymbol Member,
-        IReadOnlyList<TypeParameterType>? TypeParams,
+        IReadOnlyList<IType>? TypeParams,
         IReadOnlyList<IType>? TypeArgs,
         IType SourceTrait);
 
@@ -5608,7 +6085,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <param name="visited">Set of trait definitions already visited (prevents infinite loops on cycles).</param>
     private static void CollectEffectiveMembers(
         IType trait,
-        IReadOnlyList<TypeParameterType>? outerTypeParams,
+        IReadOnlyList<IType>? outerTypeParams,
         IReadOnlyList<IType>? outerTypeArgs,
         List<EffectiveMember> result,
         HashSet<string> seenNames,
@@ -5616,7 +6093,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Decompose the trait into its definition and any type arguments.
         TraitType traitDef;
-        IReadOnlyList<TypeParameterType>? effectiveTypeParams;
+        IReadOnlyList<IType>? effectiveTypeParams;
         IReadOnlyList<IType>? effectiveTypeArgs;
 
         if (trait is ConstructedTraitType ctt)
@@ -5841,8 +6318,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
                         $"`with` block for '{typeName} : {trait.DisplayName}' does not cover all trait members. Unsatisfied: {memberList}.",
-                        Location: null,
-                        CompilationUnitPath: null,
+                        Location: default,
+                        CompilationUnitPath: "<unknown>",
                         AnalyzerName: null));
                 }
 
@@ -5854,7 +6331,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     foreach (var (memberName, privateSym) in privateMatches)
                     {
                         var memberPath = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
-                        LinePositionSpan? location = null;
+                        LinePositionSpan location = default;
                         var memberNode = symbolTable.GetDeclaringNode(privateSym);
                         if (memberNode is not null)
                         {
@@ -5871,7 +6348,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             PipelineStage.SemanticModelConstruction,
                             $"Member '{typeName}.{memberName}' exists but is not public; trait matching requires public visibility.",
                             Location: location,
-                            CompilationUnitPath: memberPath,
+                            CompilationUnitPath: memberPath ?? "<unknown>",
                             AnalyzerName: null));
                     }
                 }
@@ -6004,8 +6481,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
                         $"`with` block for '{typeName} : {constructedTrait.DisplayName}' does not cover all trait members. Unsatisfied: {memberList}.",
-                        Location: null,
-                        CompilationUnitPath: null,
+                        Location: default,
+                        CompilationUnitPath: "<unknown>",
                         AnalyzerName: null));
                 }
 
@@ -6016,7 +6493,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     foreach (var (memberName, privateSym) in privateMatches)
                     {
                         var memberPath = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
-                        LinePositionSpan? location = null;
+                        LinePositionSpan location = default;
                         var memberNode = symbolTable.GetDeclaringNode(privateSym);
                         if (memberNode is not null)
                         {
@@ -6033,7 +6510,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             PipelineStage.SemanticModelConstruction,
                             $"Member '{typeName}.{memberName}' exists but is not public; trait matching requires public visibility.",
                             Location: location,
-                            CompilationUnitPath: memberPath,
+                            CompilationUnitPath: memberPath ?? "<unknown>",
                             AnalyzerName: null));
                     }
                 }
@@ -6136,8 +6613,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             // Resolve type arguments from the base list entry.
             var typeArgs = new List<IType>();
-            var typeArgNodes = new List<TypeReferenceNode> { entry.TypeArgs.TypeReference };
-            foreach (var extra in entry.TypeArgs.TypeReferences)
+            var typeArgNodes = new List<TypeReferenceNode> { entry.TypeArgs.GetTypeReference() };
+            foreach (var extra in entry.TypeArgs.GetTypeReferences())
                 typeArgNodes.Add(extra);
 
             foreach (var typeArgNode in typeArgNodes)
@@ -6203,7 +6680,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static void RegisterTransitiveParentSatisfaction(
         IType type,
         IType childTrait,
-        IReadOnlyList<TypeParameterType>? typeParams,
+        IReadOnlyList<IType>? typeParams,
         IReadOnlyList<IType>? typeArgs,
         TraitSatisfactionMap satisfactionMap)
     {
@@ -6231,7 +6708,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static void RegisterTransitiveParentSatisfactionCore(
         IType type,
         TraitType traitDef,
-        IReadOnlyList<TypeParameterType>? typeParams,
+        IReadOnlyList<IType>? typeParams,
         IReadOnlyList<IType>? typeArgs,
         TraitSatisfactionMap satisfactionMap,
         HashSet<string> visited)
@@ -6241,7 +6718,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Resolve the parent trait with type argument substitution.
             IType resolvedParent;
             TraitType parentDef;
-            IReadOnlyList<TypeParameterType>? parentTypeParams;
+            IReadOnlyList<IType>? parentTypeParams;
             IReadOnlyList<IType>? parentTypeArgs;
 
             if (parent is ConstructedTraitType parentCtt)
@@ -6444,7 +6921,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ISymbol traitField,
         IScope typeMemberScope,
         string typeName,
-        IReadOnlyList<TypeParameterType> typeParams,
+        IReadOnlyList<IType> typeParams,
         IReadOnlyList<IType> typeArgs,
         SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
@@ -6499,7 +6976,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ISymbol traitMethod,
         IScope typeMemberScope,
         string typeName,
-        IReadOnlyList<TypeParameterType> typeParams,
+        IReadOnlyList<IType> typeParams,
         IReadOnlyList<IType> typeArgs,
         Scope globalScope,
         SymbolTable symbolTable,
@@ -6579,7 +7056,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ISymbol traitProperty,
         IScope typeMemberScope,
         string typeName,
-        IReadOnlyList<TypeParameterType> typeParams,
+        IReadOnlyList<IType> typeParams,
         IReadOnlyList<IType> typeArgs,
         Scope globalScope,
         SymbolTable symbolTable,
@@ -6655,7 +7132,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool TypeReferenceMatchesWithSubstitutionForReturn(
         TypeReferenceNode implReturn,
         TypeReferenceNode traitReturn,
-        IReadOnlyList<TypeParameterType> typeParams,
+        IReadOnlyList<IType> typeParams,
         IReadOnlyList<IType> typeArgs,
         Scope globalScope,
         SymbolTable symbolTable,
@@ -6668,7 +7145,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var targetName = GetNamedTypeRefName(namedTarget, sourceText);
             for (var i = 0; i < typeParams.Count; i++)
             {
-                if (typeParams[i].Name == targetName)
+                var (paramName, _) = GetTypeParameterNameAndOrdinal(typeParams[i]);
+                if (paramName == targetName)
                 {
                     // The trait return type is a type parameter — substitute
                     // and compare against the concrete type.
@@ -7099,8 +7577,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"Circular interface inheritance detected: '{chainStr}'.",
-                    Location: null,
-                    CompilationUnitPath: compilationUnitPath,
+                    Location: default,
+                    CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                     AnalyzerName: null));
             }
 
@@ -7251,8 +7729,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
                             $"Circular inheritance detected: '{chainStr}'.",
-                            Location: null,
-                            CompilationUnitPath: compilationUnitPath,
+                            Location: default,
+                            CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                             AnalyzerName: null));
                     }
 
@@ -7444,8 +7922,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
                             message,
-                            Location: null,
-                            CompilationUnitPath: missingPath,
+                            Location: default,
+                            CompilationUnitPath: missingPath ?? "<unknown>",
                             AnalyzerName: null));
                     }
                     break;
@@ -7481,8 +7959,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
                             message,
-                            Location: null,
-                            CompilationUnitPath: mismatchPath,
+                            Location: default,
+                            CompilationUnitPath: mismatchPath ?? "<unknown>",
                             AnalyzerName: null));
                     }
                     break;
@@ -7510,8 +7988,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"'{typeName}' does not implement interface property '{requiredInterface.DisplayName}.{requiredProperty.Name}'.",
-                    Location: null,
-                    CompilationUnitPath: missingPath,
+                    Location: default,
+                    CompilationUnitPath: missingPath ?? "<unknown>",
                     AnalyzerName: null));
                 continue;
             }
@@ -7529,8 +8007,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"'{typeName}.{requiredProperty.Name}' does not implement 'get' accessor required by interface '{requiredInterface.DisplayName}'.",
-                    Location: null,
-                    CompilationUnitPath: path,
+                    Location: default,
+                    CompilationUnitPath: path ?? "<unknown>",
                     AnalyzerName: null));
             }
 
@@ -7542,8 +8020,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"'{typeName}.{requiredProperty.Name}' does not implement 'set' accessor required by interface '{requiredInterface.DisplayName}'.",
-                    Location: null,
-                    CompilationUnitPath: path,
+                    Location: default,
+                    CompilationUnitPath: path ?? "<unknown>",
                     AnalyzerName: null));
             }
         }
@@ -7865,7 +8343,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool TypeReferencesMatchWithSubstitution(
         TypeReferenceNode sourceRef,
         TypeReferenceNode targetRef,
-        IReadOnlyList<TypeParameterType> typeParams,
+        IReadOnlyList<IType> typeParams,
         IReadOnlyList<IType> typeArgs,
         SourceText? traitSourceText = null,
         ImmutableArray<Storm.Runtime.SyntaxNode>? asts = null,
@@ -7885,7 +8363,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             for (var i = 0; i < typeParams.Count; i++)
             {
-                if (typeParams[i].Name == targetName)
+                var (paramName7953, _) = GetTypeParameterNameAndOrdinal(typeParams[i]);
+                if (paramName7953 == targetName)
                 {
                     // The target type parameter maps to typeArgs[i].
                     // Compare the source type reference against the substituted type.
@@ -7959,7 +8438,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static string FormatTypeReferenceWithSubstitution(
         TypeReferenceNode typeRef,
-        IReadOnlyList<TypeParameterType> typeParams,
+        IReadOnlyList<IType> typeParams,
         IReadOnlyList<IType> typeArgs,
         SourceText? sourceText = null,
         ImmutableArray<Storm.Runtime.SyntaxNode>? asts = null,
@@ -7977,7 +8456,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             for (var i = 0; i < typeParams.Count; i++)
             {
-                if (typeParams[i].Name == name)
+                var (paramName8045, _) = GetTypeParameterNameAndOrdinal(typeParams[i]);
+                if (paramName8045 == name)
                 {
                     return typeArgs[i].DisplayName;
                 }
@@ -8256,11 +8736,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static List<TypeReferenceNode> FlattenTypeArguments(TypeArgumentListNode node)
     {
-        var result = new List<TypeReferenceNode>(1 + node.TypeReferences.Length)
+        var result = new List<TypeReferenceNode>(1 + node.TypeArguments.Length)
         {
-            node.TypeReference,
+            node.GetTypeReference(),
         };
-        foreach (var extra in node.TypeReferences)
+        foreach (var extra in node.GetTypeReferences())
             result.Add(extra);
         return result;
     }
@@ -8644,8 +9124,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 DiagnosticSeverity.Error,
                 PipelineStage.SemanticModelConstruction,
                 $"'{classType.DisplayName}' cannot redeclare member '{member.Name}' already defined in '{ancestor.DisplayName}'.",
-                Location: null,
-                CompilationUnitPath: compilationUnitPath,
+                Location: default,
+                CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                 AnalyzerName: null));
         }
     }
@@ -8761,8 +9241,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
                         $"Base class '{baseType.DisplayName}' requires constructor arguments that are not provided.",
-                        Location: null,
-                        CompilationUnitPath: compilationUnitPath,
+                        Location: default,
+                        CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                         AnalyzerName: null));
                 }
                 continue;
@@ -8939,8 +9419,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
                         message,
-                        Location: null,
-                        CompilationUnitPath: compilationUnitPath,
+                        Location: default,
+                        CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                         AnalyzerName: null));
                 }
             }
@@ -9557,7 +10037,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 resolutionScope = new Scope(parent: fileScope);
                 foreach (var tp in aliasSymbol.TypeParameters)
                 {
-                    var tpSymbol = new Symbol(tp.Name, SymbolKind.Class, SymbolOrigin.UserCode, resolutionScope, tp, null);
+                    var (tpName9625, _) = GetTypeParameterNameAndOrdinal(tp);
+                    var tpSymbol = new Symbol(tpName9625, SymbolKind.Class, SymbolOrigin.UserCode, resolutionScope, tp, null);
                     resolutionScope.AddMember(tpSymbol);
                 }
             }
@@ -9611,6 +10092,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         var typeScope = (Scope)classType.MemberScope;
 
+        // Generate implicit properties for dependent type parameters.
+        GenerateDependentTypeProperties(classType.TypeParameters, typeScope, classType, sourceText, diagnostics);
+
         // Create a per-class resolution scope that layers the class's type
         // parameters on top of the file scope. This ensures that type parameter
         // names (e.g., T in GenericBox<T>) resolve to the correct
@@ -9638,6 +10122,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         var typeScope = (Scope)structType.MemberScope;
 
+        // Generate implicit properties for dependent type parameters.
+        GenerateDependentTypeProperties(structType.TypeParameters, typeScope, structType, sourceText, diagnostics);
+
         // Create a per-struct resolution scope that layers the struct's type
         // parameters on top of the file scope.
         var structFileScope = CreateTypeParameterScope(typeScope, fileScope);
@@ -9662,6 +10149,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Create a per-interface resolution scope that layers the interface's
         // type parameters on top of the file scope.
         var typeScope = (Scope)interfaceType.MemberScope;
+
+        // Generate implicit properties for dependent type parameters.
+        GenerateDependentTypeProperties(interfaceType.TypeParameters, typeScope, interfaceType, sourceText, diagnostics);
+
         var interfaceFileScope = CreateTypeParameterScope(typeScope, fileScope);
 
         // Resolve return types and parameter types for each interface member.
@@ -9720,6 +10211,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // namespace scope (set up in RegisterTraitDeclaration).
         var typeScope = (Scope)traitType.MemberScope;
         var resolutionScope = typeScope;
+
+        // Generate implicit properties for dependent type parameters.
+        GenerateDependentTypeProperties(traitType.TypeParameters, typeScope, traitType, sourceText, diagnostics);
 
         // Resolve types for each trait member.
         foreach (var member in traitDecl.Members)
@@ -9931,6 +10425,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Create a method scope for the body.
         var methodScope = new Scope(parent: typeScope);
+
+        // Register method-level dependent type parameters in the method's lexical scope.
+        if (methodSymbol is not null && methodSymbol.TypeParameters.Count > 0)
+        {
+            RegisterMethodDependentParameters(methodSymbol.TypeParameters, methodScope, enclosingType, sourceText, diagnostics);
+        }
 
         // Register parameters.
         if (methodDecl.Parameters is not null)
@@ -11191,8 +11691,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case NamedTypeRefTypeReferenceNode namedRef:
                 var typeName = ExtractQualifiedName(namedRef.Name, sourceText);
 
-                // Check if the identifier resolves to a TypeParameterType first.
-                // Type parameters don't accept type arguments.
+                // Check if the identifier resolves to a TypeParameterType or
+                // DependentTypeParameterType first. Type parameters don't accept
+                // type arguments.
                 var namedSymbol = fileScope.Lookup(typeName);
                 if (namedSymbol is not null && namedSymbol.DeclaredType is TypeParameterType tpt)
                 {
@@ -11206,6 +11707,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             sourceText));
                     }
                     return tpt;
+                }
+
+                if (namedSymbol is not null && namedSymbol.DeclaredType is DependentTypeParameterType dpt)
+                {
+                    if (namedRef.TypeArgs is not null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            DiagnosticId.NotGeneric.Value,
+                            DiagnosticSeverity.Error,
+                            $"Type '{typeName}' is not generic and does not accept type arguments.",
+                            namedRef,
+                            sourceText));
+                    }
+                    return dpt;
                 }
 
                 baseType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
@@ -11807,8 +12322,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 DiagnosticSeverity.Error,
                 PipelineStage.SemanticModelConstruction,
                 $"The type name '{typeName}' is ambiguous between namespaces '{userResolvedNs}' and '{ambiguousNs}'.",
-                Location: null,
-                CompilationUnitPath: sourceText?.Path,
+                Location: default,
+                CompilationUnitPath: sourceText?.Path ?? "<unknown>",
                 AnalyzerName: null));
             return ErrorType.Instance;
         }
@@ -11840,8 +12355,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             DiagnosticSeverity.Error,
             PipelineStage.SemanticModelConstruction,
             $"The type '{typeName}' could not be found.",
-            Location: null,
-            CompilationUnitPath: sourceText?.Path,
+            Location: default,
+            CompilationUnitPath: sourceText?.Path ?? "<unknown>",
             AnalyzerName: null));
 
         return ErrorType.Instance;
@@ -11887,7 +12402,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static IType SubstituteTypeParameters(
         IType type,
-        IReadOnlyList<TypeParameterType> typeParameters,
+        IReadOnlyList<IType> typeParameters,
         IReadOnlyList<IType> typeArguments)
     {
         if (type is TypeParameterType tpt)
@@ -11963,8 +12478,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return resolvedType;
         }
 
-        // Resolve each type argument recursively.
-        var resolvedTypeArgs = ResolvePass2TypeArgumentList(typeArgList, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        // Resolve each type argument, handling dependent type argument disambiguation.
+        var (resolvedTypeArgs, dependentArgs) = ResolvePass2TypeArgumentListWithDependents(
+            typeArgList, typeParams, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
 
         if (resolvedTypeArgs.Count != typeParams.Count)
         {
@@ -12008,7 +12524,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return new ConstructedTraitType(traitType, resolvedTypeArgs);
         }
 
-        return new ConstructedType(resolvedType, resolvedTypeArgs);
+        return new ConstructedType(resolvedType, resolvedTypeArgs, dependentArgs);
     }
 
     /// <summary>
@@ -12028,17 +12544,267 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var resolvedArgs = new List<IType>();
 
         // Resolve the first type argument.
-        var firstType = ResolvePass2SingleTypeArg(typeArgList.TypeReference, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        var firstType = ResolvePass2SingleTypeArg(typeArgList.GetTypeReference(), fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
         resolvedArgs.Add(firstType);
 
         // Resolve the rest of the type arguments.
-        foreach (var typeRef in typeArgList.TypeReferences)
+        foreach (var typeRef in typeArgList.GetTypeReferences())
         {
             var argType = ResolvePass2SingleTypeArg(typeRef, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
             resolvedArgs.Add(argType);
         }
 
         return resolvedArgs;
+    }
+
+    /// <summary>
+    /// Resolves a <see cref="TypeArgumentListNode"/> to a list of <see cref="IType"/> instances
+    /// and a parallel list of <see cref="DependentValueArgument"/> entries, performing
+    /// disambiguation of bare identifiers and literal type arguments against the
+    /// corresponding type parameters.
+    /// <para>
+    /// When the type parameter at a given position is a <see cref="DependentTypeParameterType"/>:
+    /// <list type="bullet">
+    ///   <item>Literal type arguments (integer, boolean, char, hex, binary, negated) are parsed
+    ///         and converted to <see cref="DependentValueArgument"/> instances.</item>
+    ///   <item>A bare identifier (<see cref="TypeReferenceTypeArgumentTypeArgumentNode"/> with a
+    ///         simple <see cref="NamedTypeRefTypeReferenceNode"/>) is looked up in scope:
+    ///         if it resolves to a const/dependent-parameter → dependent value argument;
+    ///         if it resolves to a type → regular type argument (type mismatch handled later by type checker);
+    ///         if unresolved → diagnostic emitted.</item>
+    /// </list>
+    /// </para>
+    /// </summary>
+    private static (IReadOnlyList<IType> TypeArgs, IReadOnlyList<DependentValueArgument?>? DependentArgs) ResolvePass2TypeArgumentListWithDependents(
+        TypeArgumentListNode typeArgList,
+        IReadOnlyList<IType> typeParams,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Collect all TypeArgumentNode entries in order.
+        var argNodes = new List<TypeArgumentNode> { typeArgList.TypeArgument };
+        foreach (var extra in typeArgList.TypeArguments)
+            argNodes.Add(extra);
+
+        var resolvedTypeArgs = new List<IType>(argNodes.Count);
+        List<DependentValueArgument?>? dependentArgs = null;
+
+        for (var i = 0; i < argNodes.Count; i++)
+        {
+            var argNode = argNodes[i];
+            var correspondingParam = i < typeParams.Count ? typeParams[i] : null;
+            var isDependentPosition = correspondingParam is DependentTypeParameterType;
+
+            // Try to resolve as a dependent value argument if the position expects one.
+            if (isDependentPosition)
+            {
+                var depParam = (DependentTypeParameterType)correspondingParam!;
+                var depArg = TryResolveDependentValueArgument(argNode, depParam, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                if (depArg is not null)
+                {
+                    // Successfully resolved as a dependent value argument.
+                    // Use the dependent parameter's value type as the type argument placeholder.
+                    resolvedTypeArgs.Add(depParam.ValueType);
+                    dependentArgs ??= new List<DependentValueArgument?>(new DependentValueArgument?[argNodes.Count]);
+                    dependentArgs[i] = depArg;
+                    continue;
+                }
+                // If TryResolveDependentValueArgument returned null, it means the argument
+                // is a type reference (not a const/literal). Fall through to normal resolution.
+            }
+
+            // Normal type argument resolution (for regular type parameters or when
+            // a dependent position has a type reference that isn't a const).
+            if (argNode is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg)
+            {
+                var resolved = ResolvePass2SingleTypeArg(typeRefArg.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                resolvedTypeArgs.Add(resolved);
+            }
+            else
+            {
+                // A literal type argument in a non-dependent position — this is an error
+                // that will be caught by the type checker later. For now, use ErrorType.
+                resolvedTypeArgs.Add(ErrorType.Instance);
+            }
+        }
+
+        return (resolvedTypeArgs, dependentArgs);
+    }
+
+    /// <summary>
+    /// Attempts to resolve a <see cref="TypeArgumentNode"/> as a <see cref="DependentValueArgument"/>
+    /// for a dependent type parameter position. Returns <c>null</c> if the argument is a type
+    /// reference (not a const or literal), indicating normal type argument resolution should proceed.
+    /// </summary>
+    private static DependentValueArgument? TryResolveDependentValueArgument(
+        TypeArgumentNode argNode,
+        DependentTypeParameterType depParam,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        switch (argNode)
+        {
+            case IntegerLiteralTypeArgumentTypeArgumentNode intLit:
+            {
+                var valueText = intLit.Literal.Lexeme;
+                if (long.TryParse(valueText, out var value))
+                    return new DependentValueArgument(value, depParam.ValueType, valueText);
+                return new DependentValueArgument(0L, depParam.ValueType, valueText);
+            }
+
+            case NegatedIntegerTypeArgumentTypeArgumentNode negLit:
+            {
+                var valueText = negLit.Literal.Lexeme;
+                if (long.TryParse(valueText, out var value))
+                    return new DependentValueArgument(-value, depParam.ValueType, $"-{valueText}");
+                return new DependentValueArgument(0L, depParam.ValueType, $"-{valueText}");
+            }
+
+            case HexLiteralTypeArgumentTypeArgumentNode hexLit:
+            {
+                var valueText = hexLit.Literal.Lexeme;
+                var hexStr = valueText.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+                    ? valueText[2..] : valueText;
+                if (long.TryParse(hexStr, System.Globalization.NumberStyles.HexNumber, null, out var value))
+                    return new DependentValueArgument(value, depParam.ValueType, valueText);
+                return new DependentValueArgument(0L, depParam.ValueType, valueText);
+            }
+
+            case BinaryLiteralTypeArgumentTypeArgumentNode binLit:
+            {
+                var valueText = binLit.Literal.Lexeme;
+                var binStr = valueText.StartsWith("0b", StringComparison.OrdinalIgnoreCase)
+                    ? valueText[2..] : valueText;
+                try
+                {
+                    var value = Convert.ToInt64(binStr, 2);
+                    return new DependentValueArgument(value, depParam.ValueType, valueText);
+                }
+                catch
+                {
+                    return new DependentValueArgument(0L, depParam.ValueType, valueText);
+                }
+            }
+
+            case TrueLiteralTypeArgumentTypeArgumentNode:
+                return new DependentValueArgument(true, depParam.ValueType, "true");
+
+            case FalseLiteralTypeArgumentTypeArgumentNode:
+                return new DependentValueArgument(false, depParam.ValueType, "false");
+
+            case CharLiteralTypeArgumentTypeArgumentNode charLit:
+            {
+                var valueText = charLit.Literal.Lexeme;
+                // Strip surrounding quotes to get the char value.
+                var charValue = valueText.Length >= 3 ? valueText[1] : '\0';
+                return new DependentValueArgument(charValue, depParam.ValueType, valueText);
+            }
+
+            case TypeReferenceTypeArgumentTypeArgumentNode typeRefArg:
+            {
+                // Disambiguation: check if this is a bare identifier that resolves to a const.
+                if (typeRefArg.Type is NamedTypeRefTypeReferenceNode namedRef
+                    && namedRef.TypeArgs is null
+                    && !namedRef.ArrayRank.HasValue)
+                {
+                    var argName = ExtractQualifiedName(namedRef.Name, sourceText);
+
+                    // Don't treat well-known type names as const references.
+                    if (TryResolveWellKnownType(argName) is not null)
+                        return null; // It's a type, not a const.
+
+                    // Look up in scope to disambiguate.
+                    var symbol = fileScope.Lookup(argName);
+
+                    if (symbol is not null)
+                    {
+                        // If the symbol's declared type is a DependentTypeParameterType,
+                        // it's a forwarded dependent parameter (e.g., class Derived<N:int> : Base<N>).
+                        if (symbol.DeclaredType is DependentTypeParameterType forwardedParam)
+                        {
+                            return new DependentValueArgument(argName, forwardedParam.ValueType, argName);
+                        }
+
+                        // If the symbol is a type (class, struct, interface, etc.), treat as regular type arg.
+                        if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                            or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum)
+                        {
+                            return null; // Fall through to normal type resolution.
+                        }
+
+                        // If the symbol is a property with a DependentTypeParameterType value type
+                        // (generated implicit property for dependent parameters), treat as const ref.
+                        if (symbol.Kind == SymbolKind.Property
+                            && symbol is Symbol propSym
+                            && propSym.PropertyMetadata is { IsStatic: true, HasGet: true, HasSet: false })
+                        {
+                            // This is likely a dependent parameter property — treat as forwarded.
+                            return new DependentValueArgument(argName, symbol.DeclaredType ?? depParam.ValueType, argName);
+                        }
+
+                        // If the symbol is a field or local variable (potential const),
+                        // treat as a dependent value argument reference.
+                        if (symbol.Kind is SymbolKind.Field or SymbolKind.LocalVariable)
+                        {
+                            return new DependentValueArgument(argName, symbol.DeclaredType ?? depParam.ValueType, argName);
+                        }
+                    }
+
+                    // Check if it resolves to a type via namespace imports before emitting diagnostic.
+                    var importedNamespaces = CollectImportedNamespaces(fileScope);
+                    var globalScope = FindGlobalScope(fileScope);
+                    foreach (var ns in importedNamespaces)
+                    {
+                        var nsScope = globalScope is not null
+                            ? FindExistingNamespaceScope(globalScope, symbolTable, ns)
+                            : null;
+                        if (nsScope is not null)
+                        {
+                            foreach (var member in nsScope.Members)
+                            {
+                                if (member.Name == argName &&
+                                    member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                                        or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum)
+                                {
+                                    return null; // It's a type from an imported namespace.
+                                }
+                            }
+                        }
+                    }
+
+                    // Check ambient resolver.
+                    if (ambientTypeResolver is not null)
+                    {
+                        foreach (var ns in importedNamespaces)
+                        {
+                            if (ambientTypeResolver.ResolveType(ns, argName) is not null)
+                                return null; // It's an ambient type.
+                        }
+                    }
+
+                    // Unresolved identifier in a dependent position — emit diagnostic.
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        DiagnosticId.UndefinedTypeArgument.Value,
+                        DiagnosticSeverity.Error,
+                        $"Type argument '{argName}' could not be resolved.",
+                        typeRefArg,
+                        sourceText));
+                    return new DependentValueArgument(argName, depParam.ValueType, argName);
+                }
+
+                // Not a bare identifier (has type args or array rank) — treat as type reference.
+                return null;
+            }
+
+            default:
+                return null;
+        }
     }
 
     /// <summary>
@@ -12164,7 +12930,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var hasTypeParams = false;
         foreach (var member in typeScope.Members)
         {
-            if (member.DeclaredType is TypeParameterType)
+            if (member.DeclaredType is TypeParameterType or DependentTypeParameterType)
             {
                 hasTypeParams = true;
                 break;
@@ -12177,7 +12943,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var scope = new Scope(parent: fileScope);
         foreach (var member in typeScope.Members)
         {
-            if (member.DeclaredType is TypeParameterType)
+            if (member.DeclaredType is TypeParameterType or DependentTypeParameterType)
             {
                 scope.AddMember(member);
             }
@@ -13551,8 +14317,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 DiagnosticSeverity.Error,
                 PipelineStage.SemanticModelConstruction,
                 $"Enum '{enumTarget.DisplayName}' does not contain a member '{memberName}'.",
-                Location: null,
-                CompilationUnitPath: sourceText?.Path,
+                Location: default,
+                CompilationUnitPath: sourceText?.Path ?? "<unknown>",
                 AnalyzerName: null));
 
             return ErrorType.Instance;
@@ -13560,7 +14326,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // For ConstructedType, unwrap to the generic definition and look up the member,
         // then substitute type parameters with type arguments.
-        IReadOnlyList<TypeParameterType>? constructedTypeParams = null;
+        IReadOnlyList<IType>? constructedTypeParams = null;
         IReadOnlyList<IType>? constructedTypeArgs = null;
         if (targetType is ConstructedType constructedTarget)
         {
@@ -13714,8 +14480,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 DiagnosticSeverity.Error,
                 PipelineStage.SemanticModelConstruction,
                 $"Tuple type '{tupleTarget.DisplayName}' does not contain a member '{memberName}'.",
-                Location: null,
-                CompilationUnitPath: sourceText?.Path,
+                Location: default,
+                CompilationUnitPath: sourceText?.Path ?? "<unknown>",
                 AnalyzerName: null));
 
             return ErrorType.Instance;
@@ -13907,8 +14673,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"Ambiguous extension method resolution: member '{memberName}' is provided by multiple equally-specific extension blocks: {candidateDescriptions}.",
-                    Location: null,
-                    CompilationUnitPath: sourceText?.Path,
+                    Location: default,
+                    CompilationUnitPath: sourceText?.Path ?? "<unknown>",
                     AnalyzerName: null));
 
                 return ErrorType.Instance;
@@ -14003,8 +14769,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"Ambiguous extension method resolution: static member '{memberName}' is provided by multiple equally-specific extension blocks: {staticCandidateDescriptions}.",
-                    Location: null,
-                    CompilationUnitPath: sourceText?.Path,
+                    Location: default,
+                    CompilationUnitPath: sourceText?.Path ?? "<unknown>",
                     AnalyzerName: null));
 
                 return ErrorType.Instance;
@@ -14021,8 +14787,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             DiagnosticSeverity.Error,
             PipelineStage.SemanticModelConstruction,
             $"'{diagnosticTypeName}' does not contain a definition for '{memberName}'.",
-            Location: null,
-            CompilationUnitPath: sourceText?.Path,
+            Location: default,
+            CompilationUnitPath: sourceText?.Path ?? "<unknown>",
             AnalyzerName: null));
 
         return ErrorType.Instance;
@@ -14154,7 +14920,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static IReadOnlyList<IType>? TryUnifyReceiverType(
         IType pattern,
         IType actual,
-        IReadOnlyList<TypeParameterType> typeParameters)
+        IReadOnlyList<IType> typeParameters)
     {
         // Build a dictionary to collect bindings: type parameter name → concrete type.
         var bindings = new Dictionary<string, IType>();
@@ -14166,7 +14932,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var result = new IType[typeParameters.Count];
         for (var i = 0; i < typeParameters.Count; i++)
         {
-            if (!bindings.TryGetValue(typeParameters[i].Name, out var bound))
+            var (paramName, _) = GetTypeParameterNameAndOrdinal(typeParameters[i]);
+            if (!bindings.TryGetValue(paramName, out var bound))
                 return null; // Not all type parameters could be inferred.
             result[i] = bound;
         }
@@ -14181,7 +14948,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool UnifyTypes(
         IType pattern,
         IType actual,
-        IReadOnlyList<TypeParameterType> typeParameters,
+        IReadOnlyList<IType> typeParameters,
         Dictionary<string, IType> bindings)
     {
         // Case 1: The pattern is a type parameter — bind it to the actual type.
@@ -14191,7 +14958,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var isExtensionTypeParam = false;
             for (var i = 0; i < typeParameters.Count; i++)
             {
-                if (tpt.Name == typeParameters[i].Name && tpt.Ordinal == typeParameters[i].Ordinal)
+                var (paramName, paramOrdinal) = GetTypeParameterNameAndOrdinal(typeParameters[i]);
+                if (tpt.Name == paramName && tpt.Ordinal == paramOrdinal)
                 {
                     isExtensionTypeParam = true;
                     break;
@@ -14300,7 +15068,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static IType SubstituteMemberTypeIfNeeded(
         IType memberType,
-        IReadOnlyList<TypeParameterType>? typeParams,
+        IReadOnlyList<IType>? typeParams,
         IReadOnlyList<IType>? typeArgs)
     {
         if (typeParams is null || typeArgs is null || typeParams.Count == 0)
@@ -14315,13 +15083,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// - If the type is a <see cref="ConstructedType"/>, recursively substitutes its type arguments.
     /// - Otherwise, returns the type unchanged.
     /// </summary>
-    private static IType SubstituteTypeInMember(IType type, IReadOnlyList<TypeParameterType> typeParams, IReadOnlyList<IType> typeArgs)
+    private static IType SubstituteTypeInMember(IType type, IReadOnlyList<IType> typeParams, IReadOnlyList<IType> typeArgs)
     {
         if (type is TypeParameterType tpt)
         {
             for (var i = 0; i < typeParams.Count; i++)
             {
-                if (tpt.Name == typeParams[i].Name && tpt.Ordinal == typeParams[i].Ordinal)
+                var (paramName, paramOrdinal) = GetTypeParameterNameAndOrdinal(typeParams[i]);
+                if (tpt.Name == paramName && tpt.Ordinal == paramOrdinal)
                     return i < typeArgs.Count ? typeArgs[i] : type;
             }
             return type;
@@ -14545,7 +15314,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static int CountTypeArgs(TypeArgumentListNode typeArgList)
     {
-        return 1 + typeArgList.TypeReferences.Length;
+        return 1 + typeArgList.TypeArguments.Length;
     }
 
     /// <summary>
@@ -14747,8 +15516,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"A local variable named '{name}' is already declared in this scope.",
-                    Location: null,
-                    CompilationUnitPath: sourceText?.Path,
+                    Location: default,
+                    CompilationUnitPath: sourceText?.Path ?? "<unknown>",
                     AnalyzerName: null));
                 return;
             }
@@ -15135,8 +15904,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"Type '{classType.DisplayName}' cannot be defaultable because its base class '{baseClass.DisplayName}' is not defaultable.",
-                    Location: null,
-                    CompilationUnitPath: null,
+                    Location: default,
+                    CompilationUnitPath: "<unknown>",
                     AnalyzerName: null));
                 return;
             }
@@ -15173,8 +15942,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
                             $"Field '{field.Name}' on type '{classType.DisplayName}' has type '{field.DeclaredType.DisplayName}' which is not defaultable. Add a default block with a type binding for this field.",
-                            Location: null,
-                            CompilationUnitPath: null,
+                            Location: default,
+                            CompilationUnitPath: "<unknown>",
                             AnalyzerName: null));
                     }
                     return;
@@ -15235,8 +16004,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
                             $"Field '{field.Name}' on type '{structType.DisplayName}' has type '{field.DeclaredType.DisplayName}' which is not defaultable. Add a default block with a type binding for this field.",
-                            Location: null,
-                            CompilationUnitPath: null,
+                            Location: default,
+                            CompilationUnitPath: "<unknown>",
                             AnalyzerName: null));
                     }
                     return;
@@ -15736,8 +16505,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Storm.Runtime.SyntaxNode node,
         SourceText? sourceText)
     {
-        LinePositionSpan? location = null;
-        string? compilationUnitPath = sourceText?.Path;
+        LinePositionSpan location = default;
+        string compilationUnitPath = sourceText?.Path ?? "<unknown>";
 
         if (sourceText is not null && node.Span.Length > 0)
         {

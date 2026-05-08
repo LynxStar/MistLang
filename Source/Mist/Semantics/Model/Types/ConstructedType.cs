@@ -22,6 +22,13 @@ public sealed class ConstructedType : IType
     public IReadOnlyList<IType> TypeArguments { get; }
 
     /// <summary>
+    /// Dependent value arguments, indexed by position in the type parameter list.
+    /// Null entries indicate regular type arguments at that position.
+    /// Null if the type has no dependent parameters.
+    /// </summary>
+    public IReadOnlyList<DependentValueArgument?>? DependentArguments { get; }
+
+    /// <summary>
     /// The member scope of the generic definition (members are resolved with substitution).
     /// </summary>
     // TypeKind audit (unknown-type feature): the default throw remains correct after TypeKind.Unknown
@@ -36,14 +43,26 @@ public sealed class ConstructedType : IType
             $"ConstructedType.GenericDefinition must be a ClassType, StructType, or InterfaceType, but was {GenericDefinition.GetType().Name}.")
     };
 
-    public ConstructedType(IType genericDefinition, IReadOnlyList<IType> typeArguments)
+    public ConstructedType(
+        IType genericDefinition,
+        IReadOnlyList<IType> typeArguments,
+        IReadOnlyList<DependentValueArgument?>? dependentArguments = null)
     {
         GenericDefinition = genericDefinition;
         TypeArguments = typeArguments;
+        DependentArguments = dependentArguments;
         Kind = genericDefinition.Kind;
 
-        // Build display name: "Box<int>" or "Map<string, int>"
-        var argNames = string.Join(", ", typeArguments.Select(a => a.DisplayName));
-        DisplayName = $"{genericDefinition.DisplayName}<{argNames}>";
+        // Build display name: "Box<int>" or "Map<string, int>" or "FixedBuffer<5>"
+        // When a position has a dependent value argument, display the value instead of the placeholder type.
+        var argParts = new string[typeArguments.Count];
+        for (var i = 0; i < typeArguments.Count; i++)
+        {
+            if (dependentArguments is not null && i < dependentArguments.Count && dependentArguments[i] is { } depArg)
+                argParts[i] = depArg.DisplayValue;
+            else
+                argParts[i] = typeArguments[i].DisplayName;
+        }
+        DisplayName = $"{genericDefinition.DisplayName}<{string.Join(", ", argParts)}>";
     }
 }

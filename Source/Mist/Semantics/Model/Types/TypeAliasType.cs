@@ -11,14 +11,14 @@ public sealed class TypeAliasType : IType
 {
     public string Name { get; }
     public IType UnderlyingType { get; }
-    public IReadOnlyList<TypeParameterType> TypeParameters { get; }
+    public IReadOnlyList<IType> TypeParameters { get; }
     public string DisplayName => Name;
     public TypeKind Kind => UnderlyingType.Kind;
 
     public TypeAliasType(
         string name,
         IType underlyingType,
-        IReadOnlyList<TypeParameterType> typeParameters)
+        IReadOnlyList<IType> typeParameters)
     {
         Name = name;
         UnderlyingType = underlyingType;

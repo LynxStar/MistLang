@@ -67,9 +67,9 @@ public class GenericTraitRoundTripPropertyTests
     private static Gen<TypeParameterListNode> GenTypeParameterList(int count)
     {
         var names = TypeParamNames.Take(count).ToArray();
-        var first = new TypeParameterNode { Name = Tok(names[0]) };
+        var first = new RegularTypeParameterTypeParameterNode { Name = Tok(names[0]) };
         var rest = names.Skip(1)
-            .Select(n => new TypeParameterNode { Name = Tok(n) })
+            .Select(n => (TypeParameterNode)new RegularTypeParameterTypeParameterNode { Name = Tok(n) })
             .ToImmutableArray();
 
         return Gen.Constant(new TypeParameterListNode
@@ -93,8 +93,8 @@ public class GenericTraitRoundTripPropertyTests
         return Gen.ArrayOf(MistTypeGenerator.GenPrimitiveTypeRef(), count)
             .Select(args => new TypeArgumentListNode
             {
-                TypeReference = args[0],
-                TypeReferences = args.Skip(1).ToImmutableArray(),
+                TypeArgument = new TypeReferenceTypeArgumentTypeArgumentNode { Type = args[0] },
+                TypeArguments = args.Skip(1).Select(t => (TypeArgumentNode)new TypeReferenceTypeArgumentTypeArgumentNode { Type = t }).ToImmutableArray(),
             });
     }
 
@@ -120,16 +120,16 @@ public class GenericTraitRoundTripPropertyTests
                                },
                                TypeArgs = new TypeArgumentListNode
                                {
-                                   TypeReference = innerType,
-                                   TypeReferences = ImmutableArray<TypeReferenceNode>.Empty,
+                                   TypeArgument = new TypeReferenceTypeArgumentTypeArgumentNode { Type = innerType },
+                                   TypeArguments = ImmutableArray<TypeArgumentNode>.Empty,
                                },
                            };
 
         return from nested in nestedTypeRef
                select new TypeArgumentListNode
                {
-                   TypeReference = nested,
-                   TypeReferences = ImmutableArray<TypeReferenceNode>.Empty,
+                   TypeArgument = new TypeReferenceTypeArgumentTypeArgumentNode { Type = nested },
+                   TypeArguments = ImmutableArray<TypeArgumentNode>.Empty,
                };
     }
 

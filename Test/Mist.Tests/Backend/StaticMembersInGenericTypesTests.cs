@@ -52,9 +52,9 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
 
     private static TypeParameterListNode MakeTypeParamList(params string[] names)
     {
-        var first = new TypeParameterNode { Name = Tok(names[0]) };
+        var first = new RegularTypeParameterTypeParameterNode { Name = Tok(names[0]) };
         var rest = names.Skip(1)
-            .Select(n => new TypeParameterNode { Name = Tok(n) })
+            .Select(n => (TypeParameterNode)new RegularTypeParameterTypeParameterNode { Name = Tok(n) })
             .ToImmutableArray();
         return new TypeParameterListNode
         {

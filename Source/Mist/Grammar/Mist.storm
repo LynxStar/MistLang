@@ -125,9 +125,23 @@ rule TypeAliasDeclaration = TYPE name:IDENTIFIER typeParams:TypeParameterList? E
 
 rule TypeParameterList = LESS_THAN TypeParameter (COMMA TypeParameter)* GREATER_THAN;
 
-rule TypeParameter = name:IDENTIFIER;
+rule TypeParameter
+    = name:IDENTIFIER COLON valueType:PrimitiveType  as DependentTypeParameter
+    | name:IDENTIFIER                                 as RegularTypeParameter
+    ;
 
-rule TypeArgumentList = LESS_THAN TypeReference (COMMA TypeReference)* GREATER_THAN;
+rule TypeArgumentList = LESS_THAN TypeArgument (COMMA TypeArgument)* GREATER_THAN;
+
+rule TypeArgument
+    = MINUS literal:INTEGER_LITERAL   as NegatedIntegerTypeArgument
+    | literal:INTEGER_LITERAL         as IntegerLiteralTypeArgument
+    | literal:HEX_LITERAL             as HexLiteralTypeArgument
+    | literal:BINARY_LITERAL          as BinaryLiteralTypeArgument
+    | TRUE                            as TrueLiteralTypeArgument
+    | FALSE                           as FalseLiteralTypeArgument
+    | literal:CHAR_LITERAL            as CharLiteralTypeArgument
+    | type:TypeReference              as TypeReferenceTypeArgument
+    ;
 
 // ─── Parser Rules — Constraint Clauses ───────────────────────────────────────
 

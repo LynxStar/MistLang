@@ -159,7 +159,7 @@ public sealed class ReachabilityAnalyzer
         // discovered for that generic plus the generic's type parameters, so
         // Task 19's fixed-point loop can iterate over the (member, T) pairs
         // scoped to that generic (without cross-generic propagation).
-        var perGenericMethods = new List<(List<ISymbol> Members, IReadOnlyList<TypeParameterType> TypeParameters)>();
+        var perGenericMethods = new List<(List<ISymbol> Members, IReadOnlyList<IType> TypeParameters)>();
 
         foreach (var typeSymbol in symbols.AllSymbols)
         {
@@ -263,7 +263,7 @@ public sealed class ReachabilityAnalyzer
     internal static void RunFixedPoint(
         Dictionary<MemberTypeParamKey, MemberClassification> methodClassifications,
         Dictionary<ISymbol, MemberCallInfo> callGraph,
-        IReadOnlyList<(List<ISymbol> Members, IReadOnlyList<TypeParameterType> TypeParameters)> perGenericMethods)
+        IReadOnlyList<(List<ISymbol> Members, IReadOnlyList<IType> TypeParameters)> perGenericMethods)
     {
         bool changed;
         do
@@ -317,7 +317,7 @@ public sealed class ReachabilityAnalyzer
     internal static bool RunFixedPointStep(
         Dictionary<MemberTypeParamKey, MemberClassification> methodClassifications,
         Dictionary<ISymbol, MemberCallInfo> callGraph,
-        IReadOnlyList<(List<ISymbol> Members, IReadOnlyList<TypeParameterType> TypeParameters)> perGenericMethods)
+        IReadOnlyList<(List<ISymbol> Members, IReadOnlyList<IType> TypeParameters)> perGenericMethods)
     {
         var changed = false;
 
@@ -361,7 +361,7 @@ public sealed class ReachabilityAnalyzer
     // Field classification (Task 17.2). Unchanged from Task 17.
     // ─────────────────────────────────────────────────────────────────────
 
-    private static MemberClassification ClassifyField(ISymbol field, TypeParameterType typeParameter)
+    private static MemberClassification ClassifyField(ISymbol field, IType typeParameter)
     {
         var declaredType = field.DeclaredType;
         if (declaredType is null or ErrorType)
@@ -383,7 +383,7 @@ public sealed class ReachabilityAnalyzer
     // conservatively DoesNotWriteT on both read and write.
     // ─────────────────────────────────────────────────────────────────────
 
-    private static PropertyClassification ClassifyPropertyOrIndexer(ISymbol member, TypeParameterType typeParameter)
+    private static PropertyClassification ClassifyPropertyOrIndexer(ISymbol member, IType typeParameter)
     {
         var readClassification = MemberClassification.DoesNotWriteT;
 
@@ -438,7 +438,7 @@ public sealed class ReachabilityAnalyzer
 
     private static MemberClassification ClassifyMethodOrConstructor(
         ISymbol member,
-        TypeParameterType typeParameter,
+        IType typeParameter,
         SymbolTable symbols,
         IReadOnlyDictionary<SyntaxNode, IType> expressionTypes,
         HashSet<ISymbol> internalMembers,
@@ -503,7 +503,7 @@ public sealed class ReachabilityAnalyzer
     private static MemberClassification IntrinsicClassification(
         MemberCallInfo callInfo,
         ISymbol member,
-        TypeParameterType typeParameter,
+        IType typeParameter,
         SymbolTable symbols)
     {
         // Req 9.7 (constructor parameter rule): if any constructor
@@ -939,7 +939,7 @@ public sealed class ReachabilityAnalyzer
     // Generic-type discovery helpers.
     // ─────────────────────────────────────────────────────────────────────
 
-    private static (IScope? Scope, IReadOnlyList<TypeParameterType>? TypeParameters) GetGenericTypeInfo(ISymbol typeSymbol)
+    private static (IScope? Scope, IReadOnlyList<IType>? TypeParameters) GetGenericTypeInfo(ISymbol typeSymbol)
     {
         return typeSymbol.Kind switch
         {
@@ -1011,22 +1011,35 @@ public sealed class ReachabilityAnalyzer
     // assembling synthetic classification-dictionary snapshots.
     // ─────────────────────────────────────────────────────────────────────
 
-    internal readonly record struct MemberTypeParamKey(ISymbol Member, TypeParameterType TypeParameter)
+    internal readonly record struct MemberTypeParamKey(ISymbol Member, IType TypeParameter)
     {
         public static IEqualityComparer<MemberTypeParamKey> Comparer { get; } = new KeyComparer();
 
         private sealed class KeyComparer : IEqualityComparer<MemberTypeParamKey>
         {
             public bool Equals(MemberTypeParamKey x, MemberTypeParamKey y)
-                => ReferenceEquals(x.Member, y.Member)
-                    && x.TypeParameter.Name == y.TypeParameter.Name
-                    && x.TypeParameter.Ordinal == y.TypeParameter.Ordinal;
+            {
+                if (!ReferenceEquals(x.Member, y.Member)) return false;
+                var (xName, xOrdinal) = GetNameAndOrdinal(x.TypeParameter);
+                var (yName, yOrdinal) = GetNameAndOrdinal(y.TypeParameter);
+                return xName == yName && xOrdinal == yOrdinal;
+            }
 
             public int GetHashCode(MemberTypeParamKey obj)
-                => HashCode.Combine(
+            {
+                var (name, ordinal) = GetNameAndOrdinal(obj.TypeParameter);
+                return HashCode.Combine(
                     System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj.Member),
-                    obj.TypeParameter.Name,
-                    obj.TypeParameter.Ordinal);
+                    name,
+                    ordinal);
+            }
+
+            private static (string Name, int Ordinal) GetNameAndOrdinal(IType tp) => tp switch
+            {
+                TypeParameterType tpt => (tpt.Name, tpt.Ordinal),
+                DependentTypeParameterType dpt => (dpt.Name, dpt.Ordinal),
+                _ => (tp.DisplayName, 0),
+            };
         }
     }
 
@@ -1061,7 +1074,7 @@ public sealed class ReachabilityAnalyzer
         /// </summary>
         internal IReadOnlyDictionary<ISymbol, MemberCallInfo> CallGraph { get; }
 
-        public MemberClassification GetMethodClassification(ISymbol member, TypeParameterType typeParameter)
+        public MemberClassification GetMethodClassification(ISymbol member, IType typeParameter)
         {
             ArgumentNullException.ThrowIfNull(member);
             ArgumentNullException.ThrowIfNull(typeParameter);
@@ -1074,7 +1087,7 @@ public sealed class ReachabilityAnalyzer
             return Lookup(_methods, member, typeParameter);
         }
 
-        public MemberClassification GetFieldClassification(ISymbol member, TypeParameterType typeParameter)
+        public MemberClassification GetFieldClassification(ISymbol member, IType typeParameter)
         {
             ArgumentNullException.ThrowIfNull(member);
             ArgumentNullException.ThrowIfNull(typeParameter);
@@ -1087,7 +1100,7 @@ public sealed class ReachabilityAnalyzer
             return Lookup(_fields, member, typeParameter);
         }
 
-        public PropertyClassification GetPropertyClassification(ISymbol member, TypeParameterType typeParameter)
+        public PropertyClassification GetPropertyClassification(ISymbol member, IType typeParameter)
         {
             ArgumentNullException.ThrowIfNull(member);
             ArgumentNullException.ThrowIfNull(typeParameter);
@@ -1103,13 +1116,13 @@ public sealed class ReachabilityAnalyzer
         private static TValue Lookup<TValue>(
             IReadOnlyDictionary<MemberTypeParamKey, TValue> dict,
             ISymbol member,
-            TypeParameterType typeParameter)
+            IType typeParameter)
         {
             var key = new MemberTypeParamKey(member, typeParameter);
             if (dict.TryGetValue(key, out var value))
                 return value;
             throw new KeyNotFoundException(
-                $"No classification recorded for member '{member.Name}' ({member.Kind}) against type parameter '{typeParameter.Name}' (ordinal {typeParameter.Ordinal}). " +
+                $"No classification recorded for member '{member.Name}' ({member.Kind}) against type parameter '{typeParameter.DisplayName}'. " +
                 "The member may not belong to a generic type declaration, or the wrong type parameter was supplied.");
         }
     }

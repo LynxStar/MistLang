@@ -13,7 +13,7 @@ public sealed class TraitType : IType
     public string? ContainingNamespace { get; }
 
     /// <summary>Type parameters declared on this trait (empty for non-generic traits).</summary>
-    public IReadOnlyList<TypeParameterType> TypeParameters { get; internal set; } = Array.Empty<TypeParameterType>();
+    public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
 
     /// <summary>
     /// Resolved parent traits (may be <see cref="TraitType"/> or <see cref="ConstructedTraitType"/>).

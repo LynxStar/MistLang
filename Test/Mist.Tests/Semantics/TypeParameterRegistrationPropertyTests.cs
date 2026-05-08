@@ -61,9 +61,9 @@ public class TypeParameterRegistrationPropertyTests
 
     private static TypeParameterListNode MakeTypeParamList(string[] names)
     {
-        var first = new TypeParameterNode { Name = MakeToken(names[0]) };
+        var first = new RegularTypeParameterTypeParameterNode { Name = MakeToken(names[0]) };
         var rest = names.Skip(1)
-            .Select(n => new TypeParameterNode { Name = MakeToken(n) })
+            .Select(n => (TypeParameterNode)new RegularTypeParameterTypeParameterNode { Name = MakeToken(n) })
             .ToImmutableArray();
         return new TypeParameterListNode
         {
@@ -227,7 +227,7 @@ public class TypeParameterRegistrationPropertyTests
             return false;
 
         // Get the TypeParameters from the declaring type
-        IReadOnlyList<TypeParameterType> typeParams = decl.Kind switch
+        IReadOnlyList<IType> typeParams = decl.Kind switch
         {
             GenericDeclKind.Class => ((ClassType)typeSymbol.DeclaredType!).TypeParameters,
             GenericDeclKind.Struct => ((StructType)typeSymbol.DeclaredType!).TypeParameters,
@@ -242,11 +242,13 @@ public class TypeParameterRegistrationPropertyTests
         // Verify correct names and ordinals (0 through N-1)
         for (var i = 0; i < typeParams.Count; i++)
         {
-            if (typeParams[i].Name != decl.TypeParamNames[i])
+            if (typeParams[i] is not TypeParameterType tpCheck)
                 return false;
-            if (typeParams[i].Ordinal != i)
+            if (tpCheck.Name != decl.TypeParamNames[i])
                 return false;
-            if (typeParams[i].DisplayName != decl.TypeParamNames[i])
+            if (tpCheck.Ordinal != i)
+                return false;
+            if (tpCheck.DisplayName != decl.TypeParamNames[i])
                 return false;
         }
 
@@ -262,15 +264,17 @@ public class TypeParameterRegistrationPropertyTests
 
         foreach (var tp in typeParams)
         {
+            if (tp is not TypeParameterType tpCast2)
+                return false;
             var tpSymbol = memberScope.Members
-                .FirstOrDefault(m => m.Name == tp.Name && m.DeclaredType is TypeParameterType);
+                .FirstOrDefault(m => m.Name == tpCast2.Name && m.DeclaredType is TypeParameterType);
             if (tpSymbol is null)
                 return false;
 
             // The symbol's DeclaredType should be the TypeParameterType
             if (tpSymbol.DeclaredType is not TypeParameterType resolvedTp)
                 return false;
-            if (resolvedTp.Ordinal != tp.Ordinal)
+            if (resolvedTp.Ordinal != tpCast2.Ordinal)
                 return false;
         }
 
@@ -318,9 +322,9 @@ public class TypeParameterRegistrationPropertyTests
         // Verify correct names and ordinals
         for (var i = 0; i < typeParams.Count; i++)
         {
-            if (typeParams[i].Name != decl.TypeParamNames[i])
+            if (typeParams[i].DisplayName != decl.TypeParamNames[i])
                 return false;
-            if (typeParams[i].Ordinal != i)
+            if (typeParams[i] is TypeParameterType tpOrd && tpOrd.Ordinal != i)
                 return false;
         }
 
@@ -337,7 +341,7 @@ public class TypeParameterRegistrationPropertyTests
         foreach (var tp in typeParams)
         {
             var tpSymbol = memberScope.Members
-                .FirstOrDefault(m => m.Name == tp.Name && m.DeclaredType is TypeParameterType);
+                .FirstOrDefault(m => m.Name == tp.DisplayName && m.DeclaredType is TypeParameterType);
             if (tpSymbol is null)
                 return false;
         }
@@ -359,8 +363,8 @@ public class TypeParameterRegistrationPropertyTests
         var classType = Assert.IsType<ClassType>(symbol.DeclaredType);
 
         Assert.Single(classType.TypeParameters);
-        Assert.Equal("T", classType.TypeParameters[0].Name);
-        Assert.Equal(0, classType.TypeParameters[0].Ordinal);
+        Assert.Equal("T", classType.TypeParameters[0].DisplayName);
+        Assert.Equal(0, ((TypeParameterType)classType.TypeParameters[0]).Ordinal);
     }
 
     [Fact]
@@ -375,10 +379,10 @@ public class TypeParameterRegistrationPropertyTests
         var classType = Assert.IsType<ClassType>(symbol.DeclaredType);
 
         Assert.Equal(2, classType.TypeParameters.Count);
-        Assert.Equal("K", classType.TypeParameters[0].Name);
-        Assert.Equal(0, classType.TypeParameters[0].Ordinal);
-        Assert.Equal("V", classType.TypeParameters[1].Name);
-        Assert.Equal(1, classType.TypeParameters[1].Ordinal);
+        Assert.Equal("K", classType.TypeParameters[0].DisplayName);
+        Assert.Equal(0, ((TypeParameterType)classType.TypeParameters[0]).Ordinal);
+        Assert.Equal("V", classType.TypeParameters[1].DisplayName);
+        Assert.Equal(1, ((TypeParameterType)classType.TypeParameters[1]).Ordinal);
     }
 
     [Fact]
@@ -393,8 +397,8 @@ public class TypeParameterRegistrationPropertyTests
         var structType = Assert.IsType<StructType>(symbol.DeclaredType);
 
         Assert.Equal(2, structType.TypeParameters.Count);
-        Assert.Equal("T", structType.TypeParameters[0].Name);
-        Assert.Equal("U", structType.TypeParameters[1].Name);
+        Assert.Equal("T", structType.TypeParameters[0].DisplayName);
+        Assert.Equal("U", structType.TypeParameters[1].DisplayName);
     }
 
     [Fact]
@@ -409,8 +413,8 @@ public class TypeParameterRegistrationPropertyTests
         var interfaceType = Assert.IsType<InterfaceType>(symbol.DeclaredType);
 
         Assert.Single(interfaceType.TypeParameters);
-        Assert.Equal("T", interfaceType.TypeParameters[0].Name);
-        Assert.Equal(0, interfaceType.TypeParameters[0].Ordinal);
+        Assert.Equal("T", interfaceType.TypeParameters[0].DisplayName);
+        Assert.Equal(0, ((TypeParameterType)interfaceType.TypeParameters[0]).Ordinal);
     }
 
     [Fact]
@@ -430,7 +434,7 @@ public class TypeParameterRegistrationPropertyTests
         var methodSymbol = (Symbol)model.AllSymbols.First(s => s.Name == "Identity" && s.Kind == SymbolKind.Method);
 
         Assert.Single(methodSymbol.TypeParameters);
-        Assert.Equal("T", methodSymbol.TypeParameters[0].Name);
-        Assert.Equal(0, methodSymbol.TypeParameters[0].Ordinal);
+        Assert.Equal("T", methodSymbol.TypeParameters[0].DisplayName);
+        Assert.Equal(0, ((TypeParameterType)methodSymbol.TypeParameters[0]).Ordinal);
     }
 }

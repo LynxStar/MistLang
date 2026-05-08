@@ -58,7 +58,7 @@ public class MistParserMappingPropertyTests
             ? new LinePositionSpan(
                 new LinePosition(entry.Line, entry.Column),
                 new LinePosition(entry.Line, entry.Column))
-            : (LinePositionSpan?)null;
+            : default(LinePositionSpan);
 
         var diagnostic = new Diagnostic(
             new DiagnosticId("MIST_PARSE_ERROR"),
@@ -70,14 +70,14 @@ public class MistParserMappingPropertyTests
             AnalyzerName: null);
 
         // Verify: Location.Start.Line == entry.Line
-        if (diagnostic.Location is null)
+        if (diagnostic.Location == default)
             return false;
 
-        if (diagnostic.Location.Value.Start.Line != entryData.Line)
+        if (diagnostic.Location.Start.Line != entryData.Line)
             return false;
 
         // Verify: Location.Start.Column == entry.Column
-        if (diagnostic.Location.Value.Start.Column != entryData.Column)
+        if (diagnostic.Location.Start.Column != entryData.Column)
             return false;
 
         // Verify: CompilationUnitPath == entry.FilePath
@@ -105,10 +105,10 @@ public class MistParserMappingPropertyTests
             ? new LinePositionSpan(
                 new LinePosition(entryData.Line, entryData.Column),
                 new LinePosition(entryData.Line, entryData.Column))
-            : (LinePositionSpan?)null;
+            : default(LinePositionSpan);
 
         // Since our generator always produces positive line/column, location must be non-null
-        return location is not null;
+        return location != default(LinePositionSpan);
     }
 
     /// <summary>

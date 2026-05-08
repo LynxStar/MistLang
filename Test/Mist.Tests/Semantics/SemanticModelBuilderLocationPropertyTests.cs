@@ -84,8 +84,8 @@ public class SemanticModelBuilderLocationPropertyTests
 
         // Replicate MakeDiagnosticWithLocation logic:
         // if sourceText is not null and span.Length > 0, set Location
-        LinePositionSpan? location = null;
-        string? compilationUnitPath = sourceText.Path;
+        LinePositionSpan location = default;
+        string compilationUnitPath = sourceText.Path;
 
         if (span.Length > 0)
         {
@@ -102,11 +102,11 @@ public class SemanticModelBuilderLocationPropertyTests
             AnalyzerName: null);
 
         // Location must be non-null (span length is always > 0 from generator)
-        if (diagnostic.Location is null)
+        if (diagnostic.Location == default)
             return false;
 
         // Location must match the computed LinePositionSpan
-        if (diagnostic.Location.Value != expectedLinePositionSpan)
+        if (diagnostic.Location != expectedLinePositionSpan)
             return false;
 
         // CompilationUnitPath must match sourceText.Path
@@ -114,7 +114,7 @@ public class SemanticModelBuilderLocationPropertyTests
             return false;
 
         // Start positions must be 1-based
-        if (diagnostic.Location.Value.Start.Line < 1 || diagnostic.Location.Value.Start.Column < 1)
+        if (diagnostic.Location.Start.Line < 1 || diagnostic.Location.Start.Column < 1)
             return false;
 
         return true;

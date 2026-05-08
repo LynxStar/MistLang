@@ -283,8 +283,8 @@ public class PipelineBackendPropertyTests
                 DiagnosticSeverity.Error,
                 PipelineStage.Analysis,
                 "Simulated analyzer error for testing",
-                null,
-                null,
+                default,
+                "<unknown>",
                 AnalyzerId));
         }
     }

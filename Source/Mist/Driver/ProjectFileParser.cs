@@ -35,7 +35,7 @@ public static partial class ProjectFileParser
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Project file '{filePath}' not found.",
-                Location: null,
+                Location: default,
                 CompilationUnitPath: filePath,
                 AnalyzerName: null));
             return null;
@@ -54,7 +54,7 @@ public static partial class ProjectFileParser
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Failed to read project file '{filePath}': {ex.Message}",
-                Location: null,
+                Location: default,
                 CompilationUnitPath: filePath,
                 AnalyzerName: null));
             return null;
@@ -73,7 +73,7 @@ public static partial class ProjectFileParser
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Failed to parse project file '{filePath}': {ex.Message}",
-                Location: null,
+                Location: default,
                 CompilationUnitPath: filePath,
                 AnalyzerName: null));
             return null;
@@ -87,7 +87,7 @@ public static partial class ProjectFileParser
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Project file '{filePath}' is missing the required 'name' field.",
-                Location: null,
+                Location: default,
                 CompilationUnitPath: filePath,
                 AnalyzerName: null));
             return null;
@@ -103,7 +103,7 @@ public static partial class ProjectFileParser
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Project name in '{filePath}' must not be empty or whitespace.",
-                Location: null,
+                Location: default,
                 CompilationUnitPath: filePath,
                 AnalyzerName: null));
             return null;
@@ -123,7 +123,7 @@ public static partial class ProjectFileParser
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Project name in '{filePath}' contains invalid characters: {invalidList}. Only alphanumeric characters, hyphens, underscores, and periods are allowed.",
-                Location: null,
+                Location: default,
                 CompilationUnitPath: filePath,
                 AnalyzerName: null));
             return null;
@@ -137,7 +137,7 @@ public static partial class ProjectFileParser
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Project name in '{filePath}' exceeds the maximum length of {MaxNameLength} characters (got {name.Length}).",
-                Location: null,
+                Location: default,
                 CompilationUnitPath: filePath,
                 AnalyzerName: null));
             return null;
@@ -155,7 +155,7 @@ public static partial class ProjectFileParser
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Namespace root in '{filePath}' must not be empty or whitespace when specified.",
-                    Location: null,
+                    Location: default,
                     CompilationUnitPath: filePath,
                     AnalyzerName: null));
                 return null;
@@ -175,7 +175,7 @@ public static partial class ProjectFileParser
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Namespace root in '{filePath}' contains invalid characters: {invalidList}. Only alphanumeric characters, hyphens, underscores, and periods are allowed.",
-                    Location: null,
+                    Location: default,
                     CompilationUnitPath: filePath,
                     AnalyzerName: null));
                 return null;
@@ -201,7 +201,7 @@ public static partial class ProjectFileParser
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"The 'references' field in '{filePath}' must be an array of tables ([[references]]).",
-                    Location: null,
+                    Location: default,
                     CompilationUnitPath: filePath,
                     AnalyzerName: null));
                 return null;
@@ -217,7 +217,7 @@ public static partial class ProjectFileParser
                         DiagnosticSeverity.Error,
                         PipelineStage.Driver,
                         $"Reference entry in '{filePath}' is missing the required 'path' field.",
-                        Location: null,
+                        Location: default,
                         CompilationUnitPath: filePath,
                         AnalyzerName: null));
                     return null;
@@ -231,7 +231,7 @@ public static partial class ProjectFileParser
                         DiagnosticSeverity.Error,
                         PipelineStage.Driver,
                         $"Reference entry in '{filePath}' has an empty or whitespace 'path' field.",
-                        Location: null,
+                        Location: default,
                         CompilationUnitPath: filePath,
                         AnalyzerName: null));
                     return null;

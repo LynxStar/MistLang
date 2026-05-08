@@ -13,7 +13,7 @@ public sealed class StructType : IType
     public IScope MemberScope { get; }
     public string? ContainingNamespace { get; }
     public IReadOnlyList<IType> Interfaces { get; internal set; } = Array.Empty<IType>();
-    public IReadOnlyList<TypeParameterType> TypeParameters { get; internal set; } = Array.Empty<TypeParameterType>();
+    public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
 
     /// <summary>
     /// Indicates the type has a target-language backing participating in the

@@ -98,8 +98,8 @@ public class UnknownTypeRoundTripPropertyTests
     /// </summary>
     private static IReadOnlyList<TypeReferenceNode> GetTypeArgs(TypeArgumentListNode list)
     {
-        var result = new List<TypeReferenceNode> { list.TypeReference };
-        result.AddRange(list.TypeReferences);
+        var result = new List<TypeReferenceNode> { list.GetTypeReference() };
+        result.AddRange(list.GetTypeReferences());
         return result;
     }
 

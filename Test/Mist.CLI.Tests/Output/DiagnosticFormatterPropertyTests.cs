@@ -78,18 +78,18 @@ public class DiagnosticFormatterPropertyTests
     /// </summary>
     private static Diagnostic BuildDiagnostic(FormatterTestInput input)
     {
-        LinePositionSpan? location = input.Case == 1
+        LinePositionSpan location = input.Case == 1
             ? new LinePositionSpan(
                 new LinePosition(input.Line, input.Column),
                 new LinePosition(input.Line, input.Column))
-            : null;
+            : default;
 
-        string? compilationUnitPath = input.Case switch
+        string compilationUnitPath = input.Case switch
         {
-            1 => input.FilePath,
-            2 => input.FilePath,
-            3 => null,
-            _ => null,
+            1 => input.FilePath ?? "<unknown>",
+            2 => input.FilePath ?? "<unknown>",
+            3 => "<unknown>",
+            _ => "<unknown>",
         };
 
         return new Diagnostic(

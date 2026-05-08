@@ -30,7 +30,7 @@ public class DiagnosticFormatterTests
             DiagnosticSeverity.Warning,
             PipelineStage.Analysis,
             "Unused variable",
-            Location: null,
+            Location: default,
             CompilationUnitPath: "src/main.mist",
             AnalyzerName: null);
 
@@ -47,8 +47,8 @@ public class DiagnosticFormatterTests
             DiagnosticSeverity.Error,
             PipelineStage.Driver,
             "Unknown backend",
-            Location: null,
-            CompilationUnitPath: null,
+            Location: default,
+            CompilationUnitPath: "<unknown>",
             AnalyzerName: null);
 
         var result = DiagnosticFormatter.Format(diagnostic);
@@ -64,8 +64,8 @@ public class DiagnosticFormatterTests
             DiagnosticSeverity.Warning,
             PipelineStage.Analysis,
             "Potential issue",
-            Location: null,
-            CompilationUnitPath: null,
+            Location: default,
+            CompilationUnitPath: "<unknown>",
             AnalyzerName: "TestAnalyzer");
 
         var result = DiagnosticFormatter.Format(diagnostic);

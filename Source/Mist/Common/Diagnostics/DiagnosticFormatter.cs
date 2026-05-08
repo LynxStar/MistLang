@@ -16,9 +16,12 @@ public static class DiagnosticFormatter
             _ => "info",
         };
 
-        return diagnostic.Location is { } location && diagnostic.CompilationUnitPath is not null
-            ? $"{diagnostic.CompilationUnitPath}({location.Start.Line},{location.Start.Column}): {severity} {diagnostic.Id.Value}: {diagnostic.Message}"
-            : diagnostic.CompilationUnitPath is not null
+        var hasLocation = diagnostic.Location != default;
+        var hasPath = diagnostic.CompilationUnitPath is not "<unknown>";
+
+        return hasLocation && hasPath
+            ? $"{diagnostic.CompilationUnitPath}({diagnostic.Location.Start.Line},{diagnostic.Location.Start.Column}): {severity} {diagnostic.Id.Value}: {diagnostic.Message}"
+            : hasPath
                 ? $"{diagnostic.CompilationUnitPath}: {severity} {diagnostic.Id.Value}: {diagnostic.Message}"
                 : $"{severity} {diagnostic.Id.Value}: {diagnostic.Message}"
                 ;

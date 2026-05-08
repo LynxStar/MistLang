@@ -139,7 +139,7 @@ public static class TypeContainment
     /// contain T at a storage position?" rather than as a generic structural
     /// containment query.
     /// </remarks>
-    public static bool ContainsTAtStoragePosition(IType haystack, TypeParameterType needle)
+    public static bool ContainsTAtStoragePosition(IType haystack, IType needle)
     {
         ArgumentNullException.ThrowIfNull(haystack);
         ArgumentNullException.ThrowIfNull(needle);

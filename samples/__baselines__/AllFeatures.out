@@ -170,7 +170,6 @@ Done!
 Extension Methods Demo
 System.String
 System.String
-Int32
 === Type Aliases Sample ===
 --- Simple aliases ---
 id=42 name=Alice score=98.5 active=True
@@ -376,4 +375,51 @@ Done!
 15. struct with constraint: holds a Widget
 16. generic trait: transformed=Widget(42), default=Widget(0)
 --- Generic Constraints Done ---
+=== Dependent Types Sample ===
+--- 1. Single dependent parameter ---
+  Created FixedBuffer<5>: FixedBuffer
+--- 2. Multiple dependent parameters ---
+  Created Matrix<3,4>: Matrix
+--- 3. Mixed parameter list ---
+  Created TypedBuffer<string,16>: TypedBuffer(value=hello)
+--- 4. Construction with literal values ---
+  FixedBuffer<10>: FixedBuffer
+  FixedBuffer<99>: FixedBuffer
+--- 5. Dependent property access ---
+  FixedBuffer<5>.Size => 5 (generated static property)
+  Matrix<3,4>.Rows => 3, Matrix<3,4>.Cols => 4
+--- 6. Dependent types on interfaces ---
+  TinyCollection implements IFixedCollection<8>
+  IFixedCollection<8>.Size => 8 (generated static property)
+--- 7. Dependent types on traits ---
+  trait FixedCapacity<Cap:int> declared with dependent parameter
+  FixedCapacity<32>.Cap => 32 (generated static property)
+--- 8. Dependent types on type aliases ---
+  type SmallOrLarge<Threshold:int> = int | string
+  SmallOrLarge<100>.Threshold => 100 (generated static property)
+--- 9. Dependent types on methods ---
+  void Repeat<N:int>(string text) — method with dependent parameter
+--- 10. Generic function accepting any dependent value ---
+  void ProcessBuffer<N:int>(FixedBuffer<N> buf) — accepts any FixedBuffer
+--- 11. Inheritance ---
+  SmallBuffer (inherits FixedBuffer<10>)
+  SmallBuffer inherits from FixedBuffer<10> (fixed value)
+  ResizableBuffer<N:int> : FixedBuffer<N> (forwarded parameter)
+--- 12. Pattern matching ---
+  Pattern match succeeded: target is FixedBuffer<5>
+  Pattern match succeeded: target10 is FixedBuffer<10>
+  FixedBuffer<5> and FixedBuffer<10> are distinct types
+--- 13. All allowed value types ---
+  IntParam<42> — int dependent parameter
+  IntParam<-1> — int dependent parameter (negated literal)
+  UintParam<V:uint> — uint dependent parameter (declared)
+  LongParam<V:long> — long dependent parameter (declared)
+  UlongParam<V:ulong> — ulong dependent parameter (declared)
+  ShortParam<V:short> — short dependent parameter (declared)
+  UshortParam<V:ushort> — ushort dependent parameter (declared)
+  ByteParam<V:byte> — byte dependent parameter (declared)
+  SbyteParam<V:sbyte> — sbyte dependent parameter (declared)
+  BoolParam<V:bool> — bool dependent parameter (declared)
+  CharParam<V:char> — char dependent parameter (declared)
+=== Dependent Types Done ===
 === Done! ===

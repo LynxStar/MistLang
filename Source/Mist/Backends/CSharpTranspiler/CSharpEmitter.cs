@@ -389,6 +389,31 @@ internal sealed class CSharpSourceWriter
                 case TypeAliasItemTopLevelItemNode:
                     // Type aliases are erased — no C# declaration is emitted.
                     break;
+                case NewtypeItemTopLevelItemNode newtypeItem:
+                {
+                    // Determine the newtype's namespace from the semantic model.
+                    // NewtypeType doesn't have a ContainingNamespace property, so we
+                    // find the namespace by looking at sibling symbols in the same scope.
+                    var newtypeSymbol = _model.GetDeclaredSymbol(newtypeItem.NewtypeDeclaration);
+                    var newtypeNamespace = GetNewtypeContainingNamespace(newtypeSymbol);
+
+                    // If this newtype has a namespace and we haven't emitted it yet,
+                    // emit a file-scoped namespace declaration.
+                    if (newtypeNamespace is not null && newtypeNamespace != emittedInferredNamespace)
+                    {
+                        if (emittedInferredNamespace is not null)
+                        {
+                            AppendLine();
+                        }
+                        AppendLine($"namespace {newtypeNamespace};");
+                        AppendLine();
+                        emittedInferredNamespace = newtypeNamespace;
+                        _currentNamespace = newtypeNamespace;
+                    }
+
+                    EmitNewtypeDeclaration(newtypeItem.NewtypeDeclaration);
+                    break;
+                }
             }
         }
 
@@ -849,6 +874,56 @@ internal sealed class CSharpSourceWriter
         };
     }
 
+    /// <summary>
+    /// Gets the containing namespace for a newtype symbol. Since <see cref="NewtypeType"/>
+    /// does not have a <c>ContainingNamespace</c> property, this method finds the namespace
+    /// by looking at sibling symbols in the same containing scope that do have a namespace.
+    /// </summary>
+    private string? GetNewtypeContainingNamespace(ISymbol? symbol)
+    {
+        if (symbol?.ContainingScope is not Scope containingScope) return null;
+
+        // If the containing scope's parent is not the global scope, the newtype
+        // is not in a namespace (or is nested in a way we don't handle here).
+        if (containingScope.Parent is null || !ReferenceEquals(containingScope.Parent, _model.GlobalScope))
+            return null;
+
+        // Look at sibling symbols in the same scope to find one with a ContainingNamespace.
+        foreach (var sibling in containingScope.Members)
+        {
+            var ns = sibling.DeclaredType switch
+            {
+                ClassType ct => ct.ContainingNamespace,
+                StructType st => st.ContainingNamespace,
+                InterfaceType it => it.ContainingNamespace,
+                TraitType tt => tt.ContainingNamespace,
+                EnumType et => et.ContainingNamespace,
+                _ => null,
+            };
+            if (ns is not null) return ns;
+        }
+
+        // Fallback: look for a namespace symbol in the global scope whose name
+        // matches the scope structure.
+        foreach (var globalMember in _model.GlobalScope.Members)
+        {
+            if (globalMember.Kind == SymbolKind.Namespace)
+            {
+                // Check if any symbol in this namespace scope is in our containing scope.
+                foreach (var nsChild in _model.AllSymbols)
+                {
+                    if (ReferenceEquals(nsChild.ContainingScope, containingScope)
+                        && nsChild != symbol)
+                    {
+                        return globalMember.Name;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
     private void EmitNamespaceDeclaration(NamespaceDeclarationNode ns)
     {
         switch (ns)
@@ -873,6 +948,9 @@ internal sealed class CSharpSourceWriter
                         case NamespaceTypeAliasItemNamespaceBodyItemNode:
                             // Type aliases are erased — no C# declaration is emitted.
                             break;
+                        case NamespaceNewtypeItemNamespaceBodyItemNode newtypeBodyItem:
+                            EmitNewtypeDeclaration(newtypeBodyItem.NewtypeDeclaration);
+                            break;
                     }
                 }
                 break;
@@ -896,6 +974,9 @@ internal sealed class CSharpSourceWriter
                             break;
                         case NamespaceTypeAliasItemNamespaceBodyItemNode:
                             // Type aliases are erased — no C# declaration is emitted.
+                            break;
+                        case NamespaceNewtypeItemNamespaceBodyItemNode newtypeBodyItem:
+                            EmitNewtypeDeclaration(newtypeBodyItem.NewtypeDeclaration);
                             break;
                     }
                 }
@@ -926,6 +1007,223 @@ internal sealed class CSharpSourceWriter
             case EnumTypeTypeDeclarationNode enumType:
                 EmitEnumDeclaration(enumType.EnumDeclaration);
                 break;
+        }
+    }
+
+    // ─── Newtype Declaration Emission ─────────────────────────────────────
+
+    /// <summary>
+    /// Emits a newtype declaration as C# code. The strategy depends on the source type:
+    /// <list type="bullet">
+    /// <item>Class source → C# class with the newtype name containing all cloned members</item>
+    /// <item>Struct source → C# struct with the newtype name containing all cloned members</item>
+    /// <item>Primitive source (backend-backed) → C# readonly struct wrapper with explicit conversion operators</item>
+    /// </list>
+    /// </summary>
+    private void EmitNewtypeDeclaration(NewtypeDeclarationNode newtypeDecl)
+    {
+        var symbol = _model.GetDeclaredSymbol(newtypeDecl);
+        if (symbol?.DeclaredType is not NewtypeType newtypeType) return;
+
+        var sourceType = newtypeType.SourceType;
+        var newtypeName = newtypeType.Name;
+
+        switch (sourceType)
+        {
+            case StructType st when st.IsBackendBacked:
+                EmitPrimitiveNewtypeWrapper(newtypeName, st);
+                break;
+            case ClassType ct when ct.IsBackendBacked:
+                EmitPrimitiveNewtypeWrapperForClass(newtypeName, ct);
+                break;
+            case ClassType:
+                EmitClassNewtype(newtypeName, sourceType);
+                break;
+            case StructType:
+                EmitStructNewtype(newtypeName, sourceType);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Strategy 3: Emits a readonly struct wrapper for a newtype whose source is a primitive type.
+    /// Includes a <c>Value</c> field, a constructor, and explicit conversion operators in both directions.
+    /// </summary>
+    private void EmitPrimitiveNewtypeWrapper(string newtypeName, StructType primitiveType)
+    {
+        var csharpKeyword = CSharpTypeMap.GetKeyword(primitiveType);
+
+        AppendLine($"public readonly struct {newtypeName}");
+        AppendLine("{");
+        _indentLevel++;
+
+        // Value field
+        AppendLine($"public readonly {csharpKeyword} Value;");
+        AppendLine();
+
+        // Constructor
+        AppendLine($"public {newtypeName}({csharpKeyword} value)");
+        AppendLine("{");
+        _indentLevel++;
+        AppendLine("Value = value;");
+        _indentLevel--;
+        AppendLine("}");
+        AppendLine();
+
+        // Explicit conversion: primitive → newtype
+        AppendLine($"public static explicit operator {newtypeName}({csharpKeyword} value) => new {newtypeName}(value);");
+        // Explicit conversion: newtype → primitive
+        AppendLine($"public static explicit operator {csharpKeyword}({newtypeName} id) => id.Value;");
+
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    /// <summary>
+    /// Strategy for backend-backed class types (e.g., string): Emits a C# readonly struct
+    /// wrapping the class value with explicit conversion operators in both directions.
+    /// </summary>
+    private void EmitPrimitiveNewtypeWrapperForClass(string newtypeName, ClassType classType)
+    {
+        var csharpKeyword = CSharpTypeMap.GetKeyword(classType);
+
+        AppendLine($"public readonly struct {newtypeName}");
+        AppendLine("{");
+        _indentLevel++;
+
+        // Value field
+        AppendLine($"public readonly {csharpKeyword} Value;");
+        AppendLine();
+
+        // Constructor
+        AppendLine($"public {newtypeName}({csharpKeyword} value)");
+        AppendLine("{");
+        _indentLevel++;
+        AppendLine("Value = value;");
+        _indentLevel--;
+        AppendLine("}");
+        AppendLine();
+
+        // Explicit conversion: class → newtype
+        AppendLine($"public static explicit operator {newtypeName}({csharpKeyword} value) => new {newtypeName}(value);");
+        // Explicit conversion: newtype → class
+        AppendLine($"public static explicit operator {csharpKeyword}({newtypeName} id) => id.Value;");
+
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    /// <summary>
+    /// Strategy 1: Emits a C# class for a newtype whose source is a class.
+    /// Re-emits all members from the source type's declaration under the newtype name.
+    /// </summary>
+    private void EmitClassNewtype(string newtypeName, IType sourceType)
+    {
+        // Find the source type's declaring symbol and AST node.
+        var sourceSymbol = _model.AllSymbols.FirstOrDefault(s =>
+            s.DeclaredType is not null && ReferenceEquals(s.DeclaredType, sourceType));
+        var sourceNode = sourceSymbol is not null ? _model.GetDeclaringNode(sourceSymbol) : null;
+
+        AppendLine($"public class {newtypeName}");
+        AppendLine("{");
+        _indentLevel++;
+
+        if (sourceNode is ClassDeclarationNode classDecl)
+        {
+            for (var i = 0; i < classDecl.Members.Length; i++)
+            {
+                if (i > 0)
+                {
+                    AppendLine();
+                }
+                EmitNewtypeMemberDeclaration(classDecl.Members[i], newtypeName);
+            }
+        }
+
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    /// <summary>
+    /// Strategy 2: Emits a C# struct for a newtype whose source is a struct.
+    /// Re-emits all members from the source type's declaration under the newtype name.
+    /// </summary>
+    private void EmitStructNewtype(string newtypeName, IType sourceType)
+    {
+        // Find the source type's declaring symbol and AST node.
+        var sourceSymbol = _model.AllSymbols.FirstOrDefault(s =>
+            s.DeclaredType is not null && ReferenceEquals(s.DeclaredType, sourceType));
+        var sourceNode = sourceSymbol is not null ? _model.GetDeclaringNode(sourceSymbol) : null;
+
+        AppendLine($"public struct {newtypeName}");
+        AppendLine("{");
+        _indentLevel++;
+
+        // Track that we're inside a struct so method emission can
+        // emit the C# `readonly` modifier on struct methods.
+        var previousInsideStruct = _insideStruct;
+        _insideStruct = true;
+
+        if (sourceNode is StructDeclarationNode structDecl)
+        {
+            for (var i = 0; i < structDecl.Members.Length; i++)
+            {
+                if (i > 0)
+                {
+                    AppendLine();
+                }
+                EmitNewtypeMemberDeclaration(structDecl.Members[i], newtypeName);
+            }
+        }
+
+        _insideStruct = previousInsideStruct;
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emits a single member declaration for a newtype, renaming constructors to the newtype name.
+    /// Delegates to the standard member emission methods for all other member kinds.
+    /// </summary>
+    private void EmitNewtypeMemberDeclaration(MemberDeclarationNode memberDecl, string newtypeName)
+    {
+        // For constructors, we need to emit with the newtype name instead of the source type name.
+        if (memberDecl is ConstructorMemberMemberDeclarationNode ctorMember)
+        {
+            EmitNewtypeConstructorDeclaration(ctorMember.Constructor, newtypeName);
+            return;
+        }
+
+        // All other members are emitted as-is using the standard emission logic.
+        EmitMemberDeclaration(memberDecl);
+    }
+
+    /// <summary>
+    /// Emits a constructor declaration with the newtype name instead of the original type name.
+    /// </summary>
+    private void EmitNewtypeConstructorDeclaration(ConstructorDeclarationNode ctorDecl, string newtypeName)
+    {
+        var modifiers = EmitModifiers(ctorDecl.Modifiers);
+        var parameters = EmitParameterList(ctorDecl.Parameters);
+
+        var chain = "";
+        if (ctorDecl.Chain is ThisChainConstructorChainNode thisChain)
+        {
+            chain = " : this(" + EmitArgumentList(thisChain.Arguments) + ")";
+        }
+        else if (ctorDecl.Chain is BaseChainConstructorChainNode baseChain)
+        {
+            chain = " : base(" + EmitArgumentList(baseChain.Arguments) + ")";
+        }
+
+        AppendLine($"{modifiers}{newtypeName}({parameters}){chain}");
+        if (ctorDecl.Body.GetBlock() is BlockNode block)
+        {
+            EmitBlock(block);
+        }
+        else
+        {
+            AppendLine(";");
         }
     }
 
@@ -3836,7 +4134,7 @@ internal sealed class CSharpSourceWriter
                     return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
                 }
                 // Fallback: search all symbols for a type alias with this name.
-                // Only apply if no concrete type (class/struct/interface) with the
+                // Only apply if no concrete type (class/struct/interface/newtype) with the
                 // same name exists in the current namespace — prevents cross-namespace
                 // alias collisions when a class and a type alias share the same simple
                 // name in different namespaces compiled together.
@@ -3848,11 +4146,22 @@ internal sealed class CSharpSourceWriter
                     {
                         // Check that no concrete type with this name exists in the
                         // current namespace (which would take precedence over an alias
-                        // from a different namespace).
+                        // from a different namespace). Newtypes are checked by scope
+                        // since NewtypeType does not carry a ContainingNamespace property.
                         var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
                             && _model.AllSymbols.Any(s => s.Name == name
                                 && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
                                 && GetSymbolContainingNamespace(s) == _currentNamespace);
+
+                        // Also check for newtypes: a newtype with the same name in any
+                        // namespace takes precedence over a type alias from a different
+                        // namespace, since newtypes are nominal (not transparent).
+                        if (!hasConcreteTypeInCurrentNamespace && _currentNamespace is not null)
+                        {
+                            hasConcreteTypeInCurrentNamespace = _model.AllSymbols.Any(s =>
+                                s.Name == name && s.Kind == SymbolKind.Newtype
+                                && GetNewtypeContainingNamespace(s) == _currentNamespace);
+                        }
                         if (!hasConcreteTypeInCurrentNamespace)
                         {
                             var emittedType = ResolveAliasForEmission(aliasType, namedRef, isValueContext);

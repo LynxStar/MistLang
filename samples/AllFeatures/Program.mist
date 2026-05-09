@@ -39,6 +39,7 @@ public class Program
         ArrayLiterals.Program.RunDemo();
         RefinementTypes.Program.RunDemo();
         UnknownReadonlySemantics.Program.RunDemo();
+        Newtypes.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

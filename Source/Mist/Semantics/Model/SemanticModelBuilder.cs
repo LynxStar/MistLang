@@ -271,6 +271,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId IncompatibleRefinementPredicate = new("MIST_TC_0072");
 
+    /// <summary>
+    /// A newtype name is already defined in the same scope (Requirement 3.3).
+    /// </summary>
+    internal static readonly DiagnosticId DuplicateNewtype = new("MIST_SB_0063");
+
+    /// <summary>
+    /// The source type in a newtype declaration could not be resolved (Requirement 3.4).
+    /// </summary>
+    internal static readonly DiagnosticId UnresolvedNewtypeSource = new("MIST_SB_0064");
+
     // ── Trait with-block diagnostic IDs (Task 4.1, Requirements 6.1–6.9) ──
 
     /// <summary>
@@ -846,6 +856,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             RegisterTypeAliasDeclaration(aliasDecl, currentScope, symbolTable, sourceText, diagnostics);
                         }
 
+                        // Register newtypes in the file-scoped namespace body.
+                        var bodyNewtypes = GetNamespaceBodyNewtypes(nsDecl);
+                        foreach (var newtypeDecl in bodyNewtypes)
+                        {
+                            RegisterNewtypeDeclaration(newtypeDecl, currentScope, symbolTable, sourceText, diagnostics);
+                        }
+
                         // Register extension blocks in the file-scoped namespace body.
                         var bodyExtensions = GetNamespaceBodyExtensions(nsDecl);
                         foreach (var extDecl in bodyExtensions)
@@ -870,6 +887,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             RegisterTypeAliasDeclaration(aliasDecl, blockScope, symbolTable, sourceText, diagnostics);
                         }
 
+                        // Register newtypes in the block namespace body.
+                        var blockNewtypes = GetNamespaceBodyNewtypes(nsDecl);
+                        foreach (var newtypeDecl in blockNewtypes)
+                        {
+                            RegisterNewtypeDeclaration(newtypeDecl, blockScope, symbolTable, sourceText, diagnostics);
+                        }
+
                         // Register extension blocks in the block namespace body.
                         var bodyExtensions = GetNamespaceBodyExtensions(nsDecl);
                         foreach (var extDecl in bodyExtensions)
@@ -889,6 +913,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     // Register type alias under the current namespace.
                     RegisterTypeAliasDeclaration(typeAliasItem.TypeAliasDeclaration, currentScope, symbolTable, sourceText, diagnostics);
+                    break;
+                }
+                case NewtypeItemTopLevelItemNode newtypeItem:
+                {
+                    // Register newtype under the current namespace.
+                    RegisterNewtypeDeclaration(newtypeItem.NewtypeDeclaration, currentScope, symbolTable, sourceText, diagnostics);
                     break;
                 }
                 case WithItemTopLevelItemNode withItem:
@@ -1264,6 +1294,51 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         parentScope.AddMember(aliasSymbol);
         symbolTable.Register(aliasSymbol, aliasDecl);
+    }
+
+    /// <summary>
+    /// Registers a newtype declaration as a symbol in the enclosing scope.
+    /// Reports <see cref="DuplicateNewtype"/> if the name already exists in scope.
+    /// The <c>DeclaredType</c> is left null — it will be set in Pass 2 after
+    /// the source type reference is resolved and members are cloned.
+    /// </summary>
+    private static void RegisterNewtypeDeclaration(
+        NewtypeDeclarationNode newtypeDecl,
+        Scope parentScope,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var name = newtypeDecl.Name.Lexeme;
+        var span = ToMistSourceSpan(newtypeDecl.Name.Span);
+
+        // Check for duplicate name in the same scope.
+        foreach (var member in parentScope.Members)
+        {
+            if (member.Name == name)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    DuplicateNewtype.Value,
+                    DiagnosticSeverity.Error,
+                    $"Type '{name}' is already defined in this scope.",
+                    newtypeDecl,
+                    sourceText));
+                return;
+            }
+        }
+
+        // Create the symbol with a null DeclaredType — it will be set in Pass 2
+        // after the source type reference is resolved and members are cloned.
+        var newtypeSymbol = new Symbol(
+            name,
+            SymbolKind.Newtype,
+            SymbolOrigin.UserCode,
+            parentScope,
+            declaredType: null,
+            span);
+
+        parentScope.AddMember(newtypeSymbol);
+        symbolTable.Register(newtypeSymbol, newtypeDecl);
     }
 
     /// <summary>
@@ -4038,6 +4113,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             StructType st => st.MemberScope,
             InterfaceType it => it.MemberScope,
             TraitType tt => tt.MemberScope,
+            NewtypeType nt => nt.MemberScope,
             _ => null,
         };
     }
@@ -9702,6 +9778,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         ResolveTypeAliasDeclaration(aliasDecl, sectionFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                     }
+
+                    var namespaceNewtypes = GetNamespaceBodyNewtypes(nsDecl);
+                    foreach (var newtypeDecl in namespaceNewtypes)
+                    {
+                        ResolveNewtypeDeclaration(newtypeDecl, sectionFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                    }
                     break;
                 }
                 case TypeItemTopLevelItemNode typeItem:
@@ -9709,6 +9791,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
                 case TypeAliasItemTopLevelItemNode typeAliasItem:
                     ResolveTypeAliasDeclaration(typeAliasItem.TypeAliasDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                    break;
+                case NewtypeItemTopLevelItemNode newtypeItem:
+                    ResolveNewtypeDeclaration(newtypeItem.NewtypeDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                     break;
             }
         }
@@ -9747,6 +9832,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             else if (item is TypeAliasItemTopLevelItemNode typeAliasItem)
             {
                 var symbol = symbolTable.GetDeclaredSymbol(typeAliasItem.TypeAliasDeclaration);
+                if (symbol?.ContainingScope is Scope namespaceScope && namespaceScope.Parent == globalScope)
+                {
+                    return namespaceScope;
+                }
+            }
+            else if (item is NewtypeItemTopLevelItemNode newtypeItem)
+            {
+                var symbol = symbolTable.GetDeclaredSymbol(newtypeItem.NewtypeDeclaration);
                 if (symbol?.ContainingScope is Scope namespaceScope && namespaceScope.Parent == globalScope)
                 {
                     return namespaceScope;
@@ -10242,6 +10335,135 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         finally
         {
             _typeAliasResolutionStack.Remove(aliasName);
+        }
+    }
+
+    /// <summary>
+    /// Resolves a newtype declaration by resolving the source type reference,
+    /// creating a <see cref="NewtypeType"/>, and cloning all members from the
+    /// source type's scope into the newtype's member scope.
+    /// Reports <see cref="UnresolvedNewtypeSource"/> if the source type cannot be resolved.
+    /// </summary>
+    private static void ResolveNewtypeDeclaration(
+        NewtypeDeclarationNode newtypeDecl,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var newtypeSymbol = symbolTable.GetDeclaredSymbol(newtypeDecl) as Symbol;
+        if (newtypeSymbol is null) return;
+
+        // If already resolved, skip.
+        if (newtypeSymbol.DeclaredType is not null) return;
+
+        var name = newtypeDecl.Name.Lexeme;
+
+        // Resolve the source type reference.
+        var sourceType = ResolveTypeReference(
+            newtypeDecl.SourceType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+        if (sourceType is ErrorType)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                UnresolvedNewtypeSource.Value,
+                DiagnosticSeverity.Error,
+                $"Type '{ExtractTypeReferenceName(newtypeDecl.SourceType, sourceText)}' could not be resolved in newtype '{name}'.",
+                newtypeDecl.SourceType,
+                sourceText));
+            newtypeSymbol.DeclaredType = ErrorType.Instance;
+            return;
+        }
+
+        // If the source resolves to a type alias, unwrap to the underlying type.
+        if (sourceType is TypeAliasType aliasType)
+        {
+            sourceType = aliasType.UnderlyingType;
+        }
+
+        // Create the NewtypeType and clone all members from the source type's scope.
+        var newtypeType = new NewtypeType(name, sourceType);
+        CloneAllMembers(sourceType, newtypeType, name, symbolTable);
+
+        // For primitive (backend-backed) source types, add a synthetic 'Value' field
+        // so that member access like `myNewtype.Value` resolves in the semantic model.
+        // The transpiler emits these as readonly struct wrappers with a Value property.
+        var isBackendBacked = sourceType switch
+        {
+            StructType st => st.IsBackendBacked,
+            ClassType ct => ct.IsBackendBacked,
+            _ => false,
+        };
+        if (isBackendBacked)
+        {
+            var targetScope = (Scope)newtypeType.MemberScope;
+            var valueSymbol = new Symbol(
+                "Value",
+                SymbolKind.Field,
+                SymbolOrigin.UserCode,
+                targetScope,
+                sourceType,
+                declarationSpan: null,
+                isIntrinsic: false,
+                hasBody: false);
+            targetScope.AddMember(valueSymbol);
+        }
+
+        newtypeSymbol.DeclaredType = newtypeType;
+    }
+
+    /// <summary>
+    /// Clones all member symbols from the source type's scope into the newtype's member scope.
+    /// Handles fields, properties, methods, constructors (with name updated), operators,
+    /// cast operators, and indexers.
+    /// </summary>
+    private static void CloneAllMembers(
+        IType sourceType,
+        NewtypeType newtypeType,
+        string newtypeName,
+        SymbolTable symbolTable)
+    {
+        var sourceScope = GetMemberScope(sourceType);
+        if (sourceScope is null) return;
+
+        var targetScope = (Scope)newtypeType.MemberScope;
+
+        foreach (var member in sourceScope.Members)
+        {
+            var clonedName = member.Kind == SymbolKind.Constructor
+                ? newtypeName
+                : member.Name;
+
+            var cloned = new Symbol(
+                clonedName,
+                member.Kind,
+                SymbolOrigin.UserCode,
+                targetScope,
+                member.DeclaredType,
+                member.DeclarationSpan,
+                isIntrinsic: member is Symbol s && s.IsIntrinsic,
+                hasBody: member is Symbol s2 && s2.HasBody);
+
+            // Copy property metadata if present.
+            if (member is Symbol sourceSym && sourceSym.PropertyMetadata is not null)
+            {
+                cloned.PropertyMetadata = sourceSym.PropertyMetadata;
+            }
+
+            // Copy type parameters if present (for generic methods).
+            if (member is Symbol sourceMethodSym && sourceMethodSym.TypeParameters.Count > 0)
+            {
+                cloned.TypeParameters = sourceMethodSym.TypeParameters;
+            }
+
+            // Copy readonly status.
+            if (member is Symbol readonlySym)
+            {
+                cloned.ReadonlyStatus = readonlySym.ReadonlyStatus;
+            }
+
+            targetScope.AddMember(cloned);
         }
     }
 
@@ -12688,7 +12910,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // 2. Search current scope → parent scopes (local → file → namespace → global).
         var symbol = fileScope.Lookup(typeName);
-        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.TypeAlias || symbol.Kind == SymbolKind.Enum))
+        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.TypeAlias || symbol.Kind == SymbolKind.Enum || symbol.Kind == SymbolKind.Newtype))
         {
             // For type aliases that haven't been resolved yet, trigger
             // recursive resolution so that cycle detection via
@@ -12699,6 +12921,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (aliasNode is not null)
                 {
                     ResolveTypeAliasDeclaration(aliasNode, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                }
+            }
+            // For newtypes that haven't been resolved yet, trigger resolution
+            // so that forward references to newtypes work (newtypes declared
+            // after the referencing class in the same namespace body).
+            if (symbol.Kind == SymbolKind.Newtype && symbol.DeclaredType is null)
+            {
+                var newtypeNode = symbolTable.GetDeclaringNode(symbol) as NewtypeDeclarationNode;
+                if (newtypeNode is not null)
+                {
+                    ResolveNewtypeDeclaration(newtypeNode, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 }
             }
             return symbol.DeclaredType ?? ErrorType.Instance;
@@ -12727,7 +12960,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach (var member in nsScope.Members)
                 {
                     if (member.Name == typeName &&
-                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias || member.Kind == SymbolKind.Enum))
+                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias || member.Kind == SymbolKind.Enum || member.Kind == SymbolKind.Newtype))
                     {
                         if (userResolvedType is not null)
                         {
@@ -15103,6 +15336,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             StructType st => st.MemberScope,
             InterfaceType it => it.MemberScope,
             TraitType tt => tt.MemberScope,
+            NewtypeType nt => nt.MemberScope,
             ArrayType => null, // Arrays use special handling.
             _ => null,
         };
@@ -16427,6 +16661,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (item is NamespaceTypeAliasItemNamespaceBodyItemNode typeAliasItem)
             {
                 builder.Add(typeAliasItem.TypeAliasDeclaration);
+            }
+        }
+        return builder.ToImmutable();
+    }
+
+    private static ImmutableArray<NewtypeDeclarationNode> GetNamespaceBodyNewtypes(
+        NamespaceDeclarationNode namespaceNode)
+    {
+        var bodyItems = namespaceNode switch
+        {
+            FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
+            BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
+            _ => ImmutableArray<NamespaceBodyItemNode>.Empty
+        };
+
+        var builder = ImmutableArray.CreateBuilder<NewtypeDeclarationNode>();
+        foreach (var item in bodyItems)
+        {
+            if (item is NamespaceNewtypeItemNamespaceBodyItemNode newtypeItem)
+            {
+                builder.Add(newtypeItem.NewtypeDeclaration);
             }
         }
         return builder.ToImmutable();

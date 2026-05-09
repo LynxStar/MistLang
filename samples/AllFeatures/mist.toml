@@ -83,3 +83,6 @@ path = "../RefinementTypes"
 
 [[references]]
 path = "../UnknownReadonlySemantics"
+
+[[references]]
+path = "../Newtypes"

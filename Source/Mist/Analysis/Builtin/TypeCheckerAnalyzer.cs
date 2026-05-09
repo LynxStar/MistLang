@@ -1235,7 +1235,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (IsDirectlyAssignable(sourceType, targetType, model))
             return;
 
-        // 3a. Cast from `unknown` to a concrete target type (Task 26.1 /
+        // 3a. Newtype ↔ source type explicit cast (newtypes feature, Req 2.1).
+        //     A cast from a newtype to its source type or from the source type
+        //     to the newtype is always valid — no operator lookup needed.
+        if (sourceType is NewtypeType sourceNewtype
+            && IsDirectlyAssignable(sourceNewtype.SourceType, targetType, model))
+            return;
+        if (targetType is NewtypeType targetNewtype
+            && IsDirectlyAssignable(sourceType, targetNewtype.SourceType, model))
+            return;
+
+        // 3b. Cast from `unknown` to a concrete target type (Task 26.1 /
         //     Req 13.4, 13.6). UnknownType has no member scope (Req 3.4),
         //     so only the target's scope is searched for an operator
         //     whose source is `unknown` and target is T. When zero
@@ -1491,6 +1501,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (source is UnionType)
         {
             return false;
+        }
+
+        // ── newtypes feature: nominal distinctness (Req 2.1, 2.3, 2.4, 2.5) ──
+        //
+        // A newtype is a nominally distinct type — it is only assignable to
+        // itself (same instance). It is NOT assignable to its source type,
+        // the source type is NOT assignable to the newtype, and two different
+        // newtypes are NOT assignable to each other even if they share the
+        // same source type. An explicit cast is required for conversion.
+        //
+        // This check is placed before the identity/DisplayName checks so that
+        // a newtype with the same DisplayName as another type (unlikely but
+        // possible in error-recovery scenarios) is still rejected.
+        if (source is NewtypeType || target is NewtypeType)
+        {
+            // Only the same newtype instance is assignable to itself.
+            return ReferenceEquals(source, target);
         }
 
         // Identity.
@@ -7679,6 +7706,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
             ConstructedType cst => cst.MemberScope,
+            NewtypeType nt => nt.MemberScope,
             _ => null,
         };
         // Collect all constructors from the target type's member scope.
@@ -8128,10 +8156,30 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private static bool ConstructorMatches(ISymbol ctor, List<IType> argTypes, IType? createdType, ISemanticModel model)
     {
-        // Get the constructor's parameters.
-        SyntaxNode ctorNode;
+        // Get the constructor's declaring node. For cloned newtype constructors,
+        // the declaring node is not registered directly. Fall back to finding
+        // the original constructor in the source type's scope.
+        SyntaxNode? ctorNode;
         try { ctorNode = model.GetDeclaringNode(ctor); }
-        catch { return false; }
+        catch { ctorNode = null; }
+
+        if (ctorNode is null && createdType is NewtypeType nt)
+        {
+            // Find the matching original constructor in the source type's scope.
+            var sourceScope = GetMemberScope(nt.SourceType);
+            if (sourceScope is not null)
+            {
+                foreach (var member in sourceScope.Members)
+                {
+                    if (member.Kind == SymbolKind.Constructor)
+                    {
+                        try { ctorNode = model.GetDeclaringNode(member); }
+                        catch { continue; }
+                        if (ctorNode is not null) break;
+                    }
+                }
+            }
+        }
 
         if (ctorNode is not ConstructorDeclarationNode ctorDecl)
             return false;
@@ -9040,6 +9088,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (TryEmitEnumAssignabilityDiagnostic(source, target, node, diagnostics, model))
                 return;
 
+            // newtypes feature (Req 2.1, 2.3, 2.4, 2.5): detect newtype↔source
+            // and cross-newtype assignments and emit the targeted diagnostic.
+            if (TryEmitNewtypeAssignabilityDiagnostic(source, target, node, diagnostics, model))
+                return;
+
             // Emit a trait-specific diagnostic when the target is a TraitType.
             if (target is TraitType targetTrait)
             {
@@ -9221,6 +9274,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             InterfaceType it => it.MemberScope,
             ConstructedType cst => cst.MemberScope,
             EnumType et => et.MemberScope,
+            NewtypeType nt => nt.MemberScope,
             _ => null,
         };
     }
@@ -9463,6 +9517,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // The only exception is if the target is UnknownType, but that
             // was already handled above.
             return false;
+        }
+
+        // ── newtypes feature: nominal distinctness (Req 2.1, 2.3, 2.4, 2.5) ──
+        //
+        // A newtype is a nominally distinct type — it is only assignable to
+        // itself (same instance). It is NOT assignable to its source type,
+        // the source type is NOT assignable to the newtype, and two different
+        // newtypes are NOT assignable to each other even if they share the
+        // same source type. An explicit cast is required for conversion.
+        //
+        // This check must appear before the identity/DisplayName checks AND
+        // before the TryFindImplicitCast fallback at the end of this method,
+        // because cloned implicit cast operators on the newtype's member scope
+        // could otherwise accidentally allow the assignment.
+        if (source is NewtypeType || target is NewtypeType)
+        {
+            // Only the same newtype instance is assignable to itself.
+            return ReferenceEquals(source, target);
         }
 
         // Identity.
@@ -10667,6 +10739,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
+            NewtypeType nt => nt.MemberScope,
             _ => null,
         };
 
@@ -11785,6 +11858,66 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             diagnostics.Add(MakeDiagnostic(
                 CannotAssignUnderlyingToEnum.Value,
                 $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}': implicit conversion from the underlying type to an enum type is not supported. Use an explicit enum member instead.",
+                node,
+                model));
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Detects newtype-specific assignability failure modes and emits a targeted
+    /// diagnostic. Returns <c>true</c> if a diagnostic was emitted.
+    /// <list type="bullet">
+    /// <item><description>Source type → Newtype: requires explicit cast (Req 2.3)</description></item>
+    /// <item><description>Newtype → Source type: requires explicit cast (Req 2.4)</description></item>
+    /// <item><description>Newtype A → Newtype B: not convertible (Req 2.5)</description></item>
+    /// </list>
+    /// </summary>
+    private static bool TryEmitNewtypeAssignabilityDiagnostic(
+        IType source,
+        IType target,
+        SyntaxNode node,
+        DiagnosticBag diagnostics,
+        ISemanticModel model)
+    {
+        // Unwrap type aliases before checking.
+        var unwrappedSource = source;
+        while (unwrappedSource is TypeAliasType srcAlias)
+            unwrappedSource = srcAlias.UnderlyingType;
+        var unwrappedTarget = target;
+        while (unwrappedTarget is TypeAliasType tgtAlias)
+            unwrappedTarget = tgtAlias.UnderlyingType;
+
+        // Cross-newtype assignment (Req 2.5): two different newtypes.
+        if (unwrappedSource is NewtypeType sourceNewtype && unwrappedTarget is NewtypeType targetNewtype)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0001",
+                $"Cannot convert type '{sourceNewtype.DisplayName}' to '{targetNewtype.DisplayName}'",
+                node,
+                model));
+            return true;
+        }
+
+        // Newtype → Source type (Req 2.4): newtype assigned where source type expected.
+        if (unwrappedSource is NewtypeType newtypeSource)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0001",
+                $"Cannot convert type '{newtypeSource.DisplayName}' to '{unwrappedTarget.DisplayName}' without an explicit cast",
+                node,
+                model));
+            return true;
+        }
+
+        // Source type → Newtype (Req 2.3): source type assigned where newtype expected.
+        if (unwrappedTarget is NewtypeType newtypeTarget)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0001",
+                $"Cannot convert type '{unwrappedSource.DisplayName}' to '{newtypeTarget.DisplayName}' without an explicit cast",
                 node,
                 model));
             return true;

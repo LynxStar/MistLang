@@ -89,6 +89,7 @@ rule CompilationUnit = usings:UsingDeclaration* items:TopLevelItem*;
 rule TopLevelItem
     = namespaceDeclaration:NamespaceDeclaration  as NamespaceItem
     | typeDeclaration:TypeDeclaration            as TypeItem
+    | newtypeDeclaration:NewtypeDeclaration      as NewtypeItem
     | typeAliasDeclaration:TypeAliasDeclaration  as TypeAliasItem
     | withDeclaration:WithDeclaration            as WithItem
     | extensionDeclaration:ExtensionBlockDeclaration as ExtensionItem
@@ -100,6 +101,7 @@ rule QualifiedIdentifier = IDENTIFIER (DOT IDENTIFIER)*;
 
 rule NamespaceBodyItem
     = typeDeclaration:TypeDeclaration              as NamespaceTypeItem
+    | newtypeDeclaration:NewtypeDeclaration        as NamespaceNewtypeItem
     | typeAliasDeclaration:TypeAliasDeclaration    as NamespaceTypeAliasItem
     | extensionDeclaration:ExtensionBlockDeclaration as NamespaceExtensionItem
     ;
@@ -131,6 +133,8 @@ rule RefinableUnionTypeExpr = first:RefinableSingleTypeExpr (PIPE rest:Refinable
 rule RefinableSingleTypeExpr = type:SingleTypeRef refinement:RefinementPredicate?;
 
 rule RefinementPredicate = predicate:AndPattern;
+
+rule NewtypeDeclaration = TYPE name:IDENTIFIER EQUAL NEW sourceType:TypeReference SEMICOLON;
 
 // ─── Parser Rules — Type Parameter and Type Argument Lists ───────────────────
 

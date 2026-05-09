@@ -4851,6 +4851,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 break;
             }
 
+            case DiscardPatternPrimaryPatternNode:
+            {
+                // Discard pattern (bare _): always valid, no binding.
+                break;
+            }
+
             case ConstantPatternPrimaryPatternNode constantPattern:
             {
                 // Task 3.4: Regex pattern matching validation.
@@ -5305,6 +5311,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     variables[name] = scrutineeType;
                 }
+                break;
+            }
+
+            case DiscardPatternPrimaryPatternNode:
+            {
+                // Discard pattern (bare _): no binding, nothing to collect.
                 break;
             }
 
@@ -6123,7 +6135,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsCatchAllPrimaryPattern(PrimaryPatternNode primary)
     {
-        return primary is VarPatternPrimaryPatternNode;
+        return primary is VarPatternPrimaryPatternNode or DiscardPatternPrimaryPatternNode;
     }
 
     /// <summary>

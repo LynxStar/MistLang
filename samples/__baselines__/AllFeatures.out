@@ -481,6 +481,8 @@ Command 'quit' => Goodbye!
 isActive=True => Active
 --- Discard pattern (var _) ---
 Code 99 => Other
+--- Bare discard pattern (_) ---
+Code 50 => Other
 --- Var pattern catch-all ---
 Value 42 => many (42)
 --- Type patterns with type union ---

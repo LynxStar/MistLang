@@ -87,3 +87,6 @@ token NOT = "not";
 // Switch expression keywords
 token SWITCH = "switch";
 token WHEN   = "when";
+
+// Discard pattern keyword
+token DISCARD = "_";

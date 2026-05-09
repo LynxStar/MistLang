@@ -396,7 +396,7 @@ rule OperatorSymbol
     ;
 
 rule ParameterList = Parameter (COMMA Parameter)*;
-rule Parameter = modifier:READONLY? type:TypeReference name:IDENTIFIER;
+rule Parameter = modifier:READONLY? type:TypeReference name:(IDENTIFIER | DISCARD);
 
 rule ArgumentList = Expression (COMMA Expression)*;
 
@@ -453,7 +453,7 @@ rule ReadonlyBlockStatement = READONLY body:Block;
 rule VariableDeclarationStatement
     = type:TypeReference name:IDENTIFIER EQUAL initializer:Expression SEMICOLON  as TypedVariableDeclaration
     | VAR LEFT_PARENTHESIS firstName:IDENTIFIER (COMMA restNames:IDENTIFIER)* RIGHT_PARENTHESIS EQUAL initializer:Expression SEMICOLON  as VarTupleDeconstruction
-    | VAR name:IDENTIFIER EQUAL initializer:Expression SEMICOLON                 as InferredVariableDeclaration
+    | VAR name:(IDENTIFIER | DISCARD) EQUAL initializer:Expression SEMICOLON     as InferredVariableDeclaration
     | LEFT_PARENTHESIS first:TupleDeconstructionElement COMMA rest:TupleDeconstructionElement (COMMA additional:TupleDeconstructionElement)* RIGHT_PARENTHESIS EQUAL initializer:Expression SEMICOLON  as TypedTupleDeconstruction
     ;
 
@@ -478,12 +478,12 @@ rule WhileStatement = WHILE LEFT_PARENTHESIS condition:Expression RIGHT_PARENTHE
 rule ForStatement = FOR LEFT_PARENTHESIS initializer:ForInitializer? SEMICOLON condition:Expression? SEMICOLON iterator:Expression? RIGHT_PARENTHESIS body:Block;
 
 rule ForInitializer
-    = variableDeclaration:TypeReference name:IDENTIFIER EQUAL initializer:Expression  as ForInitializerVariableDeclaration
-    | varDeclaration:VAR name:IDENTIFIER EQUAL initializer:Expression                 as ForInitializerVarDeclaration
+    = variableDeclaration:TypeReference name:(IDENTIFIER | DISCARD) EQUAL initializer:Expression  as ForInitializerVariableDeclaration
+    | varDeclaration:VAR name:(IDENTIFIER | DISCARD) EQUAL initializer:Expression                 as ForInitializerVarDeclaration
     | expression:Expression                                                            as ForInitializerExpression
     ;
 
-rule ForeachStatement = FOREACH LEFT_PARENTHESIS type:TypeReference name:IDENTIFIER IN collection:Expression RIGHT_PARENTHESIS body:Block;
+rule ForeachStatement = FOREACH LEFT_PARENTHESIS type:TypeReference name:(IDENTIFIER | DISCARD) IN collection:Expression RIGHT_PARENTHESIS body:Block;
 
 rule BreakStatement = BREAK SEMICOLON;
 
@@ -594,14 +594,15 @@ rule UnaryPattern
     ;
 
 rule PrimaryPattern
-    = type:TypeReference name:IDENTIFIER                                    as TypePattern
+    = type:TypeReference name:(IDENTIFIER | DISCARD)                         as TypePattern
     | type:TypeReference                                                    as BareTypePattern
-    | VAR name:IDENTIFIER                                                   as VarPattern
+    | VAR name:(IDENTIFIER | DISCARD)                                       as VarPattern
+    | DISCARD                                                               as DiscardPattern
     | LESS_THAN constant:Expression                                         as LessThanRelationalPattern
     | GREATER_THAN constant:Expression                                      as GreaterThanRelationalPattern
     | LESS_THAN_OR_EQUAL constant:Expression                                as LessThanOrEqualRelationalPattern
     | GREATER_THAN_OR_EQUAL constant:Expression                             as GreaterThanOrEqualRelationalPattern
-    | typeName:QualifiedIdentifier? LEFT_BRACE subpatterns:PropertySubpatternList? RIGHT_BRACE name:IDENTIFIER?  as PropertyPattern
+    | typeName:QualifiedIdentifier? LEFT_BRACE subpatterns:PropertySubpatternList? RIGHT_BRACE name:(IDENTIFIER | DISCARD)?  as PropertyPattern
     | LEFT_BRACKET elements:ListPatternElementList? RIGHT_BRACKET           as ListPattern
     | LEFT_PARENTHESIS inner:Pattern RIGHT_PARENTHESIS                      as ParenthesizedPattern
     | literal:ConstantLiteral                                               as ConstantPattern
@@ -625,5 +626,5 @@ rule ListPatternElementList = ListPatternElement (COMMA ListPatternElement)*;
 
 rule ListPatternElement
     = pattern:Pattern                          as PatternElement
-    | DOTDOT name:IDENTIFIER?                  as SliceElement
+    | DOTDOT name:(IDENTIFIER | DISCARD)?      as SliceElement
     ;

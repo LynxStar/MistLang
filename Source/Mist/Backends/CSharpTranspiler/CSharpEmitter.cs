@@ -5119,6 +5119,12 @@ internal sealed class CSharpSourceWriter
                 return "true";
             }
 
+            case DiscardPatternPrimaryPatternNode:
+            {
+                // Bare discard pattern always matches — emit `true` so the if-condition is trivially true.
+                return "true";
+            }
+
             default:
                 return null;
         }
@@ -5818,6 +5824,8 @@ internal sealed class CSharpSourceWriter
             }
             case VarPatternPrimaryPatternNode varPattern:
                 return $"var {varPattern.Name.Lexeme}";
+            case DiscardPatternPrimaryPatternNode:
+                return "var _";
             case ConstantPatternPrimaryPatternNode constantPattern:
                 return EmitConstantLiteral(constantPattern.Literal);
             case LessThanRelationalPatternPrimaryPatternNode ltPattern:

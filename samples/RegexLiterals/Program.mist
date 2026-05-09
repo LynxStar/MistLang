@@ -122,7 +122,7 @@ public class Program
             `^\d+$` => "number",
             `^[a-z]+$` => "lowercase",
             `^[A-Z]+$` => "uppercase",
-            var _ => "other",
+            _ => "other",
         };
         Console.WriteLine($"hello_category={category1}");
 

@@ -83,7 +83,7 @@ internal static class ExhaustivenessChecker
         if (primary is null)
             return false;
 
-        return primary is VarPatternPrimaryPatternNode;
+        return primary is VarPatternPrimaryPatternNode or DiscardPatternPrimaryPatternNode;
     }
 
     /// <summary>

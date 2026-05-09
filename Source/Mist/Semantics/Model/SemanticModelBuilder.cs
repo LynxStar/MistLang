@@ -11772,6 +11772,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             }
 
+            case DiscardPatternPrimaryPatternNode:
+            {
+                // Bare discard pattern: `_` — no variable binding.
+                break;
+            }
+
             case PropertyPatternPrimaryPatternNode propertyPattern:
             {
                 // Determine the pattern type for subpattern recursion.
@@ -14148,6 +14154,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case VarPatternPrimaryPatternNode:
             {
                 // Var pattern: the type is the scrutinee type. No resolution needed.
+                break;
+            }
+
+            case DiscardPatternPrimaryPatternNode:
+            {
+                // Bare discard pattern: no type resolution needed.
                 break;
             }
 

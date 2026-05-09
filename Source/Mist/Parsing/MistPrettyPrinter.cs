@@ -1625,6 +1625,8 @@ public sealed class MistPrettyPrinter
             }
             case VarPatternPrimaryPatternNode varPattern:
                 return $"var {varPattern.Name.Lexeme}";
+            case DiscardPatternPrimaryPatternNode:
+                return "_";
             case ConstantPatternPrimaryPatternNode constantPattern:
                 return EmitConstantLiteral(constantPattern.Literal);
             case LessThanRelationalPatternPrimaryPatternNode ltPattern:

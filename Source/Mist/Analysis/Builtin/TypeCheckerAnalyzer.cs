@@ -8780,6 +8780,67 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         ISemanticModel model)
     {
+        // Handle union-of-refinements: when the target is a UnionType with RefinementType
+        // constituents, check if the literal satisfies at least one constituent's predicate.
+        if (targetType is UnionType targetUnion && targetUnion.Constituents.Any(c => c is RefinementType))
+        {
+            var unionConstantValue = TryExtractLiteralConstantValue(expression);
+            if (unionConstantValue is not null)
+            {
+                // Check if the literal satisfies any constituent's refinement predicate.
+                var satisfiesAny = false;
+                foreach (var constituent in targetUnion.Constituents)
+                {
+                    if (constituent is RefinementType refinementConstituent)
+                    {
+                        if (refinementConstituent.Predicate.Evaluate(unionConstantValue))
+                        {
+                            satisfiesAny = true;
+                            break;
+                        }
+                    }
+                    else if (IsAssignable(sourceType, constituent, model))
+                    {
+                        // Non-refinement constituent that the source is assignable to.
+                        satisfiesAny = true;
+                        break;
+                    }
+                }
+
+                if (!satisfiesAny)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        RefinementLiteralViolation.Value,
+                        $"Value '{unionConstantValue}' does not satisfy any refinement constituent of union type '{targetUnion.DisplayName}'",
+                        expression,
+                        model));
+                    return true;
+                }
+
+                // Literal satisfies at least one constituent — accept.
+                return false;
+            }
+
+            // Non-constant expression assigned to union-of-refinements: require pattern matching.
+            if (sourceType is not UnionType && sourceType is not RefinementType)
+            {
+                var isBaseOfAnyConstituent = targetUnion.Constituents
+                    .OfType<RefinementType>()
+                    .Any(r => IsAssignable(sourceType, r.BaseType, model));
+                if (isBaseOfAnyConstituent)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        RefinementNonConstantAssignment.Value,
+                        $"Cannot assign '{sourceType.DisplayName}' to '{targetUnion.DisplayName}' without proving the refinement. Use pattern matching to validate at runtime",
+                        expression,
+                        model));
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         // Only applies when the target is a RefinementType.
         if (targetType is not RefinementType targetRefinement)
             return false;
@@ -11850,6 +11911,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (type.DisplayName == constituent.DisplayName)
                 return true;
             if (ArePrimitiveEquivalent(type, constituent))
+                return true;
+            // Refinement type constituent: the source is a constituent if it matches
+            // the refinement's base type (e.g., int is a constituent of a union
+            // containing RefinementType with BaseType=int).
+            if (constituent is RefinementType refinement
+                && (type.DisplayName == refinement.BaseType.DisplayName
+                    || ArePrimitiveEquivalent(type, refinement.BaseType)))
                 return true;
         }
         return false;

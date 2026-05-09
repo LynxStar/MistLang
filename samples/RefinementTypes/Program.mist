@@ -27,12 +27,8 @@ type AdultAge = int >= 18;
 // 2. Compound refinement type: and combinators
 type Percentage = int >= 0 and <= 100;
 
-// 3. Union type with refinements on each constituent (grammar demonstration)
-// type AgeRange = int >= 3 and <= 8 | byte >= 0 and < 64;
-// Note: Union-of-refinements is supported in the grammar and type system,
-// but C# emission for union types with same-named refinement constituents
-// has a known limitation. The declaration is commented out to allow the
-// sample to compile cleanly.
+// 3. Union type with refinements on each constituent
+type AgeRange = int >= 3 and <= 8 | byte >= 0 and < 64;
 
 // 4. Property pattern refinement on readonly type
 public readonly class Range
@@ -121,11 +117,12 @@ public class Program
         Percentage full = 100;
         Console.WriteLine($"  Percentage full = 100 -> {full}");
 
-        // 3. Union with refinements — type is declared above
-        // (Union-of-refinements code generation is a known limitation;
-        //  the type declaration itself is valid and demonstrates the grammar.)
+        // 3. Union with refinements
         Console.WriteLine("--- Union with refinements: AgeRange ---");
-        Console.WriteLine("  type AgeRange = int >= 3 and <= 8 | byte >= 0 and < 64 (declared)");
+        AgeRange childAge = 5;
+        Console.WriteLine($"  AgeRange childAge = 5 -> {childAge}");
+        AgeRange byteVal = 50;
+        Console.WriteLine($"  AgeRange byteVal = 50 -> {byteVal}");
 
         // 4. Property pattern refinement on readonly type
         Console.WriteLine("--- Property pattern refinement: ValidRange ---");

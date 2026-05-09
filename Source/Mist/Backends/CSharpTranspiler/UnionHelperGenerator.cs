@@ -33,6 +33,7 @@ internal static class UnionHelperGenerator
     /// </summary>
     internal static string GetConstituentCSharpName(IType type) => type switch
     {
+        RefinementType r => GetConstituentCSharpName(r.BaseType),
         ArrayType a => $"{GetConstituentCSharpName(a.ElementType)}Array",
         ConstructedType ct => $"{ct.GenericDefinition.DisplayName}_{ct.TypeArguments.Count}_{string.Join("_", ct.TypeArguments.Select(GetConstituentCSharpName))}",
         _ => type.DisplayName,

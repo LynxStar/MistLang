@@ -3827,6 +3827,14 @@ internal sealed class CSharpSourceWriter
                     var emittedType = CSharpTypeMap.GetTypeName(refinementFromExprMap.BaseType, isValueContext);
                     return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
                 }
+                // ── Union type alias: emit as the helper struct name ──
+                // When a type alias resolves to a UnionType (e.g., `type AgeRange = int >= 3 | byte >= 0`),
+                // emit the generated helper type name (e.g., `Union_Byte_Int32`).
+                if (resolvedType is UnionType unionFromExprMap)
+                {
+                    var emittedType = UnionHelperGenerator.GetHelperTypeName(unionFromExprMap);
+                    return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
+                }
                 // Fallback: search all symbols for a type alias with this name.
                 // Only apply if no concrete type (class/struct/interface) with the
                 // same name exists in the current namespace — prevents cross-namespace
@@ -3861,6 +3869,19 @@ internal sealed class CSharpSourceWriter
                         if (!hasConcreteTypeInCurrentNamespace)
                         {
                             var emittedType = CSharpTypeMap.GetTypeName(refinementType.BaseType, isValueContext);
+                            return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
+                        }
+                    }
+                    // Union type alias fallback: emit as the helper struct name.
+                    if (aliasSymbol?.DeclaredType is UnionType unionFallback)
+                    {
+                        var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
+                            && _model.AllSymbols.Any(s => s.Name == name
+                                && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                                && GetSymbolContainingNamespace(s) == _currentNamespace);
+                        if (!hasConcreteTypeInCurrentNamespace)
+                        {
+                            var emittedType = UnionHelperGenerator.GetHelperTypeName(unionFallback);
                             return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
                         }
                     }

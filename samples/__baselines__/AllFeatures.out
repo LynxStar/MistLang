@@ -566,7 +566,8 @@ Done!
   Percentage zero = 0 -> 0
   Percentage full = 100 -> 100
 --- Union with refinements: AgeRange ---
-  type AgeRange = int >= 3 and <= 8 | byte >= 0 and < 64 (declared)
+  AgeRange childAge = 5 -> Union_Byte_Int32
+  AgeRange byteVal = 50 -> Union_Byte_Int32
 --- Property pattern refinement: ValidRange ---
   Range(10, 50) is ValidRange -> true
   Range(-5, 10) is ValidRange -> false

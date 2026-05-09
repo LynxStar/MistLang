@@ -89,3 +89,6 @@ path = "../Newtypes"
 
 [[references]]
 path = "../EnumReadonlyRestriction"
+
+[[references]]
+path = "../RegexLiterals"

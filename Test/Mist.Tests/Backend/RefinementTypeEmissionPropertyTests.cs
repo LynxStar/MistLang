@@ -99,7 +99,7 @@ public sealed class RefinementTypeEmissionPropertyTests : IDisposable
     {
         return from threshold in Gen.Choose(0, 100)
                from offset in Gen.Choose(0, 100)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let literal = threshold + offset
                let typeName = $"MinVal{idx}"
                select new RefinementEmissionScenario
@@ -123,7 +123,7 @@ public sealed class RefinementTypeEmissionPropertyTests : IDisposable
         return from lo in Gen.Choose(0, 50)
                from range in Gen.Choose(1, 50)
                from offsetInRange in Gen.Choose(0, 50)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let hi = lo + range
                let literal = lo + (offsetInRange % (range + 1))
                let typeName = $"Range{idx}"
@@ -147,7 +147,7 @@ public sealed class RefinementTypeEmissionPropertyTests : IDisposable
     {
         return from threshold in Gen.Choose(0, 100)
                from offset in Gen.Choose(0, 100)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let literal = threshold + offset
                let typeName = $"Widen{idx}"
                select new RefinementEmissionScenario
@@ -171,7 +171,7 @@ public sealed class RefinementTypeEmissionPropertyTests : IDisposable
     {
         return from threshold in Gen.Choose(0, 100)
                from testValue in Gen.Choose(0, 200)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let typeName = $"Check{idx}"
                select new RefinementEmissionScenario
                {
@@ -196,7 +196,7 @@ public sealed class RefinementTypeEmissionPropertyTests : IDisposable
         return from lo in Gen.Choose(0, 50)
                from range in Gen.Choose(1, 50)
                from testValue in Gen.Choose(0, 150)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let hi = lo + range
                let typeName = $"Bounded{idx}"
                select new RefinementEmissionScenario

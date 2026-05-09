@@ -1210,6 +1210,7 @@ public sealed class MistPrettyPrinter
             BoolTypePrimitiveTypeNode => "bool",
             CharTypePrimitiveTypeNode => "char",
             StringTypePrimitiveTypeNode => "string",
+            RegexTypePrimitiveTypeNode => "regex",
             _ => "object",
         };
     }
@@ -1624,6 +1625,8 @@ public sealed class MistPrettyPrinter
             }
             case VarPatternPrimaryPatternNode varPattern:
                 return $"var {varPattern.Name.Lexeme}";
+            case DiscardPatternPrimaryPatternNode:
+                return "_";
             case ConstantPatternPrimaryPatternNode constantPattern:
                 return EmitConstantLiteral(constantPattern.Literal);
             case LessThanRelationalPatternPrimaryPatternNode ltPattern:
@@ -1682,6 +1685,7 @@ public sealed class MistPrettyPrinter
             FloatConstantConstantLiteralNode floatConst => floatConst.Value.Lexeme,
             StringConstantConstantLiteralNode strConst => strConst.Value.Lexeme,
             CharConstantConstantLiteralNode charConst => charConst.Value.Lexeme,
+            RegexConstantConstantLiteralNode regexConst => regexConst.Value.Lexeme,
             TrueConstantConstantLiteralNode => "true",
             FalseConstantConstantLiteralNode => "false",
             _ => "",
@@ -1869,6 +1873,8 @@ public sealed class MistPrettyPrinter
                 return floatLit.FloatLiteral.Lexeme;
             case StringLiteralExpressionPrimaryNode stringLit:
                 return stringLit.StringLiteral.Lexeme;
+            case RegexLiteralExpressionPrimaryNode regexLit:
+                return regexLit.RegexLiteral.Lexeme;
             case InterpolatedStringExpressionPrimaryNode interpolated:
                 return EmitInterpolatedString(interpolated.InterpolatedString);
             case CharLiteralExpressionPrimaryNode charLit:

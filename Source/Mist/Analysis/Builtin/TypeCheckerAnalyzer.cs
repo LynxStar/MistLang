@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.RegularExpressions;
 using Mist.Analysis.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
@@ -623,6 +624,32 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// (Requirement 9.3, 9.4, 15.7).
     /// </summary>
     internal static readonly DiagnosticId DependentOpenTypePattern = new("MIST_DT_0007");
+
+    // ── regex-type feature: compile-time regex validation ─────────────────
+
+    /// <summary>
+    /// Emitted when a regex literal pattern (in expression, pattern, or
+    /// refinement position) is not a syntactically valid .NET regular
+    /// expression. The diagnostic message includes the error description
+    /// from the .NET regex parser and the zero-based character offset
+    /// within the pattern where the error was detected
+    /// (Requirements 4.6, 5.3, 5.4, 5.5).
+    /// </summary>
+    internal static readonly DiagnosticId RegexPatternInvalid = new("MIST_TC_REGEX_INVALID");
+
+    /// <summary>
+    /// Emitted when a regex literal pattern is used in an <c>is</c> expression
+    /// or switch arm but the scrutinee type is not <c>string</c>. Regex patterns
+    /// can only match against string values (Requirements 7.2, 7.3).
+    /// </summary>
+    internal static readonly DiagnosticId RegexScrutineeNotString = new("MIST_TC_REGEX_SCRUTINEE");
+
+    /// <summary>
+    /// Emitted when a regex refinement predicate is applied to a non-<c>string</c>
+    /// base type. Regex refinement predicates are only valid on <c>string</c> types
+    /// (Requirement 11.3).
+    /// </summary>
+    internal static readonly DiagnosticId RegexRefinementOnNonString = new("MIST_TC_REGEX_REFINEMENT");
 
     /// <summary>
     /// Feature flag gating the operator overload-resolution path introduced by
@@ -3098,6 +3125,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         break;
                     }
 
+                    // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9) ──
+                    // When the target is regex and the source is string, apply
+                    // the string→regex conversion rules before the generic check.
+                    if (TryCheckStringToRegexAssignment(initType, declaredType, typed.Initializer, diagnostics, model))
+                    {
+                        break;
+                    }
+
                     // Allow numeric-to-numeric assignments in variable declarations
                     // to support constant narrowing (e.g., byte x = 0; where 0 is int).
                     // Non-numeric type mismatches (e.g., Type → int) are still checked.
@@ -3283,6 +3318,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 if (TryCheckRefinementAssignment(effectiveValueType, methodReturnType, returnStmt.Value, diagnostics, model))
                 {
                     // Refinement-specific diagnostic emitted; skip generic.
+                }
+                // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9) ──
+                // When the return type is regex and the value is string, apply
+                // the string→regex conversion rules.
+                else if (TryCheckStringToRegexAssignment(valueType, methodReturnType, returnStmt.Value, diagnostics, model))
+                {
+                    // Regex-specific diagnostic emitted or accepted; skip generic.
                 }
                 else if (!IsAssignable(valueType, methodReturnType))
                 {
@@ -4160,7 +4202,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // When the target is a RefinementType, check the assignment
                 // against the refinement predicate before the generic
                 // assignability check.
-                if (!TryCheckRefinementAssignment(effectiveRhsType, lhsType, assignment.Value, diagnostics, model))
+                if (!TryCheckRefinementAssignment(effectiveRhsType, lhsType, assignment.Value, diagnostics, model)
+                    // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9) ──
+                    // When the target is regex and the source is string, apply
+                    // the string→regex conversion rules.
+                    && !TryCheckStringToRegexAssignment(rhsType, lhsType, assignment.Value, diagnostics, model))
                 {
                     CheckAssignability(rhsType, lhsType, assignment, diagnostics, model);
                 }
@@ -4199,7 +4245,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     var propType = targetPropertySymbol.DeclaredType;
                     if (propType is not null && rhsType is not null && !IsErrorType(propType) && !IsErrorType(rhsType))
                     {
-                        if (!IsAssignable(rhsType, propType))
+                        // ── regex-type feature: string literal shorthand ──
+                        // Skip the property type mismatch check if the string→regex
+                        // conversion was already handled by the main assignment check.
+                        if (IsRegexLike(propType) && IsStringLike(rhsType))
+                        {
+                            // Already handled by TryCheckStringToRegexAssignment above.
+                        }
+                        else if (!IsAssignable(rhsType, propType))
                         {
                             // unknown-type feature (Req 4.2, 4.4): emit a targeted
                             // diagnostic for void→unknown or unknown→non-unknown
@@ -4807,19 +4860,50 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 break;
             }
 
+            case DiscardPatternPrimaryPatternNode:
+            {
+                // Discard pattern (bare _): always valid, no binding.
+                break;
+            }
+
             case ConstantPatternPrimaryPatternNode constantPattern:
             {
-                // MIST_TC_0051: Verify constant type is compatible with scrutinee.
-                var constantType = model.GetTypeOf(constantPattern.Literal);
-                if (constantType is not null && !IsErrorType(constantType))
+                // Task 3.4: Regex pattern matching validation.
+                // When a regex constant pattern is used, the scrutinee must be `string`.
+                // Capture groups are ignored — no bindings are introduced.
+                if (constantPattern.Literal is RegexConstantConstantLiteralNode regexConst)
                 {
-                    if (!ArePatternTypesCompatible(constantType, scrutineeType))
+                    // MIST_TC_REGEX_SCRUTINEE: Verify scrutinee is string (Req 7.2, 7.3).
+                    // A refinement type whose base type is string is also accepted.
+                    var effectiveType = scrutineeType is RefinementType refinement
+                        ? refinement.BaseType
+                        : scrutineeType;
+                    if (!IsStringLike(effectiveType))
                     {
                         diagnostics.Add(MakeDiagnostic(
-                            PatternConstantTypeMismatch.Value,
-                            $"Constant of type '{constantType.DisplayName}' is not compatible with scrutinee type '{scrutineeType.DisplayName}'",
+                            RegexScrutineeNotString.Value,
+                            $"Regex patterns require a 'string' scrutinee, but found '{scrutineeType.DisplayName}'",
                             constantPattern,
                             model));
+                    }
+
+                    // Validate regex pattern syntax at pattern position (Req 7.7).
+                    ValidateRegexPattern(regexConst.Value.Lexeme, constantPattern, model, diagnostics);
+                }
+                else
+                {
+                    // MIST_TC_0051: Verify constant type is compatible with scrutinee.
+                    var constantType = model.GetTypeOf(constantPattern.Literal);
+                    if (constantType is not null && !IsErrorType(constantType))
+                    {
+                        if (!ArePatternTypesCompatible(constantType, scrutineeType))
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                PatternConstantTypeMismatch.Value,
+                                $"Constant of type '{constantType.DisplayName}' is not compatible with scrutinee type '{scrutineeType.DisplayName}'",
+                                constantPattern,
+                                model));
+                        }
                     }
                 }
                 break;
@@ -5028,6 +5112,46 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         var propertyName = subpattern.Name.Lexeme;
+
+        // Handle TupleType specially: positional (Item1..ItemN) and named element access.
+        if (patternType is TupleType tupleType)
+        {
+            IType? elementType = null;
+
+            // Check positional access: Item1, Item2, ..., ItemN (1-indexed).
+            if (propertyName.StartsWith("Item", StringComparison.Ordinal)
+                && int.TryParse(propertyName.AsSpan(4), out var itemIndex)
+                && itemIndex >= 1 && itemIndex <= tupleType.Arity)
+            {
+                elementType = tupleType.ElementTypes[itemIndex - 1];
+            }
+            // Check named element access.
+            else if (tupleType.ElementNames is not null)
+            {
+                for (var i = 0; i < tupleType.ElementNames.Count; i++)
+                {
+                    if (tupleType.ElementNames[i] == propertyName)
+                    {
+                        elementType = tupleType.ElementTypes[i];
+                        break;
+                    }
+                }
+            }
+
+            if (elementType is null)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    PatternUndefinedProperty.Value,
+                    $"Type '{patternType.DisplayName}' does not contain a member named '{propertyName}'",
+                    subpattern,
+                    model));
+                elementType = ErrorType.Instance;
+            }
+
+            CheckPattern(subpattern.Pattern, elementType, model, diagnostics);
+            return;
+        }
+
         var memberScope = GetMemberScope(patternType);
 
         ISymbol? member = null;
@@ -5199,6 +5323,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 break;
             }
 
+            case DiscardPatternPrimaryPatternNode:
+            {
+                // Discard pattern (bare _): no binding, nothing to collect.
+                break;
+            }
+
             case PropertyPatternPrimaryPatternNode propertyPattern:
             {
                 // Recursively collect from subpatterns.
@@ -5363,6 +5493,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 BoolTypePrimitiveTypeNode => "bool",
                 CharTypePrimitiveTypeNode => "char",
                 StringTypePrimitiveTypeNode => "string",
+                RegexTypePrimitiveTypeNode => "regex",
                 _ => "unknown",
             },
             VoidTypeRefTypeReferenceNode => "void",
@@ -5699,6 +5830,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             CheckSwitchArm(arm, model, diagnostics);
                         }
 
+                        // Task 3.4: Validate switch arm patterns against the scrutinee type.
+                        // The scrutinee type is `currentType` (the type of the expression
+                        // before the switch suffix was applied).
+                        if (currentType is not null && currentType is not ErrorType)
+                        {
+                            CheckPattern(switchExpr.Arms.SwitchArm.Pattern, currentType, model, diagnostics);
+                            foreach (var arm in switchExpr.Arms.SwitchArms)
+                            {
+                                CheckPattern(arm.Pattern, currentType, model, diagnostics);
+                            }
+                        }
+
                         // Task 5.3: Arm result type compatibility checking.
                         // If the semantic model determined that no common type exists
                         // (unified type is UnknownType), emit MIST_TC_0091.
@@ -6001,7 +6144,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsCatchAllPrimaryPattern(PrimaryPatternNode primary)
     {
-        return primary is VarPatternPrimaryPatternNode;
+        return primary is VarPatternPrimaryPatternNode or DiscardPatternPrimaryPatternNode;
     }
 
     /// <summary>
@@ -6046,6 +6189,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 BoolTypePrimitiveTypeNode => "bool",
                 CharTypePrimitiveTypeNode => "char",
                 StringTypePrimitiveTypeNode => "string",
+                RegexTypePrimitiveTypeNode => "regex",
                 _ => null,
             },
             NamedTypeRefTypeReferenceNode namedRef => namedRef.Name.IDENTIFIER.Lexeme,
@@ -6281,9 +6425,56 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CheckArrayLiteral(arrayLiteral, model, diagnostics);
                 break;
 
+            case RegexLiteralExpressionPrimaryNode regexLiteral:
+                ValidateRegexPattern(regexLiteral.RegexLiteral.Lexeme, regexLiteral, model, diagnostics);
+                break;
+
             // Literals and identifiers don't need type checking.
             default:
                 break;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Regex literal compile-time validation (Requirements 4.6, 5.3, 5.4, 5.5)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates a regex literal pattern at compile time using the .NET regex engine.
+    /// The <paramref name="lexeme"/> is the full token text including backtick delimiters.
+    /// Escape sequences <c>\`</c> → <c>`</c> and <c>\\</c> → <c>\</c> are resolved
+    /// before validation. If the pattern is invalid, emits <c>MIST_TC_REGEX_INVALID</c>
+    /// with the error description and offset. The expression type remains
+    /// <c>Standard.Regex</c> regardless of validity (to prevent cascading errors).
+    /// </summary>
+    private static void ValidateRegexPattern(
+        string lexeme,
+        SyntaxNode node,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Strip backtick delimiters to get the raw pattern content.
+        var raw = lexeme.Length >= 2 ? lexeme[1..^1] : string.Empty;
+
+        // Resolve escape sequences: \` → ` and \\ → \
+        var pattern = raw.Replace("\\`", "`").Replace("\\\\", "\\");
+
+        try
+        {
+            // Validate using the same regex flavor as the runtime (.NET).
+            _ = new Regex(pattern, RegexOptions.None);
+        }
+        catch (ArgumentException ex)
+        {
+            // Extract the offset from the exception if available.
+            // .NET's RegexParseException (derived from ArgumentException) provides an Offset property.
+            var offset = ex is RegexParseException parseEx ? parseEx.Offset : 0;
+
+            diagnostics.Add(MakeDiagnostic(
+                RegexPatternInvalid.Value,
+                $"Invalid regex pattern: {ex.Message} at offset {offset}",
+                node,
+                model));
         }
     }
 
@@ -6891,6 +7082,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     continue;
                 }
 
+                // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9, 6.10) ──
+                // When the parameter is regex and the argument is string, apply
+                // the string→regex conversion rules.
+                if (TryCheckStringToRegexAssignment(argType, paramType, argExprs[i], diagnostics, model))
+                {
+                    continue;
+                }
+
                 if (!IsAssignable(argType, paramType))
                 {
                     // unknown-type feature (Req 4.2, 4.4): emit a targeted
@@ -7007,6 +7206,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     continue;
                 }
 
+                // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9, 6.10) ──
+                // When the parameter is regex and the argument is string, apply
+                // the string→regex conversion rules.
+                if (TryCheckStringToRegexAssignment(argType, paramType, argExprs[i], diagnostics, model))
+                {
+                    continue;
+                }
+
                 if (!IsAssignable(argType, paramType))
                 {
                     // unknown-type feature (Req 4.2, 4.4): emit a targeted
@@ -7080,11 +7287,109 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         };
     }
 
-    // REMOVED: CheckReadonlyTypeArgumentPassing and GetParameterName were removed
-    // because MIST_TC_0076 (Requirement 14.5) was incorrect. A readonly type cannot
-    // be mutated regardless of context, so there is no danger in passing it to a
-    // non-readonly parameter. The `readonly` parameter modifier exists to impose
-    // readonly constraints on types that are NOT inherently readonly.
+    /// <summary>
+    /// Checks that readonly types are only passed to readonly parameters at a call site.
+    /// If an argument's type is readonly and the corresponding parameter is NOT marked
+    /// <c>readonly</c>, emits <c>MIST_TC_0076</c>.
+    /// If the argument's type is mutable, either parameter kind is acceptable.
+    /// (Requirement 14.5, 14.6)
+    /// </summary>
+    private static void CheckReadonlyTypeArgumentPassing(
+        ArgumentListNode? argList,
+        ISymbol methodSymbol,
+        ISemanticModel model,
+        DiagnosticBag diagnostics,
+        SyntaxNode callSite)
+    {
+        if (argList is null)
+            return;
+
+        // Extract readonly flags for each parameter of the method.
+        var readonlyFlags = ParameterSignature.ExtractIsReadonly(methodSymbol, model);
+        if (readonlyFlags.Count == 0)
+            return;
+
+        // Collect argument expressions.
+        var argExprs = new List<ExpressionNode>();
+        foreach (var child in argList.Children())
+        {
+            if (child is ExpressionNode expr)
+                argExprs.Add(expr);
+        }
+
+        // Check each argument: if its type is readonly, the parameter must be readonly.
+        var count = Math.Min(argExprs.Count, readonlyFlags.Count);
+        for (var i = 0; i < count; i++)
+        {
+            var argType = model.GetTypeOf(argExprs[i]);
+            if (argType is null)
+                continue;
+
+            // Only check if the argument's type is readonly (Req 14.5).
+            // If the argument's type is mutable, either parameter kind is acceptable (Req 14.6).
+            if (!IsTypeReadonly(argType))
+                continue;
+
+            // If an implicit cast operator is recorded on this argument, the effective
+            // type being passed is the conversion's target type, not the source type.
+            // If the target type is not readonly, the readonly constraint is satisfied
+            // by the conversion (e.g., readonly Regex → mutable String via implicit cast).
+            var resolvedOp = model.GetResolvedOperator(argExprs[i]);
+            if (resolvedOp is Symbol resolvedSym && resolvedSym.Name.StartsWith("operator_implicit_"))
+            {
+                // The implicit cast produces a new value of the target type. The callee
+                // receives this new value, not the original readonly value, so the
+                // readonly constraint does not apply.
+                continue;
+            }
+
+            // The argument's type is readonly — the parameter MUST be marked readonly.
+            if (!readonlyFlags[i])
+            {
+                // Extract parameter name for the diagnostic message.
+                var paramName = GetParameterName(methodSymbol, i, model);
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0076",
+                    $"Cannot pass readonly type '{argType.DisplayName}' to non-readonly parameter '{paramName}'",
+                    argExprs[i],
+                    model));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the name of the parameter at the given index from a method's declaring node.
+    /// Returns a fallback string if the name cannot be resolved.
+    /// </summary>
+    private static string GetParameterName(ISymbol methodSymbol, int index, ISemanticModel model)
+    {
+        Storm.Runtime.SyntaxNode declaringNode;
+        try { declaringNode = model.GetDeclaringNode(methodSymbol); }
+        catch { return $"param{index}"; }
+
+        var paramList = declaringNode switch
+        {
+            MethodDeclarationNode method => method.Parameters,
+            ConstructorDeclarationNode ctor => ctor.Parameters,
+            _ => null,
+        };
+
+        if (paramList is null)
+            return $"param{index}";
+
+        var currentIndex = 0;
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode paramNode)
+            {
+                if (currentIndex == index)
+                    return paramNode.Name.Lexeme;
+                currentIndex++;
+            }
+        }
+
+        return $"param{index}";
+    }
 
 
     /// <summary>
@@ -7247,6 +7552,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             UlongTypePrimitiveTypeNode => LegacyPrimitiveTypes.Ulong,
             UshortTypePrimitiveTypeNode => LegacyPrimitiveTypes.Ushort,
             SbyteTypePrimitiveTypeNode => LegacyPrimitiveTypes.Sbyte,
+            RegexTypePrimitiveTypeNode => LegacyPrimitiveTypes.Regex,
             _ => null,
         };
     }
@@ -8639,6 +8945,215 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         return false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // String → Regex conversion rules (Requirements 6.1–6.10)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Handles the special string→regex conversion rules when the target type
+    /// is <c>Standard.Regex</c> and the source type is <c>Standard.String</c>.
+    /// <para>
+    /// Rules:
+    /// <list type="bullet">
+    /// <item><description>String literal shorthand: if the source expression is a
+    /// string literal and the literal is a valid .NET regex pattern, accept the
+    /// assignment without requiring an explicit cast (Requirement 6.8). If the
+    /// literal is NOT a valid regex, emit <c>MIST_TC_REGEX_INVALID</c>
+    /// (Requirement 6.9).</description></item>
+    /// <item><description>Non-literal string: emit a type mismatch diagnostic
+    /// indicating that an explicit cast is required (Requirement 6.5).</description></item>
+    /// </list>
+    /// </para>
+    /// Returns <c>true</c> if this method handled the case (either accepted or
+    /// emitted a diagnostic). Returns <c>false</c> if not applicable (not a
+    /// string→regex scenario), letting the caller proceed with normal
+    /// assignability checks.
+    /// </summary>
+    private static bool TryCheckStringToRegexAssignment(
+        IType sourceType,
+        IType targetType,
+        ExpressionNode expression,
+        DiagnosticBag diagnostics,
+        ISemanticModel model)
+    {
+        // Only applies when target is regex-like and source is string-like.
+        if (!IsRegexLike(targetType) || !IsStringLike(sourceType))
+            return false;
+
+        // Check if the source expression is a string literal.
+        var primary = UnwrapExpressionToPrimary(expression);
+        if (primary is StringLiteralExpressionPrimaryNode stringLiteral)
+        {
+            // String literal shorthand: validate the pattern at compile time.
+            var content = ExtractStringContent(stringLiteral.StringLiteral.Lexeme);
+
+            try
+            {
+                _ = new Regex(content, RegexOptions.None);
+                // Valid regex pattern — accept the assignment without explicit cast.
+                // Record the explicit cast operator so the emitter can emit the
+                // conversion (the pattern is proven valid at compile time, so no
+                // runtime check is needed, but the emitter still needs to know
+                // to wrap it in `new Regex(...)`).
+                var explicitOpName = $"operator_explicit_{targetType.DisplayName}";
+                var targetScope = GetMemberScope(targetType);
+                if (targetScope is not null)
+                {
+                    foreach (var member in targetScope.Members)
+                    {
+                        if (member.Kind == SymbolKind.Method && member.Name == explicitOpName)
+                        {
+                            model.RecordResolvedOperator(expression, member);
+                            break;
+                        }
+                    }
+                }
+                return true;
+            }
+            catch (ArgumentException ex)
+            {
+                // Invalid regex pattern — emit diagnostic.
+                var offset = ex is RegexParseException parseEx ? parseEx.Offset : 0;
+                diagnostics.Add(MakeDiagnostic(
+                    RegexPatternInvalid.Value,
+                    $"Invalid regex pattern: {ex.Message} at offset {offset}",
+                    expression,
+                    model));
+                return true;
+            }
+        }
+
+        // Non-literal string assigned to regex without explicit cast.
+        // Emit a type mismatch diagnostic suggesting an explicit cast.
+        diagnostics.Add(MakeDiagnostic(
+            "MIST_TC_0001",
+            $"Cannot implicitly convert type '{sourceType.DisplayName}' to '{targetType.DisplayName}'. An explicit cast exists (are you missing a cast?)",
+            expression,
+            model));
+        return true;
+    }
+
+    /// <summary>
+    /// Overload of <see cref="TryCheckStringToRegexAssignment(IType, IType, ExpressionNode, DiagnosticBag, ISemanticModel)"/>
+    /// that accepts an <see cref="AssignmentNode"/> as the expression source. Used for
+    /// reassignment statements (<c>x = value;</c>).
+    /// </summary>
+    private static bool TryCheckStringToRegexAssignment(
+        IType sourceType,
+        IType targetType,
+        AssignmentNode assignmentValue,
+        DiagnosticBag diagnostics,
+        ISemanticModel model)
+    {
+        // Only applies when target is regex-like and source is string-like.
+        if (!IsRegexLike(targetType) || !IsStringLike(sourceType))
+            return false;
+
+        // Navigate through the assignment to find a string literal.
+        // For a simple assignment RHS, the AssignmentNode has no Value
+        // and the Target is a LogicalOrNode wrapping the literal.
+        if (assignmentValue.Value is not null)
+        {
+            // Chained assignment — not a simple literal. Reject.
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0001",
+                $"Cannot implicitly convert type '{sourceType.DisplayName}' to '{targetType.DisplayName}'. An explicit cast exists (are you missing a cast?)",
+                assignmentValue,
+                model));
+            return true;
+        }
+
+        // Try to find a string literal in the assignment target.
+        // Navigate through the single-child chain (same approach as
+        // TryExtractLiteralConstantFromAssignmentTarget).
+        StringLiteralExpressionPrimaryNode? stringLiteral = FindStringLiteralInAssignment(assignmentValue);
+
+        if (stringLiteral is not null)
+        {
+            // String literal shorthand: validate the pattern at compile time.
+            var content = ExtractStringContent(stringLiteral.StringLiteral.Lexeme);
+
+            try
+            {
+                _ = new Regex(content, RegexOptions.None);
+                // Valid regex pattern — accept the assignment.
+                // Record the explicit cast operator so the emitter can emit the conversion.
+                var explicitOpName = $"operator_explicit_{targetType.DisplayName}";
+                var targetScope = GetMemberScope(targetType);
+                if (targetScope is not null)
+                {
+                    foreach (var member in targetScope.Members)
+                    {
+                        if (member.Kind == SymbolKind.Method && member.Name == explicitOpName)
+                        {
+                            model.RecordResolvedOperator(assignmentValue, member);
+                            break;
+                        }
+                    }
+                }
+                return true;
+            }
+            catch (ArgumentException ex)
+            {
+                // Invalid regex pattern — emit diagnostic.
+                var offset = ex is RegexParseException parseEx ? parseEx.Offset : 0;
+                diagnostics.Add(MakeDiagnostic(
+                    RegexPatternInvalid.Value,
+                    $"Invalid regex pattern: {ex.Message} at offset {offset}",
+                    assignmentValue,
+                    model));
+                return true;
+            }
+        }
+
+        // Non-literal string assigned to regex without explicit cast.
+        diagnostics.Add(MakeDiagnostic(
+            "MIST_TC_0001",
+            $"Cannot implicitly convert type '{sourceType.DisplayName}' to '{targetType.DisplayName}'. An explicit cast exists (are you missing a cast?)",
+            assignmentValue,
+            model));
+        return true;
+    }
+
+    /// <summary>
+    /// Navigates through an <see cref="AssignmentNode"/>'s target expression
+    /// (for non-chained assignments) to find a <see cref="StringLiteralExpressionPrimaryNode"/>.
+    /// Returns <c>null</c> if the assignment is chained or the target is not a string literal.
+    /// </summary>
+    private static StringLiteralExpressionPrimaryNode? FindStringLiteralInAssignment(AssignmentNode assignment)
+    {
+        if (assignment.Value is not null)
+            return null; // Chained assignment.
+
+        Storm.Runtime.SyntaxNode current = assignment.Target;
+        for (var depth = 0; depth < 20; depth++)
+        {
+            if (current is StringLiteralExpressionPrimaryNode strLit)
+                return strLit;
+
+            if (current is PrimaryNode)
+                return null; // Found a primary but it's not a string literal.
+
+            Storm.Runtime.SyntaxNode? next = null;
+            var childCount = 0;
+            foreach (var child in current.Children())
+            {
+                if (child is null) continue;
+                childCount++;
+                if (child is StringLiteralExpressionPrimaryNode childStrLit)
+                    return childStrLit;
+                if (child is PrimaryNode)
+                    return null; // Found a primary but it's not a string literal.
+                if (next is null) next = child;
+            }
+
+            if (childCount > 1 || next is null) return null;
+            current = next;
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -10508,6 +11023,32 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
             // Legacy fallback: LegacyPrimitiveTypes.String has DisplayName "string"
             if (ct.DisplayName == "string")
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Accepts the stdlib <c>Standard.Regex</c> <see cref="ClassType"/>
+    /// instance (identified by its backend-backed marker and simple name),
+    /// or the legacy <see cref="LegacyPrimitiveTypes.Regex"/> fallback
+    /// <see cref="ClassType"/> (identified by DisplayName "regex").
+    /// Used by the string↔regex conversion rules (Requirements 6.1–6.10).
+    /// </summary>
+    private static bool IsRegexLike(IType type)
+    {
+        if (type is ClassType ct)
+        {
+            if (ct.IsBackendBacked
+                && ct.ContainingNamespace == "Standard"
+                && ct.DisplayName == "Regex")
+            {
+                return true;
+            }
+            // Legacy fallback: LegacyPrimitiveTypes.Regex has DisplayName "regex"
+            if (ct.DisplayName == "regex")
             {
                 return true;
             }

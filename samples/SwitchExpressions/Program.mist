@@ -58,6 +58,16 @@ public class Program
         };
         Console.WriteLine($"Code {code} => {meaning}");
 
+        // 4b. Bare discard pattern (_) as catch-all
+        Console.WriteLine("--- Bare discard pattern (_) ---");
+        int code2 = 50;
+        var meaning2 = code2 switch {
+            0 => "Zero",
+            1 => "One",
+            _ => "Other",
+        };
+        Console.WriteLine($"Code {code2} => {meaning2}");
+
         // 5. Var pattern as catch-all that binds the value
         Console.WriteLine("--- Var pattern catch-all ---");
         int value = 42;

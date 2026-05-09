@@ -272,6 +272,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     internal static readonly DiagnosticId IncompatibleRefinementPredicate = new("MIST_TC_0072");
 
     /// <summary>
+    /// A regex refinement predicate is applied to a non-<c>string</c> base type.
+    /// Regex refinement predicates are only valid on <c>string</c> types (Requirement 11.3).
+    /// </summary>
+    internal static readonly DiagnosticId RegexRefinementOnNonString = new("MIST_TC_REGEX_REFINEMENT");
+
+    /// <summary>
     /// A newtype name is already defined in the same scope (Requirement 3.3).
     /// </summary>
     internal static readonly DiagnosticId DuplicateNewtype = new("MIST_SB_0063");
@@ -8952,6 +8958,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             (BoolTypePrimitiveTypeNode, BoolTypePrimitiveTypeNode) => true,
             (CharTypePrimitiveTypeNode, CharTypePrimitiveTypeNode) => true,
             (StringTypePrimitiveTypeNode, StringTypePrimitiveTypeNode) => true,
+            (RegexTypePrimitiveTypeNode, RegexTypePrimitiveTypeNode) => true,
             _ => false,
         };
     }
@@ -9069,6 +9076,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             BoolTypePrimitiveTypeNode => "bool",
             CharTypePrimitiveTypeNode => "char",
             StringTypePrimitiveTypeNode => "string",
+            RegexTypePrimitiveTypeNode => "regex",
             _ => "unknown",
         };
     }
@@ -11683,6 +11691,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             }
 
+            case DiscardPatternPrimaryPatternNode:
+            {
+                // Bare discard pattern: `_` — no variable binding.
+                break;
+            }
+
             case PropertyPatternPrimaryPatternNode propertyPattern:
             {
                 // Determine the pattern type for subpattern recursion.
@@ -12025,6 +12039,44 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return ErrorType.Instance;
         }
 
+        // Validate: regex refinement predicates are only valid on string types (Requirement 11.3).
+        if (PredicateContainsRegexPattern(andPatternNode))
+        {
+            if (!IsStringType(baseType))
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    RegexRefinementOnNonString.Value,
+                    DiagnosticSeverity.Error,
+                    $"Regex refinement predicates are only valid on 'string' types, but found base type '{baseType.DisplayName}'",
+                    singleExpr.Refinement,
+                    sourceText));
+                return ErrorType.Instance;
+            }
+
+            // Validate regex pattern syntax (Requirement 11.4).
+            var regexLexeme = ExtractRegexLexemeFromPredicate(andPatternNode);
+            if (regexLexeme is not null)
+            {
+                var raw = regexLexeme.Length >= 2 ? regexLexeme[1..^1] : string.Empty;
+                var pattern = raw.Replace("\\`", "`").Replace("\\\\", "\\");
+                try
+                {
+                    _ = new System.Text.RegularExpressions.Regex(pattern, System.Text.RegularExpressions.RegexOptions.None);
+                }
+                catch (System.ArgumentException ex)
+                {
+                    var offset = ex is System.Text.RegularExpressions.RegexParseException parseEx ? parseEx.Offset : 0;
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        "MIST_TC_REGEX_INVALID",
+                        DiagnosticSeverity.Error,
+                        $"Invalid regex pattern: {ex.Message} at offset {offset}",
+                        singleExpr.Refinement,
+                        sourceText));
+                    return ErrorType.Instance;
+                }
+            }
+        }
+
         // Construct the RefinementType.
         var name = aliasName ?? baseType.DisplayName;
         return new RefinementType(name, baseType, predicate);
@@ -12092,6 +12144,90 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             or LessThanOrEqualRelationalPatternPrimaryPatternNode
             or GreaterThanRelationalPatternPrimaryPatternNode
             or LessThanRelationalPatternPrimaryPatternNode;
+    }
+
+    /// <summary>
+    /// Checks whether an <see cref="AndPatternNode"/> contains a regex constant pattern.
+    /// Used to validate that regex refinement predicates are only applied to string types.
+    /// </summary>
+    private static bool PredicateContainsRegexPattern(AndPatternNode andPattern)
+    {
+        if (IsRegexUnaryPattern(andPattern.Left))
+            return true;
+
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
+            if (IsRegexUnaryPattern(andPattern.Right))
+                return true;
+        }
+
+        if (!andPattern.UnaryPatterns.IsDefaultOrEmpty)
+        {
+            foreach (var part in andPattern.UnaryPatterns)
+            {
+                if (IsRegexUnaryPattern(part))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether a <see cref="UnaryPatternNode"/> contains a regex constant pattern.
+    /// </summary>
+    private static bool IsRegexUnaryPattern(UnaryPatternNode unary)
+    {
+        if (unary is not DirectPatternUnaryPatternNode direct)
+            return false;
+
+        return direct.Primary is ConstantPatternPrimaryPatternNode { Literal: RegexConstantConstantLiteralNode };
+    }
+
+    /// <summary>
+    /// Determines whether a type is the <c>string</c> type (either keyword or stdlib name).
+    /// </summary>
+    private static bool IsStringType(IType type)
+    {
+        var displayName = type.DisplayName;
+        return displayName is "string" or "String";
+    }
+
+    /// <summary>
+    /// Extracts the regex literal lexeme from a predicate's <see cref="AndPatternNode"/>.
+    /// Returns <c>null</c> if no regex constant is found.
+    /// </summary>
+    private static string? ExtractRegexLexemeFromPredicate(AndPatternNode andPattern)
+    {
+        var lexeme = TryExtractRegexLexemeFromUnary(andPattern.Left);
+        if (lexeme is not null) return lexeme;
+
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
+            lexeme = TryExtractRegexLexemeFromUnary(andPattern.Right);
+            if (lexeme is not null) return lexeme;
+        }
+
+        if (!andPattern.UnaryPatterns.IsDefaultOrEmpty)
+        {
+            foreach (var part in andPattern.UnaryPatterns)
+            {
+                lexeme = TryExtractRegexLexemeFromUnary(part);
+                if (lexeme is not null) return lexeme;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Tries to extract a regex literal lexeme from a <see cref="UnaryPatternNode"/>.
+    /// </summary>
+    private static string? TryExtractRegexLexemeFromUnary(UnaryPatternNode unary)
+    {
+        if (unary is DirectPatternUnaryPatternNode { Primary: ConstantPatternPrimaryPatternNode { Literal: RegexConstantConstantLiteralNode regexConst } })
+            return regexConst.Value.Lexeme;
+        return null;
     }
 
     /// <summary>
@@ -12615,6 +12751,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             BoolTypePrimitiveTypeNode => LegacyPrimitiveTypes.Bool,
             CharTypePrimitiveTypeNode => LegacyPrimitiveTypes.Char,
             StringTypePrimitiveTypeNode => LegacyPrimitiveTypes.String,
+            RegexTypePrimitiveTypeNode => LegacyPrimitiveTypes.Regex,
             _ => ErrorType.Instance,
         };
     }
@@ -12649,6 +12786,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             BoolTypePrimitiveTypeNode => LegacyPrimitiveTypes.Bool,
             CharTypePrimitiveTypeNode => LegacyPrimitiveTypes.Char,
             StringTypePrimitiveTypeNode => LegacyPrimitiveTypes.String,
+            RegexTypePrimitiveTypeNode => LegacyPrimitiveTypes.Regex,
             _ => ErrorType.Instance,
         };
     }
@@ -13494,6 +13632,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             "bool" => LegacyPrimitiveTypes.Bool,
             "char" => LegacyPrimitiveTypes.Char,
             "string" => LegacyPrimitiveTypes.String,
+            "regex" => LegacyPrimitiveTypes.Regex,
             "void" => LegacyPrimitiveTypes.Void,
             "Void" => LegacyPrimitiveTypes.Void,
             _ => null,
@@ -13937,6 +14076,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             }
 
+            case DiscardPatternPrimaryPatternNode:
+            {
+                // Bare discard pattern: no type resolution needed.
+                break;
+            }
+
             case ConstantPatternPrimaryPatternNode constantPattern:
             {
                 // Resolve the constant literal to record its type.
@@ -14028,6 +14173,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 ResolveFloatLiteralType(floatConst.Value.Lexeme, fileScope, symbolTable),
             StringConstantConstantLiteralNode =>
                 ResolvePrimitiveByKeyword("string", fileScope, symbolTable),
+            RegexConstantConstantLiteralNode =>
+                ResolvePrimitiveByKeyword("regex", fileScope, symbolTable),
             CharConstantConstantLiteralNode =>
                 ResolvePrimitiveByKeyword("char", fileScope, symbolTable),
             TrueConstantConstantLiteralNode =>
@@ -14738,6 +14885,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             case StringLiteralExpressionPrimaryNode:
                 result = ResolvePrimitiveByKeyword("string", fileScope, symbolTable);
+                break;
+
+            case RegexLiteralExpressionPrimaryNode:
+                result = ResolvePrimitiveByKeyword("regex", fileScope, symbolTable);
                 break;
 
             case InterpolatedStringExpressionPrimaryNode interpolated:

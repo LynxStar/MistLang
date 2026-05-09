@@ -241,6 +241,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | Float/double/decimal literals | ✅ | With suffixes (f, d, m) |
 | String literals | ✅ | With escape sequences |
 | Interpolated strings (`$"..."`) | ✅ | With expression holes |
+| Regex literals (`` `pattern` ``) | ✅ | Backtick-delimited; maps to `Standard.Regex` (`System.Text.RegularExpressions.Regex`). Compile-time pattern validation, implicit `regex→string` conversion, explicit `string→regex` cast |
 | Verbatim strings (`@"..."`) | 🔲 | |
 | Raw string literals (`"""..."""`) | 🔲 | C# 11 |
 | Char literals | ✅ | With escape sequences |
@@ -892,7 +893,7 @@ Features introduced by Mist that don't map directly to a single C# feature. Thes
 | Statements — Control Flow | 6 | 7 | 1 |
 | Statements — Exceptions | 0 | 4 | 0 |
 | Statements — Other | 1 | 5 | 2 |
-| Expressions — Literals | 10 | 3 | 4 |
+| Expressions — Literals | 11 | 3 | 4 |
 | Expressions — Arithmetic | 6 | 2 | 0 |
 | Expressions — Comparison | 6 | 0 | 0 |
 | Expressions — Logical | 3 | 0 | 0 |

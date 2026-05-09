@@ -563,6 +563,12 @@ public class Program {
                     template = registry.TryGetBinaryOperator(declaringType, op);
                 }
             }
+            else if (intrinsicSymbol.Kind == SymbolKind.Constructor)
+            {
+                // Constructor — look up via TryGetConstructor.
+                var paramTypes = ExtractParameterTypeNames(intrinsicSymbol, model);
+                template = registry.TryGetConstructor(declaringType, paramTypes);
+            }
             else
             {
                 // Method — extract parameter types from the symbol's

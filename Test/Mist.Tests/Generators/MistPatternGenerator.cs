@@ -176,24 +176,20 @@ public static class MistPatternGenerator
     }
 
     /// <summary>
-    /// Generates a discard pattern: <c>_</c>.
-    /// Represented as a type pattern with identifier <c>_</c> and a type,
-    /// or as a var pattern with name <c>_</c>. In practice, the parser
-    /// recognizes <c>_</c> as a standalone identifier. We use a var pattern
-    /// with name <c>_</c> which pretty-prints as <c>var _</c>.
-    /// For a true discard, we use a constant-like approach — but actually
-    /// the grammar handles <c>_</c> as a type pattern where the type is
-    /// an identifier. Let's use a type pattern with a named type <c>_</c>
-    /// which won't work. Instead, we generate <c>var _</c> which is the
-    /// idiomatic discard in Mist.
+    /// Generates a discard pattern: bare <c>_</c> or <c>var _</c>.
+    /// Both forms are valid catch-all patterns in Mist.
     /// </summary>
     public static Gen<PrimaryPatternNode> GenDiscardPattern()
     {
-        return Gen.Constant(
-            (PrimaryPatternNode)new VarPatternPrimaryPatternNode
+        return Gen.OneOf(
+            Gen.Constant((PrimaryPatternNode)new DiscardPatternPrimaryPatternNode
+            {
+                DISCARD = Tok("_"),
+            }),
+            Gen.Constant((PrimaryPatternNode)new VarPatternPrimaryPatternNode
             {
                 Name = Tok("_"),
-            });
+            }));
     }
 
     /// <summary>

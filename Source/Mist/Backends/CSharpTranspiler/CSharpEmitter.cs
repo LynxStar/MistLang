@@ -335,6 +335,12 @@ internal sealed class CSharpSourceWriter
             usings.Add(ns);
         }
 
+        // Emit using System.Text.RegularExpressions when the file references Standard.Regex.
+        if (SourceReferencesRegex())
+        {
+            usings.Add("System.Text.RegularExpressions");
+        }
+
         // Emit using directives.
         foreach (var ns in usings.OrderBy(n => n, StringComparer.Ordinal))
         {
@@ -1607,6 +1613,7 @@ internal sealed class CSharpSourceWriter
             BoolTypePrimitiveTypeNode => "Boolean",
             CharTypePrimitiveTypeNode => "Char",
             StringTypePrimitiveTypeNode => "String",
+            RegexTypePrimitiveTypeNode => "Regex",
             _ => "Unknown"
         };
     }
@@ -2847,6 +2854,55 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
+    /// Emits a regex literal as a C# <c>new System.Text.RegularExpressions.Regex</c>
+    /// constructor call with <c>RegexOptions.Compiled</c>.
+    /// Steps:
+    /// 1. Strip backtick delimiters from the lexeme.
+    /// 2. Resolve Mist escape sequences: <c>\`</c> → <c>`</c> and <c>\\</c> → <c>\</c>.
+    /// 3. Apply C# string escaping to the resulting pattern.
+    /// 4. Emit the fully-qualified constructor call.
+    /// </summary>
+    private static string EmitRegexLiteral(string lexeme)
+    {
+        // Strip backtick delimiters.
+        var raw = lexeme[1..^1];
+
+        // Resolve Mist regex escape sequences to get the actual regex pattern.
+        var pattern = new StringBuilder(raw.Length);
+        for (var i = 0; i < raw.Length; i++)
+        {
+            if (raw[i] == '\\' && i + 1 < raw.Length)
+            {
+                var next = raw[i + 1];
+                if (next == '`')
+                {
+                    pattern.Append('`');
+                    i++;
+                }
+                else if (next == '\\')
+                {
+                    pattern.Append('\\');
+                    i++;
+                }
+                else
+                {
+                    // Not a Mist escape — preserve the backslash and next char verbatim.
+                    pattern.Append(raw[i]);
+                }
+            }
+            else
+            {
+                pattern.Append(raw[i]);
+            }
+        }
+
+        // Apply C# string escaping to the resolved pattern.
+        var escaped = EscapeString(pattern.ToString());
+
+        return $"new System.Text.RegularExpressions.Regex(\"{escaped}\", System.Text.RegularExpressions.RegexOptions.Compiled)";
+    }
+
+    /// <summary>
     /// Emits a single member declaration from the AST.
     /// Each member is emitted individually without any name-based deduplication,
     /// which ensures that overloaded methods and constructors (multiple declarations
@@ -3647,6 +3703,24 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
+    /// Returns <c>true</c> if the compilation unit references <c>Standard.Regex</c>,
+    /// detected by the presence of the <c>regex</c> keyword or a backtick-delimited
+    /// regex literal in the source text. When true, the emitter adds a
+    /// <c>using System.Text.RegularExpressions;</c> directive.
+    /// </summary>
+    private bool SourceReferencesRegex()
+    {
+        var source = _sourceText.Contents;
+        // Check for the `regex` keyword as a standalone word.
+        if (ContainsWord(source, "regex"))
+            return true;
+        // Check for backtick (regex literal delimiter).
+        if (source.Contains('`'))
+            return true;
+        return false;
+    }
+
+    /// <summary>
     /// Returns <c>true</c> if <paramref name="source"/> contains a single <c>|</c>
     /// character that is not part of <c>||</c>. Used as a lexical fallback in
     /// <see cref="EmitParameterList"/> to detect union type annotations in
@@ -3927,12 +4001,12 @@ internal sealed class CSharpSourceWriter
                 argExprs.Add(expr);
         }
 
-        // Check if any argument has a resolved implicit cast operator.
+        // Check if any argument has a resolved implicit or explicit cast operator.
         var hasImplicitCast = false;
         foreach (var argExpr in argExprs)
         {
             var resolved = _model.GetResolvedOperator(argExpr);
-            if (resolved is Symbol sym && sym.Name.StartsWith("operator_implicit_"))
+            if (resolved is Symbol sym && (sym.Name.StartsWith("operator_implicit_") || sym.Name.StartsWith("operator_explicit_")))
             {
                 hasImplicitCast = true;
                 break;
@@ -3958,7 +4032,10 @@ internal sealed class CSharpSourceWriter
         // we must fall through to the expression emitter so typeof() is applied.
         // Similarly, if any argument contains a dependent type parameter reference,
         // we must fall through so TN.Value substitution is applied.
-        if (!ArgumentContainsTypeLiteral(argExprs) && !ArgumentContainsDependentTypeParam(argExprs))
+        // Also bypass when any argument involves an intrinsic type member access
+        // (e.g., Regex.Pattern, Regex.IsFullMatch) that needs rewriting.
+        if (!ArgumentContainsTypeLiteral(argExprs) && !ArgumentContainsDependentTypeParam(argExprs)
+            && !ArgumentContainsIntrinsicMemberAccess(argExprs))
         {
             var span = argList.Span;
             if (span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
@@ -3969,7 +4046,16 @@ internal sealed class CSharpSourceWriter
                     _needsMistVoidStruct = true;
                     return rawText.Replace("Void.Void", "MistVoid.Instance");
                 }
-                return rawText;
+                // Bypass the fast path if the source contains the `regex` keyword,
+                // which needs rewriting to System.Text.RegularExpressions.Regex.
+                if (ContainsWord(rawText, "regex"))
+                {
+                    // Fall through to expression emitter.
+                }
+                else
+                {
+                    return rawText;
+                }
             }
         }
 
@@ -4002,6 +4088,47 @@ internal sealed class CSharpSourceWriter
         foreach (var expr in argExprs)
         {
             if (ExpressionContainsDependentTypeParam(expr))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Returns true if any argument expression involves a member access on an intrinsic
+    /// backend-backed type that requires rewriting (e.g., Regex.Pattern → .ToString(),
+    /// Regex.IsFullMatch → anchored IsMatch). When true, the source-text fast path must
+    /// be bypassed so the expression emitter can apply intrinsic templates.
+    /// </summary>
+    private bool ArgumentContainsIntrinsicMemberAccess(List<ExpressionNode> argExprs)
+    {
+        foreach (var expr in argExprs)
+        {
+            if (ExpressionContainsIntrinsicMemberAccess(expr))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Recursively checks if an expression tree contains a member access or method call
+    /// on a type that has intrinsic emission templates registered.
+    /// </summary>
+    private bool ExpressionContainsIntrinsicMemberAccess(Storm.Runtime.SyntaxNode node)
+    {
+        if (node is PostfixNode postfix && postfix.Suffix.Length > 0)
+        {
+            var receiverType = _model.GetTypeOf(postfix.Target);
+            if (receiverType is not null)
+            {
+                var qualifiedName = GetQualifiedTypeNameFromType(receiverType);
+                if (qualifiedName is not null && _intrinsicRegistry.HasInstanceMethods(qualifiedName))
+                    return true;
+            }
+        }
+
+        foreach (var child in node.Children())
+        {
+            if (child is not null && ExpressionContainsIntrinsicMemberAccess(child))
                 return true;
         }
         return false;
@@ -4491,6 +4618,7 @@ internal sealed class CSharpSourceWriter
             BoolTypePrimitiveTypeNode => "Boolean",
             CharTypePrimitiveTypeNode => "Char",
             StringTypePrimitiveTypeNode => "String",
+            RegexTypePrimitiveTypeNode => "Regex",
             _ => "Object",
         };
     }
@@ -4589,6 +4717,7 @@ internal sealed class CSharpSourceWriter
             BoolTypePrimitiveTypeNode => "bool",
             CharTypePrimitiveTypeNode => "char",
             StringTypePrimitiveTypeNode => "string",
+            RegexTypePrimitiveTypeNode => "System.Text.RegularExpressions.Regex",
             _ => "object",
         };
     }
@@ -4953,6 +5082,12 @@ internal sealed class CSharpSourceWriter
                 if (enumResult is not null)
                     return enumResult;
 
+                // Regex pattern matching: emit Regex.IsMatch(scrutinee, "^(?:pattern)$")
+                // instead of C#'s native `is` pattern (C# doesn't support regex patterns).
+                var regexResult = TryEmitRegexPatternMatch(isExpr.Pattern, left);
+                if (regexResult is not null)
+                    return regexResult;
+
                 var pattern = EmitPattern(isExpr.Pattern, scrutineeType);
                 return $"{left} is {pattern}";
             }
@@ -5036,6 +5171,12 @@ internal sealed class CSharpSourceWriter
                 }
 
                 // var pattern always matches — emit `true` so the if-condition is trivially true.
+                return "true";
+            }
+
+            case DiscardPatternPrimaryPatternNode:
+            {
+                // Bare discard pattern always matches — emit `true` so the if-condition is trivially true.
                 return "true";
             }
 
@@ -5355,7 +5496,15 @@ internal sealed class CSharpSourceWriter
                 parts.Add($"{scrutineeExpr} < {EmitExpression(lt.Constant)}");
                 break;
             case ConstantPatternPrimaryPatternNode constant:
-                parts.Add($"{scrutineeExpr} == {EmitConstantLiteral(constant.Literal)}");
+                if (constant.Literal is RegexConstantConstantLiteralNode regexConstInCondition)
+                {
+                    var escapedPatternInCondition = ExtractRegexPatternForMatch(regexConstInCondition.Value.Lexeme);
+                    parts.Add($"System.Text.RegularExpressions.Regex.IsMatch({scrutineeExpr}, \"^(?:{escapedPatternInCondition})$\")");
+                }
+                else
+                {
+                    parts.Add($"{scrutineeExpr} == {EmitConstantLiteral(constant.Literal)}");
+                }
                 break;
             case PropertyPatternPrimaryPatternNode propertyPattern:
                 EmitPropertyPatternConditions(propertyPattern, scrutineeExpr, parts);
@@ -5496,6 +5645,107 @@ internal sealed class CSharpSourceWriter
         return null;
     }
 
+    // ─── Regex Pattern Matching ─────────────────────────────────────────
+
+    /// <summary>
+    /// Attempts to emit a regex pattern match for an <c>is</c> expression.
+    /// For <c>x is `[a-z]+`</c>, emits
+    /// <c>System.Text.RegularExpressions.Regex.IsMatch(x, "^(?:[a-z]+)$")</c>.
+    /// Returns <c>null</c> if the pattern is not a simple regex constant pattern.
+    /// </summary>
+    private static string? TryEmitRegexPatternMatch(PatternNode pattern, string scrutineeExpr)
+    {
+        // Navigate the pattern chain: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
+        var orPattern = pattern.OrPattern;
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+            return null;
+
+        var andPattern = orPattern.Left;
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+            return null;
+
+        var unaryPattern = andPattern.Left;
+        if (unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+            return null;
+
+        if (directPattern.Primary is not ConstantPatternPrimaryPatternNode { Literal: RegexConstantConstantLiteralNode regexConst })
+            return null;
+
+        var escapedPattern = ExtractRegexPatternForMatch(regexConst.Value.Lexeme);
+        return $"System.Text.RegularExpressions.Regex.IsMatch({scrutineeExpr}, \"^(?:{escapedPattern})$\")";
+    }
+
+    /// <summary>
+    /// Attempts to emit a switch arm pattern for a regex constant.
+    /// For a regex pattern in a switch arm, emits
+    /// <c>string __s when System.Text.RegularExpressions.Regex.IsMatch(__s, "^(?:pattern)$")</c>.
+    /// Returns <c>null</c> if the pattern is not a simple regex constant pattern.
+    /// </summary>
+    private static string? TryEmitRegexSwitchArmPattern(PatternNode pattern)
+    {
+        // Navigate the pattern chain: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
+        var orPattern = pattern.OrPattern;
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+            return null;
+
+        var andPattern = orPattern.Left;
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+            return null;
+
+        var unaryPattern = andPattern.Left;
+        if (unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+            return null;
+
+        if (directPattern.Primary is not ConstantPatternPrimaryPatternNode { Literal: RegexConstantConstantLiteralNode regexConst })
+            return null;
+
+        var escapedPattern = ExtractRegexPatternForMatch(regexConst.Value.Lexeme);
+        return $"string __s when System.Text.RegularExpressions.Regex.IsMatch(__s, \"^(?:{escapedPattern})$\")";
+    }
+
+    /// <summary>
+    /// Extracts the regex pattern from a regex literal lexeme (backtick-delimited),
+    /// resolves Mist escape sequences, and applies C# string escaping for use in
+    /// a <c>Regex.IsMatch</c> call with full-match anchoring.
+    /// </summary>
+    private static string ExtractRegexPatternForMatch(string lexeme)
+    {
+        // Strip backtick delimiters.
+        var raw = lexeme[1..^1];
+
+        // Resolve Mist regex escape sequences to get the actual regex pattern.
+        var pattern = new StringBuilder(raw.Length);
+        for (var i = 0; i < raw.Length; i++)
+        {
+            if (raw[i] == '\\' && i + 1 < raw.Length)
+            {
+                var next = raw[i + 1];
+                if (next == '`')
+                {
+                    pattern.Append('`');
+                    i++;
+                }
+                else if (next == '\\')
+                {
+                    pattern.Append('\\');
+                    i++;
+                }
+                else
+                {
+                    // Not a Mist escape — preserve the backslash and next char verbatim.
+                    pattern.Append(raw[i]);
+                }
+            }
+            else
+            {
+                pattern.Append(raw[i]);
+            }
+        }
+
+        // Apply C# string escaping to the resolved pattern.
+        return EscapeString(pattern.ToString());
+    }
+
     // ─── Pattern Emission ────────────────────────────────────────────────
 
     private string EmitPattern(PatternNode pattern, IType? scrutineeType = null)
@@ -5629,6 +5879,8 @@ internal sealed class CSharpSourceWriter
             }
             case VarPatternPrimaryPatternNode varPattern:
                 return $"var {varPattern.Name.Lexeme}";
+            case DiscardPatternPrimaryPatternNode:
+                return "var _";
             case ConstantPatternPrimaryPatternNode constantPattern:
                 return EmitConstantLiteral(constantPattern.Literal);
             case LessThanRelationalPatternPrimaryPatternNode ltPattern:
@@ -5837,14 +6089,34 @@ internal sealed class CSharpSourceWriter
     private string WrapWithImplicitCastIfNeeded(Storm.Runtime.SyntaxNode node, string expression)
     {
         var resolved = _model.GetResolvedOperator(node);
-        if (resolved is Symbol resolvedSymbol && resolvedSymbol.Name.StartsWith("operator_implicit_"))
+        if (resolved is Symbol resolvedSymbol)
         {
-            // Extract the target type name from the operator's declared type.
-            var targetTypeName = resolvedSymbol.DeclaredType?.DisplayName;
-            if (targetTypeName is not null)
+            if (resolvedSymbol.Name.StartsWith("operator_implicit_") || resolvedSymbol.Name.StartsWith("operator_explicit_"))
             {
-                var emittedTypeName = CSharpTypeMap.GetTypeName(resolvedSymbol.DeclaredType!);
-                return $"(({emittedTypeName}){expression})";
+                // Check if this cast has an intrinsic emission template
+                // (e.g., Regex → string emits .ToString(), string → Regex emits new Regex(...)).
+                var declaringType = GetQualifiedTypeName(resolvedSymbol);
+                if (declaringType != "Unknown")
+                {
+                    var targetTypeName = resolvedSymbol.DeclaredType?.DisplayName;
+                    if (targetTypeName is not null)
+                    {
+                        var emittedTypeName = CSharpTypeMap.GetTypeName(resolvedSymbol.DeclaredType!);
+                        var castTemplate = _intrinsicRegistry.TryGetCastOperator(declaringType, emittedTypeName);
+                        if (castTemplate is not null)
+                        {
+                            return string.Format(castTemplate.Template, expression);
+                        }
+                    }
+                }
+
+                // Fallback: emit as a C# cast expression.
+                var fallbackTargetTypeName = resolvedSymbol.DeclaredType?.DisplayName;
+                if (fallbackTargetTypeName is not null)
+                {
+                    var emittedTypeName = CSharpTypeMap.GetTypeName(resolvedSymbol.DeclaredType!);
+                    return $"(({emittedTypeName}){expression})";
+                }
             }
         }
         return expression;
@@ -6192,6 +6464,33 @@ internal sealed class CSharpSourceWriter
                     return intrinsicStaticTemplate;
                 }
 
+                // Check if this is an intrinsic instance method call on a backend-backed type
+                // (e.g., Regex.IsMatch, Regex.Pattern). Look up the receiver type's qualified
+                // name and query the intrinsic emission table.
+                if (receiverType is not null)
+                {
+                    var qualifiedReceiverType = GetQualifiedTypeNameFromType(receiverType);
+                    if (qualifiedReceiverType is not null)
+                    {
+                        var paramTypes = CollectArgumentTypes(methodCall.Arguments);
+                        var instanceTemplate = _intrinsicRegistry.TryGetInstanceMethod(qualifiedReceiverType, name, paramTypes);
+                        if (instanceTemplate is not null)
+                        {
+                            // Format: {0} = receiver (target), {1}..{N} = arguments
+                            var templateArgs = new List<string> { target };
+                            if (methodCall.Arguments is not null)
+                            {
+                                foreach (var child in methodCall.Arguments.Children())
+                                {
+                                    if (child is ExpressionNode argExpr)
+                                        templateArgs.Add(EmitExpression(argExpr));
+                                }
+                            }
+                            return string.Format(instanceTemplate.Template, templateArgs.ToArray());
+                        }
+                    }
+                }
+
                 // Call-site transformation for generic methods with parameterized constructor constraints:
                 // append factory lambda arguments when calling a method that has factory delegate parameters.
                 var calledMethodSymbol = _model.GetDeclaredSymbol(suffix) as Symbol;
@@ -6219,10 +6518,27 @@ internal sealed class CSharpSourceWriter
                     return "MistVoid.Instance";
                 }
 
+                // Check if this is an intrinsic property access on a backend-backed type
+                // (e.g., Regex.Pattern → .ToString()). Look up the receiver type's qualified
+                // name and query the intrinsic emission table as a zero-arg instance method.
+                var memberName = memberAccess.Name.Lexeme;
+                if (receiverType is not null)
+                {
+                    var qualifiedReceiverType = GetQualifiedTypeNameFromType(receiverType);
+                    if (qualifiedReceiverType is not null)
+                    {
+                        var instanceTemplate = _intrinsicRegistry.TryGetInstanceMethod(
+                            qualifiedReceiverType, memberName, Array.Empty<string>());
+                        if (instanceTemplate is not null)
+                        {
+                            return string.Format(instanceTemplate.Template, target);
+                        }
+                    }
+                }
+
                 // MemberAccessSuffix always emits as property access (no parentheses).
                 // This is the correct form for both field access and property access in C#.
-                var name = memberAccess.Name.Lexeme;
-                return $"{target}.{name}";
+                return $"{target}.{memberName}";
             }
             case IndexSuffixPostfixSuffixNode indexSuffix:
             {
@@ -6280,6 +6596,21 @@ internal sealed class CSharpSourceWriter
                             if (arm.Guard is not null)
                             {
                                 // Combine the refinement guard with the user's guard.
+                                sb.Append($" && {EmitExpression(arm.Guard.Condition)}");
+                            }
+                            sb.Append($" => {EmitExpression(arm.Result)},");
+                            return;
+                        }
+
+                        // Regex pattern: emit as `string __s when Regex.IsMatch(__s, "^(?:pattern)$")`
+                        // guard condition. C# doesn't natively support regex patterns in switch.
+                        var regexArm = TryEmitRegexSwitchArmPattern(arm.Pattern);
+                        if (regexArm is not null)
+                        {
+                            sb.Append(regexArm);
+                            if (arm.Guard is not null)
+                            {
+                                // Combine the regex guard with the user's guard.
                                 sb.Append($" && {EmitExpression(arm.Guard.Condition)}");
                             }
                             sb.Append($" => {EmitExpression(arm.Result)},");
@@ -6371,6 +6702,45 @@ internal sealed class CSharpSourceWriter
         return string.Format(template.Template);
     }
 
+    /// <summary>
+    /// Returns the fully-qualified stdlib type name (e.g., "Standard.Regex") for an IType,
+    /// or null if the type is not a backend-backed stdlib type.
+    /// </summary>
+    private static string? GetQualifiedTypeNameFromType(IType type)
+    {
+        return type switch
+        {
+            ClassType ct when ct.ContainingNamespace is not null => $"{ct.ContainingNamespace}.{ct.DisplayName}",
+            StructType st when st.ContainingNamespace is not null => $"{st.ContainingNamespace}.{st.DisplayName}",
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Collects the fully-qualified stdlib type names of arguments in an argument list,
+    /// for use as the parameter type key when looking up intrinsic instance methods.
+    /// </summary>
+    private IReadOnlyList<string> CollectArgumentTypes(ArgumentListNode? arguments)
+    {
+        if (arguments is null)
+            return Array.Empty<string>();
+
+        var types = new List<string>();
+        foreach (var child in arguments.Children())
+        {
+            if (child is ExpressionNode expr)
+            {
+                var exprType = _model.GetTypeOf(expr);
+                if (exprType is not null)
+                {
+                    var qualifiedName = GetQualifiedTypeNameFromType(exprType);
+                    types.Add(qualifiedName ?? exprType.DisplayName);
+                }
+            }
+        }
+        return types;
+    }
+
     private string EmitPrimary(PrimaryNode primary)
     {
         switch (primary)
@@ -6385,6 +6755,8 @@ internal sealed class CSharpSourceWriter
                 return floatLit.FloatLiteral.Lexeme;
             case StringLiteralExpressionPrimaryNode stringLit:
                 return stringLit.StringLiteral.Lexeme;
+            case RegexLiteralExpressionPrimaryNode regexLit:
+                return EmitRegexLiteral(regexLit.RegexLiteral.Lexeme);
             case InterpolatedStringExpressionPrimaryNode interpolated:
                 return EmitInterpolatedString(interpolated.InterpolatedString);
             case CharLiteralExpressionPrimaryNode charLit:

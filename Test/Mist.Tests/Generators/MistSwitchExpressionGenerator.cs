@@ -88,9 +88,9 @@ public static class MistSwitchExpressionGenerator
     private static Gen<string> GenVarPattern() =>
         Gen.Elements("v", "w", "q").Select(name => $"var {name}");
 
-    /// <summary>Generates a discard pattern (var _).</summary>
+    /// <summary>Generates a discard pattern (var _ or bare _).</summary>
     private static Gen<string> GenDiscardPattern() =>
-        Gen.Constant("var _");
+        Gen.Elements("var _", "_");
 
     /// <summary>Generates a relational pattern for an int scrutinee.</summary>
     private static Gen<string> GenRelationalPattern() =>
@@ -374,7 +374,7 @@ public static class MistSwitchExpressionGenerator
     private static string WrapInProgram(string body, string? resultVarToUse = null)
     {
         var useStatement = resultVarToUse is not null
-            ? $"\n    _ = {resultVarToUse};"
+            ? $"\n    var __discard = {resultVarToUse};"
             : "";
 
         return "namespace TestNs;\n\npublic class Program\n{\n    public static void Main()\n    {\n    "

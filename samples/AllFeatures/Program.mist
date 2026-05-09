@@ -41,6 +41,7 @@ public class Program
         UnknownReadonlySemantics.Program.RunDemo();
         Newtypes.Program.RunDemo();
         EnumReadonlyRestriction.Program.RunDemo();
+        RegexLiterals.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

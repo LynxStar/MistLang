@@ -1,0 +1,51 @@
+=== Regex Literals Sample ===
+--- Regex Literal Declaration (var) ---
+digits_pattern=\d+
+digits_matches_123=True
+digits_matches_abc=False
+--- Regex Literal Declaration (typed) ---
+letters_pattern=[a-zA-Z]+
+letters_matches_Hello=True
+letters_matches_123=False
+--- Implicit Regex to String ---
+converted_string=[0-9a-fA-F]+
+strings_equal=True
+--- Explicit String to Regex ---
+cast_pattern=^[a-z]+$
+cast_fullmatch_hello=True
+cast_fullmatch_Hello=False
+--- String Literal Shorthand ---
+shorthand_pattern=\w+@\w+\.\w+
+shorthand_matches_a_at_b_dot_c=True
+--- IsMatch ---
+cat_in_the_cat_sat=True
+cat_in_concatenate=False
+cat_in_cat=True
+--- IsFullMatch ---
+fullmatch_123=True
+fullmatch_1234=False
+fullmatch_12=False
+fullmatch_abc=False
+--- Pattern Property ---
+pattern_value=^(\d{1,3}\.){3}\d{1,3}$
+pattern_matches_ip=True
+pattern_matches_bad=False
+--- Is Expression with Regex ---
+hello_is_alpha=True
+hello123_is_alpha=False
+42_is_digits=True
+--- Switch Expression with Regex ---
+hello_category=lowercase
+123_category=number
+WORLD_category=uppercase
+Hello123_category=other
+--- Regex-Refined Type ---
+is_email=true, value=user@example.com
+not_email_is_email=false
+--- Regex to String Parameter ---
+pattern=[0-9]+
+--- String Literal to Regex Parameter ---
+regex_pattern=[a-z]+, matches_abc=True
+--- String Variable with Cast to Regex Parameter ---
+regex_pattern=[A-Z]{2,4}, matches_abc=False
+Done!

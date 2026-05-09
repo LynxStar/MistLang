@@ -65,4 +65,12 @@ internal interface IIntrinsicEmissionRegistry
     /// <param name="paramTypes">Parameter type names for overload disambiguation.</param>
     /// <returns>The template, or <c>null</c> if no intrinsic is registered.</returns>
     IntrinsicEmissionTemplate? TryGetStaticMethod(string declaringType, string method, IReadOnlyList<string> paramTypes);
+
+    /// <summary>
+    /// Returns true if the registry has any instance method templates registered for the given type.
+    /// Used to determine whether the source-text fast path should be bypassed for expressions
+    /// involving this type.
+    /// </summary>
+    /// <param name="declaringType">Fully-qualified Mist type name (e.g., <c>"Standard.Regex"</c>).</param>
+    bool HasInstanceMethods(string declaringType);
 }

@@ -1,0 +1,12 @@
+namespace Standard;
+
+public readonly intrinsic class Regex
+{
+    intrinsic public Regex(string pattern);
+    intrinsic public string Pattern { get; }
+    intrinsic public bool IsMatch(string input);
+    intrinsic public bool IsFullMatch(string input);
+
+    intrinsic public static implicit operator String(Regex r);
+    intrinsic public static explicit operator Regex(String s);
+}

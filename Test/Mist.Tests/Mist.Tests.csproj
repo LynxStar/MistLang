@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Source\Mist\Mist.csproj" />
+    <ProjectReference Include="..\..\Source\Storm.SourceGenerator\Storm.SourceGenerator.csproj" />
   </ItemGroup>
 
   <!--

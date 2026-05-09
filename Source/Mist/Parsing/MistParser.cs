@@ -58,10 +58,29 @@ public sealed class MistParser : IParser
                 AnalyzerName: null));
         }
 
+        // Assign ParsedOrigin to every node in the tree so diagnostics
+        // can resolve source locations without span-containment heuristics.
+        if (root is not null)
+        {
+            AssignOrigin(root, new ParsedOrigin(tokens.Source));
+        }
+
         return new ParseResult(
             tokens.Source,
             tokens,
             Root: root,
             Diagnostics: ImmutableArray<Diagnostic>.Empty);
+    }
+
+    private static void AssignOrigin(Storm.Runtime.SyntaxNode node, ParsedOrigin origin)
+    {
+        node.Origin = origin;
+        foreach (var child in node.Children())
+        {
+            if (child is not null)
+            {
+                AssignOrigin(child, origin);
+            }
+        }
     }
 }

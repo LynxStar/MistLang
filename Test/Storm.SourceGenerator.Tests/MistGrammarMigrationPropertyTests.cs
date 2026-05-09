@@ -177,12 +177,24 @@ rule Start = IDENTIFIER;
         return (runtimeSource, lexerSource);
     }
 
+    /// <summary>
+    /// Minimal stub for Mist.Common.Text.NodeOrigin so the emitted SyntaxNode compiles
+    /// without requiring a reference to the full Mist assembly.
+    /// </summary>
+    private const string NodeOriginStub = @"
+namespace Mist.Common.Text
+{
+    public abstract record NodeOrigin;
+}
+";
+
     private static Assembly CompileLexer(string runtimeSource, string lexerSource)
     {
         var syntaxTrees = new[]
         {
             CSharpSyntaxTree.ParseText(runtimeSource),
             CSharpSyntaxTree.ParseText(lexerSource),
+            CSharpSyntaxTree.ParseText(NodeOriginStub),
         };
 
         var references = new MetadataReference[]

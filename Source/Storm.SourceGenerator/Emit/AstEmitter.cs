@@ -176,6 +176,7 @@ public static class AstEmitter
             writer.WriteBlock("public abstract class SyntaxNode", () =>
             {
                 writer.WriteLine("public SourceSpan Span { get; set; }");
+                writer.WriteLine("public Mist.Common.Text.NodeOrigin? Origin { get; set; }");
                 writer.WriteLine("public ImmutableArray<Token> LeadingHiddenTokens { get; set; } = ImmutableArray<Token>.Empty;");
                 writer.WriteLine("public ImmutableArray<Token> TrailingHiddenTokens { get; set; } = ImmutableArray<Token>.Empty;");
                 writer.WriteEmptyLine();

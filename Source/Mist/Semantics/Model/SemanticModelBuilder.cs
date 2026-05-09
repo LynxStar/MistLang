@@ -1846,7 +1846,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var declaringNode = symbolTable.GetDeclaringNode(duplicateSymbol);
         if (declaringNode is not null)
         {
-            var sourceText = FindSourceTextForNode(containingBlock.DeclaringNode, asts, compilation);
+            var sourceText = GetSourceTextFromOrigin(containingBlock.DeclaringNode);
             diagnostics.Add(MakeDiagnosticWithLocation(
                 ExtensionDuplicateMember.Value,
                 DiagnosticSeverity.Error,
@@ -3016,7 +3016,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var declaringNode = symbolTable.GetDeclaringNode(typeSymbol);
                 if (declaringNode is not null)
                 {
-                    var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+                    var sourceText = GetSourceTextFromOrigin(declaringNode);
                     diagnostics.Add(MakeDiagnosticWithLocation(
                         IntrinsicReservedForStdlib.Value,
                         DiagnosticSeverity.Error,
@@ -3053,7 +3053,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var memberDeclaringNode = symbolTable.GetDeclaringNode(memberSymbol);
                 var memberSourceText = memberDeclaringNode is null
                     ? null
-                    : FindSourceTextForNode(memberDeclaringNode, asts, compilation);
+                    : GetSourceTextFromOrigin(memberDeclaringNode);
 
                 // MIST_SB_0030 — intrinsic member with a body.
                 if (memberSymbol.HasBody && memberDeclaringNode is not null)
@@ -3196,7 +3196,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (symbolTable.GetDeclaringNode(symbol) is not OperatorDeclarationNode opDecl)
                 continue;
 
-            var sourceText = FindSourceTextForNode(opDecl, asts, compilation);
+            var sourceText = GetSourceTextFromOrigin(opDecl);
             var opLexeme = GetOperatorSymbolLexeme(opDecl.Symbol);
 
             // Parameter count: the ParameterList rule is
@@ -3374,7 +3374,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (symbolTable.GetDeclaringNode(symbol) is not CastOperatorDeclarationNode castOpDecl)
                 continue;
 
-            var sourceText = FindSourceTextForNode(castOpDecl, asts, compilation);
+            var sourceText = GetSourceTextFromOrigin(castOpDecl);
 
             // ── MIST_SB_0040: Parameter count must be exactly 1 ──────────
             // The ParameterList rule is `Parameter (COMMA Parameter)*`, so
@@ -3506,7 +3506,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (resolvedSymbol is null)
             {
                 // Determine the source text for the diagnostic.
-                var sourceText = FindSourceTextForClassDecl(classDecl, asts, compilation);
+                var sourceText = GetSourceTextFromOrigin(classDecl);
 
                 diagnostics.Add(MakeDiagnosticWithLocation(
                     "MIST_UNDEFINED_BASE_TYPE",
@@ -3517,7 +3517,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             else if (resolvedSymbol.DeclaredType is StructType)
             {
-                var sourceText = FindSourceTextForClassDecl(classDecl, asts, compilation);
+                var sourceText = GetSourceTextFromOrigin(classDecl);
 
                 diagnostics.Add(MakeDiagnosticWithLocation(
                     "MIST_CANNOT_INHERIT_STRUCT",
@@ -3536,7 +3536,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // ASTs and for documentation alignment with Req 6.1. The
                 // reference is dropped from the base list by simply not
                 // assigning `classType.BaseType`.
-                var sourceText = FindSourceTextForClassDecl(classDecl, asts, compilation);
+                var sourceText = GetSourceTextFromOrigin(classDecl);
 
                 diagnostics.Add(MakeDiagnosticWithLocation(
                     UnknownAsBaseType.Value,
@@ -3582,7 +3582,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (typeParamCount == 0)
             {
                 // The referenced type is not generic — emit MIST_NOT_GENERIC.
-                var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+                var sourceText = GetSourceTextFromOrigin(declaringNode);
                 diagnostics.Add(MakeDiagnosticWithLocation(
                     DiagnosticId.NotGeneric.Value,
                     DiagnosticSeverity.Error,
@@ -3607,7 +3607,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (typeArgCount != typeParamCount)
                 {
                     // Arity mismatch — emit MIST_ARITY_MISMATCH.
-                    var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+                    var sourceText = GetSourceTextFromOrigin(declaringNode);
                     diagnostics.Add(MakeDiagnosticWithLocation(
                         DiagnosticId.ArityMismatch.Value,
                         DiagnosticSeverity.Error,
@@ -3629,7 +3629,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (typeArgCount != typeParamCount)
                 {
                     // Arity mismatch — emit MIST_ARITY_MISMATCH.
-                    var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+                    var sourceText = GetSourceTextFromOrigin(declaringNode);
                     diagnostics.Add(MakeDiagnosticWithLocation(
                         DiagnosticId.ArityMismatch.Value,
                         DiagnosticSeverity.Error,
@@ -3656,7 +3656,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var declaringTypeParams = GetTypeParameters(declaringType);
                 if (declaringTypeParams.Count == 0)
                 {
-                    var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+                    var sourceText = GetSourceTextFromOrigin(declaringNode);
                     diagnostics.Add(MakeDiagnosticWithLocation(
                         DiagnosticId.MissingTypeArguments.Value,
                         DiagnosticSeverity.Error,
@@ -3856,7 +3856,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         var span = namedRef.Name.Span;
                         if (span.Length > 0)
                         {
-                            var srcTextForArg = FindSourceTextByContainment(declaringNode, asts, compilation);
+                            var srcTextForArg = GetSourceTextFromOrigin(declaringNode);
                             if (srcTextForArg is not null && span.Start + span.Length <= srcTextForArg.Contents.Length)
                                 argName = srcTextForArg.Contents.Substring(span.Start, span.Length);
                         }
@@ -3936,7 +3936,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         // Find the correct source text by matching the declaring
                         // node to its compilation unit via containment check
                         // (span-based matching is unreliable across files).
-                        var srcTextForArg = FindSourceTextByContainment(declaringNode, asts, compilation);
+                        var srcTextForArg = GetSourceTextFromOrigin(declaringNode);
                         if (srcTextForArg is not null && span.Start + span.Length <= srcTextForArg.Contents.Length)
                         {
                             argName = srcTextForArg.Contents.Substring(span.Start, span.Length);
@@ -4004,7 +4004,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         var nestedTypeParams = GetTypeParameters(resolvedType);
                         if (nestedTypeParams.Count == 0)
                         {
-                            var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+                            var sourceText = GetSourceTextFromOrigin(declaringNode);
                             diagnostics.Add(MakeDiagnosticWithLocation(
                                 DiagnosticId.NotGeneric.Value,
                                 DiagnosticSeverity.Error,
@@ -4017,7 +4017,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         var nestedArgs = ResolveTypeArgumentList(namedRef.TypeArgs, declaringType, declaringNode, asts, compilation, diagnostics);
                         if (nestedArgs.Count != nestedTypeParams.Count)
                         {
-                            var sourceText = FindSourceTextForNode(declaringNode, asts, compilation);
+                            var sourceText = GetSourceTextFromOrigin(declaringNode);
                             diagnostics.Add(MakeDiagnosticWithLocation(
                                 DiagnosticId.ArityMismatch.Value,
                                 DiagnosticSeverity.Error,
@@ -4037,7 +4037,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
 
                 // Type argument could not be resolved.
-                var srcText = FindSourceTextForNode(declaringNode, asts, compilation);
+                var srcText = GetSourceTextFromOrigin(declaringNode);
                 diagnostics.Add(MakeDiagnosticWithLocation(
                     DiagnosticId.UndefinedTypeArgument.Value,
                     DiagnosticSeverity.Error,
@@ -4119,59 +4119,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Finds the <see cref="SourceText"/> for any syntax node by walking the ASTs.
+    /// Extracts the <see cref="SourceText"/> from a node's <see cref="Storm.Runtime.SyntaxNode.Origin"/>
+    /// property. Returns <c>null</c> if the origin is not a <see cref="ParsedOrigin"/> or is null.
     /// </summary>
-    private static SourceText? FindSourceTextForNode(
-        Storm.Runtime.SyntaxNode node,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation)
+    private static SourceText? GetSourceTextFromOrigin(Storm.Runtime.SyntaxNode node)
     {
-        // Use the node's span to find which compilation unit it belongs to.
-        for (var i = 0; i < asts.Length; i++)
-        {
-            if (asts[i] is CompilationUnitNode cu)
-            {
-                // Check if the node's span falls within this compilation unit's span.
-                if (node.Span.Start >= cu.Span.Start && node.Span.Start < cu.Span.Start + cu.Span.Length)
-                {
-                    return i < compilation.Units.Length ? compilation.Units[i].Source : null;
-                }
-            }
-        }
-
-        // Fallback: try to find by checking if the node is contained in any type declaration.
-        for (var i = 0; i < asts.Length; i++)
-        {
-            if (i < compilation.Units.Length)
-            {
-                return compilation.Units[i].Source;
-            }
-        }
-
-        return null;
+        return node.Origin is ParsedOrigin po ? po.Source : null;
     }
 
     /// <summary>
-    /// Finds the <see cref="SourceText"/> for a type declaration node by checking
-    /// which compilation unit contains it via reference-equality containment check.
-    /// This is more reliable than span-based matching when multiple files have
-    /// overlapping spans.
+    /// Extracts the <see cref="SourceText"/> for a symbol by looking up its declaring
+    /// node in the symbol table and reading the node's origin.
     /// </summary>
-    private static SourceText? FindSourceTextByContainment(
-        Storm.Runtime.SyntaxNode declaringNode,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation)
+    private static SourceText? GetSourceTextForSymbol(ISymbol symbol, SymbolTable symbolTable)
     {
-        for (var i = 0; i < asts.Length; i++)
-        {
-            if (asts[i] is CompilationUnitNode cu && ContainsTypeDeclarationNode(cu, declaringNode))
-            {
-                return i < compilation.Units.Length ? compilation.Units[i].Source : null;
-            }
-        }
-
-        // Fallback to span-based matching.
-        return FindSourceTextForNode(declaringNode, asts, compilation);
+        var declaringNode = symbolTable.GetDeclaringNode(symbol);
+        return declaringNode is not null ? GetSourceTextFromOrigin(declaringNode) : null;
     }
 
     /// <summary>
@@ -4188,25 +4151,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (asts[i] is CompilationUnitNode cu && ContainsClassDeclaration(cu, classDecl))
             {
                 return i < compilation.Units.Length ? compilation.Units[i].Source?.Path : null;
-            }
-        }
-        return null;
-    }
-
-    /// <summary>
-    /// Finds the <see cref="SourceText"/> for a class declaration node by walking
-    /// the ASTs to find which compilation unit contains the node.
-    /// </summary>
-    private static SourceText? FindSourceTextForClassDecl(
-        ClassDeclarationNode classDecl,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation)
-    {
-        for (var i = 0; i < asts.Length; i++)
-        {
-            if (asts[i] is CompilationUnitNode cu && ContainsClassDeclaration(cu, classDecl))
-            {
-                return i < compilation.Units.Length ? compilation.Units[i].Source : null;
             }
         }
         return null;
@@ -4484,8 +4428,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             if (resolvedSymbol is null)
             {
-                var sourceText = FindSourceTextForSymbol(
-                    findPathForSymbol, symbolTable, asts, compilation);
+                var sourceText = GetSourceTextForSymbol(
+                    findPathForSymbol, symbolTable);
                 var declaringNode = symbolTable.GetDeclaringNode(findPathForSymbol);
 
                 if (declaringNode is not null)
@@ -4520,8 +4464,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             else
             {
-                var sourceText = FindSourceTextForSymbol(
-                    findPathForSymbol, symbolTable, asts, compilation);
+                var sourceText = GetSourceTextForSymbol(
+                    findPathForSymbol, symbolTable);
                 var declaringNode = symbolTable.GetDeclaringNode(findPathForSymbol);
 
                 if (declaringNode is not null)
@@ -4581,8 +4525,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             if (resolvedSymbol is null)
             {
-                var sourceText = FindSourceTextForSymbol(
-                    findPathForSymbol, symbolTable, asts, compilation);
+                var sourceText = GetSourceTextForSymbol(
+                    findPathForSymbol, symbolTable);
                 var declNode = symbolTable.GetDeclaringNode(findPathForSymbol);
 
                 if (declNode is not null)
@@ -4630,8 +4574,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // ASTs and for documentation alignment with Req 6.2–6.3.
                 // The reference is dropped by simply not appending it to
                 // `resolved`.
-                var sourceText = FindSourceTextForSymbol(
-                    findPathForSymbol, symbolTable, asts, compilation);
+                var sourceText = GetSourceTextForSymbol(
+                    findPathForSymbol, symbolTable);
                 var declNode = symbolTable.GetDeclaringNode(findPathForSymbol);
 
                 if (declNode is not null)
@@ -4662,8 +4606,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             else
             {
-                var sourceText = FindSourceTextForSymbol(
-                    findPathForSymbol, symbolTable, asts, compilation);
+                var sourceText = GetSourceTextForSymbol(
+                    findPathForSymbol, symbolTable);
                 var declNode = symbolTable.GetDeclaringNode(findPathForSymbol);
 
                 if (declNode is not null)
@@ -4739,8 +4683,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (constraintClauses.IsDefaultOrEmpty || typeParameters.Count == 0)
                 continue;
 
-            var sourceText = FindSourceTextForSymbol(symbol, symbolTable, asts, compilation)
-                ?? FindSourceTextForNode(declaringNode, asts, compilation);
+            var sourceText = GetSourceTextForSymbol(symbol, symbolTable)
+                ?? GetSourceTextFromOrigin(declaringNode);
             var declaringName = symbol.Name;
 
             // Track which type parameters have already been constrained to detect duplicates.
@@ -5242,31 +5186,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Finds the <see cref="SourceText"/> for any symbol by looking up its declaring
-    /// node in the symbol table and walking the ASTs.
-    /// </summary>
-    private static SourceText? FindSourceTextForSymbol(
-        ISymbol symbol,
-        SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation)
-    {
-        var declaringNode = symbolTable.GetDeclaringNode(symbol);
-        if (declaringNode is null)
-            return null;
-
-        for (var i = 0; i < asts.Length; i++)
-        {
-            if (asts[i] is CompilationUnitNode cu && ContainsTypeDeclarationNode(cu, declaringNode))
-            {
-                return i < compilation.Units.Length ? compilation.Units[i].Source : null;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
     /// Checks whether a compilation unit contains the given declaring node
     /// (class, struct, or interface declaration).
     /// </summary>
@@ -5385,7 +5304,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 if (resolvedSymbol is null)
                 {
-                    var sourceText = FindSourceTextForSymbol(symbol, symbolTable, asts, compilation);
+                    var sourceText = GetSourceTextForSymbol(symbol, symbolTable);
                     diagnostics.Add(MakeDiagnosticWithLocation(
                         DiagnosticId.TraitParentNotTrait.Value,
                         DiagnosticSeverity.Error,
@@ -5397,7 +5316,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 if (resolvedSymbol.DeclaredType is not TraitType parentTraitType)
                 {
-                    var sourceText = FindSourceTextForSymbol(symbol, symbolTable, asts, compilation);
+                    var sourceText = GetSourceTextForSymbol(symbol, symbolTable);
                     diagnostics.Add(MakeDiagnosticWithLocation(
                         DiagnosticId.TraitParentNotTrait.Value,
                         DiagnosticSeverity.Error,
@@ -5416,7 +5335,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if (parentTypeParams.Count == 0)
                     {
                         // Parent is not generic but type arguments were provided.
-                        var sourceText = FindSourceTextForSymbol(symbol, symbolTable, asts, compilation);
+                        var sourceText = GetSourceTextForSymbol(symbol, symbolTable);
                         diagnostics.Add(MakeDiagnosticWithLocation(
                             DiagnosticId.NotGeneric.Value,
                             DiagnosticSeverity.Error,
@@ -5434,7 +5353,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if (resolvedTypeArgs.Count != parentTypeParams.Count)
                     {
                         // Arity mismatch.
-                        var sourceText = FindSourceTextForSymbol(symbol, symbolTable, asts, compilation);
+                        var sourceText = GetSourceTextForSymbol(symbol, symbolTable);
                         diagnostics.Add(MakeDiagnosticWithLocation(
                             DiagnosticId.ArityMismatch.Value,
                             DiagnosticSeverity.Error,
@@ -5455,7 +5374,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if (parentTypeParams.Count > 0)
                     {
                         // Parent is generic but no type arguments were provided.
-                        var sourceText = FindSourceTextForSymbol(symbol, symbolTable, asts, compilation);
+                        var sourceText = GetSourceTextForSymbol(symbol, symbolTable);
                         diagnostics.Add(MakeDiagnosticWithLocation(
                             DiagnosticId.MissingTypeArguments.Value,
                             DiagnosticSeverity.Error,
@@ -5480,7 +5399,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (IsDuplicateParent(parent, seen))
                 {
                     var parentName = parent.DisplayName;
-                    var sourceText = FindSourceTextForSymbol(symbol, symbolTable, asts, compilation);
+                    var sourceText = GetSourceTextForSymbol(symbol, symbolTable);
                     diagnostics.Add(MakeDiagnosticWithLocation(
                         DiagnosticId.TraitDuplicateParent.Value,
                         DiagnosticSeverity.Error,
@@ -5717,8 +5636,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                     if (declaringNode is not null)
                     {
-                        var sourceText = FindSourceTextForSymbol(
-                            traitSymbol!, symbolTable, asts, compilation);
+                        var sourceText = GetSourceTextForSymbol(
+                            traitSymbol!, symbolTable);
                         diagnostics.Add(MakeDiagnosticWithLocation(
                             DiagnosticId.TraitInheritanceCycle.Value,
                             DiagnosticSeverity.Error,
@@ -7214,7 +7133,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         var traitReturnType = traitMethodDecl.ReturnType;
         var traitParams = ExtractParameterTypes(traitMethodDecl.Parameters);
-        var traitSourceText = FindSourceTextForNode(traitMethodDecl, asts, compilation);
+        var traitSourceText = GetSourceTextFromOrigin(traitMethodDecl);
         ISymbol? foundPrivateMatch = null;
 
         foreach (var member in typeMemberScope.Members)
@@ -7232,7 +7151,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (memberNode is not MethodDeclarationNode implMethodDecl)
                 continue;
 
-            var implSourceText = FindSourceTextForNode(implMethodDecl, asts, compilation);
+            var implSourceText = GetSourceTextFromOrigin(implMethodDecl);
             var combinedSourceText = traitSourceText ?? implSourceText;
 
             // Compare return types with substitution.
@@ -7293,7 +7212,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var traitAccessors = GetTraitPropertyAccessors(traitNode);
         var traitSourceText = traitNode is null
             ? null
-            : FindSourceTextForNode(traitNode, asts, compilation);
+            : GetSourceTextFromOrigin(traitNode);
         ISymbol? foundPrivateMatch = null;
 
         var traitHasSet = traitAccessors?.HasSet ?? false;
@@ -7498,7 +7417,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         var traitReturnType = traitMethodDecl.ReturnType;
         var traitParams = ExtractParameterTypes(traitMethodDecl.Parameters);
-        var traitSourceText = FindSourceTextForNode(traitMethodDecl, asts, compilation);
+        var traitSourceText = GetSourceTextFromOrigin(traitMethodDecl);
         ISymbol? foundPrivateMatch = null;
 
         foreach (var member in typeMemberScope.Members)
@@ -7518,7 +7437,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (memberNode is not MethodDeclarationNode implMethodDecl)
                 continue;
 
-            var implSourceText = FindSourceTextForNode(implMethodDecl, asts, compilation);
+            var implSourceText = GetSourceTextFromOrigin(implMethodDecl);
             // Both source texts should be available; if they disagree, we
             // use the trait's as the primary lookup source (names resolved
             // from the trait side are the ones that need to match the
@@ -7587,7 +7506,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var traitAccessors = GetTraitPropertyAccessors(traitNode);
         var traitSourceText = traitNode is null
             ? null
-            : FindSourceTextForNode(traitNode, asts, compilation);
+            : GetSourceTextFromOrigin(traitNode);
         ISymbol? foundPrivateMatch = null;
 
         // A trait property with a setter exposes the property type at a
@@ -7865,7 +7784,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             if (symbol.DeclaredType == interfaceType)
             {
-                return FindSourceTextForSymbol(symbol, symbolTable, asts, compilation);
+                return GetSourceTextForSymbol(symbol, symbolTable);
             }
         }
         return null;
@@ -8017,7 +7936,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var declaringNode = symbolTable.GetDeclaringNode(symbol);
                 if (declaringNode is ClassDeclarationNode classDecl)
                 {
-                    return FindSourceTextForClassDecl(classDecl, asts, compilation);
+                    return GetSourceTextFromOrigin(classDecl);
                 }
             }
         }
@@ -9188,7 +9107,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
                 && symbol.Name == typeName)
             {
-                return FindSourceTextForSymbol(symbol, symbolTable, asts, compilation);
+                return GetSourceTextForSymbol(symbol, symbolTable);
             }
         }
         return null;

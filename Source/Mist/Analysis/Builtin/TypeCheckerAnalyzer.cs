@@ -11571,35 +11571,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static Diagnostic MakeDiagnosticWithSeverity(
         string id, string message, SyntaxNode node, ISemanticModel model, DiagnosticSeverity severity)
     {
-        Common.Text.LinePositionSpan location = default;
-        string compilationUnitPath = "<unknown>";
-
-        var span = node.Span;
-        if (span.Length > 0)
-        {
-            var asts = model.Asts;
-            var units = model.Units;
-            var astIndex = -1;
-
-            for (var i = 0; i < asts.Length; i++)
-            {
-                var astSpan = asts[i].Span;
-                if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
-                {
-                    astIndex = i;
-                    break;
-                }
-            }
-
-            if (astIndex >= 0 && astIndex < units.Count)
-            {
-                var source = units[astIndex].Source;
-                compilationUnitPath = source.Path;
-
-                var sourceSpan = new Common.Text.SourceSpan(span.Start, span.Length);
-                location = source.ToLinePositionSpan(sourceSpan);
-            }
-        }
+        var (compilationUnitPath, location, _) = DiagnosticHelper.ResolveLocation(node);
 
         return new Diagnostic(
             new DiagnosticId(id),
@@ -11905,37 +11877,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static Diagnostic MakeDiagnostic(string id, string message, SyntaxNode node, ISemanticModel model)
     {
-        Common.Text.LinePositionSpan location = default;
-        string compilationUnitPath = "<unknown>";
-
-        var span = node.Span;
-        if (span.Length > 0)
-        {
-            // Find which AST root contains this node by checking span containment.
-            var asts = model.Asts;
-            var units = model.Units;
-            var astIndex = -1;
-
-            for (var i = 0; i < asts.Length; i++)
-            {
-                var astSpan = asts[i].Span;
-                if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
-                {
-                    astIndex = i;
-                    break;
-                }
-            }
-
-            if (astIndex >= 0 && astIndex < units.Count)
-            {
-                var source = units[astIndex].Source;
-                compilationUnitPath = source.Path;
-
-                // Convert the Storm span to a Mist SourceSpan for proper line/column conversion.
-                var sourceSpan = new Common.Text.SourceSpan(span.Start, span.Length);
-                location = source.ToLinePositionSpan(sourceSpan);
-            }
-        }
+        var (compilationUnitPath, location, _) = DiagnosticHelper.ResolveLocation(node);
 
         return new Diagnostic(
             new DiagnosticId(id),
@@ -11952,35 +11894,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static Diagnostic MakeDiagnosticWarning(string id, string message, SyntaxNode node, ISemanticModel model)
     {
-        Common.Text.LinePositionSpan location = default;
-        string compilationUnitPath = "<unknown>";
-
-        var span = node.Span;
-        if (span.Length > 0)
-        {
-            var asts = model.Asts;
-            var units = model.Units;
-            var astIndex = -1;
-
-            for (var i = 0; i < asts.Length; i++)
-            {
-                var astSpan = asts[i].Span;
-                if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
-                {
-                    astIndex = i;
-                    break;
-                }
-            }
-
-            if (astIndex >= 0 && astIndex < units.Count)
-            {
-                var source = units[astIndex].Source;
-                compilationUnitPath = source.Path;
-
-                var sourceSpan = new Common.Text.SourceSpan(span.Start, span.Length);
-                location = source.ToLinePositionSpan(sourceSpan);
-            }
-        }
+        var (compilationUnitPath, location, _) = DiagnosticHelper.ResolveLocation(node);
 
         return new Diagnostic(
             new DiagnosticId(id),

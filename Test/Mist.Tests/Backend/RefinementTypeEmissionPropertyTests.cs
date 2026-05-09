@@ -235,9 +235,20 @@ public sealed class RefinementTypeEmissionPropertyTests : IDisposable
     private static string BuildCombinedProgram(List<RefinementEmissionScenario> scenarios)
     {
         var sb = new StringBuilder();
+        var usedTypeNames = new HashSet<string>();
 
         foreach (var scenario in scenarios)
         {
+            // Extract the type name from the source to detect duplicates.
+            // Type declarations follow the pattern: type <Name> = ...
+            var match = System.Text.RegularExpressions.Regex.Match(
+                scenario.MistSource, @"^type\s+(\w+)\s*=", System.Text.RegularExpressions.RegexOptions.Multiline);
+            if (match.Success && !usedTypeNames.Add(match.Groups[1].Value))
+            {
+                // Skip duplicate type names to avoid MIST_SB_0061 errors
+                continue;
+            }
+
             sb.AppendLine(scenario.MistSource);
         }
 

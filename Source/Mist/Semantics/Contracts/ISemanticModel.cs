@@ -67,23 +67,7 @@ public interface ISemanticModel
     /// </summary>
     TraitSatisfactionMap TraitSatisfactionMap { get; }
 
-    /// <summary>
-    /// The reachability map produced by the <c>unknown-type</c> feature's
-    /// Phase-C Reachability Analyzer. For every member of every generic
-    /// type declaration, this map records whether invoking that member
-    /// could write to storage whose declared type transitively contains a
-    /// given type parameter. <see cref="Mist.Analysis.Builtin.TypeCheckerAnalyzer"/>
-    /// consults the map during member-access resolution when the receiver's
-    /// static type is a closed generic with an <c>unknown</c> type argument,
-    /// filtering out members that would write through the <c>unknown</c>-typed
-    /// slot (Requirement 10.1–10.4).
-    /// </summary>
-    /// <remarks>
-    /// Always non-null. For semantic models built without running the
-    /// analyzer (e.g., minimal in-memory models used by tests), the map
-    /// is <see cref="Mist.Semantics.Model.ReachabilityAnalyzer.Empty"/>.
-    /// </remarks>
-    IReachabilityMap ReachabilityMap { get; }
+
 
     /// <summary>
     /// The extension registry indexing all extension blocks by receiver type.

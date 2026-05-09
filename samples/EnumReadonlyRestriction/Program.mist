@@ -1,0 +1,217 @@
+// EnumReadonlyRestriction — Demonstrates enum readonly base type restriction in Mist.
+//
+// This sample showcases:
+//   1. Enum with primitive base type (int)
+//   2. Enum with primitive base type (string)
+//   3. Enum with primitive base type (byte)
+//   4. Enum with readonly struct base type
+//   5. Enum with readonly class base type
+//   6. Name-only enum (inferred byte)
+//   7. Enum with union of readonly types
+//   8. Member access on readonly-base enums
+//   9. Implicit conversion from readonly-base enum to underlying type
+//  10. Pattern matching with readonly-base enums
+
+using System;
+
+namespace EnumReadonlyRestriction;
+
+// --- 1. Enum with primitive base type (int) ---
+// Int32 is a readonly struct in the standard library, so this is accepted.
+public enum StatusCode : int {
+    Ok: 200,
+    NotFound: 404,
+    ServerError: 500
+}
+
+// --- 2. Enum with primitive base type (string) ---
+// String is a readonly struct in the standard library, so this is accepted.
+public enum Planet : string {
+    Mercury: "Mercury",
+    Venus: "Venus",
+    Earth: "Earth",
+    Mars: "Mars"
+}
+
+// --- 3. Enum with primitive base type (byte) ---
+// Byte is a readonly struct in the standard library, so this is accepted.
+public enum Rank : byte {
+    Private: 1,
+    Corporal: 2,
+    Sergeant: 3
+}
+
+// --- 4. Enum with readonly struct base type ---
+// NOTE: readonly structs with fields trigger a known emitter bug in __CreateDefault().
+// This struct uses no fields to work around the issue while still proving the type
+// checker accepts readonly struct as an enum base type.
+public readonly struct Coordinate {
+    public Coordinate(int x, int y)
+    {
+    }
+
+    public string Describe()
+    {
+        return "Coordinate";
+    }
+}
+
+public enum Corner : Coordinate {
+    TopLeft: new Coordinate(0, 10),
+    TopRight: new Coordinate(10, 10),
+    BottomLeft: new Coordinate(0, 0),
+    BottomRight: new Coordinate(10, 0)
+}
+
+// --- 5. Enum with readonly class base type ---
+public readonly class Color {
+    public int r;
+    public int g;
+    public int b;
+
+    public Color(int r, int g, int b)
+    {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+    }
+
+    public string Describe()
+    {
+        return $"Color({this.r}, {this.g}, {this.b})";
+    }
+}
+
+public enum Palette : Color {
+    Red: new Color(255, 0, 0),
+    Green: new Color(0, 255, 0),
+    Blue: new Color(0, 0, 255)
+}
+
+// --- 6. Name-only enum (inferred byte) ---
+// No explicit base type, no values — infers Byte which is readonly.
+public enum Suit {
+    Hearts,
+    Diamonds,
+    Clubs,
+    Spades
+}
+
+// --- 7. Enum with union of readonly types ---
+// Both int and string are readonly, so the union is accepted.
+public enum Token : int | string {
+    NumericId: 42,
+    TextId: "abc"
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Enum Readonly Restriction Sample ===");
+
+        // 1. Enum with primitive base type (int)
+        Console.WriteLine("--- Enum with int base type ---");
+        Console.WriteLine($"  StatusCode.Ok = {StatusCode.Ok}");
+        Console.WriteLine($"  StatusCode.NotFound = {StatusCode.NotFound}");
+        Console.WriteLine($"  StatusCode.ServerError = {StatusCode.ServerError}");
+
+        // 2. Enum with primitive base type (string)
+        Console.WriteLine("--- Enum with string base type ---");
+        Console.WriteLine($"  Planet.Mercury = {Planet.Mercury}");
+        Console.WriteLine($"  Planet.Venus = {Planet.Venus}");
+        Console.WriteLine($"  Planet.Earth = {Planet.Earth}");
+        Console.WriteLine($"  Planet.Mars = {Planet.Mars}");
+
+        // 3. Enum with primitive base type (byte)
+        Console.WriteLine("--- Enum with byte base type ---");
+        Console.WriteLine($"  Rank.Private = {Rank.Private}");
+        Console.WriteLine($"  Rank.Corporal = {Rank.Corporal}");
+        Console.WriteLine($"  Rank.Sergeant = {Rank.Sergeant}");
+
+        // 4. Enum with readonly struct base type
+        Console.WriteLine("--- Enum with readonly struct base type ---");
+        Console.WriteLine($"  Corner.TopLeft = {Corner.TopLeft}");
+        Console.WriteLine($"  Corner.TopRight = {Corner.TopRight}");
+        Console.WriteLine($"  Corner.BottomLeft = {Corner.BottomLeft}");
+        Console.WriteLine($"  Corner.BottomRight = {Corner.BottomRight}");
+
+        // 5. Enum with readonly class base type
+        Console.WriteLine("--- Enum with readonly class base type ---");
+        Console.WriteLine($"  Palette.Red = {Palette.Red}");
+        Console.WriteLine($"  Palette.Green = {Palette.Green}");
+        Console.WriteLine($"  Palette.Blue = {Palette.Blue}");
+
+        // 6. Name-only enum (inferred byte)
+        Console.WriteLine("--- Name-only enum (inferred byte) ---");
+        Console.WriteLine($"  Suit.Hearts = {Suit.Hearts}");
+        Console.WriteLine($"  Suit.Diamonds = {Suit.Diamonds}");
+        Console.WriteLine($"  Suit.Clubs = {Suit.Clubs}");
+        Console.WriteLine($"  Suit.Spades = {Suit.Spades}");
+
+        // 7. Enum with union of readonly types
+        Console.WriteLine("--- Enum with union of readonly types ---");
+        Console.WriteLine($"  Token.NumericId = {Token.NumericId}");
+        Console.WriteLine($"  Token.TextId = {Token.TextId}");
+
+        // 8. Member access on readonly-base enums
+        // Accessing members on struct-based and class-based enums proves
+        // the enum values are real instances with accessible fields/methods.
+        Console.WriteLine("--- Member access on readonly-base enums ---");
+        Coordinate topRight = Corner.TopRight;
+        Console.WriteLine($"  Corner.TopRight.Describe() = {topRight.Describe()}");
+        Color red = Palette.Red;
+        Console.WriteLine($"  Palette.Red.Describe() = {red.Describe()}");
+        Console.WriteLine($"  Palette.Red.r = {red.r}");
+
+        // 9. Implicit conversion from readonly-base enum to underlying type
+        // This proves the enum value can be assigned to a variable of the
+        // underlying type without an explicit cast.
+        Console.WriteLine("--- Implicit conversion to underlying type ---");
+        int okCode = StatusCode.Ok;
+        Console.WriteLine($"  StatusCode.Ok as int = {okCode}");
+        string earthName = Planet.Earth;
+        Console.WriteLine($"  Planet.Earth as string = {earthName}");
+        byte suitVal = Suit.Spades;
+        Console.WriteLine($"  Suit.Spades as byte = {suitVal}");
+        Coordinate bottomLeft = Corner.BottomLeft;
+        Console.WriteLine($"  Corner.BottomLeft as Coordinate = {bottomLeft.Describe()}");
+        Color green = Palette.Green;
+        Console.WriteLine($"  Palette.Green as Color = {green.Describe()}");
+
+        // 10. Pattern matching with readonly-base enums
+        // Using `is` expressions to test enum identity proves the pattern
+        // matcher correctly compares readonly-base enum values.
+        Console.WriteLine("--- Pattern matching with readonly-base enums ---");
+        StatusCode code = StatusCode.NotFound;
+        bool isNotFound = code is StatusCode.NotFound;
+        bool isOk = code is StatusCode.Ok;
+        Console.WriteLine($"  code is StatusCode.NotFound = {isNotFound}");
+        Console.WriteLine($"  code is StatusCode.Ok = {isOk}");
+
+        Planet p = Planet.Mars;
+        bool isMars = p is Planet.Mars;
+        bool isEarth = p is Planet.Earth;
+        Console.WriteLine($"  p is Planet.Mars = {isMars}");
+        Console.WriteLine($"  p is Planet.Earth = {isEarth}");
+
+        Suit s = Suit.Spades;
+        bool isSpades = s is Suit.Spades;
+        bool isHearts = s is Suit.Hearts;
+        Console.WriteLine($"  s is Suit.Spades = {isSpades}");
+        Console.WriteLine($"  s is Suit.Hearts = {isHearts}");
+
+        Palette pal = Palette.Blue;
+        bool isBlue = pal is Palette.Blue;
+        bool isRed = pal is Palette.Red;
+        Console.WriteLine($"  pal is Palette.Blue = {isBlue}");
+        Console.WriteLine($"  pal is Palette.Red = {isRed}");
+
+        Console.WriteLine("Done!");
+    }
+}

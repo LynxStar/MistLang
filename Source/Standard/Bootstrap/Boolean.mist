@@ -1,6 +1,6 @@
 namespace Standard;
 
-intrinsic public struct Boolean
+intrinsic public readonly struct Boolean
 {
     // Logical operators — Requirement 3.5
     intrinsic public static Boolean operator &&(Boolean a, Boolean b);

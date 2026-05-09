@@ -120,6 +120,9 @@ Settings(Timeout=30, Enabled=True, Mode=auto)
 Config(MaxRetries=0, Verbose=False, Label=)
 --- Explicit Default Block ---
 AppState(ErrorCount=5, Ready=True, Status=initialized)
+--- Readonly Struct: new vs default ---
+new Container() = Container(Code=99, Label=constructed)
+default(Container) = Container(Code=42, Label=defaulted)
 Done!
 === Tuples Sample ===
 --- Positional tuples ---
@@ -646,5 +649,56 @@ actorId=2
 sourceInt=99
 castToNewtype=99
 castBack=99
+Done!
+=== Enum Readonly Restriction Sample ===
+--- Enum with int base type ---
+  StatusCode.Ok = StatusCode { Value = 200 }
+  StatusCode.NotFound = StatusCode { Value = 404 }
+  StatusCode.ServerError = StatusCode { Value = 500 }
+--- Enum with string base type ---
+  Planet.Mercury = Planet { Value = Mercury }
+  Planet.Venus = Planet { Value = Venus }
+  Planet.Earth = Planet { Value = Earth }
+  Planet.Mars = Planet { Value = Mars }
+--- Enum with byte base type ---
+  Rank.Private = Rank { Value = 1 }
+  Rank.Corporal = Rank { Value = 2 }
+  Rank.Sergeant = Rank { Value = 3 }
+--- Enum with readonly struct base type ---
+  Corner.TopLeft = Corner { Value = EnumReadonlyRestriction.Coordinate }
+  Corner.TopRight = Corner { Value = EnumReadonlyRestriction.Coordinate }
+  Corner.BottomLeft = Corner { Value = EnumReadonlyRestriction.Coordinate }
+  Corner.BottomRight = Corner { Value = EnumReadonlyRestriction.Coordinate }
+--- Enum with readonly class base type ---
+  Palette.Red = Palette { Value = EnumReadonlyRestriction.Color }
+  Palette.Green = Palette { Value = EnumReadonlyRestriction.Color }
+  Palette.Blue = Palette { Value = EnumReadonlyRestriction.Color }
+--- Name-only enum (inferred byte) ---
+  Suit.Hearts = Suit { Value = 0 }
+  Suit.Diamonds = Suit { Value = 1 }
+  Suit.Clubs = Suit { Value = 2 }
+  Suit.Spades = Suit { Value = 3 }
+--- Enum with union of readonly types ---
+  Token.NumericId = Token { Value = Union_Int32_String }
+  Token.TextId = Token { Value = Union_Int32_String }
+--- Member access on readonly-base enums ---
+  Corner.TopRight.Describe() = Coordinate
+  Palette.Red.Describe() = Color(255, 0, 0)
+  Palette.Red.r = 255
+--- Implicit conversion to underlying type ---
+  StatusCode.Ok as int = 200
+  Planet.Earth as string = Earth
+  Suit.Spades as byte = 3
+  Corner.BottomLeft as Coordinate = Coordinate
+  Palette.Green as Color = Color(0, 255, 0)
+--- Pattern matching with readonly-base enums ---
+  code is StatusCode.NotFound = True
+  code is StatusCode.Ok = False
+  p is Planet.Mars = True
+  p is Planet.Earth = False
+  s is Suit.Spades = True
+  s is Suit.Hearts = False
+  pal is Palette.Blue = True
+  pal is Palette.Red = False
 Done!
 === Done! ===

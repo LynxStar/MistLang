@@ -324,21 +324,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     // ── Readonly parameter call-site diagnostic ID ───────────────────────
     //
-    // Note on numbering: the readonly-contexts design document's Diagnostic
-    // ID Allocation table proposed MIST_TC_0073 for this diagnostic. That
-    // code was already allocated to the type-unions feature (see
-    // UnionMemberNotOnAllConstituents above), so the readonly parameter
-    // call-site diagnostic was reallocated to MIST_TC_0076 — the next free
-    // code after the union diagnostics (MIST_TC_0073, 0074, 0075) — to
-    // avoid overloading a diagnostic ID with two distinct meanings.
-
-    /// <summary>
-    /// Emitted when a readonly type is passed as an argument to a parameter
-    /// that is not marked <c>readonly</c>. A readonly type can only be
-    /// passed to a readonly parameter to ensure the callee cannot mutate it
-    /// (Requirement 14.5).
-    /// </summary>
-    internal static readonly DiagnosticId ReadonlyTypeToNonReadonlyParam = new("MIST_TC_0076");
+    // REMOVED: MIST_TC_0076 (ReadonlyTypeToNonReadonlyParam) was removed because
+    // the underlying requirement (14.5) was incorrect. A readonly type cannot be
+    // mutated regardless of whether the parameter is marked readonly — the readonly
+    // modifier on a parameter exists to impose readonly constraints on types that
+    // are NOT inherently readonly. There is no danger in passing a readonly type
+    // to a non-readonly parameter.
 
     // ── Readonly generic constraint diagnostic IDs ─────────────────────
     //
@@ -577,6 +568,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId PatternIncompatibleRefinement = new("MIST_TC_0101");
 
+    // ── enums feature: readonly base type diagnostics ────────────────────
+
+    /// <summary>
+    /// An enum declaration's base type (explicit or inferred) is not readonly.
+    /// Enum base types must be readonly to ensure member values are immutable.
+    /// </summary>
+    internal static readonly DiagnosticId EnumBaseTypeNotReadonly = new("MIST_TC_0102");
+
+    /// <summary>
+    /// A constituent type within a union base type of an enum is not readonly.
+    /// All constituent types in a union enum base must be readonly.
+    /// </summary>
+    internal static readonly DiagnosticId EnumUnionConstituentNotReadonly = new("MIST_TC_0103");
+
     // ── enums feature: assignability diagnostic ──────────────────────────
 
     /// <summary>
@@ -756,6 +761,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Task 11.1: Validate that refinement predicates using property patterns only
         // reference readonly members (MIST_TC_0100, Requirements 3.1–3.4).
         CheckRefinementPredicateReadonly(model, diagnostics);
+
+        // Task 2.3: Validate that all enum declarations have readonly base types
+        // (MIST_TC_0102, MIST_TC_0103, Requirements 2.1–2.4, 3.1–3.5).
+        CheckEnumBaseTypeReadonly(model, diagnostics);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -6919,10 +6928,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
         }
-
-        // Readonly type argument passing check (Req 14.5, 14.6):
-        // If an argument's type is readonly, the corresponding parameter must be readonly.
-        CheckReadonlyTypeArgumentPassing(argList, methodSymbol, model, diagnostics, callSite);
     }
 
     /// <summary>
@@ -7039,10 +7044,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
         }
-
-        // Readonly type argument passing check (Req 14.5, 14.6):
-        // If an argument's type is readonly, the corresponding parameter must be readonly.
-        CheckReadonlyTypeArgumentPassing(argList, methodSymbol, model, diagnostics, callSite);
     }
 
     /// <summary>
@@ -7079,96 +7080,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         };
     }
 
-    /// <summary>
-    /// Checks that readonly types are only passed to readonly parameters at a call site.
-    /// If an argument's type is readonly and the corresponding parameter is NOT marked
-    /// <c>readonly</c>, emits <c>MIST_TC_0076</c>.
-    /// If the argument's type is mutable, either parameter kind is acceptable.
-    /// (Requirement 14.5, 14.6)
-    /// </summary>
-    private static void CheckReadonlyTypeArgumentPassing(
-        ArgumentListNode? argList,
-        ISymbol methodSymbol,
-        ISemanticModel model,
-        DiagnosticBag diagnostics,
-        SyntaxNode callSite)
-    {
-        if (argList is null)
-            return;
-
-        // Extract readonly flags for each parameter of the method.
-        var readonlyFlags = ParameterSignature.ExtractIsReadonly(methodSymbol, model);
-        if (readonlyFlags.Count == 0)
-            return;
-
-        // Collect argument expressions.
-        var argExprs = new List<ExpressionNode>();
-        foreach (var child in argList.Children())
-        {
-            if (child is ExpressionNode expr)
-                argExprs.Add(expr);
-        }
-
-        // Check each argument: if its type is readonly, the parameter must be readonly.
-        var count = Math.Min(argExprs.Count, readonlyFlags.Count);
-        for (var i = 0; i < count; i++)
-        {
-            var argType = model.GetTypeOf(argExprs[i]);
-            if (argType is null)
-                continue;
-
-            // Only check if the argument's type is readonly (Req 14.5).
-            // If the argument's type is mutable, either parameter kind is acceptable (Req 14.6).
-            if (!IsTypeReadonly(argType))
-                continue;
-
-            // The argument's type is readonly — the parameter MUST be marked readonly.
-            if (!readonlyFlags[i])
-            {
-                // Extract parameter name for the diagnostic message.
-                var paramName = GetParameterName(methodSymbol, i, model);
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0076",
-                    $"Cannot pass readonly type '{argType.DisplayName}' to non-readonly parameter '{paramName}'",
-                    argExprs[i],
-                    model));
-            }
-        }
-    }
-
-    /// <summary>
-    /// Gets the name of the parameter at the given index from a method's declaring node.
-    /// Returns a fallback string if the name cannot be resolved.
-    /// </summary>
-    private static string GetParameterName(ISymbol methodSymbol, int index, ISemanticModel model)
-    {
-        Storm.Runtime.SyntaxNode declaringNode;
-        try { declaringNode = model.GetDeclaringNode(methodSymbol); }
-        catch { return $"param{index}"; }
-
-        var paramList = declaringNode switch
-        {
-            MethodDeclarationNode method => method.Parameters,
-            ConstructorDeclarationNode ctor => ctor.Parameters,
-            _ => null,
-        };
-
-        if (paramList is null)
-            return $"param{index}";
-
-        var currentIndex = 0;
-        foreach (var child in paramList.Children())
-        {
-            if (child is ParameterNode paramNode)
-            {
-                if (currentIndex == index)
-                    return paramNode.Name.Lexeme;
-                currentIndex++;
-            }
-        }
-
-        return $"param{index}";
-    }
+    // REMOVED: CheckReadonlyTypeArgumentPassing and GetParameterName were removed
+    // because MIST_TC_0076 (Requirement 14.5) was incorrect. A readonly type cannot
+    // be mutated regardless of context, so there is no danger in passing it to a
+    // non-readonly parameter. The `readonly` parameter modifier exists to impose
+    // readonly constraints on types that are NOT inherently readonly.
 
 
     /// <summary>
@@ -9056,6 +8972,62 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             "Char" or "Boolean" or "String" => true,
             _ => false,
         };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Enum base type readonly validation (MIST_TC_0102, MIST_TC_0103)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates that all enum declarations have readonly base types.
+    /// For union base types, each constituent is checked individually.
+    /// Skips enums with null or <see cref="ErrorType"/> underlying types to avoid
+    /// cascading errors.
+    /// </summary>
+    private static void CheckEnumBaseTypeReadonly(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Kind != SymbolKind.Enum)
+                continue;
+
+            if (symbol.DeclaredType is not EnumType enumType)
+                continue;
+
+            var underlyingType = enumType.UnderlyingType;
+            if (underlyingType is null || underlyingType is ErrorType)
+                continue;
+
+            if (underlyingType is UnionType unionType)
+            {
+                // Check each constituent individually.
+                foreach (var constituent in unionType.Constituents)
+                {
+                    if (!IsTypeReadonly(constituent))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            EnumUnionConstituentNotReadonly.Value,
+                            $"Enum '{enumType.DisplayName}' has a non-readonly union constituent " +
+                            $"type '{constituent.DisplayName}'. All constituent types in an enum's " +
+                            $"union base type must be readonly.",
+                            model.GetDeclaringNode(symbol),
+                            model));
+                    }
+                }
+            }
+            else
+            {
+                if (!IsTypeReadonly(underlyingType))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        EnumBaseTypeNotReadonly.Value,
+                        $"Enum '{enumType.DisplayName}' has a non-readonly base type " +
+                        $"'{underlyingType.DisplayName}'. Enum base types must be readonly.",
+                        model.GetDeclaringNode(symbol),
+                        model));
+                }
+            }
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════

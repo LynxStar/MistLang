@@ -1,6 +1,6 @@
 namespace Standard;
 
-intrinsic public struct Single
+intrinsic public readonly struct Single
 {
     // Binary arithmetic operators — Requirement 3.1
     intrinsic public static Single operator +(Single a, Single b);

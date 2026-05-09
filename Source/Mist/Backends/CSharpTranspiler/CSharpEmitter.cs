@@ -2599,12 +2599,67 @@ internal sealed class CSharpSourceWriter
         }
 
         // Emit __CreateDefault factory method for defaultable structs.
+        // For readonly structs, fields cannot be assigned outside a constructor, so we emit
+        // a private constructor with a sentinel parameter that sets the default block values.
+        // __CreateDefault() calls this private constructor instead of assigning fields directly.
+        // This keeps the user's parameterless constructor (if any) separate from the default block.
         if (symbol?.DeclaredType is StructType defaultableStruct
             && defaultableStruct.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit
             && defaultableStruct.DefaultValues is not null)
         {
             var hasExistingMembers = structDecl.Members.Length > 0;
-            EmitCreateDefaultMethod(defaultableStruct.DisplayName, defaultableStruct.DefaultValues, hasExistingMembers);
+
+            if (defaultableStruct.IsReadonly)
+            {
+                var ownFields = defaultableStruct.DefaultValues
+                    .Where(kvp => kvp.Value.ValueKind != DefaultValueKind.InheritedDefault)
+                    .ToList();
+
+                if (ownFields.Count > 0)
+                {
+                    // Emit a private constructor with a bool sentinel that sets default values.
+                    // __CreateDefault() calls this constructor, not the user's parameterless one.
+                    if (hasExistingMembers)
+                    {
+                        AppendLine();
+                    }
+
+                    AppendLine($"private {structDecl.Name.Lexeme}(bool __defaultSentinel)");
+                    AppendLine("{");
+                    _indentLevel++;
+                    foreach (var (fieldName, fieldValue) in ownFields)
+                    {
+                        EmitDefaultFieldAssignment("this", fieldName, fieldValue);
+                    }
+                    _indentLevel--;
+                    AppendLine("}");
+                }
+
+                // Emit __CreateDefault using the sentinel constructor.
+                if (hasExistingMembers || ownFields.Count > 0)
+                {
+                    AppendLine();
+                }
+                AppendLine($"public static {defaultableStruct.DisplayName} __CreateDefault()");
+                AppendLine("{");
+                _indentLevel++;
+                if (ownFields.Count > 0)
+                {
+                    AppendLine($"var inst = new {defaultableStruct.DisplayName}(true);");
+                }
+                else
+                {
+                    AppendLine($"var inst = new {defaultableStruct.DisplayName}();");
+                }
+                AppendLine("return inst;");
+                _indentLevel--;
+                AppendLine("}");
+            }
+            else
+            {
+                // Non-readonly structs: use the original pattern (direct field assignment).
+                EmitCreateDefaultMethod(defaultableStruct.DisplayName, defaultableStruct.DefaultValues, hasExistingMembers);
+            }
         }
 
         _insideStruct = previousInsideStruct;

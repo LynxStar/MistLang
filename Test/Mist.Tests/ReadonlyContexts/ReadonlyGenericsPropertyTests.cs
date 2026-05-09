@@ -443,31 +443,23 @@ public sealed class ReadonlyGenericsPropertyTests : IDisposable
     // ═══════════════════════════════════════════════════════════════════════
     // Property 14: Readonly Type Argument Passing
     //
-    // **Validates: Requirements 14.5, 14.6**
-    //
-    // For any call site where a readonly type is passed as an argument, the
-    // corresponding parameter MUST be marked `readonly`; passing a
-    // non-readonly type SHALL be accepted for both readonly and non-readonly
-    // parameter positions.
+    // **UPDATED**: MIST_TC_0076 was removed because Requirement 14.5 was
+    // incorrect. A readonly type cannot be mutated regardless of context,
+    // so passing it to a non-readonly parameter is always safe. Both
+    // readonly and non-readonly types should be accepted at any call site.
     // ═══════════════════════════════════════════════════════════════════════
 
     [Property(MaxTest = 50, Arbitrary = new[] { typeof(ReadonlyGenericsPropertyTests) })]
-    public Property ReadonlyTypeArgPassing_ViolationsProduceDiagnostic(
+    public Property ReadonlyTypeArgPassing_AlwaysAccepted(
         ReadonlyTypeArgPassingScenario scenario)
     {
         var result = CompileSource(scenario.Source);
 
-        if (scenario.ShouldError)
-        {
-            return HasDiagnostic(result, "MIST_TC_0076").ToProperty()
-                .Label($"Expected MIST_TC_0076 but got: [{string.Join(", ", result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]\nSource:\n{scenario.Source}");
-        }
-        else
-        {
-            var hasErrors = HasAnyReadonlyDiagnostic(result);
-            return (!hasErrors).ToProperty()
-                .Label($"Expected no readonly/TC diagnostics but got: [{string.Join(", ", result.Diagnostics.Where(d => d.Id.Value.StartsWith("MIST_RO_") || d.Id.Value.StartsWith("MIST_TC_007")).Select(d => $"{d.Id.Value}: {d.Message}"))}]\nSource:\n{scenario.Source}");
-        }
+        // After removing MIST_TC_0076, passing a readonly type to a non-readonly
+        // parameter is always accepted. No readonly-related diagnostics should fire.
+        var hasErrors = HasAnyReadonlyDiagnostic(result);
+        return (!hasErrors).ToProperty()
+            .Label($"Expected no readonly/TC diagnostics but got: [{string.Join(", ", result.Diagnostics.Where(d => d.Id.Value.StartsWith("MIST_RO_") || d.Id.Value.StartsWith("MIST_TC_007")).Select(d => $"{d.Id.Value}: {d.Message}"))}]\nSource:\n{scenario.Source}");
     }
 
     // ═══════════════════════════════════════════════════════════════════════

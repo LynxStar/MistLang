@@ -22,20 +22,20 @@ namespace Mist.Semantics.Model.Types;
 /// </summary>
 internal static class LegacyPrimitiveTypes
 {
-    internal static readonly StructType Int = new("int", new Scope(null), containingNamespace: null);
-    internal static readonly StructType Uint = new("uint", new Scope(null), containingNamespace: null);
-    internal static readonly StructType Long = new("long", new Scope(null), containingNamespace: null);
-    internal static readonly StructType Ulong = new("ulong", new Scope(null), containingNamespace: null);
-    internal static readonly StructType Short = new("short", new Scope(null), containingNamespace: null);
-    internal static readonly StructType Ushort = new("ushort", new Scope(null), containingNamespace: null);
-    internal static readonly StructType Byte = new("byte", new Scope(null), containingNamespace: null);
-    internal static readonly StructType Sbyte = new("sbyte", new Scope(null), containingNamespace: null);
-    internal static readonly StructType Float = new("float", new Scope(null), containingNamespace: null);
-    internal static readonly StructType Double = new("double", new Scope(null), containingNamespace: null);
-    internal static readonly StructType Decimal = new("decimal", new Scope(null), containingNamespace: null);
-    internal static readonly StructType Bool = new("bool", new Scope(null), containingNamespace: null);
-    internal static readonly StructType Char = new("char", new Scope(null), containingNamespace: null);
-    internal static readonly ClassType String = new("string", new Scope(null), containingNamespace: null);
+    internal static readonly StructType Int = new("int", new Scope(null), containingNamespace: null) { IsReadonly = true };
+    internal static readonly StructType Uint = new("uint", new Scope(null), containingNamespace: null) { IsReadonly = true };
+    internal static readonly StructType Long = new("long", new Scope(null), containingNamespace: null) { IsReadonly = true };
+    internal static readonly StructType Ulong = new("ulong", new Scope(null), containingNamespace: null) { IsReadonly = true };
+    internal static readonly StructType Short = new("short", new Scope(null), containingNamespace: null) { IsReadonly = true };
+    internal static readonly StructType Ushort = new("ushort", new Scope(null), containingNamespace: null) { IsReadonly = true };
+    internal static readonly StructType Byte = new("byte", new Scope(null), containingNamespace: null) { IsReadonly = true };
+    internal static readonly StructType Sbyte = new("sbyte", new Scope(null), containingNamespace: null) { IsReadonly = true };
+    internal static readonly StructType Float = new("float", new Scope(null), containingNamespace: null) { IsReadonly = true };
+    internal static readonly StructType Double = new("double", new Scope(null), containingNamespace: null) { IsReadonly = true };
+    internal static readonly StructType Decimal = new("decimal", new Scope(null), containingNamespace: null) { IsReadonly = true };
+    internal static readonly StructType Bool = new("bool", new Scope(null), containingNamespace: null) { IsReadonly = true };
+    internal static readonly StructType Char = new("char", new Scope(null), containingNamespace: null) { IsReadonly = true };
+    internal static readonly ClassType String = new("string", new Scope(null), containingNamespace: null) { IsReadonly = true };
     internal static readonly StructType Void = new("void", new Scope(null), containingNamespace: null);
     internal static readonly ClassType Type = new("Type", new Scope(null), containingNamespace: null);
 }

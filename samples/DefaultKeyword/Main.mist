@@ -52,10 +52,49 @@ public class AppState
     }
 }
 
+// ─── Readonly struct with constructor AND default block ──────────────────────
+
+public class Payload
+{
+    public int Value;
+
+    public string Describe()
+    {
+        return $"Payload(Value={this.Value})";
+    }
+}
+
+public readonly struct Container
+{
+    public int Code;
+    public string Label;
+
+    public Container()
+    {
+        this.Code = 99;
+        this.Label = "constructed";
+    }
+
+    default {
+        Code = 42
+        Label = "defaulted"
+    }
+
+    public string Describe()
+    {
+        return $"Container(Code={this.Code}, Label={this.Label})";
+    }
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 public class Program
 {
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
     public static void RunDemo()
     {
         Console.WriteLine("=== Default Keyword Sample ===");
@@ -86,6 +125,15 @@ public class Program
         Console.WriteLine("--- Explicit Default Block ---");
         AppState state = default(AppState);
         Console.WriteLine(state.Describe());
+
+        // 6. Readonly struct: new vs default
+        // new Container() calls the user's constructor (Code=99, Label="constructed")
+        // default(Container) calls __CreateDefault via sentinel constructor (Code=42, Label="defaulted")
+        Console.WriteLine("--- Readonly Struct: new vs default ---");
+        var c1 = new Container();
+        Container c2 = default(Container);
+        Console.WriteLine($"new Container() = {c1.Describe()}");
+        Console.WriteLine($"default(Container) = {c2.Describe()}");
 
         Console.WriteLine("Done!");
     }

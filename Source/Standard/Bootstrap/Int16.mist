@@ -1,6 +1,6 @@
 namespace Standard;
 
-intrinsic public struct Int16
+intrinsic public readonly struct Int16
 {
     // Binary arithmetic operators — Requirement 3.1
     intrinsic public static Int16 operator +(Int16 a, Int16 b);

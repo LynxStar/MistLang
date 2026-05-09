@@ -1,6 +1,6 @@
 namespace Standard;
 
-intrinsic public struct Decimal
+intrinsic public readonly struct Decimal
 {
     // Binary arithmetic operators — Requirement 3.1
     intrinsic public static Decimal operator +(Decimal a, Decimal b);

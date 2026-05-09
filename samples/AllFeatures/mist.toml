@@ -86,3 +86,6 @@ path = "../UnknownReadonlySemantics"
 
 [[references]]
 path = "../Newtypes"
+
+[[references]]
+path = "../EnumReadonlyRestriction"

@@ -746,20 +746,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // and signatures can be compared accurately.
         Pass1_CheckDuplicateSignatures(symbolTable, asts, compilation, diagnostics);
 
-        // Post-Pass 2: Classify every member of every generic type declaration
-        // with respect to each of its type parameters. The resulting
-        // <see cref="IReachabilityMap"/> is consulted by the Type Checker
-        // (Task 21) when the receiver's static type is a
-        // <c>Closed_Generic_With_Unknown</c>, to filter out members that
-        // would write to storage of a type parameter bound to
-        // <see cref="UnknownType"/> (Requirements 9.1, 10.1).
-        //
-        // The analyzer depends on a complete expression-type map and fully
-        // resolved member signatures, so it must run after Pass 2 and after
-        // the redeclaration/duplicate-signature checks (which may themselves
-        // mutate the symbol table by dropping duplicate declarations).
-        var reachabilityMap = ReachabilityAnalyzer.Analyze(symbolTable, expressionTypes);
-
         return new SemanticModel(
             compilation,
             compilation.Units.Select(u => u).ToList(),
@@ -768,7 +754,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             symbolTable,
             expressionTypes,
             traitSatisfactionMap,
-            reachabilityMap,
             extensionRegistry);
     }
 

@@ -80,3 +80,6 @@ path = "../ArrayLiterals"
 
 [[references]]
 path = "../RefinementTypes"
+
+[[references]]
+path = "../UnknownReadonlySemantics"

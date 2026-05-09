@@ -5508,9 +5508,9 @@ internal sealed class CSharpSourceWriter
     /// replaces that double cast with <c>dynamic</c> so member access on
     /// the widened receiver routes through the DLR, which dispatches
     /// against the receiver's actual runtime generic type. The
-    /// Reachability Analyzer (Phase C) still guarantees that no
-    /// write-path member is called on the widened receiver at compile
-    /// time, so the DLR only sees reachability-safe calls.
+    /// ReadonlyAnalyzer still guarantees that no non-readonly member
+    /// is called on the widened receiver at compile time, so the DLR
+    /// only sees readonly-safe calls.
     /// </para>
     /// <para>
     /// The helper is retained (rather than removed) so every call site

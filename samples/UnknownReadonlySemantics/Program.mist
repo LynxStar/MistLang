@@ -1,0 +1,250 @@
+// UnknownReadonlySemantics — Demonstrates the readonly type context applied
+// to Closed_Generic_With_Unknown types. When a generic type is closed with
+// `unknown` at one or more type argument positions, the variable's type is
+// treated as readonly: only readonly-qualified members are callable. The
+// variable itself remains reassignable.
+//
+// Covers Requirement 10.2 patterns (a) through (f):
+//   (a) Readonly member access on List<unknown> (e.g., Count property)
+//   (b) Reassigning List<unknown> to a different concrete list
+//   (c) Pattern narrowing from List<unknown> to List<int> and calling Add
+//   (d) Covariant widening from List<int> to List<unknown>
+//   (e) Passing List<unknown> to method with readonly parameter
+//   (f) Open generic type body retaining full read/write access
+
+using System;
+
+namespace UnknownReadonlySemantics;
+
+// A minimal generic list container with both readonly and mutable members.
+// - `Count` property getter is inferred readonly (only reads a field)
+// - `Get(index)` is inferred readonly (only reads fields)
+// - `Add(value)` is mutable (writes to fields)
+// - `Clear()` is mutable (writes to fields)
+public class MyList<T>
+{
+    public int count;
+    public T item0;
+    public T item1;
+    public T item2;
+
+    public MyList()
+    {
+        this.count = 0;
+    }
+
+    // Inferred readonly: only reads `this.count`
+    public int Count
+    {
+        get
+        {
+            return this.count;
+        }
+    }
+
+    // Inferred readonly: only reads fields
+    public T Get(int index)
+    {
+        if (index == 0)
+        {
+            return this.item0;
+        }
+        if (index == 1)
+        {
+            return this.item1;
+        }
+        return this.item2;
+    }
+
+    // Mutable: writes to T-typed storage
+    public void Add(T value)
+    {
+        if (this.count == 0)
+        {
+            this.item0 = value;
+        }
+        if (this.count == 1)
+        {
+            this.item1 = value;
+        }
+        if (this.count == 2)
+        {
+            this.item2 = value;
+        }
+        this.count = this.count + 1;
+    }
+
+    // Mutable: writes to fields
+    public void Clear()
+    {
+        this.count = 0;
+    }
+}
+
+// A helper class demonstrating open generic type body access (pattern f).
+// Inside a generic method body, `T` is an open type parameter, so
+// `MyList<T>` is NOT a Closed_Generic_With_Unknown — full access is retained.
+public class GenericHelper<T>
+{
+    public T stored;
+
+    public GenericHelper(T initial)
+    {
+        this.stored = initial;
+    }
+
+    // Inside this generic body, `this` has type `GenericHelper<T>` where T
+    // is open. Full read/write access is available — no readonly restriction.
+    public void ReplaceStored(T newValue)
+    {
+        this.stored = newValue;
+    }
+
+    // Inferred readonly: only reads a field
+    public T GetStored()
+    {
+        return this.stored;
+    }
+
+    // Demonstrates that within a generic body, we can create and fully
+    // mutate a MyList<T> because T is an open type parameter.
+    public int BuildListAndCount(T first, T second)
+    {
+        var list = new MyList<T>();
+        list.Add(first);
+        list.Add(second);
+        return list.Count;
+    }
+}
+
+public class Program
+{
+    // Helper for pattern (e): accepts a readonly parameter of type MyList<unknown>.
+    // Inside this method, `items` has type MyList<unknown> which is a
+    // Closed_Generic_With_Unknown — only readonly members are callable.
+    public static int GetCount(readonly MyList<unknown> items)
+    {
+        // Count is inferred readonly, so this is permitted
+        return items.Count;
+    }
+
+    // Helper for pattern (e): demonstrates calling readonly method Get
+    // on a readonly parameter of type MyList<unknown>.
+    public static unknown GetFirst(readonly MyList<unknown> items)
+    {
+        // Get is inferred readonly, so this is permitted
+        return items.Get(0);
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== UnknownReadonlySemantics Sample ===");
+
+        // ─── (a) Readonly member access on MyList<unknown> ───────────────
+        Console.WriteLine("--- Readonly member access on MyList<unknown> ---");
+        var ints = new MyList<int>();
+        ints.Add(10);
+        ints.Add(20);
+        ints.Add(30);
+
+        // Covariant widening: MyList<int> → MyList<unknown>
+        MyList<unknown> widened = ints;
+
+        // Count is inferred readonly → accessible on MyList<unknown>
+        Console.WriteLine($"Count: {widened.Count}");
+
+        // Get is inferred readonly → accessible on MyList<unknown>
+        // Result type is `unknown` (T substituted with unknown)
+        unknown firstElement = widened.Get(0);
+        Console.WriteLine($"Get(0): {firstElement}");
+
+        // The following would NOT compile (Add is mutable):
+        //   widened.Add(99);
+        // The following would NOT compile (Clear is mutable):
+        //   widened.Clear();
+
+        // ─── (b) Variable reassignment of MyList<unknown> ────────────────
+        Console.WriteLine("--- Variable reassignment of MyList<unknown> ---");
+
+        // The variable `widened` can be reassigned — the readonly context
+        // applies to member access, not to the variable binding itself.
+        var strings = new MyList<string>();
+        strings.Add("hello");
+        strings.Add("world");
+
+        // Reassign via covariant widening: MyList<string> → MyList<unknown>
+        widened = strings;
+        Console.WriteLine($"After reassignment, Count: {widened.Count}");
+        Console.WriteLine($"After reassignment, Get(0): {widened.Get(0)}");
+
+        // ─── (c) Pattern narrowing from MyList<unknown> to MyList<int> ───
+        Console.WriteLine("--- Pattern narrowing to MyList<int> ---");
+
+        // Create a list with room to add more items
+        var narrowSource = new MyList<int>();
+        narrowSource.Add(5);
+        MyList<unknown> toNarrow = narrowSource;
+
+        // Pattern-narrow: if the runtime type is MyList<int>, we get full access
+        if (toNarrow is MyList<int> narrowedList)
+        {
+            // Inside this branch, narrowedList is MyList<int> (not unknown)
+            // so Add is callable — the readonly context is removed
+            narrowedList.Add(42);
+            Console.WriteLine($"After Add(42), Count: {narrowedList.Count}");
+            Console.WriteLine($"Get(0): {narrowedList.Get(0)}");
+            Console.WriteLine($"Get(1): {narrowedList.Get(1)}");
+        }
+
+        // ─── (d) Covariant widening from MyList<int> to MyList<unknown> ──
+        Console.WriteLine("--- Covariant widening from MyList<int> ---");
+
+        var fresh = new MyList<int>();
+        fresh.Add(100);
+        fresh.Add(200);
+
+        // Widening assignment: MyList<int> is assignable to MyList<unknown>
+        MyList<unknown> fromInts = fresh;
+
+        // After widening, only readonly members are accessible
+        Console.WriteLine($"Widened Count: {fromInts.Count}");
+        Console.WriteLine($"Widened Get(0): {fromInts.Get(0)}");
+        Console.WriteLine($"Widened Get(1): {fromInts.Get(1)}");
+
+        // ─── (e) Passing MyList<unknown> to method with readonly parameter ─
+        Console.WriteLine("--- Passing to readonly parameter ---");
+
+        // Pass the widened list to methods accepting readonly MyList<unknown>
+        int count = GetCount(fromInts);
+        Console.WriteLine($"GetCount result: {count}");
+
+        unknown first = GetFirst(fromInts);
+        Console.WriteLine($"GetFirst result: {first}");
+
+        // ─── (f) Open generic type body retaining full access ────────────
+        Console.WriteLine("--- Open generic body full access ---");
+
+        // Inside GenericHelper<int>, `this` has type GenericHelper<int> where
+        // int is concrete — but the body was compiled with T as open, so
+        // full read/write access was available during compilation.
+        var helper = new GenericHelper<int>(42);
+        Console.WriteLine($"Initial stored: {helper.GetStored()}");
+
+        // ReplaceStored writes to `this.stored` — this works because the
+        // generic body has full access (T is open during type checking)
+        helper.ReplaceStored(99);
+        Console.WriteLine($"After replace: {helper.GetStored()}");
+
+        // BuildListAndCount creates a MyList<T> inside the generic body
+        // and calls Add on it — proving full mutable access within the body
+        int builtCount = helper.BuildListAndCount(1, 2);
+        Console.WriteLine($"BuildListAndCount(1, 2): {builtCount}");
+
+        Console.WriteLine("=== UnknownReadonlySemantics Done ===");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

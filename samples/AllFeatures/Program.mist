@@ -38,6 +38,7 @@ public class Program
         PropertyInitializers.Program.RunDemo();
         ArrayLiterals.Program.RunDemo();
         RefinementTypes.Program.RunDemo();
+        UnknownReadonlySemantics.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

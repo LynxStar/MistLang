@@ -131,10 +131,10 @@ internal static class CSharpTypeMap
     /// double-cast throws <see cref="InvalidCastException"/> at runtime.
     /// Emitting as <c>dynamic</c> routes every member access on such a
     /// receiver through the DLR, which dispatches against the receiver's
-    /// actual runtime type. Mist's Reachability Analyzer guarantees at
-    /// compile time that no write-path member is called on a
+    /// actual runtime type. Mist's ReadonlyAnalyzer guarantees at
+    /// compile time that no non-readonly member is called on a
     /// Closed_Generic_With_Unknown receiver, so the DLR only sees
-    /// reachability-safe calls at runtime.
+    /// readonly-safe calls at runtime.
     /// </para>
     /// <para>
     /// Bare <see cref="UnknownType"/> still lowers to <c>object</c> (not

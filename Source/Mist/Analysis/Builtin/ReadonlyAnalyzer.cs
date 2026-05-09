@@ -29,6 +29,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     internal static readonly DiagnosticId SetterCallOnReadonlyParam = new("MIST_RO_0008");
     internal static readonly DiagnosticId ReadonlyFieldAssignmentOutsideConstructor = new("MIST_RO_0009");
     internal static readonly DiagnosticId FieldAssignmentInReadonlyBlock = new("MIST_RO_0010");
+    internal static readonly DiagnosticId ClosedUnknownNonReadonlyAccess = new("MIST_TC_0062");
 
     /// <summary>
     /// Tracks the current enforcement mode as the analyzer walks into
@@ -134,6 +135,26 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 case SymbolKind.Indexer:
                 case SymbolKind.Constructor:
                     AnalyzeReadonlyConstrainedTypeParamAccess(symbol, model, diagnostics);
+                    break;
+            }
+        }
+
+        // Fifth pass: check for operations on values whose type is a
+        // Closed_Generic_With_Unknown. When a variable's resolved type contains
+        // unknown at any type argument position (and no open type parameters),
+        // all member access is treated as if the receiver is in a readonly context.
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Origin != SymbolOrigin.UserCode)
+                continue;
+
+            switch (symbol.Kind)
+            {
+                case SymbolKind.Method:
+                case SymbolKind.Property:
+                case SymbolKind.Indexer:
+                case SymbolKind.Constructor:
+                    AnalyzeClosedGenericWithUnknownAccess(symbol, model, diagnostics);
                     break;
             }
         }
@@ -1112,6 +1133,45 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         Stack<ContextEntry> contextStack)
     {
+        // Special handling for PostfixNode: if the target type is a Closed_Generic_With_Unknown,
+        // skip the readonly-context violation checks on suffixes whose receiver is a
+        // Closed_Generic_With_Unknown (pass 5 handles them with MIST_TC_0062 instead).
+        if (node is PostfixNode postfix)
+        {
+            var entry = contextStack.Peek();
+            if (entry.Kind != ContextKind.Normal)
+            {
+                var currentType = model.GetTypeOf(postfix.Target);
+                if (IsClosedGenericWithUnknown(currentType))
+                {
+                    // Walk the target normally (it might have its own violations).
+                    WalkNode(postfix.Target, model, diagnostics, contextStack);
+
+                    // For each suffix: skip the suffix-level violation check but still
+                    // walk its children (e.g., method arguments) for nested violations.
+                    foreach (var suffix in postfix.Suffix)
+                    {
+                        WalkChildren(suffix, model, diagnostics, contextStack);
+
+                        // Update current type to the result of this suffix.
+                        // If the result is no longer a Closed_Generic_With_Unknown,
+                        // subsequent suffixes should be checked normally by pass 1.
+                        currentType = model.GetTypeOf(suffix);
+                        if (!IsClosedGenericWithUnknown(currentType))
+                        {
+                            // Remaining suffixes are not on a Closed_Generic_With_Unknown
+                            // receiver — fall through to normal checking for them.
+                            // (This handles chained access like xs.GetEnumerator().MoveNext()
+                            // where the result of GetEnumerator() is not a Closed_Generic_With_Unknown.)
+                            break;
+                        }
+                    }
+
+                    return;
+                }
+            }
+        }
+
         // Check this node for violations.
         CheckNodeForViolations(node, model, diagnostics, contextStack);
 
@@ -1558,6 +1618,26 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     }
 
     /// <summary>
+    /// Looks up a member symbol by name from the receiver type's member scope.
+    /// For ConstructedType, resolves through the generic definition's member scope.
+    /// Returns null if the member cannot be found.
+    /// </summary>
+    private static Symbol? LookupMemberByName(IType? receiverType, string memberName)
+    {
+        var scope = GetMemberScope(receiverType!);
+        if (scope is null)
+            return null;
+
+        foreach (var member in scope.Members)
+        {
+            if (member.Name == memberName && member is Symbol sym)
+                return sym;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Gets the declaring type's member scope for a symbol by walking up
     /// the containing scope hierarchy.
     /// </summary>
@@ -1947,6 +2027,445 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
             model));
     }
 
+    // ── Fifth pass: Closed Generic With Unknown access ───────────────────
+
+    /// <summary>
+    /// Walks a member's body looking for operations on values whose type is a
+    /// Closed_Generic_With_Unknown. When a variable's resolved type contains unknown
+    /// at any type argument position (and no open type parameters), all member access
+    /// is treated as if the receiver is in a readonly context.
+    /// </summary>
+    private static void AnalyzeClosedGenericWithUnknownAccess(
+        ISymbol symbol,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Get the declaring AST node.
+        SyntaxNode declaringNode;
+        try { declaringNode = model.GetDeclaringNode(symbol); }
+        catch { return; }
+
+        switch (symbol.Kind)
+        {
+            case SymbolKind.Method:
+                if (declaringNode is MethodDeclarationNode methodDecl)
+                {
+                    var body = methodDecl.Body.GetBlock();
+                    if (body is not null)
+                        WalkBlockForClosedUnknownViolations(body, model, diagnostics);
+                }
+                break;
+
+            case SymbolKind.Constructor:
+                if (declaringNode is ConstructorDeclarationNode ctorDecl)
+                {
+                    var ctorBody = ctorDecl.Body.GetBlock();
+                    if (ctorBody is not null)
+                        WalkBlockForClosedUnknownViolations(ctorBody, model, diagnostics);
+                }
+                break;
+
+            case SymbolKind.Property:
+                WalkPropertyForClosedUnknownViolations(declaringNode, model, diagnostics);
+                break;
+
+            case SymbolKind.Indexer:
+                WalkIndexerForClosedUnknownViolations(declaringNode, model, diagnostics);
+                break;
+        }
+    }
+
+    private static void WalkPropertyForClosedUnknownViolations(
+        SyntaxNode declaringNode,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        switch (declaringNode)
+        {
+            case BlockPropertyPropertyDeclarationNode blockProp:
+                foreach (var accessor in blockProp.Accessors)
+                {
+                    switch (accessor)
+                    {
+                        case BlockGetAccessorAccessorDeclarationNode blockGet:
+                            WalkBlockForClosedUnknownViolations(blockGet.Body, model, diagnostics);
+                            break;
+                        case ExpressionGetAccessorAccessorDeclarationNode exprGet:
+                            WalkNodeForClosedUnknownViolations(exprGet.Expression, model, diagnostics);
+                            break;
+                        case BlockSetAccessorAccessorDeclarationNode blockSet:
+                            WalkBlockForClosedUnknownViolations(blockSet.Body, model, diagnostics);
+                            break;
+                        case ExpressionSetAccessorAccessorDeclarationNode exprSet:
+                            WalkNodeForClosedUnknownViolations(exprSet.Expression, model, diagnostics);
+                            break;
+                        case BlockInitAccessorAccessorDeclarationNode blockInit:
+                            WalkBlockForClosedUnknownViolations(blockInit.Body, model, diagnostics);
+                            break;
+                        case ExpressionInitAccessorAccessorDeclarationNode exprInit:
+                            WalkNodeForClosedUnknownViolations(exprInit.Expression, model, diagnostics);
+                            break;
+                    }
+                }
+                break;
+
+            case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
+                WalkNodeForClosedUnknownViolations(exprProp.Body, model, diagnostics);
+                break;
+        }
+    }
+
+    private static void WalkIndexerForClosedUnknownViolations(
+        SyntaxNode declaringNode,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        if (declaringNode is not BlockIndexerIndexerDeclarationNode blockIndexer)
+            return;
+
+        foreach (var accessor in blockIndexer.Accessors)
+        {
+            switch (accessor)
+            {
+                case BlockGetAccessorAccessorDeclarationNode blockGet:
+                    WalkBlockForClosedUnknownViolations(blockGet.Body, model, diagnostics);
+                    break;
+                case ExpressionGetAccessorAccessorDeclarationNode exprGet:
+                    WalkNodeForClosedUnknownViolations(exprGet.Expression, model, diagnostics);
+                    break;
+                case BlockSetAccessorAccessorDeclarationNode blockSet:
+                    WalkBlockForClosedUnknownViolations(blockSet.Body, model, diagnostics);
+                    break;
+                case ExpressionSetAccessorAccessorDeclarationNode exprSet:
+                    WalkNodeForClosedUnknownViolations(exprSet.Expression, model, diagnostics);
+                    break;
+                case BlockInitAccessorAccessorDeclarationNode blockInit:
+                    WalkBlockForClosedUnknownViolations(blockInit.Body, model, diagnostics);
+                    break;
+                case ExpressionInitAccessorAccessorDeclarationNode exprInit:
+                    WalkNodeForClosedUnknownViolations(exprInit.Expression, model, diagnostics);
+                    break;
+            }
+        }
+    }
+
+    private static void WalkBlockForClosedUnknownViolations(
+        BlockNode block,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var stmt in block.Statements)
+        {
+            WalkStatementForClosedUnknownViolations(stmt, model, diagnostics);
+        }
+    }
+
+    private static void WalkStatementForClosedUnknownViolations(
+        StatementNode stmt,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        switch (stmt)
+        {
+            case VariableDeclarationStatementStatementNode varDecl:
+                if (varDecl.VariableDeclaration is { } vd)
+                    WalkNodeForClosedUnknownViolations(vd, model, diagnostics);
+                break;
+
+            case ReturnStatementStatementNode returnStmt:
+                if (returnStmt.ReturnStatement is { } rs)
+                    WalkNodeForClosedUnknownViolations(rs, model, diagnostics);
+                break;
+
+            case IfStatementStatementNode ifStmt:
+                WalkNodeForClosedUnknownViolations(ifStmt.IfStatement, model, diagnostics);
+                break;
+
+            case WhileStatementStatementNode whileStmt:
+                WalkNodeForClosedUnknownViolations(whileStmt.WhileStatement, model, diagnostics);
+                break;
+
+            case ForStatementStatementNode forStmt:
+                WalkNodeForClosedUnknownViolations(forStmt.ForStatement, model, diagnostics);
+                break;
+
+            case ForeachStatementStatementNode foreachStmt:
+                WalkNodeForClosedUnknownViolations(foreachStmt.ForeachStatement, model, diagnostics);
+                break;
+
+            case ExpressionStatementStatementNode exprStmt:
+                WalkNodeForClosedUnknownViolations(exprStmt.ExpressionStatement, model, diagnostics);
+                break;
+
+            case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
+                WalkBlockForClosedUnknownViolations(readonlyBlockStmt.ReadonlyBlock.Body, model, diagnostics);
+                break;
+
+            case BreakStatementStatementNode:
+                break;
+
+            default:
+                WalkChildrenForClosedUnknownViolations(stmt, model, diagnostics);
+                break;
+        }
+    }
+
+    private static void WalkNodeForClosedUnknownViolations(
+        SyntaxNode node,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Check this node for closed-generic-with-unknown violations.
+        CheckNodeForClosedUnknownViolations(node, model, diagnostics);
+
+        // For AssignmentNode with a value, only walk the value side — the target
+        // is already handled by CheckClosedUnknownAssignment. Walking the target
+        // would cause the postfix check to double-emit for the same member access.
+        if (node is AssignmentNode assignment && assignment.Value is not null)
+        {
+            WalkNodeForClosedUnknownViolations(assignment.Value, model, diagnostics);
+            return;
+        }
+
+        // Recursively walk children.
+        WalkChildrenForClosedUnknownViolations(node, model, diagnostics);
+    }
+
+    private static void WalkChildrenForClosedUnknownViolations(
+        SyntaxNode node,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var child in node.Children())
+        {
+            if (child is not null)
+                WalkNodeForClosedUnknownViolations(child, model, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Checks a node for violations of closed-generic-with-unknown readonly rules.
+    /// When a PostfixNode's target has a type that is a Closed_Generic_With_Unknown,
+    /// all member access on it is subject to readonly rules:
+    /// - Non-readonly method calls → MIST_TC_0062
+    /// - Non-readonly property/indexer getter access → MIST_TC_0062
+    /// - Any setter call → MIST_TC_0062
+    /// - Field assignment → MIST_TC_0062
+    /// </summary>
+    private static void CheckNodeForClosedUnknownViolations(
+        SyntaxNode node,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        switch (node)
+        {
+            case PostfixNode postfix:
+                CheckClosedUnknownPostfix(postfix, model, diagnostics);
+                break;
+
+            case AssignmentNode assignment when assignment.Value is not null:
+                CheckClosedUnknownAssignment(assignment, model, diagnostics);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Checks if a PostfixNode's target type is a Closed_Generic_With_Unknown.
+    /// If so, checks each suffix for non-readonly method calls, non-readonly property
+    /// getter access, and setter calls. Emits MIST_TC_0062 for violations.
+    /// After processing a suffix, updates the current type to the result type of that
+    /// suffix — if the result type is also a Closed_Generic_With_Unknown, continues
+    /// enforcing on subsequent suffixes.
+    /// </summary>
+    private static void CheckClosedUnknownPostfix(
+        PostfixNode postfix,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Get the type of the target expression.
+        var currentType = model.GetTypeOf(postfix.Target);
+        if (!IsClosedGenericWithUnknown(currentType))
+            return;
+
+        // Walk each suffix, tracking the current receiver type.
+        for (var i = 0; i < postfix.Suffix.Length; i++)
+        {
+            var suffix = postfix.Suffix[i];
+            var typeDisplayName = currentType!.DisplayName;
+
+            switch (suffix)
+            {
+                case MethodCallSuffixPostfixSuffixNode methodCall:
+                {
+                    var sym = LookupMemberByName(currentType, methodCall.Name.Lexeme);
+                    if (sym is not null && !IsReadonly(sym.ReadonlyStatus))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            ClosedUnknownNonReadonlyAccess,
+                            $"Cannot call non-readonly method '{sym.Name}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                            methodCall,
+                            model));
+                    }
+
+                    // Update current type to the result of the method call.
+                    currentType = model.GetTypeOf(suffix);
+                    break;
+                }
+
+                case MemberAccessSuffixPostfixSuffixNode memberAccess:
+                {
+                    var sym = LookupMemberByName(currentType, memberAccess.Name.Lexeme);
+                    if (sym is not null)
+                    {
+                        // Field reads are always permitted.
+                        if (sym.Kind == SymbolKind.Field)
+                        {
+                            // No diagnostic — field reads are fine.
+                        }
+                        else if (sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                        {
+                            // Property/indexer getter access — check if readonly.
+                            if (!IsReadonly(sym.ReadonlyStatus))
+                            {
+                                diagnostics.Add(MakeDiagnostic(
+                                    ClosedUnknownNonReadonlyAccess,
+                                    $"Cannot access non-readonly property '{sym.Name}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                                    memberAccess,
+                                    model));
+                            }
+                        }
+                    }
+
+                    // Update current type to the result of the member access.
+                    currentType = model.GetTypeOf(suffix);
+                    break;
+                }
+
+                case IndexSuffixPostfixSuffixNode indexSuffix:
+                {
+                    // Index read: check the indexer getter's ReadonlyStatus.
+                    // Look up the indexer by the canonical name "this[]".
+                    var sym = LookupMemberByName(currentType, "this[]");
+                    if (sym is not null && !IsReadonly(sym.ReadonlyStatus))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            ClosedUnknownNonReadonlyAccess,
+                            $"Cannot access non-readonly indexer on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                            indexSuffix,
+                            model));
+                    }
+
+                    // Update current type to the result of the index access.
+                    currentType = model.GetTypeOf(suffix);
+                    break;
+                }
+
+                default:
+                    // For other suffix types (invocation, etc.), update the type and continue.
+                    currentType = model.GetTypeOf(suffix);
+                    break;
+            }
+
+            // If the result type is no longer a Closed_Generic_With_Unknown, stop enforcing.
+            if (!IsClosedGenericWithUnknown(currentType))
+                return;
+        }
+    }
+
+    /// <summary>
+    /// Checks if an assignment targets a member on a Closed_Generic_With_Unknown receiver.
+    /// Patterns:
+    /// - value.member = expr where value's type is a Closed_Generic_With_Unknown → field/property setter
+    /// - value[index] = expr where value's type is a Closed_Generic_With_Unknown → indexer setter
+    /// - value.member1.member2 = expr where value.member1's result type is Closed_Generic_With_Unknown → chained
+    /// All setter calls and field writes on a Closed_Generic_With_Unknown receiver emit MIST_TC_0062.
+    /// </summary>
+    private static void CheckClosedUnknownAssignment(
+        AssignmentNode assignment,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Look for pattern: value.member = expr or value[index] = expr
+        var postfix = FindPostfixNode(assignment.Target);
+        if (postfix is null)
+            return;
+
+        // The target must be a PostfixNode with at least one suffix.
+        if (postfix.Suffix.Length == 0)
+            return;
+
+        // Determine the receiver type for the last suffix (the one being assigned to).
+        // For a single suffix, the receiver is the target. For multiple suffixes,
+        // the receiver is the result type of the second-to-last suffix.
+        IType? receiverType;
+        if (postfix.Suffix.Length == 1)
+        {
+            receiverType = model.GetTypeOf(postfix.Target);
+        }
+        else
+        {
+            receiverType = model.GetTypeOf(postfix.Suffix[^2]);
+        }
+
+        if (!IsClosedGenericWithUnknown(receiverType))
+            return;
+
+        var typeDisplayName = receiverType!.DisplayName;
+        var lastSuffix = postfix.Suffix[^1];
+
+        switch (lastSuffix)
+        {
+            case MemberAccessSuffixPostfixSuffixNode memberAccess:
+            {
+                var memberName = memberAccess.Name.Lexeme;
+                var sym = LookupMemberByName(receiverType, memberName);
+                if (sym is not null)
+                {
+                    if (sym.Kind == SymbolKind.Field)
+                    {
+                        // Field assignment on Closed_Generic_With_Unknown receiver.
+                        diagnostics.Add(MakeDiagnostic(
+                            ClosedUnknownNonReadonlyAccess,
+                            $"Cannot assign to field '{memberName}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                            assignment,
+                            model));
+                        return;
+                    }
+
+                    if (sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                    {
+                        // Setter call on Closed_Generic_With_Unknown receiver.
+                        diagnostics.Add(MakeDiagnostic(
+                            ClosedUnknownNonReadonlyAccess,
+                            $"Cannot call property setter '{memberName}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                            assignment,
+                            model));
+                        return;
+                    }
+                }
+
+                // If we can't resolve the symbol, conservatively treat it as a field assignment.
+                diagnostics.Add(MakeDiagnostic(
+                    ClosedUnknownNonReadonlyAccess,
+                    $"Cannot assign to field '{memberName}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                    assignment,
+                    model));
+                break;
+            }
+
+            case IndexSuffixPostfixSuffixNode:
+            {
+                // Index write (setter) on Closed_Generic_With_Unknown receiver — always prohibited.
+                diagnostics.Add(MakeDiagnostic(
+                    ClosedUnknownNonReadonlyAccess,
+                    $"Cannot call indexer setter on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                    assignment,
+                    model));
+                break;
+            }
+        }
+    }
+
     /// <summary>
     /// Returns true if the given type is a TypeParameterType with a readonly constraint.
     /// </summary>
@@ -1954,6 +2473,53 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     {
         return type is TypeParameterType typeParam
             && typeParam.Constraints is { HasReadonlyConstraint: true };
+    }
+
+    // ── Closed Generic With Unknown detection ────────────────────────────
+
+    /// <summary>
+    /// Returns true if the type is a ConstructedType with at least one
+    /// type argument that is UnknownType (directly or transitively through
+    /// nested type arguments), AND no type argument is an unsubstituted
+    /// TypeParameterType (open type parameters mean the type is not yet closed).
+    /// </summary>
+    internal static bool IsClosedGenericWithUnknown(IType? type)
+    {
+        if (type is not ConstructedType ct)
+            return false;
+        return ContainsUnknownTypeArgument(ct) && !ContainsOpenTypeParameter(ct);
+    }
+
+    /// <summary>
+    /// Recursively checks whether any type argument (at any depth) of the given
+    /// ConstructedType is an UnknownType.
+    /// </summary>
+    internal static bool ContainsUnknownTypeArgument(ConstructedType ct)
+    {
+        foreach (var arg in ct.TypeArguments)
+        {
+            if (arg is UnknownType)
+                return true;
+            if (arg is ConstructedType nested && ContainsUnknownTypeArgument(nested))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Recursively checks whether any type argument (at any depth) of the given
+    /// ConstructedType is an unsubstituted TypeParameterType.
+    /// </summary>
+    internal static bool ContainsOpenTypeParameter(ConstructedType ct)
+    {
+        foreach (var arg in ct.TypeArguments)
+        {
+            if (arg is TypeParameterType)
+                return true;
+            if (arg is ConstructedType nested && ContainsOpenTypeParameter(nested))
+                return true;
+        }
+        return false;
     }
 
     /// <summary>

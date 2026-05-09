@@ -596,4 +596,27 @@ Done!
   AdultAge 40 widened to int -> 40
   Percentage 50 widened to int -> 50
 Done!
+=== UnknownReadonlySemantics Sample ===
+--- Readonly member access on MyList<unknown> ---
+Count: 3
+Get(0): 10
+--- Variable reassignment of MyList<unknown> ---
+After reassignment, Count: 2
+After reassignment, Get(0): hello
+--- Pattern narrowing to MyList<int> ---
+After Add(42), Count: 2
+Get(0): 5
+Get(1): 42
+--- Covariant widening from MyList<int> ---
+Widened Count: 2
+Widened Get(0): 100
+Widened Get(1): 200
+--- Passing to readonly parameter ---
+GetCount result: 2
+GetFirst result: 100
+--- Open generic body full access ---
+Initial stored: 42
+After replace: 99
+BuildListAndCount(1, 2): 2
+=== UnknownReadonlySemantics Done ===
 === Done! ===

@@ -2746,7 +2746,7 @@ internal sealed class CSharpSourceWriter
 
         if (methodDecl.Body.GetBlock() is BlockNode block)
         {
-            EmitMethodBlock(block, isValueReturningVoid);
+            EmitMethodBlockWithRefinementGuards(block, isValueReturningVoid, methodDecl.Parameters);
         }
         else
         {
@@ -2757,6 +2757,75 @@ internal sealed class CSharpSourceWriter
         _inValueReturningVoidMethod = previousFlag;
         _currentMethodReturnType = previousReturnType;
         _currentMethodFactoryTypeParams = previousFactoryTypeParams;
+    }
+
+    /// <summary>
+    /// Emits a method body block with optional refinement type parameter guards.
+    /// For each parameter whose resolved type is a <see cref="RefinementType"/>,
+    /// emits a runtime validation guard at method entry that throws
+    /// <see cref="ArgumentException"/> if the value fails the predicate.
+    /// </summary>
+    private void EmitMethodBlockWithRefinementGuards(BlockNode block, bool appendImplicitReturn, ParameterListNode? paramList)
+    {
+        // Collect refinement-typed parameters.
+        var refinementGuards = CollectRefinementParameterGuards(paramList);
+
+        if (refinementGuards.Count == 0)
+        {
+            // No refinement guards needed — emit the block normally.
+            EmitMethodBlock(block, appendImplicitReturn);
+            return;
+        }
+
+        // Emit the block with guards injected at the top.
+        AppendLine("{");
+        _indentLevel++;
+
+        foreach (var (paramName, refinementType) in refinementGuards)
+        {
+            var condition = EmitRefinementPredicateCondition(refinementType.Predicate, paramName);
+            AppendLine($"if (!({condition}))");
+            _indentLevel++;
+            AppendLine($"throw new ArgumentException($\"Value {{{paramName}}} does not satisfy refinement '{refinementType.Predicate.Description}' on type '{refinementType.Name}'\", nameof({paramName}));");
+            _indentLevel--;
+        }
+
+        foreach (var stmt in block.Statements)
+        {
+            EmitStatement(stmt);
+        }
+
+        if (appendImplicitReturn && !BlockEndsWithReturn(block))
+        {
+            AppendLine("return MistVoid.Instance;");
+        }
+
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    /// <summary>
+    /// Collects parameters from the given parameter list whose resolved type is a
+    /// <see cref="RefinementType"/>. Returns a list of (parameterName, refinementType) pairs.
+    /// </summary>
+    private List<(string Name, RefinementType Type)> CollectRefinementParameterGuards(ParameterListNode? paramList)
+    {
+        var guards = new List<(string Name, RefinementType Type)>();
+        if (paramList is null) return guards;
+
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode param)
+            {
+                var symbol = _model.GetDeclaredSymbol(param);
+                if (symbol?.DeclaredType is RefinementType refinementType)
+                {
+                    guards.Add((param.Name.Lexeme, refinementType));
+                }
+            }
+        }
+
+        return guards;
     }
 
     /// <summary>
@@ -3749,6 +3818,15 @@ internal sealed class CSharpSourceWriter
                     var emittedType = ResolveAliasForEmission(aliasFromExprMap, namedRef, isValueContext);
                     return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
                 }
+                // ── refinement-types feature: type erasure (Requirement 12.1) ──
+                // Refinement types are erased to their base type in C#. For example,
+                // `AdultAge x = 20;` emits as `int x = 20;`. The refinement predicate
+                // is enforced by the type checker — no alias name appears in C# output.
+                if (resolvedType is RefinementType refinementFromExprMap)
+                {
+                    var emittedType = CSharpTypeMap.GetTypeName(refinementFromExprMap.BaseType, isValueContext);
+                    return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
+                }
                 // Fallback: search all symbols for a type alias with this name.
                 // Only apply if no concrete type (class/struct/interface) with the
                 // same name exists in the current namespace — prevents cross-namespace
@@ -3770,6 +3848,19 @@ internal sealed class CSharpSourceWriter
                         if (!hasConcreteTypeInCurrentNamespace)
                         {
                             var emittedType = ResolveAliasForEmission(aliasType, namedRef, isValueContext);
+                            return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
+                        }
+                    }
+                    // Refinement type alias fallback: same logic as TypeAliasType above.
+                    if (aliasSymbol?.DeclaredType is RefinementType refinementType)
+                    {
+                        var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
+                            && _model.AllSymbols.Any(s => s.Name == name
+                                && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                                && GetSymbolContainingNamespace(s) == _currentNamespace);
+                        if (!hasConcreteTypeInCurrentNamespace)
+                        {
+                            var emittedType = CSharpTypeMap.GetTypeName(refinementType.BaseType, isValueContext);
                             return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
                         }
                     }
@@ -4462,6 +4553,15 @@ internal sealed class CSharpSourceWriter
                         return unionResult;
                 }
 
+                // Refinement type pattern matching: emit runtime predicate check
+                // instead of C#'s native `is T t` pattern. Refinement types are
+                // erased at runtime, so `x is AdultAge age` becomes a predicate
+                // condition (e.g., `x >= 18`) with a variable binding queued for
+                // the then-branch.
+                var refinementResult = TryEmitRefinementPatternMatch(isExpr.Pattern, left);
+                if (refinementResult is not null)
+                    return refinementResult;
+
                 // Enum member pattern matching: emit value equality check
                 // (`scrutinee == EnumName.MemberName`) instead of C#'s `is` pattern.
                 var enumResult = TryEmitEnumPatternMatch(isExpr.Pattern, left);
@@ -4659,6 +4759,310 @@ internal sealed class CSharpSourceWriter
                 // fall through to standard emission.
                 return null;
         }
+    }
+
+    // ─── Refinement Type Pattern Matching ────────────────────────────────
+
+    /// <summary>
+    /// Attempts to emit a refinement-type-specific pattern match. For type patterns
+    /// (<c>is AdultAge age</c>) where the resolved type is a <see cref="RefinementType"/>,
+    /// emits the refinement predicate as a C# conditional expression (e.g., <c>x >= 18</c>)
+    /// and queues <c>var age = x;</c> as a pending binding to be injected at the start
+    /// of the then-branch.
+    /// <para>
+    /// For bare type patterns (<c>is AdultAge</c>), emits only the predicate condition
+    /// without a variable binding.
+    /// </para>
+    /// Returns <c>null</c> if the pattern does not reference a refinement type,
+    /// in which case the caller falls through to standard emission.
+    /// </summary>
+    private string? TryEmitRefinementPatternMatch(PatternNode pattern, string scrutineeExpr)
+    {
+        // Navigate the pattern chain: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
+        // Only handle simple (non-compound) patterns for refinement emission.
+        var orPattern = pattern.OrPattern;
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+            return null; // or-pattern — fall through to standard emission
+
+        var andPattern = orPattern.Left;
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+            return null; // and-pattern — fall through to standard emission
+
+        var unaryPattern = andPattern.Left;
+        if (unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+            return null; // not-pattern — fall through to standard emission
+
+        var primaryPattern = directPattern.Primary;
+
+        switch (primaryPattern)
+        {
+            case TypePatternPrimaryPatternNode typePattern:
+            {
+                // Resolve the pattern type to check if it's a refinement type.
+                var patternType = _model.GetTypeOf(typePattern.Type);
+                patternType ??= _model.GetDeclaredSymbol(typePattern)?.DeclaredType;
+                if (patternType is not RefinementType refinementType)
+                    return null;
+
+                var bindingName = typePattern.Name.Lexeme;
+                var condition = EmitRefinementPredicateCondition(refinementType.Predicate, scrutineeExpr);
+
+                // Queue the variable binding for injection into the then-branch.
+                if (bindingName != "_")
+                {
+                    var csharpTypeName = CSharpTypeMap.GetTypeName(refinementType.BaseType);
+                    _pendingUnionPatternBindings.Add(
+                        $"{csharpTypeName} {bindingName} = {scrutineeExpr};");
+                }
+
+                return condition;
+            }
+
+            case BareTypePatternPrimaryPatternNode bareTypePattern:
+            {
+                // Resolve the pattern type to check if it's a refinement type.
+                var patternType = _model.GetTypeOf(bareTypePattern.Type);
+                if (patternType is not RefinementType refinementType)
+                    return null;
+
+                return EmitRefinementPredicateCondition(refinementType.Predicate, scrutineeExpr);
+            }
+
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to emit a switch arm pattern for a refinement type scrutinee.
+    /// For type patterns (e.g., <c>AdultAge age</c>), emits a C# pattern with
+    /// a <c>when</c> guard containing the refinement predicate:
+    /// <c>var age when age >= 18</c>.
+    /// <para>
+    /// For bare type patterns (e.g., <c>AdultAge</c>), emits:
+    /// <c>var __refinement when __refinement >= 18</c>.
+    /// </para>
+    /// Returns <c>null</c> if the pattern does not reference a refinement type.
+    /// </summary>
+    private string? TryEmitRefinementSwitchArmPattern(PatternNode pattern, string scrutineeExpr)
+    {
+        // Navigate the pattern chain: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
+        var orPattern = pattern.OrPattern;
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+            return null;
+
+        var andPattern = orPattern.Left;
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+            return null;
+
+        var unaryPattern = andPattern.Left;
+        if (unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+            return null;
+
+        var primaryPattern = directPattern.Primary;
+
+        switch (primaryPattern)
+        {
+            case TypePatternPrimaryPatternNode typePattern:
+            {
+                var patternType = _model.GetTypeOf(typePattern.Type);
+                patternType ??= _model.GetDeclaredSymbol(typePattern)?.DeclaredType;
+                if (patternType is not RefinementType refinementType)
+                    return null;
+
+                var bindingName = typePattern.Name.Lexeme;
+                var condition = EmitRefinementPredicateCondition(refinementType.Predicate, bindingName);
+                return $"var {bindingName} when {condition}";
+            }
+
+            case BareTypePatternPrimaryPatternNode bareTypePattern:
+            {
+                var patternType = _model.GetTypeOf(bareTypePattern.Type);
+                if (patternType is not RefinementType refinementType)
+                    return null;
+
+                // Use a synthetic variable name for the guard condition.
+                var condition = EmitRefinementPredicateCondition(refinementType.Predicate, scrutineeExpr);
+                return $"_ when {condition}";
+            }
+
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// Converts a <see cref="RefinementPredicate"/> into a C# conditional expression
+    /// string by walking the predicate's AST and substituting the scrutinee expression
+    /// for the implicit subject.
+    /// <para>
+    /// For simple relational predicates (e.g., <c>>= 18</c>), emits <c>scrutinee >= 18</c>.
+    /// For compound predicates (e.g., <c>>= 0 and &lt;= 100</c>), emits
+    /// <c>scrutinee >= 0 &amp;&amp; scrutinee &lt;= 100</c>.
+    /// For property patterns (e.g., <c>{ Age: >= 18 }</c>), emits
+    /// <c>scrutinee.Age >= 18</c>.
+    /// </para>
+    /// </summary>
+    private string EmitRefinementPredicateCondition(RefinementPredicate predicate, string scrutineeExpr)
+    {
+        var parts = new List<string>();
+
+        EmitUnaryPatternCondition(predicate.AstNode.Left, scrutineeExpr, parts);
+
+        if (predicate.AstNode.Right is not null &&
+            !ReferenceEquals(predicate.AstNode.Right, predicate.AstNode.Left))
+        {
+            EmitUnaryPatternCondition(predicate.AstNode.Right, scrutineeExpr, parts);
+        }
+
+        if (!predicate.AstNode.UnaryPatterns.IsDefaultOrEmpty)
+        {
+            foreach (var part in predicate.AstNode.UnaryPatterns)
+            {
+                EmitUnaryPatternCondition(part, scrutineeExpr, parts);
+            }
+        }
+
+        return string.Join(" && ", parts);
+    }
+
+    /// <summary>
+    /// Emits a single unary pattern as a C# condition fragment and adds it to the parts list.
+    /// </summary>
+    private void EmitUnaryPatternCondition(UnaryPatternNode unary, string scrutineeExpr, List<string> parts)
+    {
+        switch (unary)
+        {
+            case DirectPatternUnaryPatternNode direct:
+                EmitPrimaryPatternCondition(direct.Primary, scrutineeExpr, parts);
+                break;
+            case NotPatternUnaryPatternNode not:
+            {
+                var innerParts = new List<string>();
+                EmitPrimaryPatternCondition(not.Operand, scrutineeExpr, innerParts);
+                if (innerParts.Count == 1)
+                    parts.Add($"!({innerParts[0]})");
+                else
+                    parts.Add($"!({string.Join(" && ", innerParts)})");
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Emits a primary pattern as a C# condition fragment. Handles relational patterns,
+    /// constant patterns, and property patterns.
+    /// </summary>
+    private void EmitPrimaryPatternCondition(PrimaryPatternNode primary, string scrutineeExpr, List<string> parts)
+    {
+        switch (primary)
+        {
+            case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gte:
+                parts.Add($"{scrutineeExpr} >= {EmitExpression(gte.Constant)}");
+                break;
+            case LessThanOrEqualRelationalPatternPrimaryPatternNode lte:
+                parts.Add($"{scrutineeExpr} <= {EmitExpression(lte.Constant)}");
+                break;
+            case GreaterThanRelationalPatternPrimaryPatternNode gt:
+                parts.Add($"{scrutineeExpr} > {EmitExpression(gt.Constant)}");
+                break;
+            case LessThanRelationalPatternPrimaryPatternNode lt:
+                parts.Add($"{scrutineeExpr} < {EmitExpression(lt.Constant)}");
+                break;
+            case ConstantPatternPrimaryPatternNode constant:
+                parts.Add($"{scrutineeExpr} == {EmitConstantLiteral(constant.Literal)}");
+                break;
+            case PropertyPatternPrimaryPatternNode propertyPattern:
+                EmitPropertyPatternConditions(propertyPattern, scrutineeExpr, parts);
+                break;
+            case ParenthesizedPatternPrimaryPatternNode paren:
+            {
+                // Recursively emit the inner pattern as a grouped condition.
+                var innerCondition = EmitInnerPatternCondition(paren.Inner, scrutineeExpr);
+                parts.Add($"({innerCondition})");
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Emits property pattern conditions by generating property access checks.
+    /// For <c>{ Age: >= 18, Name: "test" }</c>, emits
+    /// <c>scrutinee.Age >= 18 &amp;&amp; scrutinee.Name == "test"</c>.
+    /// </summary>
+    private void EmitPropertyPatternConditions(PropertyPatternPrimaryPatternNode propertyPattern, string scrutineeExpr, List<string> parts)
+    {
+        if (propertyPattern.Subpatterns is null)
+            return;
+
+        // Emit the first subpattern.
+        EmitSinglePropertySubpatternCondition(propertyPattern.Subpatterns.PropertySubpattern, scrutineeExpr, parts);
+
+        // Emit additional subpatterns.
+        foreach (var subpattern in propertyPattern.Subpatterns.PropertySubpatterns)
+        {
+            EmitSinglePropertySubpatternCondition(subpattern, scrutineeExpr, parts);
+        }
+    }
+
+    /// <summary>
+    /// Emits a single property subpattern as a condition. The property name becomes
+    /// a member access on the scrutinee, and the subpattern's pattern is applied
+    /// to that member access expression.
+    /// </summary>
+    private void EmitSinglePropertySubpatternCondition(PropertySubpatternNode subpattern, string scrutineeExpr, List<string> parts)
+    {
+        var propertyName = subpattern.Name.Lexeme;
+        var propertyAccess = $"{scrutineeExpr}.{propertyName}";
+
+        // The subpattern's pattern is a full PatternNode — recursively emit it.
+        var condition = EmitInnerPatternCondition(subpattern.Pattern, propertyAccess);
+        if (!string.IsNullOrEmpty(condition))
+            parts.Add(condition);
+    }
+
+    /// <summary>
+    /// Emits a full inner pattern (OrPattern → AndPattern → ...) as a C# condition string.
+    /// Used for nested patterns within property subpatterns and parenthesized patterns.
+    /// </summary>
+    private string EmitInnerPatternCondition(PatternNode pattern, string scrutineeExpr)
+    {
+        var orPattern = pattern.OrPattern;
+
+        // Handle or-patterns: emit as `(cond1) || (cond2)`.
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
+            var leftCond = EmitAndPatternCondition(orPattern.Left, scrutineeExpr);
+            var rightCond = EmitAndPatternCondition(orPattern.Right, scrutineeExpr);
+            return $"({leftCond} || {rightCond})";
+        }
+
+        return EmitAndPatternCondition(orPattern.Left, scrutineeExpr);
+    }
+
+    /// <summary>
+    /// Emits an and-pattern as a C# condition string with <c>&amp;&amp;</c> joining parts.
+    /// </summary>
+    private string EmitAndPatternCondition(AndPatternNode andPattern, string scrutineeExpr)
+    {
+        var parts = new List<string>();
+
+        EmitUnaryPatternCondition(andPattern.Left, scrutineeExpr, parts);
+
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
+            EmitUnaryPatternCondition(andPattern.Right, scrutineeExpr, parts);
+        }
+
+        if (!andPattern.UnaryPatterns.IsDefaultOrEmpty)
+        {
+            foreach (var part in andPattern.UnaryPatterns)
+            {
+                EmitUnaryPatternCondition(part, scrutineeExpr, parts);
+            }
+        }
+
+        return string.Join(" && ", parts);
     }
 
     // ─── Enum Pattern Matching ───────────────────────────────────────────
@@ -5479,6 +5883,22 @@ internal sealed class CSharpSourceWriter
                                 sb.Append($" => {EmitExpression(arm.Result)},");
                                 return;
                             }
+                        }
+
+                        // Refinement type pattern: emit as `var varName when predicate`
+                        // guard condition. Refinement types are erased, so the pattern
+                        // becomes a runtime predicate check in the when-clause.
+                        var refinementArm = TryEmitRefinementSwitchArmPattern(arm.Pattern, target);
+                        if (refinementArm is not null)
+                        {
+                            sb.Append(refinementArm);
+                            if (arm.Guard is not null)
+                            {
+                                // Combine the refinement guard with the user's guard.
+                                sb.Append($" && {EmitExpression(arm.Guard.Condition)}");
+                            }
+                            sb.Append($" => {EmitExpression(arm.Result)},");
+                            return;
                         }
 
                         sb.Append(EmitPattern(arm.Pattern, receiverType));

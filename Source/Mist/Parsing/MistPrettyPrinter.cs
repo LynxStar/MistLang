@@ -160,9 +160,38 @@ public sealed class MistPrettyPrinter
     {
         var name = aliasDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(aliasDecl.TypeParams);
-        var typeExpr = EmitTypeReference(aliasDecl.Type);
+        var typeExpr = EmitRefinableTypeExpression(aliasDecl.Type);
         var constraints = EmitConstraintClauses(aliasDecl.Constraints);
         AppendLine($"type {name}{typeParams} = {typeExpr}{constraints};");
+    }
+
+    private string EmitRefinableTypeExpression(RefinableTypeExpressionNode node)
+    {
+        return node switch
+        {
+            RefinableUnionTypeRefinableTypeExpressionNode union => EmitRefinableUnion(union.UnionType),
+            RefinableSingleTypeRefinableTypeExpressionNode single => EmitRefinableSingle(single.SingleType),
+            _ => "object",
+        };
+    }
+
+    private string EmitRefinableUnion(RefinableUnionTypeExprNode unionExpr)
+    {
+        var parts = new List<string>();
+        parts.Add(EmitRefinableSingle(unionExpr.First));
+        foreach (var constituent in unionExpr.RefinableSingleTypeExprs)
+        {
+            parts.Add(EmitRefinableSingle(constituent));
+        }
+        return string.Join(" | ", parts);
+    }
+
+    private string EmitRefinableSingle(RefinableSingleTypeExprNode expr)
+    {
+        var type = EmitSingleTypeRef(expr.Type);
+        if (expr.Refinement is null) return type;
+        var predicate = EmitAndPattern(expr.Refinement.Predicate);
+        return $"{type} {predicate}";
     }
 
     // ─── Type Declarations ───────────────────────────────────────────────
@@ -1524,22 +1553,30 @@ public sealed class MistPrettyPrinter
     {
         var left = EmitAndPattern(orPattern.Left);
 
-        if (orPattern.Right is null || ReferenceEquals(orPattern.Right, orPattern.Left))
+        if (orPattern.AndPatterns.IsDefaultOrEmpty)
             return left;
 
-        var right = EmitAndPattern(orPattern.Right);
-        return $"{left} or {right}";
+        var parts = new List<string> { left };
+        foreach (var part in orPattern.AndPatterns)
+        {
+            parts.Add(EmitAndPattern(part));
+        }
+        return string.Join(" or ", parts);
     }
 
     private string EmitAndPattern(AndPatternNode andPattern)
     {
         var left = EmitUnaryPattern(andPattern.Left);
 
-        if (andPattern.Right is null || ReferenceEquals(andPattern.Right, andPattern.Left))
+        if (andPattern.UnaryPatterns.IsDefaultOrEmpty)
             return left;
 
-        var right = EmitUnaryPattern(andPattern.Right);
-        return $"{left} and {right}";
+        var parts = new List<string> { left };
+        foreach (var part in andPattern.UnaryPatterns)
+        {
+            parts.Add(EmitUnaryPattern(part));
+        }
+        return string.Join(" and ", parts);
     }
 
     private string EmitUnaryPattern(UnaryPatternNode unaryPattern)

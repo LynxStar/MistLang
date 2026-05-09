@@ -486,6 +486,51 @@ Mist supports TypeScript-style type unions (`int | string`) allowing a value to 
 
 ---
 
+## Refinement Types
+
+Mist supports refinement types — type aliases with pattern-match predicates that constrain valid values. A refinement type defines a subset of its base type (e.g., `type AdultAge = int >= 18;`). The compiler enforces the predicate at compile time for literals and requires pattern matching (`is` expressions) for runtime validation of non-constant values.
+
+### Syntax & Parsing
+
+| Feature | Status | Notes |
+|---|---|---|
+| Refinement predicate on type alias | ✅ | `type AdultAge = int >= 18;` |
+| Compound predicates (`and`) | ✅ | `type Percentage = int >= 0 and <= 100;` |
+| Union with per-constituent refinements | ✅ | `type AgeRange = int >= 3 and <= 8 \| byte >= 0 and < 64;` |
+| Property pattern refinements | ✅ | `type ValidRange = Range { Start: >= 0 };` |
+| Predicate binds tighter than `\|` | ✅ | Refinement attaches to single type, not entire union |
+
+### Semantic Model
+
+| Feature | Status | Notes |
+|---|---|---|
+| `RefinementType` representation | ✅ | Stores base type + predicate |
+| Predicate compatibility validation | ✅ | Relational patterns require comparable base type |
+| Union of refinement types | ✅ | Each constituent is a `RefinementType` |
+
+### Type Checking
+
+| Feature | Status | Notes |
+|---|---|---|
+| Compile-time literal enforcement | ✅ | Rejects literals violating predicate |
+| Non-constant assignment rejection | ✅ | Requires pattern matching for runtime values |
+| Widening (refinement → base) | ✅ | Always accepted (nominal subtyping) |
+| Arithmetic produces base type | ✅ | Refinement erased on arithmetic |
+| Subset relationship proving | ✅ | `>= 21` implies `>= 18`, compound `and` implications |
+| Readonly member validation | ✅ | Property pattern members must be readonly |
+| Flow-sensitive narrowing | ✅ | `if (x >= 18)` narrows to refinement type in then-branch |
+| Pattern matching integration | ✅ | `is RefinementType varName` introduces refined variable |
+
+### C# Emission
+
+| Feature | Status | Notes |
+|---|---|---|
+| Base type erasure | ✅ | Refinement types emit as their base type |
+| Runtime predicate checks | ✅ | Pattern matching emits conditional checks |
+| Method parameter guards | ✅ | Runtime validation at method entry |
+
+---
+
 ## Generics
 
 | Feature | Status | Notes |
@@ -866,6 +911,10 @@ Features introduced by Mist that don't map directly to a single C# feature. Thes
 | Type Unions — Semantic Model | 4 | 0 | 0 |
 | Type Unions — Type Checking | 9 | 0 | 0 |
 | Type Unions — C# Emission | 6 | 0 | 0 |
+| Refinement Types — Syntax & Parsing | 5 | 0 | 0 |
+| Refinement Types — Semantic Model | 3 | 0 | 0 |
+| Refinement Types — Type Checking | 8 | 0 | 0 |
+| Refinement Types — C# Emission | 3 | 0 | 0 |
 | Generics | 5 | 2 | 0 |
 | Async | 0 | 5 | 1 |
 | Namespaces & Imports | 3 | 3 | 1 |

@@ -265,6 +265,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId UnresolvedTypeAliasTarget = new("MIST_SB_0062");
 
+    /// <summary>
+    /// A refinement predicate is incompatible with the base type (e.g., relational
+    /// patterns like <c>&gt;= 18</c> applied to a non-comparable type like <c>string</c>).
+    /// </summary>
+    internal static readonly DiagnosticId IncompatibleRefinementPredicate = new("MIST_TC_0072");
+
     // ── Trait with-block diagnostic IDs (Task 4.1, Requirements 6.1–6.9) ──
 
     /// <summary>
@@ -10199,18 +10205,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             // Resolve the target type reference.
-            var targetType = ResolveTypeReference(
-                aliasDecl.Type, resolutionScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            // The type alias now uses RefinableTypeExpression which wraps SingleTypeRef(s).
+            // When a refinement predicate is present, this constructs a RefinementType.
+            var targetType = ResolveRefinableTypeExpression(
+                aliasDecl.Type, resolutionScope, ambientTypeResolver, symbolTable, sourceText, diagnostics, aliasName);
 
             // Check if the resolved type is an error (unresolved).
             if (targetType is ErrorType)
             {
-                diagnostics.Add(MakeDiagnosticWithLocation(
-                    UnresolvedTypeAliasTarget.Value,
-                    DiagnosticSeverity.Error,
-                    $"Type '{ExtractTypeReferenceName(aliasDecl.Type, sourceText)}' could not be resolved in type alias '{aliasName}'.",
-                    aliasDecl.Type,
-                    sourceText));
+                // Only emit the unresolved-target diagnostic if the error wasn't caused
+                // by an incompatible refinement predicate (which already emitted MIST_TC_0072).
+                if (!HasRefinementPredicate(aliasDecl.Type))
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        UnresolvedTypeAliasTarget.Value,
+                        DiagnosticSeverity.Error,
+                        $"Type '{ExtractRefinableTypeExpressionName(aliasDecl.Type, sourceText)}' could not be resolved in type alias '{aliasName}'.",
+                        aliasDecl.Type,
+                        sourceText));
+                }
                 aliasSymbol.DeclaredType = ErrorType.Instance;
                 return;
             }
@@ -10222,10 +10235,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 targetType = aliasTarget.UnderlyingType;
             }
 
-            // Construct the TypeAliasType.
-            var typeParams = aliasSymbol.TypeParameters;
-            var typeAliasType = new TypeAliasType(aliasName, targetType, typeParams);
-            aliasSymbol.DeclaredType = typeAliasType;
+            // If the resolved type is a RefinementType, store it directly as the alias's
+            // declared type. The RefinementType already carries the alias name.
+            if (targetType is RefinementType refinementType)
+            {
+                aliasSymbol.DeclaredType = refinementType;
+            }
+            else if (targetType is UnionType unionType && HasRefinementConstituent(unionType))
+            {
+                // Union with at least one refinement constituent — store directly.
+                aliasSymbol.DeclaredType = unionType;
+            }
+            else
+            {
+                // Construct the TypeAliasType for non-refined aliases.
+                var typeParams = aliasSymbol.TypeParameters;
+                var typeAliasType = new TypeAliasType(aliasName, targetType, typeParams);
+                aliasSymbol.DeclaredType = typeAliasType;
+            }
         }
         finally
         {
@@ -11778,6 +11805,255 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         symbolTable.Register(varSymbol, foreachStmt);
 
         ResolveBlock(foreachStmt.Body, foreachScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    // ─── Refinable Type Expression Resolution ─────────────────────────────
+
+    /// <summary>
+    /// Resolves a <see cref="RefinableTypeExpressionNode"/> to an <see cref="IType"/>.
+    /// For single types without refinements, delegates to <see cref="ResolveSingleTypeRef"/>.
+    /// For single types with refinements, validates predicate compatibility and constructs
+    /// a <see cref="Types.RefinementType"/>.
+    /// For union types, builds a <see cref="UnionType"/> from the constituents (each of which
+    /// may be a <see cref="Types.RefinementType"/> if it has a refinement predicate).
+    /// </summary>
+    private static IType ResolveRefinableTypeExpression(
+        RefinableTypeExpressionNode refinableExpr,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics,
+        string? aliasName = null)
+    {
+        switch (refinableExpr)
+        {
+            case RefinableSingleTypeRefinableTypeExpressionNode single:
+                return ResolveRefinableSingleTypeExpr(
+                    single.SingleType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics, aliasName);
+
+            case RefinableUnionTypeRefinableTypeExpressionNode union:
+            {
+                var constituents = new List<IType>();
+                var firstType = ResolveRefinableSingleTypeExpr(
+                    union.UnionType.First, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics, aliasName);
+                constituents.Add(firstType);
+
+                foreach (var additional in union.UnionType.RefinableSingleTypeExprs)
+                {
+                    var additionalType = ResolveRefinableSingleTypeExpr(
+                        additional, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics, aliasName);
+                    constituents.Add(additionalType);
+                }
+
+                // If any constituent is an error, propagate.
+                if (constituents.Any(c => c is ErrorType))
+                    return ErrorType.Instance;
+
+                return new UnionType(constituents.ToImmutableArray());
+            }
+
+            default:
+                return ErrorType.Instance;
+        }
+    }
+
+    /// <summary>
+    /// Resolves a single refinable type expression (base type + optional refinement predicate).
+    /// When a refinement is present, validates predicate compatibility and constructs a
+    /// <see cref="Types.RefinementType"/>. When no refinement is present, resolves the
+    /// base <see cref="SingleTypeRefNode"/> directly.
+    /// </summary>
+    private static IType ResolveRefinableSingleTypeExpr(
+        RefinableSingleTypeExprNode singleExpr,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics,
+        string? aliasName)
+    {
+        var baseType = ResolveSingleTypeRef(
+            singleExpr.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+        if (baseType is ErrorType)
+            return ErrorType.Instance;
+
+        // If no refinement predicate, return the plain base type.
+        if (singleExpr.Refinement is null)
+            return baseType;
+
+        // Refinement is present — validate predicate compatibility with the base type.
+        var andPatternNode = singleExpr.Refinement.Predicate;
+        var predicate = new RefinementPredicate(andPatternNode);
+
+        // Validate: relational patterns require a comparable type.
+        if (PredicateContainsRelationalPattern(andPatternNode) && !IsComparableType(baseType))
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                IncompatibleRefinementPredicate.Value,
+                DiagnosticSeverity.Error,
+                $"Refinement predicate '{predicate.Description}' is not valid for base type '{baseType.DisplayName}'. Relational patterns require a comparable type.",
+                singleExpr.Refinement,
+                sourceText));
+            return ErrorType.Instance;
+        }
+
+        // Construct the RefinementType.
+        var name = aliasName ?? baseType.DisplayName;
+        return new RefinementType(name, baseType, predicate);
+    }
+
+    /// <summary>
+    /// Determines whether a type supports comparison operators (numeric types and char).
+    /// Used to validate that relational refinement predicates are compatible with the base type.
+    /// </summary>
+    private static bool IsComparableType(IType type)
+    {
+        var displayName = type.DisplayName;
+        return displayName switch
+        {
+            // Legacy primitive names.
+            "int" or "uint" or "long" or "ulong" => true,
+            "short" or "ushort" or "byte" or "sbyte" => true,
+            "float" or "double" or "decimal" => true,
+            "char" => true,
+            // Stdlib names.
+            "Int32" or "UInt32" or "Int64" or "UInt64" => true,
+            "Int16" or "UInt16" or "Byte" or "SByte" => true,
+            "Single" or "Double" or "Decimal" => true,
+            "Char" => true,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Checks whether an <see cref="AndPatternNode"/> contains any relational patterns
+    /// (greater-than, less-than, greater-than-or-equal, less-than-or-equal).
+    /// </summary>
+    private static bool PredicateContainsRelationalPattern(AndPatternNode andPattern)
+    {
+        if (IsRelationalUnaryPattern(andPattern.Left))
+            return true;
+
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
+            if (IsRelationalUnaryPattern(andPattern.Right))
+                return true;
+        }
+
+        if (!andPattern.UnaryPatterns.IsDefaultOrEmpty)
+        {
+            foreach (var part in andPattern.UnaryPatterns)
+            {
+                if (IsRelationalUnaryPattern(part))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether a <see cref="UnaryPatternNode"/> is a relational pattern.
+    /// </summary>
+    private static bool IsRelationalUnaryPattern(UnaryPatternNode unary)
+    {
+        if (unary is not DirectPatternUnaryPatternNode direct)
+            return false;
+
+        return direct.Primary is GreaterThanOrEqualRelationalPatternPrimaryPatternNode
+            or LessThanOrEqualRelationalPatternPrimaryPatternNode
+            or GreaterThanRelationalPatternPrimaryPatternNode
+            or LessThanRelationalPatternPrimaryPatternNode;
+    }
+
+    /// <summary>
+    /// Checks whether a <see cref="UnionType"/> has at least one constituent that is a
+    /// <see cref="Types.RefinementType"/>.
+    /// </summary>
+    private static bool HasRefinementConstituent(UnionType unionType)
+    {
+        foreach (var constituent in unionType.Constituents)
+        {
+            if (constituent is RefinementType)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether a <see cref="RefinableTypeExpressionNode"/> contains any refinement
+    /// predicates. Used to suppress cascading diagnostics when an incompatible predicate
+    /// already caused an error.
+    /// </summary>
+    private static bool HasRefinementPredicate(RefinableTypeExpressionNode refinableExpr)
+    {
+        switch (refinableExpr)
+        {
+            case RefinableSingleTypeRefinableTypeExpressionNode single:
+                return single.SingleType.Refinement is not null;
+
+            case RefinableUnionTypeRefinableTypeExpressionNode union:
+            {
+                if (union.UnionType.First.Refinement is not null)
+                    return true;
+                foreach (var additional in union.UnionType.RefinableSingleTypeExprs)
+                {
+                    if (additional.Refinement is not null)
+                        return true;
+                }
+                return false;
+            }
+
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// Extracts a human-readable type name from a <see cref="RefinableTypeExpressionNode"/>
+    /// for use in diagnostic messages.
+    /// </summary>
+    private static string ExtractRefinableTypeExpressionName(
+        RefinableTypeExpressionNode refinableExpr,
+        SourceText? sourceText)
+    {
+        switch (refinableExpr)
+        {
+            case RefinableSingleTypeRefinableTypeExpressionNode single:
+                return ExtractSingleTypeRefName(single.SingleType.Type, sourceText);
+
+            case RefinableUnionTypeRefinableTypeExpressionNode union:
+                return ExtractSingleTypeRefName(union.UnionType.First.Type, sourceText);
+
+            default:
+                return "unknown";
+        }
+    }
+
+    private static string ExtractSingleTypeRefName(SingleTypeRefNode singleTypeRef, SourceText? sourceText)
+    {
+        switch (singleTypeRef)
+        {
+            case NamedSingleTypeRefSingleTypeRefNode namedRef:
+                var lexeme = namedRef.Name.IDENTIFIER.Lexeme;
+                if (!string.IsNullOrEmpty(lexeme))
+                    return lexeme;
+                if (sourceText is not null)
+                {
+                    var span = namedRef.Name.Span;
+                    if (span.Length > 0 && span.Start + span.Length <= sourceText.Contents.Length)
+                        return sourceText.Contents.Substring(span.Start, span.Length);
+                }
+                return "";
+            case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
+                return FormatPrimitiveType(primitiveRef.PrimitiveType);
+            case VoidSingleTypeRefSingleTypeRefNode:
+                return "void";
+            default:
+                return "unknown";
+        }
     }
 
     // ─── Type Reference Resolution ───────────────────────────────────────
@@ -15922,6 +16198,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         if (left is ErrorType || right is ErrorType)
             return ErrorType.Instance;
+
+        // ── refinement-types feature: arithmetic erasure (Requirement 8.1) ──
+        // When a RefinementType participates in arithmetic, the result is the
+        // BaseType. Unwrap before numeric ranking so the correct base type is
+        // used for the result.
+        if (left is RefinementType leftRefinement)
+            left = leftRefinement.BaseType;
+        if (right is RefinementType rightRefinement)
+            right = rightRefinement.BaseType;
 
         // Numeric widening: decimal > double > float > ulong > long > uint > int > smaller types.
         // Use DisplayName-based ranking to handle both legacy (e.g., "int")

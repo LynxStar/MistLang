@@ -540,6 +540,55 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId ArrayLiteralIncompatibleTypes = new("MIST_TC_0095");
 
+    // ── refinement-types feature: compile-time enforcement diagnostics ───
+    //
+    // Note on numbering: the refinement-types design document's Diagnostic
+    // ID Allocation table originally proposed MIST_TC_0070 / MIST_TC_0071
+    // for the two refinement enforcement diagnostics below. Those codes
+    // were already allocated to the type-unions feature (see
+    // UnionNonConstituentAssignment and UnionToNonUnionAssignment above),
+    // so the refinement enforcement diagnostics were reallocated to
+    // MIST_TC_0097 / MIST_TC_0098 — the next free codes after the empty
+    // array literal diagnostic (MIST_TC_0096). This continues the same
+    // reallocation strategy used throughout this file.
+
+    /// <summary>
+    /// Emitted when a compile-time constant value is assigned to a
+    /// <see cref="Mist.Semantics.Model.Types.RefinementType"/> variable and
+    /// the value does not satisfy the refinement predicate (Requirement 5.2).
+    /// </summary>
+    internal static readonly DiagnosticId RefinementLiteralViolation = new("MIST_TC_0097");
+
+    /// <summary>
+    /// Emitted when a non-constant expression of the base type is assigned
+    /// to a <see cref="Mist.Semantics.Model.Types.RefinementType"/> variable
+    /// without proving the refinement via pattern matching (Requirement 6.1).
+    /// </summary>
+    internal static readonly DiagnosticId RefinementNonConstantAssignment = new("MIST_TC_0098");
+
+    /// <summary>
+    /// Emitted when a value of one <see cref="Mist.Semantics.Model.Types.RefinementType"/>
+    /// is assigned to a variable of a different <see cref="Mist.Semantics.Model.Types.RefinementType"/>
+    /// with the same base type, but the compiler cannot prove that the source
+    /// predicate logically implies the target predicate (Requirement 9.3, 11.5).
+    /// </summary>
+    internal static readonly DiagnosticId RefinementSubsetNotProvable = new("MIST_TC_0099");
+
+    /// <summary>
+    /// Emitted when a refinement predicate references a mutable member via a
+    /// property pattern. All members in a refinement predicate must be readonly
+    /// to prevent the refinement from being silently invalidated by mutation
+    /// (Requirements 3.1, 3.2, 3.4).
+    /// </summary>
+    internal static readonly DiagnosticId RefinementMutableMember = new("MIST_TC_0100");
+
+    /// <summary>
+    /// Emitted when a refinement type is used in a pattern match but the
+    /// scrutinee type is not compatible with the refinement's base type.
+    /// The pattern will never match at runtime (Requirements 14.1, 14.4).
+    /// </summary>
+    internal static readonly DiagnosticId PatternIncompatibleRefinement = new("MIST_TC_0101");
+
     // ── enums feature: assignability diagnostic ──────────────────────────
 
     /// <summary>
@@ -644,8 +693,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     //    (e.g. TryResolvePropertyFromAssignmentTarget).
     private bool _analyzingAssignmentLhs;
 
+    // ── Flow narrowing context for refinement types (Requirements 7.1–7.8) ──
+    //    Maps local variable names to their narrowed RefinementType within
+    //    the current then-branch scope. Entries are pushed when an if-condition
+    //    proves a refinement predicate and popped after the then-branch is checked.
+    //    Reassignment within the branch invalidates the narrowing entry.
+    private readonly Dictionary<string, RefinementType> _narrowingContext = new(StringComparer.Ordinal);
+
+    // ── Set of variable names captured by closures in the current method body ──
+    //    Populated at the start of each method body check. Variables in this set
+    //    are ineligible for flow narrowing (Requirement 7.7).
+    private readonly HashSet<string> _closureCapturedVariables = new(StringComparer.Ordinal);
+
     public void Analyze(ISemanticModel model, DiagnosticBag diagnostics)
     {
+        // Clear flow narrowing state from any previous compilation.
+        _narrowingContext.Clear();
+        _closureCapturedVariables.Clear();
+
         // Walk each method, constructor, property, and indexer body to check type rules.
         foreach (var symbol in model.AllSymbols)
         {
@@ -699,6 +764,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Emits MIST_DT_0004 when a derived type forwards a dependent parameter whose value
         // type cannot be implicitly widened to the base parameter's value type.
         ValidateDependentParameterForwarding(model, diagnostics);
+
+        // Task 11.1: Validate that refinement predicates using property patterns only
+        // reference readonly members (MIST_TC_0100, Requirements 3.1–3.4).
+        CheckRefinementPredicateReadonly(model, diagnostics);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -984,8 +1053,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             CheckCastOperatorDeclaration(castOpDecl, methodSymbol, model, diagnostics);
 
+            // ── Flow narrowing: detect closure-captured variables ──
             if (castOpDecl.Body.GetBlock() is BlockNode castBlock)
+            {
+                CollectClosureCapturedVariables(castBlock);
                 CheckBlock(castBlock, returnType, model, diagnostics);
+            }
             return;
         }
 
@@ -996,8 +1069,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         _currentEnclosingType = FindDeclaringType(methodSymbol);
         _insideConstructor = false;
         _insidePropertyAccessor = false;
+
+        // ── Flow narrowing: detect closure-captured variables ──
         if (methodDecl.Body.GetBlock() is BlockNode block)
+        {
+            CollectClosureCapturedVariables(block);
             CheckBlock(block, returnType2, model, diagnostics);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1333,6 +1411,36 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             source = sourceAlias.UnderlyingType;
         if (target is TypeAliasType targetAlias)
             target = targetAlias.UnderlyingType;
+
+        // ── refinement-types feature: nominal subtyping (Requirement 8.3) ──
+        // Same rules as in IsAssignable: widening from refinement to base is
+        // always safe, and same-name refinement types are identity-assignable.
+        // Different refinement types with same base use subset proving (Requirement 9.1, 9.2).
+        if (source is RefinementType sourceRefinementDirect)
+        {
+            if (target is RefinementType targetRefinementDirect)
+            {
+                if (sourceRefinementDirect.Name == targetRefinementDirect.Name)
+                    return true;
+
+                // Different refinement types with same base: use subset proving.
+                if (IsDirectlyAssignable(sourceRefinementDirect.BaseType, targetRefinementDirect.BaseType, model))
+                {
+                    if (RefinementSolver.Implies(sourceRefinementDirect.Predicate, targetRefinementDirect.Predicate))
+                        return true;
+                }
+            }
+
+            source = sourceRefinementDirect.BaseType;
+        }
+
+        // ── refinement-types feature: target is RefinementType ───────────
+        // Same rule as in IsAssignable: when the target is a RefinementType,
+        // check assignability against the base type.
+        if (target is RefinementType targetRefinementDirectForBase)
+        {
+            return IsDirectlyAssignable(source, targetRefinementDirectForBase.BaseType, model);
+        }
 
         // ErrorType suppresses cascading errors.
         if (IsErrorType(source) || IsErrorType(target))
@@ -2953,6 +3061,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 if (declaredType is not null && initType is not null)
                 {
+                    // ── flow narrowing: use narrowed type if available ──
+                    var effectiveInitType = GetEffectiveSourceType(typed.Initializer, initType);
+
+                    // ── refinement-types feature: compile-time enforcement ──
+                    // When the target is a RefinementType, check the assignment
+                    // against the refinement predicate before the generic
+                    // assignability check. If a refinement-specific diagnostic
+                    // is emitted, skip the generic check to avoid cascading.
+                    if (TryCheckRefinementAssignment(effectiveInitType, declaredType, typed.Initializer, diagnostics, model))
+                    {
+                        break;
+                    }
+
                     // Allow numeric-to-numeric assignments in variable declarations
                     // to support constant narrowing (e.g., byte x = 0; where 0 is int).
                     // Non-numeric type mismatches (e.g., Type → int) are still checked.
@@ -3129,7 +3250,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
             else if (valueType is not null)
             {
-                if (!IsAssignable(valueType, methodReturnType))
+                // ── flow narrowing: use narrowed type if available ──
+                var effectiveValueType = GetEffectiveSourceType(returnStmt.Value, valueType);
+
+                // ── refinement-types feature: compile-time enforcement ──
+                // When the return type is a RefinementType, check the return
+                // value against the refinement predicate.
+                if (TryCheckRefinementAssignment(effectiveValueType, methodReturnType, returnStmt.Value, diagnostics, model))
+                {
+                    // Refinement-specific diagnostic emitted; skip generic.
+                }
+                else if (!IsAssignable(valueType, methodReturnType))
                 {
                     // unknown-type feature (Req 4.2, 4.4): emit a targeted
                     // diagnostic for void→unknown or unknown→non-unknown
@@ -3190,7 +3321,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         CheckExpression(ifStmt.Condition, model, diagnostics);
         CheckConditionIsBool(ifStmt.Condition, model, diagnostics);
+
+        // ── Flow narrowing (Requirements 7.1–7.8) ──────────────────────────
+        // Analyze the condition to detect comparisons that prove refinement
+        // predicates for local variables. If a match is found, narrow the
+        // variable's type within the then-branch.
+        var narrowings = CollectNarrowingsFromCondition(ifStmt.Condition, model);
+        foreach (var (varName, refinementType) in narrowings)
+        {
+            _narrowingContext[varName] = refinementType;
+        }
+
         CheckBlock(ifStmt.ThenBranch, returnType, model, diagnostics);
+
+        // Remove narrowing entries after the then-branch.
+        foreach (var (varName, _) in narrowings)
+        {
+            _narrowingContext.Remove(varName);
+        }
 
         if (ifStmt.ElseBranch is ElseIfElseClauseNode elseIf)
         {
@@ -3207,6 +3355,672 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         CheckExpression(whileStmt.Condition, model, diagnostics);
         CheckConditionIsBool(whileStmt.Condition, model, diagnostics);
         CheckBlock(whileStmt.Body, returnType, model, diagnostics);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Flow narrowing helpers (Requirements 7.1–7.8)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Analyzes an if-condition to detect comparisons or <c>is</c> patterns that
+    /// prove a refinement predicate for a local variable. Returns a list of
+    /// (variableName, RefinementType) pairs for variables that should be narrowed
+    /// within the then-branch.
+    /// </summary>
+    private List<(string VarName, RefinementType Type)> CollectNarrowingsFromCondition(
+        ExpressionNode condition,
+        ISemanticModel model)
+    {
+        var result = new List<(string, RefinementType)>();
+
+        // Navigate: Expression → Assignment → LogicalOr → LogicalAnd → Equality → Relational
+        var assignment = condition.Assignment;
+        if (assignment?.Value is not null) return result; // Not a simple condition.
+
+        var logicalOr = assignment?.Target;
+        if (logicalOr is null) return result;
+
+        // Only handle simple conditions (no || for now).
+        if (logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+            return result;
+
+        var logicalAnd = logicalOr.Left;
+        if (logicalAnd is null) return result;
+
+        // Only handle simple conditions (no && for now — could be extended later).
+        if (logicalAnd.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+            return result;
+
+        var equality = logicalAnd.Left;
+        if (equality is null) return result;
+        if (equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+            return result;
+
+        var relational = equality.Left;
+        if (relational is null) return result;
+
+        switch (relational)
+        {
+            case RelationalComparisonRelationalNode cmp when cmp.Right is not null:
+            {
+                // Simple comparison: x >= N, x <= N, x > N, x < N
+                TryNarrowFromComparison(cmp, model, result);
+                break;
+            }
+            case IsExpressionRelationalNode isExpr:
+            {
+                // `is` pattern: x is >= N
+                TryNarrowFromIsPattern(isExpr, model, result);
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Attempts to narrow a variable from a simple relational comparison (e.g., <c>x >= 18</c>).
+    /// Looks up all refinement types in scope whose predicate matches the condition.
+    /// </summary>
+    private void TryNarrowFromComparison(
+        RelationalComparisonRelationalNode cmp,
+        ISemanticModel model,
+        List<(string VarName, RefinementType Type)> result)
+    {
+        // Extract the variable name from the LHS.
+        var varName = TryExtractSimpleIdentifierName(cmp.Left);
+        if (varName is null) return;
+
+        // Check eligibility: must be a local primitive variable not captured by closures.
+        if (_closureCapturedVariables.Contains(varName)) return;
+
+        var varType = TryGetVariableType(varName, cmp.Left, model);
+        if (varType is null || !IsPrimitiveImmutableType(varType)) return;
+
+        // Extract the operator and constant value from the comparison.
+        var op = cmp.Operator.Lexeme;
+        if (op is null) return;
+
+        var constantValue = TryExtractLongFromAdditiveNode(cmp.Right);
+        if (!constantValue.HasValue) return;
+
+        // Build a synthetic predicate representing this condition and find matching refinement types.
+        var matchingRefinement = FindMatchingRefinementType(varType, op, constantValue.Value, model);
+        if (matchingRefinement is not null)
+        {
+            result.Add((varName, matchingRefinement));
+        }
+    }
+
+    /// <summary>
+    /// Attempts to narrow a variable from an <c>is</c> pattern expression (e.g., <c>x is >= 18</c>).
+    /// When the pattern is a relational pattern, looks up matching refinement types in scope.
+    /// </summary>
+    private void TryNarrowFromIsPattern(
+        IsExpressionRelationalNode isExpr,
+        ISemanticModel model,
+        List<(string VarName, RefinementType Type)> result)
+    {
+        // Extract the variable name from the LHS.
+        var varName = TryExtractSimpleIdentifierName(isExpr.Left);
+        if (varName is null) return;
+
+        // Check eligibility: must be a local primitive variable not captured by closures.
+        if (_closureCapturedVariables.Contains(varName)) return;
+
+        var varType = TryGetVariableType(varName, isExpr.Left, model);
+        if (varType is null || !IsPrimitiveImmutableType(varType)) return;
+
+        // Extract the relational pattern from the is expression.
+        // Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
+        var pattern = isExpr.Pattern;
+        if (pattern?.OrPattern is null) return;
+
+        var orPattern = pattern.OrPattern;
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+            return; // Or patterns not supported for narrowing.
+
+        var andPattern = orPattern.Left;
+        if (andPattern is null) return;
+
+        // Try to find a refinement type whose predicate matches this and-pattern.
+        var matchingRefinement = FindMatchingRefinementTypeFromPattern(varType, andPattern, model);
+        if (matchingRefinement is not null)
+        {
+            result.Add((varName, matchingRefinement));
+        }
+    }
+
+    /// <summary>
+    /// Finds a refinement type in scope whose base type matches <paramref name="varType"/>
+    /// and whose predicate is implied by the condition <c>varName {op} {value}</c>.
+    /// </summary>
+    private static RefinementType? FindMatchingRefinementType(
+        IType varType,
+        string op,
+        long value,
+        ISemanticModel model)
+    {
+        // Search all symbols for refinement types whose base type matches.
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.DeclaredType is not RefinementType refinement) continue;
+
+            // Check base type compatibility.
+            if (!IsAssignable(varType, refinement.BaseType, model) &&
+                !IsAssignable(refinement.BaseType, varType, model))
+                continue;
+
+            // Check if the condition implies the refinement predicate.
+            if (ConditionImpliesPredicate(op, value, refinement.Predicate))
+            {
+                return refinement;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Finds a refinement type in scope whose base type matches <paramref name="varType"/>
+    /// and whose predicate matches the given <paramref name="andPattern"/>.
+    /// </summary>
+    private static RefinementType? FindMatchingRefinementTypeFromPattern(
+        IType varType,
+        AndPatternNode andPattern,
+        ISemanticModel model)
+    {
+        // Extract relational constraints from the pattern.
+        var conditionConstraints = ExtractConstraintsFromAndPattern(andPattern);
+        if (conditionConstraints.Count == 0) return null;
+
+        // Search all symbols for refinement types whose base type matches.
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.DeclaredType is not RefinementType refinement) continue;
+
+            // Check base type compatibility.
+            if (!IsAssignable(varType, refinement.BaseType, model) &&
+                !IsAssignable(refinement.BaseType, varType, model))
+                continue;
+
+            // Check if the pattern constraints imply the refinement predicate.
+            if (ConstraintsImplyPredicate(conditionConstraints, refinement.Predicate))
+            {
+                return refinement;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks if a simple relational condition (<c>x {op} {value}</c>) implies
+    /// the given refinement predicate.
+    /// </summary>
+    private static bool ConditionImpliesPredicate(string op, long value, RefinementPredicate predicate)
+    {
+        // Build a synthetic constraint from the condition.
+        var conditionConstraint = op switch
+        {
+            ">=" => new ConditionConstraint(ConditionRelOp.Gte, value),
+            "<=" => new ConditionConstraint(ConditionRelOp.Lte, value),
+            ">" => new ConditionConstraint(ConditionRelOp.Gt, value),
+            "<" => new ConditionConstraint(ConditionRelOp.Lt, value),
+            _ => (ConditionConstraint?)null
+        };
+
+        if (conditionConstraint is null) return false;
+
+        return ConstraintsImplyPredicate(
+            new List<ConditionConstraint> { conditionConstraint.Value },
+            predicate);
+    }
+
+    /// <summary>
+    /// Checks if a set of condition constraints implies all constraints in the
+    /// given refinement predicate.
+    /// </summary>
+    private static bool ConstraintsImplyPredicate(
+        List<ConditionConstraint> conditionConstraints,
+        RefinementPredicate predicate)
+    {
+        // Extract the predicate's constraints.
+        var predicateConstraints = ExtractPredicateConstraints(predicate);
+        if (predicateConstraints.Count == 0) return false;
+
+        // For implication to hold, every constraint in the predicate must be
+        // implied by at least one constraint in the condition.
+        foreach (var target in predicateConstraints)
+        {
+            var implied = false;
+            foreach (var source in conditionConstraints)
+            {
+                if (ConditionConstraintImplies(source, target))
+                {
+                    implied = true;
+                    break;
+                }
+            }
+
+            if (!implied)
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Determines if a source condition constraint implies a target predicate constraint.
+    /// Uses the same logic as <see cref="RefinementPredicate.Implies"/> but operates
+    /// on the condition-level constraint representation.
+    /// </summary>
+    private static bool ConditionConstraintImplies(ConditionConstraint source, ConditionConstraint target)
+    {
+        return (source.Op, target.Op) switch
+        {
+            // Source: >= a
+            (ConditionRelOp.Gte, ConditionRelOp.Gte) => source.Value >= target.Value,
+            (ConditionRelOp.Gte, ConditionRelOp.Gt) => source.Value > target.Value,
+
+            // Source: > a
+            (ConditionRelOp.Gt, ConditionRelOp.Gte) => source.Value >= target.Value,
+            (ConditionRelOp.Gt, ConditionRelOp.Gt) => source.Value >= target.Value,
+
+            // Source: <= a
+            (ConditionRelOp.Lte, ConditionRelOp.Lte) => source.Value <= target.Value,
+            (ConditionRelOp.Lte, ConditionRelOp.Lt) => source.Value < target.Value,
+
+            // Source: < a
+            (ConditionRelOp.Lt, ConditionRelOp.Lte) => source.Value <= target.Value,
+            (ConditionRelOp.Lt, ConditionRelOp.Lt) => source.Value <= target.Value,
+
+            _ => false
+        };
+    }
+
+    /// <summary>
+    /// Extracts relational constraints from a refinement predicate's AST.
+    /// </summary>
+    private static List<ConditionConstraint> ExtractPredicateConstraints(RefinementPredicate predicate)
+    {
+        return ExtractConstraintsFromAndPattern(predicate.AstNode);
+    }
+
+    /// <summary>
+    /// Extracts relational constraints from an <see cref="AndPatternNode"/>.
+    /// </summary>
+    private static List<ConditionConstraint> ExtractConstraintsFromAndPattern(AndPatternNode andPattern)
+    {
+        var constraints = new List<ConditionConstraint>();
+        ExtractConstraintFromUnary(andPattern.Left, constraints);
+
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
+            ExtractConstraintFromUnary(andPattern.Right, constraints);
+        }
+
+        if (!andPattern.UnaryPatterns.IsDefaultOrEmpty)
+        {
+            foreach (var part in andPattern.UnaryPatterns)
+            {
+                ExtractConstraintFromUnary(part, constraints);
+            }
+        }
+
+        return constraints;
+    }
+
+    /// <summary>
+    /// Extracts a relational constraint from a <see cref="UnaryPatternNode"/>.
+    /// </summary>
+    private static void ExtractConstraintFromUnary(UnaryPatternNode unary, List<ConditionConstraint> constraints)
+    {
+        if (unary is not DirectPatternUnaryPatternNode direct) return;
+
+        switch (direct.Primary)
+        {
+            case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gte:
+            {
+                var val = TryExtractLongFromPatternConstant(gte.Constant);
+                if (val.HasValue) constraints.Add(new ConditionConstraint(ConditionRelOp.Gte, val.Value));
+                break;
+            }
+            case LessThanOrEqualRelationalPatternPrimaryPatternNode lte:
+            {
+                var val = TryExtractLongFromPatternConstant(lte.Constant);
+                if (val.HasValue) constraints.Add(new ConditionConstraint(ConditionRelOp.Lte, val.Value));
+                break;
+            }
+            case GreaterThanRelationalPatternPrimaryPatternNode gt:
+            {
+                var val = TryExtractLongFromPatternConstant(gt.Constant);
+                if (val.HasValue) constraints.Add(new ConditionConstraint(ConditionRelOp.Gt, val.Value));
+                break;
+            }
+            case LessThanRelationalPatternPrimaryPatternNode lt:
+            {
+                var val = TryExtractLongFromPatternConstant(lt.Constant);
+                if (val.HasValue) constraints.Add(new ConditionConstraint(ConditionRelOp.Lt, val.Value));
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extracts a long integer value from a pattern constant expression.
+    /// Delegates to the same logic used by <see cref="RefinementPredicate"/>.
+    /// </summary>
+    private static long? TryExtractLongFromPatternConstant(ExpressionNode expr)
+    {
+        return RefinementPredicate.TryExtractLongFromExpression(expr);
+    }
+
+    /// <summary>
+    /// Extracts a simple identifier name from an additive expression node.
+    /// Returns null if the expression is not a simple identifier reference.
+    /// </summary>
+    private static string? TryExtractSimpleIdentifierName(AdditiveNode additive)
+    {
+        if (additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+            return null;
+
+        var multiplicative = additive?.Left;
+        if (multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+            return null;
+
+        if (multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+            return null;
+
+        var postfix = postfixUnary.Primary;
+        if (postfix.Suffix.Length > 0) return null;
+
+        if (postfix.Target is IdentifierExpressionPrimaryNode identifier)
+            return identifier.Name.Lexeme;
+
+        return null;
+    }
+
+    /// <summary>
+    /// Extracts a long integer value from an additive expression node (for the RHS of a comparison).
+    /// </summary>
+    private static long? TryExtractLongFromAdditiveNode(AdditiveNode? additive)
+    {
+        if (additive is null) return null;
+        if (additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+            return null;
+
+        var multiplicative = additive.Left;
+        if (multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+            return null;
+
+        if (multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+            return null;
+
+        var postfix = postfixUnary.Primary;
+        if (postfix.Suffix.Length > 0) return null;
+
+        if (postfix.Target is IntegerLiteralExpressionPrimaryNode intLiteral)
+            return RefinementPredicate.ParseIntegerLexeme(intLiteral.IntegerLiteral.Lexeme);
+
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the type of a local variable by name from the semantic model.
+    /// Returns null if the variable is not found or is not a local variable.
+    /// </summary>
+    private static IType? TryGetVariableType(string varName, AdditiveNode node, ISemanticModel model)
+    {
+        // Get the type from the expression node itself.
+        var type = model.GetTypeOf(node);
+        return type;
+    }
+
+    /// <summary>
+    /// Returns the effective type of an expression, checking the narrowing context
+    /// for identifier expressions that have been narrowed via flow analysis.
+    /// </summary>
+    private IType? GetNarrowedTypeForIdentifier(ExpressionNode expr)
+    {
+        // Navigate to the identifier: Expression → Assignment → LogicalOr → ... → Primary
+        var assignment = expr.Assignment;
+        if (assignment?.Value is not null) return null;
+
+        var logicalOr = assignment?.Target;
+        if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+            return null;
+
+        var logicalAnd = logicalOr?.Left;
+        if (logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+            return null;
+
+        var equality = logicalAnd?.Left;
+        if (equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+            return null;
+
+        if (equality?.Left is not RelationalComparisonRelationalNode relCmp)
+            return null;
+        if (relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+            return null;
+
+        var additive = relCmp.Left;
+        if (additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+            return null;
+
+        var multiplicative = additive?.Left;
+        if (multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+            return null;
+
+        if (multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+            return null;
+
+        var postfix = postfixUnary.Primary;
+        if (postfix.Suffix.Length > 0) return null;
+
+        if (postfix.Target is IdentifierExpressionPrimaryNode identifier)
+        {
+            if (_narrowingContext.TryGetValue(identifier.Name.Lexeme, out var narrowedType))
+                return narrowedType;
+        }
+
+        return null;
+    }
+
+    private enum ConditionRelOp { Gte, Lte, Gt, Lt }
+
+    private readonly record struct ConditionConstraint(ConditionRelOp Op, long Value);
+
+    /// <summary>
+    /// Returns the effective source type for an expression, checking the narrowing
+    /// context for simple identifier expressions that have been narrowed via flow analysis.
+    /// If the expression is a narrowed identifier, returns the narrowed <see cref="RefinementType"/>;
+    /// otherwise returns the original <paramref name="originalType"/>.
+    /// </summary>
+    private IType GetEffectiveSourceType(ExpressionNode expr, IType originalType)
+    {
+        var narrowedType = GetNarrowedTypeForIdentifier(expr);
+        return narrowedType ?? originalType;
+    }
+
+    /// <summary>
+    /// Returns the effective source type for an assignment RHS expression, checking
+    /// the narrowing context. For assignment nodes, navigates through the target
+    /// (which is the RHS expression in a non-chained assignment).
+    /// </summary>
+    private IType GetEffectiveSourceTypeFromAssignment(AssignmentNode assignmentValue, IType originalType)
+    {
+        // For a non-chained assignment RHS, the expression is in the Target (LogicalOrNode).
+        // Navigate to find a simple identifier.
+        if (assignmentValue.Value is not null) return originalType;
+
+        var varName = TryExtractIdentifierFromLogicalOr(assignmentValue.Target);
+        if (varName is not null && _narrowingContext.TryGetValue(varName, out var narrowedType))
+            return narrowedType;
+
+        return originalType;
+    }
+
+    /// <summary>
+    /// Invalidates narrowing for the variable being assigned to.
+    /// Called when a narrowed variable is reassigned within a branch (Requirement 7.4).
+    /// </summary>
+    private void InvalidateNarrowingForAssignmentTarget(LogicalOrNode target)
+    {
+        var varName = TryExtractIdentifierFromLogicalOr(target);
+        if (varName is not null)
+        {
+            _narrowingContext.Remove(varName);
+        }
+    }
+
+    /// <summary>
+    /// Extracts a simple identifier name from a <see cref="LogicalOrNode"/>.
+    /// Returns null if the expression is not a simple identifier reference.
+    /// </summary>
+    private static string? TryExtractIdentifierFromLogicalOr(LogicalOrNode logicalOr)
+    {
+        if (logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+            return null;
+
+        var logicalAnd = logicalOr.Left;
+        if (logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+            return null;
+
+        var equality = logicalAnd?.Left;
+        if (equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+            return null;
+
+        if (equality?.Left is not RelationalComparisonRelationalNode relCmp)
+            return null;
+        if (relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+            return null;
+
+        var additive = relCmp.Left;
+        if (additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+            return null;
+
+        var multiplicative = additive?.Left;
+        if (multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+            return null;
+
+        if (multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+            return null;
+
+        var postfix = postfixUnary.Primary;
+        if (postfix.Suffix.Length > 0) return null;
+
+        if (postfix.Target is IdentifierExpressionPrimaryNode identifier)
+            return identifier.Name.Lexeme;
+
+        return null;
+    }
+
+    /// <summary>
+    /// Collects variable names captured by closures (lambda expressions) in the
+    /// given block. Variables captured by closures are ineligible for flow narrowing
+    /// (Requirement 7.7).
+    /// </summary>
+    private void CollectClosureCapturedVariables(BlockNode block)
+    {
+        // Currently, Mist does not have lambda/closure expressions.
+        // This method is a placeholder for future closure support.
+        // When lambdas are added, this should walk the block looking for
+        // lambda expressions and collect all identifiers they reference
+        // into _closureCapturedVariables. For now, clear the set to ensure
+        // a clean state for each method body.
+        _closureCapturedVariables.Clear();
+        _ = block; // Suppress unused parameter warning.
+    }
+
+    /// <summary>
+    /// Applies narrowing to argument expressions by finding simple identifier arguments
+    /// that are in the narrowing context and temporarily overriding their type in the
+    /// semantic model. Returns a list of (node, originalType) pairs for restoration.
+    /// </summary>
+    private List<(Storm.Runtime.SyntaxNode Node, IType OriginalType)> ApplyNarrowingToArguments(
+        ArgumentListNode? argList,
+        ISemanticModel model)
+    {
+        var result = new List<(Storm.Runtime.SyntaxNode, IType)>();
+        if (argList is null || _narrowingContext.Count == 0) return result;
+
+        foreach (var child in argList.Children())
+        {
+            if (child is not ExpressionNode expr) continue;
+
+            // Check if this argument is a simple identifier that has been narrowed.
+            var identifierNode = TryExtractIdentifierPrimaryNode(expr);
+            if (identifierNode is null) continue;
+
+            if (_narrowingContext.TryGetValue(identifierNode.Name.Lexeme, out var narrowedType))
+            {
+                var originalType = model.GetTypeOf(identifierNode);
+                if (originalType is not null)
+                {
+                    result.Add((identifierNode, originalType));
+                    model.SetTypeOf(identifierNode, narrowedType);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Restores original types for argument expressions that were temporarily narrowed.
+    /// </summary>
+    private static void RestoreNarrowedArguments(
+        List<(Storm.Runtime.SyntaxNode Node, IType OriginalType)> narrowedArgs,
+        ISemanticModel model)
+    {
+        foreach (var (node, originalType) in narrowedArgs)
+        {
+            model.SetTypeOf(node, originalType);
+        }
+    }
+
+    /// <summary>
+    /// Extracts the <see cref="IdentifierExpressionPrimaryNode"/> from a simple
+    /// identifier expression. Returns null if the expression is not a simple identifier.
+    /// </summary>
+    private static IdentifierExpressionPrimaryNode? TryExtractIdentifierPrimaryNode(ExpressionNode expr)
+    {
+        var assignment = expr.Assignment;
+        if (assignment?.Value is not null) return null;
+
+        var logicalOr = assignment?.Target;
+        if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+            return null;
+
+        var logicalAnd = logicalOr?.Left;
+        if (logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+            return null;
+
+        var equality = logicalAnd?.Left;
+        if (equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+            return null;
+
+        if (equality?.Left is not RelationalComparisonRelationalNode relCmp)
+            return null;
+        if (relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+            return null;
+
+        var additive = relCmp.Left;
+        if (additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+            return null;
+
+        var multiplicative = additive?.Left;
+        if (multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+            return null;
+
+        if (multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+            return null;
+
+        var postfix = postfixUnary.Primary;
+        if (postfix.Suffix.Length > 0) return null;
+
+        return postfix.Target as IdentifierExpressionPrimaryNode;
     }
 
     private void CheckForStatement(ForStatementNode forStmt, IType returnType, ISemanticModel model, DiagnosticBag diagnostics)
@@ -3315,8 +4129,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if (lhsType is not null && rhsType is not null)
             {
-                CheckAssignability(rhsType, lhsType, assignment, diagnostics, model);
+                // ── flow narrowing: use narrowed type for RHS if available ──
+                var effectiveRhsType = GetEffectiveSourceTypeFromAssignment(assignment.Value, rhsType);
+
+                // ── refinement-types feature: compile-time enforcement ──
+                // When the target is a RefinementType, check the assignment
+                // against the refinement predicate before the generic
+                // assignability check.
+                if (!TryCheckRefinementAssignment(effectiveRhsType, lhsType, assignment.Value, diagnostics, model))
+                {
+                    CheckAssignability(rhsType, lhsType, assignment, diagnostics, model);
+                }
             }
+
+            // ── flow narrowing: invalidate narrowing on reassignment (Requirement 7.4) ──
+            InvalidateNarrowingForAssignmentTarget(assignment.Target);
 
             // Property-specific assignment checks (MIST_TC_0020, MIST_TC_0021, MIST_TC_0025).
             var targetPropertySymbol = TryResolvePropertyFromAssignmentTarget(assignment.Target, model);
@@ -3797,6 +4624,41 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         typePattern,
                         model));
                 }
+                else if (patternType is RefinementType refinementPattern)
+                {
+                    // Refinement type pattern: `is AdultAge age` — runtime predicate check.
+                    // Verify the scrutinee type is compatible with the refinement's base type.
+                    // The scrutinee must be assignable to the base type (or be the base type,
+                    // or be another refinement of the same base type).
+                    var effectiveScrutinee = scrutineeType is RefinementType scrutineeRefinement
+                        ? scrutineeRefinement.BaseType
+                        : scrutineeType;
+
+                    if (effectiveScrutinee is UnionType unionForRefinement)
+                    {
+                        // Scrutinee is a union: check if the refinement's base type is a constituent.
+                        if (!IsConstituentOfUnion(refinementPattern.BaseType, unionForRefinement))
+                        {
+                            diagnostics.Add(MakeDiagnosticWarning(
+                                UnionPatternNonConstituent.Value,
+                                $"Type '{patternType.DisplayName}' (base type '{refinementPattern.BaseType.DisplayName}') is not a constituent of union type '{unionForRefinement.DisplayName}'; this pattern will never match",
+                                typePattern,
+                                model));
+                        }
+                    }
+                    else if (!IsAssignable(effectiveScrutinee, refinementPattern.BaseType, model)
+                             && !IsAssignable(refinementPattern.BaseType, effectiveScrutinee, model))
+                    {
+                        // Scrutinee type is not compatible with the refinement's base type.
+                        diagnostics.Add(MakeDiagnosticWarning(
+                            PatternIncompatibleRefinement.Value,
+                            $"Refinement type '{patternType.DisplayName}' has base type '{refinementPattern.BaseType.DisplayName}' which is not compatible with scrutinee type '{scrutineeType.DisplayName}'; this pattern will never match",
+                            typePattern,
+                            model));
+                    }
+                    // Otherwise: valid refinement type pattern — the is expression will
+                    // evaluate the refinement predicate at runtime.
+                }
                 else if (scrutineeType is UnionType unionForTypePattern
                          && !IsConstituentOfUnion(patternType, unionForTypePattern))
                 {
@@ -3870,6 +4732,35 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         $"Cannot pattern match against open dependent type '{patternType.DisplayName}'. Pattern matching requires concrete dependent values.",
                         bareTypePattern,
                         model));
+                }
+                else if (patternType is RefinementType bareRefinementPattern)
+                {
+                    // Refinement type pattern (bare): `is AdultAge` — runtime predicate check.
+                    // Verify the scrutinee type is compatible with the refinement's base type.
+                    var effectiveScrutinee = scrutineeType is RefinementType scrutineeRefinementBare
+                        ? scrutineeRefinementBare.BaseType
+                        : scrutineeType;
+
+                    if (effectiveScrutinee is UnionType unionForBareRefinement)
+                    {
+                        if (!IsConstituentOfUnion(bareRefinementPattern.BaseType, unionForBareRefinement))
+                        {
+                            diagnostics.Add(MakeDiagnosticWarning(
+                                UnionPatternNonConstituent.Value,
+                                $"Type '{patternType.DisplayName}' (base type '{bareRefinementPattern.BaseType.DisplayName}') is not a constituent of union type '{unionForBareRefinement.DisplayName}'; this pattern will never match",
+                                bareTypePattern,
+                                model));
+                        }
+                    }
+                    else if (!IsAssignable(effectiveScrutinee, bareRefinementPattern.BaseType, model)
+                             && !IsAssignable(bareRefinementPattern.BaseType, effectiveScrutinee, model))
+                    {
+                        diagnostics.Add(MakeDiagnosticWarning(
+                            PatternIncompatibleRefinement.Value,
+                            $"Refinement type '{patternType.DisplayName}' has base type '{bareRefinementPattern.BaseType.DisplayName}' which is not compatible with scrutinee type '{scrutineeType.DisplayName}'; this pattern will never match",
+                            bareTypePattern,
+                            model));
+                    }
                 }
                 else if (scrutineeType is UnionType unionForBareTypePattern
                          && !IsConstituentOfUnion(patternType, unionForBareTypePattern))
@@ -6031,6 +6922,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             CheckArgumentListExpressions(methodCall.Arguments, model, diagnostics);
         }
 
+        // ── Flow narrowing: apply narrowed types to argument expressions ──
+        // When a narrowed variable is passed as a method argument, temporarily
+        // override its type in the semantic model so that the static
+        // CheckArgumentTypes methods pick up the narrowed type.
+        var narrowedArgs = ApplyNarrowingToArguments(methodCall.Arguments, model);
         // Look up the method symbol to check argument types against parameter types.
         var methodSymbol = model.GetDeclaredSymbol(methodCall);
 
@@ -6125,6 +7021,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Fallback: use the symbol from the call-site node if no candidates found via target type.
             CheckArgumentTypes(methodCall.Arguments, methodSymbol, model, diagnostics, methodCall);
         }
+
+        // Restore original types after argument checking.
+        RestoreNarrowedArguments(narrowedArgs, model);
     }
 
     private void CheckInvocationArguments(
@@ -6260,6 +7159,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if (argType is not null && paramType is not null)
             {
+                // ── refinement-types feature: compile-time enforcement ──
+                // When the parameter is a RefinementType, check the argument
+                // against the refinement predicate (Requirement 5.3).
+                if (TryCheckRefinementAssignment(argType, paramType, argExprs[i], diagnostics, model))
+                {
+                    continue;
+                }
+
                 if (!IsAssignable(argType, paramType))
                 {
                     // unknown-type feature (Req 4.2, 4.4): emit a targeted
@@ -6371,6 +7278,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Apply method-level substitution (e.g., U → string for Method<string>).
                 if (methodTypeParams is not null && methodTypeArgs is not null)
                     paramType = SubstituteType(paramType, methodTypeParams, methodTypeArgs);
+
+                // ── refinement-types feature: compile-time enforcement ──
+                // When the parameter is a RefinementType, check the argument
+                // against the refinement predicate (Requirement 5.3).
+                if (TryCheckRefinementAssignment(argType, paramType, argExprs[i], diagnostics, model))
+                {
+                    continue;
+                }
 
                 if (!IsAssignable(argType, paramType))
                 {
@@ -7843,6 +8758,510 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // Refinement type compile-time enforcement (MIST_TC_0097, MIST_TC_0098)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Checks whether an assignment to a <see cref="RefinementType"/> target is valid.
+    /// <list type="bullet">
+    ///   <item>If the source is already the same <see cref="RefinementType"/>, accepts without re-checking.</item>
+    ///   <item>If the source is a compile-time constant, evaluates the predicate and emits
+    ///         <see cref="RefinementLiteralViolation"/> if it fails.</item>
+    ///   <item>If the source is a non-constant expression of the base type, emits
+    ///         <see cref="RefinementNonConstantAssignment"/>.</item>
+    /// </list>
+    /// Returns <c>true</c> if a refinement-specific diagnostic was emitted (caller should
+    /// skip the generic assignability check), <c>false</c> otherwise.
+    /// </summary>
+    private static bool TryCheckRefinementAssignment(
+        IType sourceType,
+        IType targetType,
+        ExpressionNode expression,
+        DiagnosticBag diagnostics,
+        ISemanticModel model)
+    {
+        // Only applies when the target is a RefinementType.
+        if (targetType is not RefinementType targetRefinement)
+            return false;
+
+        // If the source is already the same RefinementType, accept without re-checking.
+        // The source type already guarantees compliance (Requirement 5.5).
+        if (sourceType is RefinementType sourceRefinement &&
+            sourceRefinement.Name == targetRefinement.Name)
+            return false;
+
+        // If the source is a RefinementType with a different name but the same
+        // base type, attempt subset proving via the RefinementSolver (Requirement 9.1, 9.3).
+        if (sourceType is RefinementType sourceRefinementDifferent)
+        {
+            if (IsAssignable(sourceRefinementDifferent.BaseType, targetRefinement.BaseType, model))
+            {
+                if (RefinementSolver.Implies(sourceRefinementDifferent.Predicate, targetRefinement.Predicate))
+                {
+                    // Subset proven — accept the assignment.
+                    return false;
+                }
+
+                // Cannot prove subset relationship — emit diagnostic.
+                diagnostics.Add(MakeDiagnostic(
+                    RefinementSubsetNotProvable.Value,
+                    $"Cannot assign '{sourceRefinementDifferent.Name}' to '{targetRefinement.Name}' because the compiler cannot prove that '{sourceRefinementDifferent.Predicate.Description}' implies '{targetRefinement.Predicate.Description}'",
+                    expression,
+                    model));
+                return true;
+            }
+
+            // Different base types — fall through to normal assignability.
+            return false;
+        }
+
+        // Check if the source is a compile-time constant literal.
+        var constantValue = TryExtractLiteralConstantValue(expression);
+        if (constantValue is not null)
+        {
+            // Evaluate the predicate against the literal value.
+            if (!targetRefinement.Predicate.Evaluate(constantValue))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    RefinementLiteralViolation.Value,
+                    $"Value '{constantValue}' does not satisfy refinement '{targetRefinement.Predicate.Description}' on type '{targetRefinement.Name}'",
+                    expression,
+                    model));
+                return true;
+            }
+
+            // Literal satisfies the predicate — accept the assignment.
+            return false;
+        }
+
+        // Non-constant expression: check if the source type is the base type
+        // (or assignable to the base type). If so, emit the non-constant diagnostic.
+        if (IsAssignable(sourceType, targetRefinement.BaseType, model))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                RefinementNonConstantAssignment.Value,
+                $"Cannot assign '{sourceType.DisplayName}' to '{targetRefinement.Name}' without proving the refinement. Use pattern matching to validate at runtime",
+                expression,
+                model));
+            return true;
+        }
+
+        // Source type is not related to the base type — let normal assignability handle it.
+        return false;
+    }
+
+    /// <summary>
+    /// Overload of <see cref="TryCheckRefinementAssignment(IType, IType, ExpressionNode, DiagnosticBag, ISemanticModel)"/>
+    /// that accepts an <see cref="AssignmentNode"/> as the expression source. Used for
+    /// reassignment statements (<c>x = value;</c>).
+    /// </summary>
+    private static bool TryCheckRefinementAssignment(
+        IType sourceType,
+        IType targetType,
+        AssignmentNode assignmentValue,
+        DiagnosticBag diagnostics,
+        ISemanticModel model)
+    {
+        // Only applies when the target is a RefinementType.
+        if (targetType is not RefinementType targetRefinement)
+            return false;
+
+        // If the source is already the same RefinementType, accept without re-checking.
+        if (sourceType is RefinementType sourceRefinement &&
+            sourceRefinement.Name == targetRefinement.Name)
+            return false;
+
+        // If the source is a RefinementType with a different name but the same
+        // base type, attempt subset proving via the RefinementSolver (Requirement 9.1, 9.3).
+        if (sourceType is RefinementType sourceRefinementDifferent)
+        {
+            if (IsAssignable(sourceRefinementDifferent.BaseType, targetRefinement.BaseType, model))
+            {
+                if (RefinementSolver.Implies(sourceRefinementDifferent.Predicate, targetRefinement.Predicate))
+                {
+                    // Subset proven — accept the assignment.
+                    return false;
+                }
+
+                // Cannot prove subset relationship — emit diagnostic.
+                diagnostics.Add(MakeDiagnostic(
+                    RefinementSubsetNotProvable.Value,
+                    $"Cannot assign '{sourceRefinementDifferent.Name}' to '{targetRefinement.Name}' because the compiler cannot prove that '{sourceRefinementDifferent.Predicate.Description}' implies '{targetRefinement.Predicate.Description}'",
+                    assignmentValue,
+                    model));
+                return true;
+            }
+
+            // Different base types — fall through to normal assignability.
+            return false;
+        }
+
+        // Try to extract a literal constant from the assignment value's target.
+        // An AssignmentNode without a Value (no chaining) has its expression in Target.
+        var constantValue = TryExtractLiteralConstantFromAssignmentTarget(assignmentValue);
+        if (constantValue is not null)
+        {
+            if (!targetRefinement.Predicate.Evaluate(constantValue))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    RefinementLiteralViolation.Value,
+                    $"Value '{constantValue}' does not satisfy refinement '{targetRefinement.Predicate.Description}' on type '{targetRefinement.Name}'",
+                    assignmentValue,
+                    model));
+                return true;
+            }
+
+            return false;
+        }
+
+        // Non-constant expression.
+        if (IsAssignable(sourceType, targetRefinement.BaseType, model))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                RefinementNonConstantAssignment.Value,
+                $"Cannot assign '{sourceType.DisplayName}' to '{targetRefinement.Name}' without proving the refinement. Use pattern matching to validate at runtime",
+                assignmentValue,
+                model));
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Extracts a compile-time constant value from an <see cref="AssignmentNode"/>'s
+    /// target expression (for non-chained assignments where Value is null).
+    /// </summary>
+    private static object? TryExtractLiteralConstantFromAssignmentTarget(AssignmentNode assignment)
+    {
+        // For a simple assignment RHS like `5`, the AssignmentNode has no Value
+        // and the Target is a LogicalOrNode wrapping the literal.
+        // Navigate through the single-child chain to find a PrimaryNode.
+        if (assignment.Value is not null)
+            return null; // Chained assignment — not a simple literal.
+
+        Storm.Runtime.SyntaxNode current = assignment.Target;
+        for (var depth = 0; depth < 20; depth++)
+        {
+            if (current is PrimaryNode primary)
+            {
+                return primary switch
+                {
+                    IntegerLiteralExpressionPrimaryNode intLit => TryParseLiteralInt(intLit.IntegerLiteral.Lexeme),
+                    HexLiteralExpressionPrimaryNode hexLit => TryParseLiteralInt(hexLit.HexLiteral.Lexeme),
+                    BinaryLiteralExpressionPrimaryNode binLit => TryParseLiteralInt(binLit.BinaryLiteral.Lexeme),
+                    FloatLiteralExpressionPrimaryNode floatLit => TryParseLiteralFloat(floatLit.FloatLiteral.Lexeme),
+                    CharLiteralExpressionPrimaryNode charLit => ExtractCharContent(charLit.CharLiteral.Lexeme),
+                    TrueLiteralExpressionPrimaryNode => true,
+                    FalseLiteralExpressionPrimaryNode => false,
+                    _ => null,
+                };
+            }
+
+            Storm.Runtime.SyntaxNode? next = null;
+            var childCount = 0;
+            foreach (var child in current.Children())
+            {
+                if (child is null) continue;
+                childCount++;
+                if (child is PrimaryNode childPrimary)
+                {
+                    return childPrimary switch
+                    {
+                        IntegerLiteralExpressionPrimaryNode intLit => TryParseLiteralInt(intLit.IntegerLiteral.Lexeme),
+                        HexLiteralExpressionPrimaryNode hexLit => TryParseLiteralInt(hexLit.HexLiteral.Lexeme),
+                        BinaryLiteralExpressionPrimaryNode binLit => TryParseLiteralInt(binLit.BinaryLiteral.Lexeme),
+                        FloatLiteralExpressionPrimaryNode floatLit => TryParseLiteralFloat(floatLit.FloatLiteral.Lexeme),
+                        CharLiteralExpressionPrimaryNode charLit => ExtractCharContent(charLit.CharLiteral.Lexeme),
+                        TrueLiteralExpressionPrimaryNode => true,
+                        FalseLiteralExpressionPrimaryNode => false,
+                        _ => null,
+                    };
+                }
+                if (next is null) next = child;
+            }
+
+            if (childCount > 1 || next is null)
+                return null;
+
+            current = next;
+        }
+
+        return null;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Refinement predicate readonly validation (MIST_TC_0100)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates that all refinement types with property patterns only reference
+    /// readonly members. Iterates over all type alias symbols whose declared type
+    /// is a <see cref="RefinementType"/> (or a <see cref="UnionType"/> containing
+    /// refinement constituents) and checks property patterns in their predicates.
+    /// Emits <see cref="RefinementMutableMember"/> for each mutable member found.
+    /// </summary>
+    private static void CheckRefinementPredicateReadonly(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Origin == SymbolOrigin.Backend)
+                continue;
+
+            if (symbol.Kind != SymbolKind.TypeAlias)
+                continue;
+
+            var declaredType = symbol.DeclaredType;
+            if (declaredType is RefinementType refinementType)
+            {
+                ValidateRefinementPredicateMembers(
+                    refinementType.Name,
+                    refinementType.BaseType,
+                    refinementType.Predicate.AstNode,
+                    model,
+                    diagnostics);
+            }
+            else if (declaredType is UnionType unionType)
+            {
+                foreach (var constituent in unionType.Constituents)
+                {
+                    if (constituent is RefinementType constituentRefinement)
+                    {
+                        ValidateRefinementPredicateMembers(
+                            constituentRefinement.Name,
+                            constituentRefinement.BaseType,
+                            constituentRefinement.Predicate.AstNode,
+                            model,
+                            diagnostics);
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates that all property patterns within a refinement predicate's
+    /// <see cref="AndPatternNode"/> reference only readonly members on the base type.
+    /// Primitive base types (int, bool, char, etc.) are skipped because they are
+    /// inherently immutable (Requirement 3.3).
+    /// </summary>
+    private static void ValidateRefinementPredicateMembers(
+        string typeName,
+        IType baseType,
+        AndPatternNode andPattern,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Primitive types are inherently immutable — no readonly check needed (Requirement 3.3).
+        if (IsPrimitiveImmutableType(baseType))
+            return;
+
+        // Walk the and-pattern looking for property patterns.
+        ValidateUnaryPatternReadonly(typeName, baseType, andPattern.Left, model, diagnostics);
+
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
+            ValidateUnaryPatternReadonly(typeName, baseType, andPattern.Right, model, diagnostics);
+        }
+
+        if (!andPattern.UnaryPatterns.IsDefaultOrEmpty)
+        {
+            foreach (var part in andPattern.UnaryPatterns)
+            {
+                ValidateUnaryPatternReadonly(typeName, baseType, part, model, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates a single <see cref="UnaryPatternNode"/> within a refinement predicate
+    /// for readonly member references.
+    /// </summary>
+    private static void ValidateUnaryPatternReadonly(
+        string typeName,
+        IType baseType,
+        UnaryPatternNode unary,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        if (unary is DirectPatternUnaryPatternNode direct)
+        {
+            ValidatePrimaryPatternReadonly(typeName, baseType, direct.Primary, model, diagnostics);
+        }
+        else if (unary is NotPatternUnaryPatternNode not)
+        {
+            ValidatePrimaryPatternReadonly(typeName, baseType, not.Operand, model, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Validates a <see cref="PrimaryPatternNode"/> within a refinement predicate.
+    /// Only <see cref="PropertyPatternPrimaryPatternNode"/> instances require readonly
+    /// validation — relational and constant patterns are inherently safe.
+    /// </summary>
+    private static void ValidatePrimaryPatternReadonly(
+        string typeName,
+        IType baseType,
+        PrimaryPatternNode primary,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        if (primary is not PropertyPatternPrimaryPatternNode propertyPattern)
+            return;
+
+        if (propertyPattern.Subpatterns is null)
+            return;
+
+        ValidatePropertySubpatternListReadonly(
+            typeName, baseType, propertyPattern.Subpatterns, model, diagnostics);
+    }
+
+    /// <summary>
+    /// Validates all property subpatterns in a list for readonly member references.
+    /// </summary>
+    private static void ValidatePropertySubpatternListReadonly(
+        string typeName,
+        IType patternType,
+        PropertySubpatternListNode subpatternList,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        ValidatePropertySubpatternReadonly(
+            typeName, patternType, subpatternList.PropertySubpattern, model, diagnostics);
+
+        foreach (var subpattern in subpatternList.PropertySubpatterns)
+        {
+            ValidatePropertySubpatternReadonly(typeName, patternType, subpattern, model, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Validates a single property subpattern: resolves the member, checks its
+    /// readonly status, and recursively validates nested property patterns.
+    /// Emits <see cref="RefinementMutableMember"/> if the member is mutable.
+    /// </summary>
+    private static void ValidatePropertySubpatternReadonly(
+        string typeName,
+        IType patternType,
+        PropertySubpatternNode subpattern,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var memberName = subpattern.Name.Lexeme;
+        var memberScope = GetMemberScope(patternType);
+
+        ISymbol? member = null;
+        if (memberScope is not null)
+        {
+            member = memberScope.Lookup(memberName);
+        }
+
+        if (member is not null)
+        {
+            // Check if the member is readonly.
+            if (!IsMemberReadonly(member))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    RefinementMutableMember.Value,
+                    $"Refinement predicate on type '{typeName}' references mutable member '{memberName}'. All members in a refinement predicate must be readonly.",
+                    subpattern,
+                    model));
+            }
+
+            // Recursively validate nested property patterns in the subpattern's inner pattern.
+            var memberType = member.DeclaredType ?? ErrorType.Instance;
+            ValidateNestedPatternReadonly(typeName, memberType, subpattern.Pattern, model, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Recursively validates nested patterns within a property subpattern for
+    /// readonly member references. Navigates the Pattern → OrPattern → AndPattern
+    /// hierarchy to find nested property patterns.
+    /// </summary>
+    private static void ValidateNestedPatternReadonly(
+        string typeName,
+        IType memberType,
+        PatternNode pattern,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var orPattern = pattern.OrPattern;
+        if (orPattern is null)
+            return;
+
+        ValidateNestedAndPatternReadonly(typeName, memberType, orPattern.Left, model, diagnostics);
+
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
+            ValidateNestedAndPatternReadonly(typeName, memberType, orPattern.Right, model, diagnostics);
+        }
+
+        if (!orPattern.AndPatterns.IsDefaultOrEmpty)
+        {
+            foreach (var andAlt in orPattern.AndPatterns)
+            {
+                ValidateNestedAndPatternReadonly(typeName, memberType, andAlt, model, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates an <see cref="AndPatternNode"/> within a nested pattern for readonly
+    /// member references.
+    /// </summary>
+    private static void ValidateNestedAndPatternReadonly(
+        string typeName,
+        IType memberType,
+        AndPatternNode andPattern,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Skip readonly checks for primitive member types (inherently immutable).
+        if (IsPrimitiveImmutableType(memberType))
+            return;
+
+        ValidateUnaryPatternReadonly(typeName, memberType, andPattern.Left, model, diagnostics);
+
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
+            ValidateUnaryPatternReadonly(typeName, memberType, andPattern.Right, model, diagnostics);
+        }
+
+        if (!andPattern.UnaryPatterns.IsDefaultOrEmpty)
+        {
+            foreach (var part in andPattern.UnaryPatterns)
+            {
+                ValidateUnaryPatternReadonly(typeName, memberType, part, model, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Determines whether a type is a primitive immutable type (int, bool, char, etc.)
+    /// that does not require readonly checks in refinement predicates because its values
+    /// are inherently immutable (Requirement 3.3).
+    /// </summary>
+    private static bool IsPrimitiveImmutableType(IType type)
+    {
+        var displayName = type.DisplayName;
+        return displayName switch
+        {
+            // Legacy primitive names.
+            "int" or "uint" or "long" or "ulong" => true,
+            "short" or "ushort" or "byte" or "sbyte" => true,
+            "float" or "double" or "decimal" => true,
+            "char" or "bool" or "string" => true,
+            // Stdlib names.
+            "Int32" or "UInt32" or "Int64" or "UInt64" => true,
+            "Int16" or "UInt16" or "Byte" or "SByte" => true,
+            "Single" or "Double" or "Decimal" => true,
+            "Char" or "Boolean" or "String" => true,
+            _ => false,
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // Assignability and type compatibility helpers
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -8175,6 +9594,45 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             source = sourceAlias.UnderlyingType;
         if (target is TypeAliasType targetAlias)
             target = targetAlias.UnderlyingType;
+
+        // ── refinement-types feature: nominal subtyping (Requirement 8.3) ──
+        // A RefinementType is a nominal subtype of its BaseType. Widening
+        // from refinement to base is always safe. Same-name refinement types
+        // are identity-assignable.
+        if (source is RefinementType sourceRefinement)
+        {
+            if (target is RefinementType targetRefinement)
+            {
+                // Same refinement type: accept (identity).
+                if (sourceRefinement.Name == targetRefinement.Name)
+                    return true;
+
+                // Different refinement types with same base: use subset proving.
+                // If the source predicate implies the target predicate, the
+                // assignment is safe (Requirement 9.1, 9.2).
+                if (IsAssignable(sourceRefinement.BaseType, targetRefinement.BaseType, model))
+                {
+                    if (RefinementSolver.Implies(sourceRefinement.Predicate, targetRefinement.Predicate))
+                        return true;
+                }
+
+                // Cannot prove subset — fall through to unwrap and check base.
+            }
+
+            // Widening: RefinementType → BaseType is always safe.
+            // Unwrap the source to its base type and continue checking.
+            source = sourceRefinement.BaseType;
+        }
+
+        // ── refinement-types feature: target is RefinementType ───────────
+        // When the target is a RefinementType and the source is assignable
+        // to the base type, IsAssignable returns true. The actual predicate
+        // enforcement (literal evaluation or non-constant rejection) is
+        // handled by TryCheckRefinementAssignment at the call site.
+        if (target is RefinementType targetRefinementForBase)
+        {
+            return IsAssignable(source, targetRefinementForBase.BaseType, model);
+        }
 
         // ErrorType suppresses cascading errors.
         if (IsErrorType(source) || IsErrorType(target))
@@ -9748,6 +11206,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static IEnumerable<ISymbol> GetOperatorMembers(IType type, string operatorName)
     {
+        // ── refinement-types feature: arithmetic erasure (Requirement 8.1, 8.2) ──
+        // A RefinementType has no operators of its own — unwrap to the BaseType
+        // so that operator lookup finds the base type's operators. The result
+        // type of the resolved operator will naturally be the BaseType, which
+        // implements the "arithmetic erases refinements" rule.
+        if (type is RefinementType refinement)
+            type = refinement.BaseType;
+
         var scope = type switch
         {
             ClassType ct => ct.MemberScope,

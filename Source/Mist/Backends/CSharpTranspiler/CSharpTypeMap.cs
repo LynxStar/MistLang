@@ -158,6 +158,10 @@ internal static class CSharpTypeMap
         // through, resolve to the underlying type and delegate to existing logic.
         TypeAliasType alias => GetTypeName(alias.UnderlyingType, isValueContext),
 
+        // Refinement types are erased to their base type in C#. For example,
+        // `AdultAge` (defined as `type AdultAge = int >= 18;`) emits as `int`.
+        RefinementType refinement => GetTypeName(refinement.BaseType, isValueContext),
+
         // Enum types map to their record class name (the enum's DisplayName).
         EnumType et => et.DisplayName,
 

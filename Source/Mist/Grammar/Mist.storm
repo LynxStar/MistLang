@@ -117,9 +117,20 @@ rule TypeDeclaration
     | enumDeclaration:EnumDeclaration             as EnumType
     ;
 
-rule TypeAliasDeclaration = TYPE name:IDENTIFIER typeParams:TypeParameterList? EQUAL type:TypeReference
+rule TypeAliasDeclaration = TYPE name:IDENTIFIER typeParams:TypeParameterList? EQUAL type:RefinableTypeExpression
     constraints:ConstraintClause*
     SEMICOLON;
+
+rule RefinableTypeExpression
+    = unionType:RefinableUnionTypeExpr   as RefinableUnionType
+    | singleType:RefinableSingleTypeExpr as RefinableSingleType
+    ;
+
+rule RefinableUnionTypeExpr = first:RefinableSingleTypeExpr (PIPE rest:RefinableSingleTypeExpr)+;
+
+rule RefinableSingleTypeExpr = type:SingleTypeRef refinement:RefinementPredicate?;
+
+rule RefinementPredicate = predicate:AndPattern;
 
 // ─── Parser Rules — Type Parameter and Type Argument Lists ───────────────────
 

@@ -77,3 +77,6 @@ path = "../PropertyInitializers"
 
 [[references]]
 path = "../ArrayLiterals"
+
+[[references]]
+path = "../RefinementTypes"

@@ -147,10 +147,16 @@ public class TypeAliasRegistrationPropertyTests
         };
     }
 
-    private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new NamedTypeRefTypeReferenceNode
+    private static RefinableTypeExpressionNode MakeRefinableTypeExpr(string name) =>
+        new RefinableSingleTypeRefinableTypeExpressionNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
+            SingleType = new RefinableSingleTypeExprNode
+            {
+                Type = new NamedSingleTypeRefSingleTypeRefNode
+                {
+                    Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
+                },
+            },
         };
 
     private static CompilationUnitNode BuildAst(TypeAliasRegistrationScenario scenario)
@@ -161,7 +167,7 @@ public class TypeAliasRegistrationPropertyTests
             TypeParams = scenario.IsGeneric
                 ? MakeTypeParamList(scenario.TypeParameterNames)
                 : null,
-            Type = MakeNamedTypeRef(scenario.TargetTypeName),
+            Type = MakeRefinableTypeExpr(scenario.TargetTypeName),
         };
 
         var aliasItem = new TypeAliasItemTopLevelItemNode

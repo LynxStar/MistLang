@@ -744,7 +744,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // This runs after type resolution because field types must be resolved
         // to determine whether they are defaultable. The pass builds a
         // dependency graph and processes types in topological order.
-        ComputeDefaultability(symbolTable, diagnostics);
+        ComputeDefaultability(symbolTable, compilation, diagnostics);
 
         // Post-Pass 2: Check for member redeclarations in derived classes.
         // This runs after type resolution so that parameter types are resolved
@@ -16749,6 +16749,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static void ComputeDefaultability(
         SymbolTable symbolTable,
+        MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
         // Step 1: Collect all class and struct type symbols.
@@ -16879,10 +16880,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             switch (type)
             {
                 case ClassType classType:
-                    ComputeDefaultabilityForType(classType, symbol, symbolTable, diagnostics);
+                    ComputeDefaultabilityForType(classType, symbol, symbolTable, compilation, diagnostics);
                     break;
                 case StructType structType:
-                    ComputeDefaultabilityForType(structType, symbol, symbolTable, diagnostics);
+                    ComputeDefaultabilityForType(structType, symbol, symbolTable, compilation, diagnostics);
                     break;
             }
         }
@@ -16895,6 +16896,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ClassType classType,
         ISymbol typeSymbol,
         SymbolTable symbolTable,
+        MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
         // If already set to Explicit by Pass 1 (has a default block), keep it.
@@ -16965,7 +16967,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Compute default values.
         var defaultValues = ComputeDefaultValues(classType.MemberScope, classType.BaseType as ClassType,
-            classType.DefaultBlockNode, symbolTable);
+            classType.DefaultBlockNode, symbolTable, compilation);
         classType.DefaultValues = defaultValues;
     }
 
@@ -16976,6 +16978,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         StructType structType,
         ISymbol typeSymbol,
         SymbolTable symbolTable,
+        MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
         // If already set to Explicit by Pass 1 (has a default block), keep it.
@@ -17026,7 +17029,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Compute default values.
         var defaultValues = ComputeDefaultValues(structType.MemberScope, baseClass: null,
-            structType.DefaultBlockNode, symbolTable);
+            structType.DefaultBlockNode, symbolTable, compilation);
         structType.DefaultValues = defaultValues;
     }
 
@@ -17039,7 +17042,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IScope memberScope,
         ClassType? baseClass,
         DefaultBlockDeclarationNode? defaultBlockNode,
-        SymbolTable symbolTable)
+        SymbolTable symbolTable,
+        MistCompilation compilation)
     {
         var result = new Dictionary<string, DefaultFieldValue>();
 
@@ -17202,9 +17206,44 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
 
                         // Extract the concrete type name from the type binding.
-                        // The type reference has already been resolved in Pass 2,
-                        // but we need to find the concrete type by name.
-                        var concreteTypeName = ExtractTypeReferenceName(typeBinding.TypeName);
+                        // The IDENTIFIER.Lexeme on QualifiedIdentifierNode may be empty
+                        // (Storm source generator stores text in spans, not lexemes).
+                        // Find the correct source text by locating the struct's declaring
+                        // node in the compilation units.
+                        var concreteTypeName = "";
+                        if (typeBinding.TypeName is NamedTypeRefTypeReferenceNode namedTypeRef)
+                        {
+                            // First try the Lexeme directly
+                            concreteTypeName = namedTypeRef.Name.IDENTIFIER.Lexeme;
+                            
+                            // If empty, extract from source text via span
+                            if (string.IsNullOrEmpty(concreteTypeName))
+                            {
+                                var nameSpan = namedTypeRef.Name.Span;
+                                if (nameSpan.Length > 0)
+                                {
+                                    // Try each compilation unit — validate extracted text
+                                    for (var unitIdx = compilation.Units.Length - 1; unitIdx >= 0; unitIdx--)
+                                    {
+                                        var src = compilation.Units[unitIdx].Source;
+                                        if (src is not null
+                                            && nameSpan.Start + nameSpan.Length <= src.Contents.Length)
+                                        {
+                                            var candidate = src.Contents.Substring(nameSpan.Start, nameSpan.Length);
+                                            if (IsValidQualifiedIdentifier(candidate))
+                                            {
+                                                concreteTypeName = candidate;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            concreteTypeName = ExtractTypeReferenceName(typeBinding.TypeName, null);
+                        }
                         IType? concreteType = FindTypeByName(memberScope, concreteTypeName);
 
                         // Process nested overrides if present.
@@ -17495,7 +17534,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             foreach (var member in current.Members)
             {
-                if (member.Kind is SymbolKind.Class or SymbolKind.Struct
+                if (member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Trait
                     && member.Name == typeName
                     && member.DeclaredType is not null)
                 {

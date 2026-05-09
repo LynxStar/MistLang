@@ -558,4 +558,32 @@ Done!
 --- Boolean array ---
   [True, False, True]
 Done!
+=== Newtypes Sample ===
+--- Newtype from int ---
+uid=42
+rawId=42
+--- Newtype from string ---
+lbl=hello
+rawLabel=hello
+--- Newtype from bool ---
+flag=True
+rawFlag=True
+--- Newtype from struct ---
+pos.X=3
+pos.Y=7
+pos.Describe=(3, 7)
+--- Newtype from class ---
+actor.GetName=Hero
+actor.GetId=1
+actor.Describe=Entity(Hero, 1)
+--- Member access ---
+xVal=10
+yVal=20
+actorName=Villain
+actorId=2
+--- Explicit casting ---
+sourceInt=99
+castToNewtype=99
+castBack=99
+Done!
 === Done! ===

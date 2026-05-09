@@ -87,6 +87,9 @@ public sealed class MistPrettyPrinter
                 case TypeAliasItemTopLevelItemNode typeAliasItem:
                     EmitTypeAliasDeclaration(typeAliasItem.TypeAliasDeclaration);
                     break;
+                case NewtypeItemTopLevelItemNode newtypeItem:
+                    EmitNewtypeDeclaration(newtypeItem.NewtypeDeclaration);
+                    break;
                 case ExtensionItemTopLevelItemNode extensionItem:
                     EmitExtensionBlockDeclaration(extensionItem.ExtensionDeclaration);
                     break;
@@ -148,6 +151,9 @@ public sealed class MistPrettyPrinter
             case NamespaceTypeAliasItemNamespaceBodyItemNode typeAliasItem:
                 EmitTypeAliasDeclaration(typeAliasItem.TypeAliasDeclaration);
                 break;
+            case NamespaceNewtypeItemNamespaceBodyItemNode newtypeItem:
+                EmitNewtypeDeclaration(newtypeItem.NewtypeDeclaration);
+                break;
             case NamespaceExtensionItemNamespaceBodyItemNode extensionItem:
                 EmitExtensionBlockDeclaration(extensionItem.ExtensionDeclaration);
                 break;
@@ -163,6 +169,15 @@ public sealed class MistPrettyPrinter
         var typeExpr = EmitTypeReference(aliasDecl.Type);
         var constraints = EmitConstraintClauses(aliasDecl.Constraints);
         AppendLine($"type {name}{typeParams} = {typeExpr}{constraints};");
+    }
+
+    // ─── Newtype Declarations ───────────────────────────────────────────
+
+    private void EmitNewtypeDeclaration(NewtypeDeclarationNode newtypeDecl)
+    {
+        var name = newtypeDecl.Name.Lexeme;
+        var sourceType = EmitTypeReference(newtypeDecl.SourceType);
+        AppendLine($"type {name} = new {sourceType};");
     }
 
     // ─── Type Declarations ───────────────────────────────────────────────

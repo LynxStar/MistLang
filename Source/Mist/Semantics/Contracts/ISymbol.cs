@@ -31,6 +31,7 @@ public enum SymbolKind
     Trait,
     Enum,
     TypeAlias,
+    Newtype,
     Field,
     Constructor,
     Method,

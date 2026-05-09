@@ -202,6 +202,7 @@ internal static class CSharpTypeMap
             => EmitConstructedTypeWithDependentArgs(ct, isValueContext),
 
         ConstructedType ct => $"{GetTypeName(ct.GenericDefinition, isValueContext)}<{string.Join(", ", ct.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
+        NewtypeType nt => nt.Name,
         ClassType c => c.DisplayName,
         StructType s => GetKeywordOrDisplayName(s),
         InterfaceType i => i.DisplayName,

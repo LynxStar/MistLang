@@ -1,0 +1,145 @@
+// Newtypes — Demonstrates newtype features in Mist.
+//
+// This sample showcases:
+//   1. Newtype from primitive types (int, string, bool)
+//   2. Newtype from struct
+//   3. Newtype from class
+//   4. Member access on newtype instances
+//   5. Explicit casting between newtype and source type
+
+using System;
+
+namespace Newtypes;
+
+// ─── Source types ────────────────────────────────────────────────────────────
+
+public struct Point
+{
+    public int X;
+    public int Y;
+
+    public Point(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    public string Describe()
+    {
+        return $"({this.X}, {this.Y})";
+    }
+}
+
+public class Entity
+{
+    private string name;
+    private int id;
+
+    public Entity(string name, int id)
+    {
+        this.name = name;
+        this.id = id;
+    }
+
+    public string GetName()
+    {
+        return this.name;
+    }
+
+    public int GetId()
+    {
+        return this.id;
+    }
+
+    public string Describe()
+    {
+        return $"Entity({this.name}, {this.id})";
+    }
+}
+
+// ─── Newtype declarations ────────────────────────────────────────────────────
+
+// Newtypes from primitives
+type UserId = new int;
+type Label = new string;
+type Flag = new bool;
+
+// Newtype from struct
+type Position = new Point;
+
+// Newtype from class
+type Actor = new Entity;
+
+// ─── Program ─────────────────────────────────────────────────────────────────
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Newtypes Sample ===");
+
+        // 1. Newtype from int
+        Console.WriteLine("--- Newtype from int ---");
+        var uid = (UserId)42;
+        int rawId = (int)uid;
+        Console.WriteLine($"uid={uid.Value}");
+        Console.WriteLine($"rawId={rawId}");
+
+        // 2. Newtype from string
+        Console.WriteLine("--- Newtype from string ---");
+        var lbl = (Label)"hello";
+        string rawLabel = (string)lbl;
+        Console.WriteLine($"lbl={lbl.Value}");
+        Console.WriteLine($"rawLabel={rawLabel}");
+
+        // 3. Newtype from bool
+        Console.WriteLine("--- Newtype from bool ---");
+        var flag = (Flag)true;
+        bool rawFlag = (bool)flag;
+        Console.WriteLine($"flag={flag.Value}");
+        Console.WriteLine($"rawFlag={rawFlag}");
+
+        // 4. Newtype from struct
+        Console.WriteLine("--- Newtype from struct ---");
+        var pos = new Position(3, 7);
+        Console.WriteLine($"pos.X={pos.X}");
+        Console.WriteLine($"pos.Y={pos.Y}");
+        Console.WriteLine($"pos.Describe={pos.Describe()}");
+
+        // 5. Newtype from class
+        Console.WriteLine("--- Newtype from class ---");
+        var actor = new Actor("Hero", 1);
+        Console.WriteLine($"actor.GetName={actor.GetName()}");
+        Console.WriteLine($"actor.GetId={actor.GetId()}");
+        Console.WriteLine($"actor.Describe={actor.Describe()}");
+
+        // 6. Member access on newtype instances
+        Console.WriteLine("--- Member access ---");
+        var pos2 = new Position(10, 20);
+        int xVal = pos2.X;
+        int yVal = pos2.Y;
+        Console.WriteLine($"xVal={xVal}");
+        Console.WriteLine($"yVal={yVal}");
+        var actor2 = new Actor("Villain", 2);
+        string actorName = actor2.GetName();
+        int actorId = actor2.GetId();
+        Console.WriteLine($"actorName={actorName}");
+        Console.WriteLine($"actorId={actorId}");
+
+        // 7. Explicit casting between newtype and source type
+        Console.WriteLine("--- Explicit casting ---");
+        int sourceInt = 99;
+        UserId castToNewtype = (UserId)sourceInt;
+        int castBack = (int)castToNewtype;
+        Console.WriteLine($"sourceInt={sourceInt}");
+        Console.WriteLine($"castToNewtype={castToNewtype.Value}");
+        Console.WriteLine($"castBack={castBack}");
+
+        Console.WriteLine("Done!");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

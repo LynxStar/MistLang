@@ -37,6 +37,7 @@ public class Program
         SwitchExpressions.Program.RunDemo();
         PropertyInitializers.Program.RunDemo();
         ArrayLiterals.Program.RunDemo();
+        Newtypes.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

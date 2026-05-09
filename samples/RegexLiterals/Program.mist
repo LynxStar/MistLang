@@ -1,0 +1,199 @@
+// RegexLiterals — Demonstrates regex type features in Mist.
+//
+// This sample showcases:
+//   1. Regex literal declaration with var (type inference)
+//   2. Regex literal declaration with explicit regex type annotation
+//   3. Implicit regex→string conversion
+//   4. Explicit string→regex cast
+//   5. String literal shorthand (compile-time validated assignment to regex)
+//   6. IsMatch (partial match)
+//   7. IsFullMatch (full match)
+//   8. Pattern property
+//   9. `is` expression with regex pattern
+//  10. Switch expression with regex patterns
+//  11. Regex-refined string type
+//  12. Passing regex to string parameter (implicit conversion)
+//  13. Passing string literal to regex parameter (compile-time validated)
+//  14. Passing string variable with explicit cast to regex parameter
+
+using System;
+
+namespace RegexLiterals;
+
+// Regex-refined string type: only matches valid email-like patterns
+type Email = string `^[^@]+@[^@]+\.[^@]+$`;
+
+public class Program
+{
+    // Accepts a string parameter — used to demonstrate implicit regex→string conversion
+    private static string PrintPattern(string pattern)
+    {
+        return $"pattern={pattern}";
+    }
+
+    // Accepts a regex parameter — used to demonstrate passing string literal and explicit cast
+    private static string DescribeRegex(readonly regex r)
+    {
+        return $"regex_pattern={r.Pattern}, matches_abc={r.IsMatch("abc")}";
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Regex Literals Sample ===");
+
+        // 1. Regex literal declaration with var (type inferred as regex)
+        Console.WriteLine("--- Regex Literal Declaration (var) ---");
+        var digits = `\d+`;
+        Console.WriteLine($"digits_pattern={digits.Pattern}");
+        Console.WriteLine($"digits_matches_123={digits.IsMatch("123")}");
+        Console.WriteLine($"digits_matches_abc={digits.IsMatch("abc")}");
+
+        // 2. Regex literal declaration with explicit regex type annotation
+        Console.WriteLine("--- Regex Literal Declaration (typed) ---");
+        regex letters = `[a-zA-Z]+`;
+        Console.WriteLine($"letters_pattern={letters.Pattern}");
+        Console.WriteLine($"letters_matches_Hello={letters.IsMatch("Hello")}");
+        Console.WriteLine($"letters_matches_123={letters.IsMatch("123")}");
+
+        // 3. Implicit regex→string conversion
+        Console.WriteLine("--- Implicit Regex to String ---");
+        regex hexPattern = `[0-9a-fA-F]+`;
+        string asString = hexPattern;
+        Console.WriteLine($"converted_string={asString}");
+        Console.WriteLine($"strings_equal={asString == hexPattern.Pattern}");
+
+        // 4. Explicit string→regex cast
+        Console.WriteLine("--- Explicit String to Regex ---");
+        string patternStr = "^[a-z]+$";
+        regex fromString = (regex)patternStr;
+        Console.WriteLine($"cast_pattern={fromString.Pattern}");
+        Console.WriteLine($"cast_fullmatch_hello={fromString.IsFullMatch("hello")}");
+        Console.WriteLine($"cast_fullmatch_Hello={fromString.IsFullMatch("Hello")}");
+
+        // 5. String literal shorthand (compile-time validated, no cast needed)
+        Console.WriteLine("--- String Literal Shorthand ---");
+        regex fromLiteral = "\\w+@\\w+\\.\\w+";
+        Console.WriteLine($"shorthand_pattern={fromLiteral.Pattern}");
+        Console.WriteLine($"shorthand_matches_a_at_b_dot_c={fromLiteral.IsMatch("a@b.c")}");
+
+        // 6. IsMatch (partial match — pattern can match anywhere in input)
+        Console.WriteLine("--- IsMatch ---");
+        var wordPattern = `\bcat\b`;
+        Console.WriteLine($"cat_in_the_cat_sat={wordPattern.IsMatch("the cat sat")}");
+        Console.WriteLine($"cat_in_concatenate={wordPattern.IsMatch("concatenate")}");
+        Console.WriteLine($"cat_in_cat={wordPattern.IsMatch("cat")}");
+
+        // 7. IsFullMatch (full match — entire string must match)
+        Console.WriteLine("--- IsFullMatch ---");
+        var fullDigits = `\d{3}`;
+        Console.WriteLine($"fullmatch_123={fullDigits.IsFullMatch("123")}");
+        Console.WriteLine($"fullmatch_1234={fullDigits.IsFullMatch("1234")}");
+        Console.WriteLine($"fullmatch_12={fullDigits.IsFullMatch("12")}");
+        Console.WriteLine($"fullmatch_abc={fullDigits.IsFullMatch("abc")}");
+
+        // 8. Pattern property
+        Console.WriteLine("--- Pattern Property ---");
+        regex complex = `^(\d{1,3}\.){3}\d{1,3}$`;
+        Console.WriteLine($"pattern_value={complex.Pattern}");
+        Console.WriteLine($"pattern_matches_ip={complex.IsFullMatch("192.168.1.1")}");
+        Console.WriteLine($"pattern_matches_bad={complex.IsFullMatch("999.999.999.999.999")}");
+
+        // 9. `is` expression with regex pattern (full-match semantics)
+        Console.WriteLine("--- Is Expression with Regex ---");
+        string greeting = "hello";
+        string mixed = "hello123";
+        bool greetingIsAlpha = greeting is `^[a-z]+$`;
+        bool mixedIsAlpha = mixed is `^[a-z]+$`;
+        Console.WriteLine($"hello_is_alpha={greetingIsAlpha}");
+        Console.WriteLine($"hello123_is_alpha={mixedIsAlpha}");
+        string numStr = "42";
+        bool numIsDigits = numStr is `^\d+$`;
+        Console.WriteLine($"42_is_digits={numIsDigits}");
+
+        // 10. Switch expression with regex patterns
+        Console.WriteLine("--- Switch Expression with Regex ---");
+        string input1 = "hello";
+        var category1 = input1 switch {
+            `^\d+$` => "number",
+            `^[a-z]+$` => "lowercase",
+            `^[A-Z]+$` => "uppercase",
+            var _ => "other",
+        };
+        Console.WriteLine($"hello_category={category1}");
+
+        string input2 = "123";
+        var category2 = input2 switch {
+            `^\d+$` => "number",
+            `^[a-z]+$` => "lowercase",
+            `^[A-Z]+$` => "uppercase",
+            var _ => "other",
+        };
+        Console.WriteLine($"123_category={category2}");
+
+        string input3 = "WORLD";
+        var category3 = input3 switch {
+            `^\d+$` => "number",
+            `^[a-z]+$` => "lowercase",
+            `^[A-Z]+$` => "uppercase",
+            var _ => "other",
+        };
+        Console.WriteLine($"WORLD_category={category3}");
+
+        string input4 = "Hello123";
+        var category4 = input4 switch {
+            `^\d+$` => "number",
+            `^[a-z]+$` => "lowercase",
+            `^[A-Z]+$` => "uppercase",
+            var _ => "other",
+        };
+        Console.WriteLine($"Hello123_category={category4}");
+
+        // 11. Regex-refined string type
+        Console.WriteLine("--- Regex-Refined Type ---");
+        string emailCandidate = "user@example.com";
+        if (emailCandidate is Email validEmail)
+        {
+            Console.WriteLine($"is_email=true, value={validEmail}");
+        }
+        else
+        {
+            Console.WriteLine($"is_email=false");
+        }
+        string notEmail = "not-an-email";
+        if (notEmail is Email validEmail2)
+        {
+            Console.WriteLine($"not_email_is_email=true");
+        }
+        else
+        {
+            Console.WriteLine($"not_email_is_email=false");
+        }
+
+        // 12. Passing regex to string parameter (implicit conversion)
+        Console.WriteLine("--- Regex to String Parameter ---");
+        regex passedRegex = `[0-9]+`;
+        var result = Program.PrintPattern(passedRegex);
+        Console.WriteLine(result);
+
+        // 13. Passing string literal to regex parameter (compile-time validated)
+        Console.WriteLine("--- String Literal to Regex Parameter ---");
+        var result2 = Program.DescribeRegex("[a-z]+");
+        Console.WriteLine(result2);
+
+        // 14. Passing string variable with explicit cast to regex parameter
+        Console.WriteLine("--- String Variable with Cast to Regex Parameter ---");
+        string dynamicPattern = "[A-Z]{2,4}";
+        var result3 = Program.DescribeRegex((regex)dynamicPattern);
+        Console.WriteLine(result3);
+
+        var regexlit = `myregexlit`;
+
+
+        Console.WriteLine("Done!");
+    }
+}

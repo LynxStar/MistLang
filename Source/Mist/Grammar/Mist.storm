@@ -63,6 +63,8 @@ token FLOAT_LITERAL    = `[0-9]+` ("_" `[0-9]+`)* "." `[0-9]+` ("_" `[0-9]+`)* F
 token CHAR_LITERAL     = "'" (ESCAPE_SEQUENCE | `[^'\\]`) "'";
 token STRING_LITERAL   = "\"" (ESCAPE_SEQUENCE | `[^"\\]`)* "\"";
 
+token REGEX_LITERAL    = "`" (`\\\\` | "\\`" | `[^\`]`)* "`";
+
 token INTERPOLATED_STRING_START = "$\"" => push Interpolation;
 
 // ─── Interpolation Mode ─────────────────────────────────────────────────────
@@ -427,6 +429,7 @@ rule PrimitiveType
     | SHORT as ShortType | USHORT as UshortType | BYTE as ByteType | SBYTE as SbyteType
     | FLOAT as FloatType | DOUBLE as DoubleType | DECIMAL as DecimalType
     | BOOL as BoolType | CHAR as CharType | STRING as StringType
+    | REGEX as RegexType
     ;
 
 // ─── Parser Rules — Statements ──────────────────────────────────────────────
@@ -536,6 +539,7 @@ rule Primary
     | binaryLiteral:BINARY_LITERAL                                                 as BinaryLiteralExpression
     | floatLiteral:FLOAT_LITERAL                                                   as FloatLiteralExpression
     | stringLiteral:STRING_LITERAL                                                 as StringLiteralExpression
+    | regexLiteral:REGEX_LITERAL                                                   as RegexLiteralExpression
     | interpolatedString:InterpolatedString                                        as InterpolatedStringExpression
     | charLiteral:CHAR_LITERAL                                                     as CharLiteralExpression
     | TRUE                                                                         as TrueLiteralExpression
@@ -608,6 +612,7 @@ rule ConstantLiteral
     | value:FLOAT_LITERAL     as FloatConstant
     | value:STRING_LITERAL    as StringConstant
     | value:CHAR_LITERAL      as CharConstant
+    | value:REGEX_LITERAL     as RegexConstant
     | TRUE                    as TrueConstant
     | FALSE                   as FalseConstant
     ;

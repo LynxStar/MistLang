@@ -48,6 +48,10 @@ internal static class ExhaustivenessChecker
         // Rule 4: Numeric/string/other unbounded types — require catch-all.
         // Since we already checked for catch-all in Rule 1 and didn't find one,
         // the switch is not exhaustive for unbounded types.
+        // NOTE: Regex patterns (RegexConstantConstantLiteralNode) are intentionally
+        // non-exhaustive — regex patterns over strings can never prove they cover all
+        // possible string values. They fall through to this rule because the string
+        // scrutinee is an unbounded type. (Requirement 7.5)
         return new[] { "_" };
     }
 
@@ -217,6 +221,7 @@ internal static class ExhaustivenessChecker
                 BoolTypePrimitiveTypeNode => "Boolean",
                 CharTypePrimitiveTypeNode => "Char",
                 StringTypePrimitiveTypeNode => "String",
+                RegexTypePrimitiveTypeNode => "Regex",
                 _ => null,
             },
             NamedTypeRefTypeReferenceNode namedRef => namedRef.Name.IDENTIFIER.Lexeme,

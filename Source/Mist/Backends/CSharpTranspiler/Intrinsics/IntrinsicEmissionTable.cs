@@ -21,7 +21,8 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
     private static readonly Dictionary<string, IntrinsicEmissionTemplate> UnaryOperators = BuildUnaryOperators();
     private static readonly Dictionary<string, IntrinsicEmissionTemplate> InstanceMethods = BuildInstanceMethods();
     private static readonly Dictionary<string, IntrinsicEmissionTemplate> StaticMethods = BuildStaticMethods();
-    private static readonly Dictionary<string, IntrinsicEmissionTemplate> Constructors = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, IntrinsicEmissionTemplate> CastOperators = BuildCastOperators();
+    private static readonly Dictionary<string, IntrinsicEmissionTemplate> Constructors = BuildConstructors();
 
     private static Dictionary<string, IntrinsicEmissionTemplate> BuildBinaryOperators()
     {
@@ -52,6 +53,20 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
     {
         var dict = new Dictionary<string, IntrinsicEmissionTemplate>(StringComparer.Ordinal);
         PopulateStaticMethods(dict);
+        return dict;
+    }
+
+    private static Dictionary<string, IntrinsicEmissionTemplate> BuildCastOperators()
+    {
+        var dict = new Dictionary<string, IntrinsicEmissionTemplate>(StringComparer.Ordinal);
+        PopulateCastOperators(dict);
+        return dict;
+    }
+
+    private static Dictionary<string, IntrinsicEmissionTemplate> BuildConstructors()
+    {
+        var dict = new Dictionary<string, IntrinsicEmissionTemplate>(StringComparer.Ordinal);
+        PopulateConstructors(dict);
         return dict;
     }
 
@@ -176,6 +191,12 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
 
         // Type instance members
         dict["Standard.Type:Name()"] = new IntrinsicEmissionTemplate("{0}.Name");
+
+        // Regex instance methods
+        dict["Standard.Regex:IsMatch(Standard.String)"] = new IntrinsicEmissionTemplate("{0}.IsMatch({1})");
+        dict["Standard.Regex:IsFullMatch(Standard.String)"] = new IntrinsicEmissionTemplate(
+            "System.Text.RegularExpressions.Regex.IsMatch({1}, \"^(?:\" + {0}.ToString() + \")$\")");
+        dict["Standard.Regex:Pattern()"] = new IntrinsicEmissionTemplate("{0}.ToString()");
     }
 
     /// <summary>
@@ -186,6 +207,31 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
         // Type.Of(value) lowers to value.GetType() in C#.
         // {0} is the first argument (the unknown value).
         dict["Standard.Type:Of(unknown)"] = new IntrinsicEmissionTemplate("{0}.GetType()");
+    }
+
+    /// <summary>
+    /// Registers intrinsic cast operators: Regex implicit→string, Regex explicit←string.
+    /// Key format: <c>"{DeclaringType}:{implicit|explicit}({TargetType})"</c> where
+    /// TargetType is the C# emitted type name.
+    /// </summary>
+    private static void PopulateCastOperators(Dictionary<string, IntrinsicEmissionTemplate> dict)
+    {
+        // Regex → string (implicit): extracts the pattern via .ToString()
+        dict["Standard.Regex:implicit(string)"] = new IntrinsicEmissionTemplate("{0}.ToString()");
+
+        // String → Regex (explicit): constructs a compiled Regex instance
+        dict["Standard.Regex:explicit(System.Text.RegularExpressions.Regex)"] = new IntrinsicEmissionTemplate(
+            "new System.Text.RegularExpressions.Regex({0}, System.Text.RegularExpressions.RegexOptions.Compiled)");
+    }
+
+    /// <summary>
+    /// Registers intrinsic constructors: Regex(string pattern).
+    /// </summary>
+    private static void PopulateConstructors(Dictionary<string, IntrinsicEmissionTemplate> dict)
+    {
+        // Regex constructor: new Regex(pattern, RegexOptions.Compiled)
+        dict["Standard.Regex:.ctor(Standard.String)"] = new IntrinsicEmissionTemplate(
+            "new System.Text.RegularExpressions.Regex({0}, System.Text.RegularExpressions.RegexOptions.Compiled)");
     }
 
     // ── IIntrinsicEmissionRegistry implementation ────────────────────────
@@ -223,9 +269,13 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
     /// <inheritdoc />
     public IntrinsicEmissionTemplate? TryGetCastOperator(string declaringType, string targetType)
     {
-        // No intrinsic cast operators are registered yet — the stdlib can add
-        // numeric conversion operators in a future iteration.
-        return null;
+        // Try implicit first, then explicit.
+        var implicitKey = $"{declaringType}:implicit({targetType})";
+        if (CastOperators.TryGetValue(implicitKey, out var implicitTemplate))
+            return implicitTemplate;
+
+        var explicitKey = $"{declaringType}:explicit({targetType})";
+        return CastOperators.TryGetValue(explicitKey, out var explicitTemplate) ? explicitTemplate : null;
     }
 
     /// <inheritdoc />
@@ -234,5 +284,17 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
         var paramList = paramTypes.Count > 0 ? string.Join(",", paramTypes) : "";
         var key = $"{declaringType}:{method}({paramList})";
         return StaticMethods.TryGetValue(key, out var template) ? template : null;
+    }
+
+    /// <inheritdoc />
+    public bool HasInstanceMethods(string declaringType)
+    {
+        var prefix = $"{declaringType}:";
+        foreach (var key in InstanceMethods.Keys)
+        {
+            if (key.StartsWith(prefix, StringComparison.Ordinal))
+                return true;
+        }
+        return false;
     }
 }

@@ -68,6 +68,7 @@ token DECIMAL = "decimal";
 token BOOL    = "bool";
 token CHAR    = "char";
 token STRING  = "string";
+token REGEX   = "regex";
 token UNKNOWN = "unknown";
 
 // Generic constraint keywords

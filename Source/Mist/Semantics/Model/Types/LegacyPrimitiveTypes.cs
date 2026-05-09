@@ -36,6 +36,7 @@ internal static class LegacyPrimitiveTypes
     internal static readonly StructType Bool = new("bool", new Scope(null), containingNamespace: null);
     internal static readonly StructType Char = new("char", new Scope(null), containingNamespace: null);
     internal static readonly ClassType String = new("string", new Scope(null), containingNamespace: null);
+    internal static readonly ClassType Regex = new("regex", new Scope(null), containingNamespace: null);
     internal static readonly StructType Void = new("void", new Scope(null), containingNamespace: null);
     internal static readonly ClassType Type = new("Type", new Scope(null), containingNamespace: null);
 }

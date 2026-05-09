@@ -156,6 +156,7 @@ public sealed class RefinementPredicate
             FalseConstantConstantLiteralNode => "false",
             StringConstantConstantLiteralNode strLit => strLit.Value.Lexeme,
             FloatConstantConstantLiteralNode floatLit => floatLit.Value.Lexeme,
+            RegexConstantConstantLiteralNode regexLit => regexLit.Value.Lexeme,
             _ => "?"
         };
     }
@@ -291,6 +292,29 @@ public sealed class RefinementPredicate
                 return value is true;
             case FalseConstantConstantLiteralNode:
                 return value is false;
+            case RegexConstantConstantLiteralNode regexConst:
+            {
+                // Evaluate regex against string value using full-match semantics.
+                if (value is not string strValue)
+                    return false;
+
+                // Strip backtick delimiters and resolve escape sequences.
+                var lexeme = regexConst.Value.Lexeme;
+                var raw = lexeme.Length >= 2 ? lexeme[1..^1] : string.Empty;
+                var pattern = raw.Replace("\\`", "`").Replace("\\\\", "\\");
+
+                try
+                {
+                    // Full-match semantics: anchor with ^(?:...)$
+                    var fullMatchPattern = $"^(?:{pattern})$";
+                    return System.Text.RegularExpressions.Regex.IsMatch(strValue, fullMatchPattern);
+                }
+                catch (System.ArgumentException)
+                {
+                    // Invalid regex pattern — cannot evaluate, treat as non-matching.
+                    return false;
+                }
+            }
             default:
                 return false;
         }

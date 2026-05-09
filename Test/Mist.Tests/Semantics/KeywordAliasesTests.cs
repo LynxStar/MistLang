@@ -10,15 +10,15 @@ namespace Mist.Tests.Semantics;
 public class KeywordAliasesTests
 {
     [Fact]
-    public void Map_ContainsExactlyFifteenEntries()
+    public void Map_ContainsExactlySixteenEntries()
     {
-        Assert.Equal(15, KeywordAliases.Map.Count);
+        Assert.Equal(16, KeywordAliases.Map.Count);
     }
 
     [Fact]
     public void Map_ContainsAllAliasesFromRequirement7Point1()
     {
-        // Requirement 7.1: the Keyword_Alias_Mapping is exactly these 15 pairs.
+        // Requirement 7.1 + 1.2: the Keyword_Alias_Mapping is exactly these 16 pairs.
         var expected = new Dictionary<string, string>
         {
             ["int"]     = "Standard.Int32",
@@ -35,6 +35,7 @@ public class KeywordAliasesTests
             ["bool"]    = "Standard.Boolean",
             ["char"]    = "Standard.Char",
             ["string"]  = "Standard.String",
+            ["regex"]   = "Standard.Regex",
             ["void"]    = "Standard.Void",
         };
 

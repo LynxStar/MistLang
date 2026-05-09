@@ -35,6 +35,7 @@ internal static class CSharpTypeMap
         ["Standard.Boolean"] = "bool",
         ["Standard.Char"] = "char",
         ["Standard.String"] = "string",
+        ["Standard.Regex"] = "System.Text.RegularExpressions.Regex",
         ["Standard.Void"] = "void",
         ["Standard.Type"] = "System.Type",
 
@@ -57,6 +58,7 @@ internal static class CSharpTypeMap
         ["bool"] = "bool",
         ["char"] = "char",
         ["string"] = "string",
+        ["regex"] = "System.Text.RegularExpressions.Regex",
         ["void"] = "void",
         ["Type"] = "System.Type",
     };

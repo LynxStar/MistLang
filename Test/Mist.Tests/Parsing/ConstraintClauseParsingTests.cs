@@ -88,12 +88,20 @@ public class ConstraintClauseParsingTests
         return aliasItem!.TypeAliasDeclaration;
     }
 
-    /// <summary>Gets all constraints from a ConstraintClauseNode as a flat list.</summary>
-    private static List<ConstraintNode> GetConstraints(ConstraintClauseNode clause)
+    /// <summary>Gets all constraints from a GenericConstraintClauseWhereClauseNode as a flat list.</summary>
+    private static List<ConstraintNode> GetConstraints(GenericConstraintClauseWhereClauseNode clause)
     {
         var list = new List<ConstraintNode> { clause.Constraints.Constraint };
         list.AddRange(clause.Constraints.Constraints);
         return list;
+    }
+
+    /// <summary>Casts a WhereClauseNode to GenericConstraintClauseWhereClauseNode for test assertions.</summary>
+    private static GenericConstraintClauseWhereClauseNode AsGenericConstraint(WhereClauseNode node)
+    {
+        var generic = node as GenericConstraintClauseWhereClauseNode;
+        Assert.NotNull(generic);
+        return generic!;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -108,7 +116,7 @@ public class ConstraintClauseParsingTests
         var classDecl = GetClassDeclaration(cu);
 
         Assert.Single(classDecl.Constraints);
-        var clause = classDecl.Constraints[0];
+        var clause = AsGenericConstraint(classDecl.Constraints[0]);
         Assert.Equal("T", clause.Name.Lexeme);
 
         var constraints = GetConstraints(clause);
@@ -124,7 +132,7 @@ public class ConstraintClauseParsingTests
         var classDecl = GetClassDeclaration(cu);
 
         Assert.Single(classDecl.Constraints);
-        var clause = classDecl.Constraints[0];
+        var clause = AsGenericConstraint(classDecl.Constraints[0]);
         Assert.Equal("T", clause.Name.Lexeme);
 
         var constraints = GetConstraints(clause);
@@ -140,7 +148,7 @@ public class ConstraintClauseParsingTests
         var classDecl = GetClassDeclaration(cu);
 
         Assert.Single(classDecl.Constraints);
-        var clause = classDecl.Constraints[0];
+        var clause = AsGenericConstraint(classDecl.Constraints[0]);
         Assert.Equal("T", clause.Name.Lexeme);
 
         var constraints = GetConstraints(clause);
@@ -157,7 +165,7 @@ public class ConstraintClauseParsingTests
         var classDecl = GetClassDeclaration(cu);
 
         Assert.Single(classDecl.Constraints);
-        var clause = classDecl.Constraints[0];
+        var clause = AsGenericConstraint(classDecl.Constraints[0]);
         Assert.Equal("T", clause.Name.Lexeme);
 
         var constraints = GetConstraints(clause);
@@ -181,7 +189,7 @@ public class ConstraintClauseParsingTests
         var classDecl = GetClassDeclaration(cu);
 
         Assert.Single(classDecl.Constraints);
-        var constraints = GetConstraints(classDecl.Constraints[0]);
+        var constraints = GetConstraints(AsGenericConstraint(classDecl.Constraints[0]));
         Assert.Single(constraints);
         var ctorConstraint = Assert.IsType<ConstructorConstraintConstraintNode>(constraints[0]);
         Assert.NotNull(ctorConstraint.ParamTypes);
@@ -207,7 +215,7 @@ public class ConstraintClauseParsingTests
         var classDecl = GetClassDeclaration(cu);
 
         Assert.Single(classDecl.Constraints);
-        var clause = classDecl.Constraints[0];
+        var clause = AsGenericConstraint(classDecl.Constraints[0]);
         Assert.Equal("T", clause.Name.Lexeme);
 
         var constraints = GetConstraints(clause);
@@ -229,7 +237,7 @@ public class ConstraintClauseParsingTests
         var classDecl = GetClassDeclaration(cu);
 
         Assert.Single(classDecl.Constraints);
-        var clause = classDecl.Constraints[0];
+        var clause = AsGenericConstraint(classDecl.Constraints[0]);
         Assert.Equal("T", clause.Name.Lexeme);
 
         var constraints = GetConstraints(clause);
@@ -252,13 +260,13 @@ public class ConstraintClauseParsingTests
 
         Assert.Equal(2, classDecl.Constraints.Length);
 
-        Assert.Equal("K", classDecl.Constraints[0].Name.Lexeme);
-        var kConstraints = GetConstraints(classDecl.Constraints[0]);
+        Assert.Equal("K", AsGenericConstraint(classDecl.Constraints[0]).Name.Lexeme);
+        var kConstraints = GetConstraints(AsGenericConstraint(classDecl.Constraints[0]));
         Assert.Single(kConstraints);
         Assert.IsType<ClassConstraintConstraintNode>(kConstraints[0]);
 
-        Assert.Equal("V", classDecl.Constraints[1].Name.Lexeme);
-        var vConstraints = GetConstraints(classDecl.Constraints[1]);
+        Assert.Equal("V", AsGenericConstraint(classDecl.Constraints[1]).Name.Lexeme);
+        var vConstraints = GetConstraints(AsGenericConstraint(classDecl.Constraints[1]));
         Assert.Single(vConstraints);
         Assert.IsType<StructConstraintConstraintNode>(vConstraints[0]);
     }
@@ -275,7 +283,7 @@ public class ConstraintClauseParsingTests
         var classDecl = GetClassDeclaration(cu);
 
         Assert.Single(classDecl.Constraints);
-        Assert.Equal("T", classDecl.Constraints[0].Name.Lexeme);
+        Assert.Equal("T", AsGenericConstraint(classDecl.Constraints[0]).Name.Lexeme);
     }
 
     [Fact]
@@ -286,8 +294,8 @@ public class ConstraintClauseParsingTests
         var structDecl = GetStructDeclaration(cu);
 
         Assert.Single(structDecl.Constraints);
-        Assert.Equal("T", structDecl.Constraints[0].Name.Lexeme);
-        var constraints = GetConstraints(structDecl.Constraints[0]);
+        Assert.Equal("T", AsGenericConstraint(structDecl.Constraints[0]).Name.Lexeme);
+        var constraints = GetConstraints(AsGenericConstraint(structDecl.Constraints[0]));
         Assert.IsType<ClassConstraintConstraintNode>(constraints[0]);
     }
 
@@ -299,8 +307,8 @@ public class ConstraintClauseParsingTests
         var interfaceDecl = GetInterfaceDeclaration(cu);
 
         Assert.Single(interfaceDecl.Constraints);
-        Assert.Equal("T", interfaceDecl.Constraints[0].Name.Lexeme);
-        var constraints = GetConstraints(interfaceDecl.Constraints[0]);
+        Assert.Equal("T", AsGenericConstraint(interfaceDecl.Constraints[0]).Name.Lexeme);
+        var constraints = GetConstraints(AsGenericConstraint(interfaceDecl.Constraints[0]));
         Assert.IsType<ClassConstraintConstraintNode>(constraints[0]);
     }
 
@@ -312,8 +320,8 @@ public class ConstraintClauseParsingTests
         var method = GetMethodDeclaration(cu);
 
         Assert.Single(method.Constraints);
-        Assert.Equal("T", method.Constraints[0].Name.Lexeme);
-        var constraints = GetConstraints(method.Constraints[0]);
+        Assert.Equal("T", AsGenericConstraint(method.Constraints[0]).Name.Lexeme);
+        var constraints = GetConstraints(AsGenericConstraint(method.Constraints[0]));
         Assert.IsType<ConstructorConstraintConstraintNode>(constraints[0]);
     }
 
@@ -325,8 +333,8 @@ public class ConstraintClauseParsingTests
         var method = GetInterfaceMethodDeclaration(cu);
 
         Assert.Single(method.Constraints);
-        Assert.Equal("T", method.Constraints[0].Name.Lexeme);
-        var constraints = GetConstraints(method.Constraints[0]);
+        Assert.Equal("T", AsGenericConstraint(method.Constraints[0]).Name.Lexeme);
+        var constraints = GetConstraints(AsGenericConstraint(method.Constraints[0]));
         Assert.IsType<ConstructorConstraintConstraintNode>(constraints[0]);
     }
 
@@ -338,8 +346,8 @@ public class ConstraintClauseParsingTests
         var alias = GetTypeAliasDeclaration(cu);
 
         Assert.Single(alias.Constraints);
-        Assert.Equal("T", alias.Constraints[0].Name.Lexeme);
-        var constraints = GetConstraints(alias.Constraints[0]);
+        Assert.Equal("T", AsGenericConstraint(alias.Constraints[0]).Name.Lexeme);
+        var constraints = GetConstraints(AsGenericConstraint(alias.Constraints[0]));
         Assert.IsType<StructConstraintConstraintNode>(constraints[0]);
     }
 
@@ -418,7 +426,7 @@ public class ConstraintClauseParsingTests
         var cu = ParseWithoutErrors(source);
         var classDecl = GetClassDeclaration(cu);
 
-        var constraints = GetConstraints(classDecl.Constraints[0]);
+        var constraints = GetConstraints(AsGenericConstraint(classDecl.Constraints[0]));
         Assert.Equal(3, constraints.Count);
         Assert.IsType<ConstructorConstraintConstraintNode>(constraints[0]);
         Assert.IsType<TypeConstraintConstraintNode>(constraints[1]);
@@ -432,7 +440,7 @@ public class ConstraintClauseParsingTests
         var cu = ParseWithoutErrors(source);
         var classDecl = GetClassDeclaration(cu);
 
-        var constraints = GetConstraints(classDecl.Constraints[0]);
+        var constraints = GetConstraints(AsGenericConstraint(classDecl.Constraints[0]));
         Assert.Equal(3, constraints.Count);
         Assert.IsType<ClassConstraintConstraintNode>(constraints[0]);
         Assert.IsType<ConstructorConstraintConstraintNode>(constraints[1]);
@@ -446,7 +454,7 @@ public class ConstraintClauseParsingTests
         var cu = ParseWithoutErrors(source);
         var classDecl = GetClassDeclaration(cu);
 
-        var constraints = GetConstraints(classDecl.Constraints[0]);
+        var constraints = GetConstraints(AsGenericConstraint(classDecl.Constraints[0]));
         Assert.Equal(3, constraints.Count);
         Assert.IsType<ClassConstraintConstraintNode>(constraints[0]);
         Assert.IsType<TypeConstraintConstraintNode>(constraints[1]);
@@ -464,7 +472,7 @@ public class ConstraintClauseParsingTests
         var cu = ParseWithoutErrors(source);
         var classDecl = GetClassDeclaration(cu);
 
-        var constraints = GetConstraints(classDecl.Constraints[0]);
+        var constraints = GetConstraints(AsGenericConstraint(classDecl.Constraints[0]));
         Assert.Single(constraints);
         var ctorConstraint = Assert.IsType<ConstructorConstraintConstraintNode>(constraints[0]);
         Assert.NotNull(ctorConstraint.ParamTypes);
@@ -493,7 +501,7 @@ public class ConstraintClauseParsingTests
         var cu = ParseWithoutErrors(source);
         var classDecl = GetClassDeclaration(cu);
 
-        var constraints = GetConstraints(classDecl.Constraints[0]);
+        var constraints = GetConstraints(AsGenericConstraint(classDecl.Constraints[0]));
         Assert.Equal(3, constraints.Count);
 
         // First: new()
@@ -526,7 +534,7 @@ public class ConstraintClauseParsingTests
         var cu = ParseWithoutErrors(source);
         var classDecl = GetClassDeclaration(cu);
 
-        var constraints = GetConstraints(classDecl.Constraints[0]);
+        var constraints = GetConstraints(AsGenericConstraint(classDecl.Constraints[0]));
         Assert.Equal(3, constraints.Count);
         Assert.IsType<ConstructorConstraintConstraintNode>(constraints[0]);
         Assert.IsType<TypeConstraintConstraintNode>(constraints[1]);
@@ -540,7 +548,7 @@ public class ConstraintClauseParsingTests
         var cu = ParseWithoutErrors(source);
         var classDecl = GetClassDeclaration(cu);
 
-        var constraints = GetConstraints(classDecl.Constraints[0]);
+        var constraints = GetConstraints(AsGenericConstraint(classDecl.Constraints[0]));
         Assert.Equal(2, constraints.Count);
         Assert.IsType<StructConstraintConstraintNode>(constraints[0]);
         Assert.IsType<TypeConstraintConstraintNode>(constraints[1]);
@@ -559,8 +567,8 @@ public class ConstraintClauseParsingTests
 
         // Has constraints
         Assert.Single(classDecl.Constraints);
-        Assert.Equal("T", classDecl.Constraints[0].Name.Lexeme);
-        var constraints = GetConstraints(classDecl.Constraints[0]);
+        Assert.Equal("T", AsGenericConstraint(classDecl.Constraints[0]).Name.Lexeme);
+        var constraints = GetConstraints(AsGenericConstraint(classDecl.Constraints[0]));
         Assert.IsType<ClassConstraintConstraintNode>(constraints[0]);
 
         // Verify the class name and type params are correct (base clause was parsed)
@@ -577,7 +585,7 @@ public class ConstraintClauseParsingTests
 
         // Has constraints
         Assert.Single(structDecl.Constraints);
-        Assert.Equal("T", structDecl.Constraints[0].Name.Lexeme);
+        Assert.Equal("T", AsGenericConstraint(structDecl.Constraints[0]).Name.Lexeme);
 
         // Verify the struct name and type params are correct (interface list was parsed)
         Assert.Equal("Wrapper", structDecl.Name.Lexeme);
@@ -593,7 +601,7 @@ public class ConstraintClauseParsingTests
 
         // Has constraints
         Assert.Single(interfaceDecl.Constraints);
-        Assert.Equal("T", interfaceDecl.Constraints[0].Name.Lexeme);
+        Assert.Equal("T", AsGenericConstraint(interfaceDecl.Constraints[0]).Name.Lexeme);
 
         // Verify the interface name and type params are correct (base interfaces were parsed)
         Assert.Equal("IRepository", interfaceDecl.Name.Lexeme);

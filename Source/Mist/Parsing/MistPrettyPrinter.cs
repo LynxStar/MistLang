@@ -373,6 +373,7 @@ public sealed class MistPrettyPrinter
         var name = ctorDecl.Name.Lexeme;
         var parameters = EmitParameterList(ctorDecl.Parameters);
         var withClauses = EmitWithClauses(ctorDecl.WithClauses);
+        var constraints = EmitConstraintClauses(ctorDecl.Constraints);
 
         var chain = "";
         if (ctorDecl.Chain is ThisChainConstructorChainNode thisChain)
@@ -384,7 +385,7 @@ public sealed class MistPrettyPrinter
             chain = " : base(" + EmitArgumentList(baseChain.Arguments) + ")";
         }
 
-        AppendLine($"{modifiers}{name}({parameters}){withClauses}{chain} {{");
+        AppendLine($"{modifiers}{name}({parameters}){withClauses}{constraints}{chain} {{");
         _indentLevel++;
 
         if (ctorDecl.Body.GetBlock() is BlockNode ctorBlock)
@@ -641,6 +642,7 @@ public sealed class MistPrettyPrinter
         var modifiers = EmitModifiers(blockIndexer.Modifiers);
         var type = EmitTypeReference(blockIndexer.Type);
         var parameters = EmitParameterList(blockIndexer.Parameters);
+        var constraints = EmitConstraintClauses(blockIndexer.Constraints);
 
         // Build accessor list.
         var accessorParts = new List<string>();
@@ -650,7 +652,7 @@ public sealed class MistPrettyPrinter
         }
 
         var accessorBody = string.Join(" ", accessorParts);
-        AppendLine($"{modifiers}{type} this[{parameters}] {{ {accessorBody} }}");
+        AppendLine($"{modifiers}{type} this[{parameters}]{constraints} {{ {accessorBody} }}");
     }
 
     // ─── Operator Declarations ───────────────────────────────────────────
@@ -2231,20 +2233,32 @@ public sealed class MistPrettyPrinter
     // ─── Constraint Clauses ─────────────────────────────────────────────
 
     /// <summary>
-    /// Emits constraint clauses preserving source order.
+    /// Emits where clauses preserving source order.
     /// Returns a string like " where T : class where U : struct" or empty string if no constraints.
+    /// Handles both generic constraint clauses and adhoc refinement constraint clauses.
     /// </summary>
-    private string EmitConstraintClauses(ImmutableArray<ConstraintClauseNode> constraints)
+    private string EmitConstraintClauses(ImmutableArray<WhereClauseNode> constraints)
     {
         if (constraints.IsDefaultOrEmpty) return "";
 
         var sb = new StringBuilder();
         foreach (var clause in constraints)
         {
-            sb.Append(" where ");
-            sb.Append(clause.Name.Lexeme);
-            sb.Append(" : ");
-            sb.Append(EmitConstraintList(clause.Constraints));
+            switch (clause)
+            {
+                case GenericConstraintClauseWhereClauseNode generic:
+                    sb.Append(" where ");
+                    sb.Append(generic.Name.Lexeme);
+                    sb.Append(" : ");
+                    sb.Append(EmitConstraintList(generic.Constraints));
+                    break;
+                case AdhocRefinementConstraintWhereClauseNode refinement:
+                    sb.Append(" where ");
+                    sb.Append(refinement.Name.Lexeme);
+                    sb.Append(' ');
+                    sb.Append(EmitAndPattern(refinement.Predicate));
+                    break;
+            }
         }
         return sb.ToString();
     }

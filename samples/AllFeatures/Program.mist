@@ -43,6 +43,7 @@ public class Program
         EnumReadonlyRestriction.Program.RunDemo();
         RegexLiterals.Program.RunDemo();
         StructuredContext.Program.RunDemo();
+        AdhocRefinementConstraints.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

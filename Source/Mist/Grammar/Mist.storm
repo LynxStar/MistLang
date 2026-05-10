@@ -122,7 +122,7 @@ rule TypeDeclaration
     ;
 
 rule TypeAliasDeclaration = TYPE name:IDENTIFIER typeParams:TypeParameterList? EQUAL type:RefinableTypeExpression
-    constraints:ConstraintClause*
+    constraints:WhereClause*
     SEMICOLON;
 
 rule RefinableTypeExpression
@@ -162,7 +162,10 @@ rule TypeArgument
 
 // ─── Parser Rules — Constraint Clauses ───────────────────────────────────────
 
-rule ConstraintClause = WHERE name:IDENTIFIER COLON constraints:ConstraintList;
+rule WhereClause
+    = WHERE name:IDENTIFIER COLON constraints:ConstraintList  as GenericConstraintClause
+    | WHERE name:IDENTIFIER predicate:AndPattern              as AdhocRefinementConstraint
+    ;
 
 rule ConstraintList = Constraint (COMMA Constraint)*;
 
@@ -186,19 +189,19 @@ rule BaseList = first:BaseTypeRef (COMMA rest:BaseTypeRef)*;
 rule ClassDeclaration = modifiers:Modifier* CLASS name:IDENTIFIER
     typeParams:TypeParameterList?
     baseClause:(COLON baseList:BaseList)?
-    constraints:ConstraintClause*
+    constraints:WhereClause*
     LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
 rule StructDeclaration = modifiers:Modifier* STRUCT name:IDENTIFIER
     typeParams:TypeParameterList?
     interfaceList:(COLON interfaces:BaseList)?
-    constraints:ConstraintClause*
+    constraints:WhereClause*
     LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
 rule InterfaceDeclaration = modifiers:Modifier* INTERFACE name:IDENTIFIER
     typeParams:TypeParameterList?
     interfaceList:(COLON interfaces:BaseList)?
-    constraints:ConstraintClause*
+    constraints:WhereClause*
     LEFT_BRACE members:InterfaceMemberDeclaration* RIGHT_BRACE;
 
 rule InterfaceMemberDeclaration
@@ -210,7 +213,7 @@ rule InterfaceMethodDeclaration = returnType:TypeReference name:IDENTIFIER
     typeParams:TypeParameterList?
     LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
     withClauses:WithClause*
-    constraints:ConstraintClause*
+    constraints:WhereClause*
     SEMICOLON;
 
 rule InterfacePropertyDeclaration
@@ -228,7 +231,7 @@ rule InterfaceAccessorDeclaration
 rule TraitDeclaration = modifiers:Modifier* TRAIT name:IDENTIFIER
     typeParams:TypeParameterList?
     parentTraits:(COLON parents:BaseList)?
-    constraints:ConstraintClause*
+    constraints:WhereClause*
     LEFT_BRACE members:TraitMemberDeclaration* RIGHT_BRACE;
 
 rule TraitMemberDeclaration
@@ -335,11 +338,13 @@ rule AccessorDeclaration
 rule IndexerDeclaration
     = modifiers:Modifier* type:TypeReference THIS
       LEFT_BRACKET parameters:ParameterList RIGHT_BRACKET
+      constraints:WhereClause*
       LEFT_BRACE accessors:AccessorDeclaration+ RIGHT_BRACE       as BlockIndexer
     ;
 
 rule ConstructorDeclaration = modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
                               withClauses:WithClause*
+                              constraints:WhereClause*
                               chain:ConstructorChain? body:MethodBody;
 
 rule ConstructorChain
@@ -351,7 +356,7 @@ rule MethodDeclaration = modifiers:Modifier* returnType:TypeReference name:IDENT
                          typeParams:TypeParameterList?
                          LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
                          withClauses:WithClause*
-                         constraints:ConstraintClause*
+                         constraints:WhereClause*
                          body:MethodBody;
 
 rule MethodBody

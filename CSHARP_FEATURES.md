@@ -532,6 +532,31 @@ Mist supports refinement types — type aliases with pattern-match predicates th
 
 ---
 
+## Adhoc Refinement Constraints
+
+Mist supports ad-hoc refinement constraints — `where` clauses that attach refinement predicates directly to dependent type arguments on generic declarations and to parameters on constructors, methods, and indexers. This extends the named refinement type system with inline, anonymous refinement constraints that use the same pattern-match syntax (relational patterns, logical `and` combinators, constant patterns).
+
+| Feature | Status | Notes |
+|---|---|---|
+| Dependent type argument constraints grammar | ✅ | `where Size >= 0` on type declarations |
+| Parameter constraints grammar | ✅ | `where x < 100` on methods, constructors, indexers |
+| Compound predicates (`and`) | ✅ | `where Size >= 0 and <= 1024` |
+| Multiple `where` clauses per declaration | ✅ | One per constrained name |
+| Interleaved with generic constraints | ✅ | `where T : class where Size >= 0` in any order |
+| Semantic model registration | ✅ | Predicates attached to dependent type parameters and value parameters |
+| Compile-time enforcement (dependent arguments) | ✅ | Rejects literals/consts violating predicate |
+| Compile-time enforcement (parameter arguments) | ✅ | Rejects constant arguments violating predicate |
+| Runtime guard generation | ✅ | `ArgumentException` guards for non-constant arguments |
+| Guard elision optimization | ✅ | Omits guard when all call sites are statically validated |
+| Flow narrowing | ✅ | Parameter treated as anonymous refinement type in body |
+| Flow narrowing invalidation | ✅ | Reassignment/compound-assignment invalidates narrowing |
+| Type identity participation | ✅ | Dependent argument refinements are part of type contract |
+| Predicate compatibility validation | ✅ | Relational predicates rejected on `bool` and `string` |
+| Predicate implication checking | ✅ | Forwarding requires source constraint to imply target |
+| C# emission | ✅ | Runtime guards as negated-condition + throw pattern |
+
+---
+
 ## Generics
 
 | Feature | Status | Notes |
@@ -916,6 +941,7 @@ Features introduced by Mist that don't map directly to a single C# feature. Thes
 | Refinement Types — Semantic Model | 3 | 0 | 0 |
 | Refinement Types — Type Checking | 8 | 0 | 0 |
 | Refinement Types — C# Emission | 3 | 0 | 0 |
+| Adhoc Refinement Constraints | 16 | 0 | 0 |
 | Generics | 5 | 2 | 0 |
 | Async | 0 | 5 | 1 |
 | Namespaces & Imports | 3 | 3 | 1 |

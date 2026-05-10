@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;
@@ -524,6 +525,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     internal static readonly DiagnosticId RefinementConstraintDuplicate = new("MIST_REFINEMENT_0003");
 
     /// <summary>
+    /// An implementation method has a stronger refinement constraint on a parameter than
+    /// the interface or trait method requires, violating Liskov Substitution (Requirement 17.4).
+    /// </summary>
+    internal static readonly DiagnosticId RefinementConstraintStrongerThanInterface = new("MIST_REFINEMENT_0009");
+
+    /// <summary>
     /// The set of primitive type keywords allowed as dependent type parameter annotations.
     /// </summary>
     private static readonly HashSet<string> AllowedDependentTypeAnnotations = new(StringComparer.Ordinal)
@@ -774,6 +781,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // can be looked up by name. Attaches predicates to dependent type
         // parameters and stores parameter refinements in the lookup map.
         Pass2_ResolveAdhocRefinementConstraints(symbolTable, asts, compilation, diagnostics, parameterRefinements);
+
+        // Post-Pass 2: Validate refinement constraint satisfaction for
+        // interface and trait method implementations (Liskov Substitution).
+        // This runs after adhoc refinement constraints are resolved so that
+        // parameter refinement predicates are available for both interface/trait
+        // methods and their implementations.
+        Pass2_ValidateRefinementConstraintSatisfaction(
+            symbolTable, traitSatisfactionMap, parameterRefinements, asts, compilation, diagnostics);
 
         // Post-Pass 2: Check for duplicate extension member signatures across
         // all extension blocks for the same receiver type (Requirement 8.9, 20.4, 20.7).
@@ -4839,6 +4854,273 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Validates refinement constraint satisfaction for interface and trait method
+    /// implementations (Liskov Substitution Principle). For each matched method pair,
+    /// checks that the implementation does not impose a stronger refinement constraint
+    /// on any parameter than the interface/trait method requires.
+    /// </summary>
+    /// <remarks>
+    /// This runs after <see cref="Pass2_ResolveAdhocRefinementConstraints"/> so that
+    /// parameter refinement predicates are available for both interface/trait methods
+    /// and their implementations.
+    ///
+    /// Algorithm per parameter position:
+    /// - If interface predicate is null → skip (implementation may freely add or omit constraints)
+    /// - If interface predicate is non-null and impl predicate is null → accept (no constraint means accepts all values)
+    /// - If both are non-null → check RefinementSolver.Implies(interfacePredicate, implPredicate):
+    ///   - If true → accept
+    ///   - If false → emit MIST_REFINEMENT_0009 diagnostic
+    /// </remarks>
+    private static void Pass2_ValidateRefinementConstraintSatisfaction(
+        SymbolTable symbolTable,
+        TraitSatisfactionMap traitSatisfactionMap,
+        Dictionary<ISymbol, RefinementPredicate> parameterRefinements,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // ─── Interface method refinement constraint satisfaction ─────────
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            IReadOnlyList<IType>? interfaces = null;
+            IScope? memberScope = null;
+            ClassType? classType = null;
+            string? typeName = null;
+
+            switch (symbol.Kind)
+            {
+                case SymbolKind.Class when symbol.DeclaredType is ClassType ct:
+                    if (ct.Interfaces.Count > 0)
+                    {
+                        interfaces = ct.Interfaces;
+                        memberScope = ct.MemberScope;
+                        classType = ct;
+                        typeName = ct.DisplayName;
+                    }
+                    break;
+
+                case SymbolKind.Struct when symbol.DeclaredType is StructType st:
+                    if (st.Interfaces.Count > 0)
+                    {
+                        interfaces = st.Interfaces;
+                        memberScope = st.MemberScope;
+                        typeName = st.DisplayName;
+                    }
+                    break;
+            }
+
+            if (interfaces is null || memberScope is null || typeName is null)
+                continue;
+
+            // Collect all required methods transitively from the interface hierarchy.
+            var requiredMethods = new List<(InterfaceType Interface, ISymbol Method)>();
+            var requiredProperties = new List<(InterfaceType Interface, ISymbol Property)>();
+            var visitedInterfaces = new HashSet<InterfaceType>();
+            CollectRequiredMembers(interfaces, requiredMethods, requiredProperties, visitedInterfaces);
+
+            foreach (var (requiredInterface, requiredMethod) in requiredMethods)
+            {
+                var requiredNode = symbolTable.GetDeclaringNode(requiredMethod);
+                if (requiredNode is not InterfaceMethodDeclarationNode requiredMethodDecl)
+                    continue;
+
+                // Find the matching implementation method.
+                var matchResult = FindMatchingMethod(
+                    requiredMethod.Name, requiredMethodDecl,
+                    memberScope, classType, symbolTable);
+
+                if (matchResult is not MethodMatchResult.MatchedResult matched)
+                    continue;
+
+                // Validate refinement constraints for each parameter position.
+                ValidateMethodRefinementConstraints(
+                    requiredMethod, matched.ImplSymbol,
+                    requiredInterface.DisplayName, typeName,
+                    parameterRefinements, symbolTable, asts, compilation, diagnostics);
+            }
+        }
+
+        // ─── Trait method refinement constraint satisfaction ─────────────
+        foreach (var (type, trait, satisfaction) in traitSatisfactionMap.All())
+        {
+            var typeName = type.DisplayName;
+            var traitName = trait.DisplayName;
+
+            // Check structural matches for method members.
+            foreach (var (traitMemberName, implSymbol) in satisfaction.StructuralMatches)
+            {
+                if (implSymbol.Kind != SymbolKind.Method)
+                    continue;
+
+                // Find the trait method symbol.
+                ISymbol? traitMethodSymbol = null;
+                var traitScope = trait switch
+                {
+                    TraitType tt => tt.MemberScope,
+                    ConstructedTraitType ctt => ctt.GenericTraitDefinition.MemberScope,
+                    _ => null,
+                };
+
+                if (traitScope is null)
+                    continue;
+
+                foreach (var member in traitScope.Members)
+                {
+                    if (member.Kind == SymbolKind.Method && member.Name == traitMemberName)
+                    {
+                        traitMethodSymbol = member;
+                        break;
+                    }
+                }
+
+                if (traitMethodSymbol is null)
+                    continue;
+
+                // Validate refinement constraints for each parameter position.
+                ValidateMethodRefinementConstraints(
+                    traitMethodSymbol, implSymbol,
+                    traitName, typeName,
+                    parameterRefinements, symbolTable, asts, compilation, diagnostics);
+            }
+
+            // Also check with-block mappings for method members.
+            foreach (var (traitMemberName, implSymbol) in satisfaction.WithMappings)
+            {
+                if (implSymbol.Kind != SymbolKind.Method)
+                    continue;
+
+                // Find the trait method symbol.
+                ISymbol? traitMethodSymbol = null;
+                var traitScope = trait switch
+                {
+                    TraitType tt => tt.MemberScope,
+                    ConstructedTraitType ctt => ctt.GenericTraitDefinition.MemberScope,
+                    _ => null,
+                };
+
+                if (traitScope is null)
+                    continue;
+
+                foreach (var member in traitScope.Members)
+                {
+                    if (member.Kind == SymbolKind.Method && member.Name == traitMemberName)
+                    {
+                        traitMethodSymbol = member;
+                        break;
+                    }
+                }
+
+                if (traitMethodSymbol is null)
+                    continue;
+
+                // Validate refinement constraints for each parameter position.
+                ValidateMethodRefinementConstraints(
+                    traitMethodSymbol, implSymbol,
+                    traitName, typeName,
+                    parameterRefinements, symbolTable, asts, compilation, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates refinement constraint compatibility between an interface/trait method
+    /// and its implementation for each parameter position.
+    /// </summary>
+    private static void ValidateMethodRefinementConstraints(
+        ISymbol interfaceMethod,
+        ISymbol implMethod,
+        string interfaceName,
+        string typeName,
+        Dictionary<ISymbol, RefinementPredicate> parameterRefinements,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // Get parameter nodes from both methods.
+        var interfaceNode = symbolTable.GetDeclaringNode(interfaceMethod);
+        var implNode = symbolTable.GetDeclaringNode(implMethod);
+
+        if (interfaceNode is null || implNode is null)
+            return;
+
+        ParameterListNode? interfaceParams = interfaceNode switch
+        {
+            InterfaceMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Parameters,
+            TraitMethodDeclarationNode traitMethodDecl => traitMethodDecl.Parameters,
+            MethodDeclarationNode methodDecl => methodDecl.Parameters,
+            _ => null,
+        };
+
+        ParameterListNode? implParams = implNode switch
+        {
+            MethodDeclarationNode methodDecl => methodDecl.Parameters,
+            _ => null,
+        };
+
+        if (interfaceParams is null || implParams is null)
+            return;
+
+        // Collect parameter nodes from both methods.
+        var interfaceParamNodes = new List<ParameterNode>();
+        foreach (var child in interfaceParams.Children())
+        {
+            if (child is ParameterNode param)
+                interfaceParamNodes.Add(param);
+        }
+
+        var implParamNodes = new List<ParameterNode>();
+        foreach (var child in implParams.Children())
+        {
+            if (child is ParameterNode param)
+                implParamNodes.Add(param);
+        }
+
+        // Validate each parameter position independently.
+        var count = Math.Min(interfaceParamNodes.Count, implParamNodes.Count);
+        for (var i = 0; i < count; i++)
+        {
+            var interfaceParamSymbol = symbolTable.GetDeclaredSymbol(interfaceParamNodes[i]);
+            var implParamSymbol = symbolTable.GetDeclaredSymbol(implParamNodes[i]);
+
+            if (interfaceParamSymbol is null || implParamSymbol is null)
+                continue;
+
+            // Look up refinement predicates.
+            parameterRefinements.TryGetValue(interfaceParamSymbol, out var interfacePredicate);
+            parameterRefinements.TryGetValue(implParamSymbol, out var implPredicate);
+
+            // If interface predicate is null → skip (implementation may freely add or omit constraints).
+            if (interfacePredicate is null)
+                continue;
+
+            // If interface predicate is non-null and impl predicate is null → accept
+            // (no constraint means accepts all values).
+            if (implPredicate is null)
+                continue;
+
+            // Both are non-null → check implication.
+            if (!RefinementSolver.Implies(interfacePredicate, implPredicate))
+            {
+                // The implementation's constraint is stronger — emit MIST_REFINEMENT_0009.
+                var paramName = implParamNodes[i].Name.Lexeme;
+                var methodName = implMethod.Name;
+
+                var message = $"Implementation of '{methodName}' on '{typeName}' has a stronger refinement constraint '{implPredicate}' on parameter '{paramName}' than the interface '{interfaceName}' requires '{interfacePredicate}'. The implementation must accept all values the interface promises to accept.";
+
+                // Get source location from the implementation method.
+                var sourceText = FindSourceTextForType(typeName, symbolTable, asts, compilation);
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    RefinementConstraintStrongerThanInterface.Value,
+                    DiagnosticSeverity.Error,
+                    message,
+                    implNode,
+                    sourceText));
+            }
+        }
+    }
+
+    /// <summary>
     /// Extracts constraint clauses and type parameters from a symbol's declaring node.
     /// Returns empty/default values for declarations that don't support constraints.
     /// </summary>
@@ -8489,6 +8771,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 case MethodMatchResult.MatchedResult:
                     // Method found with matching signature — satisfied.
+                    // Refinement constraint validation is deferred to
+                    // Pass2_ValidateRefinementConstraintSatisfaction (runs after
+                    // adhoc refinement constraints are resolved).
                     break;
 
                 case MethodMatchResult.MissingResult:
@@ -8704,13 +8989,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private abstract record MethodMatchResult
     {
-        public static readonly MethodMatchResult Matched = new MatchedResult();
         public static readonly MethodMatchResult Missing = new MissingResult();
+
+        public static MethodMatchResult Match(ISymbol implSymbol)
+            => new MatchedResult(implSymbol);
 
         public static MethodMatchResult Mismatch(string expectedSig, string actualSig)
             => new SignatureMismatch(expectedSig, actualSig);
 
-        public sealed record MatchedResult : MethodMatchResult;
+        public sealed record MatchedResult(ISymbol ImplSymbol) : MethodMatchResult;
         public sealed record MissingResult : MethodMatchResult;
         public sealed record SignatureMismatch(string ExpectedSig, string ActualSig) : MethodMatchResult;
     }
@@ -8799,7 +9086,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 continue;
 
             if (SignaturesMatch(requiredMethodDecl, implMethodDecl))
-                return MethodMatchResult.Matched;
+                return MethodMatchResult.Match(member);
 
             // Track the last seen actual signature for diagnostic purposes.
             lastActualSig = FormatMethodSignature(implMethodDecl);

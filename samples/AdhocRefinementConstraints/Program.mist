@@ -140,6 +140,49 @@ public class SmallArray : FixedArray<int, 10> { }
 
 public class Wrapper<N:int> : FixedArray<string, N> where N >= 0 { }
 
+// ─── 15. Interface with parameter refinement — same constraint (Liskov) ──────
+
+interface IValidator
+{
+    string Validate(int value) where value >= 0;
+}
+
+// Implements with the SAME constraint — valid (same predicate)
+class StrictValidator : IValidator
+{
+    public string Validate(int value) where value >= 0
+    {
+        return $"StrictValidator.Validate({value}) accepted (same constraint >= 0)";
+    }
+}
+
+// ─── 16. Interface with parameter refinement — no constraint (Liskov) ────────
+
+// Implements with NO constraint — valid (weaker, accepts everything)
+class LenientValidator : IValidator
+{
+    public string Validate(int value)
+    {
+        return $"LenientValidator.Validate({value}) accepted (no constraint)";
+    }
+}
+
+// ─── 17. Interface with parameter refinement — weaker constraint (Liskov) ────
+
+interface IStrictProcessor
+{
+    string Process(int x) where x >= 10 and <= 100;
+}
+
+// Implements with a WEAKER constraint — valid (accepts a superset: >= 0 implies >= 10 and <= 100 → >= 0 accepts more)
+class WeakerProcessor : IStrictProcessor
+{
+    public string Process(int x) where x >= 0
+    {
+        return $"WeakerProcessor.Process({x}) accepted (weaker constraint >= 0)";
+    }
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 public class Program
@@ -239,6 +282,30 @@ public class Program
         var wrapper = new Wrapper<5>();
         Console.WriteLine($"  Wrapper<5> : FixedArray<string, 5> constructed successfully");
         Console.WriteLine($"  (Wrapper's N >= 0 implies FixedArray's Size >= 0)");
+
+        // 15. Interface with parameter refinement — same constraint (Liskov)
+        Console.WriteLine("--- 15. Interface refinement — same constraint (Liskov) ---");
+        IValidator strictVal = new StrictValidator();
+        var result15 = strictVal.Validate(42);
+        Console.WriteLine($"  {result15}");
+        var result15b = strictVal.Validate(0);
+        Console.WriteLine($"  {result15b}");
+
+        // 16. Interface with parameter refinement — no constraint (Liskov)
+        Console.WriteLine("--- 16. Interface refinement — no constraint (Liskov) ---");
+        IValidator lenientVal = new LenientValidator();
+        var result16 = lenientVal.Validate(99);
+        Console.WriteLine($"  {result16}");
+        var result16b = lenientVal.Validate(0);
+        Console.WriteLine($"  {result16b}");
+
+        // 17. Interface with parameter refinement — weaker constraint (Liskov)
+        Console.WriteLine("--- 17. Interface refinement — weaker constraint (Liskov) ---");
+        IStrictProcessor weakerProc = new WeakerProcessor();
+        var result17 = weakerProc.Process(50);
+        Console.WriteLine($"  {result17}");
+        var result17b = weakerProc.Process(10);
+        Console.WriteLine($"  {result17b}");
 
         Console.WriteLine("=== Adhoc Refinement Constraints Done ===");
     }

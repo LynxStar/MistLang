@@ -846,5 +846,14 @@ Done!
 --- 14. Forwarding dependent parameter with implication ---
   Wrapper<5> : FixedArray<string, 5> constructed successfully
   (Wrapper's N >= 0 implies FixedArray's Size >= 0)
+--- 15. Interface refinement — same constraint (Liskov) ---
+  StrictValidator.Validate(42) accepted (same constraint >= 0)
+  StrictValidator.Validate(0) accepted (same constraint >= 0)
+--- 16. Interface refinement — no constraint (Liskov) ---
+  LenientValidator.Validate(99) accepted (no constraint)
+  LenientValidator.Validate(0) accepted (no constraint)
+--- 17. Interface refinement — weaker constraint (Liskov) ---
+  WeakerProcessor.Process(50) accepted (weaker constraint >= 0)
+  WeakerProcessor.Process(10) accepted (weaker constraint >= 0)
 === Adhoc Refinement Constraints Done ===
 === Done! ===

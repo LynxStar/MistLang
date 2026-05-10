@@ -297,12 +297,13 @@ public sealed class MistPrettyPrinter
 
     private void EmitInterfaceMethodDeclaration(InterfaceMethodDeclarationNode methodDecl)
     {
+        var returnOwnership = EmitOwnershipSpecifier(methodDecl.ReturnOwnership);
         var returnType = EmitTypeReference(methodDecl.ReturnType);
         var name = methodDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
         var parameters = EmitParameterList(methodDecl.Parameters);
         var constraints = EmitConstraintClauses(methodDecl.Constraints);
-        AppendLine($"{returnType} {name}{typeParams}({parameters}){constraints};");
+        AppendLine($"{returnOwnership}{returnType} {name}{typeParams}({parameters}){constraints};");
     }
 
     private void EmitMembers(ImmutableArray<MemberDeclarationNode> members)
@@ -353,16 +354,17 @@ public sealed class MistPrettyPrinter
     private void EmitFieldDeclaration(FieldDeclarationNode fieldDecl)
     {
         var modifiers = EmitModifiers(fieldDecl.Modifiers);
+        var ownership = EmitOwnershipSpecifier(fieldDecl.OwnershipSpecifier);
         var type = EmitTypeReference(fieldDecl.Type);
         var name = fieldDecl.Name.Lexeme;
 
         if (fieldDecl.Initializer is not null)
         {
-            AppendLine($"{modifiers}{type} {name} = {EmitExpression(fieldDecl.Initializer)};");
+            AppendLine($"{modifiers}{ownership}{type} {name} = {EmitExpression(fieldDecl.Initializer)};");
         }
         else
         {
-            AppendLine($"{modifiers}{type} {name};");
+            AppendLine($"{modifiers}{ownership}{type} {name};");
         }
     }
 
@@ -400,13 +402,14 @@ public sealed class MistPrettyPrinter
     private void EmitMethodDeclaration(MethodDeclarationNode methodDecl)
     {
         var modifiers = EmitModifiers(methodDecl.Modifiers);
+        var returnOwnership = EmitOwnershipSpecifier(methodDecl.ReturnOwnership);
         var returnType = EmitTypeReference(methodDecl.ReturnType);
         var name = methodDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
         var parameters = EmitParameterList(methodDecl.Parameters);
         var constraints = EmitConstraintClauses(methodDecl.Constraints);
 
-        AppendLine($"{modifiers}{returnType} {name}{typeParams}({parameters}){constraints} {{");
+        AppendLine($"{modifiers}{returnOwnership}{returnType} {name}{typeParams}({parameters}){constraints} {{");
         _indentLevel++;
 
         if (methodDecl.Body.GetBlock() is BlockNode methodBlock)
@@ -861,10 +864,11 @@ public sealed class MistPrettyPrinter
 
     private void EmitTraitMethodDeclaration(TraitMethodDeclarationNode methodDecl)
     {
+        var returnOwnership = EmitOwnershipSpecifier(methodDecl.ReturnOwnership);
         var returnType = EmitTypeReference(methodDecl.ReturnType);
         var name = methodDecl.Name.Lexeme;
         var parameters = EmitParameterList(methodDecl.Parameters);
-        AppendLine($"{returnType} {name}({parameters});");
+        AppendLine($"{returnOwnership}{returnType} {name}({parameters});");
     }
 
     private void EmitTraitPropertyDeclaration(TraitPropertyDeclarationNode propertyDecl)
@@ -1277,17 +1281,19 @@ public sealed class MistPrettyPrinter
         {
             case TypedVariableDeclarationVariableDeclarationStatementNode typed:
             {
+                var ownership = EmitOwnershipSpecifier(typed.OwnershipSpecifier);
                 var type = EmitTypeReference(typed.Type);
                 var name = typed.Name.Lexeme;
                 var init = EmitExpression(typed.Initializer);
-                AppendLine($"{type} {name} = {init};");
+                AppendLine($"{ownership}{type} {name} = {init};");
                 break;
             }
             case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
             {
+                var ownership = EmitOwnershipSpecifier(inferred.OwnershipSpecifier);
                 var name = inferred.Name.Lexeme;
                 var init = EmitExpression(inferred.Initializer);
-                AppendLine($"var {name} = {init};");
+                AppendLine($"{ownership}var {name} = {init};");
                 break;
             }
             case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
@@ -2023,6 +2029,9 @@ public sealed class MistPrettyPrinter
                     break;
                 case ReadonlyModifierModifierNode:
                     parts.Add("readonly");
+                    break;
+                case OwnedModifierModifierNode:
+                    parts.Add("owned");
                     break;
             }
         }

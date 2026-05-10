@@ -125,4 +125,16 @@ public sealed class SymbolTable
 
     public Storm.Runtime.SyntaxNode? GetDeclaringNode(ISymbol symbol)
         => _symbolToNode.GetValueOrDefault(symbol);
+
+    /// <summary>
+    /// Registers a usage-site AST node (e.g., an <c>IdentifierExpressionPrimaryNode</c>
+    /// at a call site or assignment RHS) as referencing the given symbol. This allows
+    /// downstream analyzers to resolve identifier references via <see cref="GetDeclaredSymbol"/>.
+    /// Unlike <see cref="Register"/>, this does NOT add the symbol to <see cref="AllSymbols"/>
+    /// (it's already registered from its declaration site).
+    /// </summary>
+    public void RegisterUsageSite(Storm.Runtime.SyntaxNode usageNode, ISymbol referencedSymbol)
+    {
+        _nodeToSymbol.TryAdd(usageNode, referencedSymbol);
+    }
 }

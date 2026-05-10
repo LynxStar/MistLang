@@ -872,7 +872,8 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Checks arguments of a method call for owned parameter passing (moves).
+    /// Checks arguments of a method call for owned parameter passing (moves) and
+    /// lending compatibility violations.
     /// </summary>
     private static void CheckMethodCallArgumentsForMoves(
         MethodCallSuffixPostfixSuffixNode methodCall,
@@ -901,20 +902,27 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         var count = Math.Min(paramSymbols.Count, argExprs.Count);
         for (var i = 0; i < count; i++)
         {
-            if (paramSymbols[i] is Symbol paramSym && paramSym.OwnershipTier == OwnershipTier.Owned)
+            if (paramSymbols[i] is Symbol paramSym)
             {
-                // This parameter is owned — passing an owned variable here is a move.
-                var argSymbol = TryResolveIdentifierSymbol(argExprs[i], model);
-                if (argSymbol is not null && IsOwnedVariable(argSymbol))
+                if (paramSym.OwnershipTier == OwnershipTier.Owned)
                 {
-                    PerformMove(argSymbol, argExprs[i], state, model, diagnostics, isLoop);
+                    // This parameter is owned — passing an owned variable here is a move.
+                    var argSymbol = TryResolveIdentifierSymbol(argExprs[i], model);
+                    if (argSymbol is not null && IsOwnedVariable(argSymbol))
+                    {
+                        PerformMove(argSymbol, argExprs[i], state, model, diagnostics, isLoop);
+                    }
                 }
+
+                // Check lending compatibility for all tier combinations.
+                CheckLendingCompatibility(argExprs[i], paramSym, model, diagnostics);
             }
         }
     }
 
     /// <summary>
-    /// Checks arguments of a direct invocation for owned parameter passing (moves).
+    /// Checks arguments of a direct invocation for owned parameter passing (moves) and
+    /// lending compatibility violations.
     /// </summary>
     private static void CheckInvocationArgumentsForMoves(
         InvocationSuffixPostfixSuffixNode invocation,
@@ -943,14 +951,91 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         var count = Math.Min(paramSymbols.Count, argExprs.Count);
         for (var i = 0; i < count; i++)
         {
-            if (paramSymbols[i] is Symbol paramSym && paramSym.OwnershipTier == OwnershipTier.Owned)
+            if (paramSymbols[i] is Symbol paramSym)
             {
-                var argSymbol = TryResolveIdentifierSymbol(argExprs[i], model);
-                if (argSymbol is not null && IsOwnedVariable(argSymbol))
+                if (paramSym.OwnershipTier == OwnershipTier.Owned)
                 {
-                    PerformMove(argSymbol, argExprs[i], state, model, diagnostics, isLoop);
+                    var argSymbol = TryResolveIdentifierSymbol(argExprs[i], model);
+                    if (argSymbol is not null && IsOwnedVariable(argSymbol))
+                    {
+                        PerformMove(argSymbol, argExprs[i], state, model, diagnostics, isLoop);
+                    }
                 }
+
+                // Check lending compatibility for all tier combinations.
+                CheckLendingCompatibility(argExprs[i], paramSym, model, diagnostics);
             }
+        }
+    }
+
+    // ── Lending compatibility ────────────────────────────────────────────
+
+    /// <summary>
+    /// The set of permitted (source tier, target tier) lending pairs.
+    /// </summary>
+    private static readonly HashSet<(OwnershipTier Source, OwnershipTier Target)> PermittedLendingPairs = new()
+    {
+        (OwnershipTier.Owned, OwnershipTier.Owned),
+        (OwnershipTier.Owned, OwnershipTier.Ref),
+        (OwnershipTier.Owned, OwnershipTier.ReadonlyRef),
+        (OwnershipTier.Owned, OwnershipTier.FrozenRef),
+        (OwnershipTier.Ref, OwnershipTier.Ref),
+        (OwnershipTier.Ref, OwnershipTier.ReadonlyRef),
+        (OwnershipTier.Ref, OwnershipTier.FrozenRef),
+        (OwnershipTier.ReadonlyRef, OwnershipTier.ReadonlyRef),
+        (OwnershipTier.FrozenRef, OwnershipTier.FrozenRef),
+        (OwnershipTier.FrozenRef, OwnershipTier.ReadonlyRef),
+        (OwnershipTier.Unrestricted, OwnershipTier.ReadonlyRef),
+        (OwnershipTier.Unrestricted, OwnershipTier.Unrestricted),
+    };
+
+    /// <summary>
+    /// Checks whether passing an argument to a parameter satisfies the lending
+    /// compatibility matrix. Value types always satisfy any tier. For reference types,
+    /// the (source tier, target tier) pair must be in the permitted set.
+    /// </summary>
+    private static void CheckLendingCompatibility(
+        SyntaxNode argExpr,
+        Symbol paramSym,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var targetTier = paramSym.OwnershipTier;
+
+        // Resolve the argument to a symbol to get its ownership tier.
+        var argSymbol = TryResolveIdentifierSymbol(argExpr, model);
+        if (argSymbol is not Symbol argSym)
+            return;
+
+        // Value types always satisfy any tier requirement.
+        if (argSym.DeclaredType is not null && IsValueType(argSym.DeclaredType))
+            return;
+
+        var sourceTier = argSym.OwnershipTier;
+
+        // Check if the pair is permitted.
+        if (PermittedLendingPairs.Contains((sourceTier, targetTier)))
+            return;
+
+        // Emit the appropriate diagnostic.
+        if (sourceTier == OwnershipTier.Unrestricted &&
+            targetTier is OwnershipTier.Ref or OwnershipTier.FrozenRef or OwnershipTier.Owned)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                UnrestrictedToRef,
+                $"Cannot pass unrestricted variable '{argSym.Name}' to {FormatOwnershipTier(targetTier)} parameter '{paramSym.Name}'. " +
+                $"Unrestricted references cannot provide the guarantees required by {FormatOwnershipTier(targetTier)}.",
+                argExpr,
+                model));
+        }
+        else
+        {
+            diagnostics.Add(MakeDiagnostic(
+                IncompatibleLend,
+                $"Cannot lend {FormatOwnershipTier(sourceTier)} variable '{argSym.Name}' to {FormatOwnershipTier(targetTier)} parameter '{paramSym.Name}'. " +
+                $"The lending pair ({FormatOwnershipTier(sourceTier)}, {FormatOwnershipTier(targetTier)}) is not permitted.",
+                argExpr,
+                model));
         }
     }
 
@@ -1028,11 +1113,11 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         if (argList is null)
             return result;
 
-        // The ArgumentListNode has an Expression (first arg) and RestArguments.
+        // The ArgumentListNode has an Expression (first arg) and Expressions (rest args).
         result.Add(argList.Expression);
-        foreach (var restArg in argList.RestArguments)
+        foreach (var restArg in argList.Expressions)
         {
-            result.Add(restArg.Expression);
+            result.Add(restArg);
         }
         return result;
     }

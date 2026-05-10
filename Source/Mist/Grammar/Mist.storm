@@ -206,7 +206,7 @@ rule InterfaceMemberDeclaration
     | property:InterfacePropertyDeclaration as InterfacePropertyMember
     ;
 
-rule InterfaceMethodDeclaration = returnType:TypeReference name:IDENTIFIER
+rule InterfaceMethodDeclaration = returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
     typeParams:TypeParameterList?
     LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
     constraints:ConstraintClause*
@@ -238,7 +238,7 @@ rule TraitMemberDeclaration
 
 rule TraitFieldDeclaration = type:TypeReference name:IDENTIFIER SEMICOLON;
 
-rule TraitMethodDeclaration = returnType:TypeReference name:IDENTIFIER
+rule TraitMethodDeclaration = returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
     LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS SEMICOLON;
 
 rule TraitPropertyDeclaration = type:TypeReference name:IDENTIFIER

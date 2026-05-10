@@ -10517,6 +10517,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if (methodSymbol is not null)
                     {
                         methodSymbol.DeclaredType = returnType;
+                        methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
                     }
 
                     // Register parameters so ParameterSignature.Extract can resolve
@@ -10606,6 +10607,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if (methodSymbol is not null)
                     {
                         methodSymbol.DeclaredType = returnType;
+                        methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
                     }
 
                     // Register parameters so parameter types can be resolved.
@@ -10769,7 +10771,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (methodSymbol is not null)
         {
             methodSymbol.DeclaredType = returnType;
-            methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
+
+            // When the parser sees "public owned Foo Method(...)", it may parse "owned"
+            // as a modifier (OwnedModifier) rather than as the returnOwnership specifier.
+            // In that case, ReturnOwnership is null but the method has an OwnedModifier.
+            // We treat this as OwnershipTier.Owned for the return type.
+            if (methodDecl.ReturnOwnership is not null)
+            {
+                methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
+            }
+            else if (methodDecl.Modifiers.Any(m => m is OwnedModifierModifierNode))
+            {
+                methodSymbol.OwnershipTier = OwnershipTier.Owned;
+            }
         }
 
         // Determine if the method is static.
@@ -11203,7 +11217,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             paramSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
         }
 
-        paramSymbol.OwnershipTier = MapOwnershipSpecifier(param.OwnershipSpecifier);
+        // When the parser sees "readonly ref", it may parse it as modifier=READONLY +
+        // ownershipSpecifier=RefSpecifier (due to greedy matching of the READONLY modifier).
+        // In that case, the combined meaning is ReadonlyRef, not just Ref.
+        if (param.Modifier is not null && param.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode)
+        {
+            paramSymbol.OwnershipTier = OwnershipTier.ReadonlyRef;
+        }
+        else
+        {
+            paramSymbol.OwnershipTier = MapOwnershipSpecifier(param.OwnershipSpecifier);
+        }
 
         methodScope.AddMember(paramSymbol);
         symbolTable.Register(paramSymbol, param);
@@ -15148,6 +15172,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 else
                 {
                     result = symbol.DeclaredType ?? ErrorType.Instance;
+
+                    // Register the usage-site identifier node → resolved symbol mapping
+                    // so that downstream analyzers (e.g., OwnershipAnalyzer) can resolve
+                    // identifier references at call sites via GetDeclaredSymbol.
+                    if (symbol.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter or SymbolKind.Field)
+                    {
+                        symbolTable.RegisterUsageSite(identifier, symbol);
+                    }
                 }
                 break;
             }

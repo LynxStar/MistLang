@@ -216,6 +216,51 @@ This plan implements ad-hoc refinement constraints for the Mist language — `wh
 - [x] 13. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
+- [ ] 14. Interface/trait method refinement constraint satisfaction (Liskov Substitution)
+  - [ ] 14.1 Add `MIST_REFINEMENT_0009` diagnostic constant
+    - Add the diagnostic ID `MIST_REFINEMENT_0009` to the diagnostics constants file
+    - Message template: "Implementation of '{Method}' on '{Type}' has a stronger refinement constraint '{ImplPredicate}' on parameter '{Name}' than the interface '{Interface}' requires '{InterfacePredicate}'. The implementation must accept all values the interface promises to accept."
+    - _Requirements: 17.4_
+
+  - [ ] 14.2 Implement `ValidateRefinementConstraintSatisfaction` in `SemanticModelBuilder`
+    - In `Pass1_ValidateInterfaceSatisfaction` (for interfaces) and `Pass1_ResolveTraitSatisfaction` (for traits), after method signature matching succeeds, add refinement constraint compatibility validation
+    - For each matched method pair (interface/trait method → implementation method):
+      - For each parameter position `i`:
+        - Look up adhoc refinement constraint on interface/trait method parameter via `GetParameterRefinement`
+        - Look up adhoc refinement constraint on implementation method parameter via `GetParameterRefinement`
+        - If interface predicate is null → skip (implementation may freely add or omit constraints)
+        - If interface predicate is non-null and impl predicate is null → accept (no constraint means accepts all values)
+        - If both are non-null → check `RefinementSolver.Implies(interfacePredicate, implPredicate)`:
+          - If true → accept
+          - If false → emit `MIST_REFINEMENT_0009` diagnostic
+      - Validate each parameter independently (violation on one does not suppress others)
+    - Apply the same algorithm to indexer parameters
+    - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8, 17.9_
+
+  - [ ]* 14.3 Write property test for interface/trait refinement constraint satisfaction (Property 9)
+    - **Property 9: Interface/trait method refinement constraint satisfaction (Liskov Substitution)**
+    - Create `InterfaceTraitRefinementSatisfactionPropertyTests` in `Test/Mist.Tests/`
+    - Generate random interface/trait method declarations with parameter refinement constraints
+    - Pair with implementing methods that have: (a) same predicate, (b) no predicate, (c) weaker predicate (implication holds), (d) stronger predicate (implication fails)
+    - Build full programs in-process via `CompilerDriver.Compile()`, verify acceptance for cases (a)–(c) and `MIST_REFINEMENT_0009` diagnostic for case (d)
+    - Cover both interfaces and traits, single and multiple parameters, and indexer parameters
+    - Generate cases where the interface has no constraint (implementation may add any constraint freely)
+    - Uses in-process compilation (no process spawning per iteration)
+    - Minimum 100 iterations
+    - **Validates: Requirements 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8, 17.9**
+
+  - [ ] 14.4 Update sample app to demonstrate interface/trait refinement satisfaction scenarios
+    - Add demonstrations to `samples/AdhocRefinementConstraints/Program.mist` for:
+      - An interface with a method that has a Parameter_Refinement, and a class implementing with the same constraint (valid — same predicate) (Requirement 15 criterion 16)
+      - An interface with a method that has a Parameter_Refinement, and a class implementing with no constraint (valid — weaker, accepts everything) (Requirement 15 criterion 17)
+      - An interface with a method that has a Parameter_Refinement, and a class implementing with a weaker constraint (valid — accepts a superset of values) (Requirement 15 criterion 18)
+    - Each demonstration prints labeled output to stdout with a section header
+    - Ensure the sample compiles with zero diagnostics and runs without exceptions
+    - _Requirements: 15.16, 15.17, 15.18, 15.19, 15.22_
+
+- [ ] 15. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
 ## Notes
 
 - Tasks marked with `*` are optional and can be skipped for faster MVP
@@ -241,7 +286,10 @@ This plan implements ad-hoc refinement constraints for the Mist language — `wh
     { "id": 6, "tasks": ["6.7", "8.1"] },
     { "id": 7, "tasks": ["8.2", "8.3"] },
     { "id": 8, "tasks": ["11.1", "12.1"] },
-    { "id": 9, "tasks": ["11.2"] }
+    { "id": 9, "tasks": ["11.2"] },
+    { "id": 10, "tasks": ["14.1"] },
+    { "id": 11, "tasks": ["14.2"] },
+    { "id": 12, "tasks": ["14.3", "14.4"] }
   ]
 }
 ```

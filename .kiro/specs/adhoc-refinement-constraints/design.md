@@ -148,6 +148,25 @@ During the constraint-resolution pass, for each `AdhocRefinementConstraintWhereC
 - Validate that relational predicates are NOT applied to `bool` or `string`
 - Constant patterns and `and` combinators are valid on all equality-comparable types
 
+**Interface/Trait method refinement constraint satisfaction (Liskov Substitution):**
+
+This check is added to the existing `Pass1_ValidateInterfaceSatisfaction` method (for interfaces) and `Pass1_ResolveTraitSatisfaction` method (for traits) in `SemanticModelBuilder`. After a method match is confirmed (signature matches), the type checker performs an additional refinement constraint compatibility check:
+
+Algorithm — `ValidateRefinementConstraintSatisfaction`:
+1. For each matched method pair (interface/trait method → implementation method):
+   a. For each parameter position `i` in the method signature:
+      - Let `interfacePredicate` = the adhoc refinement constraint on the interface/trait method's parameter at position `i` (may be null)
+      - Let `implPredicate` = the adhoc refinement constraint on the implementation method's parameter at position `i` (may be null)
+      - **If `interfacePredicate` is null**: skip — the interface imposes no constraint, so the implementation may freely add or omit constraints.
+      - **If `interfacePredicate` is non-null and `implPredicate` is null**: accept — no constraint on the implementation means it accepts all values (weaker than any predicate).
+      - **If both are non-null**: check `RefinementSolver.Implies(interfacePredicate, implPredicate)`.
+        - If `true`: accept — the implementation accepts everything the interface promises.
+        - If `false`: emit `MIST_REFINEMENT_0009` diagnostic — the implementation is stronger (rejects values the interface promises to accept).
+   b. Each parameter is validated independently — a violation on one parameter does not prevent validation of others.
+2. The same algorithm applies to indexer parameters.
+
+This check runs during the semantic model construction phase (Pass 1d for interfaces, Pass 1g for traits), after method signature matching has already succeeded. It uses the parameter refinement map (`GetParameterRefinement`) to look up adhoc constraints on both the interface/trait method parameters and the implementation method parameters.
+
 ### 6. Emitter (`CSharpEmitter` / `CSharpSourceWriter`)
 
 **Parameter refinement guards:**
@@ -203,6 +222,7 @@ public interface ISemanticModel
 // MIST_REFINEMENT_0006: Cannot prove implication for forwarding
 // MIST_REFINEMENT_0007: Predicate incompatible with type
 // MIST_REFINEMENT_0008: Cannot forward unconstrained to constrained
+// MIST_REFINEMENT_0009: Implementation strengthens interface/trait refinement constraint (Liskov violation)
 ```
 
 ### Grammar Node Structure
@@ -269,6 +289,12 @@ WhereClauseNode (abstract)
 
 **Validates: Requirements 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7**
 
+### Property 9: Interface/trait method refinement constraint satisfaction (Liskov Substitution)
+
+*For any* interface or trait method with a parameter refinement constraint, and any implementing method on a class or struct, the type checker SHALL accept the implementation if and only if, for each parameter position where the interface/trait declares a refinement predicate, either (a) the implementation declares no refinement constraint on that parameter, or (b) `RefinementSolver.Implies(interfacePredicate, implPredicate)` returns `true`. If the implication does not hold (the implementation's constraint is stronger), the type checker SHALL emit a `MIST_REFINEMENT_0009` diagnostic for that parameter. Each parameter position is validated independently.
+
+**Validates: Requirements 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8, 17.9**
+
 ## Error Handling
 
 ### Diagnostic Errors
@@ -283,6 +309,7 @@ WhereClauseNode (abstract)
 | MIST_REFINEMENT_0006 | Cannot prove implication for forwarding | "Cannot forward dependent parameter '{SourceName}' with constraint '{SourcePredicate}' to parameter '{TargetName}' with constraint '{TargetPredicate}' because the compiler cannot prove the implication." |
 | MIST_REFINEMENT_0007 | Predicate incompatible with type | "Refinement predicate '{Predicate}' is not valid for type '{Type}'. Relational patterns require a comparable type." |
 | MIST_REFINEMENT_0008 | Forwarding unconstrained to constrained | "Cannot forward dependent parameter '{SourceName}' with no constraint to parameter '{TargetName}' with constraint '{TargetPredicate}' because the compiler cannot prove the implication." |
+| MIST_REFINEMENT_0009 | Implementation strengthens interface/trait refinement constraint | "Implementation of '{Method}' on '{Type}' has a stronger refinement constraint '{ImplPredicate}' on parameter '{Name}' than the interface '{Interface}' requires '{InterfacePredicate}'. The implementation must accept all values the interface promises to accept." |
 
 ### Syntax Errors
 
@@ -342,6 +369,15 @@ The project uses **FsCheck.Xunit** (already a dependency in `Mist.Tests.csproj`)
    - Verifies acceptance for compatible combinations and rejection for incompatible ones
    - Tag: **Feature: adhoc-refinement-constraints, Property 8: Predicate-type compatibility**
 
+7. **`InterfaceTraitRefinementSatisfactionPropertyTests`** — Property 9
+   - Generates random interface/trait method declarations with parameter refinement constraints
+   - Pairs them with implementing methods that have: (a) the same predicate, (b) no predicate, (c) a weaker predicate (implication holds), or (d) a stronger predicate (implication fails)
+   - Builds full programs in-process, verifies acceptance for cases (a)–(c) and `MIST_REFINEMENT_0009` diagnostic for case (d)
+   - Covers both interfaces and traits, single and multiple parameters, and indexer parameters
+   - Generators also produce cases where the interface has no constraint (implementation may add any constraint freely)
+   - Uses in-process compilation (no process spawning)
+   - Tag: **Feature: adhoc-refinement-constraints, Property 9: Interface/trait refinement constraint satisfaction**
+
 ### Unit Tests (xUnit)
 
 - Specific parsing examples (e.g., the exact AST structure for `class Array<TValue, Size:int> where Size >= 0 { }`)
@@ -349,6 +385,13 @@ The project uses **FsCheck.Xunit** (already a dependency in `Mist.Tests.csproj`)
 - Edge cases: `or` in predicate position produces syntax error, empty predicate, deeply nested `and` chains
 - Guard elision optimization verification
 - Inheritance scenarios with fixed dependent values
+- Interface refinement satisfaction: exact diagnostic message format for `MIST_REFINEMENT_0009`
+- Interface refinement satisfaction: implementation with same predicate (accepted)
+- Interface refinement satisfaction: implementation with no constraint (accepted)
+- Interface refinement satisfaction: implementation with stronger constraint (rejected)
+- Trait refinement satisfaction: same acceptance/rejection behavior as interfaces
+- Multi-parameter interface method: violation on one parameter does not suppress validation of others
+- Indexer parameter refinement satisfaction check
 
 ### Integration Tests
 

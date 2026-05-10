@@ -43,6 +43,7 @@ These constraints are enforced at compile time for literal arguments and at runt
 - **Generic_Constraint_Clause**: The existing `where T : constraint` syntax for restricting type parameters to specific types or capabilities. Syntactically distinct from Adhoc_Refinement_Constraints because it uses `Name : Constraint` form.
 - **Compile_Time_Constant**: A value that can be fully evaluated at compile time. Includes integer literals, boolean literals, character literals, and references to `const` declarations.
 - **Runtime_Guard**: A conditional check emitted at the entry point of a method, constructor, or indexer that validates parameter values against their refinement constraints at runtime.
+- **RefinementSolver**: The component that determines logical relationships between refinement predicates, including whether one predicate implies another (i.e., every value satisfying the first also satisfies the second). Used for forwarding checks, flow narrowing, and interface satisfaction validation.
 
 ## Requirements
 
@@ -253,10 +254,13 @@ These constraints are enforced at compile time for literal arguments and at runt
 13. The sample SHALL demonstrate flow narrowing within a method body where the parameter's refinement type is used.
 14. The sample SHALL demonstrate inheritance where a derived type fixes a dependent value satisfying the base type's refinement constraint.
 15. The sample SHALL demonstrate forwarding a dependent parameter with a constraint that implies the base type's constraint.
-16. WHEN the sample runs, each demonstration from criteria 2 through 15 SHALL print at least one line to stdout prefixed with a section header identifying the pattern being demonstrated (e.g., `--- 1. Single dependent argument refinement ---`).
-17. The sample SHALL include a `public static void RunDemo()` entry point that executes all demonstrations.
-18. `samples/AllFeatures/Program.mist` SHALL call `AdhocRefinementConstraints.Program.RunDemo()` to include the feature in the full-suite sample run.
-19. The sample SHALL compile with zero diagnostics and run to completion without throwing exceptions using the Mist compiler.
+16. The sample SHALL demonstrate an interface with a method that has a Parameter_Refinement, and a class that implements that method with the same constraint (valid — same predicate).
+17. The sample SHALL demonstrate an interface with a method that has a Parameter_Refinement, and a class that implements that method with no constraint (valid — weaker, accepts everything).
+18. The sample SHALL demonstrate an interface with a method that has a Parameter_Refinement, and a class that implements that method with a weaker constraint (valid — accepts a superset of values).
+19. WHEN the sample runs, each demonstration from criteria 2 through 18 SHALL print at least one line to stdout prefixed with a section header identifying the pattern being demonstrated (e.g., `--- 1. Single dependent argument refinement ---`).
+20. The sample SHALL include a `public static void RunDemo()` entry point that executes all demonstrations.
+21. `samples/AllFeatures/Program.mist` SHALL call `AdhocRefinementConstraints.Program.RunDemo()` to include the feature in the full-suite sample run.
+22. The sample SHALL compile with zero diagnostics and run to completion without throwing exceptions using the Mist compiler.
 
 ### Requirement 16: Feature Coverage Documentation Update
 
@@ -267,3 +271,20 @@ These constraints are enforced at compile time for literal arguments and at runt
 1. WHEN the ad-hoc refinement constraints feature is implemented, THE Compiler team SHALL add an `Adhoc Refinement Constraints` section to CSHARP_FEATURES.md positioned after the existing `Refinement Types` section, containing a feature table with columns `Feature | Status | Notes` that lists each implemented sub-capability (dependent type argument constraints grammar, parameter constraints grammar, semantic model registration, compile-time enforcement, runtime guard generation, flow narrowing, type identity participation, predicate compatibility validation, and C# emission) with the `✅` status marker.
 2. THE Compiler team SHALL update the `Summary` table at the bottom of CSHARP_FEATURES.md to include a row for the `Adhoc Refinement Constraints` section with accurate counts of implemented (`✅`), remaining (`🔲`), and skipped (`⛔`) features matching the entries in the new section's feature table.
 3. THE Compiler team SHALL use the same table format (`| Feature | Status | Notes |`) and status legend (`✅ Implemented | 🔲 Remaining | ⛔ Skipped`) as all other sections in CSHARP_FEATURES.md.
+
+
+### Requirement 17: Interface and Trait Method Refinement Constraint Satisfaction (Liskov Substitution)
+
+**User Story:** As a Mist developer, I want the compiler to verify that when I implement an interface or trait method with a parameter refinement constraint, my implementation does not strengthen the constraint beyond what the interface/trait promises, so that callers relying on the interface contract are never rejected by the implementation.
+
+#### Acceptance Criteria
+
+1. WHEN a class implements an interface method that has a Parameter_Refinement on a parameter, and the implementing method declares the same refinement predicate on that parameter, THE Type_Checker SHALL accept the implementation without error.
+2. WHEN a class implements an interface method that has a Parameter_Refinement on a parameter, and the implementing method declares no refinement constraint on that parameter, THE Type_Checker SHALL accept the implementation without error (no constraint is weaker — it accepts all values).
+3. WHEN a class implements an interface method that has a Parameter_Refinement on a parameter, and the implementing method declares a weaker refinement predicate on that parameter (one that accepts a superset of values), THE Type_Checker SHALL accept the implementation without error.
+4. WHEN a class implements an interface method that has a Parameter_Refinement on a parameter, and the implementing method declares a stronger refinement predicate on that parameter (one that rejects values the interface promises to accept), THE Type_Checker SHALL emit a diagnostic error of the form: "Implementation of '{Method}' on '{Type}' has a stronger refinement constraint '{ImplPredicate}' on parameter '{Name}' than the interface '{Interface}' requires '{InterfacePredicate}'. The implementation must accept all values the interface promises to accept."
+5. THE Type_Checker SHALL use `RefinementSolver.Implies` to determine constraint strength: the interface's predicate must imply the implementation's predicate (i.e., every value accepted by the interface constraint is also accepted by the implementation constraint). IF the implication does not hold, the implementation's constraint is considered stronger.
+6. THE Type_Checker SHALL apply criteria 1 through 5 equivalently to trait method implementations.
+7. THE Type_Checker SHALL apply criteria 1 through 5 to all parameter positions on the method (including indexer parameters).
+8. WHEN an interface method has no Parameter_Refinement on a parameter, THE Type_Checker SHALL accept any refinement constraint (or no constraint) on the corresponding implementation parameter without error (the implementation may freely add constraints when the interface imposes none).
+9. WHEN a class implements an interface method that has Parameter_Refinements on multiple parameters, THE Type_Checker SHALL validate each parameter's constraint independently — a violation on one parameter SHALL NOT prevent validation of other parameters.

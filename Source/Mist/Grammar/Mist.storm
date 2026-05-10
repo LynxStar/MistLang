@@ -280,6 +280,16 @@ rule Modifier
     | STATIC    as StaticModifier
     | INTRINSIC as IntrinsicModifier
     | READONLY  as ReadonlyModifier
+    | OWNED     as OwnedModifier
+    ;
+
+// ─── Parser Rules — Ownership Specifiers ─────────────────────────────────────
+
+rule OwnershipSpecifier
+    = OWNED                as OwnedSpecifier
+    | FROZEN REF           as FrozenRefSpecifier
+    | READONLY REF         as ReadonlyRefSpecifier
+    | REF                  as RefSpecifier
     ;
 
 rule MemberDeclaration
@@ -307,7 +317,7 @@ rule DefaultBlockDeclaration = DEFAULT LEFT_BRACE entries:DefaultFieldInitialize
 
 // ─── Parser Rules — Members ─────────────────────────────────────────────────
 
-rule FieldDeclaration = modifiers:Modifier* type:TypeReference name:IDENTIFIER initializer:(EQUAL Expression)? SEMICOLON;
+rule FieldDeclaration = modifiers:Modifier* ownershipSpecifier:OwnershipSpecifier? type:TypeReference name:IDENTIFIER initializer:(EQUAL Expression)? SEMICOLON;
 
 rule PropertyDeclaration
     = modifiers:Modifier* type:TypeReference name:IDENTIFIER
@@ -343,7 +353,7 @@ rule ConstructorChain
     | COLON BASE LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as BaseChain
     ;
 
-rule MethodDeclaration = modifiers:Modifier* returnType:TypeReference name:IDENTIFIER
+rule MethodDeclaration = modifiers:Modifier* returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
                          typeParams:TypeParameterList?
                          LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
                          constraints:ConstraintClause*
@@ -396,7 +406,7 @@ rule OperatorSymbol
     ;
 
 rule ParameterList = Parameter (COMMA Parameter)*;
-rule Parameter = modifier:READONLY? type:TypeReference name:(IDENTIFIER | DISCARD);
+rule Parameter = modifier:READONLY? ownershipSpecifier:OwnershipSpecifier? type:TypeReference name:(IDENTIFIER | DISCARD);
 
 rule ArgumentList = Expression (COMMA Expression)*;
 
@@ -451,9 +461,9 @@ rule Statement
 rule ReadonlyBlockStatement = READONLY body:Block;
 
 rule VariableDeclarationStatement
-    = type:TypeReference name:IDENTIFIER EQUAL initializer:Expression SEMICOLON  as TypedVariableDeclaration
+    = ownershipSpecifier:OwnershipSpecifier? type:TypeReference name:IDENTIFIER EQUAL initializer:Expression SEMICOLON  as TypedVariableDeclaration
     | VAR LEFT_PARENTHESIS firstName:IDENTIFIER (COMMA restNames:IDENTIFIER)* RIGHT_PARENTHESIS EQUAL initializer:Expression SEMICOLON  as VarTupleDeconstruction
-    | VAR name:(IDENTIFIER | DISCARD) EQUAL initializer:Expression SEMICOLON     as InferredVariableDeclaration
+    | ownershipSpecifier:OwnershipSpecifier? VAR name:(IDENTIFIER | DISCARD) EQUAL initializer:Expression SEMICOLON     as InferredVariableDeclaration
     | LEFT_PARENTHESIS first:TupleDeconstructionElement COMMA rest:TupleDeconstructionElement (COMMA additional:TupleDeconstructionElement)* RIGHT_PARENTHESIS EQUAL initializer:Expression SEMICOLON  as TypedTupleDeconstruction
     ;
 

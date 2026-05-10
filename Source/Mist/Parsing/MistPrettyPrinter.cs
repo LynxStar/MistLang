@@ -1046,9 +1046,22 @@ public sealed class MistPrettyPrinter
     private string EmitParameter(ParameterNode param)
     {
         var prefix = param.Modifier is not null ? "readonly " : "";
+        prefix += EmitOwnershipSpecifier(param.OwnershipSpecifier);
         var type = EmitTypeReference(param.Type);
         var name = param.Name.Lexeme;
         return $"{prefix}{type} {name}";
+    }
+
+    private static string EmitOwnershipSpecifier(OwnershipSpecifierNode? specifier)
+    {
+        return specifier switch
+        {
+            OwnedSpecifierOwnershipSpecifierNode => "owned ",
+            FrozenRefSpecifierOwnershipSpecifierNode => "frozen ref ",
+            ReadonlyRefSpecifierOwnershipSpecifierNode => "readonly ref ",
+            RefSpecifierOwnershipSpecifierNode => "ref ",
+            _ => ""
+        };
     }
 
     private string EmitArgumentList(ArgumentListNode? argList)

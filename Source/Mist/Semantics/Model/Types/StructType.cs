@@ -51,6 +51,13 @@ public sealed class StructType : IType
     /// </summary>
     public bool IsReadonly { get; internal set; }
 
+    /// <summary>
+    /// Whether this type is declared as an owned type (owned struct).
+    /// When true, instances must always be held as owned and all reference-type
+    /// fields must themselves be owned.
+    /// </summary>
+    public bool IsOwnedType { get; internal set; }
+
     public StructType(
         string displayName,
         IScope memberScope,

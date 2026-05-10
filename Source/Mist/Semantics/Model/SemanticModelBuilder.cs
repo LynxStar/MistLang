@@ -1045,6 +1045,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var isReadonly = HasReadonlyModifier(classDecl.Modifiers);
         classType.IsReadonly = isReadonly;
 
+        classType.IsOwnedType = HasOwnedModifier(classDecl.Modifiers);
+
         var classSpan = ToMistSourceSpan(classDecl.Name.Span);
         var classSymbol = new Symbol(className, SymbolKind.Class, SymbolOrigin.UserCode, parentScope, classType, classSpan);
 
@@ -1081,6 +1083,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         var isReadonly = HasReadonlyModifier(structDecl.Modifiers);
         structType.IsReadonly = isReadonly;
+
+        structType.IsOwnedType = HasOwnedModifier(structDecl.Modifiers);
 
         var structSpan = ToMistSourceSpan(structDecl.Name.Span);
         var structSymbol = new Symbol(structName, SymbolKind.Struct, SymbolOrigin.UserCode, parentScope, structType, structSpan);
@@ -2085,6 +2089,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             fieldSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
         }
 
+        fieldSymbol.OwnershipTier = MapOwnershipSpecifier(fieldDecl.OwnershipSpecifier);
+
         typeScope.AddMember(fieldSymbol);
         symbolTable.Register(fieldSymbol, fieldDecl);
     }
@@ -2278,6 +2284,33 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
         }
         return false;
+    }
+
+    private static bool HasOwnedModifier(ImmutableArray<ModifierNode> modifiers)
+    {
+        foreach (var modifier in modifiers)
+        {
+            if (modifier is OwnedModifierModifierNode)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Maps an <see cref="OwnershipSpecifierNode"/> AST node to the corresponding
+    /// <see cref="OwnershipTier"/> enum value. Returns <see cref="OwnershipTier.Unrestricted"/>
+    /// when no specifier is present (null).
+    /// </summary>
+    private static OwnershipTier MapOwnershipSpecifier(OwnershipSpecifierNode? specifier)
+    {
+        return specifier switch
+        {
+            OwnedSpecifierOwnershipSpecifierNode => OwnershipTier.Owned,
+            FrozenRefSpecifierOwnershipSpecifierNode => OwnershipTier.FrozenRef,
+            ReadonlyRefSpecifierOwnershipSpecifierNode => OwnershipTier.ReadonlyRef,
+            RefSpecifierOwnershipSpecifierNode => OwnershipTier.Ref,
+            _ => OwnershipTier.Unrestricted,
+        };
     }
 
     /// <summary>
@@ -10736,6 +10769,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (methodSymbol is not null)
         {
             methodSymbol.DeclaredType = returnType;
+            methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
         }
 
         // Determine if the method is static.
@@ -11163,11 +11197,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         var paramSymbol = new Symbol(paramName, SymbolKind.Parameter, SymbolOrigin.UserCode, methodScope, paramType, paramSpan);
 
-        // Detect readonly modifier on the parameter.
-        if (param.Modifier is not null)
+        // Detect readonly modifier or readonly ref ownership specifier on the parameter.
+        if (param.Modifier is not null || param.OwnershipSpecifier is ReadonlyRefSpecifierOwnershipSpecifierNode)
         {
             paramSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
         }
+
+        paramSymbol.OwnershipTier = MapOwnershipSpecifier(param.OwnershipSpecifier);
 
         methodScope.AddMember(paramSymbol);
         symbolTable.Register(paramSymbol, param);
@@ -11270,6 +11306,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 CheckDuplicateLocal(varName, blockScope, sourceText, diagnostics);
 
                 var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, declaredType, varSpan);
+                varSymbol.OwnershipTier = MapOwnershipSpecifier(typed.OwnershipSpecifier);
                 blockScope.AddMember(varSymbol);
                 symbolTable.Register(varSymbol, varDecl);
                 break;
@@ -11285,6 +11322,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 CheckDuplicateLocal(varName, blockScope, sourceText, diagnostics);
 
                 var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, initType, varSpan);
+                varSymbol.OwnershipTier = MapOwnershipSpecifier(inferred.OwnershipSpecifier);
                 blockScope.AddMember(varSymbol);
                 symbolTable.Register(varSymbol, varDecl);
                 break;

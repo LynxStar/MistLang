@@ -52,6 +52,13 @@ public sealed class ClassType : IType
     /// </summary>
     public bool IsReadonly { get; internal set; }
 
+    /// <summary>
+    /// Whether this type is declared as an owned type (owned class).
+    /// When true, instances must always be held as owned and all reference-type
+    /// fields must themselves be owned.
+    /// </summary>
+    public bool IsOwnedType { get; internal set; }
+
     public ClassType(
         string displayName,
         IScope memberScope,

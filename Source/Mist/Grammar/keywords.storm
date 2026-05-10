@@ -78,6 +78,11 @@ token WHERE = "where";
 token READONLY = "readonly";
 token MUTABLE  = "mutable";
 
+// Ownership keywords
+token OWNED  = "owned";
+token FROZEN = "frozen";
+token REF    = "ref";
+
 // Pattern matching keywords
 token IS  = "is";
 token AND = "and";

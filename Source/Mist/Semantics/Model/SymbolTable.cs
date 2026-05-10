@@ -78,6 +78,13 @@ public sealed class Symbol : ISymbol
     /// until the semantic model builder or inference engine classifies it.
     /// </summary>
     public ReadonlyStatus ReadonlyStatus { get; internal set; } = ReadonlyStatus.Unknown;
+
+    /// <summary>
+    /// The ownership tier declared on this symbol (variable, parameter, field).
+    /// Defaults to <see cref="Model.OwnershipTier.Unrestricted"/> when no ownership
+    /// specifier is present.
+    /// </summary>
+    public OwnershipTier OwnershipTier { get; internal set; } = OwnershipTier.Unrestricted;
 }
 
 /// <summary>

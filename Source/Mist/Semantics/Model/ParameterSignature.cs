@@ -164,7 +164,7 @@ public static class ParameterSignature
         {
             if (child is ParameterNode paramNode)
             {
-                flags.Add(paramNode.Modifier is not null);
+                flags.Add(paramNode.Modifier is not null || paramNode.OwnershipSpecifier is ReadonlyRefSpecifierOwnershipSpecifierNode);
             }
         }
 

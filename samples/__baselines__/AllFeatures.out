@@ -754,4 +754,54 @@ regex_pattern=[a-z]+, matches_abc=True
 --- String Variable with Cast to Regex Parameter ---
 regex_pattern=[A-Z]{2,4}, matches_abc=False
 Done!
+=== Structured Context Sample ===
+--- 1. with var x = expr ---
+  greeting=hello
+  GetString()=hello
+--- 2. with Type x = expr ---
+  count=42
+  GetInt()=42
+--- 3. with Type _ = expr ---
+  GetConfig()=from-discard
+--- 4. with expr ---
+  GetLocale()=en-US
+--- 5. with(expr) { ... } ---
+  inside block: GetString()=scoped-value
+  after block: GetString()=hello
+--- 6. Propagation through call chain ---
+  CallGetString()=hello
+  CallCallGetString()=hello
+--- 7. Shadowing and restoration ---
+  before shadow: GetInt()=42
+  inside shadow: GetInt()=99
+  after restore: GetInt()=42
+--- 8. Multiple with-clauses ---
+  GetBoth()=s=hello, n=42
+--- 9. Variance control ---
+  GetConfig() with DetailedConfig as Config=detailed
+--- 10. Multiple same-type pushes ---
+  after first push: GetInt()=200
+  after second push: GetInt()=300
+  after inner pop: GetInt()=200
+--- 11. Independent type keys ---
+  GetHolderInt()=10
+  GetHolderString()=generic
+--- 12. Constructor with-clause ---
+  Greeter.Greeting=Hello, world
+--- 13. Various types as context values ---
+  class (Config): GetConfig()=detailed
+  struct (Locale): GetLocale()=en-US
+  trait-satisfying (CountReader): CountReader(ReadContext with 0 would be: ready)
+  interface-implementing (ConsumerImpl): ConsumerImpl(ready)
+--- 14. Advanced type keys ---
+  type alias (Name=string): GetString()=via-alias
+  union type (IntOrBool): GetInt()=42 (proves distinct key)
+  refinement type (PositiveInt=int>=1): GetInt()=5 (shares int key)
+  after refinement pop: GetInt()=42
+  dependent type (Sized<5>): GetSized()=5
+--- 15. Interface dispatch with with-clause ---
+  IContextConsumer.Consume()=ConsumerImpl.Consume: cfg=detailed
+--- 16. Trait dispatch with with-clause ---
+  ContextReader.ReadContext()=CountReader.ReadContext: count=7
+=== Structured Context Done ===
 === Done! ===

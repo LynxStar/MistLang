@@ -187,6 +187,52 @@
     "declaration-names": {
       "patterns": [
         {
+          "comment": "Context discard declaration: with TypeReference _ = expression;",
+          "match": "\\b(with)\\s+(?:(int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|regex|unknown)|([A-Z]\\w*))\\s+(_)\\s*(?==(?!=))",
+          "captures": {
+            "1": { "name": "keyword.other.mist" },
+            "2": { "name": "storage.type.primitive.mist" },
+            "3": { "name": "entity.name.type.mist" },
+            "4": { "name": "variable.language.mist" }
+          }
+        },
+        {
+          "comment": "Context typed declaration: with TypeReference identifier = expression;",
+          "match": "\\b(with)\\s+(?:(int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|regex|unknown)|([A-Z]\\w*))\\s+([a-z_]\\w*)\\s*(?==(?!=))",
+          "captures": {
+            "1": { "name": "keyword.other.mist" },
+            "2": { "name": "storage.type.primitive.mist" },
+            "3": { "name": "entity.name.type.mist" },
+            "4": { "name": "variable.other.mist" }
+          }
+        },
+        {
+          "comment": "Context var declaration: with var identifier = expression;",
+          "match": "\\b(with)\\s+(var)\\s+([a-zA-Z_]\\w*)\\s*(?==(?!=))",
+          "captures": {
+            "1": { "name": "keyword.other.mist" },
+            "2": { "name": "keyword.other.mist" },
+            "3": { "name": "variable.other.mist" }
+          }
+        },
+        {
+          "comment": "Context block: with(expression) { ... }",
+          "match": "\\b(with)\\s*(?=\\()",
+          "captures": {
+            "1": { "name": "keyword.other.mist" }
+          }
+        },
+        {
+          "comment": "Method with clause: with TypeReference identifier (after parameter list, not followed by =)",
+          "match": "\\b(with)\\s+(?:(int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|regex|unknown)|([A-Z]\\w*))\\s+([a-z_]\\w*)\\b(?!\\s*=)",
+          "captures": {
+            "1": { "name": "keyword.other.mist" },
+            "2": { "name": "storage.type.primitive.mist" },
+            "3": { "name": "entity.name.type.mist" },
+            "4": { "name": "variable.parameter.mist" }
+          }
+        },
+        {
           "comment": "Extension block declaration: extension<T>(ReceiverType receiverName)",
           "match": "\\b(extension)\\s*(?:<([^>]+)>)?\\s*\\(\\s*([a-zA-Z_]\\w*(?:\\s*<[^>]+>)?(?:\\[\\])?)\\s+([a-zA-Z_]\\w*)\\s*\\)",
           "captures": {

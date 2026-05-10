@@ -637,6 +637,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // MIST_CONSTRAINT_0008 for unresolvable constraint types.
         Pass1_ResolveConstraints(symbolTable, asts, compilation, diagnostics);
 
+        // Pass 1b (cont.): Resolve with-clauses on method-like declarations.
+        // After all types are registered, resolve the type references in
+        // with-clauses and store ContextClauseInfo on each method symbol's
+        // WithClauses property.
+        Pass1_ResolveWithClauses(symbolTable, asts, compilation, diagnostics);
+
         // Pass 1b (cont.): Resolve trait parent references.
         // After all types are registered and interface lists are resolved,
         // resolve the inheritance clause on each trait declaration. This
@@ -5262,6 +5268,154 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // Pass 1b (cont.) — Resolve with-clauses on method-like declarations
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves with-clause type references on method-like declarations (methods,
+    /// constructors, interface methods, trait methods) and stores the resolved
+    /// <see cref="ContextClauseInfo"/> on each symbol's <see cref="Symbol.WithClauses"/>
+    /// property. Uses scope-based type lookup consistent with Pass 1 constraint
+    /// resolution.
+    /// </summary>
+    private static void Pass1_ResolveWithClauses(
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol is not Symbol mutableSymbol)
+                continue;
+
+            if (symbol.Kind != SymbolKind.Method && symbol.Kind != SymbolKind.Constructor)
+                continue;
+
+            var declaringNode = symbolTable.GetDeclaringNode(symbol);
+            if (declaringNode is null)
+                continue;
+
+            var withClauseNodes = GetWithClauseNodes(declaringNode);
+            if (withClauseNodes is null || withClauseNodes.Value.Length == 0)
+                continue;
+
+            var sourceText = GetSourceTextForSymbol(symbol, symbolTable);
+            var scope = symbol.ContainingScope;
+            var clauses = new List<ContextClauseInfo>();
+
+            foreach (var clause in withClauseNodes.Value)
+            {
+                var resolvedType = ResolveWithClauseType(
+                    clause.Type, scope, symbolTable, declaringNode, asts, compilation, diagnostics, sourceText);
+
+                if (resolvedType is null || resolvedType is ErrorType)
+                    continue;
+
+                clauses.Add(new ContextClauseInfo
+                {
+                    ContextType = resolvedType,
+                    Identifier = clause.Name.Lexeme,
+                    Span = ToMistSourceSpan(clause.Span),
+                });
+            }
+
+            if (clauses.Count > 0)
+            {
+                mutableSymbol.WithClauses = clauses;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extracts the <see cref="ImmutableArray{WithClauseNode}"/> from a method-like
+    /// declaring node, or returns null if the node type does not support with-clauses.
+    /// </summary>
+    private static ImmutableArray<WithClauseNode>? GetWithClauseNodes(Storm.Runtime.SyntaxNode declaringNode)
+    {
+        return declaringNode switch
+        {
+            MethodDeclarationNode methodDecl => methodDecl.WithClauses,
+            ConstructorDeclarationNode ctorDecl => ctorDecl.WithClauses,
+            InterfaceMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.WithClauses,
+            TraitMethodDeclarationNode traitMethodDecl => traitMethodDecl.WithClauses,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Resolves a type reference from a with-clause using scope-based lookup,
+    /// consistent with Pass 1 constraint type resolution. Handles primitive types,
+    /// named types, and generic type arguments.
+    /// </summary>
+    private static IType? ResolveWithClauseType(
+        TypeReferenceNode typeRef,
+        IScope scope,
+        SymbolTable symbolTable,
+        Storm.Runtime.SyntaxNode declaringNode,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics,
+        SourceText? sourceText)
+    {
+        // For primitive type references, resolve through the stdlib path.
+        if (typeRef is PrimitiveTypeRefTypeReferenceNode primitiveRef)
+        {
+            try
+            {
+                var globalScope = FindGlobalScopeFromIScope(scope);
+                if (globalScope is not null)
+                    return ResolvePrimitiveKeyword(globalScope, symbolTable, primitiveRef.PrimitiveType);
+            }
+            catch (StdlibMissingException)
+            {
+                // Fall through to legacy path.
+            }
+            return ResolveLegacyPrimitive(primitiveRef.PrimitiveType);
+        }
+
+        // For named type references, look up in scope.
+        if (typeRef is NamedTypeRefTypeReferenceNode namedRef)
+        {
+            var typeName = ExtractQualifiedName(namedRef.Name, sourceText);
+
+            var resolvedSymbol = scope.Lookup(typeName);
+            if (resolvedSymbol?.DeclaredType is not null)
+            {
+                var resolvedType = resolvedSymbol.DeclaredType;
+
+                // Handle generic type arguments if present.
+                if (namedRef.TypeArgs is not null)
+                {
+                    resolvedType = ResolveGenericTypeReference(
+                        resolvedType, namedRef.TypeArgs, typeName,
+                        resolvedSymbol.DeclaredType,
+                        declaringNode, asts, compilation, diagnostics);
+                }
+
+                return resolvedType;
+            }
+
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                "MIST_CTX_UNDEFINED_TYPE",
+                DiagnosticSeverity.Error,
+                $"With-clause type '{typeName}' could not be resolved.",
+                declaringNode,
+                sourceText));
+            return null;
+        }
+
+        // Other type reference forms are not valid in with-clauses.
+        diagnostics.Add(MakeDiagnosticWithLocation(
+            "MIST_CTX_UNDEFINED_TYPE",
+            DiagnosticSeverity.Error,
+            "With-clause type could not be resolved.",
+            declaringNode,
+            sourceText));
+        return null;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // Pass 1g — Resolve trait parent references
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -7184,6 +7338,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (!paramsMatch)
                 continue;
 
+            // Compare with-clauses: a structural match requires the same
+            // with-clauses (matched by resolved type, no variance).
+            if (!WithClausesMatchForTraitSatisfaction(traitMethod, member))
+                continue;
+
             return member;
         }
 
@@ -7475,6 +7634,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (!paramsMatch)
                 continue;
 
+            // Compare with-clauses: a structural match requires the same
+            // with-clauses (matched by resolved type, no variance).
+            if (!WithClausesMatchForTraitSatisfaction(traitMethod, member))
+                continue;
+
             return member;
         }
 
@@ -7484,6 +7648,73 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Checks whether two symbols (a trait method and a candidate implementing method)
+    /// have matching with-clauses. A match requires the same set of context types
+    /// (matched by resolved type after alias resolution, no variance).
+    /// </summary>
+    private static bool WithClausesMatchForTraitSatisfaction(ISymbol traitMethod, ISymbol implMethod)
+    {
+        var traitClauses = traitMethod is Symbol traitSym ? traitSym.WithClauses : Array.Empty<ContextClauseInfo>();
+        var implClauses = implMethod is Symbol implSym ? implSym.WithClauses : Array.Empty<ContextClauseInfo>();
+
+        // If the trait method has no with-clauses, any implementing method matches
+        // (regardless of whether it has extra with-clauses).
+        if (traitClauses.Count == 0)
+            return true;
+
+        // The implementing method must declare the exact same with-clauses.
+        if (traitClauses.Count != implClauses.Count)
+            return false;
+
+        // Check that each trait clause has a matching impl clause (by resolved type).
+        var matched = new bool[implClauses.Count];
+        foreach (var traitClause in traitClauses)
+        {
+            var traitType = ResolveContextTypeForMatching(traitClause.ContextType);
+            var found = false;
+            for (var i = 0; i < implClauses.Count; i++)
+            {
+                if (matched[i])
+                    continue;
+                var implType = ResolveContextTypeForMatching(implClauses[i].ContextType);
+                if (ContextTypesMatchForContract(traitType, implType))
+                {
+                    matched[i] = true;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Resolves a context type for keying/matching purposes by unwrapping type aliases.
+    /// </summary>
+    private static IType ResolveContextTypeForMatching(IType type)
+    {
+        while (type is TypeAliasType alias)
+        {
+            type = alias.UnderlyingType;
+        }
+        return type;
+    }
+
+    /// <summary>
+    /// Checks if two context types match for contract enforcement (exact match after
+    /// alias resolution, no variance).
+    /// </summary>
+    private static bool ContextTypesMatchForContract(IType a, IType b)
+    {
+        if (ReferenceEquals(a, b))
+            return true;
+        return string.Equals(a.DisplayName, b.DisplayName, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -10702,6 +10933,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             RegisterParameters(ctorDecl.Parameters, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
         }
 
+        // Register with-clause bindings as local variables in the constructor scope.
+        foreach (var withClause in ctorDecl.WithClauses)
+        {
+            var contextType = ResolveTypeReference(withClause.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            var clauseName = withClause.Name.Lexeme;
+            var clauseSpan = ToMistSourceSpan(withClause.Name.Span);
+
+            CheckDuplicateLocal(clauseName, methodScope, sourceText, diagnostics);
+
+            var clauseSymbol = new Symbol(clauseName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, methodScope, contextType, clauseSpan);
+            methodScope.AddMember(clauseSymbol);
+            symbolTable.Register(clauseSymbol, withClause);
+        }
+
         // Resolve constructor chain arguments if present.
         if (ctorDecl.Chain is ThisChainConstructorChainNode thisChain && thisChain.Arguments is not null)
         {
@@ -10754,6 +10999,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (methodDecl.Parameters is not null)
         {
             RegisterParameters(methodDecl.Parameters, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+        }
+
+        // Register with-clause bindings as local variables in the method scope.
+        foreach (var withClause in methodDecl.WithClauses)
+        {
+            var contextType = ResolveTypeReference(withClause.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            var clauseName = withClause.Name.Lexeme;
+            var clauseSpan = ToMistSourceSpan(withClause.Name.Span);
+
+            CheckDuplicateLocal(clauseName, methodScope, sourceText, diagnostics);
+
+            var clauseSymbol = new Symbol(clauseName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, methodScope, contextType, clauseSpan);
+            methodScope.AddMember(clauseSymbol);
+            symbolTable.Register(clauseSymbol, withClause);
         }
 
         // Resolve the body. A no-body (;) form is accepted by the grammar but
@@ -11237,7 +11496,118 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case BreakStatementStatementNode:
                 // No type resolution needed.
                 break;
+            case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
+                ResolveBlock(readonlyBlockStmt.ReadonlyBlock.Body, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case WithVarDeclarationStatementStatementNode withVarStmt:
+                ResolveWithVarDeclaration(withVarStmt.WithVarDeclaration, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case WithTypedDeclarationStatementStatementNode withTypedStmt:
+                ResolveWithTypedDeclaration(withTypedStmt.WithTypedDeclaration, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case WithDiscardDeclarationStatementStatementNode withDiscardStmt:
+                ResolveWithDiscardDeclaration(withDiscardStmt.WithDiscardDeclaration, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case WithPushStatementStatementNode withPushStmt:
+                ResolveExpression(withPushStmt.WithPushStatement.Value, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case WithBlockStatementStatementNode withBlockStmt:
+                ResolveWithBlockStatement(withBlockStmt.WithBlockStatement, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
         }
+    }
+
+    private static void ResolveWithVarDeclaration(
+        WithVarDeclarationStatementNode withVarDecl,
+        Scope blockScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Infer type from initializer expression.
+        var initType = ResolveExpression(withVarDecl.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        var varName = withVarDecl.Name.Lexeme;
+        var varSpan = ToMistSourceSpan(withVarDecl.Name.Span);
+
+        CheckDuplicateLocal(varName, blockScope, sourceText, diagnostics);
+
+        var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, initType, varSpan);
+        blockScope.AddMember(varSymbol);
+        symbolTable.Register(varSymbol, withVarDecl);
+    }
+
+    private static void ResolveWithTypedDeclaration(
+        WithTypedDeclarationStatementNode withTypedDecl,
+        Scope blockScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Resolve the explicit type reference.
+        var declaredType = ResolveTypeReference(withTypedDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+        // Resolve the initializer expression.
+        ResolveExpression(withTypedDecl.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        var varName = withTypedDecl.Name.Lexeme;
+        var varSpan = ToMistSourceSpan(withTypedDecl.Name.Span);
+
+        CheckDuplicateLocal(varName, blockScope, sourceText, diagnostics);
+
+        var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, declaredType, varSpan);
+        blockScope.AddMember(varSymbol);
+        symbolTable.Register(varSymbol, withTypedDecl);
+    }
+
+    private static void ResolveWithDiscardDeclaration(
+        WithDiscardDeclarationStatementNode withDiscardDecl,
+        Scope blockScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Resolve the explicit type reference (for context keying).
+        ResolveTypeReference(withDiscardDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+        // Resolve the initializer expression.
+        ResolveExpression(withDiscardDecl.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        // No local variable registration for discard declarations.
+    }
+
+    private static void ResolveWithBlockStatement(
+        WithBlockStatementNode withBlockStmt,
+        Scope blockScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Infer type from the expression.
+        ResolveExpression(withBlockStmt.Expression, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        // Process the block body.
+        ResolveBlock(withBlockStmt.Body, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
     }
 
     private static void ResolveVariableDeclaration(

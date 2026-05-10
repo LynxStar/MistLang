@@ -301,8 +301,9 @@ public sealed class MistPrettyPrinter
         var name = methodDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
         var parameters = EmitParameterList(methodDecl.Parameters);
+        var withClauses = EmitWithClauses(methodDecl.WithClauses);
         var constraints = EmitConstraintClauses(methodDecl.Constraints);
-        AppendLine($"{returnType} {name}{typeParams}({parameters}){constraints};");
+        AppendLine($"{returnType} {name}{typeParams}({parameters}){withClauses}{constraints};");
     }
 
     private void EmitMembers(ImmutableArray<MemberDeclarationNode> members)
@@ -371,6 +372,7 @@ public sealed class MistPrettyPrinter
         var modifiers = EmitModifiers(ctorDecl.Modifiers);
         var name = ctorDecl.Name.Lexeme;
         var parameters = EmitParameterList(ctorDecl.Parameters);
+        var withClauses = EmitWithClauses(ctorDecl.WithClauses);
 
         var chain = "";
         if (ctorDecl.Chain is ThisChainConstructorChainNode thisChain)
@@ -382,7 +384,7 @@ public sealed class MistPrettyPrinter
             chain = " : base(" + EmitArgumentList(baseChain.Arguments) + ")";
         }
 
-        AppendLine($"{modifiers}{name}({parameters}){chain} {{");
+        AppendLine($"{modifiers}{name}({parameters}){withClauses}{chain} {{");
         _indentLevel++;
 
         if (ctorDecl.Body.GetBlock() is BlockNode ctorBlock)
@@ -404,9 +406,10 @@ public sealed class MistPrettyPrinter
         var name = methodDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
         var parameters = EmitParameterList(methodDecl.Parameters);
+        var withClauses = EmitWithClauses(methodDecl.WithClauses);
         var constraints = EmitConstraintClauses(methodDecl.Constraints);
 
-        AppendLine($"{modifiers}{returnType} {name}{typeParams}({parameters}){constraints} {{");
+        AppendLine($"{modifiers}{returnType} {name}{typeParams}({parameters}){withClauses}{constraints} {{");
         _indentLevel++;
 
         if (methodDecl.Body.GetBlock() is BlockNode methodBlock)
@@ -864,7 +867,8 @@ public sealed class MistPrettyPrinter
         var returnType = EmitTypeReference(methodDecl.ReturnType);
         var name = methodDecl.Name.Lexeme;
         var parameters = EmitParameterList(methodDecl.Parameters);
-        AppendLine($"{returnType} {name}({parameters});");
+        var withClauses = EmitWithClauses(methodDecl.WithClauses);
+        AppendLine($"{returnType} {name}({parameters}){withClauses};");
     }
 
     private void EmitTraitPropertyDeclaration(TraitPropertyDeclarationNode propertyDecl)
@@ -1252,10 +1256,85 @@ public sealed class MistPrettyPrinter
                 _indentLevel--;
                 AppendLine("}");
                 break;
+            case WithVarDeclarationStatementStatementNode withVarStmt:
+                EmitWithVarDeclarationStatement(withVarStmt.WithVarDeclaration);
+                break;
+            case WithTypedDeclarationStatementStatementNode withTypedStmt:
+                EmitWithTypedDeclarationStatement(withTypedStmt.WithTypedDeclaration);
+                break;
+            case WithDiscardDeclarationStatementStatementNode withDiscardStmt:
+                EmitWithDiscardDeclarationStatement(withDiscardStmt.WithDiscardDeclaration);
+                break;
+            case WithPushStatementStatementNode withPushStmt:
+                EmitWithPushStatement(withPushStmt.WithPushStatement);
+                break;
+            case WithBlockStatementStatementNode withBlockStmt:
+                EmitWithBlockStatement(withBlockStmt.WithBlockStatement);
+                break;
             case ExpressionStatementStatementNode exprStmt:
                 AppendLine($"{EmitExpression(exprStmt.ExpressionStatement.Expression)};");
                 break;
         }
+    }
+
+    // ─── Context Statement Declarations ─────────────────────────────────
+
+    private void EmitWithVarDeclarationStatement(WithVarDeclarationStatementNode withVarDecl)
+    {
+        var name = withVarDecl.Name.Lexeme;
+        var init = EmitExpression(withVarDecl.Initializer);
+        AppendLine($"with var {name} = {init};");
+    }
+
+    private void EmitWithTypedDeclarationStatement(WithTypedDeclarationStatementNode withTypedDecl)
+    {
+        var type = EmitTypeReference(withTypedDecl.Type);
+        var name = withTypedDecl.Name.Lexeme;
+        var init = EmitExpression(withTypedDecl.Initializer);
+        AppendLine($"with {type} {name} = {init};");
+    }
+
+    private void EmitWithDiscardDeclarationStatement(WithDiscardDeclarationStatementNode withDiscardDecl)
+    {
+        var type = EmitTypeReference(withDiscardDecl.Type);
+        var init = EmitExpression(withDiscardDecl.Initializer);
+        AppendLine($"with {type} _ = {init};");
+    }
+
+    private void EmitWithPushStatement(WithPushStatementNode withPushStmt)
+    {
+        var value = EmitExpression(withPushStmt.Value);
+        AppendLine($"with {value};");
+    }
+
+    private void EmitWithBlockStatement(WithBlockStatementNode withBlockStmt)
+    {
+        var expr = EmitExpression(withBlockStmt.Expression);
+        AppendLine($"with ({expr}) {{");
+        _indentLevel++;
+        foreach (var bodyStmt in withBlockStmt.Body.Statements)
+        {
+            EmitStatement(bodyStmt);
+        }
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    // ─── With Clause Emission (Method Signatures) ───────────────────────
+
+    private string EmitWithClauses(ImmutableArray<WithClauseNode> withClauses)
+    {
+        if (withClauses.IsDefaultOrEmpty) return "";
+
+        var sb = new StringBuilder();
+        foreach (var clause in withClauses)
+        {
+            sb.Append(" with ");
+            sb.Append(EmitTypeReference(clause.Type));
+            sb.Append(' ');
+            sb.Append(clause.Name.Lexeme);
+        }
+        return sb.ToString();
     }
 
     private void EmitVariableDeclaration(VariableDeclarationStatementNode varDecl)

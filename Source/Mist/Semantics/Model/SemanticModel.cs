@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Mist.Driver.Contracts;
 using Mist.Semantics.Contracts;
+using Mist.Semantics.Model.Types;
 
 namespace Mist.Semantics.Model;
 
@@ -13,6 +14,8 @@ public sealed class SemanticModel : ISemanticModel
     private SymbolTable _symbolTable;
     private Dictionary<Storm.Runtime.SyntaxNode, IType> _expressionTypes;
     private Dictionary<Storm.Runtime.SyntaxNode, ISymbol> _resolvedOperators;
+    private Dictionary<ISymbol, RefinementPredicate> _parameterRefinements;
+    private HashSet<ISymbol> _guardNeededParameters;
 
     internal SemanticModel(
         MistCompilation compilation,
@@ -22,7 +25,8 @@ public sealed class SemanticModel : ISemanticModel
         SymbolTable symbolTable,
         Dictionary<Storm.Runtime.SyntaxNode, IType>? expressionTypes = null,
         TraitSatisfactionMap? traitSatisfactionMap = null,
-        ExtensionRegistry? extensionRegistry = null)
+        ExtensionRegistry? extensionRegistry = null,
+        Dictionary<ISymbol, RefinementPredicate>? parameterRefinements = null)
     {
         Compilation = compilation;
         Units = units;
@@ -31,6 +35,8 @@ public sealed class SemanticModel : ISemanticModel
         _symbolTable = symbolTable;
         _expressionTypes = expressionTypes ?? new Dictionary<Storm.Runtime.SyntaxNode, IType>();
         _resolvedOperators = new Dictionary<Storm.Runtime.SyntaxNode, ISymbol>();
+        _parameterRefinements = parameterRefinements ?? new Dictionary<ISymbol, RefinementPredicate>();
+        _guardNeededParameters = new HashSet<ISymbol>();
         TraitSatisfactionMap = traitSatisfactionMap ?? new TraitSatisfactionMap();
         ExtensionRegistry = extensionRegistry ?? new ExtensionRegistry();
     }
@@ -96,5 +102,24 @@ public sealed class SemanticModel : ISemanticModel
     public ISymbol? GetResolvedOperator(Storm.Runtime.SyntaxNode node)
     {
         return _resolvedOperators.TryGetValue(node, out var op) ? op : null;
+    }
+
+    public RefinementPredicate? GetParameterRefinement(ISymbol parameterSymbol)
+    {
+        return _parameterRefinements.TryGetValue(parameterSymbol, out var predicate) ? predicate : null;
+    }
+
+    public void RecordGuardNeeded(ISymbol parameterSymbol)
+    {
+        _guardNeededParameters.Add(parameterSymbol);
+    }
+
+    public bool IsGuardElidable(ISymbol parameterSymbol)
+    {
+        // A guard is elidable if the parameter has a refinement constraint but no call site
+        // required a runtime guard (all call sites passed validated constants or arguments
+        // with provably-satisfying refinement types).
+        return _parameterRefinements.ContainsKey(parameterSymbol)
+            && !_guardNeededParameters.Contains(parameterSymbol);
     }
 }

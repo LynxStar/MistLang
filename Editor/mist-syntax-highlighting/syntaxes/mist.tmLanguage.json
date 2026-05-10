@@ -109,6 +109,15 @@
           "match": "\\b(new|var|this|get|set|init|field|operator|with|as|default|where)\\b"
         },
         {
+          "comment": "Adhoc refinement constraint: where Name >= / <= / > / < ... and ...",
+          "match": "\\b(where)\\s+([a-zA-Z_]\\w*)\\s+(>=|<=|>|<)",
+          "captures": {
+            "1": { "name": "keyword.other.mist" },
+            "2": { "name": "entity.name.type.parameter.mist" },
+            "3": { "name": "keyword.operator.comparison.mist" }
+          }
+        },
+        {
           "comment": "Constraint clause: where TypeParam : class/struct/new(...)",
           "match": "\\b(where)\\s+([a-zA-Z_]\\w*)\\s*:",
           "captures": {

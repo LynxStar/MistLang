@@ -497,6 +497,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId DependentTypeMissingArguments = new("MIST_DT_0006");
 
+    // ── Adhoc refinement constraint diagnostic IDs (Requirements 4.4, 4.5, 4.6) ──
+
+    /// <summary>
+    /// An adhoc refinement constraint references a name that is not a dependent
+    /// type parameter or value parameter on the declaration (Requirement 4.4).
+    /// </summary>
+    internal static readonly DiagnosticId RefinementConstraintUnknownName = new("MIST_REFINEMENT_0001");
+
+    /// <summary>
+    /// An adhoc refinement constraint targets a regular type parameter instead of
+    /// a dependent type parameter or value parameter (Requirement 4.5).
+    /// </summary>
+    internal static readonly DiagnosticId RefinementConstraintOnRegularTypeParam = new("MIST_REFINEMENT_0002");
+
+    /// <summary>
+    /// Duplicate adhoc refinement constraint on the same name within a single
+    /// declaration (Requirement 4.6).
+    /// </summary>
+    internal static readonly DiagnosticId RefinementConstraintDuplicate = new("MIST_REFINEMENT_0003");
+
     /// <summary>
     /// The set of primitive type keywords allowed as dependent type parameter annotations.
     /// </summary>
@@ -629,6 +649,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Emits MIST_CONSTRAINT_0001 for undefined type parameter references,
         // MIST_CONSTRAINT_0007 for duplicate where clauses, and
         // MIST_CONSTRAINT_0008 for unresolvable constraint types.
+        var parameterRefinements = new Dictionary<ISymbol, RefinementPredicate>();
         Pass1_ResolveConstraints(symbolTable, asts, compilation, diagnostics);
 
         // Pass 1b (cont.): Resolve trait parent references.
@@ -736,6 +757,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // body resolution.
         Pass2_ResolveExtensionBodies(extensionBlockScopes, globalScope, symbolTable, expressionTypes, ambientTypeResolver, asts, compilation, diagnostics);
 
+        // Post-Pass 2: Resolve adhoc refinement constraints.
+        // This runs after Pass 2 so that parameter symbols are registered and
+        // can be looked up by name. Attaches predicates to dependent type
+        // parameters and stores parameter refinements in the lookup map.
+        Pass2_ResolveAdhocRefinementConstraints(symbolTable, asts, compilation, diagnostics, parameterRefinements);
+
         // Post-Pass 2: Check for duplicate extension member signatures across
         // all extension blocks for the same receiver type (Requirement 8.9, 20.4, 20.7).
         Pass2_CheckDuplicateExtensionSignatures(extensionRegistry, symbolTable, asts, compilation, diagnostics);
@@ -764,7 +791,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             symbolTable,
             expressionTypes,
             traitSatisfactionMap,
-            extensionRegistry);
+            extensionRegistry,
+            parameterRefinements);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -4721,6 +4749,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     ///   3. Resolves each constraint (class, struct, new(...), type reference).
     ///   4. Stores the resulting <see cref="TypeParameterConstraints"/> on the
     ///      <see cref="TypeParameterType.Constraints"/> property.
+    /// Adhoc refinement constraints are skipped here and processed in
+    /// <see cref="Pass2_ResolveAdhocRefinementConstraints"/> after parameter
+    /// symbols are registered.
     /// </summary>
     private static void Pass1_ResolveConstraints(
         SymbolTable symbolTable,
@@ -4748,7 +4779,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             foreach (var clause in constraintClauses)
             {
-                var typeParamName = clause.Name.Lexeme;
+                // Only process generic constraint clauses in this pass.
+                // AdhocRefinementConstraintWhereClauseNode is processed in
+                // Pass2_ResolveAdhocRefinementConstraints after parameter symbols exist.
+                if (clause is not GenericConstraintClauseWhereClauseNode genericClause)
+                    continue;
+
+                var typeParamName = genericClause.Name.Lexeme;
 
                 // Validate the type parameter name exists on this declaration.
                 var typeParam = FindTypeParameter(typeParameters, typeParamName);
@@ -4758,7 +4795,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         ConstraintUndefinedTypeParam.Value,
                         DiagnosticSeverity.Error,
                         $"Type parameter '{typeParamName}' is not defined on '{declaringName}'.",
-                        clause,
+                        genericClause,
                         sourceText));
                     continue;
                 }
@@ -4770,7 +4807,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         ConstraintDuplicateWhereClause.Value,
                         DiagnosticSeverity.Error,
                         $"Type parameter '{typeParamName}' cannot have multiple 'where' clauses. Combine constraints in a single clause.",
-                        clause,
+                        genericClause,
                         sourceText));
                     continue;
                 }
@@ -4778,7 +4815,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 // Resolve the constraints in this clause.
                 var constraints = ResolveConstraintClause(
-                    clause, typeParam, symbol, declaringNode, symbolTable, asts, compilation, diagnostics, sourceText);
+                    genericClause, typeParam, symbol, declaringNode, symbolTable, asts, compilation, diagnostics, sourceText);
 
                 // Store the resolved constraints on the type parameter.
                 typeParam.Constraints = constraints;
@@ -4787,10 +4824,69 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Resolves adhoc refinement constraint clauses on all declarations after Pass 2
+    /// has registered parameter symbols. For each <see cref="AdhocRefinementConstraintWhereClauseNode"/>:
+    ///   - Looks up the name in dependent type parameters → attaches predicate to
+    ///     <see cref="DependentTypeParameterType.AdhocConstraint"/>.
+    ///   - Looks up the name in value parameters → stores in parameter refinement map.
+    ///   - Emits MIST_REFINEMENT_0001 if name not found.
+    ///   - Emits MIST_REFINEMENT_0002 if name is a regular type parameter.
+    ///   - Emits MIST_REFINEMENT_0003 if duplicate.
+    /// </summary>
+    private static void Pass2_ResolveAdhocRefinementConstraints(
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics,
+        Dictionary<ISymbol, RefinementPredicate> parameterRefinements)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            var declaringNode = symbolTable.GetDeclaringNode(symbol);
+            if (declaringNode is null)
+                continue;
+
+            // Get the constraint clauses and type parameters for this declaration.
+            var (constraintClauses, typeParameters) = GetConstraintClausesAndTypeParams(symbol, declaringNode);
+            if (constraintClauses.IsDefaultOrEmpty)
+                continue;
+
+            // Check if there are any adhoc refinement constraints to process.
+            var hasAdhocClauses = false;
+            foreach (var clause in constraintClauses)
+            {
+                if (clause is AdhocRefinementConstraintWhereClauseNode)
+                {
+                    hasAdhocClauses = true;
+                    break;
+                }
+            }
+            if (!hasAdhocClauses)
+                continue;
+
+            var sourceText = FindSourceTextForSymbol(symbol, symbolTable, asts, compilation)
+                ?? FindSourceTextForNode(declaringNode, asts, compilation);
+
+            // Track which names have already been refined to detect duplicate adhoc constraints.
+            var refinedNames = new Dictionary<string, bool>();
+
+            foreach (var clause in constraintClauses)
+            {
+                if (clause is not AdhocRefinementConstraintWhereClauseNode refinementClause)
+                    continue;
+
+                ResolveAdhocRefinementConstraint(
+                    refinementClause, symbol, declaringNode, typeParameters,
+                    refinedNames, parameterRefinements, symbolTable, sourceText, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
     /// Extracts constraint clauses and type parameters from a symbol's declaring node.
     /// Returns empty/default values for declarations that don't support constraints.
     /// </summary>
-    private static (ImmutableArray<ConstraintClauseNode> Clauses, IReadOnlyList<IType> TypeParams) GetConstraintClausesAndTypeParams(
+    private static (ImmutableArray<WhereClauseNode> Clauses, IReadOnlyList<IType> TypeParams) GetConstraintClausesAndTypeParams(
         ISymbol symbol,
         Storm.Runtime.SyntaxNode declaringNode)
     {
@@ -4817,8 +4913,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case TypeAliasDeclarationNode aliasDecl when symbol is Symbol aliasSymbol:
                 return (aliasDecl.Constraints, aliasSymbol.TypeParameters);
 
+            case ConstructorDeclarationNode ctorDecl:
+                return (ctorDecl.Constraints, Array.Empty<IType>());
+
+            case BlockIndexerIndexerDeclarationNode blockIndexerDecl:
+                return (blockIndexerDecl.Constraints, Array.Empty<IType>());
+
             default:
-                return (ImmutableArray<ConstraintClauseNode>.Empty, Array.Empty<IType>());
+                return (ImmutableArray<WhereClauseNode>.Empty, Array.Empty<IType>());
         }
     }
 
@@ -4836,11 +4938,130 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Resolves a single adhoc refinement constraint clause. Looks up the constrained
+    /// name in dependent type parameters and value parameters, attaching the predicate
+    /// or emitting diagnostics as appropriate.
+    /// </summary>
+    private static void ResolveAdhocRefinementConstraint(
+        AdhocRefinementConstraintWhereClauseNode refinementClause,
+        ISymbol symbol,
+        Storm.Runtime.SyntaxNode declaringNode,
+        IReadOnlyList<IType> typeParameters,
+        Dictionary<string, bool> refinedNames,
+        Dictionary<ISymbol, RefinementPredicate> parameterRefinements,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var name = refinementClause.Name.Lexeme;
+
+        // Check for duplicate refinement constraint on the same name.
+        if (refinedNames.ContainsKey(name))
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                RefinementConstraintDuplicate.Value,
+                DiagnosticSeverity.Error,
+                $"Duplicate refinement constraint on '{name}'. Combine predicates using 'and' in a single where clause.",
+                refinementClause,
+                sourceText));
+            return;
+        }
+
+        // Check if the name is a regular type parameter (not dependent).
+        var regularTypeParam = FindTypeParameter(typeParameters, name);
+        if (regularTypeParam is not null)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                RefinementConstraintOnRegularTypeParam.Value,
+                DiagnosticSeverity.Error,
+                $"Refinement constraints cannot be applied to type parameter '{name}'. Refinement constraints apply only to dependent type parameters and value parameters.",
+                refinementClause,
+                sourceText));
+            return;
+        }
+
+        // Check if the name is a dependent type parameter.
+        var dependentParam = FindDependentTypeParameter(typeParameters, name);
+        if (dependentParam is not null)
+        {
+            refinedNames[name] = true;
+            dependentParam.AdhocConstraint = new RefinementPredicate(refinementClause.Predicate);
+            return;
+        }
+
+        // Check if the name is a value parameter on the declaration.
+        var valueParam = FindValueParameter(symbol, declaringNode, name, symbolTable);
+        if (valueParam is not null)
+        {
+            refinedNames[name] = true;
+            parameterRefinements[valueParam] = new RefinementPredicate(refinementClause.Predicate);
+            return;
+        }
+
+        // Name not found — emit diagnostic.
+        diagnostics.Add(MakeDiagnosticWithLocation(
+            RefinementConstraintUnknownName.Value,
+            DiagnosticSeverity.Error,
+            $"Refinement constraint references '{name}', which is not a dependent type parameter or parameter on this declaration.",
+            refinementClause,
+            sourceText));
+    }
+
+    /// <summary>
+    /// Finds a dependent type parameter by name in the given type parameter list.
+    /// </summary>
+    private static DependentTypeParameterType? FindDependentTypeParameter(IReadOnlyList<IType> typeParameters, string name)
+    {
+        foreach (var tp in typeParameters)
+        {
+            if (tp is DependentTypeParameterType dpt && dpt.Name == name)
+                return dpt;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Finds a value parameter symbol by name on the given declaration.
+    /// Searches method, constructor, and indexer parameter lists.
+    /// </summary>
+    private static ISymbol? FindValueParameter(
+        ISymbol symbol,
+        Storm.Runtime.SyntaxNode declaringNode,
+        string paramName,
+        SymbolTable symbolTable)
+    {
+        // Get the parameter list node from the declaration.
+        ParameterListNode? paramList = declaringNode switch
+        {
+            MethodDeclarationNode methodDecl => methodDecl.Parameters,
+            ConstructorDeclarationNode ctorDecl => ctorDecl.Parameters,
+            BlockIndexerIndexerDeclarationNode indexerDecl => indexerDecl.Parameters,
+            InterfaceMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Parameters,
+            _ => null,
+        };
+
+        if (paramList is null)
+            return null;
+
+        // Walk the parameter list children to find the parameter by name.
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode param && param.Name.Lexeme == paramName)
+            {
+                // Look up the symbol registered for this parameter node.
+                return symbolTable.GetDeclaredSymbol(param);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Resolves all constraints in a single <c>where</c> clause and builds a
     /// <see cref="TypeParameterConstraints"/> instance.
     /// </summary>
     private static TypeParameterConstraints ResolveConstraintClause(
-        ConstraintClauseNode clause,
+        GenericConstraintClauseWhereClauseNode clause,
         TypeParameterType typeParam,
         ISymbol declaringSymbol,
         Storm.Runtime.SyntaxNode declaringNode,
@@ -5149,7 +5370,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         List<IType> structTypeConstraints,
         List<IReadOnlyList<IType>> constructorConstraints,
         TypeParameterType typeParam,
-        ConstraintClauseNode clause,
+        GenericConstraintClauseWhereClauseNode clause,
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {

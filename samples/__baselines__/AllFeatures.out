@@ -647,4 +647,47 @@ sourceInt=99
 castToNewtype=99
 castBack=99
 Done!
+=== Adhoc Refinement Constraints Sample ===
+--- 1. Single dependent argument refinement ---
+  FixedArray<int, 5>.GetSize() = 5
+  FixedArray<int, 5>.Describe() = FixedArray<Size=5>
+  FixedArray<string, 0>.GetSize() = 0
+--- 2. Multiple dependent argument refinements ---
+  Matrix<3, 4>.GetRows() = 3
+  Matrix<3, 4>.GetCols() = 4
+  Matrix<3, 4>.Describe() = Matrix<3x4>
+--- 3. Mixed generic + dependent argument refinement ---
+  Container<string, 8>.GetSize() = 8
+  Container<string, 8>.Describe() = Container<Size=8>(value=hello)
+--- 4. Method with single parameter refinement ---
+  Process(42) accepted
+--- 5. Method with multiple parameter refinements ---
+  Range(min=10, max=90) accepted
+--- 6. Constructor with parameter refinement ---
+  Bounded(size=25)
+  bounded.GetSize() = 25
+--- 7. Indexer with parameter refinement ---
+  SafeList[2] = 30
+  SafeList[0] after set = 99
+--- 8. Compound predicate with and ---
+  Validate(512) within [0, 1024]
+  Validate(0) within [0, 1024]
+--- 9. Constructing type with valid dependent value ---
+  FixedArray<int, 100>.GetSize() = 100
+  Matrix<1, 1>.Describe() = Matrix<1x1>
+--- 10. Calling method with valid literal argument ---
+  Process(0) accepted
+  Process(99) accepted
+--- 11. Method with generic constraint and parameter refinement ---
+  Show(Widget#7, count=3)
+--- 12. Flow narrowing within method body ---
+  UseNarrowed(42) -> narrowed=42
+  UseNarrowed(0) -> narrowed=0
+--- 13. Inheritance with fixed dependent value ---
+  SmallArray : FixedArray<int, 10> constructed successfully
+  (10 satisfies constraint Size >= 0)
+--- 14. Forwarding dependent parameter with implication ---
+  Wrapper<5> : FixedArray<string, 5> constructed successfully
+  (Wrapper's N >= 0 implies FixedArray's Size >= 0)
+=== Adhoc Refinement Constraints Done ===
 === Done! ===

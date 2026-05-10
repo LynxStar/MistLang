@@ -1439,7 +1439,7 @@ internal sealed class CSharpSourceWriter
 
         if (methodDecl.Body.GetBlock() is BlockNode block)
         {
-            EmitMethodBlock(block, false);
+            EmitMethodBlockWithRefinementGuards(block, false, methodDecl.Parameters);
         }
         else
         {
@@ -2956,12 +2956,23 @@ internal sealed class CSharpSourceWriter
         AppendLine($"{modifiers}{name}({parameters}){chain}");
         if (ctorDecl.Body.GetBlock() is BlockNode block)
         {
-            // Emit factory field assignments at the start of the constructor body.
-            if (_currentClassFactoryTypeParams is not null)
+            // Collect refinement guards for constructor parameters.
+            var refinementGuards = CollectRefinementParameterGuards(ctorDecl.Parameters);
+
+            if (_currentClassFactoryTypeParams is not null || refinementGuards.Count > 0)
             {
                 AppendLine("{");
                 _indentLevel++;
-                EmitFactoryFieldAssignments(_currentClassFactoryTypeParams);
+
+                // Emit refinement guards first (before factory field assignments).
+                EmitRefinementGuards(refinementGuards);
+
+                // Emit factory field assignments at the start of the constructor body.
+                if (_currentClassFactoryTypeParams is not null)
+                {
+                    EmitFactoryFieldAssignments(_currentClassFactoryTypeParams);
+                }
+
                 EmitBlockStatements(block);
                 _indentLevel--;
                 AppendLine("}");
@@ -3065,7 +3076,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private void EmitMethodBlockWithRefinementGuards(BlockNode block, bool appendImplicitReturn, ParameterListNode? paramList)
     {
-        // Collect refinement-typed parameters.
+        // Collect refinement-typed parameters and adhoc refinement constraints.
         var refinementGuards = CollectRefinementParameterGuards(paramList);
 
         if (refinementGuards.Count == 0)
@@ -3079,14 +3090,7 @@ internal sealed class CSharpSourceWriter
         AppendLine("{");
         _indentLevel++;
 
-        foreach (var (paramName, refinementType) in refinementGuards)
-        {
-            var condition = EmitRefinementPredicateCondition(refinementType.Predicate, paramName);
-            AppendLine($"if (!({condition}))");
-            _indentLevel++;
-            AppendLine($"throw new ArgumentException($\"Value {{{paramName}}} does not satisfy refinement '{refinementType.Predicate.Description}' on type '{refinementType.Name}'\", nameof({paramName}));");
-            _indentLevel--;
-        }
+        EmitRefinementGuards(refinementGuards);
 
         foreach (var stmt in block.Statements)
         {
@@ -3103,12 +3107,30 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
-    /// Collects parameters from the given parameter list whose resolved type is a
-    /// <see cref="RefinementType"/>. Returns a list of (parameterName, refinementType) pairs.
+    /// Emits runtime validation guards for the given list of refinement guard entries.
+    /// Each guard emits <c>if (!(condition)) throw new ArgumentException(...);</c>.
     /// </summary>
-    private List<(string Name, RefinementType Type)> CollectRefinementParameterGuards(ParameterListNode? paramList)
+    private void EmitRefinementGuards(List<(string Name, RefinementPredicate Predicate, string TypeName)> guards)
     {
-        var guards = new List<(string Name, RefinementType Type)>();
+        foreach (var (paramName, predicate, typeName) in guards)
+        {
+            var condition = EmitRefinementPredicateCondition(predicate, paramName);
+            AppendLine($"if (!({condition}))");
+            _indentLevel++;
+            AppendLine($"throw new ArgumentException($\"Value {{{paramName}}} does not satisfy refinement '{predicate.Description}' on type '{typeName}'\", nameof({paramName}));");
+            _indentLevel--;
+        }
+    }
+
+    /// <summary>
+    /// Collects parameters from the given parameter list that require runtime refinement guards.
+    /// This includes both parameters whose declared type is a <see cref="RefinementType"/> (named
+    /// refinement types) and parameters with adhoc refinement constraints from <c>where</c> clauses.
+    /// Returns guards in left-to-right parameter declaration order.
+    /// </summary>
+    private List<(string Name, RefinementPredicate Predicate, string TypeName)> CollectRefinementParameterGuards(ParameterListNode? paramList)
+    {
+        var guards = new List<(string Name, RefinementPredicate Predicate, string TypeName)>();
         if (paramList is null) return guards;
 
         foreach (var child in paramList.Children())
@@ -3116,9 +3138,27 @@ internal sealed class CSharpSourceWriter
             if (child is ParameterNode param)
             {
                 var symbol = _model.GetDeclaredSymbol(param);
-                if (symbol?.DeclaredType is RefinementType refinementType)
+                if (symbol is null) continue;
+
+                // Check for named refinement type parameter.
+                if (symbol.DeclaredType is RefinementType refinementType)
                 {
-                    guards.Add((param.Name.Lexeme, refinementType));
+                    guards.Add((param.Name.Lexeme, refinementType.Predicate, refinementType.Name));
+                }
+                // Check for adhoc refinement constraint from where clause.
+                else
+                {
+                    var adhocPredicate = _model.GetParameterRefinement(symbol);
+                    if (adhocPredicate is not null)
+                    {
+                        // Guard elision optimization: skip the runtime guard if all call sites
+                        // pass only validated constants or arguments with provably-satisfying
+                        // refinement types (Requirements 7.3, 12.3).
+                        if (_model.IsGuardElidable(symbol))
+                            continue;
+
+                        guards.Add((param.Name.Lexeme, adhocPredicate, param.Name.Lexeme));
+                    }
                 }
             }
         }
@@ -3308,6 +3348,76 @@ internal sealed class CSharpSourceWriter
             StaticModifierModifierNode => "static ",
             _ => "",
         };
+    }
+
+    /// <summary>
+    /// Emits an accessor declaration with optional refinement guards injected at the start
+    /// of block-bodied accessors. Used by indexer emission to validate parameter constraints.
+    /// If no guards are present, delegates to <see cref="EmitAccessorDeclaration"/>.
+    /// </summary>
+    private string EmitAccessorDeclarationWithGuards(
+        AccessorDeclarationNode accessor,
+        string? backingFieldName,
+        bool isReadonlyProperty,
+        List<(string Name, RefinementPredicate Predicate, string TypeName)> guards)
+    {
+        if (guards.Count == 0)
+            return EmitAccessorDeclaration(accessor, backingFieldName, isReadonlyProperty);
+
+        switch (accessor)
+        {
+            case BlockGetAccessorAccessorDeclarationNode blockGet:
+            {
+                var mod = EmitAccessorModifier(blockGet.AccessorModifier);
+                var body = EmitAccessorBlockWithGuards(blockGet.Body, backingFieldName, guards);
+                return $"{mod}get {body}";
+            }
+            case BlockSetAccessorAccessorDeclarationNode blockSet:
+            {
+                var mod = EmitAccessorModifier(blockSet.AccessorModifier);
+                var body = EmitAccessorBlockWithGuards(blockSet.Body, backingFieldName, guards);
+                var keyword = isReadonlyProperty ? "init" : "set";
+                return $"{mod}{keyword} {body}";
+            }
+            case BlockInitAccessorAccessorDeclarationNode blockInit:
+            {
+                var mod = EmitAccessorModifier(blockInit.AccessorModifier);
+                var body = EmitAccessorBlockWithGuards(blockInit.Body, backingFieldName, guards);
+                return $"{mod}init {body}";
+            }
+            default:
+                // Auto and expression-bodied accessors cannot have guards injected.
+                return EmitAccessorDeclaration(accessor, backingFieldName, isReadonlyProperty);
+        }
+    }
+
+    /// <summary>
+    /// Emits a block body for an accessor with refinement guards injected at the start.
+    /// </summary>
+    private string EmitAccessorBlockWithGuards(
+        BlockNode block,
+        string? backingFieldName,
+        List<(string Name, RefinementPredicate Predicate, string TypeName)> guards)
+    {
+        var sb = new StringBuilder();
+        sb.Append("{ ");
+
+        // Emit refinement guards at the start of the accessor body.
+        foreach (var (paramName, predicate, typeName) in guards)
+        {
+            var condition = EmitRefinementPredicateCondition(predicate, paramName);
+            sb.Append($"if (!({condition})) ");
+            sb.Append($"throw new ArgumentException($\"Value {{{paramName}}} does not satisfy refinement '{predicate.Description}' on type '{typeName}'\", nameof({paramName})); ");
+        }
+
+        foreach (var stmt in block.Statements)
+        {
+            sb.Append(EmitStatementInline(stmt, backingFieldName));
+            sb.Append(' ');
+        }
+
+        sb.Append('}');
+        return sb.ToString();
     }
 
     /// <summary>
@@ -3502,11 +3612,14 @@ internal sealed class CSharpSourceWriter
         var isReadonlyIndexer = indexerSymbol is not null
             && indexerSymbol.ReadonlyStatus is not ReadonlyStatus.Mutable and not ReadonlyStatus.Unknown;
 
+        // Collect refinement guards for indexer parameters.
+        var refinementGuards = CollectRefinementParameterGuards(blockIndexer.Parameters);
+
         // Build accessor list.
         var accessorParts = new List<string>();
         foreach (var accessor in blockIndexer.Accessors)
         {
-            accessorParts.Add(EmitAccessorDeclaration(accessor, null, isReadonlyIndexer));
+            accessorParts.Add(EmitAccessorDeclarationWithGuards(accessor, null, isReadonlyIndexer, refinementGuards));
         }
 
         var accessorBody = string.Join(" ", accessorParts);

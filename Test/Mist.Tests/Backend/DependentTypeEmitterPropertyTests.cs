@@ -97,7 +97,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
     {
         return from className in Gen.Elements("Buffer", "Stack", "Queue", "Pool", "Cache")
                from value in Gen.Elements(IntValues)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let uniqueName = $"{className}{idx}"
                select new DependentTypeScenario
                {
@@ -112,7 +112,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
     {
         return from className in Gen.Elements("Flag", "Toggle", "Switch", "Gate", "Lock")
                from value in Gen.Elements(BoolValues)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let uniqueName = $"{className}{idx}"
                select new DependentTypeScenario
                {
@@ -127,7 +127,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
     {
         return from className in Gen.Elements("Marker", "Separator", "Delimiter", "Tag", "Label")
                from value in Gen.Elements(CharValues)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let uniqueName = $"{className}{idx}"
                select new DependentTypeScenario
                {
@@ -143,7 +143,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
         return from className in Gen.Elements("Matrix", "Grid", "Table", "Rect", "Bounds")
                from rows in Gen.Elements(IntValues)
                from cols in Gen.Elements(IntValues)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let uniqueName = $"{className}{idx}"
                select new DependentTypeScenario
                {
@@ -158,7 +158,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
     {
         return from className in Gen.Elements("TypedBuf", "Container", "Wrapper", "Holder", "Store")
                from value in Gen.Elements(IntValues)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let uniqueName = $"{className}{idx}"
                select new DependentTypeScenario
                {
@@ -173,7 +173,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
     {
         return from className in Gen.Elements("Offset", "Delta", "Shift", "Bias", "Adjust")
                from value in Gen.Elements(NegIntValues)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let uniqueName = $"{className}{idx}"
                select new DependentTypeScenario
                {
@@ -188,7 +188,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
     {
         return from className in Gen.Elements("Alloc", "Segment", "Chunk", "Block", "Region")
                from value in Gen.Elements(IntValues)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let uniqueName = $"{className}{idx}"
                select new DependentTypeScenario
                {
@@ -207,7 +207,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
     {
         return from baseName in Gen.Elements("Base", "Root", "Core", "Foundation", "Origin")
                from derivedName in Gen.Elements("Derived", "Child", "Sub", "Ext", "Impl")
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let uniqueBase = $"{baseName}{idx}"
                let uniqueDerived = $"{derivedName}{idx}"
                select new DependentTypeScenario
@@ -223,7 +223,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
     {
         return from ifaceName in Gen.Elements("ISized", "ICapped", "ILimited", "IBounded", "IFixed")
                from value in Gen.Elements(IntValues)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let uniqueIface = $"{ifaceName}{idx}"
                let uniqueImpl = $"Impl{ifaceName.Substring(1)}{idx}"
                select new DependentTypeScenario
@@ -239,7 +239,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
     {
         return from structName in Gen.Elements("Cell", "Slot", "Entry", "Node", "Item")
                from value in Gen.Elements(IntValues)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let uniqueName = $"{structName}{idx}"
                select new DependentTypeScenario
                {
@@ -272,7 +272,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
     private static Gen<DependentTypeScenario> GenUintParam()
     {
         return from value in Gen.Elements(UintValues)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let name = $"UintHolder{idx}"
                select new DependentTypeScenario
                {
@@ -285,7 +285,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
     private static Gen<DependentTypeScenario> GenLongParam()
     {
         return from value in Gen.Elements(LongValues)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let name = $"LongHolder{idx}"
                select new DependentTypeScenario
                {
@@ -298,7 +298,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
     private static Gen<DependentTypeScenario> GenShortParam()
     {
         return from value in Gen.Elements(ShortValues)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let name = $"ShortHolder{idx}"
                select new DependentTypeScenario
                {
@@ -311,7 +311,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
     private static Gen<DependentTypeScenario> GenByteParam()
     {
         return from value in Gen.Elements(ByteValues)
-               from idx in Gen.Choose(0, 999)
+               from idx in Gen.Choose(0, 99999)
                let name = $"ByteHolder{idx}"
                select new DependentTypeScenario
                {

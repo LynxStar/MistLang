@@ -215,7 +215,7 @@ This plan implements a compile-time ownership and reference system for the Mist 
     - This is the only test that spawns a process (1 spawn total)
     - _Requirements: 19.5_
 
-- [~] 10. Final checkpoint - Ensure all tests pass
+- [x] 10. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

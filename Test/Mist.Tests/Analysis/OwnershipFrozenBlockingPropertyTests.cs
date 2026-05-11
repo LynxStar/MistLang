@@ -167,7 +167,7 @@ public class OwnershipFrozenBlockingPropertyTests
                from frozenName in Gen.Elements(FrozenVarNames)
                let source = $$"""
                    class {{className}} {
-                       int {{fieldName}};
+                       public int {{fieldName}};
                        public int GetValue() {
                            return {{fieldName}};
                        }

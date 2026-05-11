@@ -490,6 +490,44 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         PerformMove(sourceSymbol, typed.Initializer, state, model, diagnostics, isLoop);
                     }
                 }
+                else if (declaredSymbol is Symbol refSym &&
+                         refSym.OwnershipTier is OwnershipTier.FrozenRef or OwnershipTier.Ref)
+                {
+                    // Local frozen ref or ref variable declaration creates a borrow from the initializer.
+                    var sourceSymbol = TryResolveIdentifierSymbol(typed.Initializer, model);
+                    if (sourceSymbol is not null &&
+                        sourceSymbol is Symbol sourceSym &&
+                        sourceSym.OwnershipTier is OwnershipTier.Owned or OwnershipTier.Ref)
+                    {
+                        if (refSym.OwnershipTier == OwnershipTier.FrozenRef)
+                        {
+                            // Frozen ref borrow: lender cannot mutate until scope exit.
+                            state.VariableStates[sourceSymbol] = VariableOwnershipState.LentFrozen;
+                            state.ActiveBorrows.Add(new BorrowEntry(
+                                sourceSymbol, declaredSymbol, OwnershipTier.FrozenRef, state.ScopeDepth));
+                        }
+                        else // Ref
+                        {
+                            // Ref borrow: lender has no access until scope exit.
+                            // Check for existing ref borrow (only one at a time).
+                            if (HasActiveRefBorrow(sourceSymbol, state))
+                            {
+                                diagnostics.Add(MakeDiagnostic(
+                                    ExclusiveViolation,
+                                    $"Cannot lend variable '{sourceSymbol.Name}' as 'ref' — another ref is already outstanding. " +
+                                    $"Only one mutable borrow is permitted at a time.",
+                                    typed,
+                                    model));
+                            }
+                            else
+                            {
+                                state.VariableStates[sourceSymbol] = VariableOwnershipState.LentRef;
+                                state.ActiveBorrows.Add(new BorrowEntry(
+                                    sourceSymbol, declaredSymbol, OwnershipTier.Ref, state.ScopeDepth));
+                            }
+                        }
+                    }
+                }
                 break;
             }
             case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
@@ -578,6 +616,32 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             {
                 state.VariableStates[lhsSymbol] = VariableOwnershipState.Live;
                 state.MoveLocations.Remove(lhsSymbol);
+            }
+
+            // Mutation blocking check: if the assignment target is a field access on a
+            // variable in LentFrozen or LentRef state, block the mutation.
+            var receiverOfFieldAssign = TryResolveFieldAccessReceiver(assignment.Target, model);
+            if (receiverOfFieldAssign is not null &&
+                state.VariableStates.TryGetValue(receiverOfFieldAssign, out var recvState))
+            {
+                if (recvState == VariableOwnershipState.LentFrozen)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        MutationBlocked,
+                        $"Cannot mutate through variable '{receiverOfFieldAssign.Name}' while a frozen ref is outstanding. " +
+                        $"Mutation is blocked until all frozen refs are returned.",
+                        assignment,
+                        model));
+                }
+                else if (recvState == VariableOwnershipState.LentRef)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        ExclusiveViolation,
+                        $"Cannot access variable '{receiverOfFieldAssign.Name}' while a ref is outstanding. " +
+                        $"The owner has no access (read or write) until the ref is returned.",
+                        assignment,
+                        model));
+                }
             }
 
             // If the RHS is an owned variable being assigned to an owned LHS, it's a move.
@@ -868,6 +932,44 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // Look for PostfixNode with method call suffixes.
         if (node is PostfixNode postfix)
         {
+            // Check mutation blocking: if the receiver is in LentFrozen or LentRef state,
+            // block method calls (Req 13.1, 13.2, 13.3, 6.3).
+            if (postfix.Suffix.Length > 0 && postfix.Suffix[0] is MethodCallSuffixPostfixSuffixNode firstMethodCall)
+            {
+                var receiverSymbol = model.GetDeclaredSymbol(postfix.Target);
+                if (receiverSymbol is not null &&
+                    state.VariableStates.TryGetValue(receiverSymbol, out var receiverState))
+                {
+                    if (receiverState == VariableOwnershipState.LentFrozen)
+                    {
+                        // Check if the method is non-readonly (mutation attempt).
+                        var receiverType = receiverSymbol.DeclaredType;
+                        if (receiverType is not null)
+                        {
+                            var methodSym = LookupMemberByName(receiverType, firstMethodCall.Name.Lexeme);
+                            if (methodSym is not null && !IsReadonlyMember(methodSym))
+                            {
+                                diagnostics.Add(MakeDiagnostic(
+                                    MutationBlocked,
+                                    $"Cannot call non-readonly method '{methodSym.Name}' on variable '{receiverSymbol.Name}' " +
+                                    $"while a frozen ref is outstanding. Mutation is blocked until all frozen refs are returned.",
+                                    firstMethodCall,
+                                    model));
+                            }
+                        }
+                    }
+                    else if (receiverState == VariableOwnershipState.LentRef)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            ExclusiveViolation,
+                            $"Cannot access variable '{receiverSymbol.Name}' while a ref is outstanding. " +
+                            $"The owner has no access (read or write) until the ref is returned.",
+                            firstMethodCall,
+                            model));
+                    }
+                }
+            }
+
             foreach (var suffix in postfix.Suffix)
             {
                 if (suffix is MethodCallSuffixPostfixSuffixNode methodCall)
@@ -1222,6 +1324,87 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         if (sym.Kind is not (SymbolKind.LocalVariable or SymbolKind.Parameter))
             return false;
         return sym.OwnershipTier == OwnershipTier.Owned;
+    }
+
+    /// <summary>
+    /// Looks up a member symbol by name in the given type's member scope.
+    /// Returns null if not found.
+    /// </summary>
+    private static ISymbol? LookupMemberByName(IType type, string name)
+    {
+        IScope? memberScope = type switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            _ => null,
+        };
+
+        return memberScope?.Lookup(name);
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the given symbol is classified as readonly
+    /// (either explicitly or inferred by the ReadonlyInferenceEngine).
+    /// </summary>
+    private static bool IsReadonlyMember(ISymbol symbol)
+    {
+        if (symbol is not Symbol sym)
+            return false;
+        return sym.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly or ReadonlyStatus.InferredReadonly;
+    }
+
+    /// <summary>
+    /// Checks whether there is already an active ref borrow from the given lender.
+    /// </summary>
+    private static bool HasActiveRefBorrow(ISymbol lender, MethodFlowState state)
+    {
+        foreach (var borrow in state.ActiveBorrows)
+        {
+            if (ReferenceEquals(borrow.Lender, lender) && borrow.BorrowTier == OwnershipTier.Ref)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Attempts to resolve the receiver of a field access expression (e.g., <c>x.field</c>
+    /// returns the symbol for <c>x</c>). Returns null if the target is not a field access
+    /// or the receiver cannot be resolved.
+    /// </summary>
+    private static ISymbol? TryResolveFieldAccessReceiver(SyntaxNode target, ISemanticModel model)
+    {
+        // Unwrap the expression chain to find a PostfixNode with a MemberAccessSuffix.
+        var nonNullChildren = new List<SyntaxNode>();
+        var current = target;
+        while (current is not PostfixNode)
+        {
+            nonNullChildren.Clear();
+            foreach (var child in current.Children())
+            {
+                if (child is not null)
+                    nonNullChildren.Add(child);
+            }
+            if (nonNullChildren.Count != 1)
+                return null;
+            current = nonNullChildren[0];
+        }
+
+        if (current is PostfixNode postfix && postfix.Suffix.Length > 0 &&
+            postfix.Suffix[^1] is MemberAccessSuffixPostfixSuffixNode)
+        {
+            // The receiver is the PostfixNode's target (the identifier before the dot).
+            if (postfix.Target is IdentifierExpressionPrimaryNode receiverId)
+            {
+                var symbol = model.GetDeclaredSymbol(receiverId);
+                if (symbol is not null &&
+                    symbol.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter)
+                {
+                    return symbol;
+                }
+            }
+        }
+
+        return null;
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
@@ -1692,6 +1875,29 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        // Stub: full implementation is part of task 6.10.
+        // Track which symbols have been passed to ref parameters in this call.
+        var refLentSymbols = new HashSet<ISymbol>(ReferenceEqualityComparer.Instance);
+
+        var count = Math.Min(argExprs.Count, paramSymbols.Count);
+        for (var i = 0; i < count; i++)
+        {
+            if (paramSymbols[i] is Symbol paramSym && paramSym.OwnershipTier == OwnershipTier.Ref)
+            {
+                var argSymbol = TryResolveIdentifierSymbol(argExprs[i], model);
+                if (argSymbol is not null)
+                {
+                    if (!refLentSymbols.Add(argSymbol))
+                    {
+                        // Same variable passed to multiple ref parameters — exclusivity violation.
+                        diagnostics.Add(MakeDiagnostic(
+                            ExclusiveViolation,
+                            $"Cannot lend variable '{argSymbol.Name}' as 'ref' to multiple parameters in the same call. " +
+                            $"Only one mutable borrow is permitted at a time.",
+                            argExprs[i],
+                            model));
+                    }
+                }
+            }
+        }
     }
 }

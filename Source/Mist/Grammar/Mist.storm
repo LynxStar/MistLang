@@ -293,8 +293,9 @@ rule Modifier
 
 rule OwnershipSpecifier
     = OWNED                as OwnedSpecifier
-    | FROZEN REF           as FrozenRefSpecifier
+    | FROZEN               as FrozenSpecifier
     | READONLY REF         as ReadonlyRefSpecifier
+    | BORROWED             as BorrowedSpecifier
     | REF                  as RefSpecifier
     ;
 

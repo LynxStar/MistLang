@@ -114,7 +114,7 @@
         },
         {
           "name": "storage.modifier.mist",
-          "match": "\\b(public|private|static|intrinsic|implicit|explicit|readonly|mutable|owned|frozen|ref)\\b"
+          "match": "\\b(public|private|static|intrinsic|implicit|explicit|readonly|mutable|owned|frozen|ref|borrowed)\\b"
         },
         {
           "name": "keyword.other.mist",

@@ -861,13 +861,13 @@ Done!
 [unrestricted] aliased=True
 [readonly-ref] pair sum=10
 [readonly-ref] after mutation=Pair(100, 7)
-[frozen-ref] frozen sum=15
-[frozen-blocks-mutation] after thaw=Pair(50, 10)
-[ref-borrow] mutated=Pair(999, 2)
-[ref-borrow] owner after return=Pair(999, 2)
+[frozen] frozen sum=15
+[frozen] after thaw=Pair(50, 10)
+[borrowed] mutated=Pair(999, 2)
+[borrowed] owner after return=Pair(999, 2)
 [readonly-ref] pair sum=1001
-[ref-relend] after re-lend=Pair(42, 2)
-[ref-relend] owner final=Pair(42, 2)
+[borrowed] after re-lend=Pair(42, 2)
+[borrowed] owner final=Pair(42, 2)
 [owned-move] before move=Counter(1)
 [owned-move] after move to c2=Counter(2)
 [owned-move] consumed=Counter(4)
@@ -877,14 +877,14 @@ Done!
 [owned-type] consumed handle=UniqueHandle(Id=100, RefCount=2)
 [owned-type] moved handle to function
 [lending] readonly ref received=Pair(1, 1)
-[lending] frozen ref received=Pair(2, 2)
-[lending] ref received=Pair(3, 3)
+[lending] frozen received=Pair(2, 2)
+[lending] borrowed received=Pair(3, 3)
 [lending] owned received=Pair(4, 4)
 [lending] readonly ref received=Pair(5, 5)
 [lending] all permitted pairs passed
 [value-type] readonly ref vec=Vec2(3, 4)
-[value-type] frozen ref vec=Vec2(3, 4)
-[value-type] ref vec=Vec2(3, 4)
+[value-type] frozen vec=Vec2(3, 4)
+[value-type] borrowed vec=Vec2(3, 4)
 [value-type] owned vec=Vec2(3, 4)
 [value-type] original after all passes=Vec2(3, 4)
 [tier-transition] owned before downgrade=Pair(10, 20)

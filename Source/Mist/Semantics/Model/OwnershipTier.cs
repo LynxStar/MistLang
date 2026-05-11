@@ -11,11 +11,11 @@ public enum OwnershipTier
     /// <summary>readonly ref — live readonly view, non-storable.</summary>
     ReadonlyRef,
 
-    /// <summary>frozen ref — immutable view that blocks owner mutation, non-storable.</summary>
-    FrozenRef,
+    /// <summary>frozen — immutable view that blocks owner mutation, non-storable.</summary>
+    Frozen,
 
-    /// <summary>ref — borrowed mutable, non-storable.</summary>
-    Ref,
+    /// <summary>borrowed — borrowed mutable, non-storable.</summary>
+    Borrowed,
 
     /// <summary>owned — sole ownership, storable, full control.</summary>
     Owned,

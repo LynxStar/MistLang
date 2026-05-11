@@ -124,8 +124,8 @@ public class OwnershipFrozenBlockingPropertyTests
     /// Generates a program where an owner lends a frozen ref to a method parameter,
     /// and then attempts to mutate the object while the frozen ref is outstanding.
     /// The mutation occurs inside the same scope as the frozen ref loan via a method
-    /// that takes a frozen ref parameter — the owner tries to mutate after the call
-    /// but within a scope where a frozen ref local is still alive.
+    /// that takes a frozen parameter — the owner tries to mutate after the call
+    /// but within a scope where a frozen local is still alive.
     /// </summary>
     private static Gen<OwnerMutationBlockedScenario> GenOwnerMutationDuringFrozenLoan()
     {
@@ -146,18 +146,18 @@ public class OwnershipFrozenBlockingPropertyTests
                    class Program {
                        public static void Main() {
                            owned {{className}} {{varName}} = new {{className}}();
-                           frozen ref {{className}} {{frozenName}} = {{varName}};
+                           frozen {{className}} {{frozenName}} = {{varName}};
                            {{varName}}.SetValue(42);
                        }
                    }
                    """
                select new OwnerMutationBlockedScenario(source,
-                   $"owner {varName} mutates via SetValue while frozen ref {frozenName} is outstanding");
+                   $"owner {varName} mutates via SetValue while frozen {frozenName} is outstanding");
     }
 
     /// <summary>
     /// Generates a program where an owner lends a frozen ref and then attempts
-    /// to assign to a field through the owner while the frozen ref is outstanding.
+    /// to assign to a field through the owner while the frozen borrow is outstanding.
     /// </summary>
     private static Gen<OwnerMutationBlockedScenario> GenOwnerFieldAssignDuringFrozenLoan()
     {
@@ -175,18 +175,18 @@ public class OwnershipFrozenBlockingPropertyTests
                    class Program {
                        public static void Main() {
                            owned {{className}} {{varName}} = new {{className}}();
-                           frozen ref {{className}} {{frozenName}} = {{varName}};
+                           frozen {{className}} {{frozenName}} = {{varName}};
                            {{varName}}.{{fieldName}} = 99;
                        }
                    }
                    """
                select new OwnerMutationBlockedScenario(source,
-                   $"owner {varName} assigns field {fieldName} while frozen ref {frozenName} is outstanding");
+                   $"owner {varName} assigns field {fieldName} while frozen {frozenName} is outstanding");
     }
 
     /// <summary>
-    /// Generates a program where a ref holder lends a frozen ref and then attempts
-    /// to mutate through the ref holder while the frozen ref is outstanding.
+    /// Generates a program where a borrowed holder lends a frozen ref and then attempts
+    /// to mutate through the borrowed holder while the frozen borrow is outstanding.
     /// </summary>
     private static Gen<RefHolderMutationBlockedScenario> GenRefHolderMutationDuringFrozenLoan()
     {
@@ -206,8 +206,8 @@ public class OwnershipFrozenBlockingPropertyTests
                        }
                    }
                    class Program {
-                       public static void {{methodName}}(ref {{className}} {{varName}}) {
-                           frozen ref {{className}} {{frozenName}} = {{varName}};
+                       public static void {{methodName}}(borrowed {{className}} {{varName}}) {
+                           frozen {{className}} {{frozenName}} = {{varName}};
                            {{varName}}.SetValue(42);
                        }
                        public static void Main() {
@@ -217,12 +217,12 @@ public class OwnershipFrozenBlockingPropertyTests
                    }
                    """
                select new RefHolderMutationBlockedScenario(source,
-                   $"ref holder {varName} mutates via SetValue while frozen ref {frozenName} is outstanding in {methodName}");
+                   $"borrowed holder {varName} mutates via SetValue while frozen {frozenName} is outstanding in {methodName}");
     }
 
     /// <summary>
     /// Generates a program where an owner lends a frozen ref in a nested scope
-    /// (via a method call with frozen ref parameter), and then mutates after the
+    /// (via a method call with frozen parameter), and then mutates after the
     /// call returns (scope exit restores mutation access).
     /// </summary>
     private static Gen<MutationRestoredScenario> GenMutationRestoredAfterScopeExit()
@@ -242,7 +242,7 @@ public class OwnershipFrozenBlockingPropertyTests
                        }
                    }
                    class Program {
-                       public static void {{methodName}}(frozen ref {{className}} param) {
+                       public static void {{methodName}}(frozen {{className}} param) {
                            param.GetValue();
                        }
                        public static void Main() {
@@ -253,7 +253,7 @@ public class OwnershipFrozenBlockingPropertyTests
                    }
                    """
                select new MutationRestoredScenario(source,
-                   $"owner {varName} mutates after frozen ref returned from {methodName}");
+                   $"owner {varName} mutates after frozen returned from {methodName}");
     }
 
     // ─── Arbitrary instances ─────────────────────────────────────────────

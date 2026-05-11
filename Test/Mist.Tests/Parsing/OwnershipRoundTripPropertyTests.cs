@@ -19,10 +19,10 @@ namespace Mist.Tests.Parsing;
 ///
 /// **Validates: Requirements 20.1, 20.2, 20.3, 2.1, 2.2, 2.3, 2.4, 2.5**
 ///
-/// For any valid Mist AST containing ownership specifiers (owned, ref, readonly ref, frozen ref)
+/// For any valid Mist AST containing ownership specifiers (owned, borrowed, readonly ref, frozen)
 /// on variables, parameters, return types, and type declarations, pretty-printing the AST and
 /// then parsing the result and pretty-printing again SHALL produce identical output.
-/// Compound specifiers (readonly ref, frozen ref) SHALL be preserved through the cycle.
+/// Compound specifiers (readonly ref) SHALL be preserved through the cycle.
 /// </summary>
 public class OwnershipRoundTripPropertyTests
 {
@@ -103,9 +103,9 @@ public class OwnershipRoundTripPropertyTests
         // Verify that ownership specifiers are preserved in the printed output.
         // At least one ownership keyword should appear in the output.
         var containsOwnership = printed1.Contains("owned ") ||
-                                printed1.Contains("ref ") ||
+                                printed1.Contains("borrowed ") ||
                                 printed1.Contains("readonly ref ") ||
-                                printed1.Contains("frozen ref ");
+                                printed1.Contains("frozen ");
 
         return containsOwnership.ToProperty()
             .Label($"No ownership specifier found in output.\nSource: {scenario.Source}\nPrinted:\n{printed1}");

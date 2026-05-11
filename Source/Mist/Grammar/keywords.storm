@@ -79,9 +79,10 @@ token READONLY = "readonly";
 token MUTABLE  = "mutable";
 
 // Ownership keywords
-token OWNED  = "owned";
-token FROZEN = "frozen";
-token REF    = "ref";
+token OWNED    = "owned";
+token FROZEN   = "frozen";
+token REF      = "ref";
+token BORROWED = "borrowed";
 
 // Pattern matching keywords
 token IS  = "is";

@@ -491,30 +491,30 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     }
                 }
                 else if (declaredSymbol is Symbol refSym &&
-                         refSym.OwnershipTier is OwnershipTier.FrozenRef or OwnershipTier.Ref)
+                         refSym.OwnershipTier is OwnershipTier.Frozen or OwnershipTier.Borrowed)
                 {
-                    // Local frozen ref or ref variable declaration creates a borrow from the initializer.
+                    // Local frozen or borrowed variable declaration creates a borrow from the initializer.
                     var sourceSymbol = TryResolveIdentifierSymbol(typed.Initializer, model);
                     if (sourceSymbol is not null &&
                         sourceSymbol is Symbol sourceSym &&
-                        sourceSym.OwnershipTier is OwnershipTier.Owned or OwnershipTier.Ref)
+                        sourceSym.OwnershipTier is OwnershipTier.Owned or OwnershipTier.Borrowed)
                     {
-                        if (refSym.OwnershipTier == OwnershipTier.FrozenRef)
+                        if (refSym.OwnershipTier == OwnershipTier.Frozen)
                         {
-                            // Frozen ref borrow: lender cannot mutate until scope exit.
+                            // Frozen borrow: lender cannot mutate until scope exit.
                             state.VariableStates[sourceSymbol] = VariableOwnershipState.LentFrozen;
                             state.ActiveBorrows.Add(new BorrowEntry(
-                                sourceSymbol, declaredSymbol, OwnershipTier.FrozenRef, state.ScopeDepth));
+                                sourceSymbol, declaredSymbol, OwnershipTier.Frozen, state.ScopeDepth));
                         }
-                        else // Ref
+                        else // Borrowed
                         {
-                            // Ref borrow: lender has no access until scope exit.
+                            // Borrowed: lender has no access until scope exit.
                             // Check for existing ref borrow (only one at a time).
                             if (HasActiveRefBorrow(sourceSymbol, state))
                             {
                                 diagnostics.Add(MakeDiagnostic(
                                     ExclusiveViolation,
-                                    $"Cannot lend variable '{sourceSymbol.Name}' as 'ref' — another ref is already outstanding. " +
+                                    $"Cannot lend variable '{sourceSymbol.Name}' as 'borrowed' — another borrow is already outstanding. " +
                                     $"Only one mutable borrow is permitted at a time.",
                                     typed,
                                     model));
@@ -523,7 +523,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                             {
                                 state.VariableStates[sourceSymbol] = VariableOwnershipState.LentRef;
                                 state.ActiveBorrows.Add(new BorrowEntry(
-                                    sourceSymbol, declaredSymbol, OwnershipTier.Ref, state.ScopeDepth));
+                                    sourceSymbol, declaredSymbol, OwnershipTier.Borrowed, state.ScopeDepth));
                             }
                         }
                     }
@@ -597,7 +597,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             // Non-storability check: if the RHS is a ref-tier variable and the LHS
             // is a field, emit MIST_OWN_NOT_STORABLE.
             if (rhsSymbol is Symbol rhsSym &&
-                rhsSym.OwnershipTier is OwnershipTier.Ref or OwnershipTier.ReadonlyRef or OwnershipTier.FrozenRef)
+                rhsSym.OwnershipTier is OwnershipTier.Borrowed or OwnershipTier.ReadonlyRef or OwnershipTier.Frozen)
             {
                 var targetFieldSymbol = TryResolveFieldTarget(assignment.Target, model);
                 if (targetFieldSymbol is not null && targetFieldSymbol.Kind == SymbolKind.Field)
@@ -1111,15 +1111,15 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     private static readonly HashSet<(OwnershipTier Source, OwnershipTier Target)> PermittedLendingPairs = new()
     {
         (OwnershipTier.Owned, OwnershipTier.Owned),
-        (OwnershipTier.Owned, OwnershipTier.Ref),
+        (OwnershipTier.Owned, OwnershipTier.Borrowed),
         (OwnershipTier.Owned, OwnershipTier.ReadonlyRef),
-        (OwnershipTier.Owned, OwnershipTier.FrozenRef),
-        (OwnershipTier.Ref, OwnershipTier.Ref),
-        (OwnershipTier.Ref, OwnershipTier.ReadonlyRef),
-        (OwnershipTier.Ref, OwnershipTier.FrozenRef),
+        (OwnershipTier.Owned, OwnershipTier.Frozen),
+        (OwnershipTier.Borrowed, OwnershipTier.Borrowed),
+        (OwnershipTier.Borrowed, OwnershipTier.ReadonlyRef),
+        (OwnershipTier.Borrowed, OwnershipTier.Frozen),
         (OwnershipTier.ReadonlyRef, OwnershipTier.ReadonlyRef),
-        (OwnershipTier.FrozenRef, OwnershipTier.FrozenRef),
-        (OwnershipTier.FrozenRef, OwnershipTier.ReadonlyRef),
+        (OwnershipTier.Frozen, OwnershipTier.Frozen),
+        (OwnershipTier.Frozen, OwnershipTier.ReadonlyRef),
         (OwnershipTier.Unrestricted, OwnershipTier.ReadonlyRef),
         (OwnershipTier.Unrestricted, OwnershipTier.Unrestricted),
     };
@@ -1154,7 +1154,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         // Emit the appropriate diagnostic.
         if (sourceTier == OwnershipTier.Unrestricted &&
-            targetTier is OwnershipTier.Ref or OwnershipTier.FrozenRef or OwnershipTier.Owned)
+            targetTier is OwnershipTier.Borrowed or OwnershipTier.Frozen or OwnershipTier.Owned)
         {
             diagnostics.Add(MakeDiagnostic(
                 UnrestrictedToRef,
@@ -1360,7 +1360,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     {
         foreach (var borrow in state.ActiveBorrows)
         {
-            if (ReferenceEquals(borrow.Lender, lender) && borrow.BorrowTier == OwnershipTier.Ref)
+            if (ReferenceEquals(borrow.Lender, lender) && borrow.BorrowTier == OwnershipTier.Borrowed)
                 return true;
         }
         return false;
@@ -1483,9 +1483,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 continue;
 
             // Only non-owned specifiers on return types are invalid.
-            if (methodSymbol.OwnershipTier is OwnershipTier.Ref
+            if (methodSymbol.OwnershipTier is OwnershipTier.Borrowed
                 or OwnershipTier.ReadonlyRef
-                or OwnershipTier.FrozenRef)
+                or OwnershipTier.Frozen)
             {
                 SyntaxNode declaringNode;
                 try { declaringNode = model.GetDeclaringNode(symbol); }
@@ -1767,9 +1767,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         return tier switch
         {
             OwnershipTier.Owned => "owned",
-            OwnershipTier.Ref => "ref",
+            OwnershipTier.Borrowed => "borrowed",
             OwnershipTier.ReadonlyRef => "readonly ref",
-            OwnershipTier.FrozenRef => "frozen ref",
+            OwnershipTier.Frozen => "frozen",
             OwnershipTier.Unrestricted => "unrestricted",
             _ => "unrestricted",
         };
@@ -1845,9 +1845,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 continue;
 
             // If the field has a non-storable ownership tier, emit MIST_OWN_NOT_STORABLE.
-            if (fieldSymbol.OwnershipTier is OwnershipTier.Ref
+            if (fieldSymbol.OwnershipTier is OwnershipTier.Borrowed
                 or OwnershipTier.ReadonlyRef
-                or OwnershipTier.FrozenRef)
+                or OwnershipTier.Frozen)
             {
                 SyntaxNode declaringNode;
                 try { declaringNode = model.GetDeclaringNode(symbol); }
@@ -1881,7 +1881,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         var count = Math.Min(argExprs.Count, paramSymbols.Count);
         for (var i = 0; i < count; i++)
         {
-            if (paramSymbols[i] is Symbol paramSym && paramSym.OwnershipTier == OwnershipTier.Ref)
+            if (paramSymbols[i] is Symbol paramSym && paramSym.OwnershipTier == OwnershipTier.Borrowed)
             {
                 var argSymbol = TryResolveIdentifierSymbol(argExprs[i], model);
                 if (argSymbol is not null)

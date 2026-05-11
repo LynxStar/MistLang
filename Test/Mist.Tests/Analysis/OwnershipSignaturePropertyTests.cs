@@ -144,9 +144,9 @@ public class OwnershipSignaturePropertyTests
     private static readonly (string Specifier, string Label)[] ParamSpecifiers =
     [
         ("owned ", "owned"),
-        ("ref ", "ref"),
+        ("borrowed ", "borrowed"),
         ("readonly ref ", "readonly ref"),
-        ("frozen ref ", "frozen ref"),
+        ("frozen ", "frozen"),
         ("", "unrestricted"),
     ];
 
@@ -164,9 +164,9 @@ public class OwnershipSignaturePropertyTests
     /// </summary>
     private static readonly (string Specifier, string Label)[] InvalidReturnSpecs =
     [
-        ("ref ", "ref"),
+        ("borrowed ", "borrowed"),
         ("readonly ref ", "readonly ref"),
-        ("frozen ref ", "frozen ref"),
+        ("frozen ", "frozen"),
     ];
 
     // ─── Generators ──────────────────────────────────────────────────────

@@ -10,7 +10,7 @@ namespace Mist.Analysis.Builtin;
 /// </summary>
 /// <param name="Lender">The symbol whose variable is being lent.</param>
 /// <param name="Borrower">The symbol that is borrowing access.</param>
-/// <param name="BorrowTier">The ownership tier of the borrow (Ref, FrozenRef, or ReadonlyRef).</param>
+/// <param name="BorrowTier">The ownership tier of the borrow (Borrowed, Frozen, or ReadonlyRef).</param>
 /// <param name="ScopeDepth">The lexical scope depth at which this borrow was created.</param>
 public sealed record BorrowEntry(
     ISymbol Lender,

@@ -207,7 +207,7 @@ public class OwnershipErasurePropertyTests
     }
 
     /// <summary>
-    /// Generates a program with a frozen ref parameter and its equivalent without.
+    /// Generates a program with a frozen parameter and its equivalent without.
     /// </summary>
     private static Gen<ErasureScenario> GenFrozenRefParameterScenario()
     {
@@ -221,7 +221,7 @@ public class OwnershipErasurePropertyTests
                    class Program {
                        public static void Main() {
                        }
-                       void {{methodName}}(frozen ref {{typeName}} {{paramName}}) {
+                       void {{methodName}}(frozen {{typeName}} {{paramName}}) {
                        }
                    }
                    """
@@ -237,11 +237,11 @@ public class OwnershipErasurePropertyTests
                    }
                    """
                select new ErasureScenario(withOwnership, withoutOwnership,
-                   $"frozen ref param: void {methodName}(frozen ref {typeName} {paramName})");
+                   $"frozen param: void {methodName}(frozen {typeName} {paramName})");
     }
 
     /// <summary>
-    /// Generates a program with a ref parameter and its equivalent without.
+    /// Generates a program with a borrowed parameter and its equivalent without.
     /// </summary>
     private static Gen<ErasureScenario> GenRefParameterScenario()
     {
@@ -255,7 +255,7 @@ public class OwnershipErasurePropertyTests
                    class Program {
                        public static void Main() {
                        }
-                       void {{methodName}}(ref {{typeName}} {{paramName}}) {
+                       void {{methodName}}(borrowed {{typeName}} {{paramName}}) {
                        }
                    }
                    """
@@ -271,7 +271,7 @@ public class OwnershipErasurePropertyTests
                    }
                    """
                select new ErasureScenario(withOwnership, withoutOwnership,
-                   $"ref param: void {methodName}(ref {typeName} {paramName})");
+                   $"borrowed param: void {methodName}(borrowed {typeName} {paramName})");
     }
 
     /// <summary>
@@ -548,11 +548,12 @@ public class OwnershipErasurePropertyTests
 
         // Ownership keywords that must not appear in emitted C#.
         // Note: "ref" is a valid C# keyword so we check for the Mist-specific
-        // compound forms and "owned"/"frozen" which are not C# keywords.
+        // keywords "owned", "frozen", and "borrowed" which are not C# keywords.
         var forbiddenKeywords = new[]
         {
             "owned ",
-            "frozen ref",
+            "frozen ",
+            "borrowed ",
             "readonly ref ", // as a Mist ownership specifier (C# has "ref readonly" but not "readonly ref")
         };
 

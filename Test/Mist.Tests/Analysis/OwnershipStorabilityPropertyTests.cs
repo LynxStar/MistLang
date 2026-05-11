@@ -125,7 +125,7 @@ public class OwnershipStorabilityPropertyTests
         ["x", "y", "z", "item", "obj", "val"];
 
     private static readonly string[] RefTierKeywords =
-        ["ref", "readonly ref", "frozen ref"];
+        ["borrowed", "readonly ref", "frozen"];
 
     // ─── Generators ──────────────────────────────────────────────────────
 

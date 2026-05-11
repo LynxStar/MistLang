@@ -82,15 +82,15 @@ public class OwnershipLendingPropertyTests
     private static readonly HashSet<(OwnershipTier Source, OwnershipTier Target)> PermittedPairs = new()
     {
         (OwnershipTier.Owned, OwnershipTier.Owned),
-        (OwnershipTier.Owned, OwnershipTier.Ref),
+        (OwnershipTier.Owned, OwnershipTier.Borrowed),
         (OwnershipTier.Owned, OwnershipTier.ReadonlyRef),
-        (OwnershipTier.Owned, OwnershipTier.FrozenRef),
-        (OwnershipTier.Ref, OwnershipTier.Ref),
-        (OwnershipTier.Ref, OwnershipTier.ReadonlyRef),
-        (OwnershipTier.Ref, OwnershipTier.FrozenRef),
+        (OwnershipTier.Owned, OwnershipTier.Frozen),
+        (OwnershipTier.Borrowed, OwnershipTier.Borrowed),
+        (OwnershipTier.Borrowed, OwnershipTier.ReadonlyRef),
+        (OwnershipTier.Borrowed, OwnershipTier.Frozen),
         (OwnershipTier.ReadonlyRef, OwnershipTier.ReadonlyRef),
-        (OwnershipTier.FrozenRef, OwnershipTier.FrozenRef),
-        (OwnershipTier.FrozenRef, OwnershipTier.ReadonlyRef),
+        (OwnershipTier.Frozen, OwnershipTier.Frozen),
+        (OwnershipTier.Frozen, OwnershipTier.ReadonlyRef),
         (OwnershipTier.Unrestricted, OwnershipTier.ReadonlyRef),
         (OwnershipTier.Unrestricted, OwnershipTier.Unrestricted),
     };
@@ -102,8 +102,8 @@ public class OwnershipLendingPropertyTests
     [
         OwnershipTier.Unrestricted,
         OwnershipTier.ReadonlyRef,
-        OwnershipTier.FrozenRef,
-        OwnershipTier.Ref,
+        OwnershipTier.Frozen,
+        OwnershipTier.Borrowed,
         OwnershipTier.Owned,
     ];
 
@@ -156,9 +156,9 @@ public class OwnershipLendingPropertyTests
     private static string TierToSpecifier(OwnershipTier tier) => tier switch
     {
         OwnershipTier.Owned => "owned ",
-        OwnershipTier.Ref => "ref ",
+        OwnershipTier.Borrowed => "borrowed ",
         OwnershipTier.ReadonlyRef => "readonly ref ",
-        OwnershipTier.FrozenRef => "frozen ref ",
+        OwnershipTier.Frozen => "frozen ",
         OwnershipTier.Unrestricted => "",
         _ => "",
     };
@@ -209,13 +209,13 @@ public class OwnershipLendingPropertyTests
                 }
                 """,
 
-            OwnershipTier.Ref => $$"""
+            OwnershipTier.Borrowed => $$"""
                 class {{className}} {
                 }
                 class Program {
                     public static void {{methodName}}({{targetSpec}}{{className}} param) {
                     }
-                    public static void Lender(ref {{className}} {{varName}}) {
+                    public static void Lender(borrowed {{className}} {{varName}}) {
                         {{methodName}}({{varName}});
                     }
                     public static void Main() {
@@ -241,13 +241,13 @@ public class OwnershipLendingPropertyTests
                 }
                 """,
 
-            OwnershipTier.FrozenRef => $$"""
+            OwnershipTier.Frozen => $$"""
                 class {{className}} {
                 }
                 class Program {
                     public static void {{methodName}}({{targetSpec}}{{className}} param) {
                     }
-                    public static void Lender(frozen ref {{className}} {{varName}}) {
+                    public static void Lender(frozen {{className}} {{varName}}) {
                         {{methodName}}({{varName}});
                     }
                     public static void Main() {

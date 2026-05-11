@@ -72,8 +72,8 @@ public sealed class MethodFlowState
     /// Exits the current lexical scope. All borrows created at the current scope depth
     /// are released, and lender states are restored based on the borrow tier:
     /// <list type="bullet">
-    ///   <item><description><see cref="OwnershipTier.Ref"/>: lender is restored to <see cref="VariableOwnershipState.Live"/>.</description></item>
-    ///   <item><description><see cref="OwnershipTier.FrozenRef"/>: lender is restored to <see cref="VariableOwnershipState.Live"/> if no other frozen borrows remain.</description></item>
+    ///   <item><description><see cref="OwnershipTier.Borrowed"/>: lender is restored to <see cref="VariableOwnershipState.Live"/>.</description></item>
+    ///   <item><description><see cref="OwnershipTier.Frozen"/>: lender is restored to <see cref="VariableOwnershipState.Live"/> if no other frozen borrows remain.</description></item>
     ///   <item><description><see cref="OwnershipTier.ReadonlyRef"/>: no state change needed (lender retains full access).</description></item>
     /// </list>
     /// </summary>
@@ -177,8 +177,8 @@ public sealed class MethodFlowState
 
     /// <summary>
     /// Restores the lender's variable state after a borrow is released.
-    /// For <see cref="OwnershipTier.Ref"/> borrows, the lender is restored to Live.
-    /// For <see cref="OwnershipTier.FrozenRef"/> borrows, the lender is restored to Live
+    /// For <see cref="OwnershipTier.Borrowed"/> borrows, the lender is restored to Live.
+    /// For <see cref="OwnershipTier.Frozen"/> borrows, the lender is restored to Live
     /// only if no other frozen borrows from the same lender remain active.
     /// For <see cref="OwnershipTier.ReadonlyRef"/> borrows, no restoration is needed
     /// (lender already retains full access).
@@ -187,12 +187,12 @@ public sealed class MethodFlowState
     {
         switch (entry.BorrowTier)
         {
-            case OwnershipTier.Ref:
-                // Ref borrow released: restore lender to Live.
+            case OwnershipTier.Borrowed:
+                // Borrowed borrow released: restore lender to Live.
                 VariableStates[entry.Lender] = VariableOwnershipState.Live;
                 break;
 
-            case OwnershipTier.FrozenRef:
+            case OwnershipTier.Frozen:
                 // Frozen borrow released: restore lender to Live only if no other
                 // frozen borrows from the same lender remain.
                 if (!HasRemainingFrozenBorrows(entry.Lender))
@@ -214,7 +214,7 @@ public sealed class MethodFlowState
     {
         foreach (var borrow in ActiveBorrows)
         {
-            if (ReferenceEquals(borrow.Lender, lender) && borrow.BorrowTier == OwnershipTier.FrozenRef)
+            if (ReferenceEquals(borrow.Lender, lender) && borrow.BorrowTier == OwnershipTier.Frozen)
             {
                 return true;
             }

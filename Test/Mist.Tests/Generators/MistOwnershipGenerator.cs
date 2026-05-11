@@ -33,7 +33,7 @@ public sealed class OwnershipSourceScenario
 /// FsCheck generators for Mist ownership-annotated declaration source strings.
 /// Generates random valid declarations covering:
 /// <list type="bullet">
-///   <item>Ownership specifiers: owned, ref, readonly ref, frozen ref</item>
+///   <item>Ownership specifiers: owned, borrowed, readonly ref, frozen</item>
 ///   <item>Variable declarations with ownership specifiers</item>
 ///   <item>Parameters with ownership specifiers</item>
 ///   <item>Method return types with ownership specifiers (owned only)</item>
@@ -70,11 +70,11 @@ public static class MistOwnershipGenerator
 
     /// <summary>Generates a random ownership specifier string.</summary>
     public static Gen<string> GenOwnershipSpecifier() =>
-        Gen.Elements("owned ", "ref ", "readonly ref ", "frozen ref ");
+        Gen.Elements("owned ", "borrowed ", "readonly ref ", "frozen ");
 
     /// <summary>Generates an optional ownership specifier (may be empty).</summary>
     public static Gen<string> GenOptionalOwnershipSpecifier() =>
-        Gen.Elements("", "owned ", "ref ", "readonly ref ", "frozen ref ");
+        Gen.Elements("", "owned ", "borrowed ", "readonly ref ", "frozen ");
 
     // ─── Variable declaration generators ────────────────────────────────────
 

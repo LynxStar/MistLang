@@ -144,13 +144,13 @@ public class OwnershipExclusivityPropertyTests
                    class Program {
                        public static void Main() {
                            owned {{className}} {{varName}} = new {{className}}();
-                           ref {{className}} {{refName}} = {{varName}};
+                           borrowed {{className}} {{refName}} = {{varName}};
                            {{varName}}.GetValue();
                        }
                    }
                    """
                select new OwnerAccessDuringRefLoanScenario(source,
-                   $"owner {varName} reads via GetValue while ref {refName} is outstanding");
+                   $"owner {varName} reads via GetValue while borrowed {refName} is outstanding");
     }
 
     /// <summary>
@@ -177,13 +177,13 @@ public class OwnershipExclusivityPropertyTests
                    class Program {
                        public static void Main() {
                            owned {{className}} {{varName}} = new {{className}}();
-                           ref {{className}} {{refName}} = {{varName}};
+                           borrowed {{className}} {{refName}} = {{varName}};
                            {{varName}}.SetValue(42);
                        }
                    }
                    """
                select new OwnerAccessDuringRefLoanScenario(source,
-                   $"owner {varName} writes via SetValue while ref {refName} is outstanding");
+                   $"owner {varName} writes via SetValue while borrowed {refName} is outstanding");
     }
 
     /// <summary>
@@ -204,7 +204,7 @@ public class OwnershipExclusivityPropertyTests
                        }
                    }
                    class Program {
-                       public static void {{methodName}}(ref {{className}} a, ref {{className}} b) {
+                       public static void {{methodName}}(borrowed {{className}} a, borrowed {{className}} b) {
                            a.SetValue(1);
                            b.SetValue(2);
                        }
@@ -215,7 +215,7 @@ public class OwnershipExclusivityPropertyTests
                    }
                    """
                select new MultipleRefLoanScenario(source,
-                   $"owner {varName} lent to two ref params in {methodName}");
+                   $"owner {varName} lent to two borrowed params in {methodName}");
     }
 
     /// <summary>
@@ -240,7 +240,7 @@ public class OwnershipExclusivityPropertyTests
                        }
                    }
                    class Program {
-                       public static void {{methodName}}(ref {{className}} param) {
+                       public static void {{methodName}}(borrowed {{className}} param) {
                            param.SetValue(99);
                        }
                        public static void Main() {
@@ -251,7 +251,7 @@ public class OwnershipExclusivityPropertyTests
                    }
                    """
                select new AccessRestoredAfterRefReturnScenario(source,
-                   $"owner {varName} accesses after ref returned from {methodName}");
+                   $"owner {varName} accesses after borrowed returned from {methodName}");
     }
 
     // ─── Arbitrary instances ─────────────────────────────────────────────

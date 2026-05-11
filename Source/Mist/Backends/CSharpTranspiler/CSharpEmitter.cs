@@ -3879,14 +3879,14 @@ internal sealed class CSharpSourceWriter
 
     /// <summary>
     /// Returns <c>true</c> if <paramref name="source"/> contains any ownership
-    /// keyword (<c>owned</c>, <c>frozen</c>, or <c>ref</c>) as a standalone
+    /// keyword (<c>owned</c>, <c>frozen</c>, <c>borrowed</c>, or <c>ref</c>) as a standalone
     /// identifier (matched at word boundaries). Used as a lexical fallback in
     /// <see cref="EmitParameterList"/> to detect ownership specifiers that must
     /// be erased in C# emission (ownership is compile-time only — no runtime cost).
     /// </summary>
     private static bool ContainsOwnershipKeyword(string source)
     {
-        return ContainsWord(source, "owned") || ContainsWord(source, "frozen") || ContainsWord(source, "ref");
+        return ContainsWord(source, "owned") || ContainsWord(source, "frozen") || ContainsWord(source, "borrowed") || ContainsWord(source, "ref");
     }
 
     /// <summary>

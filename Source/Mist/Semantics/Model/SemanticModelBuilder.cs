@@ -2140,7 +2140,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         if (fieldDecl.OwnershipSpecifier is not null)
         {
-            fieldSymbol.OwnershipTier = MapOwnershipSpecifier(fieldDecl.OwnershipSpecifier);
+            // When the parser sees "readonly ref" on a field, it may parse it as
+            // modifier=READONLY + ownershipSpecifier=RefSpecifier (due to greedy matching).
+            // In that case, the combined meaning is ReadonlyRef.
+            if (HasReadonlyModifier(fieldDecl.Modifiers) && fieldDecl.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode)
+            {
+                fieldSymbol.OwnershipTier = OwnershipTier.ReadonlyRef;
+            }
+            else
+            {
+                fieldSymbol.OwnershipTier = MapOwnershipSpecifier(fieldDecl.OwnershipSpecifier);
+            }
         }
         else if (fieldDecl.Modifiers.Any(m => m is OwnedModifierModifierNode))
         {
@@ -2362,9 +2372,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         return specifier switch
         {
             OwnedSpecifierOwnershipSpecifierNode => OwnershipTier.Owned,
-            FrozenRefSpecifierOwnershipSpecifierNode => OwnershipTier.FrozenRef,
+            FrozenSpecifierOwnershipSpecifierNode => OwnershipTier.Frozen,
             ReadonlyRefSpecifierOwnershipSpecifierNode => OwnershipTier.ReadonlyRef,
-            RefSpecifierOwnershipSpecifierNode => OwnershipTier.Ref,
+            BorrowedSpecifierOwnershipSpecifierNode => OwnershipTier.Borrowed,
+            RefSpecifierOwnershipSpecifierNode => OwnershipTier.Borrowed,
             _ => OwnershipTier.Unrestricted,
         };
     }
@@ -11538,7 +11549,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // We treat this as OwnershipTier.Owned for the return type.
             if (methodDecl.ReturnOwnership is not null)
             {
-                methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
+                // When the parser sees "readonly ref Foo Method(...)", it may parse
+                // "readonly" as a modifier and "ref" as the returnOwnership specifier
+                // (due to greedy matching). The combined meaning is ReadonlyRef.
+                if (HasReadonlyModifier(methodDecl.Modifiers) && methodDecl.ReturnOwnership is RefSpecifierOwnershipSpecifierNode)
+                {
+                    methodSymbol.OwnershipTier = OwnershipTier.ReadonlyRef;
+                }
+                else
+                {
+                    methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
+                }
             }
             else if (methodDecl.Modifiers.Any(m => m is OwnedModifierModifierNode))
             {
@@ -11993,7 +12014,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // When the parser sees "readonly ref", it may parse it as modifier=READONLY +
         // ownershipSpecifier=RefSpecifier (due to greedy matching of the READONLY modifier).
-        // In that case, the combined meaning is ReadonlyRef, not just Ref.
+        // In that case, the combined meaning is ReadonlyRef, not just Borrowed.
         if (param.Modifier is not null && param.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode)
         {
             paramSymbol.OwnershipTier = OwnershipTier.ReadonlyRef;

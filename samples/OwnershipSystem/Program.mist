@@ -145,8 +145,8 @@ public class Program
 
         DemoUnrestricted();
         DemoReadonlyRef();
-        DemoFrozenRef();
-        DemoRefBorrowing();
+        DemoFrozen();
+        DemoBorrowed();
         DemoOwnedMoveSemantics();
         DemoOwnedTypeDeclarations();
         DemoLendingCompatibility();
@@ -195,54 +195,54 @@ public class Program
         Console.WriteLine($"[readonly-ref] after mutation={p.Describe()}");
     }
 
-    // ─── 3. Frozen ref with mutation blocking ────────────────────────────
+    // ─── 3. Frozen with mutation blocking ───────────────────────────────
 
-    public static void FreezeAndRead(frozen ref Pair p)
+    public static void FreezeAndRead(frozen Pair p)
     {
-        // Can read through frozen ref — guaranteed stable snapshot
+        // Can read through frozen — guaranteed stable snapshot
         var sum = p.Sum();
-        Console.WriteLine($"[frozen-ref] frozen sum={sum}");
+        Console.WriteLine($"[frozen] frozen sum={sum}");
     }
 
-    public static void DemoFrozenRef()
+    public static void DemoFrozen()
     {
         owned Pair p = new Pair(5, 10);
-        // Lend as frozen ref — owner cannot mutate while frozen ref is outstanding
+        // Lend as frozen — owner cannot mutate while frozen borrow is outstanding
         FreezeAndRead(p);
-        // After frozen ref returns, owner can mutate again
+        // After frozen borrow returns, owner can mutate again
         p.SetX(50);
-        Console.WriteLine($"[frozen-blocks-mutation] after thaw={p.Describe()}");
+        Console.WriteLine($"[frozen] after thaw={p.Describe()}");
     }
 
-    // ─── 4. Ref borrowing with re-lending ────────────────────────────────
+    // ─── 4. Borrowed with re-lending ─────────────────────────────────────
 
-    public static void MutateRef(ref Pair p)
+    public static void MutateBorrowed(borrowed Pair p)
     {
-        // ref holder has exclusive mutable access
+        // borrowed holder has exclusive mutable access
         p.SetX(999);
-        Console.WriteLine($"[ref-borrow] mutated={p.Describe()}");
+        Console.WriteLine($"[borrowed] mutated={p.Describe()}");
     }
 
-    public static void ReLendAsReadonly(ref Pair p)
+    public static void ReLendAsReadonly(borrowed Pair p)
     {
-        // ref holder can re-lend as readonly ref
+        // borrowed holder can re-lend as readonly ref
         ReadPair(p);
-        // ref holder can still mutate after readonly ref returns
+        // borrowed holder can still mutate after readonly ref returns
         p.SetX(42);
-        Console.WriteLine($"[ref-relend] after re-lend={p.Describe()}");
+        Console.WriteLine($"[borrowed] after re-lend={p.Describe()}");
     }
 
-    public static void DemoRefBorrowing()
+    public static void DemoBorrowed()
     {
         owned Pair p = new Pair(1, 2);
-        // Lend as ref — owner loses all access until ref returns
-        MutateRef(p);
-        // Owner regains access after ref returns
-        Console.WriteLine($"[ref-borrow] owner after return={p.Describe()}");
+        // Lend as borrowed — owner loses all access until borrowed returns
+        MutateBorrowed(p);
+        // Owner regains access after borrowed returns
+        Console.WriteLine($"[borrowed] owner after return={p.Describe()}");
 
-        // Re-lending: ref holder lends to another function
+        // Re-lending: borrowed holder lends to another function
         ReLendAsReadonly(p);
-        Console.WriteLine($"[ref-relend] owner final={p.Describe()}");
+        Console.WriteLine($"[borrowed] owner final={p.Describe()}");
     }
 
     // ─── 5. Owned with move semantics ────────────────────────────────────
@@ -306,14 +306,14 @@ public class Program
         Console.WriteLine($"[lending] readonly ref received={p.Describe()}");
     }
 
-    public static void AcceptFrozenRef(frozen ref Pair p)
+    public static void AcceptFrozen(frozen Pair p)
     {
-        Console.WriteLine($"[lending] frozen ref received={p.Describe()}");
+        Console.WriteLine($"[lending] frozen received={p.Describe()}");
     }
 
-    public static void AcceptRef(ref Pair p)
+    public static void AcceptBorrowed(borrowed Pair p)
     {
-        Console.WriteLine($"[lending] ref received={p.Describe()}");
+        Console.WriteLine($"[lending] borrowed received={p.Describe()}");
     }
 
     public static void AcceptOwned(owned Pair p)
@@ -327,13 +327,13 @@ public class Program
         owned Pair p1 = new Pair(1, 1);
         AcceptReadonlyRef(p1);
 
-        // owned → frozen ref (permitted)
+        // owned → frozen (permitted)
         owned Pair p2 = new Pair(2, 2);
-        AcceptFrozenRef(p2);
+        AcceptFrozen(p2);
 
-        // owned → ref (permitted)
+        // owned → borrowed (permitted)
         owned Pair p3 = new Pair(3, 3);
-        AcceptRef(p3);
+        AcceptBorrowed(p3);
 
         // owned → owned (permitted, this is a move)
         owned Pair p4 = new Pair(4, 4);
@@ -353,14 +353,14 @@ public class Program
         Console.WriteLine($"[value-type] readonly ref vec={v.Describe()}");
     }
 
-    public static void AcceptFrozenVec(frozen ref Vec2 v)
+    public static void AcceptFrozenVec(frozen Vec2 v)
     {
-        Console.WriteLine($"[value-type] frozen ref vec={v.Describe()}");
+        Console.WriteLine($"[value-type] frozen vec={v.Describe()}");
     }
 
-    public static void AcceptRefVec(ref Vec2 v)
+    public static void AcceptBorrowedVec(borrowed Vec2 v)
     {
-        Console.WriteLine($"[value-type] ref vec={v.Describe()}");
+        Console.WriteLine($"[value-type] borrowed vec={v.Describe()}");
     }
 
     public static void AcceptOwnedVec(owned Vec2 v)
@@ -374,7 +374,7 @@ public class Program
         var v = new Vec2(3, 4);
         AcceptReadonlyVec(v);
         AcceptFrozenVec(v);
-        AcceptRefVec(v);
+        AcceptBorrowedVec(v);
         AcceptOwnedVec(v);
         // Original is unaffected (pass-by-value)
         Console.WriteLine($"[value-type] original after all passes={v.Describe()}");

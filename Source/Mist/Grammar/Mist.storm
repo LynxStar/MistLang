@@ -122,7 +122,7 @@ rule TypeDeclaration
     ;
 
 rule TypeAliasDeclaration = TYPE name:IDENTIFIER typeParams:TypeParameterList? EQUAL type:RefinableTypeExpression
-    constraints:ConstraintClause*
+    constraints:WhereClause*
     SEMICOLON;
 
 rule RefinableTypeExpression
@@ -162,7 +162,10 @@ rule TypeArgument
 
 // ─── Parser Rules — Constraint Clauses ───────────────────────────────────────
 
-rule ConstraintClause = WHERE name:IDENTIFIER COLON constraints:ConstraintList;
+rule WhereClause
+    = WHERE name:IDENTIFIER COLON constraints:ConstraintList  as GenericConstraintClause
+    | WHERE name:IDENTIFIER predicate:AndPattern              as AdhocRefinementConstraint
+    ;
 
 rule ConstraintList = Constraint (COMMA Constraint)*;
 
@@ -186,19 +189,19 @@ rule BaseList = first:BaseTypeRef (COMMA rest:BaseTypeRef)*;
 rule ClassDeclaration = modifiers:Modifier* CLASS name:IDENTIFIER
     typeParams:TypeParameterList?
     baseClause:(COLON baseList:BaseList)?
-    constraints:ConstraintClause*
+    constraints:WhereClause*
     LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
 rule StructDeclaration = modifiers:Modifier* STRUCT name:IDENTIFIER
     typeParams:TypeParameterList?
     interfaceList:(COLON interfaces:BaseList)?
-    constraints:ConstraintClause*
+    constraints:WhereClause*
     LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
 rule InterfaceDeclaration = modifiers:Modifier* INTERFACE name:IDENTIFIER
     typeParams:TypeParameterList?
     interfaceList:(COLON interfaces:BaseList)?
-    constraints:ConstraintClause*
+    constraints:WhereClause*
     LEFT_BRACE members:InterfaceMemberDeclaration* RIGHT_BRACE;
 
 rule InterfaceMemberDeclaration
@@ -209,7 +212,8 @@ rule InterfaceMemberDeclaration
 rule InterfaceMethodDeclaration = returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
     typeParams:TypeParameterList?
     LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
-    constraints:ConstraintClause*
+    withClauses:WithClause*
+    constraints:WhereClause*
     SEMICOLON;
 
 rule InterfacePropertyDeclaration
@@ -227,7 +231,7 @@ rule InterfaceAccessorDeclaration
 rule TraitDeclaration = modifiers:Modifier* TRAIT name:IDENTIFIER
     typeParams:TypeParameterList?
     parentTraits:(COLON parents:BaseList)?
-    constraints:ConstraintClause*
+    constraints:WhereClause*
     LEFT_BRACE members:TraitMemberDeclaration* RIGHT_BRACE;
 
 rule TraitMemberDeclaration
@@ -239,7 +243,9 @@ rule TraitMemberDeclaration
 rule TraitFieldDeclaration = type:TypeReference name:IDENTIFIER SEMICOLON;
 
 rule TraitMethodDeclaration = returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
-    LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS SEMICOLON;
+    LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
+    withClauses:WithClause*
+    SEMICOLON;
 
 rule TraitPropertyDeclaration = type:TypeReference name:IDENTIFIER
     LEFT_BRACE accessors:InterfaceAccessorDeclaration+ RIGHT_BRACE;
@@ -342,10 +348,13 @@ rule AccessorDeclaration
 rule IndexerDeclaration
     = modifiers:Modifier* type:TypeReference THIS
       LEFT_BRACKET parameters:ParameterList RIGHT_BRACKET
+      constraints:WhereClause*
       LEFT_BRACE accessors:AccessorDeclaration+ RIGHT_BRACE       as BlockIndexer
     ;
 
 rule ConstructorDeclaration = modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
+                              withClauses:WithClause*
+                              constraints:WhereClause*
                               chain:ConstructorChain? body:MethodBody;
 
 rule ConstructorChain
@@ -356,7 +365,8 @@ rule ConstructorChain
 rule MethodDeclaration = modifiers:Modifier* returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
                          typeParams:TypeParameterList?
                          LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
-                         constraints:ConstraintClause*
+                         withClauses:WithClause*
+                         constraints:WhereClause*
                          body:MethodBody;
 
 rule MethodBody
@@ -455,6 +465,11 @@ rule Statement
     | foreachStatement:ForeachStatement                   as ForeachStatement
     | breakStatement:BreakStatement                       as BreakStatement
     | readonlyBlock:ReadonlyBlockStatement                as ReadonlyBlockStatement
+    | withVarDeclaration:WithVarDeclarationStatement         as WithVarDeclarationStatement
+    | withTypedDeclaration:WithTypedDeclarationStatement     as WithTypedDeclarationStatement
+    | withDiscardDeclaration:WithDiscardDeclarationStatement as WithDiscardDeclarationStatement
+    | withPushStatement:WithPushStatement                    as WithPushStatement
+    | withBlockStatement:WithBlockStatement                  as WithBlockStatement
     | expressionStatement:ExpressionStatement             as ExpressionStatement
     ;
 
@@ -498,6 +513,18 @@ rule ForeachStatement = FOREACH LEFT_PARENTHESIS type:TypeReference name:(IDENTI
 rule BreakStatement = BREAK SEMICOLON;
 
 rule ExpressionStatement = expression:Expression SEMICOLON;
+
+// ─── Parser Rules — Context Statements ──────────────────────────────────────
+
+rule WithVarDeclarationStatement = WITH VAR name:IDENTIFIER EQUAL initializer:Expression SEMICOLON;
+rule WithTypedDeclarationStatement = WITH type:TypeReference name:IDENTIFIER EQUAL initializer:Expression SEMICOLON;
+rule WithDiscardDeclarationStatement = WITH type:TypeReference DISCARD EQUAL initializer:Expression SEMICOLON;
+rule WithPushStatement = WITH value:Expression SEMICOLON;
+rule WithBlockStatement = WITH LEFT_PARENTHESIS expression:Expression RIGHT_PARENTHESIS body:Block;
+
+// ─── Parser Rules — With Clause (Method Signature Context Bindings) ─────────
+
+rule WithClause = WITH type:TypeReference name:IDENTIFIER;
 
 // ─── Parser Rules — Expressions (Precedence Climbing) ───────────────────────
 // Operator precedence is encoded structurally via a chain of rules, from

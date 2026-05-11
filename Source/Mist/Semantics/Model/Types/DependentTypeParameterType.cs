@@ -24,6 +24,12 @@ public sealed class DependentTypeParameterType : IType
     /// </summary>
     public IType ValueType { get; }
 
+    /// <summary>
+    /// Optional adhoc refinement constraint predicate attached via a where clause.
+    /// Null if no adhoc refinement constraint exists for this parameter.
+    /// </summary>
+    public RefinementPredicate? AdhocConstraint { get; set; }
+
     public DependentTypeParameterType(string name, int ordinal, IType valueType)
     {
         Name = name;

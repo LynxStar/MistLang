@@ -1,0 +1,317 @@
+// AdhocRefinementConstraints — Demonstrates ad-hoc refinement constraint features in Mist.
+// Every declaration USES its constraint. Every line proves the feature works.
+
+using System;
+
+namespace AdhocRefinementConstraints;
+
+// ─── Named refinement type for flow narrowing demonstrations ─────────────────
+
+type NonNegative = int >= 0;
+
+// ─── 1. Single dependent argument refinement ─────────────────────────────────
+
+public class FixedArray<TValue, Size:int> where Size >= 0
+{
+    public int GetSize() { return Size; }
+    public string Describe() { return $"FixedArray<Size={Size}>"; }
+}
+
+// ─── 2. Multiple dependent argument refinements ──────────────────────────────
+
+public class Matrix<Rows:int, Cols:int> where Rows >= 1 where Cols >= 1
+{
+    public int GetRows() { return Rows; }
+    public int GetCols() { return Cols; }
+    public string Describe() { return $"Matrix<{Rows}x{Cols}>"; }
+}
+
+// ─── 3. Mixed generic + dependent argument refinement ────────────────────────
+
+public class Container<T, Size:int> where T : class where Size >= 0
+{
+    public T Value;
+    public Container(T value) { this.Value = value; }
+    public int GetSize() { return Size; }
+    public string Describe() { return $"Container<Size={Size}>(value={this.Value})"; }
+}
+
+// ─── 4. Method with single parameter refinement ─────────────────────────────
+
+public class SingleParamDemo
+{
+    public static string Process(int x) where x < 100
+    {
+        return $"Process({x}) accepted";
+    }
+}
+
+// ─── 5. Method with multiple parameter refinements ───────────────────────────
+
+public class MultiParamDemo
+{
+    public static string Range(int min, int max) where min >= 0 where max <= 100
+    {
+        return $"Range(min={min}, max={max}) accepted";
+    }
+}
+
+// ─── 6. Constructor with parameter refinement ────────────────────────────────
+
+public class Bounded
+{
+    int _size;
+    public Bounded(int size) where size > 0
+    {
+        _size = size;
+    }
+    public int GetSize() { return _size; }
+    public string Describe() { return $"Bounded(size={_size})"; }
+}
+
+// ─── 7. Indexer with parameter refinement ────────────────────────────────────
+
+public class SafeList
+{
+    int[] _items;
+    public SafeList()
+    {
+        _items = [10, 20, 30, 40, 50];
+    }
+    public int this[int index] where index >= 0
+    {
+        get { return _items[index]; }
+        set { _items[index] = value; }
+    }
+}
+
+// ─── 8. Compound predicate with `and` ───────────────────────────────────────
+
+public class BoundedRange
+{
+    public static string Validate(int x) where x >= 0 and <= 1024
+    {
+        return $"Validate({x}) within [0, 1024]";
+    }
+}
+
+// ─── 11. Method with both generic constraint and parameter refinement ────────
+
+interface IDisplayable
+{
+    string Display();
+}
+
+class DisplayWidget : IDisplayable
+{
+    int _id;
+    public DisplayWidget(int id) { _id = id; }
+    public string Display() { return $"Widget#{_id}"; }
+}
+
+class MixedConstraintDemo<T> where T : IDisplayable
+{
+    public T Item;
+    public MixedConstraintDemo(T item) { this.Item = item; }
+    public string Show(int count) where count > 0
+    {
+        return $"Show({this.Item.Display()}, count={count})";
+    }
+}
+
+// ─── 12. Flow narrowing within method body ───────────────────────────────────
+
+public class FlowNarrowingDemo
+{
+    public static string UseNarrowed(int x) where x >= 0
+    {
+        // x is narrowed to NonNegative within this body because
+        // the adhoc constraint `x >= 0` implies `NonNegative` (which is `int >= 0`)
+        NonNegative narrowed = x;
+        return $"UseNarrowed({x}) -> narrowed={narrowed}";
+    }
+}
+
+// ─── 13. Inheritance with fixed dependent value satisfying base constraint ───
+
+public class SmallArray : FixedArray<int, 10> { }
+
+// ─── 14. Forwarding dependent parameter with implication ─────────────────────
+
+public class Wrapper<N:int> : FixedArray<string, N> where N >= 0 { }
+
+// ─── 15. Interface with parameter refinement — same constraint (Liskov) ──────
+
+interface IValidator
+{
+    string Validate(int value) where value >= 0;
+}
+
+// Implements with the SAME constraint — valid (same predicate)
+class StrictValidator : IValidator
+{
+    public string Validate(int value) where value >= 0
+    {
+        return $"StrictValidator.Validate({value}) accepted (same constraint >= 0)";
+    }
+}
+
+// ─── 16. Interface with parameter refinement — no constraint (Liskov) ────────
+
+// Implements with NO constraint — valid (weaker, accepts everything)
+class LenientValidator : IValidator
+{
+    public string Validate(int value)
+    {
+        return $"LenientValidator.Validate({value}) accepted (no constraint)";
+    }
+}
+
+// ─── 17. Interface with parameter refinement — weaker constraint (Liskov) ────
+
+interface IStrictProcessor
+{
+    string Process(int x) where x >= 10 and <= 100;
+}
+
+// Implements with a WEAKER constraint — valid (accepts a superset: >= 0 implies >= 10 and <= 100 → >= 0 accepts more)
+class WeakerProcessor : IStrictProcessor
+{
+    public string Process(int x) where x >= 0
+    {
+        return $"WeakerProcessor.Process({x}) accepted (weaker constraint >= 0)";
+    }
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Adhoc Refinement Constraints Sample ===");
+
+        // 1. Single dependent argument refinement
+        Console.WriteLine("--- 1. Single dependent argument refinement ---");
+        var arr5 = new FixedArray<int, 5>();
+        Console.WriteLine($"  FixedArray<int, 5>.GetSize() = {arr5.GetSize()}");
+        Console.WriteLine($"  FixedArray<int, 5>.Describe() = {arr5.Describe()}");
+        var arr0 = new FixedArray<string, 0>();
+        Console.WriteLine($"  FixedArray<string, 0>.GetSize() = {arr0.GetSize()}");
+
+        // 2. Multiple dependent argument refinements
+        Console.WriteLine("--- 2. Multiple dependent argument refinements ---");
+        var mat = new Matrix<3, 4>();
+        Console.WriteLine($"  Matrix<3, 4>.GetRows() = {mat.GetRows()}");
+        Console.WriteLine($"  Matrix<3, 4>.GetCols() = {mat.GetCols()}");
+        Console.WriteLine($"  Matrix<3, 4>.Describe() = {mat.Describe()}");
+
+        // 3. Mixed generic + dependent argument refinement
+        Console.WriteLine("--- 3. Mixed generic + dependent argument refinement ---");
+        var container = new Container<string, 8>("hello");
+        Console.WriteLine($"  Container<string, 8>.GetSize() = {container.GetSize()}");
+        Console.WriteLine($"  Container<string, 8>.Describe() = {container.Describe()}");
+
+        // 4. Method with single parameter refinement
+        Console.WriteLine("--- 4. Method with single parameter refinement ---");
+        var result4 = SingleParamDemo.Process(42);
+        Console.WriteLine($"  {result4}");
+
+        // 5. Method with multiple parameter refinements
+        Console.WriteLine("--- 5. Method with multiple parameter refinements ---");
+        var result5 = MultiParamDemo.Range(10, 90);
+        Console.WriteLine($"  {result5}");
+
+        // 6. Constructor with parameter refinement
+        Console.WriteLine("--- 6. Constructor with parameter refinement ---");
+        var bounded = new Bounded(25);
+        Console.WriteLine($"  {bounded.Describe()}");
+        Console.WriteLine($"  bounded.GetSize() = {bounded.GetSize()}");
+
+        // 7. Indexer with parameter refinement
+        Console.WriteLine("--- 7. Indexer with parameter refinement ---");
+        var list = new SafeList();
+        int val = list[2];
+        Console.WriteLine($"  SafeList[2] = {val}");
+        list[0] = 99;
+        Console.WriteLine($"  SafeList[0] after set = {list[0]}");
+
+        // 8. Compound predicate with `and`
+        Console.WriteLine("--- 8. Compound predicate with and ---");
+        var result8 = BoundedRange.Validate(512);
+        Console.WriteLine($"  {result8}");
+        var result8b = BoundedRange.Validate(0);
+        Console.WriteLine($"  {result8b}");
+
+        // 9. Constructing a type with valid dependent value
+        Console.WriteLine("--- 9. Constructing type with valid dependent value ---");
+        var arr100 = new FixedArray<int, 100>();
+        Console.WriteLine($"  FixedArray<int, 100>.GetSize() = {arr100.GetSize()}");
+        var mat1x1 = new Matrix<1, 1>();
+        Console.WriteLine($"  Matrix<1, 1>.Describe() = {mat1x1.Describe()}");
+
+        // 10. Calling a method with valid literal argument
+        Console.WriteLine("--- 10. Calling method with valid literal argument ---");
+        var result10 = SingleParamDemo.Process(0);
+        Console.WriteLine($"  {result10}");
+        var result10b = SingleParamDemo.Process(99);
+        Console.WriteLine($"  {result10b}");
+
+        // 11. Method with both generic constraint and parameter refinement
+        Console.WriteLine("--- 11. Method with generic constraint and parameter refinement ---");
+        var widget = new DisplayWidget(7);
+        var demo = new MixedConstraintDemo<DisplayWidget>(widget);
+        var result11 = demo.Show(3);
+        Console.WriteLine($"  {result11}");
+
+        // 12. Flow narrowing within method body
+        Console.WriteLine("--- 12. Flow narrowing within method body ---");
+        var result12 = FlowNarrowingDemo.UseNarrowed(42);
+        Console.WriteLine($"  {result12}");
+        var result12b = FlowNarrowingDemo.UseNarrowed(0);
+        Console.WriteLine($"  {result12b}");
+
+        // 13. Inheritance with fixed dependent value satisfying base constraint
+        Console.WriteLine("--- 13. Inheritance with fixed dependent value ---");
+        var small = new SmallArray();
+        Console.WriteLine($"  SmallArray : FixedArray<int, 10> constructed successfully");
+        Console.WriteLine($"  (10 satisfies constraint Size >= 0)");
+
+        // 14. Forwarding dependent parameter with implication
+        Console.WriteLine("--- 14. Forwarding dependent parameter with implication ---");
+        var wrapper = new Wrapper<5>();
+        Console.WriteLine($"  Wrapper<5> : FixedArray<string, 5> constructed successfully");
+        Console.WriteLine($"  (Wrapper's N >= 0 implies FixedArray's Size >= 0)");
+
+        // 15. Interface with parameter refinement — same constraint (Liskov)
+        Console.WriteLine("--- 15. Interface refinement — same constraint (Liskov) ---");
+        IValidator strictVal = new StrictValidator();
+        var result15 = strictVal.Validate(42);
+        Console.WriteLine($"  {result15}");
+        var result15b = strictVal.Validate(0);
+        Console.WriteLine($"  {result15b}");
+
+        // 16. Interface with parameter refinement — no constraint (Liskov)
+        Console.WriteLine("--- 16. Interface refinement — no constraint (Liskov) ---");
+        IValidator lenientVal = new LenientValidator();
+        var result16 = lenientVal.Validate(99);
+        Console.WriteLine($"  {result16}");
+        var result16b = lenientVal.Validate(0);
+        Console.WriteLine($"  {result16b}");
+
+        // 17. Interface with parameter refinement — weaker constraint (Liskov)
+        Console.WriteLine("--- 17. Interface refinement — weaker constraint (Liskov) ---");
+        IStrictProcessor weakerProc = new WeakerProcessor();
+        var result17 = weakerProc.Process(50);
+        Console.WriteLine($"  {result17}");
+        var result17b = weakerProc.Process(10);
+        Console.WriteLine($"  {result17b}");
+
+        Console.WriteLine("=== Adhoc Refinement Constraints Done ===");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

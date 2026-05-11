@@ -118,6 +118,12 @@ public sealed class CSharpEmitter
             files["DependentTypeHelpers.g.cs"] = DependentTypeHelpersGenerator.GenerateHelpersFile(usedDependentValueTypes, carrierRegistry);
         }
 
+        // Emit the MistContext runtime helper when any compilation unit uses structured context.
+        if (MistContextGenerator.UsesStructuredContext(model))
+        {
+            files["MistContext.g.cs"] = MistContextGenerator.GenerateMistContextFile();
+        }
+
         return files;
     }
 
@@ -640,6 +646,27 @@ internal sealed class CSharpSourceWriter
 
             case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
                 ScanBlockForValueReturningCalls(readonlyBlockStmt.ReadonlyBlock.Body, voidMethodNames);
+                break;
+
+            case WithVarDeclarationStatementStatementNode withVarStmt:
+                ScanExpressionForValueReturningCalls(withVarStmt.WithVarDeclaration.Initializer, voidMethodNames);
+                break;
+
+            case WithTypedDeclarationStatementStatementNode withTypedStmt:
+                ScanExpressionForValueReturningCalls(withTypedStmt.WithTypedDeclaration.Initializer, voidMethodNames);
+                break;
+
+            case WithDiscardDeclarationStatementStatementNode withDiscardStmt:
+                ScanExpressionForValueReturningCalls(withDiscardStmt.WithDiscardDeclaration.Initializer, voidMethodNames);
+                break;
+
+            case WithPushStatementStatementNode withPushStmt:
+                ScanExpressionForValueReturningCalls(withPushStmt.WithPushStatement.Value, voidMethodNames);
+                break;
+
+            case WithBlockStatementStatementNode withBlockStmt:
+                ScanExpressionForValueReturningCalls(withBlockStmt.WithBlockStatement.Expression, voidMethodNames);
+                ScanBlockForValueReturningCalls(withBlockStmt.WithBlockStatement.Body, voidMethodNames);
                 break;
         }
     }
@@ -1445,7 +1472,9 @@ internal sealed class CSharpSourceWriter
 
         if (methodDecl.Body.GetBlock() is BlockNode block)
         {
-            EmitMethodBlock(block, false);
+            var extMethodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
+            var withClauses = extMethodSymbol?.WithClauses;
+            EmitMethodBlockWithRefinementGuards(block, false, methodDecl.Parameters, withClauses);
         }
         else
         {
@@ -3067,12 +3096,30 @@ internal sealed class CSharpSourceWriter
         AppendLine($"{modifiers}{name}({parameters}){chain}");
         if (ctorDecl.Body.GetBlock() is BlockNode block)
         {
-            // Emit factory field assignments at the start of the constructor body.
-            if (_currentClassFactoryTypeParams is not null)
+            // Resolve with-clauses for the constructor.
+            var ctorSymbol = _model.GetDeclaredSymbol(ctorDecl) as Symbol;
+            var withClauses = ctorSymbol?.WithClauses;
+
+            // Collect refinement guards for constructor parameters.
+            var refinementGuards = CollectRefinementParameterGuards(ctorDecl.Parameters);
+
+            if (_currentClassFactoryTypeParams is not null || refinementGuards.Count > 0 || withClauses is { Count: > 0 })
             {
                 AppendLine("{");
                 _indentLevel++;
-                EmitFactoryFieldAssignments(_currentClassFactoryTypeParams);
+
+                // Emit with-clause peek bindings at constructor entry.
+                EmitWithClausePeekBindings(withClauses);
+
+                // Emit refinement guards (before factory field assignments).
+                EmitRefinementGuards(refinementGuards);
+
+                // Emit factory field assignments at the start of the constructor body.
+                if (_currentClassFactoryTypeParams is not null)
+                {
+                    EmitFactoryFieldAssignments(_currentClassFactoryTypeParams);
+                }
+
                 EmitBlockStatements(block);
                 _indentLevel--;
                 AppendLine("}");
@@ -3155,7 +3202,8 @@ internal sealed class CSharpSourceWriter
 
         if (methodDecl.Body.GetBlock() is BlockNode block)
         {
-            EmitMethodBlockWithRefinementGuards(block, isValueReturningVoid, methodDecl.Parameters);
+            var withClauses = methodSymbol?.WithClauses;
+            EmitMethodBlockWithRefinementGuards(block, isValueReturningVoid, methodDecl.Parameters, withClauses);
         }
         else
         {
@@ -3174,15 +3222,15 @@ internal sealed class CSharpSourceWriter
     /// emits a runtime validation guard at method entry that throws
     /// <see cref="ArgumentException"/> if the value fails the predicate.
     /// </summary>
-    private void EmitMethodBlockWithRefinementGuards(BlockNode block, bool appendImplicitReturn, ParameterListNode? paramList)
+    private void EmitMethodBlockWithRefinementGuards(BlockNode block, bool appendImplicitReturn, ParameterListNode? paramList, IReadOnlyList<ContextClauseInfo>? withClauses = null)
     {
-        // Collect refinement-typed parameters.
+        // Collect refinement-typed parameters and adhoc refinement constraints.
         var refinementGuards = CollectRefinementParameterGuards(paramList);
 
         if (refinementGuards.Count == 0)
         {
             // No refinement guards needed — emit the block normally.
-            EmitMethodBlock(block, appendImplicitReturn);
+            EmitMethodBlock(block, appendImplicitReturn, withClauses);
             return;
         }
 
@@ -3190,19 +3238,12 @@ internal sealed class CSharpSourceWriter
         AppendLine("{");
         _indentLevel++;
 
-        foreach (var (paramName, refinementType) in refinementGuards)
-        {
-            var condition = EmitRefinementPredicateCondition(refinementType.Predicate, paramName);
-            AppendLine($"if (!({condition}))");
-            _indentLevel++;
-            AppendLine($"throw new ArgumentException($\"Value {{{paramName}}} does not satisfy refinement '{refinementType.Predicate.Description}' on type '{refinementType.Name}'\", nameof({paramName}));");
-            _indentLevel--;
-        }
+        // Emit with-clause peek bindings at method entry, before refinement guards.
+        EmitWithClausePeekBindings(withClauses);
 
-        foreach (var stmt in block.Statements)
-        {
-            EmitStatement(stmt);
-        }
+        EmitRefinementGuards(refinementGuards);
+
+        EmitStatementsFromIndex(block.Statements, 0);
 
         if (appendImplicitReturn && !BlockEndsWithReturn(block))
         {
@@ -3214,12 +3255,30 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
-    /// Collects parameters from the given parameter list whose resolved type is a
-    /// <see cref="RefinementType"/>. Returns a list of (parameterName, refinementType) pairs.
+    /// Emits runtime validation guards for the given list of refinement guard entries.
+    /// Each guard emits <c>if (!(condition)) throw new ArgumentException(...);</c>.
     /// </summary>
-    private List<(string Name, RefinementType Type)> CollectRefinementParameterGuards(ParameterListNode? paramList)
+    private void EmitRefinementGuards(List<(string Name, RefinementPredicate Predicate, string TypeName)> guards)
     {
-        var guards = new List<(string Name, RefinementType Type)>();
+        foreach (var (paramName, predicate, typeName) in guards)
+        {
+            var condition = EmitRefinementPredicateCondition(predicate, paramName);
+            AppendLine($"if (!({condition}))");
+            _indentLevel++;
+            AppendLine($"throw new ArgumentException($\"Value {{{paramName}}} does not satisfy refinement '{predicate.Description}' on type '{typeName}'\", nameof({paramName}));");
+            _indentLevel--;
+        }
+    }
+
+    /// <summary>
+    /// Collects parameters from the given parameter list that require runtime refinement guards.
+    /// This includes both parameters whose declared type is a <see cref="RefinementType"/> (named
+    /// refinement types) and parameters with adhoc refinement constraints from <c>where</c> clauses.
+    /// Returns guards in left-to-right parameter declaration order.
+    /// </summary>
+    private List<(string Name, RefinementPredicate Predicate, string TypeName)> CollectRefinementParameterGuards(ParameterListNode? paramList)
+    {
+        var guards = new List<(string Name, RefinementPredicate Predicate, string TypeName)>();
         if (paramList is null) return guards;
 
         foreach (var child in paramList.Children())
@@ -3227,9 +3286,27 @@ internal sealed class CSharpSourceWriter
             if (child is ParameterNode param)
             {
                 var symbol = _model.GetDeclaredSymbol(param);
-                if (symbol?.DeclaredType is RefinementType refinementType)
+                if (symbol is null) continue;
+
+                // Check for named refinement type parameter.
+                if (symbol.DeclaredType is RefinementType refinementType)
                 {
-                    guards.Add((param.Name.Lexeme, refinementType));
+                    guards.Add((param.Name.Lexeme, refinementType.Predicate, refinementType.Name));
+                }
+                // Check for adhoc refinement constraint from where clause.
+                else
+                {
+                    var adhocPredicate = _model.GetParameterRefinement(symbol);
+                    if (adhocPredicate is not null)
+                    {
+                        // Guard elision optimization: skip the runtime guard if all call sites
+                        // pass only validated constants or arguments with provably-satisfying
+                        // refinement types (Requirements 7.3, 12.3).
+                        if (_model.IsGuardElidable(symbol))
+                            continue;
+
+                        guards.Add((param.Name.Lexeme, adhocPredicate, param.Name.Lexeme));
+                    }
                 }
             }
         }
@@ -3240,16 +3317,19 @@ internal sealed class CSharpSourceWriter
     /// <summary>
     /// Emits a method body block. For value-returning void methods, appends
     /// <c>return MistVoid.Instance;</c> if the block does not already end with a return statement.
+    /// When <paramref name="withClauses"/> is non-null and non-empty, emits
+    /// <c>var identifier = (TypeReference)MistContext.Peek&lt;TypeReference&gt;();</c>
+    /// at the start of the method body for each with-clause.
     /// </summary>
-    private void EmitMethodBlock(BlockNode block, bool appendImplicitReturn)
+    private void EmitMethodBlock(BlockNode block, bool appendImplicitReturn, IReadOnlyList<ContextClauseInfo>? withClauses = null)
     {
         AppendLine("{");
         _indentLevel++;
 
-        foreach (var stmt in block.Statements)
-        {
-            EmitStatement(stmt);
-        }
+        // Emit with-clause peek bindings at method entry.
+        EmitWithClausePeekBindings(withClauses);
+
+        EmitStatementsFromIndex(block.Statements, 0);
 
         // For value-returning void methods, ensure the method body ends with a return.
         // If the last statement is not a return, append `return MistVoid.Instance;`.
@@ -3260,6 +3340,22 @@ internal sealed class CSharpSourceWriter
 
         _indentLevel--;
         AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emits <c>var identifier = (TypeReference)MistContext.Peek&lt;TypeReference&gt;();</c>
+    /// for each with-clause binding at method entry.
+    /// </summary>
+    private void EmitWithClausePeekBindings(IReadOnlyList<ContextClauseInfo>? withClauses)
+    {
+        if (withClauses is null || withClauses.Count == 0)
+            return;
+
+        foreach (var clause in withClauses)
+        {
+            var typeName = CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(clause.ContextType));
+            AppendLine($"var {clause.Identifier} = ({typeName})MistContext.Peek<{typeName}>();");
+        }
     }
 
     /// <summary>
@@ -3419,6 +3515,76 @@ internal sealed class CSharpSourceWriter
             StaticModifierModifierNode => "static ",
             _ => "",
         };
+    }
+
+    /// <summary>
+    /// Emits an accessor declaration with optional refinement guards injected at the start
+    /// of block-bodied accessors. Used by indexer emission to validate parameter constraints.
+    /// If no guards are present, delegates to <see cref="EmitAccessorDeclaration"/>.
+    /// </summary>
+    private string EmitAccessorDeclarationWithGuards(
+        AccessorDeclarationNode accessor,
+        string? backingFieldName,
+        bool isReadonlyProperty,
+        List<(string Name, RefinementPredicate Predicate, string TypeName)> guards)
+    {
+        if (guards.Count == 0)
+            return EmitAccessorDeclaration(accessor, backingFieldName, isReadonlyProperty);
+
+        switch (accessor)
+        {
+            case BlockGetAccessorAccessorDeclarationNode blockGet:
+            {
+                var mod = EmitAccessorModifier(blockGet.AccessorModifier);
+                var body = EmitAccessorBlockWithGuards(blockGet.Body, backingFieldName, guards);
+                return $"{mod}get {body}";
+            }
+            case BlockSetAccessorAccessorDeclarationNode blockSet:
+            {
+                var mod = EmitAccessorModifier(blockSet.AccessorModifier);
+                var body = EmitAccessorBlockWithGuards(blockSet.Body, backingFieldName, guards);
+                var keyword = isReadonlyProperty ? "init" : "set";
+                return $"{mod}{keyword} {body}";
+            }
+            case BlockInitAccessorAccessorDeclarationNode blockInit:
+            {
+                var mod = EmitAccessorModifier(blockInit.AccessorModifier);
+                var body = EmitAccessorBlockWithGuards(blockInit.Body, backingFieldName, guards);
+                return $"{mod}init {body}";
+            }
+            default:
+                // Auto and expression-bodied accessors cannot have guards injected.
+                return EmitAccessorDeclaration(accessor, backingFieldName, isReadonlyProperty);
+        }
+    }
+
+    /// <summary>
+    /// Emits a block body for an accessor with refinement guards injected at the start.
+    /// </summary>
+    private string EmitAccessorBlockWithGuards(
+        BlockNode block,
+        string? backingFieldName,
+        List<(string Name, RefinementPredicate Predicate, string TypeName)> guards)
+    {
+        var sb = new StringBuilder();
+        sb.Append("{ ");
+
+        // Emit refinement guards at the start of the accessor body.
+        foreach (var (paramName, predicate, typeName) in guards)
+        {
+            var condition = EmitRefinementPredicateCondition(predicate, paramName);
+            sb.Append($"if (!({condition})) ");
+            sb.Append($"throw new ArgumentException($\"Value {{{paramName}}} does not satisfy refinement '{predicate.Description}' on type '{typeName}'\", nameof({paramName})); ");
+        }
+
+        foreach (var stmt in block.Statements)
+        {
+            sb.Append(EmitStatementInline(stmt, backingFieldName));
+            sb.Append(' ');
+        }
+
+        sb.Append('}');
+        return sb.ToString();
     }
 
     /// <summary>
@@ -3613,11 +3779,14 @@ internal sealed class CSharpSourceWriter
         var isReadonlyIndexer = indexerSymbol is not null
             && indexerSymbol.ReadonlyStatus is not ReadonlyStatus.Mutable and not ReadonlyStatus.Unknown;
 
+        // Collect refinement guards for indexer parameters.
+        var refinementGuards = CollectRefinementParameterGuards(blockIndexer.Parameters);
+
         // Build accessor list.
         var accessorParts = new List<string>();
         foreach (var accessor in blockIndexer.Accessors)
         {
-            accessorParts.Add(EmitAccessorDeclaration(accessor, null, isReadonlyIndexer));
+            accessorParts.Add(EmitAccessorDeclarationWithGuards(accessor, null, isReadonlyIndexer, refinementGuards));
         }
 
         var accessorBody = string.Join(" ", accessorParts);
@@ -3967,13 +4136,16 @@ internal sealed class CSharpSourceWriter
                 return true;
         }
 
-        // Lexical fallback: check if any type alias name appears in the source text.
-        // This catches subsequent parameters (beyond the first) that the Storm parser
-        // does not expose structurally.
+        // Lexical fallback: check if any type alias name appears in the source text
+        // as a standalone word (word-boundary match). This catches subsequent parameters
+        // (beyond the first) that the Storm parser does not expose structurally.
+        // We use ContainsWord instead of Contains to avoid false positives where an
+        // alias name is a substring of a parameter name (e.g., alias "Name" matching
+        // inside "appName").
         foreach (var sym in _model.AllSymbols)
         {
             if (sym.Kind == SymbolKind.TypeAlias
-                && sourceText.Contains(sym.Name, StringComparison.Ordinal))
+                && ContainsWord(sourceText, sym.Name))
             {
                 return true;
             }
@@ -4748,10 +4920,190 @@ internal sealed class CSharpSourceWriter
             _pendingUnionPatternBindings.Clear();
         }
 
-        foreach (var stmt in block.Statements)
+        EmitStatementsFromIndex(block.Statements, 0);
+    }
+
+    /// <summary>
+    /// Emits statements starting from the given index. When a context declaration
+    /// statement is encountered, it emits the declaration/push, wraps the remaining
+    /// statements in a try/finally block, and pops in the finally clause.
+    /// Multiple context declarations in the same scope nest try/finally blocks
+    /// so that pops happen in reverse declaration order.
+    /// </summary>
+    private void EmitStatementsFromIndex(ImmutableArray<StatementNode> statements, int startIndex)
+    {
+        for (var i = startIndex; i < statements.Length; i++)
         {
+            var stmt = statements[i];
+
+            // Check if this statement is a context declaration that needs try/finally wrapping.
+            var contextTypeName = TryGetContextDeclarationTypeName(stmt);
+            if (contextTypeName is not null)
+            {
+                EmitContextDeclarationWithWrapping(stmt, contextTypeName, statements, i + 1);
+                return; // Remaining statements are emitted inside the try block.
+            }
+
             EmitStatement(stmt);
         }
+    }
+
+    /// <summary>
+    /// Emits a context declaration statement followed by a try/finally block that
+    /// wraps all remaining statements in the scope. The finally clause pops the
+    /// context value.
+    /// </summary>
+    private void EmitContextDeclarationWithWrapping(
+        StatementNode stmt,
+        string contextTypeName,
+        ImmutableArray<StatementNode> statements,
+        int nextIndex)
+    {
+        switch (stmt)
+        {
+            case WithVarDeclarationStatementStatementNode withVarStmt:
+            {
+                var decl = withVarStmt.WithVarDeclaration;
+                var name = decl.Name.Lexeme;
+                var init = EmitExpression(decl.Initializer);
+                AppendLine($"var {name} = {init};");
+                AppendLine($"MistContext.Push<{contextTypeName}>({name});");
+                break;
+            }
+            case WithTypedDeclarationStatementStatementNode withTypedStmt:
+            {
+                var decl = withTypedStmt.WithTypedDeclaration;
+                var typeName = EmitTypeReference(decl.Type);
+                var name = decl.Name.Lexeme;
+                var init = EmitExpression(decl.Initializer);
+                AppendLine($"{typeName} {name} = {init};");
+                AppendLine($"MistContext.Push<{contextTypeName}>({name});");
+                break;
+            }
+            case WithDiscardDeclarationStatementStatementNode withDiscardStmt:
+            {
+                var decl = withDiscardStmt.WithDiscardDeclaration;
+                var init = EmitExpression(decl.Initializer);
+                AppendLine($"MistContext.Push<{contextTypeName}>({init});");
+                break;
+            }
+            case WithPushStatementStatementNode withPushStmt:
+            {
+                var value = EmitExpression(withPushStmt.WithPushStatement.Value);
+                AppendLine($"MistContext.Push<{contextTypeName}>({value});");
+                break;
+            }
+        }
+
+        AppendLine("try");
+        AppendLine("{");
+        _indentLevel++;
+        EmitStatementsFromIndex(statements, nextIndex);
+        _indentLevel--;
+        AppendLine("}");
+        AppendLine("finally");
+        AppendLine("{");
+        _indentLevel++;
+        AppendLine($"MistContext.Pop<{contextTypeName}>();");
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    /// <summary>
+    /// Attempts to resolve the C# type name for a context declaration statement.
+    /// Returns null if the statement is not a context declaration.
+    /// </summary>
+    private string? TryGetContextDeclarationTypeName(StatementNode stmt)
+    {
+        switch (stmt)
+        {
+            case WithVarDeclarationStatementStatementNode withVarStmt:
+            {
+                // Type is inferred from the initializer expression.
+                var type = _model.GetTypeOf(withVarStmt.WithVarDeclaration.Initializer);
+                return type is not null ? CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(type)) : "object";
+            }
+            case WithTypedDeclarationStatementStatementNode withTypedStmt:
+            {
+                // Type is the explicit type reference.
+                var type = _model.GetTypeOf(withTypedStmt.WithTypedDeclaration.Type);
+                if (type is not null)
+                    return CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(type));
+                // Fall back to the declared symbol's type.
+                var sym = _model.GetDeclaredSymbol(withTypedStmt.WithTypedDeclaration);
+                return sym?.DeclaredType is not null
+                    ? CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(sym.DeclaredType))
+                    : "object";
+            }
+            case WithDiscardDeclarationStatementStatementNode withDiscardStmt:
+            {
+                // Type is the explicit type reference.
+                var type = _model.GetTypeOf(withDiscardStmt.WithDiscardDeclaration.Type);
+                if (type is not null)
+                    return CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(type));
+                // Fall back to the initializer type.
+                var initType = _model.GetTypeOf(withDiscardStmt.WithDiscardDeclaration.Initializer);
+                return initType is not null
+                    ? CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(initType))
+                    : "object";
+            }
+            case WithPushStatementStatementNode withPushStmt:
+            {
+                // Type is inferred from the expression.
+                var type = _model.GetTypeOf(withPushStmt.WithPushStatement.Value);
+                return type is not null ? CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(type)) : "object";
+            }
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// Resolves type aliases for context type emission. Type aliases are resolved
+    /// to their underlying type before being used as the type argument for
+    /// MistContext.Push/Pop/Peek.
+    /// </summary>
+    private static IType ResolveContextTypeForEmission(IType type)
+    {
+        while (type is TypeAliasType alias)
+        {
+            type = alias.UnderlyingType;
+        }
+        return type;
+    }
+
+    /// <summary>
+    /// Emits a <c>with(expr) { ... }</c> context block as:
+    /// <code>
+    /// MistContext.Push&lt;T&gt;(expr);
+    /// try {
+    ///     // ... block body ...
+    /// } finally {
+    ///     MistContext.Pop&lt;T&gt;();
+    /// }
+    /// </code>
+    /// </summary>
+    private void EmitWithBlockStatement(WithBlockStatementNode withBlock)
+    {
+        var expr = EmitExpression(withBlock.Expression);
+        var type = _model.GetTypeOf(withBlock.Expression);
+        var typeName = type is not null
+            ? CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(type))
+            : "object";
+
+        AppendLine($"MistContext.Push<{typeName}>({expr});");
+        AppendLine("try");
+        AppendLine("{");
+        _indentLevel++;
+        EmitBlockStatements(withBlock.Body);
+        _indentLevel--;
+        AppendLine("}");
+        AppendLine("finally");
+        AppendLine("{");
+        _indentLevel++;
+        AppendLine($"MistContext.Pop<{typeName}>();");
+        _indentLevel--;
+        AppendLine("}");
     }
 
     private void EmitStatement(StatementNode stmt)
@@ -4785,6 +5137,9 @@ internal sealed class CSharpSourceWriter
             // Task 12.5 — Readonly blocks emit as regular blocks (no C# equivalent).
             case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
                 EmitBlock(readonlyBlockStmt.ReadonlyBlock.Body);
+                break;
+            case WithBlockStatementStatementNode withBlockStmt:
+                EmitWithBlockStatement(withBlockStmt.WithBlockStatement);
                 break;
         }
     }

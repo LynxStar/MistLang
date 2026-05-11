@@ -651,6 +651,39 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId RegexRefinementOnNonString = new("MIST_TC_REGEX_REFINEMENT");
 
+    // ── adhoc-refinement-constraints feature: compile-time enforcement ────
+
+    /// <summary>
+    /// Emitted when a dependent type argument (compile-time constant) violates the
+    /// adhoc refinement constraint on the target parameter (Requirements 5.2, 5.3).
+    /// </summary>
+    internal static readonly DiagnosticId RefinementConstraintViolation = new("MIST_REFINEMENT_0004");
+
+    /// <summary>
+    /// Emitted when a forwarded dependent parameter's adhoc constraint does not
+    /// provably imply the target parameter's adhoc constraint (Requirements 5.4, 5.5).
+    /// </summary>
+    internal static readonly DiagnosticId RefinementImplicationFailure = new("MIST_REFINEMENT_0006");
+
+    /// <summary>
+    /// Emitted when a forwarded dependent parameter has no adhoc constraint but the
+    /// target parameter requires one (Requirement 5.6).
+    /// </summary>
+    internal static readonly DiagnosticId RefinementUnconstrainedForwarding = new("MIST_REFINEMENT_0008");
+
+    /// <summary>
+    /// Emitted when a compile-time constant argument violates the adhoc refinement
+    /// constraint on a method, constructor, or indexer parameter (Requirements 6.2, 6.5, 6.6).
+    /// </summary>
+    internal static readonly DiagnosticId ParameterRefinementViolation = new("MIST_REFINEMENT_0005");
+
+    /// <summary>
+    /// Emitted when a refinement predicate uses relational patterns on a type that does
+    /// not support comparison (e.g., bool, string). Relational patterns require a comparable
+    /// type (integers, char, float, double, decimal) (Requirements 11.1–11.7, 13.6).
+    /// </summary>
+    internal static readonly DiagnosticId RefinementPredicateIncompatible = new("MIST_REFINEMENT_0007");
+
     /// <summary>
     /// Feature flag gating the operator overload-resolution path introduced by
     /// Task 14 of the Mist Standard Library spec. When <c>true</c> (the
@@ -788,6 +821,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Task 11.1: Validate that refinement predicates using property patterns only
         // reference readonly members (MIST_TC_0100, Requirements 3.1–3.4).
         CheckRefinementPredicateReadonly(model, diagnostics);
+
+        // Task 6.3: Validate that relational predicates in adhoc refinement constraints
+        // are only applied to comparable types (MIST_REFINEMENT_0007, Requirements 11.1–11.7).
+        ValidatePredicateTypeCompatibility(model, diagnostics);
 
         // Task 2.3: Validate that all enum declarations have readonly base types
         // (MIST_TC_0102, MIST_TC_0103, Requirements 2.1–2.4, 3.1–3.5).
@@ -1098,7 +1135,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (methodDecl.Body.GetBlock() is BlockNode block)
         {
             CollectClosureCapturedVariables(block);
+
+            // ── Flow narrowing: inject parameter refinement narrowing (Requirement 8.1–8.5) ──
+            var paramNarrowings = InjectParameterRefinementNarrowing(declaringNode, model);
+
             CheckBlock(block, returnType2, model, diagnostics);
+
+            // Remove parameter refinement narrowing entries after the body.
+            RemoveParameterRefinementNarrowing(paramNarrowings);
         }
     }
 
@@ -1706,7 +1750,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         if (ctorDecl.Body.GetBlock() is BlockNode ctorBlock)
+        {
+            // ── Flow narrowing: inject parameter refinement narrowing (Requirement 8.1–8.5) ──
+            var paramNarrowings = InjectParameterRefinementNarrowing(declaringNode, model);
+
             CheckBlock(ctorBlock, LegacyPrimitiveTypes.Void, model, diagnostics);
+
+            // Remove parameter refinement narrowing entries after the body.
+            RemoveParameterRefinementNarrowing(paramNarrowings);
+        }
         _insideConstructor = false;
     }
 
@@ -1832,11 +1884,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Task 5.4: Check accessor modifier restrictiveness (MIST_TC_0022).
         CheckAccessorModifierRestrictiveness(blockIndexer.Accessors, indexerModifiers, model, diagnostics);
 
+        // ── Flow narrowing: inject parameter refinement narrowing for indexer parameters (Requirement 8.1–8.5) ──
+        var paramNarrowings = InjectParameterRefinementNarrowing(declaringNode, model);
+
         // Task 5.1: Walk accessor bodies for type correctness.
         foreach (var accessor in blockIndexer.Accessors)
         {
             CheckAccessorBody(accessor, indexerType, propInfo, indexerModifiers.IsStatic, model, diagnostics);
         }
+
+        // Remove parameter refinement narrowing entries after the accessor bodies.
+        RemoveParameterRefinementNarrowing(paramNarrowings);
 
         // Task 5.9: Check for duplicate indexers (MIST_TC_0029).
         CheckDuplicateIndexer(indexerSymbol, blockIndexer, model, diagnostics);
@@ -3997,6 +4055,56 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // a clean state for each method body.
         _closureCapturedVariables.Clear();
         _ = block; // Suppress unused parameter warning.
+    }
+
+    /// <summary>
+    /// Injects flow narrowing entries for parameters that have adhoc refinement constraints.
+    /// Within the method/constructor/indexer body, these parameters are treated as having
+    /// an anonymous <see cref="RefinementType"/> (base type + predicate), allowing assignment
+    /// to named refinement types whose predicate is implied by the parameter's constraint.
+    /// Returns the list of parameter names that were narrowed, for later removal.
+    /// (Requirements 8.1–8.5)
+    /// </summary>
+    private List<string> InjectParameterRefinementNarrowing(SyntaxNode declaringNode, ISemanticModel model)
+    {
+        var narrowedParams = new List<string>();
+
+        var paramSymbols = CollectParameterSymbols(declaringNode, model);
+        foreach (var paramSymbol in paramSymbols)
+        {
+            var refinement = model.GetParameterRefinement(paramSymbol);
+            if (refinement is null)
+                continue;
+
+            var baseType = paramSymbol.DeclaredType;
+            if (baseType is null)
+                continue;
+
+            // Skip parameters captured by closures (Requirement 7.7).
+            if (_closureCapturedVariables.Contains(paramSymbol.Name))
+                continue;
+
+            // Create an anonymous RefinementType for the parameter's adhoc constraint.
+            // The name uses the parameter name to provide meaningful diagnostics.
+            var anonymousRefinement = new RefinementType(paramSymbol.Name, baseType, refinement);
+            _narrowingContext[paramSymbol.Name] = anonymousRefinement;
+            narrowedParams.Add(paramSymbol.Name);
+        }
+
+        return narrowedParams;
+    }
+
+    /// <summary>
+    /// Removes parameter refinement narrowing entries that were injected at method entry.
+    /// Only removes entries that are still present (they may have been invalidated by
+    /// reassignment within the body).
+    /// </summary>
+    private void RemoveParameterRefinementNarrowing(List<string> narrowedParams)
+    {
+        foreach (var paramName in narrowedParams)
+        {
+            _narrowingContext.Remove(paramName);
+        }
     }
 
     /// <summary>
@@ -7127,6 +7235,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
         }
+
+        // adhoc-refinement-constraints feature: validate arguments against parameter
+        // refinement constraints (Requirements 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7).
+        ValidateParameterRefinementConstraints(argList, methodSymbol, model, diagnostics, callSite);
     }
 
     /// <summary>
@@ -7251,6 +7363,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
         }
+
+        // adhoc-refinement-constraints feature: validate arguments against parameter
+        // refinement constraints (Requirements 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7).
+        ValidateParameterRefinementConstraints(argList, methodSymbol, model, diagnostics, callSite);
     }
 
     /// <summary>
@@ -7264,6 +7380,143 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             StructType st => st.TypeParameters.Count > 0 ? st.TypeParameters : null,
             InterfaceType it => it.TypeParameters.Count > 0 ? it.TypeParameters : null,
             _ => null,
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Parameter refinement constraint enforcement (MIST_REFINEMENT_0005)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates arguments against adhoc refinement constraints on parameters.
+    /// For each parameter with an adhoc refinement predicate:
+    /// - If the argument is a compile-time constant, evaluates the predicate and emits
+    ///   MIST_REFINEMENT_0005 on violation.
+    /// - If the argument is non-constant, accepts (defers to runtime guard).
+    /// - If the argument's type is a named refinement type, uses RefinementSolver.Implies
+    ///   to check if the argument's predicate implies the parameter's constraint.
+    /// </summary>
+    private static void ValidateParameterRefinementConstraints(
+        ArgumentListNode? argList,
+        ISymbol callableSymbol,
+        ISemanticModel model,
+        DiagnosticBag diagnostics,
+        SyntaxNode callSite)
+    {
+        if (argList is null)
+            return;
+
+        // Get the declaring node to resolve parameter symbols.
+        SyntaxNode declaringNode;
+        try { declaringNode = model.GetDeclaringNode(callableSymbol); }
+        catch { return; }
+
+        // Collect parameter symbols from the declaring node.
+        var paramSymbols = CollectParameterSymbols(declaringNode, model);
+        if (paramSymbols.Count == 0)
+            return;
+
+        // Collect argument expressions.
+        var argExprs = new List<ExpressionNode>();
+        foreach (var child in argList.Children())
+        {
+            if (child is ExpressionNode expr)
+                argExprs.Add(expr);
+        }
+
+        // Check each argument against the corresponding parameter's refinement constraint.
+        var count = Math.Min(argExprs.Count, paramSymbols.Count);
+        for (var i = 0; i < count; i++)
+        {
+            var paramRefinement = model.GetParameterRefinement(paramSymbols[i]);
+            if (paramRefinement is null)
+                continue;
+
+            var argExpr = argExprs[i];
+            var argType = model.GetTypeOf(argExpr);
+
+            // Case 1: Argument's type is a named refinement type — check implication.
+            if (argType is RefinementType sourceRefinement)
+            {
+                if (RefinementSolver.Implies(sourceRefinement.Predicate, paramRefinement))
+                {
+                    // Source predicate implies parameter constraint — accept.
+                    continue;
+                }
+
+                // Implication not provable — but this is not an error for parameter
+                // refinement constraints. The runtime guard will catch it.
+                // (Only emit an error for compile-time constants that violate.)
+                model.RecordGuardNeeded(paramSymbols[i]);
+                continue;
+            }
+
+            // Case 2: Argument is a compile-time constant — evaluate predicate.
+            var constantValue = TryExtractLiteralConstantValue(argExpr);
+            if (constantValue is not null)
+            {
+                if (!paramRefinement.Evaluate(constantValue))
+                {
+                    // Determine the callable description for the diagnostic message.
+                    var callableName = GetCallableDescription(callableSymbol);
+                    diagnostics.Add(MakeDiagnostic(
+                        ParameterRefinementViolation.Value,
+                        $"Argument '{constantValue}' does not satisfy refinement constraint '{paramRefinement.Description}' on parameter '{paramSymbols[i].Name}' of {callableName}.",
+                        argExpr,
+                        model));
+                }
+                continue;
+            }
+
+            // Case 3: Non-constant argument — accept (defer to runtime guard).
+            model.RecordGuardNeeded(paramSymbols[i]);
+        }
+    }
+
+    /// <summary>
+    /// Collects parameter symbols from a method, constructor, or indexer declaring node.
+    /// </summary>
+    private static List<ISymbol> CollectParameterSymbols(SyntaxNode declaringNode, ISemanticModel model)
+    {
+        var paramList = new List<ISymbol>();
+
+        ParameterListNode? parameters = declaringNode switch
+        {
+            MethodDeclarationNode method => method.Parameters,
+            ConstructorDeclarationNode ctor => ctor.Parameters,
+            BlockIndexerIndexerDeclarationNode indexer => indexer.Parameters,
+            _ => null,
+        };
+
+        if (parameters is null)
+            return paramList;
+
+        foreach (var child in parameters.Children())
+        {
+            if (child is ParameterNode paramNode)
+            {
+                var paramSym = model.GetDeclaredSymbol(paramNode);
+                if (paramSym is not null)
+                    paramList.Add(paramSym);
+            }
+        }
+
+        return paramList;
+    }
+
+    /// <summary>
+    /// Returns a human-readable description of the callable for diagnostic messages.
+    /// For methods: "method '{Name}'"
+    /// For constructors: "constructor '{TypeName}'"
+    /// For indexers: "indexer '{TypeName}'"
+    /// </summary>
+    private static string GetCallableDescription(ISymbol callableSymbol)
+    {
+        return callableSymbol.Kind switch
+        {
+            SymbolKind.Constructor => $"constructor '{FindDeclaringType(callableSymbol)?.DisplayName ?? callableSymbol.Name}'",
+            SymbolKind.Indexer => $"indexer '{FindDeclaringType(callableSymbol)?.DisplayName ?? callableSymbol.Name}'",
+            _ => $"method '{callableSymbol.Name}'",
         };
     }
 
@@ -7772,10 +8025,109 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
+        // adhoc-refinement-constraints feature: validate index argument against
+        // parameter refinement constraints on the indexer (Requirements 6.6, 6.7).
+        if (targetType is not null && targetType is not ArrayType)
+        {
+            ValidateIndexerParameterRefinement(indexSuffix, targetType, model, diagnostics);
+        }
+
         // Verify the target is an array type (the target type should be ArrayType).
         // If targetType is not an array, the semantic model builder would have
         // already flagged it or assigned ErrorType. We don't emit a separate
         // diagnostic here to avoid cascading.
+    }
+
+    /// <summary>
+    /// Validates the index argument against parameter refinement constraints on a custom indexer.
+    /// Finds the indexer symbol on the target type and checks the argument against its first
+    /// parameter's adhoc refinement predicate.
+    /// </summary>
+    private static void ValidateIndexerParameterRefinement(
+        IndexSuffixPostfixSuffixNode indexSuffix,
+        IType targetType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Find the indexer symbol on the target type.
+        var memberScope = targetType switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            ConstructedType cst => cst.MemberScope,
+            _ => null,
+        };
+
+        if (memberScope is null)
+            return;
+
+        ISymbol? indexerSymbol = null;
+        foreach (var member in memberScope.Members)
+        {
+            if (member.Kind == SymbolKind.Indexer)
+            {
+                indexerSymbol = member;
+                break;
+            }
+        }
+
+        if (indexerSymbol is null)
+            return;
+
+        // Get the declaring node to find parameter symbols.
+        SyntaxNode declaringNode;
+        try { declaringNode = model.GetDeclaringNode(indexerSymbol); }
+        catch { return; }
+
+        if (declaringNode is not BlockIndexerIndexerDeclarationNode indexerDecl || indexerDecl.Parameters is null)
+            return;
+
+        // Get the first parameter symbol and check its refinement.
+        foreach (var child in indexerDecl.Parameters.Children())
+        {
+            if (child is ParameterNode paramNode)
+            {
+                var paramSym = model.GetDeclaredSymbol(paramNode);
+                if (paramSym is null)
+                    break;
+
+                var paramRefinement = model.GetParameterRefinement(paramSym);
+                if (paramRefinement is null)
+                    break;
+
+                var argType = model.GetTypeOf(indexSuffix.Index);
+
+                // Case 1: Argument's type is a named refinement type — check implication.
+                if (argType is RefinementType sourceRefinement)
+                {
+                    if (RefinementSolver.Implies(sourceRefinement.Predicate, paramRefinement))
+                        break; // Implication holds — accept.
+                    // Implication not provable — defer to runtime guard.
+                    model.RecordGuardNeeded(paramSym);
+                    break;
+                }
+
+                // Case 2: Argument is a compile-time constant — evaluate predicate.
+                var constantValue = TryExtractLiteralConstantValue(indexSuffix.Index);
+                if (constantValue is not null)
+                {
+                    if (!paramRefinement.Evaluate(constantValue))
+                    {
+                        var typeName = FindDeclaringType(indexerSymbol)?.DisplayName ?? targetType.DisplayName;
+                        diagnostics.Add(MakeDiagnostic(
+                            ParameterRefinementViolation.Value,
+                            $"Argument '{constantValue}' does not satisfy refinement constraint '{paramRefinement.Description}' on parameter '{paramSym.Name}' of indexer '{typeName}'.",
+                            indexSuffix.Index,
+                            model));
+                    }
+                    break;
+                }
+
+                // Case 3: Non-constant argument — accept (defer to runtime guard).
+                model.RecordGuardNeeded(paramSym);
+                break;
+            }
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -7991,6 +8343,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 case OverloadResolutionStatus.Success:
                     // Resolved successfully — fall through to initializer check.
+                    // Validate parameter refinement constraints on the resolved constructor.
+                    ValidateParameterRefinementConstraints(objectCreation.Arguments, result.BestCandidate!, model, diagnostics, objectCreation);
                     break;
             }
         }
@@ -8005,6 +8359,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     $"Type '{createdType.DisplayName}' does not contain a constructor matching the given arguments",
                     objectCreation,
                     model));
+            }
+            else
+            {
+                // Constructor matches — validate parameter refinement constraints.
+                ValidateParameterRefinementConstraints(objectCreation.Arguments, constructors[0], model, diagnostics, objectCreation);
             }
         }
 
@@ -8357,7 +8716,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return;
 
                 case OverloadResolutionStatus.Success:
-                    // Resolved successfully — no diagnostic needed.
+                    // Resolved successfully — validate parameter refinement constraints.
+                    ValidateParameterRefinementConstraints(arguments, result.BestCandidate!, model, diagnostics, chain);
                     return;
             }
         }
@@ -8372,6 +8732,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     $"No constructor on '{targetType.DisplayName}' matches the chained arguments",
                     chain,
                     model));
+            }
+            else
+            {
+                // Constructor matches — validate parameter refinement constraints.
+                ValidateParameterRefinementConstraints(arguments, candidateConstructors[0], model, diagnostics, chain);
             }
         }
     }
@@ -12947,6 +13312,77 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         argNode,
                         model));
                 }
+                else
+                {
+                    // Check MIST_REFINEMENT_0004/0006/0008: Adhoc refinement constraint validation.
+                    ValidateAdhocConstraintForDependentArg(
+                        depParam, depArg, constructedType, i, argNode, model, diagnostics);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates an adhoc refinement constraint on a dependent type parameter against
+    /// the provided argument. Handles two cases:
+    /// <list type="bullet">
+    ///   <item>Concrete constant value → evaluate predicate, emit MIST_REFINEMENT_0004 on violation.</item>
+    ///   <item>Forwarded dependent parameter → check implication, emit MIST_REFINEMENT_0006 or 0008.</item>
+    /// </list>
+    /// </summary>
+    private static void ValidateAdhocConstraintForDependentArg(
+        DependentTypeParameterType depParam,
+        DependentValueArgument depArg,
+        ConstructedType constructedType,
+        int argIndex,
+        SyntaxNode argNode,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var targetConstraint = depParam.AdhocConstraint;
+        if (targetConstraint is null)
+            return;
+
+        // Determine if this is a forwarded dependent parameter or a concrete constant.
+        var isForwarded = argIndex < constructedType.TypeArguments.Count
+                          && constructedType.TypeArguments[argIndex] is DependentTypeParameterType forwardedParam;
+
+        if (isForwarded)
+        {
+            // Forwarding case: check implication between source and target constraints.
+            var sourceParam = (DependentTypeParameterType)constructedType.TypeArguments[argIndex];
+            var sourceConstraint = sourceParam.AdhocConstraint;
+
+            if (sourceConstraint is null)
+            {
+                // MIST_REFINEMENT_0008: Source has no constraint, target requires one.
+                diagnostics.Add(MakeDiagnostic(
+                    RefinementUnconstrainedForwarding.Value,
+                    $"Cannot forward dependent parameter '{sourceParam.Name}' with no constraint to parameter '{depParam.Name}' with constraint '{targetConstraint.Description}' because the compiler cannot prove the implication.",
+                    argNode,
+                    model));
+            }
+            else if (!RefinementSolver.Implies(sourceConstraint, targetConstraint))
+            {
+                // MIST_REFINEMENT_0006: Source constraint does not imply target constraint.
+                diagnostics.Add(MakeDiagnostic(
+                    RefinementImplicationFailure.Value,
+                    $"Cannot forward dependent parameter '{sourceParam.Name}' with constraint '{sourceConstraint.Description}' to parameter '{depParam.Name}' with constraint '{targetConstraint.Description}' because the compiler cannot prove the implication.",
+                    argNode,
+                    model));
+            }
+        }
+        else
+        {
+            // Concrete constant case: evaluate the predicate against the value.
+            if (!targetConstraint.Evaluate(depArg.Value))
+            {
+                var typeName = constructedType.GenericDefinition.DisplayName;
+                diagnostics.Add(MakeDiagnostic(
+                    RefinementConstraintViolation.Value,
+                    $"Dependent type argument '{depArg.DisplayValue}' does not satisfy refinement constraint '{targetConstraint.Description}' on parameter '{depParam.Name}' of type '{typeName}'.",
+                    argNode,
+                    model));
             }
         }
     }
@@ -12997,7 +13433,109 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // by the semantic model builder during type argument resolution. The
             // DependentValueArgument's ValueType is set from the parameter's ValueType
             // during resolution, so mismatches are caught at the semantic level.
+
+            // Check adhoc refinement constraint on the dependent parameter.
+            if (depParam.AdhocConstraint is { } constraint)
+            {
+                ValidateMethodCallAdhocConstraint(depParam, constraint, argNode, model, diagnostics);
+            }
         }
+    }
+
+    /// <summary>
+    /// Validates an adhoc refinement constraint on a method's dependent type parameter
+    /// against the provided type argument. Extracts the constant value from the AST node
+    /// and evaluates the predicate, or checks implication for forwarded parameters.
+    /// </summary>
+    private static void ValidateMethodCallAdhocConstraint(
+        DependentTypeParameterType depParam,
+        RefinementPredicate constraint,
+        TypeArgumentNode argNode,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Check if this is a forwarded dependent parameter.
+        if (argNode is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg
+            && typeRefArg.Type is NamedTypeRefTypeReferenceNode namedRef
+            && namedRef.TypeArgs is null
+            && !namedRef.ArrayRank.HasValue)
+        {
+            var resolvedType = model.GetTypeOf(namedRef);
+            if (resolvedType is DependentTypeParameterType forwardedParam)
+            {
+                // Forwarding case: check implication.
+                var sourceConstraint = forwardedParam.AdhocConstraint;
+                if (sourceConstraint is null)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        RefinementUnconstrainedForwarding.Value,
+                        $"Cannot forward dependent parameter '{forwardedParam.Name}' with no constraint to parameter '{depParam.Name}' with constraint '{constraint.Description}' because the compiler cannot prove the implication.",
+                        argNode,
+                        model));
+                }
+                else if (!RefinementSolver.Implies(sourceConstraint, constraint))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        RefinementImplicationFailure.Value,
+                        $"Cannot forward dependent parameter '{forwardedParam.Name}' with constraint '{sourceConstraint.Description}' to parameter '{depParam.Name}' with constraint '{constraint.Description}' because the compiler cannot prove the implication.",
+                        argNode,
+                        model));
+                }
+                return;
+            }
+        }
+
+        // Concrete constant case: extract the value and evaluate.
+        var constantValue = TryExtractConstantFromTypeArgNode(argNode);
+        if (constantValue is not null && !constraint.Evaluate(constantValue))
+        {
+            var displayValue = ExtractTypeArgumentText(argNode);
+            diagnostics.Add(MakeDiagnostic(
+                RefinementConstraintViolation.Value,
+                $"Dependent type argument '{displayValue}' does not satisfy refinement constraint '{constraint.Description}' on parameter '{depParam.Name}'.",
+                argNode,
+                model));
+        }
+    }
+
+    /// <summary>
+    /// Extracts a compile-time constant value from a <see cref="TypeArgumentNode"/>.
+    /// Returns <c>null</c> if the value cannot be extracted.
+    /// </summary>
+    private static object? TryExtractConstantFromTypeArgNode(TypeArgumentNode argNode)
+    {
+        return argNode switch
+        {
+            IntegerLiteralTypeArgumentTypeArgumentNode intLit =>
+                long.TryParse(intLit.Literal.Lexeme, out var v) ? v : null,
+            NegatedIntegerTypeArgumentTypeArgumentNode negLit =>
+                long.TryParse(negLit.Literal.Lexeme, out var v) ? -v : null,
+            HexLiteralTypeArgumentTypeArgumentNode hexLit =>
+                TryParseHexTypeArg(hexLit.Literal.Lexeme),
+            BinaryLiteralTypeArgumentTypeArgumentNode binLit =>
+                TryParseBinaryTypeArg(binLit.Literal.Lexeme),
+            TrueLiteralTypeArgumentTypeArgumentNode => true,
+            FalseLiteralTypeArgumentTypeArgumentNode => false,
+            CharLiteralTypeArgumentTypeArgumentNode charLit =>
+                charLit.Literal.Lexeme.Length >= 3 ? charLit.Literal.Lexeme[1] : null,
+            _ => null,
+        };
+    }
+
+    private static object? TryParseHexTypeArg(string lexeme)
+    {
+        var hexStr = lexeme.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            ? lexeme[2..] : lexeme;
+        return long.TryParse(hexStr, System.Globalization.NumberStyles.HexNumber, null, out var v)
+            ? v : null;
+    }
+
+    private static object? TryParseBinaryTypeArg(string lexeme)
+    {
+        var binStr = lexeme.StartsWith("0b", StringComparison.OrdinalIgnoreCase)
+            ? lexeme[2..] : lexeme;
+        try { return Convert.ToInt64(binStr, 2); }
+        catch { return null; }
     }
 
     /// <summary>
@@ -13199,6 +13737,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// violations. When a type argument at a dependent parameter position is itself a
     /// <see cref="DependentTypeParameterType"/> (forwarded from the derived type), validates
     /// that the derived parameter's value type can widen to the base parameter's value type.
+    /// Also validates adhoc refinement constraints: forwarded parameters must have constraints
+    /// that imply the base parameter's constraint, and fixed values must satisfy the constraint.
     /// </summary>
     private static void ValidateDependentForwardingForConstructedBase(
         IType derivedType,
@@ -13219,24 +13759,69 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (baseTypeParams[i] is not DependentTypeParameterType baseDepParam)
                 continue;
 
-            // Only check forwarded parameters — if the type argument at this position
-            // is a DependentTypeParameterType, it means the derived type is forwarding
-            // its own dependent parameter to the base.
-            if (baseTypeArgs[i] is not DependentTypeParameterType derivedDepParam)
-                continue;
-
-            // Validate widening: derived parameter's value type must be implicitly
-            // convertible (widenable) to the base parameter's value type.
-            if (!IsImplicitlyWidenable(derivedDepParam.ValueType, baseDepParam.ValueType))
+            if (baseTypeArgs[i] is DependentTypeParameterType derivedDepParam)
             {
-                var derivedTypeName = derivedType.DisplayName;
-                var baseTypeName = baseConstructed.GenericDefinition.DisplayName;
+                // Forwarded parameter case.
 
-                diagnostics.Add(MakeDiagnostic(
-                    DependentNarrowingViolation.Value,
-                    $"Dependent type parameter '{derivedDepParam.Name}' of type '{derivedDepParam.ValueType.DisplayName}' on '{derivedTypeName}' cannot be forwarded to parameter '{baseDepParam.Name}' of type '{baseDepParam.ValueType.DisplayName}' on '{baseTypeName}' because '{derivedDepParam.ValueType.DisplayName}' is not implicitly convertible to '{baseDepParam.ValueType.DisplayName}'.",
-                    declaringNode,
-                    model));
+                // Validate widening: derived parameter's value type must be implicitly
+                // convertible (widenable) to the base parameter's value type.
+                if (!IsImplicitlyWidenable(derivedDepParam.ValueType, baseDepParam.ValueType))
+                {
+                    var derivedTypeName = derivedType.DisplayName;
+                    var baseTypeName = baseConstructed.GenericDefinition.DisplayName;
+
+                    diagnostics.Add(MakeDiagnostic(
+                        DependentNarrowingViolation.Value,
+                        $"Dependent type parameter '{derivedDepParam.Name}' of type '{derivedDepParam.ValueType.DisplayName}' on '{derivedTypeName}' cannot be forwarded to parameter '{baseDepParam.Name}' of type '{baseDepParam.ValueType.DisplayName}' on '{baseTypeName}' because '{derivedDepParam.ValueType.DisplayName}' is not implicitly convertible to '{baseDepParam.ValueType.DisplayName}'.",
+                        declaringNode,
+                        model));
+                }
+
+                // Validate adhoc refinement constraint implication for forwarded parameters.
+                var targetConstraint = baseDepParam.AdhocConstraint;
+                if (targetConstraint is not null)
+                {
+                    var sourceConstraint = derivedDepParam.AdhocConstraint;
+                    if (sourceConstraint is null)
+                    {
+                        // MIST_REFINEMENT_0008: Source has no constraint, target requires one.
+                        diagnostics.Add(MakeDiagnostic(
+                            RefinementUnconstrainedForwarding.Value,
+                            $"Cannot forward dependent parameter '{derivedDepParam.Name}' with no constraint to parameter '{baseDepParam.Name}' with constraint '{targetConstraint.Description}' because the compiler cannot prove the implication.",
+                            declaringNode,
+                            model));
+                    }
+                    else if (!RefinementSolver.Implies(sourceConstraint, targetConstraint))
+                    {
+                        // MIST_REFINEMENT_0006: Source constraint does not imply target constraint.
+                        diagnostics.Add(MakeDiagnostic(
+                            RefinementImplicationFailure.Value,
+                            $"Cannot forward dependent parameter '{derivedDepParam.Name}' with constraint '{sourceConstraint.Description}' to parameter '{baseDepParam.Name}' with constraint '{targetConstraint.Description}' because the compiler cannot prove the implication.",
+                            declaringNode,
+                            model));
+                    }
+                }
+            }
+            else
+            {
+                // Fixed value case: a concrete value is provided for the base's dependent parameter.
+                // Validate that the fixed value satisfies the base parameter's adhoc constraint.
+                var targetConstraint = baseDepParam.AdhocConstraint;
+                if (targetConstraint is not null
+                    && baseConstructed.DependentArguments is not null
+                    && i < baseConstructed.DependentArguments.Count
+                    && baseConstructed.DependentArguments[i] is { } depArg)
+                {
+                    if (!targetConstraint.Evaluate(depArg.Value))
+                    {
+                        var typeName = baseConstructed.GenericDefinition.DisplayName;
+                        diagnostics.Add(MakeDiagnostic(
+                            RefinementConstraintViolation.Value,
+                            $"Dependent type argument '{depArg.DisplayValue}' does not satisfy refinement constraint '{targetConstraint.Description}' on parameter '{baseDepParam.Name}' of type '{typeName}'.",
+                            declaringNode,
+                            model));
+                    }
+                }
             }
         }
     }
@@ -13304,6 +13889,264 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             "Boolean" => "bool",
             "Char" => "char",
             _ => displayName,
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Predicate-type compatibility validation (Requirements 11.1–11.7, 13.6)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Display names of types that support relational predicates in adhoc refinement
+    /// constraints. Includes all numeric types and <c>char</c>.
+    /// </summary>
+    private static readonly HashSet<string> ComparableRefinementTypeNames = new(StringComparer.Ordinal)
+    {
+        // Legacy keyword names.
+        "int", "uint", "long", "ulong",
+        "short", "ushort", "byte", "sbyte",
+        "char", "float", "double", "decimal",
+
+        // Stdlib simple names.
+        "Int32", "UInt32", "Int64", "UInt64",
+        "Int16", "UInt16", "Byte", "SByte",
+        "Char", "Single", "Double", "Decimal",
+    };
+
+    /// <summary>
+    /// Validates that adhoc refinement constraint predicates are compatible with the
+    /// type of the constrained name. Relational predicates (>, <, >=, <=) require a
+    /// comparable type (numeric + char). Constant patterns and <c>and</c> combinators
+    /// are valid on all equality-comparable types.
+    /// Emits <c>MIST_REFINEMENT_0007</c> when a relational predicate is applied to
+    /// a non-comparable type (e.g., <c>bool</c>, <c>string</c>).
+    /// </summary>
+    private static void ValidatePredicateTypeCompatibility(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Origin == SymbolOrigin.Backend)
+                continue;
+
+            var declaringNode = model.GetDeclaringNode(symbol);
+
+            // Check dependent type parameters with adhoc constraints.
+            var typeParams = GetTypeParametersForSymbol(symbol);
+            if (typeParams is not null)
+            {
+                foreach (var tp in typeParams)
+                {
+                    if (tp is DependentTypeParameterType depParam && depParam.AdhocConstraint is { } constraint)
+                    {
+                        if (PredicateContainsRelationalPattern(constraint.AstNode)
+                            && !IsComparableRefinementType(depParam.ValueType))
+                        {
+                            var clauseNode = FindAdhocConstraintClauseNode(declaringNode, depParam.Name);
+                            diagnostics.Add(MakeDiagnostic(
+                                RefinementPredicateIncompatible.Value,
+                                $"Refinement predicate '{constraint.Description}' is not valid for type '{depParam.ValueType.DisplayName}'. Relational patterns require a comparable type.",
+                                clauseNode ?? declaringNode,
+                                model));
+                        }
+                    }
+                }
+            }
+
+            // Check parameter refinements.
+            switch (symbol.Kind)
+            {
+                case SymbolKind.Method:
+                case SymbolKind.Constructor:
+                case SymbolKind.Indexer:
+                    CheckParameterRefinementCompatibility(symbol, declaringNode, model, diagnostics);
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks parameter refinement predicates on a method, constructor, or indexer for
+    /// type compatibility. Emits <c>MIST_REFINEMENT_0007</c> if a relational predicate
+    /// is applied to a non-comparable parameter type.
+    /// </summary>
+    private static void CheckParameterRefinementCompatibility(
+        ISymbol symbol,
+        SyntaxNode declaringNode,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Get the parameter list from the declaring node.
+        var paramNodes = GetParameterNodes(declaringNode);
+        if (paramNodes is null)
+            return;
+
+        foreach (var paramNode in paramNodes)
+        {
+            if (paramNode is not ParameterNode param)
+                continue;
+
+            // Look up the parameter symbol in the semantic model.
+            var paramSymbol = model.GetDeclaredSymbol(param);
+            if (paramSymbol is null)
+                continue;
+
+            var refinement = model.GetParameterRefinement(paramSymbol);
+            if (refinement is null)
+                continue;
+
+            var paramType = paramSymbol.DeclaredType;
+            if (paramType is null)
+                continue;
+
+            if (PredicateContainsRelationalPattern(refinement.AstNode)
+                && !IsComparableRefinementType(paramType))
+            {
+                var clauseNode = FindAdhocConstraintClauseNode(declaringNode, param.Name.Lexeme);
+                diagnostics.Add(MakeDiagnostic(
+                    RefinementPredicateIncompatible.Value,
+                    $"Refinement predicate '{refinement.Description}' is not valid for type '{paramType.DisplayName}'. Relational patterns require a comparable type.",
+                    clauseNode ?? declaringNode,
+                    model));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns the type parameters for a symbol, handling different symbol kinds.
+    /// </summary>
+    private static IReadOnlyList<IType>? GetTypeParametersForSymbol(ISymbol symbol)
+    {
+        return symbol.DeclaredType switch
+        {
+            ClassType classType => classType.TypeParameters,
+            StructType structType => structType.TypeParameters,
+            InterfaceType interfaceType => interfaceType.TypeParameters,
+            TraitType traitType => traitType.TypeParameters,
+            _ => symbol is Symbol s && s.TypeParameters.Count > 0 ? s.TypeParameters : null,
+        };
+    }
+
+    /// <summary>
+    /// Returns the parameter nodes from a declaration node.
+    /// </summary>
+    private static IEnumerable<SyntaxNode>? GetParameterNodes(SyntaxNode declaringNode)
+    {
+        ParameterListNode? paramList = declaringNode switch
+        {
+            MethodDeclarationNode methodDecl => methodDecl.Parameters,
+            ConstructorDeclarationNode ctorDecl => ctorDecl.Parameters,
+            BlockIndexerIndexerDeclarationNode indexerDecl => indexerDecl.Parameters,
+            InterfaceMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Parameters,
+            _ => null,
+        };
+
+        return paramList?.Children();
+    }
+
+    /// <summary>
+    /// Determines whether a type is comparable for refinement predicate purposes.
+    /// Comparable types are: all integer types, char, float, double, decimal.
+    /// Non-comparable types include: bool, string, and user-defined types.
+    /// </summary>
+    private static bool IsComparableRefinementType(IType type)
+    {
+        if (IsErrorType(type))
+            return true; // Suppress cascading errors.
+
+        return ComparableRefinementTypeNames.Contains(type.DisplayName);
+    }
+
+    /// <summary>
+    /// Determines whether an <see cref="AndPatternNode"/> contains any relational patterns
+    /// (>, <, >=, <=). Returns false if the predicate only contains constant patterns
+    /// and <c>and</c> combinators.
+    /// </summary>
+    private static bool PredicateContainsRelationalPattern(AndPatternNode andPattern)
+    {
+        if (UnaryPatternContainsRelational(andPattern.Left))
+            return true;
+
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
+            if (UnaryPatternContainsRelational(andPattern.Right))
+                return true;
+        }
+
+        if (!andPattern.UnaryPatterns.IsDefaultOrEmpty)
+        {
+            foreach (var part in andPattern.UnaryPatterns)
+            {
+                if (UnaryPatternContainsRelational(part))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether a <see cref="UnaryPatternNode"/> contains a relational pattern.
+    /// </summary>
+    private static bool UnaryPatternContainsRelational(UnaryPatternNode unary)
+    {
+        return unary switch
+        {
+            DirectPatternUnaryPatternNode direct => PrimaryPatternIsRelational(direct.Primary),
+            NotPatternUnaryPatternNode not => PrimaryPatternIsRelational(not.Operand),
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Checks whether a <see cref="PrimaryPatternNode"/> is a relational pattern.
+    /// </summary>
+    private static bool PrimaryPatternIsRelational(PrimaryPatternNode primary)
+    {
+        return primary is GreaterThanRelationalPatternPrimaryPatternNode
+            or LessThanRelationalPatternPrimaryPatternNode
+            or GreaterThanOrEqualRelationalPatternPrimaryPatternNode
+            or LessThanOrEqualRelationalPatternPrimaryPatternNode;
+    }
+
+    /// <summary>
+    /// Finds the <see cref="AdhocRefinementConstraintWhereClauseNode"/> for a given name
+    /// on a declaration node, for use as the diagnostic location.
+    /// </summary>
+    private static SyntaxNode? FindAdhocConstraintClauseNode(SyntaxNode declaringNode, string name)
+    {
+        var constraints = GetWhereClausesFromDeclaration(declaringNode);
+        if (constraints.IsDefaultOrEmpty)
+            return null;
+
+        foreach (var clause in constraints)
+        {
+            if (clause is AdhocRefinementConstraintWhereClauseNode refinement
+                && refinement.Name.Lexeme == name)
+            {
+                return refinement;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the where clauses from a declaration node.
+    /// </summary>
+    private static ImmutableArray<WhereClauseNode> GetWhereClausesFromDeclaration(SyntaxNode declaringNode)
+    {
+        return declaringNode switch
+        {
+            ClassDeclarationNode classDecl => classDecl.Constraints,
+            StructDeclarationNode structDecl => structDecl.Constraints,
+            InterfaceDeclarationNode interfaceDecl => interfaceDecl.Constraints,
+            TraitDeclarationNode traitDecl => traitDecl.Constraints,
+            MethodDeclarationNode methodDecl => methodDecl.Constraints,
+            InterfaceMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Constraints,
+            TypeAliasDeclarationNode aliasDecl => aliasDecl.Constraints,
+            ConstructorDeclarationNode ctorDecl => ctorDecl.Constraints,
+            BlockIndexerIndexerDeclarationNode indexerDecl => indexerDecl.Constraints,
+            _ => ImmutableArray<WhereClauseNode>.Empty,
         };
     }
 }

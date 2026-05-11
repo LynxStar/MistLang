@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Mist.Driver.Contracts;
 using Mist.Semantics.Model;
+using Mist.Semantics.Model.Types;
 
 namespace Mist.Semantics.Contracts;
 
@@ -75,4 +76,23 @@ public interface ISemanticModel
     /// and consumed by the type checker during member lookup fallback.
     /// </summary>
     ExtensionRegistry ExtensionRegistry { get; }
+
+    /// <summary>
+    /// Returns the adhoc refinement predicate for a parameter symbol, or null if none.
+    /// </summary>
+    RefinementPredicate? GetParameterRefinement(ISymbol parameterSymbol);
+
+    /// <summary>
+    /// Records that a parameter with a refinement constraint has at least one call site
+    /// that cannot be statically validated (non-constant, non-refinement-typed argument),
+    /// meaning its runtime guard cannot be elided.
+    /// </summary>
+    void RecordGuardNeeded(ISymbol parameterSymbol);
+
+    /// <summary>
+    /// Returns true if the parameter has a refinement constraint and all call sites pass
+    /// only validated constants or arguments with provably-satisfying refinement types,
+    /// meaning the runtime guard can be safely elided.
+    /// </summary>
+    bool IsGuardElidable(ISymbol parameterSymbol);
 }

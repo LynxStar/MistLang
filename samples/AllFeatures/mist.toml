@@ -92,3 +92,9 @@ path = "../EnumReadonlyRestriction"
 
 [[references]]
 path = "../RegexLiterals"
+
+[[references]]
+path = "../StructuredContext"
+
+[[references]]
+path = "../AdhocRefinementConstraints"

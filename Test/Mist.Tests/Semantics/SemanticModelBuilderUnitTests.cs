@@ -1263,4 +1263,399 @@ public class SemanticModelBuilderUnitTests
     ;
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // 9. Pass 1 with-clause extraction on method-like declarations
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void WithClause_OnMethod_ResolvesTypeAndStoresOnSymbol()
+    {
+        // class MyCtx { }
+        // class C { void M() with MyCtx ctx { } }
+        var ctxClassDecl = new ClassDeclarationNode
+        {
+            Name = MakeToken("MyCtx"),
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
+        };
+
+        var methodDecl = new MethodDeclarationNode
+        {
+            Name = MakeToken("M"),
+            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            Parameters = null,
+            WithClauses = ImmutableArray.Create(new WithClauseNode
+            {
+                Type = new NamedTypeRefTypeReferenceNode
+                {
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken("MyCtx"),
+                        Span = new Storm.Runtime.SourceSpan(0, 5),
+                    },
+                },
+                Name = MakeToken("ctx"),
+            }),
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+        };
+
+        var classDecl = new ClassDeclarationNode
+        {
+            Name = MakeToken("C"),
+            Members = ImmutableArray.Create<MemberDeclarationNode>(
+                new MethodMemberMemberDeclarationNode { Method = methodDecl }),
+        };
+
+        var ast = new CompilationUnitNode
+        {
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = ctxClassDecl },
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+        };
+
+        var (model, diagnostics) = BuildModelWithDiagnostics(ast);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_CTX_UNDEFINED_TYPE");
+
+        var methodSymbol = model.AllSymbols
+            .OfType<Symbol>()
+            .First(s => s.Name == "M" && s.Kind == SymbolKind.Method);
+
+        Assert.Single(methodSymbol.WithClauses);
+        Assert.Equal("ctx", methodSymbol.WithClauses[0].Identifier);
+        Assert.Equal("MyCtx", methodSymbol.WithClauses[0].ContextType.DisplayName);
+    }
+
+    [Fact]
+    public void WithClause_OnConstructor_ResolvesTypeAndStoresOnSymbol()
+    {
+        // class MyCtx { }
+        // class C { C() with MyCtx ctx { } }
+        var ctxClassDecl = new ClassDeclarationNode
+        {
+            Name = MakeToken("MyCtx"),
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
+        };
+
+        var ctorDecl = new ConstructorDeclarationNode
+        {
+            Name = MakeToken("C"),
+            WithClauses = ImmutableArray.Create(new WithClauseNode
+            {
+                Type = new NamedTypeRefTypeReferenceNode
+                {
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken("MyCtx"),
+                        Span = new Storm.Runtime.SourceSpan(0, 5),
+                    },
+                },
+                Name = MakeToken("ctx"),
+            }),
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+        };
+
+        var classDecl = new ClassDeclarationNode
+        {
+            Name = MakeToken("C"),
+            Members = ImmutableArray.Create<MemberDeclarationNode>(
+                new ConstructorMemberMemberDeclarationNode { Constructor = ctorDecl }),
+        };
+
+        var ast = new CompilationUnitNode
+        {
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = ctxClassDecl },
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+        };
+
+        var (model, diagnostics) = BuildModelWithDiagnostics(ast);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_CTX_UNDEFINED_TYPE");
+
+        var ctorSymbol = model.AllSymbols
+            .OfType<Symbol>()
+            .First(s => s.Name == "C" && s.Kind == SymbolKind.Constructor);
+
+        Assert.Single(ctorSymbol.WithClauses);
+        Assert.Equal("ctx", ctorSymbol.WithClauses[0].Identifier);
+        Assert.Equal("MyCtx", ctorSymbol.WithClauses[0].ContextType.DisplayName);
+    }
+
+    [Fact]
+    public void WithClause_OnInterfaceMethod_ResolvesTypeAndStoresOnSymbol()
+    {
+        // class MyCtx { }
+        // interface I { void M() with MyCtx ctx; }
+        var ctxClassDecl = new ClassDeclarationNode
+        {
+            Name = MakeToken("MyCtx"),
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
+        };
+
+        var ifaceMethodDecl = new InterfaceMethodDeclarationNode
+        {
+            Name = MakeToken("M"),
+            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            Parameters = null,
+            WithClauses = ImmutableArray.Create(new WithClauseNode
+            {
+                Type = new NamedTypeRefTypeReferenceNode
+                {
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken("MyCtx"),
+                        Span = new Storm.Runtime.SourceSpan(0, 5),
+                    },
+                },
+                Name = MakeToken("ctx"),
+            }),
+        };
+
+        var ifaceDecl = new InterfaceDeclarationNode
+        {
+            Name = MakeToken("I"),
+            Members = ImmutableArray.Create<InterfaceMemberDeclarationNode>(
+                new InterfaceMethodMemberInterfaceMemberDeclarationNode { Method = ifaceMethodDecl }),
+        };
+
+        var ast = new CompilationUnitNode
+        {
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = ctxClassDecl },
+                new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = ifaceDecl }).AsTopLevelItems(),
+        };
+
+        var (model, diagnostics) = BuildModelWithDiagnostics(ast);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_CTX_UNDEFINED_TYPE");
+
+        var methodSymbol = model.AllSymbols
+            .OfType<Symbol>()
+            .First(s => s.Name == "M" && s.Kind == SymbolKind.Method);
+
+        Assert.Single(methodSymbol.WithClauses);
+        Assert.Equal("ctx", methodSymbol.WithClauses[0].Identifier);
+        Assert.Equal("MyCtx", methodSymbol.WithClauses[0].ContextType.DisplayName);
+    }
+
+    [Fact]
+    public void WithClause_OnTraitMethod_ResolvesTypeAndStoresOnSymbol()
+    {
+        // class MyCtx { }
+        // trait T { void M() with MyCtx ctx; }
+        var ctxClassDecl = new ClassDeclarationNode
+        {
+            Name = MakeToken("MyCtx"),
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
+        };
+
+        var traitMethodDecl = new TraitMethodDeclarationNode
+        {
+            Name = MakeToken("M"),
+            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            Parameters = null,
+            WithClauses = ImmutableArray.Create(new WithClauseNode
+            {
+                Type = new NamedTypeRefTypeReferenceNode
+                {
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken("MyCtx"),
+                        Span = new Storm.Runtime.SourceSpan(0, 5),
+                    },
+                },
+                Name = MakeToken("ctx"),
+            }),
+        };
+
+        var traitDecl = new TraitDeclarationNode
+        {
+            Name = MakeToken("T"),
+            Members = ImmutableArray.Create<TraitMemberDeclarationNode>(
+                new TraitMethodMemberTraitMemberDeclarationNode { Method = traitMethodDecl }),
+        };
+
+        var ast = new CompilationUnitNode
+        {
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = ctxClassDecl },
+                new TraitTypeTypeDeclarationNode { TraitDeclaration = traitDecl }).AsTopLevelItems(),
+        };
+
+        var (model, diagnostics) = BuildModelWithDiagnostics(ast);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_CTX_UNDEFINED_TYPE");
+
+        var methodSymbol = model.AllSymbols
+            .OfType<Symbol>()
+            .First(s => s.Name == "M" && s.Kind == SymbolKind.Method);
+
+        Assert.Single(methodSymbol.WithClauses);
+        Assert.Equal("ctx", methodSymbol.WithClauses[0].Identifier);
+        Assert.Equal("MyCtx", methodSymbol.WithClauses[0].ContextType.DisplayName);
+    }
+
+    [Fact]
+    public void WithClause_MultipleClausesOnMethod_AllResolved()
+    {
+        // class CtxA { }
+        // class CtxB { }
+        // class C { void M() with CtxA a with CtxB b { } }
+        var ctxADecl = new ClassDeclarationNode
+        {
+            Name = MakeToken("CtxA"),
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
+        };
+        var ctxBDecl = new ClassDeclarationNode
+        {
+            Name = MakeToken("CtxB"),
+            Members = ImmutableArray<MemberDeclarationNode>.Empty,
+        };
+
+        var methodDecl = new MethodDeclarationNode
+        {
+            Name = MakeToken("M"),
+            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            Parameters = null,
+            WithClauses = ImmutableArray.Create(
+                new WithClauseNode
+                {
+                    Type = new NamedTypeRefTypeReferenceNode
+                    {
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken("CtxA"),
+                            Span = new Storm.Runtime.SourceSpan(0, 4),
+                        },
+                    },
+                    Name = MakeToken("a"),
+                },
+                new WithClauseNode
+                {
+                    Type = new NamedTypeRefTypeReferenceNode
+                    {
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken("CtxB"),
+                            Span = new Storm.Runtime.SourceSpan(0, 4),
+                        },
+                    },
+                    Name = MakeToken("b"),
+                }),
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+        };
+
+        var classDecl = new ClassDeclarationNode
+        {
+            Name = MakeToken("C"),
+            Members = ImmutableArray.Create<MemberDeclarationNode>(
+                new MethodMemberMemberDeclarationNode { Method = methodDecl }),
+        };
+
+        var ast = new CompilationUnitNode
+        {
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = ctxADecl },
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = ctxBDecl },
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+        };
+
+        var (model, diagnostics) = BuildModelWithDiagnostics(ast);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_CTX_UNDEFINED_TYPE");
+
+        var methodSymbol = model.AllSymbols
+            .OfType<Symbol>()
+            .First(s => s.Name == "M" && s.Kind == SymbolKind.Method);
+
+        Assert.Equal(2, methodSymbol.WithClauses.Count);
+        Assert.Equal("a", methodSymbol.WithClauses[0].Identifier);
+        Assert.Equal("CtxA", methodSymbol.WithClauses[0].ContextType.DisplayName);
+        Assert.Equal("b", methodSymbol.WithClauses[1].Identifier);
+        Assert.Equal("CtxB", methodSymbol.WithClauses[1].ContextType.DisplayName);
+    }
+
+    [Fact]
+    public void WithClause_UndefinedType_EmitsDiagnostic()
+    {
+        // class C { void M() with NonExistent ctx { } }
+        var methodDecl = new MethodDeclarationNode
+        {
+            Name = MakeToken("M"),
+            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            Parameters = null,
+            WithClauses = ImmutableArray.Create(new WithClauseNode
+            {
+                Type = new NamedTypeRefTypeReferenceNode
+                {
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken("NonExistent"),
+                        Span = new Storm.Runtime.SourceSpan(0, 11),
+                    },
+                },
+                Name = MakeToken("ctx"),
+            }),
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+        };
+
+        var classDecl = new ClassDeclarationNode
+        {
+            Name = MakeToken("C"),
+            Members = ImmutableArray.Create<MemberDeclarationNode>(
+                new MethodMemberMemberDeclarationNode { Method = methodDecl }),
+        };
+
+        var ast = new CompilationUnitNode
+        {
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+        };
+
+        var (model, diagnostics) = BuildModelWithDiagnostics(ast);
+
+        Assert.Contains(diagnostics, d => d.Id.Value == "MIST_CTX_UNDEFINED_TYPE");
+
+        // The method symbol should have no with-clauses since the type couldn't be resolved.
+        var methodSymbol = model.AllSymbols
+            .OfType<Symbol>()
+            .First(s => s.Name == "M" && s.Kind == SymbolKind.Method);
+
+        Assert.Empty(methodSymbol.WithClauses);
+    }
+
+    [Fact]
+    public void WithClause_NoWithClauses_SymbolHasEmptyList()
+    {
+        // class C { void M() { } }
+        var methodDecl = new MethodDeclarationNode
+        {
+            Name = MakeToken("M"),
+            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            Parameters = null,
+            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+        };
+
+        var classDecl = new ClassDeclarationNode
+        {
+            Name = MakeToken("C"),
+            Members = ImmutableArray.Create<MemberDeclarationNode>(
+                new MethodMemberMemberDeclarationNode { Method = methodDecl }),
+        };
+
+        var ast = new CompilationUnitNode
+        {
+            Items = ImmutableArray.Create<TypeDeclarationNode>(
+                new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
+        };
+
+        var (model, _) = BuildModelWithDiagnostics(ast);
+
+        var methodSymbol = model.AllSymbols
+            .OfType<Symbol>()
+            .First(s => s.Name == "M" && s.Kind == SymbolKind.Method);
+
+        Assert.Empty(methodSymbol.WithClauses);
+    }
+
 }

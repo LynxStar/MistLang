@@ -73,6 +73,13 @@ public sealed class Symbol : ISymbol
     public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
 
     /// <summary>
+    /// Context with-clauses declared on this method symbol. Each entry records the
+    /// resolved context type, the bound identifier, and the source span. Empty for
+    /// non-method symbols and methods without with-clauses.
+    /// </summary>
+    public IReadOnlyList<ContextClauseInfo> WithClauses { get; internal set; } = Array.Empty<ContextClauseInfo>();
+
+    /// <summary>
     /// Tracks the readonly classification of this symbol. Applies to fields, properties,
     /// indexers, methods, constructors, and parameters. Defaults to <see cref="Model.ReadonlyStatus.Unknown"/>
     /// until the semantic model builder or inference engine classifies it.

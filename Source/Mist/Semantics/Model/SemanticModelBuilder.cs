@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;
@@ -503,6 +504,32 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId DependentTypeMissingArguments = new("MIST_DT_0006");
 
+    // ── Adhoc refinement constraint diagnostic IDs (Requirements 4.4, 4.5, 4.6) ──
+
+    /// <summary>
+    /// An adhoc refinement constraint references a name that is not a dependent
+    /// type parameter or value parameter on the declaration (Requirement 4.4).
+    /// </summary>
+    internal static readonly DiagnosticId RefinementConstraintUnknownName = new("MIST_REFINEMENT_0001");
+
+    /// <summary>
+    /// An adhoc refinement constraint targets a regular type parameter instead of
+    /// a dependent type parameter or value parameter (Requirement 4.5).
+    /// </summary>
+    internal static readonly DiagnosticId RefinementConstraintOnRegularTypeParam = new("MIST_REFINEMENT_0002");
+
+    /// <summary>
+    /// Duplicate adhoc refinement constraint on the same name within a single
+    /// declaration (Requirement 4.6).
+    /// </summary>
+    internal static readonly DiagnosticId RefinementConstraintDuplicate = new("MIST_REFINEMENT_0003");
+
+    /// <summary>
+    /// An implementation method has a stronger refinement constraint on a parameter than
+    /// the interface or trait method requires, violating Liskov Substitution (Requirement 17.4).
+    /// </summary>
+    internal static readonly DiagnosticId RefinementConstraintStrongerThanInterface = new("MIST_REFINEMENT_0009");
+
     /// <summary>
     /// The set of primitive type keywords allowed as dependent type parameter annotations.
     /// </summary>
@@ -635,7 +662,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Emits MIST_CONSTRAINT_0001 for undefined type parameter references,
         // MIST_CONSTRAINT_0007 for duplicate where clauses, and
         // MIST_CONSTRAINT_0008 for unresolvable constraint types.
+        var parameterRefinements = new Dictionary<ISymbol, RefinementPredicate>();
         Pass1_ResolveConstraints(symbolTable, asts, compilation, diagnostics);
+
+        // Pass 1b (cont.): Resolve with-clauses on method-like declarations.
+        // After all types are registered, resolve the type references in
+        // with-clauses and store ContextClauseInfo on each method symbol's
+        // WithClauses property.
+        Pass1_ResolveWithClauses(symbolTable, asts, compilation, diagnostics);
 
         // Pass 1b (cont.): Resolve trait parent references.
         // After all types are registered and interface lists are resolved,
@@ -742,6 +776,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // body resolution.
         Pass2_ResolveExtensionBodies(extensionBlockScopes, globalScope, symbolTable, expressionTypes, ambientTypeResolver, asts, compilation, diagnostics);
 
+        // Post-Pass 2: Resolve adhoc refinement constraints.
+        // This runs after Pass 2 so that parameter symbols are registered and
+        // can be looked up by name. Attaches predicates to dependent type
+        // parameters and stores parameter refinements in the lookup map.
+        Pass2_ResolveAdhocRefinementConstraints(symbolTable, asts, compilation, diagnostics, parameterRefinements);
+
+        // Post-Pass 2: Validate refinement constraint satisfaction for
+        // interface and trait method implementations (Liskov Substitution).
+        // This runs after adhoc refinement constraints are resolved so that
+        // parameter refinement predicates are available for both interface/trait
+        // methods and their implementations.
+        Pass2_ValidateRefinementConstraintSatisfaction(
+            symbolTable, traitSatisfactionMap, parameterRefinements, asts, compilation, diagnostics);
+
         // Post-Pass 2: Check for duplicate extension member signatures across
         // all extension blocks for the same receiver type (Requirement 8.9, 20.4, 20.7).
         Pass2_CheckDuplicateExtensionSignatures(extensionRegistry, symbolTable, asts, compilation, diagnostics);
@@ -770,7 +818,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             symbolTable,
             expressionTypes,
             traitSatisfactionMap,
-            extensionRegistry);
+            extensionRegistry,
+            parameterRefinements);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -4704,6 +4753,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     ///   3. Resolves each constraint (class, struct, new(...), type reference).
     ///   4. Stores the resulting <see cref="TypeParameterConstraints"/> on the
     ///      <see cref="TypeParameterType.Constraints"/> property.
+    /// Adhoc refinement constraints are skipped here and processed in
+    /// <see cref="Pass2_ResolveAdhocRefinementConstraints"/> after parameter
+    /// symbols are registered.
     /// </summary>
     private static void Pass1_ResolveConstraints(
         SymbolTable symbolTable,
@@ -4731,7 +4783,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             foreach (var clause in constraintClauses)
             {
-                var typeParamName = clause.Name.Lexeme;
+                // Only process generic constraint clauses in this pass.
+                // AdhocRefinementConstraintWhereClauseNode is processed in
+                // Pass2_ResolveAdhocRefinementConstraints after parameter symbols exist.
+                if (clause is not GenericConstraintClauseWhereClauseNode genericClause)
+                    continue;
+
+                var typeParamName = genericClause.Name.Lexeme;
 
                 // Validate the type parameter name exists on this declaration.
                 var typeParam = FindTypeParameter(typeParameters, typeParamName);
@@ -4741,7 +4799,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         ConstraintUndefinedTypeParam.Value,
                         DiagnosticSeverity.Error,
                         $"Type parameter '{typeParamName}' is not defined on '{declaringName}'.",
-                        clause,
+                        genericClause,
                         sourceText));
                     continue;
                 }
@@ -4753,7 +4811,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         ConstraintDuplicateWhereClause.Value,
                         DiagnosticSeverity.Error,
                         $"Type parameter '{typeParamName}' cannot have multiple 'where' clauses. Combine constraints in a single clause.",
-                        clause,
+                        genericClause,
                         sourceText));
                     continue;
                 }
@@ -4761,7 +4819,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 // Resolve the constraints in this clause.
                 var constraints = ResolveConstraintClause(
-                    clause, typeParam, symbol, declaringNode, symbolTable, asts, compilation, diagnostics, sourceText);
+                    genericClause, typeParam, symbol, declaringNode, symbolTable, asts, compilation, diagnostics, sourceText);
 
                 // Store the resolved constraints on the type parameter.
                 typeParam.Constraints = constraints;
@@ -4770,10 +4828,336 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Resolves adhoc refinement constraint clauses on all declarations after Pass 2
+    /// has registered parameter symbols. For each <see cref="AdhocRefinementConstraintWhereClauseNode"/>:
+    ///   - Looks up the name in dependent type parameters → attaches predicate to
+    ///     <see cref="DependentTypeParameterType.AdhocConstraint"/>.
+    ///   - Looks up the name in value parameters → stores in parameter refinement map.
+    ///   - Emits MIST_REFINEMENT_0001 if name not found.
+    ///   - Emits MIST_REFINEMENT_0002 if name is a regular type parameter.
+    ///   - Emits MIST_REFINEMENT_0003 if duplicate.
+    /// </summary>
+    private static void Pass2_ResolveAdhocRefinementConstraints(
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics,
+        Dictionary<ISymbol, RefinementPredicate> parameterRefinements)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            var declaringNode = symbolTable.GetDeclaringNode(symbol);
+            if (declaringNode is null)
+                continue;
+
+            // Get the constraint clauses and type parameters for this declaration.
+            var (constraintClauses, typeParameters) = GetConstraintClausesAndTypeParams(symbol, declaringNode);
+            if (constraintClauses.IsDefaultOrEmpty)
+                continue;
+
+            // Check if there are any adhoc refinement constraints to process.
+            var hasAdhocClauses = false;
+            foreach (var clause in constraintClauses)
+            {
+                if (clause is AdhocRefinementConstraintWhereClauseNode)
+                {
+                    hasAdhocClauses = true;
+                    break;
+                }
+            }
+            if (!hasAdhocClauses)
+                continue;
+
+            var sourceText = GetSourceTextForSymbol(symbol, symbolTable)
+                ?? GetSourceTextFromOrigin(declaringNode);
+
+            // Track which names have already been refined to detect duplicate adhoc constraints.
+            var refinedNames = new Dictionary<string, bool>();
+
+            foreach (var clause in constraintClauses)
+            {
+                if (clause is not AdhocRefinementConstraintWhereClauseNode refinementClause)
+                    continue;
+
+                ResolveAdhocRefinementConstraint(
+                    refinementClause, symbol, declaringNode, typeParameters,
+                    refinedNames, parameterRefinements, symbolTable, sourceText, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates refinement constraint satisfaction for interface and trait method
+    /// implementations (Liskov Substitution Principle). For each matched method pair,
+    /// checks that the implementation does not impose a stronger refinement constraint
+    /// on any parameter than the interface/trait method requires.
+    /// </summary>
+    /// <remarks>
+    /// This runs after <see cref="Pass2_ResolveAdhocRefinementConstraints"/> so that
+    /// parameter refinement predicates are available for both interface/trait methods
+    /// and their implementations.
+    ///
+    /// Algorithm per parameter position:
+    /// - If interface predicate is null → skip (implementation may freely add or omit constraints)
+    /// - If interface predicate is non-null and impl predicate is null → accept (no constraint means accepts all values)
+    /// - If both are non-null → check RefinementSolver.Implies(interfacePredicate, implPredicate):
+    ///   - If true → accept
+    ///   - If false → emit MIST_REFINEMENT_0009 diagnostic
+    /// </remarks>
+    private static void Pass2_ValidateRefinementConstraintSatisfaction(
+        SymbolTable symbolTable,
+        TraitSatisfactionMap traitSatisfactionMap,
+        Dictionary<ISymbol, RefinementPredicate> parameterRefinements,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // ─── Interface method refinement constraint satisfaction ─────────
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            IReadOnlyList<IType>? interfaces = null;
+            IScope? memberScope = null;
+            ClassType? classType = null;
+            string? typeName = null;
+
+            switch (symbol.Kind)
+            {
+                case SymbolKind.Class when symbol.DeclaredType is ClassType ct:
+                    if (ct.Interfaces.Count > 0)
+                    {
+                        interfaces = ct.Interfaces;
+                        memberScope = ct.MemberScope;
+                        classType = ct;
+                        typeName = ct.DisplayName;
+                    }
+                    break;
+
+                case SymbolKind.Struct when symbol.DeclaredType is StructType st:
+                    if (st.Interfaces.Count > 0)
+                    {
+                        interfaces = st.Interfaces;
+                        memberScope = st.MemberScope;
+                        typeName = st.DisplayName;
+                    }
+                    break;
+            }
+
+            if (interfaces is null || memberScope is null || typeName is null)
+                continue;
+
+            // Collect all required methods transitively from the interface hierarchy.
+            var requiredMethods = new List<(InterfaceType Interface, ISymbol Method)>();
+            var requiredProperties = new List<(InterfaceType Interface, ISymbol Property)>();
+            var visitedInterfaces = new HashSet<InterfaceType>();
+            CollectRequiredMembers(interfaces, requiredMethods, requiredProperties, visitedInterfaces);
+
+            foreach (var (requiredInterface, requiredMethod) in requiredMethods)
+            {
+                var requiredNode = symbolTable.GetDeclaringNode(requiredMethod);
+                if (requiredNode is not InterfaceMethodDeclarationNode requiredMethodDecl)
+                    continue;
+
+                // Find the matching implementation method.
+                var matchResult = FindMatchingMethod(
+                    requiredMethod.Name, requiredMethodDecl,
+                    memberScope, classType, symbolTable);
+
+                if (matchResult is not MethodMatchResult.MatchedResult matched)
+                    continue;
+
+                // Validate refinement constraints for each parameter position.
+                ValidateMethodRefinementConstraints(
+                    requiredMethod, matched.ImplSymbol,
+                    requiredInterface.DisplayName, typeName,
+                    parameterRefinements, symbolTable, asts, compilation, diagnostics);
+            }
+        }
+
+        // ─── Trait method refinement constraint satisfaction ─────────────
+        foreach (var (type, trait, satisfaction) in traitSatisfactionMap.All())
+        {
+            var typeName = type.DisplayName;
+            var traitName = trait.DisplayName;
+
+            // Check structural matches for method members.
+            foreach (var (traitMemberName, implSymbol) in satisfaction.StructuralMatches)
+            {
+                if (implSymbol.Kind != SymbolKind.Method)
+                    continue;
+
+                // Find the trait method symbol.
+                ISymbol? traitMethodSymbol = null;
+                var traitScope = trait switch
+                {
+                    TraitType tt => tt.MemberScope,
+                    ConstructedTraitType ctt => ctt.GenericTraitDefinition.MemberScope,
+                    _ => null,
+                };
+
+                if (traitScope is null)
+                    continue;
+
+                foreach (var member in traitScope.Members)
+                {
+                    if (member.Kind == SymbolKind.Method && member.Name == traitMemberName)
+                    {
+                        traitMethodSymbol = member;
+                        break;
+                    }
+                }
+
+                if (traitMethodSymbol is null)
+                    continue;
+
+                // Validate refinement constraints for each parameter position.
+                ValidateMethodRefinementConstraints(
+                    traitMethodSymbol, implSymbol,
+                    traitName, typeName,
+                    parameterRefinements, symbolTable, asts, compilation, diagnostics);
+            }
+
+            // Also check with-block mappings for method members.
+            foreach (var (traitMemberName, implSymbol) in satisfaction.WithMappings)
+            {
+                if (implSymbol.Kind != SymbolKind.Method)
+                    continue;
+
+                // Find the trait method symbol.
+                ISymbol? traitMethodSymbol = null;
+                var traitScope = trait switch
+                {
+                    TraitType tt => tt.MemberScope,
+                    ConstructedTraitType ctt => ctt.GenericTraitDefinition.MemberScope,
+                    _ => null,
+                };
+
+                if (traitScope is null)
+                    continue;
+
+                foreach (var member in traitScope.Members)
+                {
+                    if (member.Kind == SymbolKind.Method && member.Name == traitMemberName)
+                    {
+                        traitMethodSymbol = member;
+                        break;
+                    }
+                }
+
+                if (traitMethodSymbol is null)
+                    continue;
+
+                // Validate refinement constraints for each parameter position.
+                ValidateMethodRefinementConstraints(
+                    traitMethodSymbol, implSymbol,
+                    traitName, typeName,
+                    parameterRefinements, symbolTable, asts, compilation, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates refinement constraint compatibility between an interface/trait method
+    /// and its implementation for each parameter position.
+    /// </summary>
+    private static void ValidateMethodRefinementConstraints(
+        ISymbol interfaceMethod,
+        ISymbol implMethod,
+        string interfaceName,
+        string typeName,
+        Dictionary<ISymbol, RefinementPredicate> parameterRefinements,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // Get parameter nodes from both methods.
+        var interfaceNode = symbolTable.GetDeclaringNode(interfaceMethod);
+        var implNode = symbolTable.GetDeclaringNode(implMethod);
+
+        if (interfaceNode is null || implNode is null)
+            return;
+
+        ParameterListNode? interfaceParams = interfaceNode switch
+        {
+            InterfaceMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Parameters,
+            TraitMethodDeclarationNode traitMethodDecl => traitMethodDecl.Parameters,
+            MethodDeclarationNode methodDecl => methodDecl.Parameters,
+            _ => null,
+        };
+
+        ParameterListNode? implParams = implNode switch
+        {
+            MethodDeclarationNode methodDecl => methodDecl.Parameters,
+            _ => null,
+        };
+
+        if (interfaceParams is null || implParams is null)
+            return;
+
+        // Collect parameter nodes from both methods.
+        var interfaceParamNodes = new List<ParameterNode>();
+        foreach (var child in interfaceParams.Children())
+        {
+            if (child is ParameterNode param)
+                interfaceParamNodes.Add(param);
+        }
+
+        var implParamNodes = new List<ParameterNode>();
+        foreach (var child in implParams.Children())
+        {
+            if (child is ParameterNode param)
+                implParamNodes.Add(param);
+        }
+
+        // Validate each parameter position independently.
+        var count = Math.Min(interfaceParamNodes.Count, implParamNodes.Count);
+        for (var i = 0; i < count; i++)
+        {
+            var interfaceParamSymbol = symbolTable.GetDeclaredSymbol(interfaceParamNodes[i]);
+            var implParamSymbol = symbolTable.GetDeclaredSymbol(implParamNodes[i]);
+
+            if (interfaceParamSymbol is null || implParamSymbol is null)
+                continue;
+
+            // Look up refinement predicates.
+            parameterRefinements.TryGetValue(interfaceParamSymbol, out var interfacePredicate);
+            parameterRefinements.TryGetValue(implParamSymbol, out var implPredicate);
+
+            // If interface predicate is null → skip (implementation may freely add or omit constraints).
+            if (interfacePredicate is null)
+                continue;
+
+            // If interface predicate is non-null and impl predicate is null → accept
+            // (no constraint means accepts all values).
+            if (implPredicate is null)
+                continue;
+
+            // Both are non-null → check implication.
+            if (!RefinementSolver.Implies(interfacePredicate, implPredicate))
+            {
+                // The implementation's constraint is stronger — emit MIST_REFINEMENT_0009.
+                var paramName = implParamNodes[i].Name.Lexeme;
+                var methodName = implMethod.Name;
+
+                var message = $"Implementation of '{methodName}' on '{typeName}' has a stronger refinement constraint '{implPredicate}' on parameter '{paramName}' than the interface '{interfaceName}' requires '{interfacePredicate}'. The implementation must accept all values the interface promises to accept.";
+
+                // Get source location from the implementation method.
+                var sourceText = FindSourceTextForType(typeName, symbolTable, asts, compilation);
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    RefinementConstraintStrongerThanInterface.Value,
+                    DiagnosticSeverity.Error,
+                    message,
+                    implNode,
+                    sourceText));
+            }
+        }
+    }
+
+    /// <summary>
     /// Extracts constraint clauses and type parameters from a symbol's declaring node.
     /// Returns empty/default values for declarations that don't support constraints.
     /// </summary>
-    private static (ImmutableArray<ConstraintClauseNode> Clauses, IReadOnlyList<IType> TypeParams) GetConstraintClausesAndTypeParams(
+    private static (ImmutableArray<WhereClauseNode> Clauses, IReadOnlyList<IType> TypeParams) GetConstraintClausesAndTypeParams(
         ISymbol symbol,
         Storm.Runtime.SyntaxNode declaringNode)
     {
@@ -4800,8 +5184,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case TypeAliasDeclarationNode aliasDecl when symbol is Symbol aliasSymbol:
                 return (aliasDecl.Constraints, aliasSymbol.TypeParameters);
 
+            case ConstructorDeclarationNode ctorDecl:
+                return (ctorDecl.Constraints, Array.Empty<IType>());
+
+            case BlockIndexerIndexerDeclarationNode blockIndexerDecl:
+                return (blockIndexerDecl.Constraints, Array.Empty<IType>());
+
             default:
-                return (ImmutableArray<ConstraintClauseNode>.Empty, Array.Empty<IType>());
+                return (ImmutableArray<WhereClauseNode>.Empty, Array.Empty<IType>());
         }
     }
 
@@ -4819,11 +5209,130 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Resolves a single adhoc refinement constraint clause. Looks up the constrained
+    /// name in dependent type parameters and value parameters, attaching the predicate
+    /// or emitting diagnostics as appropriate.
+    /// </summary>
+    private static void ResolveAdhocRefinementConstraint(
+        AdhocRefinementConstraintWhereClauseNode refinementClause,
+        ISymbol symbol,
+        Storm.Runtime.SyntaxNode declaringNode,
+        IReadOnlyList<IType> typeParameters,
+        Dictionary<string, bool> refinedNames,
+        Dictionary<ISymbol, RefinementPredicate> parameterRefinements,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var name = refinementClause.Name.Lexeme;
+
+        // Check for duplicate refinement constraint on the same name.
+        if (refinedNames.ContainsKey(name))
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                RefinementConstraintDuplicate.Value,
+                DiagnosticSeverity.Error,
+                $"Duplicate refinement constraint on '{name}'. Combine predicates using 'and' in a single where clause.",
+                refinementClause,
+                sourceText));
+            return;
+        }
+
+        // Check if the name is a regular type parameter (not dependent).
+        var regularTypeParam = FindTypeParameter(typeParameters, name);
+        if (regularTypeParam is not null)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                RefinementConstraintOnRegularTypeParam.Value,
+                DiagnosticSeverity.Error,
+                $"Refinement constraints cannot be applied to type parameter '{name}'. Refinement constraints apply only to dependent type parameters and value parameters.",
+                refinementClause,
+                sourceText));
+            return;
+        }
+
+        // Check if the name is a dependent type parameter.
+        var dependentParam = FindDependentTypeParameter(typeParameters, name);
+        if (dependentParam is not null)
+        {
+            refinedNames[name] = true;
+            dependentParam.AdhocConstraint = new RefinementPredicate(refinementClause.Predicate);
+            return;
+        }
+
+        // Check if the name is a value parameter on the declaration.
+        var valueParam = FindValueParameter(symbol, declaringNode, name, symbolTable);
+        if (valueParam is not null)
+        {
+            refinedNames[name] = true;
+            parameterRefinements[valueParam] = new RefinementPredicate(refinementClause.Predicate);
+            return;
+        }
+
+        // Name not found — emit diagnostic.
+        diagnostics.Add(MakeDiagnosticWithLocation(
+            RefinementConstraintUnknownName.Value,
+            DiagnosticSeverity.Error,
+            $"Refinement constraint references '{name}', which is not a dependent type parameter or parameter on this declaration.",
+            refinementClause,
+            sourceText));
+    }
+
+    /// <summary>
+    /// Finds a dependent type parameter by name in the given type parameter list.
+    /// </summary>
+    private static DependentTypeParameterType? FindDependentTypeParameter(IReadOnlyList<IType> typeParameters, string name)
+    {
+        foreach (var tp in typeParameters)
+        {
+            if (tp is DependentTypeParameterType dpt && dpt.Name == name)
+                return dpt;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Finds a value parameter symbol by name on the given declaration.
+    /// Searches method, constructor, and indexer parameter lists.
+    /// </summary>
+    private static ISymbol? FindValueParameter(
+        ISymbol symbol,
+        Storm.Runtime.SyntaxNode declaringNode,
+        string paramName,
+        SymbolTable symbolTable)
+    {
+        // Get the parameter list node from the declaration.
+        ParameterListNode? paramList = declaringNode switch
+        {
+            MethodDeclarationNode methodDecl => methodDecl.Parameters,
+            ConstructorDeclarationNode ctorDecl => ctorDecl.Parameters,
+            BlockIndexerIndexerDeclarationNode indexerDecl => indexerDecl.Parameters,
+            InterfaceMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Parameters,
+            _ => null,
+        };
+
+        if (paramList is null)
+            return null;
+
+        // Walk the parameter list children to find the parameter by name.
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode param && param.Name.Lexeme == paramName)
+            {
+                // Look up the symbol registered for this parameter node.
+                return symbolTable.GetDeclaredSymbol(param);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Resolves all constraints in a single <c>where</c> clause and builds a
     /// <see cref="TypeParameterConstraints"/> instance.
     /// </summary>
     private static TypeParameterConstraints ResolveConstraintClause(
-        ConstraintClauseNode clause,
+        GenericConstraintClauseWhereClauseNode clause,
         TypeParameterType typeParam,
         ISymbol declaringSymbol,
         Storm.Runtime.SyntaxNode declaringNode,
@@ -5132,7 +5641,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         List<IType> structTypeConstraints,
         List<IReadOnlyList<IType>> constructorConstraints,
         TypeParameterType typeParam,
-        ConstraintClauseNode clause,
+        GenericConstraintClauseWhereClauseNode clause,
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
@@ -5292,6 +5801,154 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
         return false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Pass 1b (cont.) — Resolve with-clauses on method-like declarations
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves with-clause type references on method-like declarations (methods,
+    /// constructors, interface methods, trait methods) and stores the resolved
+    /// <see cref="ContextClauseInfo"/> on each symbol's <see cref="Symbol.WithClauses"/>
+    /// property. Uses scope-based type lookup consistent with Pass 1 constraint
+    /// resolution.
+    /// </summary>
+    private static void Pass1_ResolveWithClauses(
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol is not Symbol mutableSymbol)
+                continue;
+
+            if (symbol.Kind != SymbolKind.Method && symbol.Kind != SymbolKind.Constructor)
+                continue;
+
+            var declaringNode = symbolTable.GetDeclaringNode(symbol);
+            if (declaringNode is null)
+                continue;
+
+            var withClauseNodes = GetWithClauseNodes(declaringNode);
+            if (withClauseNodes is null || withClauseNodes.Value.Length == 0)
+                continue;
+
+            var sourceText = GetSourceTextForSymbol(symbol, symbolTable);
+            var scope = symbol.ContainingScope;
+            var clauses = new List<ContextClauseInfo>();
+
+            foreach (var clause in withClauseNodes.Value)
+            {
+                var resolvedType = ResolveWithClauseType(
+                    clause.Type, scope, symbolTable, declaringNode, asts, compilation, diagnostics, sourceText);
+
+                if (resolvedType is null || resolvedType is ErrorType)
+                    continue;
+
+                clauses.Add(new ContextClauseInfo
+                {
+                    ContextType = resolvedType,
+                    Identifier = clause.Name.Lexeme,
+                    Span = ToMistSourceSpan(clause.Span),
+                });
+            }
+
+            if (clauses.Count > 0)
+            {
+                mutableSymbol.WithClauses = clauses;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extracts the <see cref="ImmutableArray{WithClauseNode}"/> from a method-like
+    /// declaring node, or returns null if the node type does not support with-clauses.
+    /// </summary>
+    private static ImmutableArray<WithClauseNode>? GetWithClauseNodes(Storm.Runtime.SyntaxNode declaringNode)
+    {
+        return declaringNode switch
+        {
+            MethodDeclarationNode methodDecl => methodDecl.WithClauses,
+            ConstructorDeclarationNode ctorDecl => ctorDecl.WithClauses,
+            InterfaceMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.WithClauses,
+            TraitMethodDeclarationNode traitMethodDecl => traitMethodDecl.WithClauses,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Resolves a type reference from a with-clause using scope-based lookup,
+    /// consistent with Pass 1 constraint type resolution. Handles primitive types,
+    /// named types, and generic type arguments.
+    /// </summary>
+    private static IType? ResolveWithClauseType(
+        TypeReferenceNode typeRef,
+        IScope scope,
+        SymbolTable symbolTable,
+        Storm.Runtime.SyntaxNode declaringNode,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics,
+        SourceText? sourceText)
+    {
+        // For primitive type references, resolve through the stdlib path.
+        if (typeRef is PrimitiveTypeRefTypeReferenceNode primitiveRef)
+        {
+            try
+            {
+                var globalScope = FindGlobalScopeFromIScope(scope);
+                if (globalScope is not null)
+                    return ResolvePrimitiveKeyword(globalScope, symbolTable, primitiveRef.PrimitiveType);
+            }
+            catch (StdlibMissingException)
+            {
+                // Fall through to legacy path.
+            }
+            return ResolveLegacyPrimitive(primitiveRef.PrimitiveType);
+        }
+
+        // For named type references, look up in scope.
+        if (typeRef is NamedTypeRefTypeReferenceNode namedRef)
+        {
+            var typeName = ExtractQualifiedName(namedRef.Name, sourceText);
+
+            var resolvedSymbol = scope.Lookup(typeName);
+            if (resolvedSymbol?.DeclaredType is not null)
+            {
+                var resolvedType = resolvedSymbol.DeclaredType;
+
+                // Handle generic type arguments if present.
+                if (namedRef.TypeArgs is not null)
+                {
+                    resolvedType = ResolveGenericTypeReference(
+                        resolvedType, namedRef.TypeArgs, typeName,
+                        resolvedSymbol.DeclaredType,
+                        declaringNode, asts, compilation, diagnostics);
+                }
+
+                return resolvedType;
+            }
+
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                "MIST_CTX_UNDEFINED_TYPE",
+                DiagnosticSeverity.Error,
+                $"With-clause type '{typeName}' could not be resolved.",
+                declaringNode,
+                sourceText));
+            return null;
+        }
+
+        // Other type reference forms are not valid in with-clauses.
+        diagnostics.Add(MakeDiagnosticWithLocation(
+            "MIST_CTX_UNDEFINED_TYPE",
+            DiagnosticSeverity.Error,
+            "With-clause type could not be resolved.",
+            declaringNode,
+            sourceText));
+        return null;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -7217,6 +7874,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (!paramsMatch)
                 continue;
 
+            // Compare with-clauses: a structural match requires the same
+            // with-clauses (matched by resolved type, no variance).
+            if (!WithClausesMatchForTraitSatisfaction(traitMethod, member))
+                continue;
+
             return member;
         }
 
@@ -7508,6 +8170,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (!paramsMatch)
                 continue;
 
+            // Compare with-clauses: a structural match requires the same
+            // with-clauses (matched by resolved type, no variance).
+            if (!WithClausesMatchForTraitSatisfaction(traitMethod, member))
+                continue;
+
             return member;
         }
 
@@ -7517,6 +8184,73 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Checks whether two symbols (a trait method and a candidate implementing method)
+    /// have matching with-clauses. A match requires the same set of context types
+    /// (matched by resolved type after alias resolution, no variance).
+    /// </summary>
+    private static bool WithClausesMatchForTraitSatisfaction(ISymbol traitMethod, ISymbol implMethod)
+    {
+        var traitClauses = traitMethod is Symbol traitSym ? traitSym.WithClauses : Array.Empty<ContextClauseInfo>();
+        var implClauses = implMethod is Symbol implSym ? implSym.WithClauses : Array.Empty<ContextClauseInfo>();
+
+        // If the trait method has no with-clauses, any implementing method matches
+        // (regardless of whether it has extra with-clauses).
+        if (traitClauses.Count == 0)
+            return true;
+
+        // The implementing method must declare the exact same with-clauses.
+        if (traitClauses.Count != implClauses.Count)
+            return false;
+
+        // Check that each trait clause has a matching impl clause (by resolved type).
+        var matched = new bool[implClauses.Count];
+        foreach (var traitClause in traitClauses)
+        {
+            var traitType = ResolveContextTypeForMatching(traitClause.ContextType);
+            var found = false;
+            for (var i = 0; i < implClauses.Count; i++)
+            {
+                if (matched[i])
+                    continue;
+                var implType = ResolveContextTypeForMatching(implClauses[i].ContextType);
+                if (ContextTypesMatchForContract(traitType, implType))
+                {
+                    matched[i] = true;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Resolves a context type for keying/matching purposes by unwrapping type aliases.
+    /// </summary>
+    private static IType ResolveContextTypeForMatching(IType type)
+    {
+        while (type is TypeAliasType alias)
+        {
+            type = alias.UnderlyingType;
+        }
+        return type;
+    }
+
+    /// <summary>
+    /// Checks if two context types match for contract enforcement (exact match after
+    /// alias resolution, no variance).
+    /// </summary>
+    private static bool ContextTypesMatchForContract(IType a, IType b)
+    {
+        if (ReferenceEquals(a, b))
+            return true;
+        return string.Equals(a.DisplayName, b.DisplayName, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -8070,6 +8804,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 case MethodMatchResult.MatchedResult:
                     // Method found with matching signature — satisfied.
+                    // Refinement constraint validation is deferred to
+                    // Pass2_ValidateRefinementConstraintSatisfaction (runs after
+                    // adhoc refinement constraints are resolved).
                     break;
 
                 case MethodMatchResult.MissingResult:
@@ -8285,13 +9022,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private abstract record MethodMatchResult
     {
-        public static readonly MethodMatchResult Matched = new MatchedResult();
         public static readonly MethodMatchResult Missing = new MissingResult();
+
+        public static MethodMatchResult Match(ISymbol implSymbol)
+            => new MatchedResult(implSymbol);
 
         public static MethodMatchResult Mismatch(string expectedSig, string actualSig)
             => new SignatureMismatch(expectedSig, actualSig);
 
-        public sealed record MatchedResult : MethodMatchResult;
+        public sealed record MatchedResult(ISymbol ImplSymbol) : MethodMatchResult;
         public sealed record MissingResult : MethodMatchResult;
         public sealed record SignatureMismatch(string ExpectedSig, string ActualSig) : MethodMatchResult;
     }
@@ -8380,7 +9119,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 continue;
 
             if (SignaturesMatch(requiredMethodDecl, implMethodDecl))
-                return MethodMatchResult.Matched;
+                return MethodMatchResult.Match(member);
 
             // Track the last seen actual signature for diagnostic purposes.
             lastActualSig = FormatMethodSignature(implMethodDecl);
@@ -10737,6 +11476,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             RegisterParameters(ctorDecl.Parameters, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
         }
 
+        // Register with-clause bindings as local variables in the constructor scope.
+        foreach (var withClause in ctorDecl.WithClauses)
+        {
+            var contextType = ResolveTypeReference(withClause.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            var clauseName = withClause.Name.Lexeme;
+            var clauseSpan = ToMistSourceSpan(withClause.Name.Span);
+
+            CheckDuplicateLocal(clauseName, methodScope, sourceText, diagnostics);
+
+            var clauseSymbol = new Symbol(clauseName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, methodScope, contextType, clauseSpan);
+            methodScope.AddMember(clauseSymbol);
+            symbolTable.Register(clauseSymbol, withClause);
+        }
+
         // Resolve constructor chain arguments if present.
         if (ctorDecl.Chain is ThisChainConstructorChainNode thisChain && thisChain.Arguments is not null)
         {
@@ -10802,6 +11555,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (methodDecl.Parameters is not null)
         {
             RegisterParameters(methodDecl.Parameters, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+        }
+
+        // Register with-clause bindings as local variables in the method scope.
+        foreach (var withClause in methodDecl.WithClauses)
+        {
+            var contextType = ResolveTypeReference(withClause.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            var clauseName = withClause.Name.Lexeme;
+            var clauseSpan = ToMistSourceSpan(withClause.Name.Span);
+
+            CheckDuplicateLocal(clauseName, methodScope, sourceText, diagnostics);
+
+            var clauseSymbol = new Symbol(clauseName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, methodScope, contextType, clauseSpan);
+            methodScope.AddMember(clauseSymbol);
+            symbolTable.Register(clauseSymbol, withClause);
         }
 
         // Resolve the body. A no-body (;) form is accepted by the grammar but
@@ -11297,7 +12064,118 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case BreakStatementStatementNode:
                 // No type resolution needed.
                 break;
+            case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
+                ResolveBlock(readonlyBlockStmt.ReadonlyBlock.Body, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case WithVarDeclarationStatementStatementNode withVarStmt:
+                ResolveWithVarDeclaration(withVarStmt.WithVarDeclaration, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case WithTypedDeclarationStatementStatementNode withTypedStmt:
+                ResolveWithTypedDeclaration(withTypedStmt.WithTypedDeclaration, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case WithDiscardDeclarationStatementStatementNode withDiscardStmt:
+                ResolveWithDiscardDeclaration(withDiscardStmt.WithDiscardDeclaration, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case WithPushStatementStatementNode withPushStmt:
+                ResolveExpression(withPushStmt.WithPushStatement.Value, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case WithBlockStatementStatementNode withBlockStmt:
+                ResolveWithBlockStatement(withBlockStmt.WithBlockStatement, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
         }
+    }
+
+    private static void ResolveWithVarDeclaration(
+        WithVarDeclarationStatementNode withVarDecl,
+        Scope blockScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Infer type from initializer expression.
+        var initType = ResolveExpression(withVarDecl.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        var varName = withVarDecl.Name.Lexeme;
+        var varSpan = ToMistSourceSpan(withVarDecl.Name.Span);
+
+        CheckDuplicateLocal(varName, blockScope, sourceText, diagnostics);
+
+        var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, initType, varSpan);
+        blockScope.AddMember(varSymbol);
+        symbolTable.Register(varSymbol, withVarDecl);
+    }
+
+    private static void ResolveWithTypedDeclaration(
+        WithTypedDeclarationStatementNode withTypedDecl,
+        Scope blockScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Resolve the explicit type reference.
+        var declaredType = ResolveTypeReference(withTypedDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+        // Resolve the initializer expression.
+        ResolveExpression(withTypedDecl.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        var varName = withTypedDecl.Name.Lexeme;
+        var varSpan = ToMistSourceSpan(withTypedDecl.Name.Span);
+
+        CheckDuplicateLocal(varName, blockScope, sourceText, diagnostics);
+
+        var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, declaredType, varSpan);
+        blockScope.AddMember(varSymbol);
+        symbolTable.Register(varSymbol, withTypedDecl);
+    }
+
+    private static void ResolveWithDiscardDeclaration(
+        WithDiscardDeclarationStatementNode withDiscardDecl,
+        Scope blockScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Resolve the explicit type reference (for context keying).
+        ResolveTypeReference(withDiscardDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+        // Resolve the initializer expression.
+        ResolveExpression(withDiscardDecl.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        // No local variable registration for discard declarations.
+    }
+
+    private static void ResolveWithBlockStatement(
+        WithBlockStatementNode withBlockStmt,
+        Scope blockScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Infer type from the expression.
+        ResolveExpression(withBlockStmt.Expression, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        // Process the block body.
+        ResolveBlock(withBlockStmt.Body, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
     }
 
     private static void ResolveVariableDeclaration(

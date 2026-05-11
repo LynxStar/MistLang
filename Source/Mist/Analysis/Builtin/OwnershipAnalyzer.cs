@@ -856,7 +856,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 }
                 else if (suffix is InvocationSuffixPostfixSuffixNode invocation)
                 {
-                    CheckInvocationArgumentsForMoves(invocation, state, model, diagnostics, isLoop);
+                    CheckInvocationArgumentsForMoves(invocation, postfix.Target, state, model, diagnostics, isLoop);
                 }
             }
         }
@@ -926,13 +926,20 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckInvocationArgumentsForMoves(
         InvocationSuffixPostfixSuffixNode invocation,
+        PrimaryNode target,
         MethodFlowState state,
         ISemanticModel model,
         DiagnosticBag diagnostics,
         bool isLoop)
     {
-        // Resolve the invoked symbol.
-        var invokedSymbol = model.GetDeclaredSymbol(invocation);
+        // Resolve the invoked symbol from the target identifier first,
+        // then fall back to the invocation node itself.
+        ISymbol? invokedSymbol = null;
+        if (target is IdentifierExpressionPrimaryNode targetId)
+        {
+            invokedSymbol = model.GetDeclaredSymbol(targetId);
+        }
+        invokedSymbol ??= model.GetDeclaredSymbol(invocation);
         if (invokedSymbol is null)
             return;
 

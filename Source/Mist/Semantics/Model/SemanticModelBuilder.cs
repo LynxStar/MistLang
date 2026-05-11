@@ -16054,7 +16054,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Register the usage-site identifier node → resolved symbol mapping
                     // so that downstream analyzers (e.g., OwnershipAnalyzer) can resolve
                     // identifier references at call sites via GetDeclaredSymbol.
-                    if (symbol.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter or SymbolKind.Field)
+                    if (symbol.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter or SymbolKind.Field or SymbolKind.Method)
                     {
                         symbolTable.RegisterUsageSite(identifier, symbol);
                     }

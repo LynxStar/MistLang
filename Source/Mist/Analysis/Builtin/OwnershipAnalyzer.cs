@@ -1078,10 +1078,20 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             return null;
         }
 
-        // For intermediate nodes in the expression chain, walk through single children.
-        var children = node.Children().ToArray();
-        if (children.Length == 1 && children[0] is not null)
-            return TryResolveIdentifierSymbol(children[0]!, model);
+        // For intermediate nodes in the expression chain (LogicalOr, LogicalAnd,
+        // Equality, Relational, Additive, Multiplicative, Unary), walk through
+        // non-null children looking for a single meaningful child node.
+        // These generated nodes may report null Right properties as children,
+        // so we filter to non-null children only.
+        var nonNullChildren = new List<SyntaxNode>();
+        foreach (var child in node.Children())
+        {
+            if (child is not null)
+                nonNullChildren.Add(child);
+        }
+
+        if (nonNullChildren.Count == 1)
+            return TryResolveIdentifierSymbol(nonNullChildren[0], model);
 
         return null;
     }

@@ -3831,14 +3831,20 @@ internal sealed class CSharpSourceWriter
                 && !ParameterListContainsTypeAlias(paramList, sourceText)
                 && !TypeReferenceHasDependentTypeArguments(firstType)
                 && !SourceContainsDependentTypeArguments(sourceText)
-                && !ContainsReadonlyKeyword(sourceText))
+                && !ContainsReadonlyKeyword(sourceText)
+                && !ContainsOwnershipKeyword(sourceText))
             {
                 return sourceText;
             }
         }
 
-        // Fallback: emit the single parameter we do have.
-        return EmitParameter(paramList.Parameter);
+        // Fallback: emit all parameters from the AST (erasing ownership specifiers and readonly modifiers).
+        var parts = new List<string> { EmitParameter(paramList.Parameter) };
+        foreach (var param in paramList.Parameters)
+        {
+            parts.Add(EmitParameter(param));
+        }
+        return string.Join(", ", parts);
     }
 
     /// <summary>
@@ -3869,6 +3875,18 @@ internal sealed class CSharpSourceWriter
     private static bool ContainsReadonlyKeyword(string source)
     {
         return ContainsWord(source, "readonly");
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if <paramref name="source"/> contains any ownership
+    /// keyword (<c>owned</c>, <c>frozen</c>, or <c>ref</c>) as a standalone
+    /// identifier (matched at word boundaries). Used as a lexical fallback in
+    /// <see cref="EmitParameterList"/> to detect ownership specifiers that must
+    /// be erased in C# emission (ownership is compile-time only — no runtime cost).
+    /// </summary>
+    private static bool ContainsOwnershipKeyword(string source)
+    {
+        return ContainsWord(source, "owned") || ContainsWord(source, "frozen") || ContainsWord(source, "ref");
     }
 
     /// <summary>
@@ -7461,6 +7479,7 @@ internal sealed class CSharpSourceWriter
             }
         }
 
+        if (parts.Count == 0) return "";
         return string.Join(" ", parts) + " ";
     }
 

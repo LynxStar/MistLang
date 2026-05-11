@@ -73,6 +73,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // Pass 2: Ensure instances of owned types are always held as owned.
         ValidateOwnedTypeUsages(model, diagnostics);
 
+        // Pass 2.5: Non-storability enforcement on declarations.
+        ValidateNonStorability(model, diagnostics);
+
         // Pass 3: Ownership signature matching validation.
         ValidateSignatureMatching(model, diagnostics);
 
@@ -553,6 +556,23 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             // Resolve the RHS source symbol.
             var rhsSymbol = TryResolveAssignmentValueSymbol(assignment.Value, model);
 
+            // Non-storability check: if the RHS is a ref-tier variable and the LHS
+            // is a field, emit MIST_OWN_NOT_STORABLE.
+            if (rhsSymbol is Symbol rhsSym &&
+                rhsSym.OwnershipTier is OwnershipTier.Ref or OwnershipTier.ReadonlyRef or OwnershipTier.FrozenRef)
+            {
+                var targetFieldSymbol = TryResolveFieldTarget(assignment.Target, model);
+                if (targetFieldSymbol is not null && targetFieldSymbol.Kind == SymbolKind.Field)
+                {
+                    var tierName = FormatOwnershipTier(rhsSym.OwnershipTier);
+                    diagnostics.Add(MakeDiagnostic(
+                        NotStorable,
+                        $"Cannot assign '{tierName}' variable '{rhsSym.Name}' to field '{targetFieldSymbol.Name}' because ref-tier references are non-storable",
+                        assignment,
+                        model));
+                }
+            }
+
             // If the LHS is an owned variable, this assignment restores it to Live.
             if (lhsSymbol is not null && IsOwnedVariable(lhsSymbol))
             {
@@ -918,6 +938,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 CheckLendingCompatibility(argExprs[i], paramSym, model, diagnostics);
             }
         }
+
+        // Check ref exclusivity: same variable passed to multiple ref parameters.
+        CheckRefExclusivity(argExprs, paramSymbols, model, diagnostics);
     }
 
     /// <summary>
@@ -973,6 +996,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 CheckLendingCompatibility(argExprs[i], paramSym, model, diagnostics);
             }
         }
+
+        // Check ref exclusivity: same variable passed to multiple ref parameters.
+        CheckRefExclusivity(argExprs, paramSymbols, model, diagnostics);
     }
 
     // ── Lending compatibility ────────────────────────────────────────────
@@ -1109,6 +1135,52 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     private static ISymbol? TryResolveAssignmentTarget(SyntaxNode target, ISemanticModel model)
     {
         return TryResolveIdentifierSymbol(target, model);
+    }
+
+    /// <summary>
+    /// Attempts to resolve the target of an assignment to a field symbol.
+    /// Unlike <see cref="TryResolveIdentifierSymbol"/>, this also returns field symbols.
+    /// </summary>
+    private static ISymbol? TryResolveFieldTarget(SyntaxNode target, ISemanticModel model)
+    {
+        // Unwrap expression chain to find the identifier.
+        if (target is ExpressionNode expr)
+            return TryResolveFieldTarget(expr.Assignment, model);
+
+        if (target is AssignmentNode assignment)
+        {
+            if (assignment.Value is not null)
+                return null;
+            return TryResolveFieldTarget(assignment.Target, model);
+        }
+
+        if (target is PostfixNode postfix)
+        {
+            if (postfix.Suffix.Length > 0)
+                return null;
+            return TryResolveFieldTarget(postfix.Target, model);
+        }
+
+        if (target is IdentifierExpressionPrimaryNode identifier)
+        {
+            var symbol = model.GetDeclaredSymbol(identifier);
+            if (symbol is not null && symbol.Kind == SymbolKind.Field)
+                return symbol;
+            return null;
+        }
+
+        // Walk single-child chains.
+        var nonNullChildren = new List<SyntaxNode>();
+        foreach (var child in target.Children())
+        {
+            if (child is not null)
+                nonNullChildren.Add(child);
+        }
+
+        if (nonNullChildren.Count == 1)
+            return TryResolveFieldTarget(nonNullChildren[0], model);
+
+        return null;
     }
 
     /// <summary>
@@ -1567,5 +1639,59 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             Location: location ?? default,
             CompilationUnitPath: compilationUnitPath ?? "",
             AnalyzerName: "Ownership");
+    }
+
+    // ── Non-storability enforcement (Task 6.6) ───────────────────────────
+
+    /// <summary>
+    /// Validates that ref, readonly ref, and frozen ref variables are not stored
+    /// in fields, collections, or returned from methods.
+    /// </summary>
+    private static void ValidateNonStorability(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Origin != SymbolOrigin.UserCode)
+                continue;
+
+            // Only check field declarations.
+            if (symbol.Kind != SymbolKind.Field)
+                continue;
+
+            if (symbol is not Symbol fieldSymbol)
+                continue;
+
+            // If the field has a non-storable ownership tier, emit MIST_OWN_NOT_STORABLE.
+            if (fieldSymbol.OwnershipTier is OwnershipTier.Ref
+                or OwnershipTier.ReadonlyRef
+                or OwnershipTier.FrozenRef)
+            {
+                SyntaxNode declaringNode;
+                try { declaringNode = model.GetDeclaringNode(symbol); }
+                catch { continue; }
+
+                var tierName = FormatOwnershipTier(fieldSymbol.OwnershipTier);
+                diagnostics.Add(MakeDiagnostic(
+                    NotStorable,
+                    $"Field '{symbol.Name}' cannot be declared as '{tierName}' because ref-tier references are non-storable",
+                    declaringNode,
+                    model));
+            }
+        }
+    }
+
+    // ── Ref exclusivity enforcement (Task 6.10) ──────────────────────────
+
+    /// <summary>
+    /// Checks that the same variable is not passed to multiple ref parameters
+    /// in a single method call (exclusivity violation).
+    /// </summary>
+    private static void CheckRefExclusivity(
+        List<SyntaxNode> argExprs,
+        IReadOnlyList<ISymbol> paramSymbols,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Stub: full implementation is part of task 6.10.
     }
 }

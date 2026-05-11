@@ -133,7 +133,7 @@ This plan implements a compile-time ownership and reference system for the Mist 
     - Verify ref lifetime does not exceed declaring scope
     - _Requirements: 4.4, 4.8, 5.2, 5.8, 6.2, 6.9, 11.1, 11.4, 11.5_
 
-  - [~]* 6.7 Write property test for non-storability enforcement
+  - [x]* 6.7 Write property test for non-storability enforcement
     - **Property 3: Non-storability enforcement**
     - Create `Test/Mist.Tests/Analysis/OwnershipStorabilityPropertyTests.cs`
     - Generate programs attempting to store refs in fields, collections, and return positions
@@ -147,7 +147,7 @@ This plan implements a compile-time ownership and reference system for the Mist 
     - Restore mutation access when all frozen refs are returned (scope exit)
     - _Requirements: 5.3, 5.4, 5.6, 6.7, 7.8, 7.11, 13.1, 13.2, 13.6_
 
-  - [~]* 6.9 Write property test for mutation blocking under frozen ref
+  - [x]* 6.9 Write property test for mutation blocking under frozen ref
     - **Property 5: Mutation blocking under frozen ref**
     - Create `Test/Mist.Tests/Analysis/OwnershipFrozenBlockingPropertyTests.cs`
     - Generate programs with frozen ref loans and mutation attempts during/after the loan
@@ -162,7 +162,7 @@ This plan implements a compile-time ownership and reference system for the Mist 
     - Handle re-lending: original holder loses access until re-lend returns
     - _Requirements: 6.3, 6.4, 6.5, 7.12, 13.3, 13.7, 16.7_
 
-  - [~]* 6.11 Write property test for ref exclusivity
+  - [x]* 6.11 Write property test for ref exclusivity
     - **Property 6: Ref exclusivity**
     - Create `Test/Mist.Tests/Analysis/OwnershipExclusivityPropertyTests.cs`
     - Generate programs with single and multiple ref loans, owner access during loans
@@ -170,7 +170,7 @@ This plan implements a compile-time ownership and reference system for the Mist 
     - Use shared `CompilerDriver` for in-process compilation
     - **Validates: Requirements 6.3, 6.4, 7.12, 13.3, 13.7, 16.7**
 
-- [~] 7. Checkpoint - Ensure all tests pass
+- [x] 7. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 8. Verify emission erasure and update TextMate grammar
@@ -181,7 +181,7 @@ This plan implements a compile-time ownership and reference system for the Mist 
     - If any emitter code visits ownership nodes, remove that visitation
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5_
 
-  - [~]* 8.2 Write property test for emission erasure
+  - [x]* 8.2 Write property test for emission erasure
     - **Property 9: Emission erasure**
     - Create `Test/Mist.Tests/Backend/OwnershipErasurePropertyTests.cs`
     - Generate valid programs with and without ownership annotations
@@ -196,15 +196,15 @@ This plan implements a compile-time ownership and reference system for the Mist 
     - Verify `readonly ref` and `frozen ref` highlight as compound modifiers
     - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.5_
 
-- [ ] 9. Create sample application
-  - [~] 9.1 Create `samples/OwnershipSystem/` sample project
+- [x] 9. Create sample application
+  - [x] 9.1 Create `samples/OwnershipSystem/` sample project
     - Create `samples/OwnershipSystem/mist.toml` project file
     - Create `samples/OwnershipSystem/Program.mist` with `public static void RunDemo()`
     - Demonstrate: unrestricted default behavior, `readonly ref` parameters and locals, `frozen ref` with mutation blocking, `ref` borrowing with re-lending, `owned` with move semantics, owned type declarations with field restrictions, lending compatibility, value types satisfying all tiers, tier transitions
     - Each pattern prints labeled output (e.g., `[readonly-ref]`, `[frozen-blocks-mutation]`)
     - _Requirements: 19.1, 19.2, 19.3, 19.5_
 
-  - [~] 9.2 Integrate sample into `AllFeatures` orchestrator
+  - [x] 9.2 Integrate sample into `AllFeatures` orchestrator
     - Add `OwnershipSystem.Program.RunDemo()` call to `samples/AllFeatures/Program.mist`
     - Add project reference to `samples/AllFeatures/mist.toml`
     - _Requirements: 19.4_

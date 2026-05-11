@@ -1,0 +1,407 @@
+// OwnershipSystem — Comprehensive sample exercising every ownership tier and pattern.
+// Each demo prints labeled output to prove the feature works end-to-end.
+
+using System;
+
+namespace OwnershipSystem;
+
+// ─── Helper types ────────────────────────────────────────────────────────────
+
+public class Counter
+{
+    public int Value;
+
+    public Counter(int value)
+    {
+        this.Value = value;
+    }
+
+    public void Increment()
+    {
+        this.Value = Value + 1;
+    }
+
+    public int GetValue()
+    {
+        return Value;
+    }
+
+    public string Describe()
+    {
+        return $"Counter({Value})";
+    }
+}
+
+public class Pair
+{
+    public int X;
+    public int Y;
+
+    public Pair(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    public int Sum()
+    {
+        return X + Y;
+    }
+
+    public void SetX(int x)
+    {
+        this.X = x;
+    }
+
+    public string Describe()
+    {
+        return $"Pair({X}, {Y})";
+    }
+}
+
+// ─── Owned type declarations ─────────────────────────────────────────────────
+
+public owned class UniqueHandle
+{
+    int Id;
+    int RefCount;
+
+    public UniqueHandle(int id)
+    {
+        this.Id = id;
+        this.RefCount = 1;
+    }
+
+    public int GetId()
+    {
+        return Id;
+    }
+
+    public void Touch()
+    {
+        this.RefCount = RefCount + 1;
+    }
+
+    public string Describe()
+    {
+        return $"UniqueHandle(Id={Id}, RefCount={RefCount})";
+    }
+}
+
+// Owned type with owned fields — nested ownership
+public owned class OwnedContainer
+{
+    owned UniqueHandle Handle;
+    int Tag;
+
+    public OwnedContainer(owned UniqueHandle handle, int tag)
+    {
+        this.Handle = handle;
+        this.Tag = tag;
+    }
+
+    public string Describe()
+    {
+        return $"OwnedContainer(Tag={Tag}, Handle={Handle.Describe()})";
+    }
+}
+
+// ─── Value type (struct) ─────────────────────────────────────────────────────
+
+public struct Vec2
+{
+    public int X;
+    public int Y;
+
+    public Vec2(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    public int Magnitude()
+    {
+        return X * X + Y * Y;
+    }
+
+    public string Describe()
+    {
+        return $"Vec2({X}, {Y})";
+    }
+}
+
+// ─── Demo functions ──────────────────────────────────────────────────────────
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("--- Ownership System ---");
+
+        DemoUnrestricted();
+        DemoReadonlyRef();
+        DemoFrozenRef();
+        DemoRefBorrowing();
+        DemoOwnedMoveSemantics();
+        DemoOwnedTypeDeclarations();
+        DemoLendingCompatibility();
+        DemoValueTypeSatisfiesAllTiers();
+        DemoTierTransitions();
+
+        Console.WriteLine("--- Ownership System Done ---");
+    }
+
+    // ─── 1. Unrestricted default behavior ────────────────────────────────
+
+    public static void DemoUnrestricted()
+    {
+        // No ownership annotation = unrestricted. Multiple variables can alias.
+        var c1 = new Counter(10);
+        var c2 = c1;  // Both c1 and c2 reference the same object
+        c2.Increment();
+        // Proves aliasing: mutation through c2 is visible through c1
+        Console.WriteLine($"[unrestricted] c1={c1.Describe()}, c2={c2.Describe()}");
+        Console.WriteLine($"[unrestricted] aliased={c1.GetValue() == c2.GetValue()}");
+    }
+
+    // ─── 2. Readonly ref parameters and locals ───────────────────────────
+
+    public static void ReadValue(readonly ref Counter c)
+    {
+        // Can call readonly methods (GetValue, Describe are inferred readonly)
+        var val = c.GetValue();
+        Console.WriteLine($"[readonly-ref] read value={val}");
+    }
+
+    public static void ReadPair(readonly ref Pair p)
+    {
+        // Can read fields and call readonly methods through readonly ref
+        var sum = p.Sum();
+        Console.WriteLine($"[readonly-ref] pair sum={sum}");
+    }
+
+    public static void DemoReadonlyRef()
+    {
+        owned Pair p = new Pair(3, 7);
+        // Lend as readonly ref — callee can only read
+        ReadPair(p);
+        // Owner retains full access after readonly ref returns (live view)
+        p.SetX(100);
+        Console.WriteLine($"[readonly-ref] after mutation={p.Describe()}");
+    }
+
+    // ─── 3. Frozen ref with mutation blocking ────────────────────────────
+
+    public static void FreezeAndRead(frozen ref Pair p)
+    {
+        // Can read through frozen ref — guaranteed stable snapshot
+        var sum = p.Sum();
+        Console.WriteLine($"[frozen-ref] frozen sum={sum}");
+    }
+
+    public static void DemoFrozenRef()
+    {
+        owned Pair p = new Pair(5, 10);
+        // Lend as frozen ref — owner cannot mutate while frozen ref is outstanding
+        FreezeAndRead(p);
+        // After frozen ref returns, owner can mutate again
+        p.SetX(50);
+        Console.WriteLine($"[frozen-blocks-mutation] after thaw={p.Describe()}");
+    }
+
+    // ─── 4. Ref borrowing with re-lending ────────────────────────────────
+
+    public static void MutateRef(ref Pair p)
+    {
+        // ref holder has exclusive mutable access
+        p.SetX(999);
+        Console.WriteLine($"[ref-borrow] mutated={p.Describe()}");
+    }
+
+    public static void ReLendAsReadonly(ref Pair p)
+    {
+        // ref holder can re-lend as readonly ref
+        ReadPair(p);
+        // ref holder can still mutate after readonly ref returns
+        p.SetX(42);
+        Console.WriteLine($"[ref-relend] after re-lend={p.Describe()}");
+    }
+
+    public static void DemoRefBorrowing()
+    {
+        owned Pair p = new Pair(1, 2);
+        // Lend as ref — owner loses all access until ref returns
+        MutateRef(p);
+        // Owner regains access after ref returns
+        Console.WriteLine($"[ref-borrow] owner after return={p.Describe()}");
+
+        // Re-lending: ref holder lends to another function
+        ReLendAsReadonly(p);
+        Console.WriteLine($"[ref-relend] owner final={p.Describe()}");
+    }
+
+    // ─── 5. Owned with move semantics ────────────────────────────────────
+
+    public static void ConsumeCounter(owned Counter c)
+    {
+        // Callee now owns the counter — can mutate freely
+        c.Increment();
+        c.Increment();
+        Console.WriteLine($"[owned-move] consumed={c.Describe()}");
+    }
+
+    public static void DemoOwnedMoveSemantics()
+    {
+        owned Counter c = new Counter(0);
+        c.Increment();
+        Console.WriteLine($"[owned-move] before move={c.Describe()}");
+
+        // Move ownership to another owned variable
+        owned Counter c2 = c;
+        // c is now inaccessible (use-after-move would be a compile error)
+        c2.Increment();
+        Console.WriteLine($"[owned-move] after move to c2={c2.Describe()}");
+
+        // Move ownership into a function parameter
+        ConsumeCounter(c2);
+        // c2 is now inaccessible
+        Console.WriteLine($"[owned-move] transfer complete");
+    }
+
+    // ─── 6. Owned type declarations with field restrictions ──────────────
+
+    public static void UseHandle(owned UniqueHandle h)
+    {
+        h.Touch();
+        Console.WriteLine($"[owned-type] consumed handle={h.Describe()}");
+    }
+
+    public static void DemoOwnedTypeDeclarations()
+    {
+        // UniqueHandle is an owned type — must always be held as owned
+        owned UniqueHandle h = new UniqueHandle(42);
+        h.Touch();
+        Console.WriteLine($"[owned-type] handle={h.Describe()}");
+
+        // Owned type with owned fields (nested ownership)
+        owned UniqueHandle inner = new UniqueHandle(99);
+        owned OwnedContainer container = new OwnedContainer(inner, 7);
+        Console.WriteLine($"[owned-type] container={container.Describe()}");
+
+        // Move owned type into a function
+        owned UniqueHandle h2 = new UniqueHandle(100);
+        UseHandle(h2);
+        Console.WriteLine($"[owned-type] moved handle to function");
+    }
+
+    // ─── 7. Lending compatibility ────────────────────────────────────────
+
+    public static void AcceptReadonlyRef(readonly ref Pair p)
+    {
+        Console.WriteLine($"[lending] readonly ref received={p.Describe()}");
+    }
+
+    public static void AcceptFrozenRef(frozen ref Pair p)
+    {
+        Console.WriteLine($"[lending] frozen ref received={p.Describe()}");
+    }
+
+    public static void AcceptRef(ref Pair p)
+    {
+        Console.WriteLine($"[lending] ref received={p.Describe()}");
+    }
+
+    public static void AcceptOwned(owned Pair p)
+    {
+        Console.WriteLine($"[lending] owned received={p.Describe()}");
+    }
+
+    public static void DemoLendingCompatibility()
+    {
+        // owned → readonly ref (permitted)
+        owned Pair p1 = new Pair(1, 1);
+        AcceptReadonlyRef(p1);
+
+        // owned → frozen ref (permitted)
+        owned Pair p2 = new Pair(2, 2);
+        AcceptFrozenRef(p2);
+
+        // owned → ref (permitted)
+        owned Pair p3 = new Pair(3, 3);
+        AcceptRef(p3);
+
+        // owned → owned (permitted, this is a move)
+        owned Pair p4 = new Pair(4, 4);
+        AcceptOwned(p4);
+
+        // unrestricted → readonly ref (permitted)
+        var p5 = new Pair(5, 5);
+        AcceptReadonlyRef(p5);
+
+        Console.WriteLine($"[lending] all permitted pairs passed");
+    }
+
+    // ─── 8. Value types satisfy all tiers ────────────────────────────────
+
+    public static void AcceptReadonlyVec(readonly ref Vec2 v)
+    {
+        Console.WriteLine($"[value-type] readonly ref vec={v.Describe()}");
+    }
+
+    public static void AcceptFrozenVec(frozen ref Vec2 v)
+    {
+        Console.WriteLine($"[value-type] frozen ref vec={v.Describe()}");
+    }
+
+    public static void AcceptRefVec(ref Vec2 v)
+    {
+        Console.WriteLine($"[value-type] ref vec={v.Describe()}");
+    }
+
+    public static void AcceptOwnedVec(owned Vec2 v)
+    {
+        Console.WriteLine($"[value-type] owned vec={v.Describe()}");
+    }
+
+    public static void DemoValueTypeSatisfiesAllTiers()
+    {
+        // Value types (structs) satisfy any ownership tier because they are copied
+        var v = new Vec2(3, 4);
+        AcceptReadonlyVec(v);
+        AcceptFrozenVec(v);
+        AcceptRefVec(v);
+        AcceptOwnedVec(v);
+        // Original is unaffected (pass-by-value)
+        Console.WriteLine($"[value-type] original after all passes={v.Describe()}");
+    }
+
+    // ─── 9. Tier transitions ─────────────────────────────────────────────
+
+    public static void AcceptUnrestricted(Pair p)
+    {
+        p.SetX(777);
+        Console.WriteLine($"[tier-transition] unrestricted received={p.Describe()}");
+    }
+
+    public static void DemoTierTransitions()
+    {
+        // owned → unrestricted: explicit downgrade (for non-owned types)
+        owned Pair p = new Pair(10, 20);
+        Console.WriteLine($"[tier-transition] owned before downgrade={p.Describe()}");
+
+        // Move owned to unrestricted variable — ownership is relinquished
+        Pair unrestricted = p;
+        // p is now moved, unrestricted holds the reference without ownership guarantees
+        unrestricted.SetX(500);
+        Console.WriteLine($"[tier-transition] after downgrade={unrestricted.Describe()}");
+
+        // Unrestricted can be passed to unrestricted parameters freely
+        AcceptUnrestricted(unrestricted);
+        Console.WriteLine($"[tier-transition] after unrestricted pass={unrestricted.Describe()}");
+    }
+}

@@ -2138,7 +2138,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             fieldSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
         }
 
-        fieldSymbol.OwnershipTier = MapOwnershipSpecifier(fieldDecl.OwnershipSpecifier);
+        if (fieldDecl.OwnershipSpecifier is not null)
+        {
+            fieldSymbol.OwnershipTier = MapOwnershipSpecifier(fieldDecl.OwnershipSpecifier);
+        }
+        else if (fieldDecl.Modifiers.Any(m => m is OwnedModifierModifierNode))
+        {
+            fieldSymbol.OwnershipTier = OwnershipTier.Owned;
+        }
 
         typeScope.AddMember(fieldSymbol);
         symbolTable.Register(fieldSymbol, fieldDecl);

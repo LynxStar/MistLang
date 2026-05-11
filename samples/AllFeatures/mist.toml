@@ -98,3 +98,6 @@ path = "../StructuredContext"
 
 [[references]]
 path = "../AdhocRefinementConstraints"
+
+[[references]]
+path = "../OwnershipSystem"

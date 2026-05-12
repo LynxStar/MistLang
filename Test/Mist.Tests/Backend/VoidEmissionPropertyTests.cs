@@ -118,7 +118,7 @@ public sealed class VoidEmissionPropertyTests : IDisposable
         ArgumentListNode? argList = null;
         if (args is { Length: > 0 })
         {
-            argList = new ArgumentListNode { Expression = args[0] };
+            argList = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = args[0] } };
         }
         var suffix = new InvocationSuffixPostfixSuffixNode { Arguments = argList };
         var postfix = new PostfixNode

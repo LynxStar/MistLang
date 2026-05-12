@@ -1872,8 +1872,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             var sigA = ParameterSignature.Extract(symbolA, symbolTable);
                             var sigB = ParameterSignature.Extract(symbolB, symbolTable);
+                            var refKindsA = ParameterSignature.ExtractRefKinds(symbolA, symbolTable);
+                            var refKindsB = ParameterSignature.ExtractRefKinds(symbolB, symbolTable);
 
-                            if (ParameterSignature.AreEqual(sigA, sigB))
+                            if (ParameterSignature.AreEqualWithRefKind(sigA, refKindsA, sigB, refKindsB))
                             {
                                 reported.Add(j);
                                 EmitDuplicateExtensionMemberDiagnostic(
@@ -8900,6 +8902,41 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                     break;
                 }
+
+                case MethodMatchResult.RefKindMismatchResult refKindMismatch:
+                {
+                    // Types match but RefKind values differ — emit MIST_REF_0012.
+                    var refMismatchSourceText = FindSourceTextForType(
+                        typeName, symbolTable, asts, compilation);
+                    var refMismatchNode = FindDeclaringNodeForType(typeName, symbolTable);
+
+                    var refMessage = $"Method '{refKindMismatch.ImplMethodName}' does not match interface/trait method '{requiredInterface.DisplayName}.{refKindMismatch.InterfaceMethodName}': parameter ref kinds must match exactly";
+
+                    if (refMismatchNode is not null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            "MIST_REF_0012",
+                            DiagnosticSeverity.Error,
+                            refMessage,
+                            refMismatchNode,
+                            refMismatchSourceText));
+                    }
+                    else
+                    {
+                        string? refMismatchPath = FindCompilationUnitPathForType(
+                            typeName, symbolTable, asts, compilation);
+
+                        diagnostics.Add(new Diagnostic(
+                            new DiagnosticId("MIST_REF_0012"),
+                            DiagnosticSeverity.Error,
+                            PipelineStage.SemanticModelConstruction,
+                            refMessage,
+                            Location: default,
+                            CompilationUnitPath: refMismatchPath ?? "<unknown>",
+                            AnalyzerName: null));
+                    }
+                    break;
+                }
             }
         }
 
@@ -9048,9 +9085,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         public static MethodMatchResult Mismatch(string expectedSig, string actualSig)
             => new SignatureMismatch(expectedSig, actualSig);
 
+        public static MethodMatchResult RefKindMismatch(string implMethodName, string interfaceMethodName)
+            => new RefKindMismatchResult(implMethodName, interfaceMethodName);
+
         public sealed record MatchedResult(ISymbol ImplSymbol) : MethodMatchResult;
         public sealed record MissingResult : MethodMatchResult;
         public sealed record SignatureMismatch(string ExpectedSig, string ActualSig) : MethodMatchResult;
+        public sealed record RefKindMismatchResult(string ImplMethodName, string InterfaceMethodName) : MethodMatchResult;
     }
 
     /// <summary>
@@ -9071,12 +9112,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var foundAnyWithName = false;
         string? lastMismatchExpected = null;
         string? lastMismatchActual = null;
+        MethodMatchResult.RefKindMismatchResult? refKindMismatch = null;
 
         // Search the direct member scope first.
         var result = SearchScopeForMethod(methodName, requiredMethodDecl, memberScope, symbolTable);
         if (result is MethodMatchResult.MatchedResult)
             return result;
-        if (result is MethodMatchResult.SignatureMismatch directMismatch)
+        if (result is MethodMatchResult.RefKindMismatchResult directRefKindMismatch)
+        {
+            foundAnyWithName = true;
+            refKindMismatch = directRefKindMismatch;
+        }
+        else if (result is MethodMatchResult.SignatureMismatch directMismatch)
         {
             foundAnyWithName = true;
             lastMismatchExpected = directMismatch.ExpectedSig;
@@ -9092,7 +9139,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 result = SearchScopeForMethod(methodName, requiredMethodDecl, ancestor.MemberScope, symbolTable);
                 if (result is MethodMatchResult.MatchedResult)
                     return result;
-                if (result is MethodMatchResult.SignatureMismatch ancestorMismatch)
+                if (result is MethodMatchResult.RefKindMismatchResult ancestorRefKindMismatch)
+                {
+                    foundAnyWithName = true;
+                    refKindMismatch ??= ancestorRefKindMismatch;
+                }
+                else if (result is MethodMatchResult.SignatureMismatch ancestorMismatch)
                 {
                     foundAnyWithName = true;
                     lastMismatchExpected = ancestorMismatch.ExpectedSig;
@@ -9104,7 +9156,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         if (foundAnyWithName)
+        {
+            // Prefer the specific RefKind mismatch over generic signature mismatch.
+            if (refKindMismatch is not null)
+                return refKindMismatch;
+
             return MethodMatchResult.Mismatch(lastMismatchExpected!, lastMismatchActual!);
+        }
 
         return MethodMatchResult.Missing;
     }
@@ -9123,6 +9181,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var foundAnyWithName = false;
         string? lastActualSig = null;
+        string? refKindMismatchImplName = null;
+        string? refKindMismatchInterfaceName = null;
 
         foreach (var member in scope.Members)
         {
@@ -9139,12 +9199,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (SignaturesMatch(requiredMethodDecl, implMethodDecl))
                 return MethodMatchResult.Match(member);
 
+            // Check if types match but RefKind values differ (for MIST_REF_0012).
+            if (TypesMatchButRefKindsDiffer(requiredMethodDecl, implMethodDecl))
+            {
+                refKindMismatchImplName = member.Name;
+                refKindMismatchInterfaceName = methodName;
+            }
+
             // Track the last seen actual signature for diagnostic purposes.
             lastActualSig = FormatMethodSignature(implMethodDecl);
         }
 
         if (foundAnyWithName)
         {
+            // Prefer the specific RefKind mismatch result over generic signature mismatch.
+            if (refKindMismatchImplName is not null)
+                return MethodMatchResult.RefKindMismatch(refKindMismatchImplName, refKindMismatchInterfaceName!);
+
             // Name matches but no overload has a matching signature.
             var expectedSig = FormatInterfaceMethodSignature(requiredMethodDecl);
             return MethodMatchResult.Mismatch(expectedSig, lastActualSig ?? "()");
@@ -9155,7 +9226,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Checks whether an implementing method's signature matches the required
-    /// interface method's signature (return type and parameter types).
+    /// interface method's signature (return type, parameter types, and parameter ref kinds).
     /// </summary>
     private static bool SignaturesMatch(
         InterfaceMethodDeclarationNode required,
@@ -9178,7 +9249,93 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return false;
         }
 
+        // Compare parameter RefKind values (Requirement 7.5).
+        if (!ParameterRefKindsMatch(required.Parameters, actual.Parameters))
+            return false;
+
         return true;
+    }
+
+    /// <summary>
+    /// Checks whether two methods have matching types but mismatched RefKind values
+    /// on one or more parameters. Used to emit the specific MIST_REF_0012 diagnostic.
+    /// Returns true if types match but RefKind values differ.
+    /// </summary>
+    private static bool TypesMatchButRefKindsDiffer(
+        InterfaceMethodDeclarationNode required,
+        MethodDeclarationNode actual)
+    {
+        // Check return types match.
+        if (!TypeReferencesMatch(required.ReturnType, actual.ReturnType))
+            return false;
+
+        // Check parameter types match.
+        var requiredParams = ExtractParameterTypes(required.Parameters);
+        var actualParams = ExtractParameterTypes(actual.Parameters);
+
+        if (requiredParams.Count != actualParams.Count)
+            return false;
+
+        for (var i = 0; i < requiredParams.Count; i++)
+        {
+            if (!TypeReferencesMatch(requiredParams[i], actualParams[i]))
+                return false;
+        }
+
+        // Types match — now check if RefKind values differ.
+        return !ParameterRefKindsMatch(required.Parameters, actual.Parameters);
+    }
+
+    /// <summary>
+    /// Compares the RefKind values of parameters between an interface method and
+    /// an implementing method. Returns true if all parameter RefKind values match.
+    /// </summary>
+    private static bool ParameterRefKindsMatch(
+        ParameterListNode? requiredParams,
+        ParameterListNode? actualParams)
+    {
+        var requiredRefKinds = ExtractParameterRefKinds(requiredParams);
+        var actualRefKinds = ExtractParameterRefKinds(actualParams);
+
+        if (requiredRefKinds.Count != actualRefKinds.Count)
+            return false;
+
+        for (var i = 0; i < requiredRefKinds.Count; i++)
+        {
+            if (requiredRefKinds[i] != actualRefKinds[i])
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Extracts the RefKind for each parameter from a parameter list node based on
+    /// the presence of the refModifier AST field.
+    /// </summary>
+    private static List<RefKind> ExtractParameterRefKinds(ParameterListNode? paramList)
+    {
+        var refKinds = new List<RefKind>();
+        if (paramList is null)
+            return refKinds;
+
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode param)
+            {
+                if (param.RefModifier is not null)
+                {
+                    // readonly ref → RefReadonly; bare ref → Ref
+                    refKinds.Add(param.Modifier is not null ? RefKind.RefReadonly : RefKind.Ref);
+                }
+                else
+                {
+                    refKinds.Add(RefKind.None);
+                }
+            }
+        }
+
+        return refKinds;
     }
 
     /// <summary>
@@ -9974,9 +10131,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // overloads (same name, different signature) from true redeclarations
                 // (same name AND same signature).
                 IReadOnlyList<IType>? memberSignature = null;
+                IReadOnlyList<RefKind>? memberRefKinds = null;
                 if (member.Kind == SymbolKind.Method)
                 {
                     memberSignature = ParameterSignature.Extract(member, symbolTable);
+                    memberRefKinds = ParameterSignature.ExtractRefKinds(member, symbolTable);
                 }
 
                 // Walk the ancestor chain looking for a member with the same name.
@@ -10002,7 +10161,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         if (member.Kind == SymbolKind.Method && ancestorMember.Kind == SymbolKind.Method)
                         {
                             var ancestorSignature = ParameterSignature.Extract(ancestorMember, symbolTable);
-                            if (ParameterSignature.AreEqual(memberSignature!, ancestorSignature))
+                            var ancestorRefKinds = ParameterSignature.ExtractRefKinds(ancestorMember, symbolTable);
+                            if (ParameterSignature.AreEqualWithRefKind(
+                                memberSignature!, memberRefKinds!, ancestorSignature, ancestorRefKinds))
                             {
                                 EmitRedeclarationDiagnostic(classType, member, ancestor, symbolTable, asts, compilation, diagnostics);
                                 goto nextMember;
@@ -10291,6 +10452,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// Checks all pairs of symbols in the list for identical parameter signatures
     /// and emits the appropriate duplicate diagnostic for each match.
+    /// Two methods with the same parameter types but different RefKind values
+    /// on one or more parameters are distinct overloads (Requirement 7.4).
     /// </summary>
     private static void CheckDuplicatePairs(
         List<ISymbol> symbols,
@@ -10303,9 +10466,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Pre-extract signatures for all symbols to avoid redundant extraction.
         var signatures = new IReadOnlyList<IType>[symbols.Count];
+        var refKinds = new IReadOnlyList<RefKind>[symbols.Count];
         for (var i = 0; i < symbols.Count; i++)
         {
             signatures[i] = ParameterSignature.Extract(symbols[i], symbolTable);
+            refKinds[i] = ParameterSignature.ExtractRefKinds(symbols[i], symbolTable);
         }
 
         // Track which symbols have already been reported as duplicates
@@ -10319,7 +10484,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (reported.Contains(j))
                     continue;
 
-                if (!ParameterSignature.AreEqual(signatures[i], signatures[j]))
+                if (!ParameterSignature.AreEqualWithRefKind(
+                    signatures[i], refKinds[i], signatures[j], refKinds[j]))
                     continue;
 
                 // Found a duplicate — emit diagnostic on the second (later) declaration.
@@ -11274,7 +11440,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if (methodSymbol is not null)
                     {
                         methodSymbol.DeclaredType = returnType;
-                        methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
+
+                        // Interpret RefSpecifier / ReadonlyRefSpecifier as ref return.
+                        if (methodDecl.ReturnOwnership is RefSpecifierOwnershipSpecifierNode)
+                        {
+                            methodSymbol.ReturnRefKind = RefKind.Ref;
+                            methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+                        }
+                        else if (methodDecl.ReturnOwnership is ReadonlyRefSpecifierOwnershipSpecifierNode)
+                        {
+                            methodSymbol.ReturnRefKind = RefKind.RefReadonly;
+                            methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+                        }
+                        else
+                        {
+                            methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
+                        }
                     }
 
                     // Register parameters so ParameterSignature.Extract can resolve
@@ -11364,7 +11545,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if (methodSymbol is not null)
                     {
                         methodSymbol.DeclaredType = returnType;
-                        methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
+
+                        // Interpret RefSpecifier / ReadonlyRefSpecifier as ref return.
+                        if (methodDecl.ReturnOwnership is RefSpecifierOwnershipSpecifierNode)
+                        {
+                            methodSymbol.ReturnRefKind = RefKind.Ref;
+                            methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+                        }
+                        else if (methodDecl.ReturnOwnership is ReadonlyRefSpecifierOwnershipSpecifierNode)
+                        {
+                            methodSymbol.ReturnRefKind = RefKind.RefReadonly;
+                            methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+                        }
+                        else
+                        {
+                            methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
+                        }
                     }
 
                     // Register parameters so parameter types can be resolved.
@@ -11555,6 +11751,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (HasReadonlyModifier(methodDecl.Modifiers) && methodDecl.ReturnOwnership is RefSpecifierOwnershipSpecifierNode)
                 {
                     methodSymbol.OwnershipTier = OwnershipTier.ReadonlyRef;
+                    methodSymbol.ReturnRefKind = RefKind.RefReadonly;
+                }
+                else if (methodDecl.ReturnOwnership is RefSpecifierOwnershipSpecifierNode)
+                {
+                    // ref return — set ReturnRefKind and leave ownership as Unrestricted.
+                    methodSymbol.ReturnRefKind = RefKind.Ref;
+                    methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+                }
+                else if (methodDecl.ReturnOwnership is ReadonlyRefSpecifierOwnershipSpecifierNode)
+                {
+                    // readonly ref return — set ReturnRefKind and leave ownership as Unrestricted.
+                    methodSymbol.ReturnRefKind = RefKind.RefReadonly;
+                    methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
                 }
                 else
                 {
@@ -12006,22 +12215,75 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         var paramSymbol = new Symbol(paramName, SymbolKind.Parameter, SymbolOrigin.UserCode, methodScope, paramType, paramSpan);
 
-        // Detect readonly modifier or readonly ref ownership specifier on the parameter.
-        if (param.Modifier is not null || param.OwnershipSpecifier is ReadonlyRefSpecifierOwnershipSpecifierNode)
+        // Handle ref modifier on the parameter.
+        if (param.RefModifier is not null)
         {
-            paramSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
-        }
+            // Determine if this is ref or ref readonly (readonly ref).
+            // When the parser sees "readonly ref T x", it parses modifier=READONLY, refModifier=REF.
+            if (param.Modifier is not null)
+            {
+                // readonly ref → RefKind.RefReadonly
+                paramSymbol.RefKind = RefKind.RefReadonly;
+                paramSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+            }
+            else
+            {
+                paramSymbol.RefKind = RefKind.Ref;
+            }
 
-        // When the parser sees "readonly ref", it may parse it as modifier=READONLY +
-        // ownershipSpecifier=RefSpecifier (due to greedy matching of the READONLY modifier).
-        // In that case, the combined meaning is ReadonlyRef, not just Borrowed.
-        if (param.Modifier is not null && param.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode)
-        {
-            paramSymbol.OwnershipTier = OwnershipTier.ReadonlyRef;
+            // Check for conflicting ownership specifiers with ref modifier.
+            if (param.OwnershipSpecifier is OwnedSpecifierOwnershipSpecifierNode)
+            {
+                // Error: ref and owned are mutually exclusive.
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    "MIST_REF_0004",
+                    DiagnosticSeverity.Error,
+                    "The 'ref' modifier and 'owned' specifier are mutually exclusive on a parameter",
+                    param,
+                    sourceText));
+                paramSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+            }
+            else if (param.OwnershipSpecifier is BorrowedSpecifierOwnershipSpecifierNode or FrozenSpecifierOwnershipSpecifierNode)
+            {
+                // Warning: ownership specifier is redundant on a ref parameter.
+                var specifierName = param.OwnershipSpecifier switch
+                {
+                    BorrowedSpecifierOwnershipSpecifierNode => "borrowed",
+                    FrozenSpecifierOwnershipSpecifierNode => "frozen",
+                    _ => "unknown",
+                };
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    "MIST_REF_0013",
+                    DiagnosticSeverity.Warning,
+                    $"The ownership specifier '{specifierName}' is redundant on a ref parameter (ref already implies a borrow)",
+                    param,
+                    sourceText));
+                paramSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+            }
+            else
+            {
+                paramSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+            }
         }
         else
         {
-            paramSymbol.OwnershipTier = MapOwnershipSpecifier(param.OwnershipSpecifier);
+            // Detect readonly modifier or readonly ref ownership specifier on the parameter.
+            if (param.Modifier is not null || param.OwnershipSpecifier is ReadonlyRefSpecifierOwnershipSpecifierNode)
+            {
+                paramSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+            }
+
+            // When the parser sees "readonly ref", it may parse it as modifier=READONLY +
+            // ownershipSpecifier=RefSpecifier (due to greedy matching of the READONLY modifier).
+            // In that case, the combined meaning is ReadonlyRef, not just Borrowed.
+            if (param.Modifier is not null && param.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode)
+            {
+                paramSymbol.OwnershipTier = OwnershipTier.ReadonlyRef;
+            }
+            else
+            {
+                paramSymbol.OwnershipTier = MapOwnershipSpecifier(param.OwnershipSpecifier);
+            }
         }
 
         methodScope.AddMember(paramSymbol);
@@ -12236,7 +12498,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 CheckDuplicateLocal(varName, blockScope, sourceText, diagnostics);
 
                 var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, declaredType, varSpan);
-                varSymbol.OwnershipTier = MapOwnershipSpecifier(typed.OwnershipSpecifier);
+
+                // Bare `ref` on a local variable is a ref local (C#-style ref semantics).
+                // `readonly ref` on a local variable remains an ownership lend (lending semantics)
+                // until the grammar supports disambiguation via ref on the initializer.
+                if (typed.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode)
+                {
+                    varSymbol.RefKind = RefKind.Ref;
+                    varSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+                }
+                else
+                {
+                    varSymbol.OwnershipTier = MapOwnershipSpecifier(typed.OwnershipSpecifier);
+                }
+
                 blockScope.AddMember(varSymbol);
                 symbolTable.Register(varSymbol, varDecl);
                 break;
@@ -12252,7 +12527,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 CheckDuplicateLocal(varName, blockScope, sourceText, diagnostics);
 
                 var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, initType, varSpan);
-                varSymbol.OwnershipTier = MapOwnershipSpecifier(inferred.OwnershipSpecifier);
+
+                // Bare `ref` on a local variable is a ref local (C#-style ref semantics).
+                // `readonly ref` on a local variable remains an ownership lend (lending semantics)
+                // until the grammar supports disambiguation via ref on the initializer.
+                if (inferred.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode)
+                {
+                    varSymbol.RefKind = RefKind.Ref;
+                    varSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+                }
+                else
+                {
+                    varSymbol.OwnershipTier = MapOwnershipSpecifier(inferred.OwnershipSpecifier);
+                }
+
                 blockScope.AddMember(varSymbol);
                 symbolTable.Register(varSymbol, varDecl);
                 break;
@@ -17357,17 +17645,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // The ArgumentListNode has a single Expression property (first argument)
-        // and additional arguments via Children().
-        ResolveExpression(argList.Expression, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-
-        // Walk children to find additional argument expressions.
-        foreach (var child in argList.Children())
+        // The ArgumentListNode has Argument (first) and Arguments (rest),
+        // each wrapping an ExpressionNode.
+        foreach (var expr in argList.GetAllExpressions())
         {
-            if (child is ExpressionNode additionalExpr && !ReferenceEquals(additionalExpr, argList.Expression))
-            {
-                ResolveExpression(additionalExpr, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-            }
+            ResolveExpression(expr, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
         }
     }
 

@@ -348,7 +348,7 @@ public class ImplicitCastResolutionPropertyTests
         var suffix = new MethodCallSuffixPostfixSuffixNode
         {
             Name = Tok(methodName),
-            Arguments = new ArgumentListNode { Expression = arg },
+            Arguments = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = arg } },
         };
         var postfix = new PostfixNode
         {

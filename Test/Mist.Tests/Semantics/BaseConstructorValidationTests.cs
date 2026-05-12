@@ -165,7 +165,7 @@ public class BaseConstructorValidationTests
         var assign = new AssignmentNode { Target = logOr };
         var expr = new ExpressionNode { Assignment = assign };
 
-        return new ArgumentListNode { Expression = expr };
+        return new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = expr } };
     }
 
     // ─── Test 1: Derived with no ctor, base with no ctor → no diagnostic ─

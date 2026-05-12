@@ -46,6 +46,7 @@ public class Program
         AdhocRefinementConstraints.Program.RunDemo();
         OwnershipSystem.Program.RunDemo();
         DeepOwnershipTypes.Program.RunDemo();
+        RefParameters.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

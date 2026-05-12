@@ -52,13 +52,19 @@ public static class OverloadResolver
     /// behavior. The tiebreaker resolves ambiguity only — it does not change
     /// applicability filtering or the <see cref="MoreSpecific"/> relation.
     /// </param>
+    /// <param name="argumentRefKinds">
+    /// Optional ref kinds for each argument at the call site. When provided,
+    /// candidates whose parameter RefKind values do not match the argument
+    /// RefKind values are filtered out during applicability checking (Requirement 7.4).
+    /// </param>
     /// <returns>A resolution result indicating success, no match, or ambiguity.</returns>
     public static OverloadResolutionResult Resolve(
         IReadOnlyList<ISymbol> candidates,
         IReadOnlyList<IType> argumentTypes,
         ISemanticModel model,
         IReadOnlyList<int>? candidateOrigin = null,
-        (IReadOnlyList<IType> TypeParams, IReadOnlyList<IType> TypeArgs)? typeSubstitution = null)
+        (IReadOnlyList<IType> TypeParams, IReadOnlyList<IType> TypeArgs)? typeSubstitution = null,
+        IReadOnlyList<RefKind>? argumentRefKinds = null)
     {
         // Validate origin vector length — callers must supply one entry per
         // candidate when they opt into the tiebreaker. Mismatched lengths are
@@ -93,6 +99,28 @@ public static class OverloadResolver
                     substituted[i] = TypeCheckerAnalyzer.SubstituteType(
                         paramTypes[i], typeParams, typeArgs);
                 paramTypes = substituted;
+            }
+
+            // RefKind filtering: if argument ref kinds are provided, a candidate
+            // is only applicable if each parameter's RefKind matches the corresponding
+            // argument's RefKind. A ref parameter requires a ref argument and vice versa
+            // (Requirement 7.4).
+            if (argumentRefKinds is not null)
+            {
+                var paramRefKinds = ParameterSignature.ExtractRefKinds(candidate, model);
+                var refKindMismatch = false;
+                for (var i = 0; i < argumentTypes.Count; i++)
+                {
+                    var paramRefKind = i < paramRefKinds.Count ? paramRefKinds[i] : RefKind.None;
+                    var argRefKind = i < argumentRefKinds.Count ? argumentRefKinds[i] : RefKind.None;
+                    if (paramRefKind != argRefKind)
+                    {
+                        refKindMismatch = true;
+                        break;
+                    }
+                }
+                if (refKindMismatch)
+                    continue;
             }
 
             var allAssignable = true;

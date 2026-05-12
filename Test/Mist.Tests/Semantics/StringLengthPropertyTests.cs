@@ -127,7 +127,7 @@ public class StringLengthPropertyTests
         var argAssign = new AssignmentNode { Target = argLogOr };
         var argExpr = new ExpressionNode { Assignment = argAssign };
 
-        var argList = new ArgumentListNode { Expression = argExpr };
+        var argList = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = argExpr } };
 
         var methodCallSuffix = new MethodCallSuffixPostfixSuffixNode
         {
@@ -180,7 +180,7 @@ public class StringLengthPropertyTests
         var argAssign = new AssignmentNode { Target = argLogOr };
         var argExpr = new ExpressionNode { Assignment = argAssign };
 
-        var argList = new ArgumentListNode { Expression = argExpr };
+        var argList = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = argExpr } };
 
         var methodCallSuffix = new MethodCallSuffixPostfixSuffixNode
         {

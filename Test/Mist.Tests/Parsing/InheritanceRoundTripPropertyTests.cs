@@ -244,7 +244,7 @@ public class InheritanceRoundTripPropertyTests
                 new BaseChainConstructorChainNode { Arguments = null },
                 new BaseChainConstructorChainNode
                 {
-                    Arguments = new ArgumentListNode { Expression = MakeIntLiteral("0") },
+                    Arguments = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = MakeIntLiteral("0") } },
                 })
             : Gen.Elements<ConstructorChainNode?>(
                 null,

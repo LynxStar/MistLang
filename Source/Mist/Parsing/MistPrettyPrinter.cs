@@ -1056,6 +1056,8 @@ public sealed class MistPrettyPrinter
     private string EmitParameter(ParameterNode param)
     {
         var prefix = param.Modifier is not null ? "readonly " : "";
+        if (param.RefModifier is not null)
+            prefix += "ref ";
         prefix += EmitOwnershipSpecifier(param.OwnershipSpecifier);
         var type = EmitTypeReference(param.Type);
         var name = param.Name.Lexeme;
@@ -1080,17 +1082,24 @@ public sealed class MistPrettyPrinter
         if (argList is null) return "";
 
         var arguments = new List<string>();
-        arguments.Add(EmitExpression(argList.Expression));
+        arguments.Add(EmitArgument(argList.Argument));
 
-        foreach (var child in argList.Children())
+        foreach (var arg in argList.Arguments)
         {
-            if (child is ExpressionNode expr && !ReferenceEquals(expr, argList.Expression))
-            {
-                arguments.Add(EmitExpression(expr));
-            }
+            arguments.Add(EmitArgument(arg));
         }
 
         return string.Join(", ", arguments);
+    }
+
+    private string EmitArgument(ArgumentNode arg)
+    {
+        return arg switch
+        {
+            RefArgumentArgumentNode refArg => $"ref {EmitExpression(refArg.Expression)}",
+            ValueArgumentArgumentNode valueArg => EmitExpression(valueArg.Expression),
+            _ => EmitExpression(ArgumentListNodeExtensions.ExtractExpression(arg))
+        };
     }
 
     // ─── Type References ─────────────────────────────────────────────────
@@ -1417,7 +1426,8 @@ public sealed class MistPrettyPrinter
     {
         if (returnStmt.Value is not null)
         {
-            AppendLine($"return {EmitExpression(returnStmt.Value)};");
+            var refPrefix = returnStmt.RefKeyword is not null ? "ref " : "";
+            AppendLine($"return {refPrefix}{EmitExpression(returnStmt.Value)};");
         }
         else
         {

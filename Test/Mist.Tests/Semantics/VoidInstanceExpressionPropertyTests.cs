@@ -309,8 +309,7 @@ public class VoidInstanceExpressionPropertyTests
         };
         var argList = new ArgumentListNode
         {
-            Expression = voidExpr,
-            Expressions = ImmutableArray<ExpressionNode>.Empty,
+            Argument = new ValueArgumentArgumentNode { Expression = voidExpr },
         };
         var callSuffix = new InvocationSuffixPostfixSuffixNode
         {

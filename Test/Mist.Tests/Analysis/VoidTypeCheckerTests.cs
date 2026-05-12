@@ -181,7 +181,7 @@ public class VoidTypeCheckerTests
     private static ExpressionNode MakeStaticMethodCall(string target, string methodName, ExpressionNode argExpr)
     {
         var primary = new IdentifierExpressionPrimaryNode { Name = Tok(target) };
-        var argList = new ArgumentListNode { Expression = argExpr };
+        var argList = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = argExpr } };
         var suffix = new MethodCallSuffixPostfixSuffixNode
         {
             Name = Tok(methodName),

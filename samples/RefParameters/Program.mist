@@ -1,0 +1,157 @@
+// RefParameters — Demonstrates ref parameter, ref return, and ref local features in Mist.
+//
+// Patterns demonstrated:
+//   1. ref parameters with value types (structs)
+//   2. ref parameters with reference types (classes)
+//   3. Ref returns from methods returning references to fields
+//   4. Ref returns from methods returning references to array elements
+//   5. Ref locals aliasing variables
+//   6. Ref locals aliasing fields
+//   7. Ref locals aliasing array elements
+//   8. ref readonly locals
+//   9. Ref forwarding (passing a ref parameter as a ref argument)
+//  10. Struct mutation visibility through ref
+
+using System;
+
+namespace RefParameters;
+
+public struct Point
+{
+    public int X;
+    public int Y;
+
+    public Point(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    public string Describe()
+    {
+        return $"Point({X}, {Y})";
+    }
+}
+
+public class Container
+{
+    public int Value;
+
+    public Container(int value)
+    {
+        this.Value = value;
+    }
+
+    public string Describe()
+    {
+        return $"Container({Value})";
+    }
+}
+
+public class Program
+{
+    public int Field;
+    public int[] Items;
+
+    private static void MutatePoint(ref Point p)
+    {
+        p.X = 100;
+        p.Y = 200;
+    }
+
+    private static void ReplaceContainer(ref Container c)
+    {
+        c = new Container(999);
+    }
+
+    private static void ForwardAndDouble(ref int value)
+    {
+        value = value * 2;
+    }
+
+    private static void IncrementX(ref Point p)
+    {
+        p.X = p.X + 1;
+    }
+
+    public ref int GetFieldRef()
+    {
+        return ref this.Field;
+    }
+
+    public ref int GetItemRef(int index)
+    {
+        return ref this.Items[index];
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("--- Ref Parameters ---");
+
+        // [ref-param-struct] ref parameter with value type
+        Point pt = new Point(1, 2);
+        Console.WriteLine($"[ref-param-struct] before: {pt.Describe()}");
+        MutatePoint(ref pt);
+        Console.WriteLine($"[ref-param-struct] after: {pt.Describe()}");
+
+        // [ref-param-class] ref parameter with reference type
+        Container box = new Container(42);
+        Console.WriteLine($"[ref-param-class] before: {box.Describe()}");
+        ReplaceContainer(ref box);
+        Console.WriteLine($"[ref-param-class] after: {box.Describe()}");
+
+        // [ref-return-field] ref return from method returning reference to field
+        Program h = new Program();
+        h.Field = 10;
+        h.Items = [1, 2, 3];
+        ref int fr = h.GetFieldRef();
+        fr = 77;
+        Console.WriteLine($"[ref-return-field] {h.Field}");
+
+        // [ref-return-array] ref return from method returning reference to array element
+        ref int ir = h.GetItemRef(1);
+        ir = 88;
+        Console.WriteLine($"[ref-return-array] {h.Items[1]}");
+
+        // [ref-local-var] ref local aliasing a variable
+        int orig = 5;
+        ref int la = orig;
+        la = 50;
+        Console.WriteLine($"[ref-local-var] {orig}");
+
+        // [ref-local-field] ref local aliasing a field
+        ref int fa = h.Field;
+        fa = 99;
+        Console.WriteLine($"[ref-local-field] {h.Field}");
+
+        // [ref-local-array] ref local aliasing an array element
+        int[] nums = [10, 20, 30];
+        ref int ea = nums[2];
+        ea = 300;
+        Console.WriteLine($"[ref-local-array] {nums[2]}");
+
+        // [ref-readonly-local] readonly ref local
+        int rt = 42;
+        readonly ref int ro = rt;
+        Console.WriteLine($"[ref-readonly-local] {ro}");
+
+        // [ref-forward] ref forwarding
+        int fv = 7;
+        ForwardAndDouble(ref fv);
+        Console.WriteLine($"[ref-forward] {fv}");
+
+        // [ref-struct-mutation] struct mutation visibility through ref
+        Point mp = new Point(0, 0);
+        IncrementX(ref mp);
+        IncrementX(ref mp);
+        IncrementX(ref mp);
+        Console.WriteLine($"[ref-struct-mutation] {mp.Describe()}");
+
+        Console.WriteLine("--- Ref Parameters Done ---");
+    }
+
+    public static void Main()
+    {
+        RunDemo();
+    }
+}

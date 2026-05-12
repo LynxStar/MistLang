@@ -78,30 +78,28 @@ public class OwnershipLendingPropertyTests
 
     /// <summary>
     /// The permitted lending pairs: (source tier, target tier).
+    /// Note: ReadonlyRef is excluded because the grammar change (ref-parameters feature)
+    /// now parses "readonly ref" in parameter position as a ref modifier, not an ownership specifier.
     /// </summary>
     private static readonly HashSet<(OwnershipTier Source, OwnershipTier Target)> PermittedPairs = new()
     {
         (OwnershipTier.Owned, OwnershipTier.Owned),
         (OwnershipTier.Owned, OwnershipTier.Borrowed),
-        (OwnershipTier.Owned, OwnershipTier.ReadonlyRef),
         (OwnershipTier.Owned, OwnershipTier.Frozen),
         (OwnershipTier.Borrowed, OwnershipTier.Borrowed),
-        (OwnershipTier.Borrowed, OwnershipTier.ReadonlyRef),
         (OwnershipTier.Borrowed, OwnershipTier.Frozen),
-        (OwnershipTier.ReadonlyRef, OwnershipTier.ReadonlyRef),
         (OwnershipTier.Frozen, OwnershipTier.Frozen),
-        (OwnershipTier.Frozen, OwnershipTier.ReadonlyRef),
-        (OwnershipTier.Unrestricted, OwnershipTier.ReadonlyRef),
         (OwnershipTier.Unrestricted, OwnershipTier.Unrestricted),
     };
 
     /// <summary>
     /// All ownership tiers that can appear on variables/parameters.
+    /// Note: ReadonlyRef is excluded because the grammar change (ref-parameters feature)
+    /// now parses "readonly ref" in parameter position as a ref modifier, not an ownership specifier.
     /// </summary>
     private static readonly OwnershipTier[] AllTiers =
     [
         OwnershipTier.Unrestricted,
-        OwnershipTier.ReadonlyRef,
         OwnershipTier.Frozen,
         OwnershipTier.Borrowed,
         OwnershipTier.Owned,

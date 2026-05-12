@@ -79,8 +79,86 @@ public static class ParameterSignature
     }
 
     /// <summary>
+    /// Extracts the RefKind values for each parameter of a method or constructor.
+    /// Returns a list parallel to the parameter list indicating the ref kind of each parameter.
+    /// Uses the <see cref="ISemanticModel"/> to look up parameter symbols.
+    /// </summary>
+    public static IReadOnlyList<RefKind> ExtractRefKinds(ISymbol symbol, ISemanticModel model)
+    {
+        Storm.Runtime.SyntaxNode declaringNode;
+        try
+        {
+            declaringNode = model.GetDeclaringNode(symbol);
+        }
+        catch
+        {
+            return Array.Empty<RefKind>();
+        }
+
+        var paramList = GetParameterList(declaringNode);
+        if (paramList is null)
+            return Array.Empty<RefKind>();
+
+        var refKinds = new List<RefKind>();
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode paramNode)
+            {
+                var paramSymbol = model.GetDeclaredSymbol(paramNode);
+                if (paramSymbol is Symbol sym)
+                {
+                    refKinds.Add(sym.RefKind);
+                }
+                else
+                {
+                    refKinds.Add(RefKind.None);
+                }
+            }
+        }
+
+        return refKinds;
+    }
+
+    /// <summary>
+    /// Extracts the RefKind values for each parameter of a method or constructor
+    /// using a <see cref="SymbolTable"/> directly. This overload is used during semantic
+    /// model construction (before the <see cref="ISemanticModel"/> is built).
+    /// </summary>
+    public static IReadOnlyList<RefKind> ExtractRefKinds(ISymbol symbol, SymbolTable symbolTable)
+    {
+        var declaringNode = symbolTable.GetDeclaringNode(symbol);
+        if (declaringNode is null)
+            return Array.Empty<RefKind>();
+
+        var paramList = GetParameterList(declaringNode);
+        if (paramList is null)
+            return Array.Empty<RefKind>();
+
+        var refKinds = new List<RefKind>();
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode paramNode)
+            {
+                var paramSymbol = symbolTable.GetDeclaredSymbol(paramNode);
+                if (paramSymbol is Symbol sym)
+                {
+                    refKinds.Add(sym.RefKind);
+                }
+                else
+                {
+                    refKinds.Add(RefKind.None);
+                }
+            }
+        }
+
+        return refKinds;
+    }
+
+    /// <summary>
     /// Returns true if two parameter signatures are identical
-    /// (same count, same types in order by DisplayName).
+    /// (same count, same types in order by DisplayName, and same RefKind values).
+    /// Two methods with the same parameter types but different RefKind values
+    /// on one or more parameters are distinct overloads (Requirement 7.4).
     /// </summary>
     public static bool AreEqual(IReadOnlyList<IType> a, IReadOnlyList<IType> b)
     {
@@ -91,6 +169,33 @@ public static class ParameterSignature
         {
             if (a[i].DisplayName != b[i].DisplayName)
                 return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Returns true if two parameter signatures are identical considering both
+    /// types and ref kinds. Two methods with the same parameter types but different
+    /// RefKind values on one or more parameters are distinct overloads (Requirement 7.4).
+    /// </summary>
+    public static bool AreEqualWithRefKind(
+        IReadOnlyList<IType> aTypes, IReadOnlyList<RefKind> aRefKinds,
+        IReadOnlyList<IType> bTypes, IReadOnlyList<RefKind> bRefKinds)
+    {
+        if (aTypes.Count != bTypes.Count)
+            return false;
+
+        for (var i = 0; i < aTypes.Count; i++)
+        {
+            if (aTypes[i].DisplayName != bTypes[i].DisplayName)
+                return false;
+
+            if (aRefKinds.Count > i && bRefKinds.Count > i)
+            {
+                if (aRefKinds[i] != bRefKinds[i])
+                    return false;
+            }
         }
 
         return true;

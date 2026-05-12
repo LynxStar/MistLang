@@ -79,8 +79,8 @@ public class PrettyPrinterPropertyTests
         ArgumentListNode? argList = null;
         if (args.Length > 0)
         {
-            argList = new ArgumentListNode { Expression = args[0] };
-            // Additional args would need to be added via Children, but for simplicity
+            argList = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = args[0] } };
+            // Additional args would need to be added via Arguments, but for simplicity
             // we only support 0 or 1 args in this helper.
         }
 
@@ -114,7 +114,7 @@ public class PrettyPrinterPropertyTests
         ArgumentListNode? argList = null;
         if (args.Length > 0)
         {
-            argList = new ArgumentListNode { Expression = args[0] };
+            argList = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = args[0] } };
         }
 
         var primary = new IdentifierExpressionPrimaryNode
@@ -634,7 +634,7 @@ public class PrettyPrinterPropertyTests
             {
                 Arguments = new ArgumentListNode
                 {
-                    Expression = MakeIntLiteralExpression("0"),
+                    Argument = new ValueArgumentArgumentNode { Expression = MakeIntLiteralExpression("0") },
                 },
             },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },

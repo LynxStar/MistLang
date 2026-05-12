@@ -1555,6 +1555,11 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         {
             if (paramSymbols[i] is Symbol paramSym)
             {
+                // Skip ownership checks for ref parameters — they use a different
+                // mechanism (variable-level indirection) that is orthogonal to ownership lending.
+                if (paramSym.RefKind != RefKind.None)
+                    continue;
+
                 if (paramSym.OwnershipTier == OwnershipTier.Owned)
                 {
                     // This parameter is owned — passing an owned variable here is a move.
@@ -1614,6 +1619,11 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         {
             if (paramSymbols[i] is Symbol paramSym)
             {
+                // Skip ownership checks for ref parameters — they use a different
+                // mechanism (variable-level indirection) that is orthogonal to ownership lending.
+                if (paramSym.RefKind != RefKind.None)
+                    continue;
+
                 if (paramSym.OwnershipTier == OwnershipTier.Owned)
                 {
                     var argSymbol = TryResolveIdentifierSymbol(argExprs[i], model);
@@ -1852,11 +1862,12 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         if (argList is null)
             return result;
 
-        // The ArgumentListNode has an Expression (first arg) and Expressions (rest args).
-        result.Add(argList.Expression);
-        foreach (var restArg in argList.Expressions)
+        // The ArgumentListNode has Argument (first) and Arguments (rest),
+        // each wrapping an ExpressionNode.
+        result.Add(ArgumentListNodeExtensions.ExtractExpression(argList.Argument));
+        foreach (var restArg in argList.Arguments)
         {
-            result.Add(restArg);
+            result.Add(ArgumentListNodeExtensions.ExtractExpression(restArg));
         }
         return result;
     }

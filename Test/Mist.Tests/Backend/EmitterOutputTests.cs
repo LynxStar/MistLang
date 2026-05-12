@@ -643,7 +643,7 @@ public sealed class EmitterOutputTests : IDisposable
         // Constructor with chain: Point() : this(0) { }
         var chainArgs = new ArgumentListNode
         {
-            Expression = MakeIntLiteralExpression("0"),
+            Argument = new ValueArgumentArgumentNode { Expression = MakeIntLiteralExpression("0") },
         };
         var chain = new ThisChainConstructorChainNode
         {

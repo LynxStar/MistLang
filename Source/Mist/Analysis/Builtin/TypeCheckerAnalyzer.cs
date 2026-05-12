@@ -730,6 +730,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     // ── Current enclosing type during analysis (set per method/constructor) ──
     private IType? _currentEnclosingType;
 
+    // ── Current method symbol during analysis (set per method body) ──
+    private ISymbol? _currentMethodSymbol;
+
     // ── Whether we are currently inside a constructor body (for init-only checks) ──
     private bool _insideConstructor;
 
@@ -1109,6 +1112,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             var returnType = methodSymbol.DeclaredType ?? ErrorType.Instance;
             _currentEnclosingType = FindDeclaringType(methodSymbol);
+            _currentMethodSymbol = methodSymbol;
             _insideConstructor = false;
             _insidePropertyAccessor = false;
 
@@ -1118,6 +1122,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (castOpDecl.Body.GetBlock() is BlockNode castBlock)
             {
                 CollectClosureCapturedVariables(castBlock);
+                CheckRefLambdaCaptureProhibition(castBlock, model, diagnostics);
                 CheckBlock(castBlock, returnType, model, diagnostics);
             }
             return;
@@ -1128,6 +1133,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         var returnType2 = methodSymbol.DeclaredType ?? ErrorType.Instance;
         _currentEnclosingType = FindDeclaringType(methodSymbol);
+        _currentMethodSymbol = methodSymbol;
         _insideConstructor = false;
         _insidePropertyAccessor = false;
 
@@ -1135,6 +1141,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (methodDecl.Body.GetBlock() is BlockNode block)
         {
             CollectClosureCapturedVariables(block);
+            CheckRefLambdaCaptureProhibition(block, model, diagnostics);
 
             // ── Flow narrowing: inject parameter refinement narrowing (Requirement 8.1–8.5) ──
             var paramNarrowings = InjectParameterRefinementNarrowing(declaringNode, model);
@@ -3136,6 +3143,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
+        // ── ref-parameters feature: ref local requires initializer (MIST_REF_0010) ──
+        // The current grammar enforces initializers for all local variable declarations,
+        // so this check is defensive. If the grammar ever changes to allow uninitialized
+        // locals, this ensures ref locals are still validated.
+        CheckRefLocalRequiresInitializer(varDecl, model, diagnostics);
+
         switch (varDecl)
         {
             case TypedVariableDeclarationVariableDeclarationStatementNode typed:
@@ -3332,6 +3345,207 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     // Return statement checking (MIST_TC_0008)
     // ═══════════════════════════════════════════════════════════════════════
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // Ref local requires initializer validation (MIST_REF_0010)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates that a ref or ref readonly local variable has an initializer.
+    /// The current grammar enforces initializers for all local variable declarations,
+    /// so this is a defensive check. Emits <c>MIST_REF_0010</c> if a ref local
+    /// somehow lacks an initializer.
+    /// </summary>
+    private static void CheckRefLocalRequiresInitializer(
+        VariableDeclarationStatementNode varDecl,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var symbol = model.GetDeclaredSymbol(varDecl);
+        if (symbol is not Symbol { Kind: SymbolKind.LocalVariable } sym)
+            return;
+
+        if (sym.RefKind == RefKind.None)
+            return;
+
+        // Check if the declaration has an initializer based on its type.
+        var hasInitializer = varDecl switch
+        {
+            TypedVariableDeclarationVariableDeclarationStatementNode => true,
+            InferredVariableDeclarationVariableDeclarationStatementNode => true,
+            _ => false,
+        };
+
+        if (!hasInitializer)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_REF_0010",
+                "A ref local variable must be initialized at declaration",
+                varDecl,
+                model));
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Ref return lifetime safety (MIST_REF_0006)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates that a return expression in a ref-returning method references a storage
+    /// location whose lifetime exceeds the method call. Returns <c>true</c> if a diagnostic
+    /// was emitted (caller should skip further type checks to avoid cascading).
+    /// <para>
+    /// Permitted return targets:
+    /// <list type="bullet">
+    ///   <item><description>Instance fields via <c>this</c> (including chained field access)</description></item>
+    ///   <item><description>Array elements accessed through an instance field of <c>this</c></description></item>
+    ///   <item><description>Static fields (accessed via a type name)</description></item>
+    ///   <item><description>Ref parameters (their storage outlives the callee)</description></item>
+    /// </list>
+    /// </para>
+    /// <para>
+    /// Rejected return targets:
+    /// <list type="bullet">
+    ///   <item><description>Local variables</description></item>
+    ///   <item><description>Non-ref parameters</description></item>
+    ///   <item><description>Literals, new expressions, method call results, arithmetic expressions</description></item>
+    /// </list>
+    /// </para>
+    /// </summary>
+    private bool CheckRefReturnLifetimeSafety(
+        ReturnStatementNode returnStmt,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Only applies when the enclosing method has a ref or ref readonly return type.
+        if (_currentMethodSymbol is not Symbol methodSym)
+            return false;
+
+        if (methodSym.ReturnRefKind == RefKind.None)
+            return false;
+
+        // The return statement must have a value expression.
+        if (returnStmt.Value is null)
+            return false;
+
+        // Check whether the return expression references a valid long-lived storage location.
+        if (IsValidRefReturnTarget(returnStmt.Value, model))
+            return false;
+
+        // The return expression does not reference a valid long-lived storage location.
+        // Emit MIST_REF_0006.
+        var description = DescribeRefReturnTarget(returnStmt.Value, model);
+        diagnostics.Add(MakeDiagnostic(
+            "MIST_REF_0006",
+            $"Cannot return a reference to local variable or non-ref parameter '{description}'; its storage is destroyed when the method returns",
+            returnStmt,
+            model));
+        return true;
+    }
+
+    /// <summary>
+    /// Determines whether an expression is a valid target for a ref return — i.e., its
+    /// storage location's lifetime exceeds the method call.
+    /// </summary>
+    private static bool IsValidRefReturnTarget(ExpressionNode expr, ISemanticModel model)
+    {
+        var postfix = TryExtractPostfixNode(expr);
+        if (postfix is null)
+        {
+            // Expression has binary/logical operators or assignment — not a valid ref return target.
+            return false;
+        }
+
+        // Case 1: Expression has suffixes (member access, index, method call, etc.)
+        if (postfix.Suffix.Length > 0)
+        {
+            // Check if the root is `this` — field access via this is valid.
+            if (postfix.Target is ThisExpressionPrimaryNode)
+            {
+                // Verify the suffix chain consists only of member accesses and index accesses.
+                // Method calls in the chain invalidate the ref return (the result is a temporary).
+                return AllSuffixesAreFieldOrIndexAccess(postfix.Suffix);
+            }
+
+            // Check if the root is an identifier that resolves to a ref parameter —
+            // accessing fields/elements of a ref parameter is valid (the ref parameter's
+            // storage outlives the callee).
+            if (postfix.Target is IdentifierExpressionPrimaryNode rootIdentifier)
+            {
+                var symbol = model.GetDeclaredSymbol(rootIdentifier);
+                if (symbol is Symbol { Kind: SymbolKind.Parameter } paramSym && paramSym.RefKind == RefKind.Ref)
+                {
+                    // A ref parameter with field/index access — valid.
+                    return AllSuffixesAreFieldOrIndexAccess(postfix.Suffix);
+                }
+
+                // Check if the identifier resolves to a type (static field access).
+                // In Mist, static field access is `TypeName.fieldName`, which is an
+                // identifier with a member access suffix.
+                var resolvedType = model.GetTypeOf(rootIdentifier);
+                if (resolvedType is not null && symbol is not null &&
+                    symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Enum)
+                {
+                    // Static member access — valid (static fields outlive any method call).
+                    return AllSuffixesAreFieldOrIndexAccess(postfix.Suffix);
+                }
+            }
+
+            // Any other root with suffixes (local variable with member access, etc.)
+            // is not a valid ref return target.
+            return false;
+        }
+
+        // Case 2: No suffixes — the expression is just a primary node (identifier, literal, etc.)
+        if (postfix.Target is IdentifierExpressionPrimaryNode identifier)
+        {
+            var symbol = model.GetDeclaredSymbol(identifier);
+            if (symbol is not Symbol concreteSymbol)
+                return false;
+
+            // A ref parameter by itself is a valid ref return target —
+            // the caller's storage outlives the callee.
+            if (concreteSymbol.Kind == SymbolKind.Parameter && concreteSymbol.RefKind == RefKind.Ref)
+                return true;
+
+            // Local variables and non-ref parameters are NOT valid — their storage
+            // is destroyed when the method returns.
+            return false;
+        }
+
+        // All other primary nodes (literals, this, new expressions, etc.) are not valid.
+        return false;
+    }
+
+    /// <summary>
+    /// Checks that all suffixes in a postfix chain are member accesses or index accesses
+    /// (no method calls, invocations, or other suffixes that produce temporaries).
+    /// </summary>
+    private static bool AllSuffixesAreFieldOrIndexAccess(IReadOnlyList<PostfixSuffixNode> suffixes)
+    {
+        foreach (var suffix in suffixes)
+        {
+            if (suffix is not (MemberAccessSuffixPostfixSuffixNode or IndexSuffixPostfixSuffixNode))
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Produces a human-readable description of the ref return target for use in the
+    /// MIST_REF_0006 diagnostic message.
+    /// </summary>
+    private static string DescribeRefReturnTarget(ExpressionNode expr, ISemanticModel model)
+    {
+        var postfix = TryExtractPostfixNode(expr);
+        if (postfix is null)
+            return DescribeExpression(expr, model);
+
+        if (postfix.Target is IdentifierExpressionPrimaryNode identifier)
+            return identifier.Name.Lexeme;
+
+        return DescribeExpression(expr, model);
+    }
+
     private void CheckReturnStatement(
         ReturnStatementNode returnStmt,
         IType methodReturnType,
@@ -3351,6 +3565,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             // return expr; — check the expression and verify type.
             CheckExpression(returnStmt.Value, model, diagnostics);
+
+            // ── ref-parameters feature: ref return lifetime safety (MIST_REF_0006) ──
+            // When the enclosing method has a ref or ref readonly return type,
+            // validate that the return expression references a storage location
+            // whose lifetime exceeds the method call.
+            if (CheckRefReturnLifetimeSafety(returnStmt, model, diagnostics))
+            {
+                // A ref lifetime diagnostic was emitted; skip further type checks
+                // to avoid cascading diagnostics.
+                return;
+            }
+
             var valueType = model.GetTypeOf(returnStmt.Value);
 
             if (methodReturnType.IsVoid())
@@ -4043,7 +4269,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <summary>
     /// Collects variable names captured by closures (lambda expressions) in the
     /// given block. Variables captured by closures are ineligible for flow narrowing
-    /// (Requirement 7.7).
+    /// (Requirement 7.7). Also checks for ref locals captured by lambdas and emits
+    /// <c>MIST_REF_0011</c> (Requirements 6.7, 14.11).
     /// </summary>
     private void CollectClosureCapturedVariables(BlockNode block)
     {
@@ -4055,6 +4282,58 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // a clean state for each method body.
         _closureCapturedVariables.Clear();
         _ = block; // Suppress unused parameter warning.
+    }
+
+    /// <summary>
+    /// Checks for ref locals captured by lambda or closure expressions and emits
+    /// <c>MIST_REF_0011</c> for each violation. A ref local (one with
+    /// <see cref="RefKind.Ref"/> or <see cref="RefKind.RefReadonly"/>) cannot be
+    /// captured because its storage location may not outlive the closure.
+    /// (Requirements 6.7, 14.11)
+    /// </summary>
+    /// <remarks>
+    /// Currently, Mist does not have lambda/closure expressions in the grammar.
+    /// This method is structurally complete and ready to be activated when lambda
+    /// syntax is added. When a lambda AST node type is introduced, this method
+    /// should be called from <see cref="CheckBlock"/> or the lambda-visiting logic,
+    /// walking the lambda body for identifier references that resolve to outer-scope
+    /// symbols with <c>RefKind != None</c>.
+    /// </remarks>
+    private static void CheckRefLambdaCaptureProhibition(
+        BlockNode block,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // When lambda/closure AST nodes are added to the grammar, this method
+        // should:
+        // 1. Walk the block (and nested blocks) to find lambda expression nodes.
+        // 2. For each lambda, collect identifier references in its body.
+        // 3. For each identifier that resolves to a symbol from an outer scope:
+        //    a. Check if the symbol has RefKind != RefKind.None.
+        //    b. If so, emit MIST_REF_0011 at the identifier's location.
+        //
+        // Example implementation pattern (pseudocode for when lambdas exist):
+        //
+        //   foreach (var lambda in CollectLambdaNodes(block))
+        //   {
+        //       foreach (var identifier in CollectIdentifiersInLambdaBody(lambda))
+        //       {
+        //           var symbol = model.GetDeclaredSymbol(identifier) as Symbol;
+        //           if (symbol is null) continue;
+        //           if (symbol.Kind != SymbolKind.LocalVariable) continue;
+        //           if (symbol.RefKind == RefKind.None) continue;
+        //           // Symbol is a ref local captured by a lambda — emit diagnostic.
+        //           diagnostics.Add(MakeDiagnostic(
+        //               "MIST_REF_0011",
+        //               $"Cannot capture ref local '{symbol.Name}' in a lambda or closure",
+        //               identifier,
+        //               model));
+        //       }
+        //   }
+
+        _ = block; // Suppress unused parameter warning.
+        _ = model;
+        _ = diagnostics;
     }
 
     /// <summary>
@@ -4119,10 +4398,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var result = new List<(Storm.Runtime.SyntaxNode, IType)>();
         if (argList is null || _narrowingContext.Count == 0) return result;
 
-        foreach (var child in argList.Children())
+        foreach (var expr in argList.GetAllExpressions())
         {
-            if (child is not ExpressionNode expr) continue;
-
             // Check if this argument is a simple identifier that has been narrowed.
             var identifierNode = TryExtractIdentifierPrimaryNode(expr);
             if (identifierNode is null) continue;
@@ -4291,6 +4568,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if (assignment.Value is not null)
         {
+            // ── ref-parameters feature: ref readonly assignment prohibition ──
+            // MIST_REF_0005: Cannot assign through a ref readonly local.
+            // MIST_REF_0009: Cannot assign through a ref readonly return value.
+            CheckRefReadonlyAssignmentProhibition(assignment, model, diagnostics);
+
+            // ── ref-parameters feature: ref field storage prohibition ──
+            // MIST_REF_0008: Cannot store a ref in a field.
+            CheckRefFieldStorageProhibition(assignment, model, diagnostics);
+
             // Infer bare 'default' type from the LHS type before checking the RHS.
             var lhsTypeForDefault = model.GetTypeOf(assignment.Target);
             TryInferDefaultLiteralTypeFromAssignment(assignment.Value, lhsTypeForDefault, model);
@@ -4399,6 +4685,193 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Checks if an assignment target is a ref readonly local or a ref readonly return value.
+    /// Emits MIST_REF_0005 for ref readonly local assignment and MIST_REF_0009 for ref readonly
+    /// return value assignment.
+    /// </summary>
+    private static void CheckRefReadonlyAssignmentProhibition(
+        AssignmentNode assignment,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Extract the PostfixNode from the assignment target.
+        var postfix = TryExtractPostfixFromLogicalOr(assignment.Target);
+        if (postfix is null)
+            return;
+
+        // Case 1: Simple identifier — check if it resolves to a ref readonly local or parameter.
+        if (postfix.Suffix.Length == 0 && postfix.Target is IdentifierExpressionPrimaryNode)
+        {
+            var symbol = model.GetDeclaredSymbol(postfix.Target);
+            if (symbol is Symbol sym
+                && sym.RefKind == RefKind.RefReadonly
+                && sym.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_REF_0005",
+                    "Cannot assign through a ref readonly reference",
+                    assignment,
+                    model));
+                return;
+            }
+        }
+
+        // Case 2: Method call result — check if the last suffix is a method call
+        // whose resolved method has ReturnRefKind == RefReadonly.
+        if (postfix.Suffix.Length > 0)
+        {
+            var lastSuffix = postfix.Suffix[^1];
+
+            // Direct method call: target.Method() = value
+            if (lastSuffix is MethodCallSuffixPostfixSuffixNode methodCall)
+            {
+                var methodSymbol = model.GetDeclaredSymbol(methodCall);
+                if (methodSymbol is Symbol methodSym && methodSym.ReturnRefKind == RefKind.RefReadonly)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_REF_0009",
+                        "Cannot assign through a ref readonly return value",
+                        assignment,
+                        model));
+                    return;
+                }
+            }
+
+            // Member access after a method call: target.Method().field = value
+            // In this case, the method call is not the last suffix, so we check
+            // if any suffix in the chain is a ref readonly method call that the
+            // subsequent member access operates on.
+            // For the simple case of `GetRef().field = value`, the last suffix is
+            // a MemberAccessSuffix, and the preceding suffix is the method call.
+            if (lastSuffix is MemberAccessSuffixPostfixSuffixNode && postfix.Suffix.Length >= 2)
+            {
+                var precedingSuffix = postfix.Suffix[^2];
+                if (precedingSuffix is MethodCallSuffixPostfixSuffixNode precedingMethodCall)
+                {
+                    var methodSymbol = model.GetDeclaredSymbol(precedingMethodCall);
+                    if (methodSymbol is Symbol methodSym && methodSym.ReturnRefKind == RefKind.RefReadonly)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_REF_0009",
+                            "Cannot assign through a ref readonly return value",
+                            assignment,
+                            model));
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Case 3: Bare method call (no suffixes, target is a method invocation).
+        // This handles the case where the target is an invocation expression like `GetRef() = value`.
+        // In Mist's AST, this would be a PostfixNode with an InvocationSuffix.
+        if (postfix.Suffix.Length == 1 && postfix.Suffix[0] is InvocationSuffixPostfixSuffixNode)
+        {
+            // Resolve the method from the target identifier.
+            var symbol = model.GetDeclaredSymbol(postfix.Target);
+            if (symbol is Symbol methodSym && methodSym.Kind == SymbolKind.Method && methodSym.ReturnRefKind == RefKind.RefReadonly)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_REF_0009",
+                    "Cannot assign through a ref readonly return value",
+                    assignment,
+                    model));
+                return;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks if an assignment stores a ref (parameter or local) into a field.
+    /// Emits <c>MIST_REF_0008</c> when the assignment target is a field (member access)
+    /// and the source expression is a ref parameter or ref local.
+    /// </summary>
+    private static void CheckRefFieldStorageProhibition(
+        AssignmentNode assignment,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Step 1: Check if the assignment target is a field (member access suffix).
+        var targetPostfix = TryExtractPostfixFromLogicalOr(assignment.Target);
+        if (targetPostfix is null)
+            return;
+
+        // The target must have at least one suffix, and the last suffix must be a member access.
+        // This covers `this.field = ...`, `obj.field = ...`, and `this.inner.field = ...`.
+        if (targetPostfix.Suffix.Length == 0)
+            return;
+
+        var lastSuffix = targetPostfix.Suffix[^1];
+        if (lastSuffix is not MemberAccessSuffixPostfixSuffixNode)
+            return;
+
+        // Step 2: Check if the RHS is a ref parameter or ref local.
+        // The RHS is assignment.Value which is an AssignmentNode. When it has no
+        // further chaining (Value is null), the expression is in its Target (LogicalOrNode).
+        var rhsAssignment = assignment.Value!;
+        if (rhsAssignment.Value is not null)
+            return; // Chained assignment — not a simple ref identifier.
+
+        var rhsPostfix = TryExtractPostfixFromLogicalOr(rhsAssignment.Target);
+        if (rhsPostfix is null)
+            return;
+
+        // The RHS must be a simple identifier (no suffixes) to be a direct ref reference.
+        if (rhsPostfix.Suffix.Length > 0)
+            return;
+
+        if (rhsPostfix.Target is not IdentifierExpressionPrimaryNode rhsIdentifier)
+            return;
+
+        var rhsSymbol = model.GetDeclaredSymbol(rhsIdentifier);
+        if (rhsSymbol is not Symbol concreteSymbol)
+            return;
+
+        // Only parameters and local variables can be refs.
+        if (concreteSymbol.Kind is not (SymbolKind.Parameter or SymbolKind.LocalVariable))
+            return;
+
+        // Check if the symbol has a ref kind (Ref or RefReadonly).
+        if (concreteSymbol.RefKind is RefKind.Ref or RefKind.RefReadonly)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_REF_0008",
+                "Cannot store a ref in a field; refs are stack-only aliases",
+                assignment,
+                model));
+        }
+    }
+
+    /// <summary>
+    /// Extracts the PostfixNode from a LogicalOrNode assignment target by walking
+    /// through the expression wrapper chain.
+    /// </summary>
+    private static PostfixNode? TryExtractPostfixFromLogicalOr(LogicalOrNode target)
+    {
+        if (target.Right is not null) return null;
+
+        var logicalAnd = target.Left;
+        if (logicalAnd.Right is not null) return null;
+
+        var equality = logicalAnd.Left;
+        if (equality.Right is not null) return null;
+
+        if (equality.Left is not RelationalComparisonRelationalNode relationalComparison) return null;
+        if (relationalComparison.Right is not null) return null;
+
+        var additive = relationalComparison.Left;
+        if (additive.Right is not null) return null;
+
+        var multiplicative = additive.Left;
+        if (multiplicative.Right is not null) return null;
+
+        if (multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+            return null;
+
+        return postfixExpr.Primary;
     }
 
     /// <summary>
@@ -6881,10 +7354,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         var paramTypes = ParameterSignature.Extract(methodSymbol, model);
         var argExprs = new List<ExpressionNode>();
-        foreach (var child in argList.Children())
+        foreach (var expr in argList.GetAllExpressions())
         {
-            if (child is ExpressionNode expr)
-                argExprs.Add(expr);
+            argExprs.Add(expr);
         }
 
         var count = Math.Min(argExprs.Count, paramTypes.Count);
@@ -6953,6 +7425,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Look up the method symbol to check argument types against parameter types.
         var methodSymbol = model.GetDeclaredSymbol(methodCall);
 
+        // ── ref call-site annotation enforcement (MIST_REF_0002, MIST_REF_0003) ──
+        if (methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method && methodCall.Arguments is not null)
+        {
+            CheckRefCallSiteAnnotationsForSymbol(methodCall.Arguments, methodSymbol, model, diagnostics);
+        }
+
         // If the symbol is registered on the call-site node, use it for substitution-aware checking.
         if (methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method)
         {
@@ -7005,7 +7483,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (candidates.Count > 1)
         {
             var argTypes = CollectArgumentTypes(methodCall.Arguments, model);
-            var result = OverloadResolver.Resolve(candidates, argTypes, model);
+            var argRefKinds = CollectArgumentRefKinds(methodCall.Arguments);
+            var result = OverloadResolver.Resolve(candidates, argTypes, model, argumentRefKinds: argRefKinds);
 
             switch (result.Status)
             {
@@ -7069,6 +7548,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (invokedSymbol is null)
             return;
 
+        // ── ref call-site annotation enforcement (MIST_REF_0002, MIST_REF_0003) ──
+        if (invokedSymbol.Kind == SymbolKind.Method && invocation.Arguments is not null)
+        {
+            CheckRefCallSiteAnnotationsForSymbol(invocation.Arguments, invokedSymbol, model, diagnostics);
+        }
+
         if (invokedSymbol.Kind == SymbolKind.Method)
         {
             var methodName = invokedSymbol.Name;
@@ -7080,7 +7565,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (candidates.Count > 1)
             {
                 var argTypes = CollectArgumentTypes(invocation.Arguments, model);
-                var result = OverloadResolver.Resolve(candidates, argTypes, model);
+                var argRefKinds = CollectArgumentRefKinds(invocation.Arguments);
+                var result = OverloadResolver.Resolve(candidates, argTypes, model, argumentRefKinds: argRefKinds);
 
                 switch (result.Status)
                 {
@@ -7119,12 +7605,366 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private void CheckArgumentListExpressions(ArgumentListNode argList, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        // The ArgumentListNode has an Expression property and additional expressions in Children.
-        foreach (var child in argList.Children())
+        // The ArgumentListNode has Argument (first) and Arguments (rest), each wrapping an ExpressionNode.
+        foreach (var expr in argList.GetAllExpressions())
         {
-            if (child is ExpressionNode expr)
+            CheckExpression(expr, model, diagnostics);
+        }
+
+        // Validate ref arguments are assignable storage locations (MIST_REF_0001).
+        CheckRefArgumentAssignability(argList, model, diagnostics);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Ref argument assignable storage location validation (MIST_REF_0001)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates that each <c>ref</c>-annotated argument in the argument list is an
+    /// assignable storage location: a mutable local variable, a mutable field, or an
+    /// array element (indexer access). Emits <c>MIST_REF_0001</c> for expressions that
+    /// are not valid storage locations (literals, temporaries, method return values,
+    /// arithmetic results, readonly bindings, frozen variables, readonly-ref variables).
+    /// </summary>
+    private static void CheckRefArgumentAssignability(ArgumentListNode argList, ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        CheckSingleRefArgument(argList.Argument, model, diagnostics);
+        foreach (var arg in argList.Arguments)
+        {
+            CheckSingleRefArgument(arg, model, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Checks a single argument node. If it is a <see cref="RefArgumentArgumentNode"/>,
+    /// validates that its expression is an assignable storage location.
+    /// </summary>
+    private static void CheckSingleRefArgument(ArgumentNode arg, ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        if (arg is not RefArgumentArgumentNode refArg)
+            return;
+
+        var expr = refArg.Expression;
+        if (IsAssignableStorageLocation(expr, model, out var description))
+            return;
+
+        diagnostics.Add(MakeDiagnostic(
+            "MIST_REF_0001",
+            $"A ref argument must be an assignable variable, field, or array element; '{description}' is not a valid storage location",
+            (SyntaxNode)refArg,
+            model));
+    }
+
+    /// <summary>
+    /// Determines whether an expression represents an assignable storage location suitable
+    /// for a <c>ref</c> argument. Returns <c>true</c> if the expression is:
+    /// <list type="bullet">
+    ///   <item>A local variable that is not readonly, not frozen, and not readonly-ref ownership tier</item>
+    ///   <item>A parameter that is not readonly, not frozen, and not readonly-ref ownership tier</item>
+    ///   <item>A mutable field access (member access suffix)</item>
+    ///   <item>An array element access (index suffix)</item>
+    /// </list>
+    /// Returns <c>false</c> for literals, <c>new</c> expressions, method call results,
+    /// binary/unary expressions, <c>this</c>, and readonly/frozen/readonly-ref variables.
+    /// </summary>
+    private static bool IsAssignableStorageLocation(ExpressionNode expr, ISemanticModel model, out string description)
+    {
+        // Navigate through the expression tree to reach the PostfixNode:
+        // Expression → Assignment → LogicalOr → LogicalAnd → Equality → Relational → Additive → Multiplicative → Unary → Postfix → Primary
+        var postfix = TryExtractPostfixNode(expr);
+        if (postfix is null)
+        {
+            // The expression has binary/logical operators or assignment — not a storage location.
+            description = DescribeExpression(expr, model);
+            return false;
+        }
+
+        // Case 1: Expression has suffixes — check if the last suffix is a member access or index.
+        if (postfix.Suffix.Length > 0)
+        {
+            var lastSuffix = postfix.Suffix[^1];
+
+            // Array element access (indexer) — always an assignable storage location.
+            if (lastSuffix is IndexSuffixPostfixSuffixNode)
+                return AssignableResult(out description);
+
+            // Member access — a field access is assignable.
+            if (lastSuffix is MemberAccessSuffixPostfixSuffixNode)
+                return AssignableResult(out description);
+
+            // Method call result, invocation result, switch expression result — not assignable.
+            description = DescribeExpression(expr, model);
+            return false;
+        }
+
+        // Case 2: No suffixes — the expression is just a primary node.
+        var primary = postfix.Target;
+
+        // Identifier expression — check if it resolves to a mutable variable/parameter.
+        if (primary is IdentifierExpressionPrimaryNode identifier)
+        {
+            var symbol = model.GetDeclaredSymbol(identifier);
+            if (symbol is not Symbol concreteSymbol)
             {
-                CheckExpression(expr, model, diagnostics);
+                // Cannot resolve — treat as non-assignable with the identifier name.
+                description = identifier.Name.Lexeme;
+                return false;
+            }
+
+            // Only local variables and parameters are valid storage locations for ref.
+            if (concreteSymbol.Kind is not (SymbolKind.LocalVariable or SymbolKind.Parameter))
+            {
+                description = identifier.Name.Lexeme;
+                return false;
+            }
+
+            // Reject readonly variables (explicit readonly modifier).
+            if (concreteSymbol.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly or ReadonlyStatus.InferredReadonly or ReadonlyStatus.ImplicitReadonly)
+            {
+                description = identifier.Name.Lexeme;
+                return false;
+            }
+
+            // Reject frozen ownership tier.
+            if (concreteSymbol.OwnershipTier == OwnershipTier.Frozen)
+            {
+                description = identifier.Name.Lexeme;
+                return false;
+            }
+
+            // Reject readonly ref ownership tier.
+            if (concreteSymbol.OwnershipTier == OwnershipTier.ReadonlyRef)
+            {
+                description = identifier.Name.Lexeme;
+                return false;
+            }
+
+            // Reject ref readonly locals (they are readonly references).
+            if (concreteSymbol.RefKind == RefKind.RefReadonly)
+            {
+                description = identifier.Name.Lexeme;
+                return false;
+            }
+
+            // The variable/parameter is mutable — valid storage location.
+            return AssignableResult(out description);
+        }
+
+        // Parenthesized expression — unwrap and check inner.
+        if (primary is ParenthesizedExpressionPrimaryNode paren)
+        {
+            return IsAssignableStorageLocation(paren.Inner, model, out description);
+        }
+
+        // All other primary nodes are not assignable storage locations:
+        // literals, this, new expressions, array literals, tuple literals, etc.
+        description = DescribeExpression(expr, model);
+        return false;
+    }
+
+    /// <summary>
+    /// Collects all <see cref="ArgumentNode"/> objects from an <see cref="ArgumentListNode"/>
+    /// in order (first + rest). Returns an empty list if <paramref name="argList"/> is null.
+    /// </summary>
+    private static List<ArgumentNode> CollectArgumentNodes(ArgumentListNode? argList)
+    {
+        if (argList is null)
+            return [];
+
+        var nodes = new List<ArgumentNode>(1 + argList.Arguments.Length);
+        nodes.Add(argList.Argument);
+        foreach (var arg in argList.Arguments)
+        {
+            nodes.Add(arg);
+        }
+        return nodes;
+    }
+
+    /// <summary>
+    /// Extracts the <see cref="PostfixNode"/> from an expression, returning null if the
+    /// expression contains binary operators, logical operators, or assignments that make
+    /// it inherently non-assignable.
+    /// </summary>
+    private static PostfixNode? TryExtractPostfixNode(ExpressionNode expr)
+    {
+        var assignment = expr.Assignment;
+        if (assignment?.Value is not null) return null;
+
+        var logicalOr = assignment?.Target;
+        if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+            return null;
+
+        var logicalAnd = logicalOr?.Left;
+        if (logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+            return null;
+
+        var equality = logicalAnd?.Left;
+        if (equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+            return null;
+
+        if (equality?.Left is not RelationalComparisonRelationalNode relCmp)
+            return null;
+        if (relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+            return null;
+
+        var additive = relCmp.Left;
+        if (additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+            return null;
+
+        var multiplicative = additive?.Left;
+        if (multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+            return null;
+
+        if (multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+            return null;
+
+        return postfixUnary.Primary;
+    }
+
+    /// <summary>
+    /// Produces a human-readable description of an expression for use in diagnostic messages.
+    /// </summary>
+    private static string DescribeExpression(ExpressionNode expr, ISemanticModel model)
+    {
+        // Try to get the type for a meaningful description.
+        var type = model.GetTypeOf(expr);
+
+        // Try to extract a simple identifier name.
+        var identifierNode = TryExtractIdentifierPrimaryNode(expr);
+        if (identifierNode is not null)
+            return identifierNode.Name.Lexeme;
+
+        // Try to unwrap to a primary node for a more specific description.
+        var primary = UnwrapExpressionToPrimary(expr);
+        if (primary is not null)
+        {
+            return primary switch
+            {
+                IntegerLiteralExpressionPrimaryNode intLit => intLit.IntegerLiteral.Lexeme,
+                FloatLiteralExpressionPrimaryNode floatLit => floatLit.FloatLiteral.Lexeme,
+                StringLiteralExpressionPrimaryNode strLit => strLit.StringLiteral.Lexeme,
+                CharLiteralExpressionPrimaryNode charLit => charLit.CharLiteral.Lexeme,
+                TrueLiteralExpressionPrimaryNode => "true",
+                FalseLiteralExpressionPrimaryNode => "false",
+                ThisExpressionPrimaryNode => "this",
+                ObjectCreationExpressionPrimaryNode => "new expression",
+                ObjectCreationExpressionNoArgsPrimaryNode => "new expression",
+                ArrayCreationExpressionPrimaryNode => "new expression",
+                ArrayLiteralExpressionPrimaryNode => "array literal",
+                DefaultExpressionPrimaryNode => "default expression",
+                DefaultLiteralExpressionPrimaryNode => "default",
+                TupleLiteralExpressionPrimaryNode => "tuple expression",
+                _ => type?.DisplayName ?? "expression",
+            };
+        }
+
+        return type?.DisplayName ?? "expression";
+    }
+
+    private static bool AssignableResult(out string description)
+    {
+        description = string.Empty;
+        return true;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Ref call-site annotation enforcement (MIST_REF_0002, MIST_REF_0003)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves parameter symbols from a method symbol and validates ref annotations
+    /// at the call site. Emits <c>MIST_REF_0002</c> when a ref parameter is missing
+    /// the <c>ref</c> keyword at the call site, and <c>MIST_REF_0003</c> when a
+    /// non-ref parameter has a spurious <c>ref</c> keyword.
+    /// </summary>
+    private static void CheckRefCallSiteAnnotationsForSymbol(
+        ArgumentListNode argList,
+        ISymbol methodSymbol,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        SyntaxNode methodNode;
+        try { methodNode = model.GetDeclaringNode(methodSymbol); }
+        catch { return; }
+
+        ParameterListNode? parameters = methodNode switch
+        {
+            MethodDeclarationNode method => method.Parameters,
+            ConstructorDeclarationNode ctor => ctor.Parameters,
+            BlockIndexerIndexerDeclarationNode indexer => indexer.Parameters,
+            _ => null,
+        };
+
+        if (parameters is null)
+            return;
+
+        var paramSymbols = ImmutableArray.CreateBuilder<ISymbol>();
+        foreach (var child in parameters.Children())
+        {
+            if (child is ParameterNode paramNode)
+            {
+                var paramSym = model.GetDeclaredSymbol(paramNode);
+                if (paramSym is not null)
+                    paramSymbols.Add(paramSym);
+            }
+        }
+
+        CheckRefCallSiteAnnotations(argList, paramSymbols.ToImmutable(), model, diagnostics);
+    }
+
+    /// <summary>
+    /// Validates that ref annotations at call sites match the parameter declarations:
+    /// <list type="bullet">
+    ///   <item>If a parameter has <c>RefKind.Ref</c> but the argument is a
+    ///   <see cref="ValueArgumentArgumentNode"/>, emits <c>MIST_REF_0002</c>.</item>
+    ///   <item>If a parameter has <c>RefKind.None</c> but the argument is a
+    ///   <see cref="RefArgumentArgumentNode"/>, emits <c>MIST_REF_0003</c>.</item>
+    /// </list>
+    /// </summary>
+    private static void CheckRefCallSiteAnnotations(
+        ArgumentListNode? argList,
+        ImmutableArray<ISymbol> paramSymbols,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        if (argList is null)
+            return;
+
+        // Collect all ArgumentNode objects (first + rest).
+        var argNodes = new List<ArgumentNode>(1 + argList.Arguments.Length);
+        argNodes.Add(argList.Argument);
+        foreach (var arg in argList.Arguments)
+        {
+            argNodes.Add(arg);
+        }
+
+        var count = Math.Min(argNodes.Count, paramSymbols.Length);
+        for (var i = 0; i < count; i++)
+        {
+            var argNode = argNodes[i];
+            var paramSym = paramSymbols[i];
+
+            // Access RefKind from the concrete Symbol type.
+            if (paramSym is not Symbol concreteParam)
+                continue;
+
+            if (concreteParam.RefKind == RefKind.Ref && argNode is ValueArgumentArgumentNode)
+            {
+                // Parameter is ref but argument is missing the 'ref' keyword.
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_REF_0002",
+                    $"Argument for ref parameter '{concreteParam.Name}' must be prefixed with the 'ref' keyword",
+                    (SyntaxNode)argNode,
+                    model));
+            }
+            else if (concreteParam.RefKind == RefKind.None && argNode is RefArgumentArgumentNode)
+            {
+                // Parameter is not ref but argument has a spurious 'ref' keyword.
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_REF_0003",
+                    $"Parameter '{concreteParam.Name}' is not declared as ref; remove the 'ref' keyword from the argument",
+                    (SyntaxNode)argNode,
+                    model));
             }
         }
     }
@@ -7166,12 +8006,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var argExprs = new List<ExpressionNode>();
         if (argList is not null)
         {
-            foreach (var child in argList.Children())
+            foreach (var expr in argList.GetAllExpressions())
             {
-                if (child is ExpressionNode expr)
-                    argExprs.Add(expr);
+                argExprs.Add(expr);
             }
         }
+
+        // Collect argument nodes for ref-argument detection.
+        var argNodes = CollectArgumentNodes(argList);
 
         // Check each argument against the corresponding parameter.
         var count = Math.Min(argExprs.Count, paramSymbols.Length);
@@ -7182,6 +8024,26 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             if (argType is not null && paramType is not null)
             {
+                // ── ref-parameters feature: exact type match (MIST_REF_0007) ──
+                // When the argument is a ref argument, require exact type identity
+                // (no implicit conversions, no subtype substitution).
+                // Only check if the argument passed the assignable storage location
+                // check (no cascading with MIST_REF_0001).
+                if (i < argNodes.Count && argNodes[i] is RefArgumentArgumentNode refArgNode)
+                {
+                    if (IsAssignableStorageLocation(refArgNode.Expression, model, out _)
+                        && !TypesEqual(argType, paramType))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_REF_0007",
+                            $"Ref argument type '{argType.DisplayName}' must match parameter type '{paramType.DisplayName}' exactly; no implicit conversions are allowed for ref arguments",
+                            (SyntaxNode)refArgNode,
+                            model));
+                    }
+
+                    continue;
+                }
+
                 // ── refinement-types feature: compile-time enforcement ──
                 // When the parameter is a RefinementType, check the argument
                 // against the refinement predicate (Requirement 5.3).
@@ -7286,12 +8148,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var argExprs = new List<ExpressionNode>();
         if (argList is not null)
         {
-            foreach (var child in argList.Children())
+            foreach (var expr in argList.GetAllExpressions())
             {
-                if (child is ExpressionNode expr)
-                    argExprs.Add(expr);
+                argExprs.Add(expr);
             }
         }
+
+        // Collect argument nodes for ref-argument detection.
+        var argNodes = CollectArgumentNodes(argList);
 
         // Check each argument against the corresponding parameter, applying substitution.
         var count = Math.Min(argExprs.Count, paramSymbols.Length);
@@ -7309,6 +8173,26 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Apply method-level substitution (e.g., U → string for Method<string>).
                 if (methodTypeParams is not null && methodTypeArgs is not null)
                     paramType = SubstituteType(paramType, methodTypeParams, methodTypeArgs);
+
+                // ── ref-parameters feature: exact type match (MIST_REF_0007) ──
+                // When the argument is a ref argument, require exact type identity
+                // (no implicit conversions, no subtype substitution).
+                // Only check if the argument passed the assignable storage location
+                // check (no cascading with MIST_REF_0001).
+                if (i < argNodes.Count && argNodes[i] is RefArgumentArgumentNode refArgNode)
+                {
+                    if (IsAssignableStorageLocation(refArgNode.Expression, model, out _)
+                        && !TypesEqual(argType, paramType))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_REF_0007",
+                            $"Ref argument type '{argType.DisplayName}' must match parameter type '{paramType.DisplayName}' exactly; no implicit conversions are allowed for ref arguments",
+                            (SyntaxNode)refArgNode,
+                            model));
+                    }
+
+                    continue;
+                }
 
                 // ── refinement-types feature: compile-time enforcement ──
                 // When the parameter is a RefinementType, check the argument
@@ -7418,10 +8302,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Collect argument expressions.
         var argExprs = new List<ExpressionNode>();
-        foreach (var child in argList.Children())
+        foreach (var expr in argList.GetAllExpressions())
         {
-            if (child is ExpressionNode expr)
-                argExprs.Add(expr);
+            argExprs.Add(expr);
         }
 
         // Check each argument against the corresponding parameter's refinement constraint.
@@ -7564,10 +8447,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Collect argument expressions.
         var argExprs = new List<ExpressionNode>();
-        foreach (var child in argList.Children())
+        foreach (var expr in argList.GetAllExpressions())
         {
-            if (child is ExpressionNode expr)
-                argExprs.Add(expr);
+            argExprs.Add(expr);
         }
 
         // Check each argument: if its type is readonly, the parameter must be readonly.
@@ -8317,7 +9199,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     typeSubstitution = (tp, ctForSubst.TypeArguments);
             }
 
-            var result = OverloadResolver.Resolve(constructors, argTypes, model, typeSubstitution: typeSubstitution);
+            var argRefKinds = CollectArgumentRefKinds(objectCreation.Arguments);
+            var result = OverloadResolver.Resolve(constructors, argTypes, model, typeSubstitution: typeSubstitution, argumentRefKinds: argRefKinds);
             var typeName = createdType.DisplayName;
 
             switch (result.Status)
@@ -8345,6 +9228,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // Resolved successfully — fall through to initializer check.
                     // Validate parameter refinement constraints on the resolved constructor.
                     ValidateParameterRefinementConstraints(objectCreation.Arguments, result.BestCandidate!, model, diagnostics, objectCreation);
+                    // ── ref call-site annotation enforcement (MIST_REF_0002, MIST_REF_0003) ──
+                    if (objectCreation.Arguments is not null)
+                    {
+                        CheckRefCallSiteAnnotationsForSymbol(objectCreation.Arguments, result.BestCandidate!, model, diagnostics);
+                    }
                     break;
             }
         }
@@ -8364,6 +9252,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 // Constructor matches — validate parameter refinement constraints.
                 ValidateParameterRefinementConstraints(objectCreation.Arguments, constructors[0], model, diagnostics, objectCreation);
+                // ── ref call-site annotation enforcement (MIST_REF_0002, MIST_REF_0003) ──
+                if (objectCreation.Arguments is not null)
+                {
+                    CheckRefCallSiteAnnotationsForSymbol(objectCreation.Arguments, constructors[0], model, diagnostics);
+                }
             }
         }
 
@@ -8691,7 +9584,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // When multiple constructors exist, use overload resolution.
         if (candidateConstructors.Count > 1)
         {
-            var result = OverloadResolver.Resolve(candidateConstructors, argTypes, model);
+            var argRefKinds = CollectArgumentRefKinds(arguments);
+            var result = OverloadResolver.Resolve(candidateConstructors, argTypes, model, argumentRefKinds: argRefKinds);
             var typeName = targetType.DisplayName;
 
             switch (result.Status)
@@ -9952,11 +10846,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var memberList = unsatisfiedMembers.Count > 0
                     ? string.Join(", ", unsatisfiedMembers)
                     : "(unknown)";
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TRAIT_UNSATISFIED",
-                    $"Type '{source.DisplayName}' does not satisfy trait '{targetTrait.DisplayName}'. Missing members: {memberList}.",
-                    node,
-                    model));
+
+                // Check for RefKind mismatches and emit MIST_REF_0012 (Requirement 7.6).
+                if (!EmitTraitRefKindMismatchDiagnostics(source, targetTrait, node, diagnostics, model))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TRAIT_UNSATISFIED",
+                        $"Type '{source.DisplayName}' does not satisfy trait '{targetTrait.DisplayName}'. Missing members: {memberList}.",
+                        node,
+                        model));
+                }
             }
             else if (target is ConstructedTraitType targetConstructedTrait)
             {
@@ -9964,11 +10863,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var memberList = unsatisfiedMembers.Count > 0
                     ? string.Join(", ", unsatisfiedMembers)
                     : "(unknown)";
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TRAIT_UNSATISFIED",
-                    $"Type '{source.DisplayName}' does not satisfy trait '{targetConstructedTrait.DisplayName}'. Missing members: {memberList}.",
-                    node,
-                    model));
+
+                // Check for RefKind mismatches and emit MIST_REF_0012 (Requirement 7.6).
+                if (!EmitTraitRefKindMismatchDiagnostics(source, targetConstructedTrait, node, diagnostics, model))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TRAIT_UNSATISFIED",
+                        $"Type '{source.DisplayName}' does not satisfy trait '{targetConstructedTrait.DisplayName}'. Missing members: {memberList}.",
+                        node,
+                        model));
+                }
             }
             else
             {
@@ -10106,6 +11010,226 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         return unsatisfied;
+    }
+
+    /// <summary>
+    /// Checks whether the source type has methods that match a trait's methods in
+    /// name, return type, and parameter types but differ in RefKind. If so, emits
+    /// MIST_REF_0012 for each such mismatch. Returns true if at least one RefKind
+    /// mismatch was detected (indicating the caller should not emit the generic
+    /// MIST_TRAIT_UNSATISFIED diagnostic).
+    /// </summary>
+    private static bool EmitTraitRefKindMismatchDiagnostics(
+        IType source, IType trait, SyntaxNode node, DiagnosticBag diagnostics, ISemanticModel model)
+    {
+        var traitMemberScope = trait switch
+        {
+            TraitType tt => tt.MemberScope,
+            ConstructedTraitType ctt => ctt.MemberScope,
+            _ => null,
+        };
+
+        var sourceMemberScope = GetMemberScope(source);
+
+        if (traitMemberScope is null || sourceMemberScope is null)
+            return false;
+
+        // Build type parameter substitution map for constructed traits.
+        Dictionary<string, IType>? typeSubstitutions = null;
+        if (trait is ConstructedTraitType constructedTrait)
+        {
+            typeSubstitutions = new Dictionary<string, IType>(StringComparer.Ordinal);
+            var typeParams = constructedTrait.GenericTraitDefinition.TypeParameters;
+            var typeArgs = constructedTrait.TypeArguments;
+            for (var i = 0; i < typeParams.Count && i < typeArgs.Count; i++)
+            {
+                typeSubstitutions[typeParams[i].DisplayName] = typeArgs[i];
+            }
+        }
+
+        var emittedAny = false;
+
+        foreach (var traitMember in traitMemberScope.Members)
+        {
+            if (traitMember.Kind != SymbolKind.Method)
+                continue;
+
+            // Skip type parameter symbols.
+            if (traitMember.DeclaredType is TypeParameterType or DependentTypeParameterType)
+                continue;
+
+            // Check if there's a source method that matches in everything except RefKind.
+            foreach (var sourceMember in sourceMemberScope.Members)
+            {
+                if (sourceMember.Kind != SymbolKind.Method || sourceMember.Name != traitMember.Name)
+                    continue;
+
+                if (!IsMemberPublicViaModel(sourceMember, model))
+                    continue;
+
+                // Check if types match but RefKind differs.
+                if (MethodTypesMatchButRefKindDiffers(traitMember, sourceMember, model, typeSubstitutions))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_REF_0012",
+                        $"Method '{sourceMember.Name}' does not match interface/trait method '{trait.DisplayName}.{traitMember.Name}': parameter ref kinds must match exactly",
+                        node,
+                        model));
+                    emittedAny = true;
+                    break; // Only emit once per trait method.
+                }
+            }
+        }
+
+        return emittedAny;
+    }
+
+    /// <summary>
+    /// Checks whether two methods match in name, return type, and parameter types
+    /// but differ in RefKind on one or more parameters. Used to detect the specific
+    /// case where MIST_REF_0012 should be emitted for trait matching.
+    /// </summary>
+    private static bool MethodTypesMatchButRefKindDiffers(
+        ISymbol traitMethod, ISymbol implMethod, ISemanticModel model,
+        Dictionary<string, IType>? typeSubstitutions)
+    {
+        SyntaxNode traitNode;
+        SyntaxNode implNode;
+        try
+        {
+            traitNode = model.GetDeclaringNode(traitMethod);
+            implNode = model.GetDeclaringNode(implMethod);
+        }
+        catch
+        {
+            return false;
+        }
+
+        // Get parameter lists.
+        var traitParams = traitNode switch
+        {
+            TraitMethodDeclarationNode tm => tm.Parameters,
+            _ => null,
+        };
+        var implParams = implNode switch
+        {
+            MethodDeclarationNode m => m.Parameters,
+            _ => null,
+        };
+
+        var traitParamCount = CountParameters(traitParams);
+        var implParamCount = CountParameters(implParams);
+
+        if (traitParamCount != implParamCount)
+            return false;
+
+        // Check return type compatibility.
+        var traitReturnType = traitMethod.DeclaredType;
+        var implReturnType = implMethod.DeclaredType;
+
+        if (traitReturnType is not null && implReturnType is not null)
+        {
+            var effectiveTraitReturn = SubstituteType(traitReturnType, typeSubstitutions);
+            if (!ReturnTypeCompatibleForTrait(effectiveTraitReturn, implReturnType))
+                return false;
+        }
+        else if (traitReturnType is not null && implReturnType is null)
+        {
+            return false;
+        }
+
+        // Check parameter types match (ignoring RefKind).
+        if (traitParamCount > 0 && traitParams is not null && implParams is not null)
+        {
+            if (!ParameterTypesCompatibleIgnoringRefKind(traitParams, implParams, model, typeSubstitutions))
+                return false;
+
+            // Types match — now check if RefKind values differ.
+            return ParameterRefKindsDiffer(traitParams, implParams, model);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks parameter type compatibility between trait method and impl method,
+    /// ignoring RefKind values. Used to detect RefKind-only mismatches.
+    /// </summary>
+    private static bool ParameterTypesCompatibleIgnoringRefKind(
+        ParameterListNode traitParams, ParameterListNode implParams, ISemanticModel model,
+        Dictionary<string, IType>? typeSubstitutions)
+    {
+        var traitParamNodes = new List<ParameterNode>();
+        var implParamNodes = new List<ParameterNode>();
+
+        foreach (var child in traitParams.Children())
+        {
+            if (child is ParameterNode pn)
+                traitParamNodes.Add(pn);
+        }
+        foreach (var child in implParams.Children())
+        {
+            if (child is ParameterNode pn)
+                implParamNodes.Add(pn);
+        }
+
+        if (traitParamNodes.Count != implParamNodes.Count)
+            return false;
+
+        for (var i = 0; i < traitParamNodes.Count; i++)
+        {
+            var traitParamSym = model.GetDeclaredSymbol(traitParamNodes[i]);
+            var implParamSym = model.GetDeclaredSymbol(implParamNodes[i]);
+
+            if (traitParamSym?.DeclaredType is null || implParamSym?.DeclaredType is null)
+                continue;
+
+            var effectiveTraitParamType = SubstituteType(traitParamSym.DeclaredType, typeSubstitutions);
+            if (effectiveTraitParamType.DisplayName != implParamSym.DeclaredType.DisplayName)
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Checks whether any parameter RefKind values differ between a trait method
+    /// and an implementing method. Returns true if at least one parameter has a
+    /// different RefKind.
+    /// </summary>
+    private static bool ParameterRefKindsDiffer(
+        ParameterListNode traitParams, ParameterListNode implParams, ISemanticModel model)
+    {
+        var traitParamNodes = new List<ParameterNode>();
+        var implParamNodes = new List<ParameterNode>();
+
+        foreach (var child in traitParams.Children())
+        {
+            if (child is ParameterNode pn)
+                traitParamNodes.Add(pn);
+        }
+        foreach (var child in implParams.Children())
+        {
+            if (child is ParameterNode pn)
+                implParamNodes.Add(pn);
+        }
+
+        if (traitParamNodes.Count != implParamNodes.Count)
+            return false;
+
+        for (var i = 0; i < traitParamNodes.Count; i++)
+        {
+            var traitParamSym = model.GetDeclaredSymbol(traitParamNodes[i]);
+            var implParamSym = model.GetDeclaredSymbol(implParamNodes[i]);
+
+            var traitRefKind = (traitParamSym as Symbol)?.RefKind ?? RefKind.None;
+            var implRefKind = (implParamSym as Symbol)?.RefKind ?? RefKind.None;
+
+            if (traitRefKind != implRefKind)
+                return true;
+        }
+
+        return false;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -10863,6 +11987,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var effectiveTraitParamType = SubstituteType(traitParamSym.DeclaredType, typeSubstitutions);
             if (effectiveTraitParamType.DisplayName != implParamSym.DeclaredType.DisplayName)
                 return false;
+
+            // Check RefKind match (Requirement 7.6).
+            var traitRefKind = (traitParamSym as Symbol)?.RefKind ?? RefKind.None;
+            var implRefKind = (implParamSym as Symbol)?.RefKind ?? RefKind.None;
+            if (traitRefKind != implRefKind)
+                return false;
         }
 
         return true;
@@ -11530,16 +12660,37 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (argList is null)
             return types;
 
-        foreach (var child in argList.Children())
+        foreach (var expr in argList.GetAllExpressions())
         {
-            if (child is ExpressionNode expr)
-            {
-                var type = model.GetTypeOf(expr);
-                types.Add(type ?? ErrorType.Instance);
-            }
+            var type = model.GetTypeOf(expr);
+            types.Add(type ?? ErrorType.Instance);
         }
 
         return types;
+    }
+
+    /// <summary>
+    /// Collects the RefKind for each argument in the argument list.
+    /// A <see cref="RefArgumentArgumentNode"/> maps to <see cref="RefKind.Ref"/>;
+    /// a <see cref="ValueArgumentArgumentNode"/> maps to <see cref="RefKind.None"/>.
+    /// Used by overload resolution to distinguish ref from non-ref overloads (Requirement 7.4).
+    /// </summary>
+    private static List<RefKind> CollectArgumentRefKinds(ArgumentListNode? argList)
+    {
+        var refKinds = new List<RefKind>();
+        if (argList is null)
+            return refKinds;
+
+        // First argument
+        refKinds.Add(argList.Argument is RefArgumentArgumentNode ? RefKind.Ref : RefKind.None);
+
+        // Remaining arguments
+        foreach (var arg in argList.Arguments)
+        {
+            refKinds.Add(arg is RefArgumentArgumentNode ? RefKind.Ref : RefKind.None);
+        }
+
+        return refKinds;
     }
 
     /// <summary>

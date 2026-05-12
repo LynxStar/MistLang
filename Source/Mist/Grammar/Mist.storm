@@ -417,9 +417,10 @@ rule OperatorSymbol
     ;
 
 rule ParameterList = Parameter (COMMA Parameter)*;
-rule Parameter = modifier:READONLY? ownershipSpecifier:OwnershipSpecifier? type:TypeReference name:(IDENTIFIER | DISCARD);
+rule Parameter = modifier:READONLY? refModifier:REF? ownershipSpecifier:OwnershipSpecifier? type:TypeReference name:(IDENTIFIER | DISCARD);
 
-rule ArgumentList = Expression (COMMA Expression)*;
+rule ArgumentList = Argument (COMMA Argument)*;
+rule Argument = REF expression:Expression as RefArgument | expression:Expression as ValueArgument;
 
 // ─── Parser Rules — Type References ─────────────────────────────────────────
 
@@ -486,7 +487,7 @@ rule VariableDeclarationStatement
 rule TupleDeconstructionElement = type:TypeReference name:IDENTIFIER;
 
 rule ReturnStatement
-    = RETURN value:Expression? SEMICOLON
+    = RETURN refKeyword:REF? value:Expression? SEMICOLON
     ;
 
 rule IfStatement

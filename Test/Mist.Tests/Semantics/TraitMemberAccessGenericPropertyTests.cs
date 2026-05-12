@@ -205,7 +205,7 @@ public class TraitMemberAccessGenericPropertyTests
         {
             Arguments = new ArgumentListNode
             {
-                Expression = argument,
+                Argument = new ValueArgumentArgumentNode { Expression = argument },
             },
         };
         var postfix = new PostfixNode

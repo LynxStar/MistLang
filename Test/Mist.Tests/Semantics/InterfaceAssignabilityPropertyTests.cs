@@ -298,7 +298,7 @@ public class InterfaceAssignabilityPropertyTests
         var suffix = new MethodCallSuffixPostfixSuffixNode
         {
             Name = MakeToken(methodName),
-            Arguments = new ArgumentListNode { Expression = arg },
+            Arguments = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = arg } },
         };
         var postfix = new PostfixNode
         {

@@ -1304,11 +1304,12 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         if (argList is null)
             return result;
 
-        // The ArgumentListNode has an Expression (first arg) and Expressions (rest args).
-        result.Add(argList.Expression);
-        foreach (var restArg in argList.Expressions)
+        // The ArgumentListNode has Argument (first) and Arguments (rest),
+        // each wrapping an ExpressionNode.
+        result.Add(ArgumentListNodeExtensions.ExtractExpression(argList.Argument));
+        foreach (var restArg in argList.Arguments)
         {
-            result.Add(restArg);
+            result.Add(ArgumentListNodeExtensions.ExtractExpression(restArg));
         }
         return result;
     }

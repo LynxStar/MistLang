@@ -222,7 +222,7 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
         var suffix = new MethodCallSuffixPostfixSuffixNode
         {
             Name = Tok(method),
-            Arguments = new ArgumentListNode { Expression = arg },
+            Arguments = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = arg } },
         };
         var postfix = new PostfixNode
         {

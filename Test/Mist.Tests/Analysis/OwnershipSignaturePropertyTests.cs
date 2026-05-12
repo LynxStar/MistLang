@@ -140,12 +140,14 @@ public class OwnershipSignaturePropertyTests
 
     /// <summary>
     /// Ownership specifiers that are valid on parameters (all tiers).
+    /// Note: "readonly ref" is excluded because the grammar change (ref-parameters feature)
+    /// now parses "readonly ref" in parameter position as modifier=READONLY + refModifier=REF,
+    /// making it a ref kind annotation rather than an ownership specifier.
     /// </summary>
     private static readonly (string Specifier, string Label)[] ParamSpecifiers =
     [
         ("owned ", "owned"),
         ("borrowed ", "borrowed"),
-        ("readonly ref ", "readonly ref"),
         ("frozen ", "frozen"),
         ("", "unrestricted"),
     ];

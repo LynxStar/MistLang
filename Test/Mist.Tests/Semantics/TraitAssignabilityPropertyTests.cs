@@ -606,7 +606,7 @@ public class TraitAssignabilityPropertyTests
         {
             Arguments = new ArgumentListNode
             {
-                Expression = MakeNewObjectExpression(scenario.ClassName),
+                Argument = new ValueArgumentArgumentNode { Expression = MakeNewObjectExpression(scenario.ClassName) },
             },
         };
         var acceptCall = new PostfixNode

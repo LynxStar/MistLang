@@ -851,11 +851,11 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private void ScanArgumentListForValueReturningCalls(ArgumentListNode argList, HashSet<string> voidMethodNames)
     {
-        // Scan the first argument expression.
-        ScanExpressionForValueReturningCalls(argList.Expression, voidMethodNames);
-
-        // The Storm parser may not expose additional arguments as separate AST nodes
-        // (they're captured via source span). We scan what's available in the AST.
+        // Scan all argument expressions.
+        foreach (var expr in argList.GetAllExpressions())
+        {
+            ScanExpressionForValueReturningCalls(expr, voidMethodNames);
+        }
     }
 
     /// <summary>
@@ -1448,6 +1448,15 @@ internal sealed class CSharpSourceWriter
         var isStatic = methodDecl.Modifiers.Any(m => m is StaticModifierModifierNode);
         var parameters = EmitParameterList(methodDecl.Parameters);
 
+        // Emit ref / ref readonly prefix for ref-returning methods.
+        var extMethodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
+        var refReturnPrefix = extMethodSymbol?.ReturnRefKind switch
+        {
+            RefKind.Ref => "ref ",
+            RefKind.RefReadonly => "ref readonly ",
+            _ => ""
+        };
+
         // Build the full parameter list.
         string fullParams;
         if (isStatic)
@@ -1464,7 +1473,7 @@ internal sealed class CSharpSourceWriter
                 : receiverParam;
         }
 
-        AppendLine($"public static {returnType} {name}{combinedTypeParams}({fullParams})");
+        AppendLine($"public static {refReturnPrefix}{returnType} {name}{combinedTypeParams}({fullParams})");
 
         // Set the return type context for covariant unknown widening.
         var previousReturnType = _currentMethodReturnType;
@@ -1472,7 +1481,6 @@ internal sealed class CSharpSourceWriter
 
         if (methodDecl.Body.GetBlock() is BlockNode block)
         {
-            var extMethodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
             var withClauses = extMethodSymbol?.WithClauses;
             EmitMethodBlockWithRefinementGuards(block, false, methodDecl.Parameters, withClauses);
         }
@@ -2045,6 +2053,14 @@ internal sealed class CSharpSourceWriter
                 : factoryParams;
         }
 
+        // Emit ref / ref readonly prefix for ref-returning methods.
+        var refReturnPrefix = methodSymbol?.ReturnRefKind switch
+        {
+            RefKind.Ref => "ref ",
+            RefKind.RefReadonly => "ref readonly ",
+            _ => ""
+        };
+
         // Check if there are constraint clauses to emit (regular constraints or dependent type parameters).
         var hasConstraints = methodTypeParams.Any(tp =>
             tp is DependentTypeParameterType ||
@@ -2057,13 +2073,13 @@ internal sealed class CSharpSourceWriter
 
         if (hasConstraints)
         {
-            AppendLine($"{returnType} {name}{typeParams}({parameters})");
+            AppendLine($"{refReturnPrefix}{returnType} {name}{typeParams}({parameters})");
             EmitConstraintClauses(methodTypeParams);
             AppendLine(";");
         }
         else
         {
-            AppendLine($"{returnType} {name}{typeParams}({parameters});");
+            AppendLine($"{refReturnPrefix}{returnType} {name}{typeParams}({parameters});");
         }
     }
 
@@ -2144,7 +2160,17 @@ internal sealed class CSharpSourceWriter
         var returnType = EmitTypeReference(methodDecl.ReturnType);
         var name = methodDecl.Name.Lexeme;
         var parameters = EmitParameterList(methodDecl.Parameters);
-        AppendLine($"{returnType} {name}({parameters});");
+
+        // Emit ref / ref readonly prefix for ref-returning methods.
+        var methodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
+        var refReturnPrefix = methodSymbol?.ReturnRefKind switch
+        {
+            RefKind.Ref => "ref ",
+            RefKind.RefReadonly => "ref readonly ",
+            _ => ""
+        };
+
+        AppendLine($"{refReturnPrefix}{returnType} {name}({parameters});");
     }
 
     private void EmitTraitPropertyDeclaration(TraitPropertyDeclarationNode propertyDecl)
@@ -2246,7 +2272,16 @@ internal sealed class CSharpSourceWriter
                         var returnType = EmitTypeReferenceWithSubstitution(methodDecl.ReturnType, typeParamSubstitutions);
                         var parameters = EmitTraitMethodParametersWithSubstitution(methodDecl.Parameters, typeParamSubstitutions);
                         var arguments = EmitTraitMethodArguments(methodDecl.Parameters);
-                        AppendLine($"{returnType} {traitName}.{traitMemberName}({parameters}) => this.{sourceName}({arguments});");
+
+                        // Emit ref / ref readonly prefix for ref-returning trait methods.
+                        var traitMethodRefPrefix = (traitMemberSymbol as Symbol)?.ReturnRefKind switch
+                        {
+                            RefKind.Ref => "ref ",
+                            RefKind.RefReadonly => "ref readonly ",
+                            _ => ""
+                        };
+
+                        AppendLine($"{traitMethodRefPrefix}{returnType} {traitName}.{traitMemberName}({parameters}) => this.{sourceName}({arguments});");
                         break;
                     }
                     case TraitPropertyDeclarationNode propertyDecl:
@@ -2434,7 +2469,16 @@ internal sealed class CSharpSourceWriter
             {
                 var type = EmitTypeReferenceWithSubstitution(param.Type, substitutions);
                 var name = param.Name.Lexeme;
-                parts.Add($"{type} {name}");
+
+                // Emit ref / ref readonly prefix for ref parameters (Requirement 8.1).
+                var symbol = _model.GetDeclaredSymbol(param) as Symbol;
+                var refPrefix = symbol?.RefKind switch
+                {
+                    RefKind.Ref => "ref ",
+                    RefKind.RefReadonly => "ref readonly ",
+                    _ => "",
+                };
+                parts.Add($"{refPrefix}{type} {name}");
             }
         }
 
@@ -2456,7 +2500,16 @@ internal sealed class CSharpSourceWriter
             {
                 var type = EmitTypeReference(param.Type);
                 var name = param.Name.Lexeme;
-                parts.Add($"{type} {name}");
+
+                // Emit ref / ref readonly prefix for ref parameters (Requirement 8.1).
+                var symbol = _model.GetDeclaredSymbol(param) as Symbol;
+                var refPrefix = symbol?.RefKind switch
+                {
+                    RefKind.Ref => "ref ",
+                    RefKind.RefReadonly => "ref readonly ",
+                    _ => "",
+                };
+                parts.Add($"{refPrefix}{type} {name}");
             }
         }
 
@@ -3160,6 +3213,14 @@ internal sealed class CSharpSourceWriter
             readonlyPrefix = "readonly ";
         }
 
+        // Emit ref / ref readonly prefix for ref-returning methods.
+        var refReturnPrefix = methodSymbol?.ReturnRefKind switch
+        {
+            RefKind.Ref => "ref ",
+            RefKind.RefReadonly => "ref readonly ",
+            _ => ""
+        };
+
         // Context-sensitive void return type: if this void method's return value
         // is consumed at any call site, emit MistVoid instead of void.
         var isValueReturningVoid = methodDecl.ReturnType is VoidTypeRefTypeReferenceNode
@@ -3181,7 +3242,7 @@ internal sealed class CSharpSourceWriter
                 : factoryParams;
         }
 
-        AppendLine($"{modifiers}{readonlyPrefix}{returnType} {name}{typeParams}({parameters})");
+        AppendLine($"{modifiers}{readonlyPrefix}{refReturnPrefix}{returnType} {name}{typeParams}({parameters})");
         // Emit constraint clauses for the method's type parameters.
         EmitConstraintClauses(methodTypeParams);
 
@@ -4176,6 +4237,19 @@ internal sealed class CSharpSourceWriter
     {
         var type = EmitTypeReference(param.Type, isValueContext: true);
         var name = param.Name.Lexeme;
+
+        // Emit ref / ref readonly prefix for ref parameters (Requirement 8.1).
+        var symbol = _model.GetDeclaredSymbol(param) as Symbol;
+        if (symbol is not null)
+        {
+            return symbol.RefKind switch
+            {
+                RefKind.Ref => $"ref {type} {name}",
+                RefKind.RefReadonly => $"ref readonly {type} {name}",
+                _ => $"{type} {name}",
+            };
+        }
+
         return $"{type} {name}";
     }
 
@@ -4183,12 +4257,31 @@ internal sealed class CSharpSourceWriter
     {
         if (argList is null) return "";
 
-        // Collect all argument expressions from the AST.
-        var argExprs = new List<ExpressionNode> { argList.Expression };
-        foreach (var child in argList.Children())
+        // Collect all argument nodes (first + rest) to detect ref arguments.
+        var argNodes = new List<ArgumentNode>(1 + argList.Arguments.Length);
+        argNodes.Add(argList.Argument);
+        foreach (var arg in argList.Arguments)
         {
-            if (child is ExpressionNode expr && !ReferenceEquals(expr, argList.Expression))
-                argExprs.Add(expr);
+            argNodes.Add(arg);
+        }
+
+        // Check if any argument is a ref argument — if so, we must bypass the
+        // source-text fast path and emit each argument individually with `ref` prefix.
+        var hasRefArgument = false;
+        foreach (var argNode in argNodes)
+        {
+            if (argNode is RefArgumentArgumentNode)
+            {
+                hasRefArgument = true;
+                break;
+            }
+        }
+
+        // Collect all argument expressions from the AST.
+        var argExprs = new List<ExpressionNode>();
+        foreach (var expr in argList.GetAllExpressions())
+        {
+            argExprs.Add(expr);
         }
 
         // Check if any argument has a resolved implicit or explicit cast operator.
@@ -4203,20 +4296,25 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        // If any argument needs implicit cast wrapping, emit all arguments
-        // through the expression emitter so we can wrap the ones that need it.
-        if (hasImplicitCast)
+        // If any argument is a ref argument or needs implicit cast wrapping, emit all
+        // arguments through the expression emitter so we can apply ref/cast as needed.
+        if (hasRefArgument || hasImplicitCast)
         {
             var emitted = new List<string>();
-            foreach (var argExpr in argExprs)
+            for (var i = 0; i < argExprs.Count; i++)
             {
-                var emittedArg = EmitExpression(argExpr);
-                emitted.Add(WrapWithImplicitCastIfNeeded(argExpr, emittedArg));
+                var emittedArg = EmitExpression(argExprs[i]);
+                emittedArg = WrapWithImplicitCastIfNeeded(argExprs[i], emittedArg);
+                if (argNodes[i] is RefArgumentArgumentNode)
+                {
+                    emittedArg = $"ref {emittedArg}";
+                }
+                emitted.Add(emittedArg);
             }
             return string.Join(", ", emitted);
         }
 
-        // No implicit casts needed — use the source span for faithful reproduction,
+        // No implicit casts or ref arguments — use the source span for faithful reproduction,
         // applying Void.Void → MistVoid.Instance substitution if needed.
         // However, if any argument contains a type literal (e.g., int.Name),
         // we must fall through to the expression emitter so typeof() is applied.
@@ -4249,8 +4347,8 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        // Fallback: emit the single argument we do have.
-        return EmitExpression(argList.Expression);
+        // Fallback: emit the first argument we do have.
+        return EmitExpression(argList.GetExpression());
     }
 
     /// <summary>
@@ -5173,7 +5271,8 @@ internal sealed class CSharpSourceWriter
 
                 // When the declared type is an array type, set the target element type
                 // so that array literal emission produces `new T[] { ... }` instead of `new[] { ... }`.
-                var declaredType = _model.GetDeclaredSymbol(typed)?.DeclaredType;
+                var declaredSymbol = _model.GetDeclaredSymbol(typed) as Symbol;
+                var declaredType = declaredSymbol?.DeclaredType;
                 if (declaredType is ArrayType targetArrayType)
                     _arrayLiteralTargetElementType = targetArrayType.ElementType;
 
@@ -5189,14 +5288,45 @@ internal sealed class CSharpSourceWriter
                 var widened = TryEmitCovariantUnknownCast(initType, declaredType, init);
                 if (widened is not null)
                     init = widened;
-                AppendLine($"{type} {name} = {init};");
+
+                // Emit ref / ref readonly prefix for ref locals.
+                var refPrefix = declaredSymbol?.RefKind switch
+                {
+                    RefKind.Ref => "ref ",
+                    RefKind.RefReadonly => "ref readonly ",
+                    _ => "",
+                };
+                // In C#, ref locals require `ref` before the initializer too:
+                // `ref int x = ref expr;`
+                var refInitPrefix = declaredSymbol?.RefKind switch
+                {
+                    RefKind.Ref or RefKind.RefReadonly => "ref ",
+                    _ => "",
+                };
+                AppendLine($"{refPrefix}{type} {name} = {refInitPrefix}{init};");
                 break;
             }
             case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
             {
                 var name = inferred.Name.Lexeme;
                 var init = EmitExpression(inferred.Initializer);
-                AppendLine($"var {name} = {init};");
+
+                // Emit ref / ref readonly prefix for ref locals.
+                var inferredSymbol = _model.GetDeclaredSymbol(inferred) as Symbol;
+                var refPrefix = inferredSymbol?.RefKind switch
+                {
+                    RefKind.Ref => "ref ",
+                    RefKind.RefReadonly => "ref readonly ",
+                    _ => "",
+                };
+                // In C#, ref locals require `ref` before the initializer too:
+                // `ref var x = ref expr;`
+                var refInitPrefix = inferredSymbol?.RefKind switch
+                {
+                    RefKind.Ref or RefKind.RefReadonly => "ref ",
+                    _ => "",
+                };
+                AppendLine($"{refPrefix}var {name} = {refInitPrefix}{init};");
                 break;
             }
             case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
@@ -5248,7 +5378,15 @@ internal sealed class CSharpSourceWriter
             var widened = TryEmitCovariantUnknownCast(valueType, _currentMethodReturnType, value);
             if (widened is not null)
                 value = widened;
-            AppendLine($"return {value};");
+
+            if (returnStmt.RefKeyword is not null)
+            {
+                AppendLine($"return ref {value};");
+            }
+            else
+            {
+                AppendLine($"return {value};");
+            }
         }
         else if (_inValueReturningVoidMethod)
         {
@@ -7068,7 +7206,7 @@ internal sealed class CSharpSourceWriter
         // Emit arguments and substitute into the template.
         if (arguments is not null)
         {
-            var arg0 = EmitExpression(arguments.Expression);
+            var arg0 = EmitExpression(arguments.GetExpression());
             return string.Format(template.Template, arg0);
         }
 
@@ -8132,15 +8270,10 @@ internal sealed class CSharpSourceWriter
     {
         if (argList is null) return Array.Empty<IType>();
         var types = new List<IType>();
-        var firstType = _model.GetTypeOf(argList.Expression);
-        if (firstType is not null) types.Add(firstType);
-        foreach (var child in argList.Children())
+        foreach (var expr in argList.GetAllExpressions())
         {
-            if (child is ExpressionNode expr && !ReferenceEquals(expr, argList.Expression))
-            {
-                var t = _model.GetTypeOf(expr);
-                if (t is not null) types.Add(t);
-            }
+            var t = _model.GetTypeOf(expr);
+            if (t is not null) types.Add(t);
         }
         return types;
     }

@@ -117,7 +117,7 @@ public class TypeCheckerOverloadDiagnosticTests
                 IDENTIFIER = MakeToken(typeName),
                 Span = new Storm.Runtime.SourceSpan(0, 0),
             },
-            Arguments = new ArgumentListNode { Expression = arg },
+            Arguments = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = arg } },
         };
         return WrapPrimaryAsExpression(primary);
     }

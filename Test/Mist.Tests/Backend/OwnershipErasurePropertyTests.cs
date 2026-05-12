@@ -415,13 +415,15 @@ public class OwnershipErasurePropertyTests
 
     /// <summary>
     /// Generates a combined scenario from all variants.
+    /// Note: GenReadonlyRefParameterScenario is excluded because `readonly ref`
+    /// is now a ref-parameter modifier (emitting `ref readonly` in C#), not a
+    /// pure ownership annotation that gets erased.
     /// </summary>
     private static Gen<ErasureScenario> GenErasureScenario()
     {
         return Gen.OneOf(
             GenOwnedVariableScenario(),
             GenOwnedParameterScenario(),
-            GenReadonlyRefParameterScenario(),
             GenFrozenRefParameterScenario(),
             GenRefParameterScenario(),
             GenOwnedReturnTypeScenario(),

@@ -92,6 +92,23 @@ public sealed class Symbol : ISymbol
     /// specifier is present.
     /// </summary>
     public OwnershipTier OwnershipTier { get; internal set; } = OwnershipTier.Unrestricted;
+
+    /// <summary>
+    /// The ref kind of this symbol. Applies to parameters and local variables.
+    /// A value of <see cref="Model.RefKind.Ref"/> means the symbol is a mutable
+    /// reference to a storage location; <see cref="Model.RefKind.RefReadonly"/>
+    /// means a readonly reference. Defaults to <see cref="Model.RefKind.None"/>
+    /// (standard pass-by-value).
+    /// </summary>
+    public RefKind RefKind { get; internal set; } = RefKind.None;
+
+    /// <summary>
+    /// The ref kind of this method's return type. Applies only to method symbols.
+    /// A value of <see cref="Model.RefKind.Ref"/> means the method returns a mutable
+    /// reference; <see cref="Model.RefKind.RefReadonly"/> means it returns a readonly
+    /// reference. Defaults to <see cref="Model.RefKind.None"/> (standard return-by-value).
+    /// </summary>
+    public RefKind ReturnRefKind { get; internal set; } = RefKind.None;
 }
 
 /// <summary>

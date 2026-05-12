@@ -45,6 +45,7 @@ public class Program
         StructuredContext.Program.RunDemo();
         AdhocRefinementConstraints.Program.RunDemo();
         OwnershipSystem.Program.RunDemo();
+        RefParameters.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

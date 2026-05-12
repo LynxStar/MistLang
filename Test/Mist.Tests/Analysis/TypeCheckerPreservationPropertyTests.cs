@@ -165,7 +165,7 @@ public class TypeCheckerPreservationPropertyTests
             Parameters = null,
             Chain = new ThisChainConstructorChainNode
             {
-                Arguments = new ArgumentListNode { Expression = chainArg },
+                Arguments = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = chainArg } },
                 Span = new Storm.Runtime.SourceSpan(50, 15),
             },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
@@ -323,7 +323,7 @@ public class TypeCheckerPreservationPropertyTests
             Type = MakeQualifiedId("Foo"),
             Arguments = new ArgumentListNode
             {
-                Expression = WrapPrimaryAsExpression(new TrueLiteralExpressionPrimaryNode()),
+                Argument = new ValueArgumentArgumentNode { Expression = WrapPrimaryAsExpression(new TrueLiteralExpressionPrimaryNode()) },
             },
         };
 

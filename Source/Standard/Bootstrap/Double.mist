@@ -1,6 +1,6 @@
 namespace Standard;
 
-intrinsic public readonly struct Double
+intrinsic public readonly owned struct Double
 {
     // Binary arithmetic operators — Requirement 3.1
     intrinsic public static Double operator +(Double a, Double b);

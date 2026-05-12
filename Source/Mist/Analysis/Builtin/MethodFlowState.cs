@@ -1,4 +1,5 @@
 using Mist.Common.Text;
+using Mist.Semantics;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 
@@ -15,6 +16,12 @@ public sealed class MethodFlowState
     /// Maps each tracked variable to its current ownership state.
     /// </summary>
     public Dictionary<ISymbol, VariableOwnershipState> VariableStates { get; }
+
+    /// <summary>
+    /// Maps each tracked variable to its <see cref="BindingKind"/> (Owned or Unrestricted).
+    /// Used to determine which access rules apply to the variable.
+    /// </summary>
+    public Dictionary<ISymbol, BindingKind> BindingKinds { get; }
 
     /// <summary>
     /// Records the source location where each variable was moved, for diagnostic reporting.
@@ -40,6 +47,7 @@ public sealed class MethodFlowState
     public MethodFlowState()
     {
         VariableStates = new Dictionary<ISymbol, VariableOwnershipState>();
+        BindingKinds = new Dictionary<ISymbol, BindingKind>();
         MoveLocations = new Dictionary<ISymbol, SourceSpan>();
         ActiveBorrows = new List<BorrowEntry>();
         ScopeDepth = 0;
@@ -50,11 +58,13 @@ public sealed class MethodFlowState
     /// </summary>
     private MethodFlowState(
         Dictionary<ISymbol, VariableOwnershipState> variableStates,
+        Dictionary<ISymbol, BindingKind> bindingKinds,
         Dictionary<ISymbol, SourceSpan> moveLocations,
         List<BorrowEntry> activeBorrows,
         int scopeDepth)
     {
         VariableStates = variableStates;
+        BindingKinds = bindingKinds;
         MoveLocations = moveLocations;
         ActiveBorrows = activeBorrows;
         ScopeDepth = scopeDepth;
@@ -108,6 +118,7 @@ public sealed class MethodFlowState
     {
         return new MethodFlowState(
             new Dictionary<ISymbol, VariableOwnershipState>(VariableStates),
+            new Dictionary<ISymbol, BindingKind>(BindingKinds),
             new Dictionary<ISymbol, SourceSpan>(MoveLocations),
             new List<BorrowEntry>(ActiveBorrows),
             ScopeDepth);
@@ -162,6 +173,13 @@ public sealed class MethodFlowState
 
         // Discard borrows from inner scopes (deeper than current scope depth) in the merged result.
         ActiveBorrows.RemoveAll(b => b.ScopeDepth > ScopeDepth);
+
+        // Merge binding kinds — binding kind is immutable after declaration,
+        // so we just ensure variables from the other branch are included.
+        foreach (var (symbol, kind) in other.BindingKinds)
+        {
+            BindingKinds.TryAdd(symbol, kind);
+        }
     }
 
     /// <summary>
@@ -180,8 +198,8 @@ public sealed class MethodFlowState
     /// For <see cref="OwnershipTier.Borrowed"/> borrows, the lender is restored to Live.
     /// For <see cref="OwnershipTier.Frozen"/> borrows, the lender is restored to Live
     /// only if no other frozen borrows from the same lender remain active.
-    /// For <see cref="OwnershipTier.ReadonlyRef"/> borrows, no restoration is needed
-    /// (lender already retains full access).
+    /// For <see cref="OwnershipTier.ReadonlyRef"/> borrows, the lender is restored to Live
+    /// only if no other readonly ref borrows from the same lender remain active.
     /// </summary>
     private void RestoreLenderState(BorrowEntry entry)
     {
@@ -197,12 +215,29 @@ public sealed class MethodFlowState
                 // frozen borrows from the same lender remain.
                 if (!HasRemainingFrozenBorrows(entry.Lender))
                 {
-                    VariableStates[entry.Lender] = VariableOwnershipState.Live;
+                    // If there are still readonly ref borrows, transition to LentReadonly.
+                    if (HasRemainingReadonlyRefBorrows(entry.Lender))
+                    {
+                        VariableStates[entry.Lender] = VariableOwnershipState.LentReadonly;
+                    }
+                    else
+                    {
+                        VariableStates[entry.Lender] = VariableOwnershipState.Live;
+                    }
                 }
                 break;
 
             case OwnershipTier.ReadonlyRef:
-                // Readonly borrows don't restrict the lender; no restoration needed.
+                // Readonly ref borrow released: restore lender to Live only if no other
+                // readonly ref or frozen borrows from the same lender remain.
+                if (!HasRemainingReadonlyRefBorrows(entry.Lender))
+                {
+                    if (!HasRemainingFrozenBorrows(entry.Lender))
+                    {
+                        VariableStates[entry.Lender] = VariableOwnershipState.Live;
+                    }
+                    // If frozen borrows remain, stay in LentFrozen (already set).
+                }
                 break;
         }
     }
@@ -215,6 +250,21 @@ public sealed class MethodFlowState
         foreach (var borrow in ActiveBorrows)
         {
             if (ReferenceEquals(borrow.Lender, lender) && borrow.BorrowTier == OwnershipTier.Frozen)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether any active readonly ref borrows remain for the given lender.
+    /// </summary>
+    private bool HasRemainingReadonlyRefBorrows(ISymbol lender)
+    {
+        foreach (var borrow in ActiveBorrows)
+        {
+            if (ReferenceEquals(borrow.Lender, lender) && borrow.BorrowTier == OwnershipTier.ReadonlyRef)
             {
                 return true;
             }

@@ -385,6 +385,12 @@ public sealed class CompilerDriver : ICompilerDriver
         // analyzers. This classifies members as InferredReadonly or Mutable.
         ReadonlyInferenceEngine.RunInference(semanticModel);
 
+        // Stage 4c: Ownership Inference
+        // Infers IsOwnedType for structs whose fields are all owned types,
+        // without requiring an explicit 'owned' modifier. Must run before
+        // the OwnershipAnalyzer which depends on IsOwnedType being set.
+        OwnershipInferenceEngine.RunInference(semanticModel);
+
         // Stage 5: Analysis
         var analysisStopwatch = Stopwatch.StartNew();
         progressReporter.ReportStageStart(5, "Analysis");

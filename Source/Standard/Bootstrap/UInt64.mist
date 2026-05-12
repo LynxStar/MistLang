@@ -1,6 +1,6 @@
 namespace Standard;
 
-intrinsic public readonly struct UInt64
+intrinsic public readonly owned struct UInt64
 {
     // Binary arithmetic operators — Requirement 3.1
     intrinsic public static UInt64 operator +(UInt64 a, UInt64 b);

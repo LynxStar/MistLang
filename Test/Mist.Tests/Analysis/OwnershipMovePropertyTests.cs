@@ -141,7 +141,7 @@ public class OwnershipMovePropertyTests
                from varName in Gen.Elements(VarNames)
                from destName in Gen.Elements(DestVarNames)
                let source = $$"""
-                   class {{className}} {
+                   owned class {{className}} {
                        public int GetValue() {
                            return 1;
                        }
@@ -168,7 +168,7 @@ public class OwnershipMovePropertyTests
                from varName in Gen.Elements(VarNames)
                from destName in Gen.Elements(DestVarNames)
                let source = $$"""
-                   class {{className}} {
+                   owned class {{className}} {
                        public int GetValue() {
                            return 1;
                        }
@@ -196,7 +196,7 @@ public class OwnershipMovePropertyTests
                from varName in Gen.Elements(VarNames)
                from destName in Gen.Elements(DestVarNames)
                let source = $$"""
-                   class {{className}} {
+                   owned class {{className}} {
                        public int GetValue() {
                            return 1;
                        }
@@ -223,7 +223,7 @@ public class OwnershipMovePropertyTests
                from varName in Gen.Elements(VarNames)
                from destName in Gen.Elements(DestVarNames)
                let source = $$"""
-                   class {{className}} {
+                   owned class {{className}} {
                        public int GetValue() {
                            return 1;
                        }
@@ -253,7 +253,7 @@ public class OwnershipMovePropertyTests
                from varName in Gen.Elements(VarNames)
                from destName in Gen.Elements(DestVarNames)
                let source = $$"""
-                   class {{className}} {
+                   owned class {{className}} {
                    }
                    class Program {
                        public static void Main() {
@@ -280,7 +280,7 @@ public class OwnershipMovePropertyTests
                from varName in Gen.Elements(VarNames)
                from destName in Gen.Elements(DestVarNames)
                let source = $$"""
-                   class {{className}} {
+                   owned class {{className}} {
                        public int GetValue() {
                            return 1;
                        }

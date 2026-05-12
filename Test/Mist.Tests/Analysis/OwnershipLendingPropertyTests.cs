@@ -184,7 +184,7 @@ public class OwnershipLendingPropertyTests
         return sourceTier switch
         {
             OwnershipTier.Owned => $$"""
-                class {{className}} {
+                owned class {{className}} {
                 }
                 class Program {
                     public static void {{methodName}}({{targetSpec}}{{className}} param) {
@@ -197,7 +197,7 @@ public class OwnershipLendingPropertyTests
                 """,
 
             OwnershipTier.Unrestricted => $$"""
-                class {{className}} {
+                owned class {{className}} {
                 }
                 class Program {
                     public static void {{methodName}}({{targetSpec}}{{className}} param) {
@@ -210,7 +210,7 @@ public class OwnershipLendingPropertyTests
                 """,
 
             OwnershipTier.Borrowed => $$"""
-                class {{className}} {
+                owned class {{className}} {
                 }
                 class Program {
                     public static void {{methodName}}({{targetSpec}}{{className}} param) {
@@ -226,7 +226,7 @@ public class OwnershipLendingPropertyTests
                 """,
 
             OwnershipTier.ReadonlyRef => $$"""
-                class {{className}} {
+                owned class {{className}} {
                 }
                 class Program {
                     public static void {{methodName}}({{targetSpec}}{{className}} param) {
@@ -242,7 +242,7 @@ public class OwnershipLendingPropertyTests
                 """,
 
             OwnershipTier.Frozen => $$"""
-                class {{className}} {
+                owned class {{className}} {
                 }
                 class Program {
                     public static void {{methodName}}({{targetSpec}}{{className}} param) {

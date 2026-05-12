@@ -1,6 +1,6 @@
 namespace Standard;
 
-intrinsic public readonly struct Char
+intrinsic public readonly owned struct Char
 {
     // Comparison and equality operators — Requirement 3.7
     intrinsic public static Boolean operator ==(Char a, Char b);

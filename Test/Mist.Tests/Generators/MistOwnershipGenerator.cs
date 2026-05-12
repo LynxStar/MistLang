@@ -91,6 +91,19 @@ public static class MistOwnershipGenerator
                select new OwnershipSourceScenario(source, $"var-decl: {specifier}{typeName} {varName}");
     }
 
+    /// <summary>
+    /// Generates an inferred variable declaration with an ownership specifier:
+    /// <c>owned var x = new Foo();</c>
+    /// </summary>
+    public static Gen<OwnershipSourceScenario> GenOwnershipAnnotatedInferredVariableDeclaration()
+    {
+        return from specifier in GenOwnershipSpecifier()
+               from typeName in Gen.Elements(ReferenceTypes)
+               from varName in Gen.Elements(VarNames)
+               let source = WrapInClassMethod($"{specifier}var {varName} = new {typeName}();")
+               select new OwnershipSourceScenario(source, $"var-inferred-decl: {specifier}var {varName}");
+    }
+
     // ─── Parameter declaration generators ───────────────────────────────────
 
     /// <summary>
@@ -191,6 +204,7 @@ public static class MistOwnershipGenerator
     {
         return Gen.OneOf(
             GenOwnershipAnnotatedVariableDeclaration(),
+            GenOwnershipAnnotatedInferredVariableDeclaration(),
             GenOwnershipAnnotatedParameterDeclaration(),
             GenMultiParamOwnershipDeclaration(),
             GenOwnedReturnTypeDeclaration(),

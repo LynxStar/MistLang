@@ -1,6 +1,6 @@
 namespace Standard;
 
-intrinsic public readonly class String
+intrinsic public readonly owned class String
 {
     // Concatenation — Requirement 3.8
     intrinsic public static String operator +(String a, String b);

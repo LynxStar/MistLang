@@ -1,6 +1,6 @@
 namespace Standard;
 
-intrinsic public readonly struct Byte
+intrinsic public readonly owned struct Byte
 {
     // Binary arithmetic operators — Requirement 3.1
     intrinsic public static Byte operator +(Byte a, Byte b);

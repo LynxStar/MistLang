@@ -892,4 +892,63 @@ Done!
 [tier-transition] unrestricted received=Pair(777, 20)
 [tier-transition] after unrestricted pass=Pair(777, 20)
 --- Ownership System Done ---
+--- Deep Ownership Types ---
+[owned-type-fields] sensor id=1, reading=100
+[owned-type-fields] after mutation=Sensor(Id=1, Reading=200)
+[primitive-bootstrap] id=42, reading=999
+[primitive-bootstrap] sum=1041
+[nested-owned] pair=SensorPair(Label=7, Left=Sensor(Id=1, Reading=10), Right=Sensor(Id=2, Reading=20))
+[nested-owned] combined=30
+[ownership-inference] point=Point(3, 4), sum=7
+[ownership-inference] accepted owned point=Point(10, 20)
+[ownership-inference] location=Location(Position=Point(5, 6), Altitude=100)
+[owned-binding-move] before move=Sensor(Id=10, Reading=500)
+[owned-binding-move] after move to s2=Sensor(Id=10, Reading=600)
+[owned-binding-move] after move to unrestricted=Sensor(Id=10, Reading=600)
+[move-into-function] before=Sensor(Id=5, Reading=50)
+[move-into-function] consumed=Sensor(Id=5, Reading=1050)
+[move-into-function] transfer complete
+[unrestricted-owned] read=700
+[unrestricted-owned] after write=Sensor(Id=7, Reading=800)
+[unrestricted-owned] readonly ref reading=800
+[unrestricted-owned] readonly ref permitted
+[semantic-shift] unrestricted binding=Sensor(Id=8, Reading=800)
+[semantic-shift] unrestricted param received=Sensor(Id=8, Reading=999)
+[semantic-shift] after unrestricted pass=Sensor(Id=8, Reading=999)
+[semantic-shift] owned binding=Sensor(Id=9, Reading=900)
+[lending-tiers] readonly ref=Sensor(Id=20, Reading=200)
+[lending-tiers] after readonly ref=Sensor(Id=20, Reading=200)
+[lending-tiers] frozen=Sensor(Id=21, Reading=210)
+[lending-tiers] after frozen=Sensor(Id=21, Reading=220)
+[lending-tiers] borrowed mutated=Sensor(Id=22, Reading=221)
+[lending-tiers] after borrowed=Sensor(Id=22, Reading=221)
+[truth-table-live] read=300
+[truth-table-live] write=301
+[truth-table-live] live view reading=301
+[truth-table-live] freeze reading=310
+[truth-table-live] borrow reading=320
+[truth-table-live] move reading=330
+[truth-table-lentreadonly] ref view=400
+[truth-table-lentreadonly] read=400
+[truth-table-lentreadonly] write=401
+[truth-table-live] live view reading=401
+[truth-table-lentreadonly] live view permitted
+[lending-tiers] frozen=Sensor(Id=40, Reading=401)
+[truth-table-lentreadonly] freeze permitted
+[truth-table-lentfrozen] frozen view=500
+[truth-table-lentfrozen] read=500
+[truth-table-live] live view reading=500
+[truth-table-lentfrozen] live view permitted
+[lending-tiers] frozen=Sensor(Id=50, Reading=500)
+[truth-table-lentfrozen] freeze permitted
+[borrowed-recipient] read=600
+[borrowed-recipient] write=700
+[lending-tiers] readonly ref=Sensor(Id=60, Reading=700)
+[borrowed-recipient] re-lent as readonly ref
+[lending-tiers] frozen=Sensor(Id=60, Reading=700)
+[borrowed-recipient] re-lent as frozen
+[borrowed-recipient] re-lent borrowed reading=700
+[borrowed-recipient] re-lent as borrowed
+[borrowed-recipient] owner after return=Sensor(Id=60, Reading=700)
+--- Deep Ownership Types Done ---
 === Done! ===

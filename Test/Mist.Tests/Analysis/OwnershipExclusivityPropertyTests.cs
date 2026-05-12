@@ -132,7 +132,7 @@ public class OwnershipExclusivityPropertyTests
                from varName in Gen.Elements(VarNames)
                from refName in Gen.Elements(RefVarNames)
                let source = $$"""
-                   class {{className}} {
+                   owned class {{className}} {
                        int {{fieldName}};
                        public int GetValue() {
                            return {{fieldName}};
@@ -165,7 +165,7 @@ public class OwnershipExclusivityPropertyTests
                from varName in Gen.Elements(VarNames)
                from refName in Gen.Elements(RefVarNames)
                let source = $$"""
-                   class {{className}} {
+                   owned class {{className}} {
                        int {{fieldName}};
                        public int GetValue() {
                            return {{fieldName}};
@@ -197,7 +197,7 @@ public class OwnershipExclusivityPropertyTests
                from varName in Gen.Elements(VarNames)
                from methodName in Gen.Elements(MethodNames)
                let source = $$"""
-                   class {{className}} {
+                   owned class {{className}} {
                        int {{fieldName}};
                        public void SetValue(int v) {
                            {{fieldName}} = v;
@@ -230,7 +230,7 @@ public class OwnershipExclusivityPropertyTests
                from varName in Gen.Elements(VarNames)
                from methodName in Gen.Elements(MethodNames)
                let source = $$"""
-                   class {{className}} {
+                   owned class {{className}} {
                        int {{fieldName}};
                        public int GetValue() {
                            return {{fieldName}};

@@ -134,7 +134,7 @@ public class OwnershipFrozenBlockingPropertyTests
                from varName in Gen.Elements(VarNames)
                from frozenName in Gen.Elements(FrozenVarNames)
                let source = $$"""
-                   class {{className}} {
+                   owned class {{className}} {
                        int {{fieldName}};
                        public void SetValue(int v) {
                            {{fieldName}} = v;
@@ -166,7 +166,7 @@ public class OwnershipFrozenBlockingPropertyTests
                from varName in Gen.Elements(VarNames)
                from frozenName in Gen.Elements(FrozenVarNames)
                let source = $$"""
-                   class {{className}} {
+                   owned class {{className}} {
                        public int {{fieldName}};
                        public int GetValue() {
                            return {{fieldName}};
@@ -196,7 +196,7 @@ public class OwnershipFrozenBlockingPropertyTests
                from frozenName in Gen.Elements(FrozenVarNames)
                from methodName in Gen.Elements(MethodNames)
                let source = $$"""
-                   class {{className}} {
+                   owned class {{className}} {
                        int {{fieldName}};
                        public void SetValue(int v) {
                            {{fieldName}} = v;
@@ -232,7 +232,7 @@ public class OwnershipFrozenBlockingPropertyTests
                from varName in Gen.Elements(VarNames)
                from methodName in Gen.Elements(MethodNames)
                let source = $$"""
-                   class {{className}} {
+                   owned class {{className}} {
                        int {{fieldName}};
                        public void SetValue(int v) {
                            {{fieldName}} = v;

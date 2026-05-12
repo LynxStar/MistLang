@@ -115,7 +115,7 @@ public class OwnershipErasurePropertyTests
         return from typeName in Gen.Elements(TypeNames)
                from varName in Gen.Elements(VarNames)
                let withOwnership = $$"""
-                   class {{typeName}} {
+                   owned class {{typeName}} {
                        int amount;
                    }
                    class Program {
@@ -311,13 +311,14 @@ public class OwnershipErasurePropertyTests
 
     /// <summary>
     /// Generates a program with an owned field and its equivalent without.
+    /// The field's type must be an owned type to satisfy Pass 2c validation.
     /// </summary>
     private static Gen<ErasureScenario> GenOwnedFieldScenario()
     {
         return from typeName in Gen.Elements(TypeNames)
                from fieldName in Gen.Elements(FieldNames)
                let withOwnership = $$"""
-                   class {{typeName}} {
+                   owned class {{typeName}} {
                        int amount;
                    }
                    class Holder {
@@ -354,7 +355,7 @@ public class OwnershipErasurePropertyTests
                from var1 in Gen.Elements(new[] { "a", "b", "c" })
                from var2 in Gen.Elements(new[] { "d", "e", "f" })
                let withOwnership = $$"""
-                   class {{typeName}} {
+                   owned class {{typeName}} {
                        int amount;
                    }
                    class Program {

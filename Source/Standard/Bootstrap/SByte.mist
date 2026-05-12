@@ -1,6 +1,6 @@
 namespace Standard;
 
-intrinsic public readonly struct SByte
+intrinsic public readonly owned struct SByte
 {
     // Binary arithmetic operators — Requirement 3.1
     intrinsic public static SByte operator +(SByte a, SByte b);

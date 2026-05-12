@@ -1,6 +1,6 @@
 namespace Standard;
 
-public readonly intrinsic class Regex
+public readonly intrinsic owned class Regex
 {
     intrinsic public Regex(string pattern);
     intrinsic public string Pattern { get; }

@@ -100,10 +100,20 @@ public class OwnedTypeConstraintPropertyTests
     }
 
     /// <summary>
-    /// Scenario for owned type instance held without the owned specifier (should produce
-    /// MIST_OWN_TYPE_REQUIRES_OWNED).
+    /// Scenario for owned type instance held without the owned specifier (now permitted
+    /// under the semantic shift — verifies NO MIST_OWN_TYPE_REQUIRES_OWNED is emitted).
     /// </summary>
     public sealed record TypeRequiresOwnedScenario(string Source, string Label)
+    {
+        public override string ToString() => Label;
+    }
+
+    /// <summary>
+    /// Scenario for Property 4: owned type used in various binding contexts
+    /// (unrestricted with var, unrestricted with explicit type, owned binding,
+    /// and passed to unrestricted parameters).
+    /// </summary>
+    public sealed record SemanticShiftScenario(string Source, string Label)
     {
         public override string ToString() => Label;
     }
@@ -278,18 +288,113 @@ public class OwnedTypeConstraintPropertyTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 7d: Owned type instances held without owned specifier produce
-    // MIST_OWN_TYPE_REQUIRES_OWNED
-    // **Validates: Requirements 8.5, 8.6**
+    // Property 7d: Owned type instances held without owned specifier are now
+    // permitted (semantic shift — deep-ownership-types spec, Requirement 8).
+    // Previously this tested that MIST_OWN_TYPE_REQUIRES_OWNED was emitted;
+    // now it verifies that NO such diagnostic is produced.
+    // **Validates: Requirements 8.1, 8.2, 8.3, 8.4 (deep-ownership-types)**
     // ═══════════════════════════════════════════════════════════════════════
 
     [Property(
         MaxTest = 100,
         Arbitrary = new[] { typeof(OwnedTypeConstraintPropertyTests) })]
-    public bool OwnedTypeWithoutOwnedVar_EmitsTypeRequiresOwned(TypeRequiresOwnedScenario scenario)
+    public bool OwnedTypeInUnrestrictedBinding_IsPermitted(TypeRequiresOwnedScenario scenario)
     {
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
 
-        return diagnostics.Any(d => d.Id.Value == "MIST_OWN_TYPE_REQUIRES_OWNED");
+        return !diagnostics.Any(d => d.Id.Value == "MIST_OWN_TYPE_REQUIRES_OWNED");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Feature: deep-ownership-types, Property 4: Semantic shift — owned types usable in any binding context
+    //
+    // For any owned type, instances SHALL be permitted in both owned bindings
+    // (owned var x = new T()) and unrestricted bindings (var x = new T())
+    // without the type checker reporting an error. Passing an owned type
+    // instance to an unrestricted parameter SHALL also be permitted.
+    //
+    // **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 9.2, 9.3**
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Represents the binding context in which an owned type instance is used.
+    /// </summary>
+    private enum BindingContext
+    {
+        /// <summary>var x = new T() — unrestricted with type inference</summary>
+        UnrestrictedVar,
+        /// <summary>T x = new T() — unrestricted with explicit type</summary>
+        UnrestrictedExplicit,
+        /// <summary>owned var x = new T() — owned binding with var</summary>
+        OwnedVar,
+        /// <summary>owned T x = new T() — owned binding with explicit type</summary>
+        OwnedExplicit,
+        /// <summary>Pass owned type instance to unrestricted parameter</summary>
+        UnrestrictedParameter,
+    }
+
+    private static Gen<SemanticShiftScenario> GenSemanticShiftScenario()
+    {
+        return from typeName in Gen.Elements(TypeNames)
+               from varName in Gen.Elements(VarNames)
+               from context in Gen.Elements(
+                   BindingContext.UnrestrictedVar,
+                   BindingContext.UnrestrictedExplicit,
+                   BindingContext.OwnedVar,
+                   BindingContext.OwnedExplicit,
+                   BindingContext.UnrestrictedParameter)
+               let source = BuildSemanticShiftSource(typeName, varName, context)
+               let label = $"owned class {typeName} in {context} context (var={varName})"
+               select new SemanticShiftScenario(source, label);
+    }
+
+    private static string BuildSemanticShiftSource(string typeName, string varName, BindingContext context)
+    {
+        var declaration = context switch
+        {
+            BindingContext.UnrestrictedVar =>
+                $"var {varName} = new {typeName}();",
+            BindingContext.UnrestrictedExplicit =>
+                $"{typeName} {varName} = new {typeName}();",
+            BindingContext.OwnedVar =>
+                $"owned var {varName} = new {typeName}();",
+            BindingContext.OwnedExplicit =>
+                $"owned {typeName} {varName} = new {typeName}();",
+            BindingContext.UnrestrictedParameter =>
+                $"var {varName} = new {typeName}();\n            AcceptUnrestricted({varName});",
+            _ => throw new ArgumentOutOfRangeException(nameof(context))
+        };
+
+        var helperMethod = context == BindingContext.UnrestrictedParameter
+            ? $"\n    public static void AcceptUnrestricted({typeName} param) {{\n    }}"
+            : "";
+
+        return $$"""
+            owned class {{typeName}} {
+                int value;
+            }
+            class Program {
+                public static void Main() {
+                    {{declaration}}
+                }{{helperMethod}}
+            }
+            """;
+    }
+
+    public static Arbitrary<SemanticShiftScenario> ArbitrarySemanticShiftScenario() =>
+        GenSemanticShiftScenario().ToArbitrary();
+
+    [Property(
+        MaxTest = 100,
+        Arbitrary = new[] { typeof(OwnedTypeConstraintPropertyTests) })]
+    public bool SemanticShift_OwnedTypeInAnyBindingContext_NoErrors(SemanticShiftScenario scenario)
+    {
+        var diagnostics = CompileAndGetDiagnostics(scenario.Source);
+
+        // No ownership-related errors should be reported — owned types are usable
+        // in any binding context after the semantic shift.
+        return !diagnostics.Any(d =>
+            d.Id.Value == "MIST_OWN_TYPE_REQUIRES_OWNED" ||
+            d.Id.Value == "MIST_OWN_FIELD_NOT_OWNED");
     }
 }

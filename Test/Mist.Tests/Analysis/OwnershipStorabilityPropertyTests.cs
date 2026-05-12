@@ -206,7 +206,7 @@ public class OwnershipStorabilityPropertyTests
                from refTier in Gen.Elements(RefTierKeywords)
                from refTypeName in Gen.Elements(new[] { "Widget", "Handler", "Service" })
                let source = $$"""
-                   class {{refTypeName}} {
+                   owned class {{refTypeName}} {
                        public readonly int value;
                        public {{refTypeName}}() {
                            value = 42;

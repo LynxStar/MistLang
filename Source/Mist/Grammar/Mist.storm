@@ -106,6 +106,7 @@ rule NamespaceBodyItem
     | newtypeDeclaration:NewtypeDeclaration        as NamespaceNewtypeItem
     | typeAliasDeclaration:TypeAliasDeclaration    as NamespaceTypeAliasItem
     | extensionDeclaration:ExtensionBlockDeclaration as NamespaceExtensionItem
+    | namespaceDeclaration:NamespaceDeclaration    as NamespaceNamespaceItem
     ;
 
 rule NamespaceDeclaration
@@ -308,6 +309,7 @@ rule MemberDeclaration
     | indexer:IndexerDeclaration         as IndexerMember
     | defaultBlock:DefaultBlockDeclaration as DefaultBlockMember
     | field:FieldDeclaration             as FieldMember
+    | nestedType:TypeDeclaration         as NestedTypeMember
     ;
 
 // ─── Parser Rules — Default Block ───────────────────────────────────────────

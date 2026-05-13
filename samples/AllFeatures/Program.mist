@@ -47,6 +47,7 @@ public class Program
         OwnershipSystem.Program.RunDemo();
         DeepOwnershipTypes.Program.RunDemo();
         RefParameters.Program.RunDemo();
+        NestedScoping.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

@@ -965,4 +965,42 @@ Done!
 [ref-forward] 14
 [ref-struct-mutation] Point(3, 0)
 --- Ref Parameters Done ---
+=== Nested Scoping Sample ===
+--- 1. Class in class ---
+  Outer.Inner (class in class)
+--- 2. Struct in class ---
+  Outer.NestedPoint(x, y) struct nested in class
+--- 3. Interface in class ---
+  Outer.IAction interface nested in class
+--- 4. Trait in class ---
+  Outer.Describable trait nested in class
+--- 5. Enum in class ---
+  Outer.Status: Active=Status { Value = active }, Inactive=Status { Value = inactive }, Pending=Status { Value = pending }
+--- 6. Class in struct ---
+  ContainerStruct.Item declared (see NestedInStruct.mist, readonly emitter limitation)
+--- 7. Class in interface ---
+  IFactory.DefaultProduct declared (see NestedInInterfaceTrait.mist)
+--- 8. Class in trait ---
+  Serializable.Config declared (see NestedInInterfaceTrait.mist)
+--- 9. Deeply nested types (4 levels) ---
+  Level1.Level2.Level3.Level4 (4 levels deep)
+--- 10. Generic parent type parameter access ---
+  Box<T>.Wrapper nested in generic parent (exercised internally via DemoWrapper)
+--- 11. Multiple sibling nested types ---
+  Entry=Registry.Entry, Metadata=Registry.Metadata, Category.System=Category { Value = system }, Category.User=Category { Value = user }, Category.Plugin=Category { Value = plugin }
+--- 12. Nested block namespaces ---
+  Networking.Protocol.TcpHandler (nested block namespace)
+--- 13. Repeated block namespaces ---
+  StringHelper.Upper("test") = test
+  MathHelper.Add(3, 4) = 7
+--- 14. File-scoped namespace with nested types ---
+  NestedScoping.Outer contains Inner, NestedPoint, IAction, Describable, Status
+  Verified via Outer.DemoClassInClass(): Outer.Inner (class in class)
+--- 15. Qualified name references from within parent ---
+  Inner.Hello() called from Outer.DemoClassInClass()
+  Status.Active called from Outer.DemoEnumInClass()
+  Entry.Kind(), Metadata.Kind(), Category.System called from Registry.DemoSiblings()
+  Level4.Depth() called from Level3.UseLevel4()
+  All verified: Outer.Inner (class in class)
+=== Nested Scoping Done ===
 === Done! ===

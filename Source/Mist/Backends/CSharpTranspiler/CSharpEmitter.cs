@@ -365,13 +365,52 @@ internal sealed class CSharpSourceWriter
         // in each inferred namespace group.
         string? emittedInferredNamespace = null;
 
+        // Collect top-level block namespaces for same-name merging (Requirement 11.3).
+        var topLevelBlockNamespaces = new Dictionary<string, List<BlockNamespaceNamespaceDeclarationNode>>(StringComparer.Ordinal);
+        var topLevelBlockNamespaceOrder = new List<string>();
+        var emittedTopLevelNamespaces = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var item in cu.Items)
+        {
+            if (item is NamespaceItemTopLevelItemNode nsItem
+                && nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode blockNsDecl)
+            {
+                var nsName = ExtractQualifiedName(blockNsDecl.Name);
+                if (!topLevelBlockNamespaces.TryGetValue(nsName, out var list))
+                {
+                    list = new List<BlockNamespaceNamespaceDeclarationNode>();
+                    topLevelBlockNamespaces[nsName] = list;
+                    topLevelBlockNamespaceOrder.Add(nsName);
+                }
+                list.Add(blockNsDecl);
+            }
+        }
+
         foreach (var item in cu.Items)
         {
             switch (item)
             {
                 case NamespaceItemTopLevelItemNode nsItem:
-                    EmitNamespaceDeclaration(nsItem.NamespaceDeclaration);
+                {
+                    switch (nsItem.NamespaceDeclaration)
+                    {
+                        case FileScopedNamespaceNamespaceDeclarationNode:
+                            // File-scoped namespaces are emitted directly (no merging needed).
+                            EmitNamespaceDeclaration(nsItem.NamespaceDeclaration);
+                            break;
+                        case BlockNamespaceNamespaceDeclarationNode blockNsDecl:
+                        {
+                            // Emit merged block namespace on first encounter of this FQN.
+                            var nsName = ExtractQualifiedName(blockNsDecl.Name);
+                            if (emittedTopLevelNamespaces.Add(nsName))
+                            {
+                                EmitMergedTopLevelBlockNamespace(nsName, topLevelBlockNamespaces[nsName]);
+                            }
+                            break;
+                        }
+                    }
                     break;
+                }
                 case TypeItemTopLevelItemNode typeItem:
                 {
                     // Determine the type's namespace from the semantic model.
@@ -430,6 +469,57 @@ internal sealed class CSharpSourceWriter
         }
 
         return _sb.ToString();
+    }
+
+    /// <summary>
+    /// Emits a merged top-level block namespace by combining all blocks with the same FQN
+    /// into a single C# namespace block. Omits the block if it has no emittable content.
+    /// </summary>
+    private void EmitMergedTopLevelBlockNamespace(string nsName, List<BlockNamespaceNamespaceDeclarationNode> blocks)
+    {
+        // Collect all body items from all blocks with this FQN.
+        var mergedBodyItems = new List<NamespaceBodyItemNode>();
+        foreach (var block in blocks)
+        {
+            foreach (var item in block.Body)
+                mergedBodyItems.Add(item);
+        }
+
+        // Omit empty namespace blocks from output (Requirement 11.4).
+        if (!HasEmittableContentInList(mergedBodyItems))
+            return;
+
+        AppendLine($"namespace {nsName}");
+        AppendLine("{");
+        _indentLevel++;
+
+        foreach (var item in mergedBodyItems)
+        {
+            switch (item)
+            {
+                case NamespaceTypeItemNamespaceBodyItemNode typeBodyItem:
+                    EmitTypeDeclaration(typeBodyItem.TypeDeclaration);
+                    break;
+                case NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem:
+                    EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
+                    break;
+                case NamespaceTypeAliasItemNamespaceBodyItemNode:
+                    // Type aliases are erased — no C# declaration is emitted.
+                    break;
+                case NamespaceNewtypeItemNamespaceBodyItemNode newtypeBodyItem:
+                    EmitNewtypeDeclaration(newtypeBodyItem.NewtypeDeclaration);
+                    break;
+                case NamespaceNamespaceItemNamespaceBodyItemNode:
+                    // Handled below via merged emission.
+                    break;
+            }
+        }
+
+        // Emit nested namespaces with same-name merging.
+        EmitMergedNestedNamespacesFromList(mergedBodyItems, nsName);
+
+        _indentLevel--;
+        AppendLine("}");
     }
 
     /// <summary>
@@ -984,13 +1074,24 @@ internal sealed class CSharpSourceWriter
                         case NamespaceNewtypeItemNamespaceBodyItemNode newtypeBodyItem:
                             EmitNewtypeDeclaration(newtypeBodyItem.NewtypeDeclaration);
                             break;
+                        case NamespaceNamespaceItemNamespaceBodyItemNode:
+                            // Handled below via merged emission.
+                            break;
                     }
                 }
+
+                // Emit nested namespaces with same-name merging.
+                EmitMergedNestedNamespaces(fileScopedNs.Body, name);
                 break;
             }
             case BlockNamespaceNamespaceDeclarationNode blockNs:
             {
                 var name = ExtractQualifiedName(blockNs.Name);
+
+                // Check if this block namespace has any emittable content (including nested namespaces).
+                if (!HasEmittableContent(blockNs.Body))
+                    break;
+
                 AppendLine($"namespace {name}");
                 AppendLine("{");
                 _indentLevel++;
@@ -1011,14 +1112,231 @@ internal sealed class CSharpSourceWriter
                         case NamespaceNewtypeItemNamespaceBodyItemNode newtypeBodyItem:
                             EmitNewtypeDeclaration(newtypeBodyItem.NewtypeDeclaration);
                             break;
+                        case NamespaceNamespaceItemNamespaceBodyItemNode:
+                            // Handled below via merged emission.
+                            break;
                     }
                 }
+
+                // Emit nested namespaces with same-name merging.
+                EmitMergedNestedNamespaces(blockNs.Body, name);
 
                 _indentLevel--;
                 AppendLine("}");
                 break;
             }
         }
+    }
+
+    /// <summary>
+    /// Emits nested namespace declarations from a namespace body, merging blocks with
+    /// identical fully qualified names into a single C# namespace block. Empty namespace
+    /// blocks (those with no type declarations, extensions, or newtypes) are omitted.
+    /// </summary>
+    private void EmitMergedNestedNamespaces(ImmutableArray<NamespaceBodyItemNode> bodyItems, string parentFqn)
+    {
+        // Collect all nested namespace items grouped by their FQN.
+        var groupedNamespaces = new Dictionary<string, List<NamespaceDeclarationNode>>(StringComparer.Ordinal);
+        var insertionOrder = new List<string>();
+
+        foreach (var bodyItem in bodyItems)
+        {
+            if (bodyItem is not NamespaceNamespaceItemNamespaceBodyItemNode nsItem)
+                continue;
+
+            var nestedNsDecl = nsItem.NamespaceDeclaration;
+            if (nestedNsDecl is not BlockNamespaceNamespaceDeclarationNode nestedBlockNs)
+                continue;
+
+            var declaredName = ExtractQualifiedName(nestedBlockNs.Name);
+            var fqn = parentFqn + "." + declaredName;
+
+            if (!groupedNamespaces.TryGetValue(fqn, out var list))
+            {
+                list = new List<NamespaceDeclarationNode>();
+                groupedNamespaces[fqn] = list;
+                insertionOrder.Add(fqn);
+            }
+            list.Add(nestedNsDecl);
+        }
+
+        // Emit each unique FQN as a single merged namespace block.
+        foreach (var fqn in insertionOrder)
+        {
+            var nsDecls = groupedNamespaces[fqn];
+
+            // Collect all body items from all blocks with this FQN.
+            var mergedBodyItems = new List<NamespaceBodyItemNode>();
+            foreach (var nsDecl in nsDecls)
+            {
+                if (nsDecl is BlockNamespaceNamespaceDeclarationNode blockNsDecl)
+                {
+                    foreach (var item in blockNsDecl.Body)
+                        mergedBodyItems.Add(item);
+                }
+            }
+
+            // Omit empty namespace blocks from output.
+            if (!HasEmittableContentInList(mergedBodyItems))
+                continue;
+
+            AppendLine($"namespace {fqn}");
+            AppendLine("{");
+            _indentLevel++;
+
+            foreach (var item in mergedBodyItems)
+            {
+                switch (item)
+                {
+                    case NamespaceTypeItemNamespaceBodyItemNode typeBodyItem:
+                        EmitTypeDeclaration(typeBodyItem.TypeDeclaration);
+                        break;
+                    case NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem:
+                        EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
+                        break;
+                    case NamespaceTypeAliasItemNamespaceBodyItemNode:
+                        // Type aliases are erased — no C# declaration is emitted.
+                        break;
+                    case NamespaceNewtypeItemNamespaceBodyItemNode newtypeBodyItem:
+                        EmitNewtypeDeclaration(newtypeBodyItem.NewtypeDeclaration);
+                        break;
+                    case NamespaceNamespaceItemNamespaceBodyItemNode:
+                        // Handled below via recursive merged emission.
+                        break;
+                }
+            }
+
+            // Recursively emit nested namespaces within the merged body.
+            EmitMergedNestedNamespacesFromList(mergedBodyItems, fqn);
+
+            _indentLevel--;
+            AppendLine("}");
+        }
+    }
+
+    /// <summary>
+    /// Emits merged nested namespaces from a list of body items (used for recursion
+    /// when merging already-collected body items from multiple same-name blocks).
+    /// </summary>
+    private void EmitMergedNestedNamespacesFromList(List<NamespaceBodyItemNode> bodyItems, string parentFqn)
+    {
+        var groupedNamespaces = new Dictionary<string, List<NamespaceDeclarationNode>>(StringComparer.Ordinal);
+        var insertionOrder = new List<string>();
+
+        foreach (var bodyItem in bodyItems)
+        {
+            if (bodyItem is not NamespaceNamespaceItemNamespaceBodyItemNode nsItem)
+                continue;
+
+            var nestedNsDecl = nsItem.NamespaceDeclaration;
+            if (nestedNsDecl is not BlockNamespaceNamespaceDeclarationNode nestedBlockNs)
+                continue;
+
+            var declaredName = ExtractQualifiedName(nestedBlockNs.Name);
+            var fqn = parentFqn + "." + declaredName;
+
+            if (!groupedNamespaces.TryGetValue(fqn, out var list))
+            {
+                list = new List<NamespaceDeclarationNode>();
+                groupedNamespaces[fqn] = list;
+                insertionOrder.Add(fqn);
+            }
+            list.Add(nestedNsDecl);
+        }
+
+        foreach (var fqn in insertionOrder)
+        {
+            var nsDecls = groupedNamespaces[fqn];
+
+            var mergedBodyItems = new List<NamespaceBodyItemNode>();
+            foreach (var nsDecl in nsDecls)
+            {
+                if (nsDecl is BlockNamespaceNamespaceDeclarationNode blockNsDecl)
+                {
+                    foreach (var item in blockNsDecl.Body)
+                        mergedBodyItems.Add(item);
+                }
+            }
+
+            if (!HasEmittableContentInList(mergedBodyItems))
+                continue;
+
+            AppendLine($"namespace {fqn}");
+            AppendLine("{");
+            _indentLevel++;
+
+            foreach (var item in mergedBodyItems)
+            {
+                switch (item)
+                {
+                    case NamespaceTypeItemNamespaceBodyItemNode typeBodyItem:
+                        EmitTypeDeclaration(typeBodyItem.TypeDeclaration);
+                        break;
+                    case NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem:
+                        EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
+                        break;
+                    case NamespaceTypeAliasItemNamespaceBodyItemNode:
+                        break;
+                    case NamespaceNewtypeItemNamespaceBodyItemNode newtypeBodyItem:
+                        EmitNewtypeDeclaration(newtypeBodyItem.NewtypeDeclaration);
+                        break;
+                    case NamespaceNamespaceItemNamespaceBodyItemNode:
+                        break;
+                }
+            }
+
+            EmitMergedNestedNamespacesFromList(mergedBodyItems, fqn);
+
+            _indentLevel--;
+            AppendLine("}");
+        }
+    }
+
+    /// <summary>
+    /// Returns true if the namespace body contains any emittable content
+    /// (type declarations, extension blocks, or newtype declarations, or nested namespaces with content).
+    /// </summary>
+    private static bool HasEmittableContent(ImmutableArray<NamespaceBodyItemNode> bodyItems)
+    {
+        foreach (var item in bodyItems)
+        {
+            switch (item)
+            {
+                case NamespaceTypeItemNamespaceBodyItemNode:
+                case NamespaceExtensionItemNamespaceBodyItemNode:
+                case NamespaceNewtypeItemNamespaceBodyItemNode:
+                    return true;
+                case NamespaceNamespaceItemNamespaceBodyItemNode nsItem:
+                    if (nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode nestedBlock
+                        && HasEmittableContent(nestedBlock.Body))
+                        return true;
+                    break;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Returns true if the list of namespace body items contains any emittable content.
+    /// </summary>
+    private static bool HasEmittableContentInList(List<NamespaceBodyItemNode> bodyItems)
+    {
+        foreach (var item in bodyItems)
+        {
+            switch (item)
+            {
+                case NamespaceTypeItemNamespaceBodyItemNode:
+                case NamespaceExtensionItemNamespaceBodyItemNode:
+                case NamespaceNewtypeItemNamespaceBodyItemNode:
+                    return true;
+                case NamespaceNamespaceItemNamespaceBodyItemNode nsItem:
+                    if (nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode nestedBlock
+                        && HasEmittableContent(nestedBlock.Body))
+                        return true;
+                    break;
+            }
+        }
+        return false;
     }
 
     private void EmitTypeDeclaration(TypeDeclarationNode typeDecl)
@@ -3029,6 +3347,9 @@ internal sealed class CSharpSourceWriter
             case DefaultBlockMemberMemberDeclarationNode:
                 // The default block is consumed by the semantic model and emitter's
                 // __CreateDefault generation logic — it is not emitted as a C# member.
+                break;
+            case NestedTypeMemberMemberDeclarationNode nestedTypeMember:
+                EmitTypeDeclaration(nestedTypeMember.NestedType);
                 break;
         }
     }

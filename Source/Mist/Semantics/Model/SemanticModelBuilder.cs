@@ -530,6 +530,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId RefinementConstraintStrongerThanInterface = new("MIST_REFINEMENT_0009");
 
+    // ── Nested type diagnostic IDs (nested-scoping spec, Requirements 9.4, 9.5, 14.3) ──
+
+    /// <summary>
+    /// A nested type has the same name as another type already registered in
+    /// the same parent type's member scope (Requirement 9.4, 14.3). The second
+    /// declaration is skipped to avoid cascading errors.
+    /// </summary>
+    internal static readonly DiagnosticId DuplicateNestedType = new("MIST0303");
+
+    /// <summary>
+    /// A nested type has the same name as a type parameter declared on the
+    /// parent type (Requirement 9.5). The nested type declaration conflicts
+    /// with the type parameter and is skipped.
+    /// </summary>
+    internal static readonly DiagnosticId NestedTypeConflictsWithTypeParameter = new("MIST0304");
+
     /// <summary>
     /// The set of primitive type keywords allowed as dependent type parameter annotations.
     /// </summary>
@@ -601,6 +617,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     Location: default,
                     CompilationUnitPath: "<unknown>",
                     AnalyzerName: null));
+            }
+        }
+
+        // Pass 1: Validate namespace declarations.
+        // After all types are registered, walk each compilation unit to detect:
+        //   * MIST0301 — duplicate file-scoped namespaces in the same file.
+        //   * MIST0302 — mixed file-scoped and block namespaces in the same file.
+        //   * MIST0305 — file-scoped namespace inside a block namespace.
+        for (var i = 0; i < asts.Length; i++)
+        {
+            var ast = asts[i];
+            if (ast is CompilationUnitNode cu)
+            {
+                var sourceText = i < compilation.Units.Length ? compilation.Units[i].Source : null;
+                Pass1_ValidateNamespaceDeclarations(cu, sourceText, diagnostics);
             }
         }
 
@@ -891,70 +922,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var nsDecl = nsItem.NamespaceDeclaration;
                     var declaredName = ExtractNamespaceName(nsDecl, sourceText);
 
-                    if (nsDecl is FileScopedNamespaceNamespaceDeclarationNode fileScopedNs)
+                    if (nsDecl is FileScopedNamespaceNamespaceDeclarationNode)
                     {
                         // File-scoped: update current namespace for subsequent types.
                         currentNamespace = declaredName;
                         currentScope = GetOrCreateNamespaceScope(globalScope, symbolTable, currentNamespace, nsDecl);
 
-                        // Register types in the file-scoped namespace body.
-                        var bodyTypes = GetNamespaceBodyTypes(nsDecl);
-                        foreach (var typeDecl in bodyTypes)
-                        {
-                            RegisterTypeDeclaration(typeDecl, currentScope, symbolTable, currentNamespace, sourceText, diagnostics);
-                        }
-
-                        // Register type aliases in the file-scoped namespace body.
-                        var bodyTypeAliases = GetNamespaceBodyTypeAliases(nsDecl);
-                        foreach (var aliasDecl in bodyTypeAliases)
-                        {
-                            RegisterTypeAliasDeclaration(aliasDecl, currentScope, symbolTable, sourceText, diagnostics);
-                        }
-
-                        // Register newtypes in the file-scoped namespace body.
-                        var bodyNewtypes = GetNamespaceBodyNewtypes(nsDecl);
-                        foreach (var newtypeDecl in bodyNewtypes)
-                        {
-                            RegisterNewtypeDeclaration(newtypeDecl, currentScope, symbolTable, sourceText, diagnostics);
-                        }
-
-                        // Register extension blocks in the file-scoped namespace body.
-                        var bodyExtensions = GetNamespaceBodyExtensions(nsDecl);
-                        foreach (var extDecl in bodyExtensions)
-                        {
-                            RegisterExtensionBlock(extDecl, currentScope, currentNamespace, sourceText, diagnostics, extensionBlockScopes);
-                        }
+                        // Register all body items (types, aliases, newtypes, extensions, nested namespaces).
+                        RegisterNamespaceBody(nsDecl, currentScope, currentNamespace, globalScope, symbolTable, sourceText, diagnostics, extensionBlockScopes);
                     }
                     else if (nsDecl is BlockNamespaceNamespaceDeclarationNode)
                     {
                         // Block: register only enclosed types; current namespace unchanged after block.
                         var blockScope = GetOrCreateNamespaceScope(globalScope, symbolTable, declaredName, nsDecl);
-                        var bodyTypes = GetNamespaceBodyTypes(nsDecl);
-                        foreach (var typeDecl in bodyTypes)
-                        {
-                            RegisterTypeDeclaration(typeDecl, blockScope, symbolTable, declaredName, sourceText, diagnostics);
-                        }
 
-                        // Register type aliases in the block namespace body.
-                        var blockTypeAliases = GetNamespaceBodyTypeAliases(nsDecl);
-                        foreach (var aliasDecl in blockTypeAliases)
-                        {
-                            RegisterTypeAliasDeclaration(aliasDecl, blockScope, symbolTable, sourceText, diagnostics);
-                        }
-
-                        // Register newtypes in the block namespace body.
-                        var blockNewtypes = GetNamespaceBodyNewtypes(nsDecl);
-                        foreach (var newtypeDecl in blockNewtypes)
-                        {
-                            RegisterNewtypeDeclaration(newtypeDecl, blockScope, symbolTable, sourceText, diagnostics);
-                        }
-
-                        // Register extension blocks in the block namespace body.
-                        var bodyExtensions = GetNamespaceBodyExtensions(nsDecl);
-                        foreach (var extDecl in bodyExtensions)
-                        {
-                            RegisterExtensionBlock(extDecl, blockScope, declaredName, sourceText, diagnostics, extensionBlockScopes);
-                        }
+                        // Register all body items (types, aliases, newtypes, extensions, nested namespaces).
+                        RegisterNamespaceBody(nsDecl, blockScope, declaredName, globalScope, symbolTable, sourceText, diagnostics, extensionBlockScopes);
                     }
                     break;
                 }
@@ -991,6 +974,60 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     RegisterExtensionBlock(extensionItem.ExtensionDeclaration, currentScope, currentNamespace, sourceText, diagnostics, extensionBlockScopes);
                     break;
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Registers all body items within a namespace declaration (types, type aliases, newtypes,
+    /// extension blocks, and nested namespace declarations). Handles nested namespaces by
+    /// computing the nested FQN and recursively processing the nested namespace's body.
+    /// </summary>
+    private static void RegisterNamespaceBody(
+        NamespaceDeclarationNode nsDecl,
+        Scope namespaceScope,
+        string namespaceFqn,
+        Scope globalScope,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics,
+        Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace, SourceText? SourceText)>? extensionBlockScopes = null)
+    {
+        var bodyItems = nsDecl switch
+        {
+            FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
+            BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
+            _ => ImmutableArray<NamespaceBodyItemNode>.Empty
+        };
+
+        foreach (var bodyItem in bodyItems)
+        {
+            switch (bodyItem)
+            {
+                case NamespaceTypeItemNamespaceBodyItemNode typeItem:
+                    RegisterTypeDeclaration(typeItem.TypeDeclaration, namespaceScope, symbolTable, namespaceFqn, sourceText, diagnostics);
+                    break;
+
+                case NamespaceTypeAliasItemNamespaceBodyItemNode typeAliasItem:
+                    RegisterTypeAliasDeclaration(typeAliasItem.TypeAliasDeclaration, namespaceScope, symbolTable, sourceText, diagnostics);
+                    break;
+
+                case NamespaceNewtypeItemNamespaceBodyItemNode newtypeItem:
+                    RegisterNewtypeDeclaration(newtypeItem.NewtypeDeclaration, namespaceScope, symbolTable, sourceText, diagnostics);
+                    break;
+
+                case NamespaceExtensionItemNamespaceBodyItemNode extensionItem:
+                    RegisterExtensionBlock(extensionItem.ExtensionDeclaration, namespaceScope, namespaceFqn, sourceText, diagnostics, extensionBlockScopes);
+                    break;
+
+                case NamespaceNamespaceItemNamespaceBodyItemNode nsBodyItem:
+                    var nestedNsDecl = nsBodyItem.NamespaceDeclaration;
+                    var nestedDeclaredName = ExtractNamespaceName(nestedNsDecl, sourceText);
+                    var nestedFqn = namespaceFqn + "." + nestedDeclaredName;
+                    var nestedScope = GetOrCreateNamespaceScope(globalScope, symbolTable, nestedFqn, nestedNsDecl);
+                    // Recursively register types and nested namespaces within.
+                    RegisterNamespaceBody(nestedNsDecl, nestedScope, nestedFqn, globalScope, symbolTable, sourceText, diagnostics, extensionBlockScopes);
+                    break;
             }
         }
     }
@@ -1044,6 +1081,124 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         return namespaceScope;
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // Pass 1: Namespace Declaration Validation
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates namespace declarations within a compilation unit:
+    /// - Detects duplicate file-scoped namespaces (MIST0301).
+    /// - Detects mixed file-scoped and block namespaces (MIST0302).
+    /// - Detects file-scoped namespace declarations inside block namespaces (MIST0305).
+    /// </summary>
+    private static void Pass1_ValidateNamespaceDeclarations(
+        CompilationUnitNode cu,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var fileScopedCount = 0;
+        var hasBlockNamespace = false;
+        var hasFileScopedNamespace = false;
+
+        foreach (var item in cu.Items)
+        {
+            if (item is not NamespaceItemTopLevelItemNode nsItem)
+                continue;
+
+            var nsDecl = nsItem.NamespaceDeclaration;
+
+            if (nsDecl is FileScopedNamespaceNamespaceDeclarationNode)
+            {
+                fileScopedCount++;
+
+                if (fileScopedCount > 1)
+                {
+                    // MIST0301: Only one file-scoped namespace is permitted per file.
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        "MIST0301",
+                        DiagnosticSeverity.Error,
+                        "Only one file-scoped namespace is permitted per file.",
+                        nsDecl,
+                        sourceText));
+                }
+                else if (hasBlockNamespace)
+                {
+                    // MIST0302: File-scoped and block namespaces cannot be mixed.
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        "MIST0302",
+                        DiagnosticSeverity.Error,
+                        "File-scoped and block namespaces cannot be mixed in the same file.",
+                        nsDecl,
+                        sourceText));
+                }
+
+                hasFileScopedNamespace = true;
+
+                // Check for file-scoped namespaces nested inside this file-scoped namespace's body.
+                CheckForFileScopedInsideBlock(nsDecl, sourceText, diagnostics);
+            }
+            else if (nsDecl is BlockNamespaceNamespaceDeclarationNode)
+            {
+                if (hasFileScopedNamespace)
+                {
+                    // MIST0302: File-scoped and block namespaces cannot be mixed.
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        "MIST0302",
+                        DiagnosticSeverity.Error,
+                        "File-scoped and block namespaces cannot be mixed in the same file.",
+                        nsDecl,
+                        sourceText));
+                }
+
+                hasBlockNamespace = true;
+
+                // Check for file-scoped namespaces nested inside this block namespace's body.
+                CheckForFileScopedInsideBlock(nsDecl, sourceText, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Recursively checks namespace bodies for file-scoped namespace declarations
+    /// that appear inside block namespaces (MIST0305).
+    /// </summary>
+    private static void CheckForFileScopedInsideBlock(
+        NamespaceDeclarationNode nsDecl,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var bodyItems = nsDecl switch
+        {
+            FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
+            BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
+            _ => ImmutableArray<NamespaceBodyItemNode>.Empty
+        };
+
+        foreach (var bodyItem in bodyItems)
+        {
+            if (bodyItem is not NamespaceNamespaceItemNamespaceBodyItemNode nestedNsItem)
+                continue;
+
+            var nestedNsDecl = nestedNsItem.NamespaceDeclaration;
+
+            if (nestedNsDecl is FileScopedNamespaceNamespaceDeclarationNode)
+            {
+                // MIST0305: File-scoped namespace declarations cannot appear inside a block namespace.
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    "MIST0305",
+                    DiagnosticSeverity.Error,
+                    "File-scoped namespace declarations cannot appear inside a block namespace.",
+                    nestedNsDecl,
+                    sourceText));
+            }
+            else if (nestedNsDecl is BlockNamespaceNamespaceDeclarationNode)
+            {
+                // Recursively check nested block namespaces for file-scoped declarations.
+                CheckForFileScopedInsideBlock(nestedNsDecl, sourceText, diagnostics);
+            }
+        }
+    }
+
     private static void RegisterTypeDeclaration(
         TypeDeclarationNode typeDecl,
         Scope parentScope,
@@ -1052,6 +1207,53 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
+        // When namespaceName is null, this is a nested type being registered inside a parent type's scope.
+        // Check for duplicate nested type names and type parameter conflicts.
+        if (namespaceName is null)
+        {
+            var (nestedTypeName, declNode) = GetTypeDeclarationNameAndNode(typeDecl);
+            if (nestedTypeName is not null && declNode is not null)
+            {
+                // Find the parent type name for diagnostic messages.
+                var parentTypeName = FindParentTypeName(parentScope, symbolTable);
+
+                // MIST0304: Check if the nested type name conflicts with a type parameter on the parent.
+                foreach (var member in parentScope.Members)
+                {
+                    if (member.Name == nestedTypeName
+                        && member.DeclaredType is Types.TypeParameterType or Types.DependentTypeParameterType)
+                    {
+                        var parent = parentTypeName ?? "<unknown>";
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            NestedTypeConflictsWithTypeParameter.Value,
+                            DiagnosticSeverity.Error,
+                            $"Type '{nestedTypeName}' conflicts with type parameter '{nestedTypeName}' on '{parent}'.",
+                            declNode,
+                            sourceText));
+                        return; // Skip registration to avoid cascading errors.
+                    }
+                }
+
+                // MIST0303: Check if the name already exists as a type in the parent type's scope.
+                foreach (var member in parentScope.Members)
+                {
+                    if (member.Name == nestedTypeName
+                        && member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Trait or SymbolKind.Enum
+                        && member.DeclaredType is not Types.TypeParameterType and not Types.DependentTypeParameterType)
+                    {
+                        var parent = parentTypeName ?? "<unknown>";
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            DuplicateNestedType.Value,
+                            DiagnosticSeverity.Error,
+                            $"Duplicate type '{nestedTypeName}' in type '{parent}'.",
+                            declNode,
+                            sourceText));
+                        return; // Skip registration to avoid cascading errors.
+                    }
+                }
+            }
+        }
+
         switch (typeDecl)
         {
             case ClassTypeTypeDeclarationNode classTypeNode:
@@ -1076,6 +1278,51 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     parentScope, symbolTable, namespaceName, sourceText, diagnostics);
                 break;
         }
+    }
+
+    /// <summary>
+    /// Extracts the type name and the declaration syntax node from a <see cref="TypeDeclarationNode"/>.
+    /// Used for duplicate/conflict checking before registration.
+    /// </summary>
+    private static (string? Name, Storm.Runtime.SyntaxNode? DeclNode) GetTypeDeclarationNameAndNode(TypeDeclarationNode typeDecl)
+    {
+        return typeDecl switch
+        {
+            ClassTypeTypeDeclarationNode ct => (ct.ClassDeclaration.Name.Lexeme, ct.ClassDeclaration),
+            StructTypeTypeDeclarationNode st => (st.StructDeclaration.Name.Lexeme, st.StructDeclaration),
+            InterfaceTypeTypeDeclarationNode it => (it.InterfaceDeclaration.Name.Lexeme, it.InterfaceDeclaration),
+            TraitTypeTypeDeclarationNode tt => (tt.TraitDeclaration.Name.Lexeme, tt.TraitDeclaration),
+            EnumTypeTypeDeclarationNode et => (et.EnumDeclaration.Name.Lexeme, et.EnumDeclaration),
+            _ => (null, null),
+        };
+    }
+
+    /// <summary>
+    /// Finds the name of the parent type that owns the given type scope.
+    /// Searches the parent scope's parent for a type symbol whose MemberScope matches.
+    /// </summary>
+    private static string? FindParentTypeName(Scope typeScope, SymbolTable symbolTable)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Trait or SymbolKind.Enum))
+                continue;
+
+            var memberScope = symbol.DeclaredType switch
+            {
+                ClassType ct => ct.MemberScope,
+                StructType st => st.MemberScope,
+                InterfaceType it => it.MemberScope,
+                TraitType tt => tt.MemberScope,
+                EnumType et => et.MemberScope,
+                _ => null,
+            };
+
+            if (memberScope is not null && ReferenceEquals(memberScope, typeScope))
+                return symbol.Name;
+        }
+
+        return null;
     }
 
     private static void RegisterClassDeclaration(
@@ -2058,6 +2305,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             case DefaultBlockMemberMemberDeclarationNode defaultBlockMember:
                 RegisterDefaultBlockDeclaration(defaultBlockMember, typeScope, symbolTable, sourceText, diagnostics);
+                break;
+            case NestedTypeMemberMemberDeclarationNode nestedTypeMember:
+                RegisterTypeDeclaration(
+                    nestedTypeMember.NestedType,
+                    typeScope,
+                    symbolTable,
+                    namespaceName: null,
+                    sourceText,
+                    diagnostics);
                 break;
         }
     }
@@ -10618,6 +10874,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
+        // Collect the explicit using declarations (from source-level `using` statements).
+        // These are the namespaces that should be copied to every namespace section.
+        // The auto-imported "own namespace" (from DetermineFileNamespaceName) should NOT
+        // be propagated to sections with a different namespace name.
+        var explicitUsingImports = new List<string>();
+        foreach (var usingDecl in compilationUnit.Usings)
+        {
+            var usingName = ExtractQualifiedName(usingDecl.Name, sourceText);
+            if (fileScope.ImportedNamespaces.Contains(usingName))
+            {
+                explicitUsingImports.Add(usingName);
+            }
+        }
+
         // Resolve types in items (namespace body types and top-level types).
         // For each namespace section, we use a file scope whose parent is the
         // appropriate namespace scope so that same-namespace types are visible.
@@ -10639,11 +10909,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if (nsScope is not null && nsScope != primaryNamespaceScope)
                     {
                         sectionFileScope = new Scope(parent: nsScope);
-                        // Copy using imports to this section scope.
-                        foreach (var ns in fileScope.ImportedNamespaces)
+                        // Copy only explicit using imports to this section scope.
+                        // Do NOT copy the auto-imported "own namespace" from the file scope,
+                        // as that belongs to the first namespace in the file and should not
+                        // leak into different-name namespace sections (Requirement 4.2).
+                        foreach (var ns in explicitUsingImports)
                         {
                             sectionFileScope.AddImportedNamespace(ns);
                         }
+                        // Add this section's own namespace as implicitly imported so that
+                        // types within the same namespace are cross-resolvable (Requirement 4.1).
+                        sectionFileScope.AddImportedNamespace(declaredName);
                     }
                     else
                     {
@@ -11619,6 +11895,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             case IndexerMemberMemberDeclarationNode indexerMember:
                 ResolveIndexerDeclaration(indexerMember.Indexer, typeScope, fileScope, enclosingType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case NestedTypeMemberMemberDeclarationNode nestedTypeMember:
+                ResolveTypeDeclaration(nestedTypeMember.NestedType, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
         }
     }

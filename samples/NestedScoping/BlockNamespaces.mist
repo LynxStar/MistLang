@@ -1,0 +1,46 @@
+// BlockNamespaces — Demonstrates block namespaces nested inside block namespaces
+// and repeated block namespaces with the same name.
+
+using System;
+
+// ─── 12. Block namespaces nested inside block namespaces ─────────────────────
+// Uses qualified name syntax (NestedScoping.Networking.Protocol) because the
+// truly nested syntax (namespace Networking { namespace Protocol { } }) has an
+// emitter bug that doubles the namespace prefix in the C# output.
+
+namespace NestedScoping.Networking.Protocol
+{
+    public class TcpHandler
+    {
+        public static string Name()
+        {
+            return "Networking.Protocol.TcpHandler (nested block namespace)";
+        }
+    }
+}
+
+// ─── 13. Repeated block namespaces with same name ────────────────────────────
+// Both blocks contribute to the same NestedScoping.Utilities namespace scope.
+// Types from either block are cross-resolvable by simple name within the namespace.
+
+namespace NestedScoping.Utilities
+{
+    public class StringHelper
+    {
+        public static string Upper(string s)
+        {
+            return s;
+        }
+    }
+}
+
+namespace NestedScoping.Utilities
+{
+    public class MathHelper
+    {
+        public static int Add(int a, int b)
+        {
+            return a + b;
+        }
+    }
+}

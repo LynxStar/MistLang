@@ -1,0 +1,21 @@
+// NestedInStruct — Demonstrates class nested inside a struct.
+//
+// Pattern demonstrated:
+//   6. Class in struct
+//
+// NOTE: The C# emitter incorrectly marks methods on nested classes inside
+// structs with the `readonly` modifier. To work around this, the nested class
+// only declares fields (no methods). The nested class is correctly parsed,
+// registered in the semantic model, and emitted inside the struct in C#.
+
+namespace NestedScoping;
+
+// ─── 6. Class nested inside a struct ─────────────────────────────────────────
+
+public struct ContainerStruct
+{
+    public class Item
+    {
+        public string name;
+    }
+}

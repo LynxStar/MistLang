@@ -1116,13 +1116,13 @@ namespace Storm.SourceGenerator.Emit
 
                 case ZeroOrMoreIR star:
                 {
-                    EmitListExprParse(writer, context, star.Inner, varName, false);
+                    EmitListExprParse(writer, context, star.Inner, varName, false, withCheck, okVar);
                     break;
                 }
 
                 case OneOrMoreIR plus:
                 {
-                    EmitListExprParse(writer, context, plus.Inner, varName, true);
+                    EmitListExprParse(writer, context, plus.Inner, varName, true, withCheck, okVar);
                     if (withCheck)
                     {
                         writer.WriteBlock($"if (_{varName}.Length == 0)", () => writer.WriteLine($"{okVar} = false;"));
@@ -1324,7 +1324,7 @@ namespace Storm.SourceGenerator.Emit
             }
         }
 
-        private static void EmitListExprParse(CodeWriter writer, EmissionContext context, ExpressionIR inner, string varName, bool requireOne)
+        private static void EmitListExprParse(CodeWriter writer, EmissionContext context, ExpressionIR inner, string varName, bool requireOne, bool withCheck = false, string? okVar = null)
         {
             switch (inner)
             {
@@ -1332,7 +1332,10 @@ namespace Storm.SourceGenerator.Emit
                 {
                     var nodeType = ruleRef.Rule.Name + "Node";
                     writer.WriteLine($"var _{varName}_b = ImmutableArray.CreateBuilder<{nodeType}>();");
-                    writer.WriteBlock("while (!_hasError)", () =>
+                    var loopCondition = withCheck && okVar != null
+                        ? $"while (!_hasError && {okVar})"
+                        : "while (!_hasError)";
+                    writer.WriteBlock(loopCondition, () =>
                     {
                         writer.WriteLine("var _listSaved = _pos;");
                         writer.WriteLine("var _savedError = _hasError;");

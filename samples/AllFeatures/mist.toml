@@ -107,3 +107,6 @@ path = "../DeepOwnershipTypes"
 
 [[references]]
 path = "../RefParameters"
+
+[[references]]
+path = "../NestedScoping"

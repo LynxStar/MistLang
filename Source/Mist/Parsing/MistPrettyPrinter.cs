@@ -157,6 +157,9 @@ public sealed class MistPrettyPrinter
             case NamespaceExtensionItemNamespaceBodyItemNode extensionItem:
                 EmitExtensionBlockDeclaration(extensionItem.ExtensionDeclaration);
                 break;
+            case NamespaceNamespaceItemNamespaceBodyItemNode nsItem:
+                EmitNamespaceDeclaration(nsItem.NamespaceDeclaration);
+                break;
         }
     }
 
@@ -348,6 +351,9 @@ public sealed class MistPrettyPrinter
                 break;
             case DefaultBlockMemberMemberDeclarationNode defaultBlockMember:
                 EmitDefaultBlockDeclaration(defaultBlockMember.DefaultBlock);
+                break;
+            case NestedTypeMemberMemberDeclarationNode nestedTypeMember:
+                EmitTypeDeclaration(nestedTypeMember.NestedType);
                 break;
         }
     }

@@ -163,6 +163,10 @@ public class MultiNamespaceParsingPropertyTests
 
     /// <summary>
     /// Multiple namespaces in one file parse correctly (Requirement 4.1).
+    /// After the nested-scoping grammar change, a file-scoped namespace followed by
+    /// a block namespace results in the block namespace being nested inside the
+    /// file-scoped namespace's body (NamespaceNamespaceItem). So the top-level
+    /// has only 1 item: the file-scoped namespace containing everything.
     /// </summary>
     [Fact]
     public void MultipleNamespaces_ParseCorrectly()
@@ -184,8 +188,16 @@ class C { }
         Assert.Empty(result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var cu = (CompilationUnitNode)result.Root;
-        Assert.True(cu.Items.Length >= 3,
-            $"Expected at least 3 items (2 namespaces + 1 type), got {cu.Items.Length}");
+        // The file-scoped namespace consumes all subsequent items as its body,
+        // including the block namespace (now a NamespaceNamespaceItem).
+        Assert.True(cu.Items.Length >= 1,
+            $"Expected at least 1 item (file-scoped namespace), got {cu.Items.Length}");
+
+        // Verify the file-scoped namespace contains the expected body items
+        var nsItem = Assert.IsType<NamespaceItemTopLevelItemNode>(cu.Items[0]);
+        var fileScopedNs = Assert.IsType<FileScopedNamespaceNamespaceDeclarationNode>(nsItem.NamespaceDeclaration);
+        // Body should contain: class A, namespace Second { class B }, class C
+        Assert.Equal(3, fileScopedNs.Body.Length);
     }
 
     /// <summary>

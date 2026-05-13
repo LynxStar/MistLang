@@ -7240,10 +7240,12 @@ internal sealed class CSharpSourceWriter
     /// <summary>
     /// Members of ambient types that are properties in C# and should be emitted
     /// without parentheses, even though Mist models them as method calls.
+    /// NOTE: This set is now empty. Length was migrated from a method to a property
+    /// in the stdlib (Array.mist, String.mist), so it flows through the
+    /// MemberAccessSuffix emitter path naturally. Retained for future use if needed.
     /// </summary>
     private static readonly HashSet<string> CSharpPropertyMembers = new(StringComparer.Ordinal)
     {
-        "Length", // string.Length, Array.Length
     };
 
     private string EmitPostfixSuffix(string target, PostfixSuffixNode suffix, IType? receiverType)

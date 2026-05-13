@@ -117,6 +117,32 @@ public sealed class BugfixIntegrationTests : IDisposable
         return new ExpressionNode { Assignment = assign };
     }
 
+    private static ExpressionNode MakeMemberAccessExpression(string targetName, string memberName)
+    {
+        var primary = new IdentifierExpressionPrimaryNode
+        {
+            Name = MakeToken(targetName),
+        };
+        var memberAccessSuffix = new MemberAccessSuffixPostfixSuffixNode
+        {
+            Name = MakeToken(memberName),
+        };
+        var postfix = new PostfixNode
+        {
+            Target = primary,
+            Suffix = ImmutableArray.Create<PostfixSuffixNode>(memberAccessSuffix),
+        };
+        var unary = new PostfixExpressionUnaryNode { Primary = postfix };
+        var mult = new MultiplicativeNode { Left = unary };
+        var add = new AdditiveNode { Left = mult };
+        var rel = new RelationalComparisonRelationalNode { Left = add };
+        var eq = new EqualityNode { Left = rel };
+        var logAnd = new LogicalAndNode { Left = eq };
+        var logOr = new LogicalOrNode { Left = logAnd };
+        var assign = new AssignmentNode { Target = logOr };
+        return new ExpressionNode { Assignment = assign };
+    }
+
     private static StatementNode MakeExpressionStatement(ExpressionNode expr)
     {
         return new ExpressionStatementStatementNode
@@ -253,8 +279,8 @@ public sealed class BugfixIntegrationTests : IDisposable
             } }),
         };
 
-        // ── File 2: StringHelper class — Bug 3 (string.Length() call) ──
-        var source2 = "using System;\nnamespace TestApp;\npublic class StringHelper {\n    public int GetLength(string input) { int len = input.Length(); return len; }\n}";
+        // ── File 2: StringHelper class — Bug 3 (string.Length property access) ──
+        var source2 = "using System;\nnamespace TestApp;\npublic class StringHelper {\n    public int GetLength(string input) { int len = input.Length; return len; }\n}";
 
         var stringParam = new ParameterNode
         {
@@ -265,8 +291,8 @@ public sealed class BugfixIntegrationTests : IDisposable
             Name = MakeToken("input"),
         };
 
-        // Variable declaration: int len = input.Length();
-        var lengthCallExpr = MakeMethodCallExpression("input", "Length");
+        // Variable declaration: int len = input.Length;
+        var lengthCallExpr = MakeMemberAccessExpression("input", "Length");
         var varDecl = new TypedVariableDeclarationVariableDeclarationStatementNode
         {
             Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
@@ -393,7 +419,7 @@ public sealed class BugfixIntegrationTests : IDisposable
         // ── Assert: field with initializer didn't drop the AST (Bug 2) ──
         Assert.Contains(model.AllSymbols, s => s.Name == "dimension" && s.Kind == SymbolKind.Field);
 
-        // ── Assert: string.Length() resolved without crash (Bug 3) ──
+        // ── Assert: string.Length resolved without crash (Bug 3) ──
         // The StringHelper class and its method should be present
         Assert.Contains(model.AllSymbols, s => s.Name == "GetLength" && s.Kind == SymbolKind.Method);
 
@@ -469,8 +495,8 @@ public sealed class BugfixIntegrationTests : IDisposable
             } }),
         };
 
-        // ── File 2: Class with string.Length() call (Bug 3) ──
-        var source2 = "using System;\nnamespace TestApp;\npublic class TextUtil {\n    public int Measure(string text) { int len = text.Length(); return len; }\n}";
+        // ── File 2: Class with string.Length property access (Bug 3) ──
+        var source2 = "using System;\nnamespace TestApp;\npublic class TextUtil {\n    public int Measure(string text) { int len = text.Length; return len; }\n}";
 
         var textParam = new ParameterNode
         {
@@ -481,7 +507,7 @@ public sealed class BugfixIntegrationTests : IDisposable
             Name = MakeToken("text"),
         };
 
-        var lengthCall = MakeMethodCallExpression("text", "Length");
+        var lengthCall = MakeMemberAccessExpression("text", "Length");
         var lenVarDecl = new TypedVariableDeclarationVariableDeclarationStatementNode
         {
             Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },

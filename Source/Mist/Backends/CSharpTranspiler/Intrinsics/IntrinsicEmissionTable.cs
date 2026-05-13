@@ -175,18 +175,21 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
     }
 
     /// <summary>
-    /// Registers intrinsic instance methods: String.Length, String.Substring,
-    /// String.Contains, and Array.Length.
+    /// Registers intrinsic instance methods: String.Substring, String.Contains,
+    /// and intrinsic property emission templates: String.Length, Array.Length.
+    /// Properties use the same zero-arg key format for lookup by the emitter's
+    /// MemberAccessSuffix path.
     /// </summary>
     private static void PopulateInstanceMethods(Dictionary<string, IntrinsicEmissionTemplate> dict)
     {
-        // String instance methods
+        // String instance properties (accessed via MemberAccessSuffix emitter path)
         dict["Standard.String:Length()"] = new IntrinsicEmissionTemplate("{0}.Length");
+
+        // String instance methods
         dict["Standard.String:Substring(Standard.Int32)"] = new IntrinsicEmissionTemplate("{0}.Substring({1})");
         dict["Standard.String:Contains(Standard.String)"] = new IntrinsicEmissionTemplate("{0}.Contains({1})");
 
-        // Array instance methods — keyed as "Standard.Array" (generic but the
-        // key works with just the base type name)
+        // Array instance properties (accessed via MemberAccessSuffix emitter path)
         dict["Standard.Array:Length()"] = new IntrinsicEmissionTemplate("{0}.Length");
 
         // Type instance members

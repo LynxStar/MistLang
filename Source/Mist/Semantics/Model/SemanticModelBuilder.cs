@@ -479,6 +479,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId DuplicateEnumName = new("MIST_SB_0084");
 
+    // ── Member kind mismatch diagnostic IDs ──────────────────────────────
+
+    /// <summary>
+    /// A member access expression (e.g., <c>obj.Foo</c>) resolved to a method.
+    /// Methods must be invoked with parentheses: <c>obj.Foo()</c>.
+    /// </summary>
+    internal static readonly DiagnosticId PropertyAccessResolvesToMethod = new("MIST_TC_0084");
+
+    /// <summary>
+    /// A method call expression (e.g., <c>obj.Foo()</c>) resolved to a field or property.
+    /// Fields and properties must be accessed without parentheses: <c>obj.Foo</c>.
+    /// </summary>
+    internal static readonly DiagnosticId MethodCallResolvesToProperty = new("MIST_TC_0085");
+
     // ── Dependent type parameter diagnostic IDs (Requirements 4.1–4.6, 6.1, 6.4) ──
 
     /// <summary>
@@ -16033,6 +16047,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var memberName = methodCall.Name.Lexeme;
                 var memberType = LookupMemberType(targetType, memberName, ambientTypeResolver, fileScope, symbolTable, sourceText, diagnostics);
 
+                // Kind-aware validation: method call must not resolve to a field or property.
+                if (memberType is not ErrorType)
+                {
+                    var resolvedSymbol = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                    if (resolvedSymbol is not null && resolvedSymbol.Kind is SymbolKind.Field or SymbolKind.Property)
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            MethodCallResolvesToProperty,
+                            DiagnosticSeverity.Error,
+                            PipelineStage.SemanticModelConstruction,
+                            $"'{memberName}' is a {(resolvedSymbol.Kind == SymbolKind.Field ? "field" : "property")} and cannot be invoked as a method. Use '{memberName}' without parentheses.",
+                            Location: default,
+                            CompilationUnitPath: sourceText?.Path ?? "<unknown>",
+                            AnalyzerName: null));
+                        expressionTypes[suffix] = ErrorType.Instance;
+                        return ErrorType.Instance;
+                    }
+                }
+
                 // Handle type arguments on method invocations (e.g., obj.Method<int>()).
                 if (methodCall.TypeArgs is not null)
                 {
@@ -16131,6 +16164,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
 
                 var memberType = LookupMemberType(targetType, memberName, ambientTypeResolver, fileScope, symbolTable, sourceText, diagnostics);
+
+                // Kind-aware validation: property/field access must not resolve to a method.
+                if (memberType is not ErrorType)
+                {
+                    var memberSymbol = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                    if (memberSymbol is not null && memberSymbol.Kind == SymbolKind.Method)
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            PropertyAccessResolvesToMethod,
+                            DiagnosticSeverity.Error,
+                            PipelineStage.SemanticModelConstruction,
+                            $"'{memberName}' is a method and must be invoked with parentheses: '{memberName}()'.",
+                            Location: default,
+                            CompilationUnitPath: sourceText?.Path ?? "<unknown>",
+                            AnalyzerName: null));
+                        expressionTypes[suffix] = ErrorType.Instance;
+                        return ErrorType.Instance;
+                    }
+                }
+
                 expressionTypes[suffix] = memberType;
                 return memberType;
             }

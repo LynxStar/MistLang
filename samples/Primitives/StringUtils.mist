@@ -31,9 +31,9 @@ public class StringUtils
         return Convert.ToString(doubled);
     }
 
-    // Demonstrates: static method, string.Length() (exercises Bug 3 fix)
+    // Demonstrates: static method, string.Length property access
     public static int GetLength(string input)
     {
-        return input.Length();
+        return input.Length;
     }
 }

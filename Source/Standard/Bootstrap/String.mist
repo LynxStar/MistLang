@@ -10,9 +10,8 @@ intrinsic public readonly owned class String
     intrinsic public static Boolean operator !=(String a, String b);
 
     // Instance members migrated from the former System.String ambient type —
-    // Requirement 9.12. Modeled as methods for v1 simplicity; Length may be
-    // upgraded to a property in a future stdlib revision.
-    intrinsic public Int32 Length();
+    // Requirement 9.12.
+    intrinsic public Int32 Length { get; }
     intrinsic public String Substring(Int32 startIndex);
     intrinsic public Boolean Contains(String value);
 }

@@ -7,9 +7,13 @@
     <Nullable>enable</Nullable>
     <AssemblyName>mist</AssemblyName>
     <PackageId>Mist.CLI</PackageId>
+    <!-- These only take effect during 'dotnet publish -r <rid>'.
+         Keeping them unconditional causes VS/MSBuild to infer a RID during
+         normal builds, producing a platform-specific DLL (e.g. win-x64/mist.dll)
+         that triggers MSB3270 in referencing AnyCPU projects like the test suite. -->
     <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <PublishTrimmed>true</PublishTrimmed>
+    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
+    <PublishTrimmed Condition="'$(RuntimeIdentifier)' != ''">true</PublishTrimmed>
   </PropertyGroup>
 
   <ItemGroup>

@@ -13,13 +13,13 @@ This feature introduces a new form of `where` clause that uses refinement predic
 1. **Dependent type arguments** — e.g., `class Array<TValue, Size:int> where Size >= 0` constrains the dependent value `Size` to non-negative integers
 2. **Method/constructor/indexer parameters** — e.g., `void Foo(int x) where x < 100` constrains the parameter `x` to values less than 100
 
-These constraints are enforced at compile time for literal arguments and at runtime (via generated guards) for non-constant arguments, following the same enforcement model as named refinement types.
+These constraints are enforced entirely at compile time, following the same enforcement model as named refinement types. The compiler rejects arguments that cannot be statically proven to satisfy the constraint — no runtime guards are generated.
 
 **Key design decisions addressed in this spec:**
 - Reuses existing refinement predicate syntax (relational patterns, logical `and`, property patterns)
 - `where` clauses for refinement constraints are syntactically distinct from generic constraint `where` clauses (refinement `where` binds to a value name, not `Name : Type`)
 - Dependent type argument refinement constraints are checked at the call site when constructing the type
-- Parameter refinement constraints generate runtime guards identical to those generated for named refinement type parameters
+- Parameter refinement constraints are enforced at compile time with the same rules as named refinement type parameters — non-provable arguments are rejected, not deferred to runtime
 - Multiple `where` clauses can appear on the same declaration (one per constrained name)
 - Compound predicates use `and` within a single `where` clause
 - The `or` combinator is not supported in ad-hoc refinement constraints (use named union refinement types instead)
@@ -42,7 +42,7 @@ These constraints are enforced at compile time for literal arguments and at runt
 - **Dependent_Argument_Refinement**: An Adhoc_Refinement_Constraint that constrains a dependent type argument on a generic declaration (e.g., `where Size >= 0`).
 - **Generic_Constraint_Clause**: The existing `where T : constraint` syntax for restricting type parameters to specific types or capabilities. Syntactically distinct from Adhoc_Refinement_Constraints because it uses `Name : Constraint` form.
 - **Compile_Time_Constant**: A value that can be fully evaluated at compile time. Includes integer literals, boolean literals, character literals, and references to `const` declarations.
-- **Runtime_Guard**: A conditional check emitted at the entry point of a method, constructor, or indexer that validates parameter values against their refinement constraints at runtime.
+- **Runtime_Guard**: A conditional check emitted at the entry point of a method, constructor, or indexer that validates parameter values against their refinement constraints at runtime. NOT used for Adhoc_Refinement_Constraints — these are enforced entirely at compile time. Runtime guards are only emitted for named refinement type parameters when the argument is proven at compile time but the method may be called from external code that bypasses the Mist type checker.
 - **RefinementSolver**: The component that determines logical relationships between refinement predicates, including whether one predicate implies another (i.e., every value satisfying the first also satisfies the second). Used for forwarding checks, flow narrowing, and interface satisfaction validation.
 
 ## Requirements
@@ -116,31 +116,31 @@ These constraints are enforced at compile time for literal arguments and at runt
 6. IF a dependent type argument is forwarded from an open dependent type parameter that has no Adhoc_Refinement_Constraint to a target parameter that has a Dependent_Argument_Refinement, THEN THE Type_Checker SHALL emit a diagnostic error of the form: "Cannot forward dependent parameter '{SourceName}' with no constraint to parameter '{TargetName}' with constraint '{TargetPredicate}' because the compiler cannot prove the implication."
 7. IF a type with a Dependent_Argument_Refinement is constructed with an expression that is not a Compile_Time_Constant and not a reference to an open dependent type parameter, THEN THE Type_Checker SHALL emit a diagnostic error indicating that dependent type arguments must be compile-time constants.
 
-### Requirement 6: Compile-Time and Runtime Enforcement of Parameter Refinement Constraints
+### Requirement 6: Compile-Time Enforcement of Parameter Refinement Constraints
 
-**User Story:** As a Mist developer, I want the compiler to enforce parameter refinement constraints at compile time for literal arguments and at runtime for non-constant arguments, so that parameter constraints are always validated.
+**User Story:** As a Mist developer, I want the compiler to enforce parameter refinement constraints at compile time with the same rules as named refinement type parameters, so that adhoc constraints and named refinement types provide identical safety guarantees.
 
 #### Acceptance Criteria
 
 1. WHEN a method with a Parameter_Refinement is called with a Compile_Time_Constant argument that satisfies the refinement predicate, THE Type_Checker SHALL accept the call without error.
 2. WHEN a method with a Parameter_Refinement is called with a Compile_Time_Constant argument that violates the refinement predicate, THE Type_Checker SHALL emit a diagnostic error of the form: "Argument '{Value}' does not satisfy refinement constraint '{Predicate}' on parameter '{Name}' of method '{Method}'."
-3. WHEN a method with a Parameter_Refinement is called with a non-constant argument, THE Type_Checker SHALL accept the call without error and defer validation to the runtime guard.
-4. WHEN a method with a Parameter_Refinement is called with an argument whose type is a named refinement type whose predicate logically implies the parameter's refinement predicate, THE Type_Checker SHALL accept the call without generating a runtime guard for that argument.
-5. WHEN a constructor with a Parameter_Refinement is called with a Compile_Time_Constant argument that violates the refinement predicate, THE Type_Checker SHALL emit a diagnostic error of the form: "Argument '{Value}' does not satisfy refinement constraint '{Predicate}' on parameter '{Name}' of constructor '{Type}'."
-6. WHEN an indexer with a Parameter_Refinement is called with a Compile_Time_Constant argument that violates the refinement predicate, THE Type_Checker SHALL emit a diagnostic error of the form: "Argument '{Value}' does not satisfy refinement constraint '{Predicate}' on parameter '{Name}' of indexer '{Type}'."
-7. THE Type_Checker SHALL apply criteria 1, 3, and 4 equivalently to constructor parameters and indexer parameters with Adhoc_Refinement_Constraints.
+3. WHEN a method with a Parameter_Refinement is called with a non-constant argument whose type is a named refinement type whose predicate logically implies the parameter's refinement predicate, THE Type_Checker SHALL accept the call without error.
+4. WHEN a method with a Parameter_Refinement is called with a non-constant argument whose type is a named refinement type whose predicate does NOT logically imply the parameter's refinement predicate, THE Type_Checker SHALL emit a diagnostic error requiring explicit pattern matching to prove the constraint.
+5. WHEN a method with a Parameter_Refinement is called with a non-constant argument whose type is the unrefined Base_Type (no refinement), THE Type_Checker SHALL emit a diagnostic error indicating that the argument must be proven to satisfy the constraint via pattern matching (e.g., `if (x is >= 21) { Bar(x); }`).
+6. WHEN a constructor with a Parameter_Refinement is called with a Compile_Time_Constant argument that violates the refinement predicate, THE Type_Checker SHALL emit a diagnostic error of the form: "Argument '{Value}' does not satisfy refinement constraint '{Predicate}' on parameter '{Name}' of constructor '{Type}'."
+7. WHEN an indexer with a Parameter_Refinement is called with a Compile_Time_Constant argument that violates the refinement predicate, THE Type_Checker SHALL emit a diagnostic error of the form: "Argument '{Value}' does not satisfy refinement constraint '{Predicate}' on parameter '{Name}' of indexer '{Type}'."
+8. THE Type_Checker SHALL apply criteria 1, 3, 4, and 5 equivalently to constructor parameters and indexer parameters with Adhoc_Refinement_Constraints.
+9. THE enforcement behavior for Parameter_Refinements SHALL be identical to the enforcement behavior for named refinement type parameters — both reject non-provable arguments at compile time and both accept arguments whose refinement is statically proven.
 
-### Requirement 7: Runtime Guard Generation for Parameter Refinement Constraints
+### Requirement 7: No Runtime Guards for Parameter Refinement Constraints
 
-**User Story:** As a Mist developer, I want the compiler to generate runtime validation guards for parameter refinement constraints, so that invalid values are caught at runtime when they cannot be proven at compile time.
+**User Story:** As a Mist developer, I want parameter refinement constraints to be enforced entirely at compile time with no runtime overhead, so that the safety guarantee is static and the generated code is efficient.
 
 #### Acceptance Criteria
 
-1. THE Emitter SHALL generate a runtime guard at the entry point of a method, constructor, or indexer for each parameter with an Adhoc_Refinement_Constraint, checking the parameter value against the refinement predicate.
-2. WHEN a runtime guard fails, THE generated code SHALL throw an `ArgumentException` with a message indicating the actual value, the refinement predicate that was violated, and the parameter name.
-3. IF all call sites for a method pass only Compile_Time_Constants that were already validated by the Type_Checker or arguments whose type is a named refinement type that provably satisfies the constraint, THEN THE Emitter SHALL NOT generate a runtime guard for that parameter.
-4. WHEN a method has multiple parameters with Adhoc_Refinement_Constraints, THE Emitter SHALL generate the runtime guards in left-to-right parameter declaration order.
-5. THE runtime guard SHALL be the first executable code in the method body, before any user-written statements.
+1. THE Emitter SHALL NOT generate runtime guard checks for parameters with Adhoc_Refinement_Constraints. All enforcement is performed at compile time by the Type_Checker (Requirement 6).
+2. WHEN a method has a parameter with an Adhoc_Refinement_Constraint, THE Emitter SHALL emit the method body directly without any injected `if`-condition guards or `ArgumentException` throws for that parameter's constraint.
+3. THE generated C# code for a method with a Parameter_Refinement SHALL be identical to the generated code for a method whose parameter type is a named refinement type with the same predicate — both produce direct assignments with no runtime validation at the call site or method entry.
 
 ### Requirement 8: Flow Narrowing from Parameter Refinement Constraints
 
@@ -195,16 +195,15 @@ These constraints are enforced at compile time for literal arguments and at runt
 
 ### Requirement 12: C# Emission for Adhoc Refinement Constraints
 
-**User Story:** As a Mist developer, I want ad-hoc refinement constraints to be correctly transpiled to C#, so that the generated code enforces the constraints at runtime.
+**User Story:** As a Mist developer, I want ad-hoc refinement constraints to be correctly transpiled to C#, so that the generated code is correct and efficient.
 
 #### Acceptance Criteria
 
-1. THE Emitter SHALL emit parameter refinement constraints as runtime guard checks at method entry that throw `ArgumentException` when the predicate is not satisfied, using the same guard structure as named refinement type parameter guards (negated predicate condition check followed by throw).
-2. THE Emitter SHALL emit parameter refinement constraints for constructor parameters and indexer parameters using the same runtime guard pattern as method parameters.
-3. THE Emitter SHALL emit dependent argument refinement constraints as compile-time validation only — no runtime code is generated because dependent values are always known at compile time.
-4. THE Emitter SHALL produce C# code that compiles without errors for all valid usages of Adhoc_Refinement_Constraints.
-5. WHEN a method has both generic constraints and parameter refinement constraints, THE Emitter SHALL emit the generic constraints as C# `where` clauses on the method signature and the parameter refinement constraints as runtime guards inside the method body, such that the generated code compiles and both constraint kinds are independently enforced.
-6. WHEN a parameter refinement constraint uses a compound predicate with `and` combinators, THE Emitter SHALL emit the combined conditions as a single boolean expression in the runtime guard check.
+1. THE Emitter SHALL NOT emit runtime guard checks for parameter refinement constraints. Since all enforcement is compile-time (Requirement 6), no runtime validation code is needed.
+2. THE Emitter SHALL emit dependent argument refinement constraints as compile-time validation only — no runtime code is generated because dependent values are always known at compile time.
+3. THE Emitter SHALL produce C# code that compiles without errors for all valid usages of Adhoc_Refinement_Constraints.
+4. WHEN a method has both generic constraints and parameter refinement constraints, THE Emitter SHALL emit the generic constraints as C# `where` clauses on the method signature. No runtime code is emitted for the parameter refinement constraints.
+5. THE generated C# method body for a method with Parameter_Refinements SHALL contain only the user-written statements — no injected guard code.
 
 ### Requirement 13: Error Diagnostics for Adhoc Refinement Constraints
 

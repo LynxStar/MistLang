@@ -78,3 +78,22 @@ ln -s "$(pwd)/Editor/mist-syntax-highlighting" ~/.kiro/extensions/mist-syntax-hi
 Using a symlink means any changes you make to the grammar are reflected immediately — no need to reinstall the extension.
 
 After installing, reload or restart Kiro for the extension to take effect.
+
+## Documentation (The Mist Book)
+
+The Mist Book lives in the `book/` directory and is built with [mdBook](https://rust-lang.github.io/mdBook/).
+
+### Prerequisites
+
+```bash
+cargo install mdbook
+cargo install mdbook-tabs
+```
+
+### Build and Preview
+
+```bash
+./book/build.sh
+```
+
+This builds the book and opens it in your default browser. The source files are in `book/src/`.

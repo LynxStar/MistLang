@@ -1,0 +1,15 @@
+[book]
+title = "The Mist Programming Language"
+authors = ["The Mist Contributors"]
+language = "en"
+src = "src"
+
+[build]
+build-dir = "output"
+
+[output.html]
+theme = "theme"
+additional-css = ["theme/tabs.css"]
+additional-js = ["theme/tabs.js"]
+
+[preprocessor.tabs]

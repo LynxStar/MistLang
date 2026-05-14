@@ -203,3 +203,6 @@ FakesAssemblies/
 
 #Mist CLI
 out
+
+# Mist Language Book build output
+book/output/

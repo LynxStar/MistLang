@@ -18,6 +18,7 @@
 - [Functions](basics/functions.md)
 - [Array Literals](basics/array-literals.md)
 - [Tuples](basics/tuples.md)
+- [Regex Type](basics/regex-type.md)
 
 # Object Model
 
@@ -43,7 +44,6 @@
 - [Cast Operators](type-system/cast-operators.md)
 - [Refinement Types](type-system/refinement-types.md)
 - [Dependent Types](type-system/dependent-types.md)
-- [Regex Type](type-system/regex-type.md)
 
 # Advanced Features
 

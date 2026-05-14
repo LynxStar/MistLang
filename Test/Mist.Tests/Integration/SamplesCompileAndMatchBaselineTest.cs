@@ -174,6 +174,8 @@ public sealed class SamplesCompileAndMatchBaselineTest
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
+                StandardOutputEncoding = System.Text.Encoding.UTF8,
+                StandardErrorEncoding = System.Text.Encoding.UTF8,
             }
         };
 

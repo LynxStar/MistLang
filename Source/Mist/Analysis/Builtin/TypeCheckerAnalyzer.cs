@@ -750,11 +750,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private bool _analyzingAssignmentLhs;
 
     // ── Flow narrowing context for refinement types (Requirements 7.1–7.8) ──
-    //    Maps local variable names to their narrowed RefinementType within
+    //    Maps local variable names to the condition constraints proven within
     //    the current then-branch scope. Entries are pushed when an if-condition
-    //    proves a refinement predicate and popped after the then-branch is checked.
+    //    proves relational constraints and popped after the then-branch is checked.
+    //    At the assignment site, the stored constraints are checked against the
+    //    target refinement type's predicate to determine if the assignment is safe.
     //    Reassignment within the branch invalidates the narrowing entry.
-    private readonly Dictionary<string, RefinementType> _narrowingContext = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<ConditionConstraint>> _narrowingContext = new(StringComparer.Ordinal);
 
     // ── Set of variable names captured by closures in the current method body ──
     //    Populated at the start of each method body check. Variables in this set
@@ -3673,13 +3675,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         CheckConditionIsBool(ifStmt.Condition, model, diagnostics);
 
         // ── Flow narrowing (Requirements 7.1–7.8) ──────────────────────────
-        // Analyze the condition to detect comparisons that prove refinement
-        // predicates for local variables. If a match is found, narrow the
-        // variable's type within the then-branch.
+        // Analyze the condition to detect comparisons that prove relational
+        // constraints for local variables. Store the constraints so they can
+        // be checked against target refinement types at assignment sites.
         var narrowings = CollectNarrowingsFromCondition(ifStmt.Condition, model);
-        foreach (var (varName, refinementType) in narrowings)
+        foreach (var (varName, constraints) in narrowings)
         {
-            _narrowingContext[varName] = refinementType;
+            _narrowingContext[varName] = constraints;
         }
 
         CheckBlock(ifStmt.ThenBranch, returnType, model, diagnostics);
@@ -3717,11 +3719,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// (variableName, RefinementType) pairs for variables that should be narrowed
     /// within the then-branch.
     /// </summary>
-    private List<(string VarName, RefinementType Type)> CollectNarrowingsFromCondition(
+    private List<(string VarName, List<ConditionConstraint> Constraints)> CollectNarrowingsFromCondition(
         ExpressionNode condition,
         ISemanticModel model)
     {
-        var result = new List<(string, RefinementType)>();
+        var result = new List<(string, List<ConditionConstraint>)>();
 
         // Navigate: Expression → Assignment → LogicalOr → LogicalAnd → Equality → Relational
         var assignment = condition.Assignment;
@@ -3770,12 +3772,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Attempts to narrow a variable from a simple relational comparison (e.g., <c>x >= 18</c>).
-    /// Looks up all refinement types in scope whose predicate matches the condition.
+    /// Extracts the condition constraint and stores it for later checking at assignment sites.
     /// </summary>
     private void TryNarrowFromComparison(
         RelationalComparisonRelationalNode cmp,
         ISemanticModel model,
-        List<(string VarName, RefinementType Type)> result)
+        List<(string VarName, List<ConditionConstraint> Constraints)> result)
     {
         // Extract the variable name from the LHS.
         var varName = TryExtractSimpleIdentifierName(cmp.Left);
@@ -3794,22 +3796,31 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var constantValue = TryExtractLongFromAdditiveNode(cmp.Right);
         if (!constantValue.HasValue) return;
 
-        // Build a synthetic predicate representing this condition and find matching refinement types.
-        var matchingRefinement = FindMatchingRefinementType(varType, op, constantValue.Value, model);
-        if (matchingRefinement is not null)
+        // Build a constraint from the condition and store it directly.
+        var constraint = op switch
         {
-            result.Add((varName, matchingRefinement));
+            ">=" => new ConditionConstraint(ConditionRelOp.Gte, constantValue.Value),
+            "<=" => new ConditionConstraint(ConditionRelOp.Lte, constantValue.Value),
+            ">" => new ConditionConstraint(ConditionRelOp.Gt, constantValue.Value),
+            "<" => new ConditionConstraint(ConditionRelOp.Lt, constantValue.Value),
+            _ => (ConditionConstraint?)null
+        };
+
+        if (constraint is not null)
+        {
+            result.Add((varName, new List<ConditionConstraint> { constraint.Value }));
         }
     }
 
     /// <summary>
     /// Attempts to narrow a variable from an <c>is</c> pattern expression (e.g., <c>x is >= 18</c>).
-    /// When the pattern is a relational pattern, looks up matching refinement types in scope.
+    /// When the pattern is a relational pattern, extracts the constraints and stores them
+    /// for later checking at assignment sites.
     /// </summary>
     private void TryNarrowFromIsPattern(
         IsExpressionRelationalNode isExpr,
         ISemanticModel model,
-        List<(string VarName, RefinementType Type)> result)
+        List<(string VarName, List<ConditionConstraint> Constraints)> result)
     {
         // Extract the variable name from the LHS.
         var varName = TryExtractSimpleIdentifierName(isExpr.Left);
@@ -3833,98 +3844,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var andPattern = orPattern.Left;
         if (andPattern is null) return;
 
-        // Try to find a refinement type whose predicate matches this and-pattern.
-        var matchingRefinement = FindMatchingRefinementTypeFromPattern(varType, andPattern, model);
-        if (matchingRefinement is not null)
+        // Extract constraints directly from the pattern.
+        var constraints = ExtractConstraintsFromAndPattern(andPattern);
+        if (constraints.Count > 0)
         {
-            result.Add((varName, matchingRefinement));
+            result.Add((varName, constraints));
         }
-    }
-
-    /// <summary>
-    /// Finds a refinement type in scope whose base type matches <paramref name="varType"/>
-    /// and whose predicate is implied by the condition <c>varName {op} {value}</c>.
-    /// </summary>
-    private static RefinementType? FindMatchingRefinementType(
-        IType varType,
-        string op,
-        long value,
-        ISemanticModel model)
-    {
-        // Search all symbols for refinement types whose base type matches.
-        foreach (var symbol in model.AllSymbols)
-        {
-            if (symbol.DeclaredType is not RefinementType refinement) continue;
-
-            // Check base type compatibility.
-            if (!IsAssignable(varType, refinement.BaseType, model) &&
-                !IsAssignable(refinement.BaseType, varType, model))
-                continue;
-
-            // Check if the condition implies the refinement predicate.
-            if (ConditionImpliesPredicate(op, value, refinement.Predicate))
-            {
-                return refinement;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Finds a refinement type in scope whose base type matches <paramref name="varType"/>
-    /// and whose predicate matches the given <paramref name="andPattern"/>.
-    /// </summary>
-    private static RefinementType? FindMatchingRefinementTypeFromPattern(
-        IType varType,
-        AndPatternNode andPattern,
-        ISemanticModel model)
-    {
-        // Extract relational constraints from the pattern.
-        var conditionConstraints = ExtractConstraintsFromAndPattern(andPattern);
-        if (conditionConstraints.Count == 0) return null;
-
-        // Search all symbols for refinement types whose base type matches.
-        foreach (var symbol in model.AllSymbols)
-        {
-            if (symbol.DeclaredType is not RefinementType refinement) continue;
-
-            // Check base type compatibility.
-            if (!IsAssignable(varType, refinement.BaseType, model) &&
-                !IsAssignable(refinement.BaseType, varType, model))
-                continue;
-
-            // Check if the pattern constraints imply the refinement predicate.
-            if (ConstraintsImplyPredicate(conditionConstraints, refinement.Predicate))
-            {
-                return refinement;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Checks if a simple relational condition (<c>x {op} {value}</c>) implies
-    /// the given refinement predicate.
-    /// </summary>
-    private static bool ConditionImpliesPredicate(string op, long value, RefinementPredicate predicate)
-    {
-        // Build a synthetic constraint from the condition.
-        var conditionConstraint = op switch
-        {
-            ">=" => new ConditionConstraint(ConditionRelOp.Gte, value),
-            "<=" => new ConditionConstraint(ConditionRelOp.Lte, value),
-            ">" => new ConditionConstraint(ConditionRelOp.Gt, value),
-            "<" => new ConditionConstraint(ConditionRelOp.Lt, value),
-            _ => (ConditionConstraint?)null
-        };
-
-        if (conditionConstraint is null) return false;
-
-        return ConstraintsImplyPredicate(
-            new List<ConditionConstraint> { conditionConstraint.Value },
-            predicate);
     }
 
     /// <summary>
@@ -4130,8 +4055,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <summary>
     /// Returns the effective type of an expression, checking the narrowing context
     /// for identifier expressions that have been narrowed via flow analysis.
+    /// With constraint-based narrowing, this always returns null — the actual
+    /// constraint checking happens at the assignment site in TryCheckRefinementAssignment.
+    /// This method is retained for structural compatibility with ApplyNarrowingToArguments.
     /// </summary>
-    private IType? GetNarrowedTypeForIdentifier(ExpressionNode expr)
+    private string? TryExtractNarrowedIdentifierName(ExpressionNode expr)
     {
         // Navigate to the identifier: Expression → Assignment → LogicalOr → ... → Primary
         var assignment = expr.Assignment;
@@ -4170,8 +4098,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if (postfix.Target is IdentifierExpressionPrimaryNode identifier)
         {
-            if (_narrowingContext.TryGetValue(identifier.Name.Lexeme, out var narrowedType))
-                return narrowedType;
+            if (_narrowingContext.ContainsKey(identifier.Name.Lexeme))
+                return identifier.Name.Lexeme;
         }
 
         return null;
@@ -4182,32 +4110,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private readonly record struct ConditionConstraint(ConditionRelOp Op, long Value);
 
     /// <summary>
-    /// Returns the effective source type for an expression, checking the narrowing
-    /// context for simple identifier expressions that have been narrowed via flow analysis.
-    /// If the expression is a narrowed identifier, returns the narrowed <see cref="RefinementType"/>;
-    /// otherwise returns the original <paramref name="originalType"/>.
+    /// Returns the effective source type for an expression. With constraint-based
+    /// narrowing, this always returns the original type — constraint checking
+    /// happens at the assignment site in TryCheckRefinementAssignment.
     /// </summary>
-    private IType GetEffectiveSourceType(ExpressionNode expr, IType originalType)
+    private static IType GetEffectiveSourceType(ExpressionNode expr, IType originalType)
     {
-        var narrowedType = GetNarrowedTypeForIdentifier(expr);
-        return narrowedType ?? originalType;
+        _ = expr; // Narrowing is now checked at the assignment site.
+        return originalType;
     }
 
     /// <summary>
-    /// Returns the effective source type for an assignment RHS expression, checking
-    /// the narrowing context. For assignment nodes, navigates through the target
-    /// (which is the RHS expression in a non-chained assignment).
+    /// Returns the effective source type for an assignment RHS expression.
+    /// With constraint-based narrowing, this always returns the original type —
+    /// constraint checking happens at the assignment site in TryCheckRefinementAssignment.
     /// </summary>
-    private IType GetEffectiveSourceTypeFromAssignment(AssignmentNode assignmentValue, IType originalType)
+    private static IType GetEffectiveSourceTypeFromAssignment(AssignmentNode assignmentValue, IType originalType)
     {
-        // For a non-chained assignment RHS, the expression is in the Target (LogicalOrNode).
-        // Navigate to find a simple identifier.
-        if (assignmentValue.Value is not null) return originalType;
-
-        var varName = TryExtractIdentifierFromLogicalOr(assignmentValue.Target);
-        if (varName is not null && _narrowingContext.TryGetValue(varName, out var narrowedType))
-            return narrowedType;
-
+        _ = assignmentValue; // Narrowing is now checked at the assignment site.
         return originalType;
     }
 
@@ -4363,11 +4283,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (_closureCapturedVariables.Contains(paramSymbol.Name))
                 continue;
 
-            // Create an anonymous RefinementType for the parameter's adhoc constraint.
-            // The name uses the parameter name to provide meaningful diagnostics.
-            var anonymousRefinement = new RefinementType(paramSymbol.Name, baseType, refinement);
-            _narrowingContext[paramSymbol.Name] = anonymousRefinement;
-            narrowedParams.Add(paramSymbol.Name);
+            // Extract constraints from the parameter's refinement predicate and store them.
+            var constraints = ExtractPredicateConstraints(refinement);
+            if (constraints.Count > 0)
+            {
+                _narrowingContext[paramSymbol.Name] = constraints;
+                narrowedParams.Add(paramSymbol.Name);
+            }
         }
 
         return narrowedParams;
@@ -4387,35 +4309,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Applies narrowing to argument expressions by finding simple identifier arguments
-    /// that are in the narrowing context and temporarily overriding their type in the
-    /// semantic model. Returns a list of (node, originalType) pairs for restoration.
+    /// Previously applied narrowing to argument expressions by overriding their type
+    /// in the semantic model. With constraint-based narrowing, this is no longer needed
+    /// because TryCheckRefinementAssignment checks the narrowing context directly.
+    /// Returns an empty list for API compatibility with RestoreNarrowedArguments.
     /// </summary>
-    private List<(Storm.Runtime.SyntaxNode Node, IType OriginalType)> ApplyNarrowingToArguments(
+    private static List<(Storm.Runtime.SyntaxNode Node, IType OriginalType)> ApplyNarrowingToArguments(
         ArgumentListNode? argList,
         ISemanticModel model)
     {
-        var result = new List<(Storm.Runtime.SyntaxNode, IType)>();
-        if (argList is null || _narrowingContext.Count == 0) return result;
-
-        foreach (var expr in argList.GetAllExpressions())
-        {
-            // Check if this argument is a simple identifier that has been narrowed.
-            var identifierNode = TryExtractIdentifierPrimaryNode(expr);
-            if (identifierNode is null) continue;
-
-            if (_narrowingContext.TryGetValue(identifierNode.Name.Lexeme, out var narrowedType))
-            {
-                var originalType = model.GetTypeOf(identifierNode);
-                if (originalType is not null)
-                {
-                    result.Add((identifierNode, originalType));
-                    model.SetTypeOf(identifierNode, narrowedType);
-                }
-            }
-        }
-
-        return result;
+        _ = argList;
+        _ = model;
+        return new List<(Storm.Runtime.SyntaxNode, IType)>();
     }
 
     /// <summary>
@@ -7969,7 +7874,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
     }
 
-    private static void CheckArgumentTypes(
+    private void CheckArgumentTypes(
         ArgumentListNode? argList,
         ISymbol methodSymbol,
         ISemanticModel model,
@@ -8108,7 +8013,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Applies enclosing type substitution (for ConstructedType member access) and
     /// method-level substitution (for generic method invocations).
     /// </summary>
-    private static void CheckArgumentTypesWithSubstitution(
+    private void CheckArgumentTypesWithSubstitution(
         ArgumentListNode? argList,
         ISymbol methodSymbol,
         ISemanticModel model,
@@ -10011,7 +9916,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Returns <c>true</c> if a refinement-specific diagnostic was emitted (caller should
     /// skip the generic assignability check), <c>false</c> otherwise.
     /// </summary>
-    private static bool TryCheckRefinementAssignment(
+    private bool TryCheckRefinementAssignment(
         IType sourceType,
         IType targetType,
         ExpressionNode expression,
@@ -10134,9 +10039,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Non-constant expression: check if the source type is the base type
-        // (or assignable to the base type). If so, emit the non-constant diagnostic.
+        // (or assignable to the base type). If so, check flow narrowing constraints
+        // before emitting the non-constant diagnostic.
         if (IsAssignable(sourceType, targetRefinement.BaseType, model))
         {
+            // ── Flow narrowing: check if the variable has constraints that prove the target ──
+            var narrowedVarName = TryExtractNarrowedIdentifierName(expression);
+            if (narrowedVarName is not null &&
+                _narrowingContext.TryGetValue(narrowedVarName, out var constraints))
+            {
+                if (ConstraintsImplyPredicate(constraints, targetRefinement.Predicate))
+                {
+                    // Constraints prove the target refinement — accept the assignment.
+                    return false;
+                }
+            }
+
             diagnostics.Add(MakeDiagnostic(
                 RefinementNonConstantAssignment.Value,
                 $"Cannot assign '{sourceType.DisplayName}' to '{targetRefinement.Name}' without proving the refinement. Use pattern matching to validate at runtime",
@@ -10154,7 +10072,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// that accepts an <see cref="AssignmentNode"/> as the expression source. Used for
     /// reassignment statements (<c>x = value;</c>).
     /// </summary>
-    private static bool TryCheckRefinementAssignment(
+    private bool TryCheckRefinementAssignment(
         IType sourceType,
         IType targetType,
         AssignmentNode assignmentValue,
@@ -10216,6 +10134,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Non-constant expression.
         if (IsAssignable(sourceType, targetRefinement.BaseType, model))
         {
+            // ── Flow narrowing: check if the variable has constraints that prove the target ──
+            if (assignmentValue.Value is null)
+            {
+                var varName = TryExtractIdentifierFromLogicalOr(assignmentValue.Target);
+                if (varName is not null &&
+                    _narrowingContext.TryGetValue(varName, out var constraints))
+                {
+                    if (ConstraintsImplyPredicate(constraints, targetRefinement.Predicate))
+                    {
+                        // Constraints prove the target refinement — accept the assignment.
+                        return false;
+                    }
+                }
+            }
+
             diagnostics.Add(MakeDiagnostic(
                 RefinementNonConstantAssignment.Value,
                 $"Cannot assign '{sourceType.DisplayName}' to '{targetRefinement.Name}' without proving the refinement. Use pattern matching to validate at runtime",

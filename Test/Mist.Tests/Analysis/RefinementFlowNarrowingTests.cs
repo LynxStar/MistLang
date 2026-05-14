@@ -207,6 +207,9 @@ public class RefinementFlowNarrowingTests
     {
         // if (x >= 10) should NOT narrow to AdultAge (which requires >= 18)
         // because >= 10 does not imply >= 18.
+        // With constraint-based narrowing, the condition stores constraints [>= 10]
+        // but at the assignment site, those constraints don't prove >= 18,
+        // so the assignment produces MIST_TC_0098.
         const string source = """
             type AdultAge = int >= 18;
             class Program {
@@ -221,7 +224,7 @@ public class RefinementFlowNarrowingTests
 
         var diagnostics = CompileAndGetDiagnostics(source);
 
-        // The condition doesn't prove the refinement — should produce MIST_TC_0098
+        // The condition doesn't prove AdultAge — should produce MIST_TC_0098
         var refinementDiags = WithId(diagnostics, "MIST_TC_0098");
         Assert.Single(refinementDiags);
     }

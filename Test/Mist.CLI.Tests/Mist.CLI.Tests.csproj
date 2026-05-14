@@ -5,6 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <!-- The CLI project produces a platform-specific binary (SelfContained=true)
+         which triggers MSB3270 when referenced from this AnyCPU test project.
+         This is harmless — the test project only references the CLI for its
+         public API types, not for execution. -->
+    <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
   </PropertyGroup>
 
   <ItemGroup>

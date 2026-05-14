@@ -8327,10 +8327,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     continue;
                 }
 
-                // Implication not provable — but this is not an error for parameter
-                // refinement constraints. The runtime guard will catch it.
-                // (Only emit an error for compile-time constants that violate.)
-                model.RecordGuardNeeded(paramSymbols[i]);
+                // Implication not provable — emit compile-time error.
+                var callableName1 = GetCallableDescription(callableSymbol);
+                diagnostics.Add(MakeDiagnostic(
+                    RefinementImplicationFailure.Value,
+                    $"Cannot pass '{sourceRefinement.Name}' with constraint '{sourceRefinement.Predicate.Description}' to parameter '{paramSymbols[i].Name}' of {callableName1} with constraint '{paramRefinement.Description}' because the compiler cannot prove the implication. Use pattern matching to validate.",
+                    argExpr,
+                    model));
                 continue;
             }
 
@@ -8351,8 +8354,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 continue;
             }
 
-            // Case 3: Non-constant argument — accept (defer to runtime guard).
-            model.RecordGuardNeeded(paramSymbols[i]);
+            // Case 3: Non-constant, non-refinement-typed argument — reject at compile time.
+            // Adhoc parameter refinement constraints enforce the same rules as named
+            // refinement type parameters: non-provable arguments require explicit
+            // pattern matching to establish the constraint.
+            var callableDesc = GetCallableDescription(callableSymbol);
+            diagnostics.Add(MakeDiagnostic(
+                ParameterRefinementViolation.Value,
+                $"Cannot pass non-constant argument to parameter '{paramSymbols[i].Name}' of {callableDesc} with refinement constraint '{paramRefinement.Description}' without proving the refinement. Use pattern matching to validate.",
+                argExpr,
+                model));
         }
     }
 
@@ -8984,8 +8995,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     if (RefinementSolver.Implies(sourceRefinement.Predicate, paramRefinement))
                         break; // Implication holds — accept.
-                    // Implication not provable — defer to runtime guard.
-                    model.RecordGuardNeeded(paramSym);
+                    // Implication not provable — emit compile-time error.
+                    var typeName2 = FindDeclaringType(indexerSymbol)?.DisplayName ?? targetType.DisplayName;
+                    diagnostics.Add(MakeDiagnostic(
+                        RefinementImplicationFailure.Value,
+                        $"Cannot pass '{sourceRefinement.Name}' with constraint '{sourceRefinement.Predicate.Description}' to parameter '{paramSym.Name}' of indexer '{typeName2}' with constraint '{paramRefinement.Description}' because the compiler cannot prove the implication. Use pattern matching to validate.",
+                        indexSuffix.Index,
+                        model));
                     break;
                 }
 
@@ -9005,8 +9021,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     break;
                 }
 
-                // Case 3: Non-constant argument — accept (defer to runtime guard).
-                model.RecordGuardNeeded(paramSym);
+                // Case 3: Non-constant, non-refinement-typed argument — reject at compile time.
+                var indexerTypeName = FindDeclaringType(indexerSymbol)?.DisplayName ?? targetType.DisplayName;
+                diagnostics.Add(MakeDiagnostic(
+                    ParameterRefinementViolation.Value,
+                    $"Cannot pass non-constant argument to parameter '{paramSym.Name}' of indexer '{indexerTypeName}' with refinement constraint '{paramRefinement.Description}' without proving the refinement. Use pattern matching to validate.",
+                    indexSuffix.Index,
+                    model));
                 break;
             }
         }

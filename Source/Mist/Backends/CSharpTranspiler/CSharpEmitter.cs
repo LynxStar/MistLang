@@ -3676,19 +3676,11 @@ internal sealed class CSharpSourceWriter
                     guards.Add((param.Name.Lexeme, refinementType.Predicate, refinementType.Name));
                 }
                 // Check for adhoc refinement constraint from where clause.
+                // Adhoc refinement constraints are enforced entirely at compile time
+                // (same as named refinement types), so no runtime guard is emitted.
                 else
                 {
-                    var adhocPredicate = _model.GetParameterRefinement(symbol);
-                    if (adhocPredicate is not null)
-                    {
-                        // Guard elision optimization: skip the runtime guard if all call sites
-                        // pass only validated constants or arguments with provably-satisfying
-                        // refinement types (Requirements 7.3, 12.3).
-                        if (_model.IsGuardElidable(symbol))
-                            continue;
-
-                        guards.Add((param.Name.Lexeme, adhocPredicate, param.Name.Lexeme));
-                    }
+                    // No guard needed — compile-time enforcement handles this.
                 }
             }
         }

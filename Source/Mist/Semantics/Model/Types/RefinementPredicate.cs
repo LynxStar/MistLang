@@ -64,7 +64,7 @@ public sealed class RefinementPredicate
     /// </summary>
     public bool Implies(RefinementPredicate other)
     {
-        // Extract relational constraints from both predicates.
+        // Extract constraints from both predicates.
         var sourceConstraints = ExtractConstraints(this);
         var targetConstraints = ExtractConstraints(other);
 
@@ -75,7 +75,7 @@ public sealed class RefinementPredicate
             var implied = false;
             foreach (var source in sourceConstraints)
             {
-                if (ConstraintImplies(source, target))
+                if (ConstraintPairImplies(source, target))
                 {
                     implied = true;
                     break;
@@ -326,9 +326,30 @@ public sealed class RefinementPredicate
 
     private readonly record struct RelationalConstraint(RelOp Op, long Value);
 
-    private static List<RelationalConstraint> ExtractConstraints(RefinementPredicate predicate)
+    private readonly record struct EqualityConstraint(long Value);
+
+    private readonly record struct NotConstraint(long Value);
+
+    private readonly record struct OrConstraint(ImmutableArray<long> Values);
+
+    private enum ConstraintKind { Relational, Equality, Not, Or }
+
+    private readonly record struct Constraint(
+        ConstraintKind Kind,
+        RelationalConstraint? Relational = null,
+        EqualityConstraint? Equality = null,
+        NotConstraint? NotValue = null,
+        OrConstraint? Or = null);
+
+    private static List<Constraint> ExtractConstraints(RefinementPredicate predicate)
     {
-        var constraints = new List<RelationalConstraint>();
+        // Check if the AndPatternNode represents an or-pattern via a parenthesized pattern.
+        // Shape: AndPatternNode.Left is DirectPatternUnaryPatternNode containing
+        // ParenthesizedPatternPrimaryPatternNode with an OrPatternNode that has multiple alternatives.
+        if (TryExtractOrConstraint(predicate.AstNode, out var orConstraint))
+            return orConstraint;
+
+        var constraints = new List<Constraint>();
         ExtractConstraintsFromUnary(predicate.AstNode.Left, constraints);
 
         if (predicate.AstNode.Right is not null &&
@@ -348,8 +369,112 @@ public sealed class RefinementPredicate
         return constraints;
     }
 
-    private static void ExtractConstraintsFromUnary(UnaryPatternNode unary, List<RelationalConstraint> constraints)
+    /// <summary>
+    /// Attempts to extract an OrConstraint from an AndPatternNode that represents an or-pattern.
+    /// Returns true if the node contains a parenthesized or-pattern with all integer constant alternatives.
+    /// Returns false if the node does not represent an or-pattern or contains non-integer alternatives.
+    /// </summary>
+    private static bool TryExtractOrConstraint(AndPatternNode andNode, out List<Constraint> constraints)
     {
+        constraints = [];
+
+        // The or-pattern must be the sole content of the AndPatternNode (no Right, no UnaryPatterns).
+        if (andNode.Right is not null && !ReferenceEquals(andNode.Right, andNode.Left))
+            return false;
+
+        if (!andNode.UnaryPatterns.IsDefaultOrEmpty)
+            return false;
+
+        // Left must be a DirectPatternUnaryPatternNode containing a ParenthesizedPatternPrimaryPatternNode.
+        if (andNode.Left is not DirectPatternUnaryPatternNode direct)
+            return false;
+
+        if (direct.Primary is not ParenthesizedPatternPrimaryPatternNode paren)
+            return false;
+
+        // The parenthesized pattern's inner must be a PatternNode with an OrPatternNode.
+        var orPattern = paren.Inner?.OrPattern;
+        if (orPattern is null)
+            return false;
+
+        // Check that the OrPatternNode actually has multiple alternatives.
+        // If Right is the same reference as Left and AndPatterns is empty, it's a single alternative (not an or-pattern).
+        var hasMultipleAlternatives = (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+                                     || !orPattern.AndPatterns.IsDefaultOrEmpty;
+        if (!hasMultipleAlternatives)
+            return false;
+
+        // Extract constant values from each or-alternative.
+        var values = new List<long>();
+
+        if (!TryExtractConstantFromAndPattern(orPattern.Left, out var firstValue))
+            return false;
+        values.Add(firstValue);
+
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
+            if (!TryExtractConstantFromAndPattern(orPattern.Right, out var rightValue))
+                return false;
+            values.Add(rightValue);
+        }
+
+        if (!orPattern.AndPatterns.IsDefaultOrEmpty)
+        {
+            foreach (var alt in orPattern.AndPatterns)
+            {
+                if (!TryExtractConstantFromAndPattern(alt, out var altValue))
+                    return false;
+                values.Add(altValue);
+            }
+        }
+
+        constraints = [new Constraint(ConstraintKind.Or, Or: new OrConstraint(values.ToImmutableArray()))];
+        return true;
+    }
+
+    /// <summary>
+    /// Extracts a single integer constant value from an AndPatternNode that represents
+    /// a single constant alternative in an or-pattern.
+    /// The AndPatternNode must contain exactly one DirectPatternUnaryPatternNode with a ConstantPatternPrimaryPatternNode.
+    /// </summary>
+    private static bool TryExtractConstantFromAndPattern(AndPatternNode andNode, out long value)
+    {
+        value = 0;
+
+        // Must be a single unary pattern (no Right, no UnaryPatterns).
+        if (andNode.Right is not null && !ReferenceEquals(andNode.Right, andNode.Left))
+            return false;
+
+        if (!andNode.UnaryPatterns.IsDefaultOrEmpty)
+            return false;
+
+        if (andNode.Left is not DirectPatternUnaryPatternNode direct)
+            return false;
+
+        if (direct.Primary is not ConstantPatternPrimaryPatternNode constant)
+            return false;
+
+        var extracted = TryExtractLongFromLiteral(constant.Literal);
+        if (!extracted.HasValue)
+            return false;
+
+        value = extracted.Value;
+        return true;
+    }
+
+    private static void ExtractConstraintsFromUnary(UnaryPatternNode unary, List<Constraint> constraints)
+    {
+        if (unary is NotPatternUnaryPatternNode notPattern)
+        {
+            if (notPattern.Operand is ConstantPatternPrimaryPatternNode constant)
+            {
+                var val = TryExtractLongFromLiteral(constant.Literal);
+                if (val.HasValue)
+                    constraints.Add(new Constraint(ConstraintKind.Not, NotValue: new NotConstraint(val.Value)));
+            }
+            return;
+        }
+
         if (unary is not DirectPatternUnaryPatternNode direct) return;
 
         switch (direct.Primary)
@@ -357,25 +482,36 @@ public sealed class RefinementPredicate
             case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gte:
             {
                 var val = TryExtractLongFromExpression(gte.Constant);
-                if (val.HasValue) constraints.Add(new RelationalConstraint(RelOp.Gte, val.Value));
+                if (val.HasValue)
+                    constraints.Add(new Constraint(ConstraintKind.Relational, Relational: new RelationalConstraint(RelOp.Gte, val.Value)));
                 break;
             }
             case LessThanOrEqualRelationalPatternPrimaryPatternNode lte:
             {
                 var val = TryExtractLongFromExpression(lte.Constant);
-                if (val.HasValue) constraints.Add(new RelationalConstraint(RelOp.Lte, val.Value));
+                if (val.HasValue)
+                    constraints.Add(new Constraint(ConstraintKind.Relational, Relational: new RelationalConstraint(RelOp.Lte, val.Value)));
                 break;
             }
             case GreaterThanRelationalPatternPrimaryPatternNode gt:
             {
                 var val = TryExtractLongFromExpression(gt.Constant);
-                if (val.HasValue) constraints.Add(new RelationalConstraint(RelOp.Gt, val.Value));
+                if (val.HasValue)
+                    constraints.Add(new Constraint(ConstraintKind.Relational, Relational: new RelationalConstraint(RelOp.Gt, val.Value)));
                 break;
             }
             case LessThanRelationalPatternPrimaryPatternNode lt:
             {
                 var val = TryExtractLongFromExpression(lt.Constant);
-                if (val.HasValue) constraints.Add(new RelationalConstraint(RelOp.Lt, val.Value));
+                if (val.HasValue)
+                    constraints.Add(new Constraint(ConstraintKind.Relational, Relational: new RelationalConstraint(RelOp.Lt, val.Value)));
+                break;
+            }
+            case ConstantPatternPrimaryPatternNode constant:
+            {
+                var val = TryExtractLongFromLiteral(constant.Literal);
+                if (val.HasValue)
+                    constraints.Add(new Constraint(ConstraintKind.Equality, Equality: new EqualityConstraint(val.Value)));
                 break;
             }
         }
@@ -383,6 +519,147 @@ public sealed class RefinementPredicate
 
     /// <summary>
     /// Determines if a source constraint logically implies a target constraint.
+    /// Dispatches based on constraint kinds to the appropriate implication logic.
+    /// </summary>
+    private static bool ConstraintPairImplies(Constraint source, Constraint target)
+    {
+        return (source.Kind, target.Kind) switch
+        {
+            (ConstraintKind.Relational, ConstraintKind.Relational) =>
+                source.Relational.HasValue && target.Relational.HasValue &&
+                ConstraintImplies(source.Relational.Value, target.Relational.Value),
+
+            (ConstraintKind.Equality, ConstraintKind.Relational) =>
+                source.Equality.HasValue && target.Relational.HasValue &&
+                EqualityImpliesRelational(source.Equality.Value.Value, target.Relational.Value),
+
+            (ConstraintKind.Equality, ConstraintKind.Equality) =>
+                source.Equality.HasValue && target.Equality.HasValue &&
+                source.Equality.Value.Value == target.Equality.Value.Value,
+
+            (ConstraintKind.Not, ConstraintKind.Not) =>
+                source.NotValue.HasValue && target.NotValue.HasValue &&
+                source.NotValue.Value.Value == target.NotValue.Value.Value,
+
+            (ConstraintKind.Equality, ConstraintKind.Not) =>
+                source.Equality.HasValue && target.NotValue.HasValue &&
+                source.Equality.Value.Value != target.NotValue.Value.Value,
+
+            (ConstraintKind.Relational, ConstraintKind.Not) =>
+                source.Relational.HasValue && target.NotValue.HasValue &&
+                RelationalImpliesNot(source.Relational.Value, target.NotValue.Value.Value),
+
+            (ConstraintKind.Not, ConstraintKind.Relational) => false,
+
+            (ConstraintKind.Not, ConstraintKind.Equality) => false,
+
+            // Or-pattern as target: source must imply membership in the target's value set.
+            (ConstraintKind.Equality, ConstraintKind.Or) =>
+                source.Equality.HasValue && target.Or.HasValue &&
+                target.Or.Value.Values.Contains(source.Equality.Value.Value),
+
+            (ConstraintKind.Or, ConstraintKind.Or) =>
+                source.Or.HasValue && target.Or.HasValue &&
+                OrSubsetOf(source.Or.Value.Values, target.Or.Value.Values),
+
+            // Or-pattern as source: every alternative must individually imply the target.
+            (ConstraintKind.Or, ConstraintKind.Relational) =>
+                source.Or.HasValue && target.Relational.HasValue &&
+                AllValuesImplyRelational(source.Or.Value.Values, target.Relational.Value),
+
+            (ConstraintKind.Or, ConstraintKind.Not) =>
+                source.Or.HasValue && target.NotValue.HasValue &&
+                AllValuesNotEqual(source.Or.Value.Values, target.NotValue.Value.Value),
+
+            // Or-pattern does NOT imply a single equality value (disjunction doesn't prove single value).
+            (ConstraintKind.Or, ConstraintKind.Equality) => false,
+
+            // Relational bound doesn't prove membership in a finite set.
+            (ConstraintKind.Relational, ConstraintKind.Or) => false,
+
+            // Not-pattern doesn't prove membership in a finite set.
+            (ConstraintKind.Not, ConstraintKind.Or) => false,
+
+            _ => false
+        };
+    }
+
+    /// <summary>
+    /// Checks if every value in <paramref name="source"/> is contained in <paramref name="target"/> (subset check).
+    /// </summary>
+    private static bool OrSubsetOf(ImmutableArray<long> source, ImmutableArray<long> target)
+    {
+        foreach (var value in source)
+        {
+            if (!target.Contains(value))
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Checks if every value in the or-pattern satisfies the relational constraint.
+    /// </summary>
+    private static bool AllValuesImplyRelational(ImmutableArray<long> values, RelationalConstraint target)
+    {
+        foreach (var value in values)
+        {
+            if (!EqualityImpliesRelational(value, target))
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Checks if every value in the or-pattern is not equal to the given value.
+    /// </summary>
+    private static bool AllValuesNotEqual(ImmutableArray<long> values, long notValue)
+    {
+        foreach (var value in values)
+        {
+            if (value == notValue)
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Determines if a relational constraint implies a not-pattern (inequality).
+    /// > a implies not b when a >= b (all values > a are != b when a >= b)
+    /// &lt; a implies not b when a &lt;= b (all values &lt; a are != b when a &lt;= b)
+    /// >= a implies not b when a > b (all values >= a are != b when a > b)
+    /// &lt;= a implies not b when a &lt; b (all values &lt;= a are != b when a &lt; b)
+    /// </summary>
+    private static bool RelationalImpliesNot(RelationalConstraint source, long notValue)
+    {
+        return source.Op switch
+        {
+            RelOp.Gt => source.Value >= notValue,
+            RelOp.Lt => source.Value <= notValue,
+            RelOp.Gte => source.Value > notValue,
+            RelOp.Lte => source.Value < notValue,
+            _ => false
+        };
+    }
+
+    /// <summary>
+    /// Determines if an equality constraint (== a) implies a relational constraint (op b).
+    /// The equality value satisfies the relational constraint when the value itself meets the bound.
+    /// </summary>
+    private static bool EqualityImpliesRelational(long value, RelationalConstraint target)
+    {
+        return target.Op switch
+        {
+            RelOp.Gte => value >= target.Value,
+            RelOp.Lte => value <= target.Value,
+            RelOp.Gt => value > target.Value,
+            RelOp.Lt => value < target.Value,
+            _ => false
+        };
+    }
+
+    /// <summary>
+    /// Determines if a source relational constraint logically implies a target relational constraint.
     /// </summary>
     private static bool ConstraintImplies(RelationalConstraint source, RelationalConstraint target)
     {
@@ -418,6 +695,17 @@ public sealed class RefinementPredicate
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Extracts a long integer value from a ConstantLiteralNode (used by constant patterns).
+    /// Returns null if the literal is not an integer constant.
+    /// </summary>
+    private static long? TryExtractLongFromLiteral(ConstantLiteralNode literal)
+    {
+        if (literal is IntegerConstantConstantLiteralNode intLit)
+            return ParseIntegerLexeme(intLit.Value.Lexeme);
+        return null;
+    }
 
     /// <summary>
     /// Extracts a long integer value from an ExpressionNode by navigating the

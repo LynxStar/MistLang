@@ -1,0 +1,200 @@
+// RefinementComparison — Demonstrates the expanded refinement comparison engine.
+//
+// Each section exercises a specific implication pattern by assigning a value
+// of one refinement type to a variable of another. These assignments would
+// FAIL to compile if the comparison engine didn't prove the implication.
+
+using System;
+
+namespace RefinementComparison;
+
+// ─── Equality implies relational bounds [eq-implies-relational] ──────────────
+
+type ExactSeven = int 7;
+type NonNegative = int >= 0;
+type AtMostTen = int <= 10;
+type GreaterThanFive = int > 5;
+type LessThanTen = int < 10;
+
+// ─── Equality identity [eq-identity] ────────────────────────────────────────
+
+type AlsoExactSeven = int 7;
+
+// ─── Inequality identity [not-identity] ──────────────────────────────────────
+
+type NotSeven = int not 7;
+type AlsoNotSeven = int not 7;
+
+// ─── Equality implies inequality [eq-implies-not] ────────────────────────────
+
+type ExactFive = int 5;
+
+// ─── Relational implies not [relational-implies-not] ─────────────────────────
+
+type GreaterThanFiveInt = int > 5;
+type LessThanFiveInt = int < 5;
+type NotFive = int not 5;
+
+// ─── Cross-operator implications [cross-operator] ───────────────────────────
+
+type GteOfTen = int >= 10;
+type GtOfFive = int > 5;
+
+// ─── Or-pattern membership [or-membership] ──────────────────────────────────
+
+type SevenOrEight = int (7 or 8);
+
+// ─── Or-pattern subset [or-subset] ──────────────────────────────────────────
+
+type SevenOrEightOrNine = int (7 or 8 or 9);
+
+// ─── Or-pattern to relational [or-implies-relational] ────────────────────────
+
+type GteOfSeven = int >= 7;
+type LteOfEight = int <= 8;
+
+// ─── Or-pattern to not [or-implies-not] ──────────────────────────────────────
+
+// Reuses NotFive: int not 5
+
+// ─── Compound predicates with mixed operators [compound-mixed] ───────────────
+
+type ZeroToHundred = int >= 0 and <= 100;
+type PositiveUnderFifty = int > 0 and < 50;
+
+// ─── Multi-numeric-type comparisons [multi-numeric] ──────────────────────────
+
+type ExactThreeShort = short 3;
+type NonNegativeShort = short >= 0;
+type ExactTenByte = byte 10;
+type AtMostFiftyByte = byte <= 50;
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Refinement Comparison Engine Sample ===");
+
+        // ─── [eq-implies-relational] ─────────────────────────────────────
+        // == 7 implies >= 0, <= 10, > 5, < 10
+        Console.WriteLine("--- [eq-implies-relational] ---");
+        ExactSeven e7 = 7;
+        NonNegative nn = e7;
+        Console.WriteLine($"  == 7 implies >= 0: nn = {nn}");
+        AtMostTen amt = e7;
+        Console.WriteLine($"  == 7 implies <= 10: amt = {amt}");
+        GreaterThanFive gtf = e7;
+        Console.WriteLine($"  == 7 implies > 5: gtf = {gtf}");
+        LessThanTen ltt = e7;
+        Console.WriteLine($"  == 7 implies < 10: ltt = {ltt}");
+
+        // ─── [eq-identity] ───────────────────────────────────────────────
+        // == 7 implies == 7
+        Console.WriteLine("--- [eq-identity] ---");
+        ExactSeven e7a = 7;
+        AlsoExactSeven ae7 = e7a;
+        Console.WriteLine($"  == 7 implies == 7: ae7 = {ae7}");
+
+        // ─── [not-identity] ──────────────────────────────────────────────
+        // not 7 implies not 7
+        Console.WriteLine("--- [not-identity] ---");
+        int raw = 42;
+        if (raw is NotSeven ns)
+        {
+            AlsoNotSeven ans = ns;
+            Console.WriteLine($"  not 7 implies not 7: ans = {ans}");
+        }
+
+        // ─── [eq-implies-not] ────────────────────────────────────────────
+        // == 5 implies not 7
+        Console.WriteLine("--- [eq-implies-not] ---");
+        ExactFive e5 = 5;
+        NotSeven ns2 = e5;
+        Console.WriteLine($"  == 5 implies not 7: ns2 = {ns2}");
+
+        // ─── [relational-implies-not] ────────────────────────────────────
+        // > 5 implies not 5, < 5 implies not 5
+        Console.WriteLine("--- [relational-implies-not] ---");
+        GreaterThanFiveInt gtfi = 10;
+        NotFive nf1 = gtfi;
+        Console.WriteLine($"  > 5 implies not 5: nf1 = {nf1}");
+        LessThanFiveInt ltfi = 2;
+        NotFive nf2 = ltfi;
+        Console.WriteLine($"  < 5 implies not 5: nf2 = {nf2}");
+
+        // ─── [cross-operator] ────────────────────────────────────────────
+        // >= 10 implies > 5, > 5 implies > 5
+        Console.WriteLine("--- [cross-operator] ---");
+        GteOfTen gte10 = 10;
+        GtOfFive gtf2 = gte10;
+        Console.WriteLine($"  >= 10 implies > 5: gtf2 = {gtf2}");
+        GtOfFive gtf3 = 8;
+        GtOfFive gtf4 = gtf3;
+        Console.WriteLine($"  > 5 implies > 5: gtf4 = {gtf4}");
+
+        // ─── [or-membership] ─────────────────────────────────────────────
+        // == 7 implies (7 or 8)
+        Console.WriteLine("--- [or-membership] ---");
+        ExactSeven e7b = 7;
+        SevenOrEight soe = e7b;
+        Console.WriteLine($"  == 7 implies (7 or 8): soe = {soe}");
+
+        // ─── [or-subset] ─────────────────────────────────────────────────
+        // (7 or 8) implies (7 or 8 or 9)
+        Console.WriteLine("--- [or-subset] ---");
+        SevenOrEight soe2 = 7;
+        SevenOrEightOrNine soen = soe2;
+        Console.WriteLine($"  (7 or 8) implies (7 or 8 or 9): soen = {soen}");
+
+        // ─── [or-implies-relational] ─────────────────────────────────────
+        // (7 or 8) implies >= 7, (7 or 8) implies <= 8
+        Console.WriteLine("--- [or-implies-relational] ---");
+        SevenOrEight soe3 = 8;
+        GteOfSeven gts = soe3;
+        Console.WriteLine($"  (7 or 8) implies >= 7: gts = {gts}");
+        LteOfEight lte = soe3;
+        Console.WriteLine($"  (7 or 8) implies <= 8: lte = {lte}");
+
+        // ─── [or-implies-not] ────────────────────────────────────────────
+        // (7 or 8) implies not 5
+        Console.WriteLine("--- [or-implies-not] ---");
+        SevenOrEight soe4 = 7;
+        NotFive nf3 = soe4;
+        Console.WriteLine($"  (7 or 8) implies not 5: nf3 = {nf3}");
+
+        // ─── [compound-mixed] ────────────────────────────────────────────
+        // > 0 and < 50 implies >= 0 and <= 100
+        Console.WriteLine("--- [compound-mixed] ---");
+        PositiveUnderFifty puf = 25;
+        ZeroToHundred zth = puf;
+        Console.WriteLine($"  (> 0 and < 50) implies (>= 0 and <= 100): zth = {zth}");
+
+        // ─── [multi-numeric] ─────────────────────────────────────────────
+        // short: == 3 implies >= 0
+        // byte: == 10 implies <= 50
+        Console.WriteLine("--- [multi-numeric] ---");
+        short rawShort = 3;
+        if (rawShort is ExactThreeShort ets)
+        {
+            // This assignment exercises the comparison engine: short == 3 implies short >= 0
+            NonNegativeShort nns2 = ets;
+            Console.WriteLine($"  short == 3 implies short >= 0: nns2 = {nns2}");
+        }
+        byte rawByte = 10;
+        if (rawByte is ExactTenByte etb)
+        {
+            // This assignment exercises the comparison engine: byte == 10 implies byte <= 50
+            AtMostFiftyByte amfb = etb;
+            Console.WriteLine($"  byte == 10 implies byte <= 50: amfb = {amfb}");
+        }
+
+        Console.WriteLine("=== Refinement Comparison Engine Done ===");
+    }
+}

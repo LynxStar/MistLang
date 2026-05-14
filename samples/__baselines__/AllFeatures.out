@@ -1003,4 +1003,37 @@ Done!
   Level4.Depth() called from Level3.UseLevel4()
   All verified: Outer.Inner (class in class)
 === Nested Scoping Done ===
+=== Refinement Comparison Engine Sample ===
+--- [eq-implies-relational] ---
+  == 7 implies >= 0: nn = 7
+  == 7 implies <= 10: amt = 7
+  == 7 implies > 5: gtf = 7
+  == 7 implies < 10: ltt = 7
+--- [eq-identity] ---
+  == 7 implies == 7: ae7 = 7
+--- [not-identity] ---
+  not 7 implies not 7: ans = 42
+--- [eq-implies-not] ---
+  == 5 implies not 7: ns2 = 5
+--- [relational-implies-not] ---
+  > 5 implies not 5: nf1 = 10
+  < 5 implies not 5: nf2 = 2
+--- [cross-operator] ---
+  >= 10 implies > 5: gtf2 = 10
+  > 5 implies > 5: gtf4 = 8
+--- [or-membership] ---
+  == 7 implies (7 or 8): soe = 7
+--- [or-subset] ---
+  (7 or 8) implies (7 or 8 or 9): soen = 7
+--- [or-implies-relational] ---
+  (7 or 8) implies >= 7: gts = 8
+  (7 or 8) implies <= 8: lte = 8
+--- [or-implies-not] ---
+  (7 or 8) implies not 5: nf3 = 7
+--- [compound-mixed] ---
+  (> 0 and < 50) implies (>= 0 and <= 100): zth = 25
+--- [multi-numeric] ---
+  short == 3 implies short >= 0: nns2 = 3
+  byte == 10 implies byte <= 50: amfb = 10
+=== Refinement Comparison Engine Done ===
 === Done! ===

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document specifies the requirements for expanding the Refinement Comparison Engine in the Mist compiler. The engine already proves basic implication relationships between refinement predicates (e.g., `>= 21` implies `>= 18`). This spec extends it to handle additional patterns — constant equality, inequality, and cross-operator implications — making the engine capable of proving more relationships without requiring explicit pattern matching from the developer.
+This document specifies the requirements for expanding the Refinement Comparison Engine in the Mist compiler. The engine already proves basic implication relationships between refinement predicates (e.g., `>= 21` implies `>= 18`). This spec extends it to handle additional patterns — constant equality, inequality, disjunction (`or`), negation (`not`), and cross-operator implications — making the engine capable of proving more relationships without requiring explicit pattern matching from the developer.
 
 The comparison engine is used in two contexts today:
 
@@ -11,6 +11,8 @@ The comparison engine is used in two contexts today:
 
 Expanding the engine's proving power means more assignments are accepted implicitly and more constraint relationships are validated correctly — without changing the overall architecture.
 
+Note: The parser already produces `ConstantPatternPrimaryPatternNode` for bare constant patterns (e.g., `int 7`), `NotPatternUnaryPatternNode` for not patterns (e.g., `int not 7`), and `OrPatternNode` for disjunction patterns (e.g., `int 7 or 8`). The `Evaluate` method already handles these correctly. The gap is in the `Implies` method which currently only extracts relational constraints.
+
 ## Glossary
 
 - **Refinement_Comparison_Engine**: The compile-time logic (currently in `RefinementPredicate.Implies()`) that determines whether one refinement predicate logically implies another.
@@ -18,6 +20,8 @@ Expanding the engine's proving power means more assignments are accepted implici
 - **Relational_Constraint**: A single operator-value pair extracted from a predicate (e.g., `>= 18` is `(GreaterThanOrEqual, 18)`).
 - **Base_Type**: The underlying type from which a refinement type is derived (e.g., `int` is the base type of `type AdultAge = int >= 18;`).
 - **Implication**: Source predicate implies target predicate when every value satisfying the source also satisfies the target.
+- **Or_Pattern**: A disjunction pattern listing alternative constant values (e.g., `7 or 8`). Represented in the AST as an `OrPatternNode` containing multiple `AndPatternNode` alternatives.
+- **Not_Pattern**: A negation pattern excluding a specific value (e.g., `not 7`). Represented in the AST as a `NotPatternUnaryPatternNode` wrapping a `ConstantPatternPrimaryPatternNode`.
 
 ## Requirements
 
@@ -65,11 +69,9 @@ Expanding the engine's proving power means more assignments are accepted implici
 #### Acceptance Criteria
 
 1. THE Refinement_Comparison_Engine SHALL return false when the predicate contains property patterns.
-2. THE Refinement_Comparison_Engine SHALL return false when the predicate contains `or` patterns.
-3. THE Refinement_Comparison_Engine SHALL return false when the predicate contains regex patterns.
-4. THE Refinement_Comparison_Engine SHALL return false when the predicate contains `not` patterns other than `!= literal`.
-5. THE Refinement_Comparison_Engine SHALL NOT attempt arithmetic reasoning (e.g., will not prove `>= x + 1` implies `>= x`).
-6. THE Refinement_Comparison_Engine SHALL NOT attempt cross-method reasoning.
+2. THE Refinement_Comparison_Engine SHALL return false when the predicate contains regex patterns.
+3. THE Refinement_Comparison_Engine SHALL NOT attempt arithmetic reasoning (e.g., will not prove `>= x + 1` implies `>= x`).
+4. THE Refinement_Comparison_Engine SHALL NOT attempt cross-method reasoning.
 
 ### Requirement 5: Multi-Numeric-Type Support
 
@@ -87,7 +89,36 @@ Expanding the engine's proving power means more assignments are accepted implici
 #### Acceptance Criteria
 
 1. A sample project SHALL exist at `samples/RefinementComparison/Program.mist`.
-2. The sample SHALL demonstrate every implication pattern defined in the preceding requirements, including but not limited to: equality implying relational bounds, inequality identity, cross-operator implications, compound predicates with mixed operators, and multi-numeric-type comparisons.
+2. The sample SHALL demonstrate every implication pattern defined in the preceding requirements, including but not limited to: equality implying relational bounds, inequality identity, cross-operator implications, compound predicates with mixed operators, multi-numeric-type comparisons, or-pattern implications, and not-pattern implications.
 3. Each demonstrated permutation SHALL print labeled output to stdout so correctness is observable.
 4. `samples/AllFeatures/Program.mist` SHALL call `RefinementComparison.Program.RunDemo()` to include the feature in the full-suite sample run.
 5. The sample SHALL compile and run without errors using the Mist compiler.
+
+### Requirement 7: Or Pattern Implication Support
+
+**User Story:** As a Mist developer, I want the comparison engine to reason about `or` (disjunction) patterns, so that refinement types like `int 7 or 8` can participate in subset assignability checks.
+
+#### Acceptance Criteria
+
+1. `== a` SHALL imply `a or b` (a single value is a member of a set containing it).
+2. `a or b` SHALL imply `a or b` (identity).
+3. `a or b` SHALL imply `a or b or c` (a subset of alternatives implies a superset of alternatives).
+4. `a or b` SHALL NOT imply `== a` (a disjunction does not prove a specific single value).
+5. WHEN the target is an Or_Pattern, THE Refinement_Comparison_Engine SHALL check whether the source implies at least one alternative in the target.
+6. WHEN the source is an Or_Pattern, THE Refinement_Comparison_Engine SHALL check that every alternative in the source individually implies the target.
+7. THE Refinement_Comparison_Engine SHALL NOT attempt range inference from or-pattern alternatives (e.g., `7 or 8` SHALL NOT be treated as implying `>= 7 and <= 8`).
+
+### Requirement 8: Not Pattern Implication Support
+
+**User Story:** As a Mist developer, I want the comparison engine to reason about `not` (negation) patterns in implication checks, so that refinement types like `int not 7` can participate in subset assignability.
+
+#### Acceptance Criteria
+
+1. `not a` SHALL imply `not a` (identity).
+2. `== a` SHALL imply `not b` when `a != b` (a value that is exactly `a` is necessarily not `b`). WHEN `a == b`, the implication SHALL NOT apply (`== a` does not imply `not a`).
+3. `not a` SHALL NOT imply any relational bound (`>=`, `<=`, `>`, `<`). Knowing a value is not `a` does not constrain it to any range.
+4. `not a` SHALL NOT imply `== b` for any `b`. Knowing a value is not `a` does not prove it equals something specific.
+5. `> a` SHALL imply `not a` (all values strictly greater than `a` exclude `a` itself).
+6. `< a` SHALL imply `not a` (all values strictly less than `a` exclude `a` itself).
+7. `>= a` SHALL NOT imply `not a` (the range includes `a` itself).
+8. `<= a` SHALL NOT imply `not a` (the range includes `a` itself).

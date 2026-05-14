@@ -110,3 +110,6 @@ path = "../RefParameters"
 
 [[references]]
 path = "../NestedScoping"
+
+[[references]]
+path = "../RefinementComparison"

@@ -1,3 +1,413 @@
 # Functions
 
-This chapter is under construction.
+Functions in Mist let you encapsulate reusable logic. They are declared inside a class body and can be either static (called on the class itself) or instance methods (called on an object). The syntax closely mirrors C# — you specify a return type, a name, parameters in parentheses, and a body in braces.
+
+## Function Declarations
+
+A function declaration specifies the return type, name, and parameters. Parameters are typed and comma-separated. The function body contains the logic and uses `return` to produce a value.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+using System;
+
+namespace Demo;
+
+public class MathUtils
+{
+    public static int Add(int a, int b)
+    {
+        return a + b;
+    }
+
+    public static string Greet(string name)
+    {
+        return $"Hello, {name}!";
+    }
+
+    public static void Main(string[] args)
+    {
+        int result = Add(3, 4);
+        Console.WriteLine($"Add(3, 4) = {result}");
+        Console.WriteLine(Greet("Mist"));
+    }
+}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+using System;
+
+namespace Demo;
+
+public class MathUtils
+{
+    public static int Add(int a, int b)
+    {
+        return a + b;
+    }
+
+    public static string Greet(string name)
+    {
+        return $"Hello, {name}!";
+    }
+
+    public static void Main(string[] args)
+    {
+        int result = Add(3, 4);
+        Console.WriteLine($"Add(3, 4) = {result}");
+        Console.WriteLine(Greet("Mist"));
+    }
+}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Each function declares its return type before the name (`int`, `string`), and parameters are declared with their type followed by the parameter name. The compiler emits identical C# method signatures.
+
+## Static Methods
+
+A static method belongs to the class itself rather than to any particular instance. You call it using the class name (or directly within the same class). Use the `static` modifier in the declaration.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+using System;
+
+namespace Demo;
+
+public class Counter
+{
+    private static int totalCreated;
+
+    public Counter()
+    {
+        totalCreated = totalCreated + 1;
+    }
+
+    public static int GetTotalCreated()
+    {
+        return totalCreated;
+    }
+
+    public static void Main(string[] args)
+    {
+        var c1 = new Counter();
+        var c2 = new Counter();
+        Console.WriteLine($"Total: {Counter.GetTotalCreated()}");
+    }
+}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+using System;
+
+namespace Demo;
+
+public class Counter
+{
+    private static int totalCreated;
+
+    public Counter()
+    {
+        totalCreated = totalCreated + 1;
+    }
+
+    public static int GetTotalCreated()
+    {
+        return totalCreated;
+    }
+
+    public static void Main(string[] args)
+    {
+        var c1 = new Counter();
+        var c2 = new Counter();
+        Console.WriteLine($"Total: {Counter.GetTotalCreated()}");
+    }
+}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Static methods can only access static fields — they have no `this` reference. They're useful for utility functions and factory methods.
+
+## Instance Methods
+
+An instance method operates on a specific object. It has access to the object's fields via `this` and is called using dot-notation on an instance.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+using System;
+
+namespace Demo;
+
+public class Point
+{
+    private int x;
+    private int y;
+
+    public Point(int x, int y)
+    {
+        this.x = x;
+        this.y = y;
+    }
+
+    public string Describe()
+    {
+        return $"Point({x}, {y})";
+    }
+
+    public Point Translate(int dx, int dy)
+    {
+        return new Point(this.x + dx, this.y + dy);
+    }
+
+    public static void Main(string[] args)
+    {
+        var p = new Point(3, 4);
+        Console.WriteLine(p.Describe());
+        var moved = p.Translate(10, 20);
+        Console.WriteLine(moved.Describe());
+    }
+}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+using System;
+
+namespace Demo;
+
+public class Point
+{
+    private int x;
+    private int y;
+
+    public Point(int x, int y)
+    {
+        this.x = x;
+        this.y = y;
+    }
+
+    public string Describe()
+    {
+        return $"Point({x}, {y})";
+    }
+
+    public Point Translate(int dx, int dy)
+    {
+        return new Point(this.x + dx, this.y + dy);
+    }
+
+    public static void Main(string[] args)
+    {
+        var p = new Point(3, 4);
+        Console.WriteLine(p.Describe());
+        var moved = p.Translate(10, 20);
+        Console.WriteLine(moved.Describe());
+    }
+}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Instance methods don't use the `static` modifier. They can read and write instance fields, create new objects, and call other methods on `this`.
+
+## Access Modifiers
+
+Mist supports `public` and `private` access modifiers on methods. A `public` method is accessible from any code that has a reference to the object. A `private` method is only callable from within the same class — it's an internal implementation detail.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+using System;
+
+namespace Demo;
+
+public class Account
+{
+    private int balance;
+
+    public Account(int initial)
+    {
+        this.balance = initial;
+    }
+
+    private int ApplyFee(int amount)
+    {
+        return amount - 1;
+    }
+
+    public void Deposit(int amount)
+    {
+        this.balance = this.balance + ApplyFee(amount);
+    }
+
+    public int GetBalance()
+    {
+        return this.balance;
+    }
+
+    public static void Main(string[] args)
+    {
+        var acct = new Account(100);
+        acct.Deposit(50);
+        Console.WriteLine($"Balance: {acct.GetBalance()}");
+    }
+}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+using System;
+
+namespace Demo;
+
+public class Account
+{
+    private int balance;
+
+    public Account(int initial)
+    {
+        this.balance = initial;
+    }
+
+    private int ApplyFee(int amount)
+    {
+        return amount - 1;
+    }
+
+    public void Deposit(int amount)
+    {
+        this.balance = this.balance + ApplyFee(amount);
+    }
+
+    public int GetBalance()
+    {
+        return this.balance;
+    }
+
+    public static void Main(string[] args)
+    {
+        var acct = new Account(100);
+        acct.Deposit(50);
+        Console.WriteLine($"Balance: {acct.GetBalance()}");
+    }
+}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Here `ApplyFee` is `private` — it's a helper that only `Deposit` uses internally. External code can call `Deposit` and `GetBalance` but cannot call `ApplyFee` directly.
+
+## Void Return Type
+
+Functions that perform an action without producing a value use `void` as their return type. A void function doesn't need a `return` statement (though `return;` is valid for early exit).
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+using System;
+
+namespace Demo;
+
+public class Logger
+{
+    public static void Log(string message)
+    {
+        Console.WriteLine($"[LOG] {message}");
+    }
+
+    public static void Main(string[] args)
+    {
+        Log("Application started");
+        Log("Processing complete");
+    }
+}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+using System;
+
+namespace Demo;
+
+public class Logger
+{
+    public static void Log(string message)
+    {
+        Console.WriteLine($"[LOG] {message}");
+    }
+
+    public static void Main(string[] args)
+    {
+        Log("Application started");
+        Log("Processing complete");
+    }
+}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Void methods are called as standalone statements. They emit as standard C# `void` methods.
+
+## Recursion
+
+A function can call itself to solve problems that decompose into smaller subproblems. Here's the classic factorial example — `Factorial` calls itself with a decreasing argument until it reaches the base case.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+using System;
+
+namespace Demo;
+
+public class Program
+{
+    public static int Factorial(int n)
+    {
+        if (n <= 1)
+        {
+            return 1;
+        }
+        return n * Factorial(n - 1);
+    }
+
+    public static void Main(string[] args)
+    {
+        Console.WriteLine($"5! = {Factorial(5)}");
+        Console.WriteLine($"10! = {Factorial(10)}");
+    }
+}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+using System;
+
+namespace Demo;
+
+public class Program
+{
+    public static int Factorial(int n)
+    {
+        if (n <= 1)
+        {
+            return 1;
+        }
+        return n * Factorial(n - 1);
+    }
+
+    public static void Main(string[] args)
+    {
+        Console.WriteLine($"5! = {Factorial(5)}");
+        Console.WriteLine($"10! = {Factorial(10)}");
+    }
+}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Mist doesn't impose any special syntax for recursion — a function simply references its own name in the body. The compiler emits a standard recursive C# method call.

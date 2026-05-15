@@ -140,7 +140,7 @@ public class Program
         Console.WriteLine($"Sum 1..10 = {forSum}");
 
         // 11. Array creation, indexing, foreach
-        int[] nums = new int[6];
+        var nums = new int[6];
         for (int j = 0; j < 6; j = j + 1)
         {
             nums[j] = (j + 1) * (j + 1);
@@ -171,7 +171,7 @@ public class Program
         Console.WriteLine("");
 
         // 20. Array search
-        int[] haystack = new int[5];
+        var haystack = new int[5];
         haystack[0] = 10;
         haystack[1] = 20;
         haystack[2] = 30;

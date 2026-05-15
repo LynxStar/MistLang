@@ -758,6 +758,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     //    Reassignment within the branch invalidates the narrowing entry.
     private readonly Dictionary<string, List<ConditionConstraint>> _narrowingContext = new(StringComparer.Ordinal);
 
+    // ── Counter for unprovable symbolic IDs ──────────────────────────────────
+    //    Used by ValidateArrayIndexRefinement for truly-unknown arrays. Each gets a
+    //    unique negative ID that no narrowing context can match — ensuring the access
+    //    is correctly rejected. Negative to avoid colliding with positive IDs from
+    //    SemanticModelBuilder.
+    private int _nextUnprovableSymbolicId = -1;
+
     // ── Set of variable names captured by closures in the current method body ──
     //    Populated at the start of each method body check. Variables in this set
     //    are ineligible for flow narrowing (Requirement 7.7).
@@ -963,7 +970,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (typeRef is PrimitiveTypeRefTypeReferenceNode primitiveRef)
         {
             return primitiveRef.PrimitiveType is StringTypePrimitiveTypeNode
-                   && primitiveRef.ArrayRank.HasValue;
+                   && primitiveRef.ArrayRank is not null;
         }
 
         // string[] could also appear as a named type ref (unlikely but handle it).
@@ -3679,17 +3686,42 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // constraints for local variables. Store the constraints so they can
         // be checked against target refinement types at assignment sites.
         var narrowings = CollectNarrowingsFromCondition(ifStmt.Condition, model);
+
+        // Save previous narrowing state for variables we're about to narrow,
+        // so we can restore them after the then-branch (preserving outer
+        // for-loop narrowing, for example).
+        var previousNarrowings = new List<(string VarName, List<ConditionConstraint>? Previous)>();
         foreach (var (varName, constraints) in narrowings)
         {
-            _narrowingContext[varName] = constraints;
+            _narrowingContext.TryGetValue(varName, out var previous);
+            previousNarrowings.Add((varName, previous is not null ? new List<ConditionConstraint>(previous) : null));
+
+            // Merge: if there's existing narrowing, combine constraints; otherwise set new.
+            if (previous is not null)
+            {
+                var merged = new List<ConditionConstraint>(previous);
+                merged.AddRange(constraints);
+                _narrowingContext[varName] = merged;
+            }
+            else
+            {
+                _narrowingContext[varName] = constraints;
+            }
         }
 
         CheckBlock(ifStmt.ThenBranch, returnType, model, diagnostics);
 
-        // Remove narrowing entries after the then-branch.
-        foreach (var (varName, _) in narrowings)
+        // Restore previous narrowing entries after the then-branch.
+        foreach (var (varName, previous) in previousNarrowings)
         {
-            _narrowingContext.Remove(varName);
+            if (previous is not null)
+            {
+                _narrowingContext[varName] = previous;
+            }
+            else
+            {
+                _narrowingContext.Remove(varName);
+            }
         }
 
         if (ifStmt.ElseBranch is ElseIfElseClauseNode elseIf)
@@ -3892,6 +3924,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool ConditionConstraintImplies(ConditionConstraint source, ConditionConstraint target)
     {
+        // Both symbolic with same ID and same operator → tautology
+        if (source.SymbolicId is not null && target.SymbolicId is not null)
+        {
+            return source.SymbolicId == target.SymbolicId && source.Op == target.Op;
+        }
+
+        // One symbolic, one concrete → cannot prove
+        if (source.SymbolicId is not null || target.SymbolicId is not null)
+        {
+            return false;
+        }
+
+        // Both concrete → existing logic
         return (source.Op, target.Op) switch
         {
             // Source: >= a
@@ -4107,7 +4152,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private enum ConditionRelOp { Gte, Lte, Gt, Lt }
 
-    private readonly record struct ConditionConstraint(ConditionRelOp Op, long Value);
+    /// <summary>
+    /// A relational fact proven about a variable. Either concrete (Value is meaningful,
+    /// SymbolicId is null) or symbolic (SymbolicId is non-null, Value is ignored).
+    /// </summary>
+    private readonly record struct ConditionConstraint(ConditionRelOp Op, long Value, int? SymbolicId = null);
 
     /// <summary>
     /// Returns the effective source type for an expression. With constraint-based
@@ -4415,7 +4464,302 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             CheckExpression(forStmt.Iterator, model, diagnostics);
         }
 
+        // Inject for-loop induction variable narrowing before checking the body.
+        var narrowedVar = TryInjectForLoopNarrowing(forStmt, model);
+
         CheckBlock(forStmt.Body, returnType, model, diagnostics);
+
+        // Remove narrowing after the body check.
+        if (narrowedVar is not null)
+        {
+            _narrowingContext.Remove(narrowedVar);
+        }
+    }
+
+    /// <summary>
+    /// Attempts to inject induction variable narrowing for a for-loop.
+    /// Extracts the induction variable name and initial literal value from the initializer,
+    /// extracts the upper bound from the condition (literal or .Length on ArrayType),
+    /// checks for reassignment in the body, and injects constraints into _narrowingContext.
+    /// Returns the narrowed variable name if narrowing was injected, null otherwise.
+    /// </summary>
+    private string? TryInjectForLoopNarrowing(ForStatementNode forStmt, ISemanticModel model)
+    {
+        // 1. Extract induction variable name and initializer expression from the initializer.
+        string? varName;
+        ExpressionNode? initializerExpr;
+
+        if (forStmt.Initializer is ForInitializerVariableDeclarationForInitializerNode varInit)
+        {
+            varName = varInit.Name.Lexeme;
+            initializerExpr = varInit.Initializer;
+        }
+        else if (forStmt.Initializer is ForInitializerVarDeclarationForInitializerNode varDeclInit)
+        {
+            varName = varDeclInit.Name.Lexeme;
+            initializerExpr = varDeclInit.Initializer;
+        }
+        else
+        {
+            return null;
+        }
+
+        if (varName is null)
+            return null;
+
+        // 2. Extract lower bound from initializer value — must be a literal integer.
+        var lowerBound = TryExtractLongFromExpression(initializerExpr);
+        if (!lowerBound.HasValue)
+            return null;
+
+        // 3. Extract upper bound from condition.
+        if (forStmt.Condition is null)
+            return null;
+
+        var upperBound = TryExtractForLoopUpperBound(forStmt.Condition, varName, model);
+        if (upperBound is null)
+            return null;
+
+        // 4. Check for reassignment in body — if the induction variable is reassigned, skip narrowing.
+        if (HasReassignmentInBody(forStmt.Body, varName))
+            return null;
+
+        // 5. Inject constraints into _narrowingContext.
+        var constraints = new List<ConditionConstraint>
+        {
+            new(ConditionRelOp.Gte, lowerBound.Value),
+            upperBound.Value
+        };
+        _narrowingContext[varName] = constraints;
+
+        return varName;
+    }
+
+    /// <summary>
+    /// Extracts a long integer value from an expression node (for the for-loop initializer).
+    /// Navigates: Expression → Assignment → LogicalOr → ... → IntegerLiteral.
+    /// </summary>
+    private static long? TryExtractLongFromExpression(ExpressionNode expr)
+    {
+        var assignment = expr.Assignment;
+        if (assignment?.Value is not null) return null;
+
+        var logicalOr = assignment?.Target;
+        if (logicalOr is null) return null;
+        if (logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+            return null;
+
+        var logicalAnd = logicalOr.Left;
+        if (logicalAnd is null) return null;
+        if (logicalAnd.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+            return null;
+
+        var equality = logicalAnd.Left;
+        if (equality is null) return null;
+        if (equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+            return null;
+
+        if (equality.Left is not RelationalComparisonRelationalNode relCmp)
+            return null;
+        if (relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+            return null;
+
+        return TryExtractLongFromAdditiveNode(relCmp.Left);
+    }
+
+    /// <summary>
+    /// Extracts the upper bound constraint from a for-loop condition.
+    /// Handles patterns: varName &lt; expr, varName &lt;= expr
+    /// where expr is a literal integer or identifier.Length on an ArrayType.
+    /// </summary>
+    private static ConditionConstraint? TryExtractForLoopUpperBound(ExpressionNode condition, string varName, ISemanticModel model)
+    {
+        // Navigate: Expression → Assignment → LogicalOr → LogicalAnd → Equality → Relational
+        var assignment = condition.Assignment;
+        if (assignment?.Value is not null) return null;
+
+        var logicalOr = assignment?.Target;
+        if (logicalOr is null) return null;
+        if (logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+            return null;
+
+        var logicalAnd = logicalOr.Left;
+        if (logicalAnd is null) return null;
+        if (logicalAnd.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+            return null;
+
+        var equality = logicalAnd.Left;
+        if (equality is null) return null;
+        if (equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+            return null;
+
+        if (equality.Left is not RelationalComparisonRelationalNode cmp)
+            return null;
+        if (cmp.Right is null || ReferenceEquals(cmp.Right, cmp.Left))
+            return null;
+
+        // Verify the LHS is the induction variable.
+        var lhsName = TryExtractSimpleIdentifierName(cmp.Left);
+        if (lhsName is null || !string.Equals(lhsName, varName, StringComparison.Ordinal))
+            return null;
+
+        // Determine the operator.
+        var op = cmp.Operator.Lexeme;
+        ConditionRelOp relOp;
+        if (op == "<")
+            relOp = ConditionRelOp.Lt;
+        else if (op == "<=")
+            relOp = ConditionRelOp.Lte;
+        else
+            return null;
+
+        // Try to extract the upper bound value from the RHS.
+        // Case a: literal integer
+        var literalValue = TryExtractLongFromAdditiveNode(cmp.Right);
+        if (literalValue.HasValue)
+            return new ConditionConstraint(relOp, literalValue.Value);
+
+        // Case b: identifier.Length on an ArrayType
+        var symbolicBound = TryExtractArrayLengthBound(cmp.Right, relOp, model);
+        if (symbolicBound is not null)
+            return symbolicBound;
+
+        return null;
+    }
+
+    /// <summary>
+    /// Attempts to extract a symbolic or concrete upper bound from an expression of the form
+    /// identifier.Length where identifier's type is ArrayType.
+    /// </summary>
+    private static ConditionConstraint? TryExtractArrayLengthBound(AdditiveNode additive, ConditionRelOp relOp, ISemanticModel model)
+    {
+        // Navigate: Additive → Multiplicative → Unary → Postfix
+        if (additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+            return null;
+
+        var multiplicative = additive.Left;
+        if (multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+            return null;
+
+        if (multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+            return null;
+
+        var postfix = postfixUnary.Primary;
+
+        // Must have at least one suffix, and the last suffix must be MemberAccessSuffix "Length".
+        if (postfix.Suffix.Length < 1)
+            return null;
+
+        if (postfix.Suffix[postfix.Suffix.Length - 1] is not MemberAccessSuffixPostfixSuffixNode memberAccess)
+            return null;
+
+        if (memberAccess.Name.Lexeme != "Length")
+            return null;
+
+        // Determine the receiver type for the .Length access.
+        IType? receiverType;
+        if (postfix.Suffix.Length == 1)
+        {
+            // Simple case: identifier.Length — get type of the target primary.
+            receiverType = model.GetTypeOf(postfix.Target);
+            // Fallback: if GetTypeOf returns null or non-ArrayType, try looking up
+            // the identifier's declared type directly from the semantic model.
+            if (receiverType is not ArrayType)
+            {
+                if (postfix.Target is IdentifierExpressionPrimaryNode targetIdent)
+                {
+                    receiverType = model.GetTypeOf(targetIdent);
+                    if (receiverType is null)
+                    {
+                        var symbol = model.GetDeclaredSymbol(targetIdent);
+                        receiverType = symbol?.DeclaredType;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Complex case: expr[i].Length or expr.member.Length — get type of the
+            // suffix just before .Length (e.g., the IndexSuffix result type).
+            var prevSuffix = postfix.Suffix[postfix.Suffix.Length - 2];
+            receiverType = model.GetTypeOf(prevSuffix);
+            // Fallback: for nested arrays like d[i].Length, the target d has type
+            // ArrayType(ArrayType(int)), and d[i] gives the inner ArrayType(int).
+            // Derive the inner type from the outer array's element type.
+            if (receiverType is not ArrayType)
+            {
+                var targetType = model.GetTypeOf(postfix.Target);
+                if (targetType is ArrayType outerArray && outerArray.ElementType is ArrayType)
+                {
+                    receiverType = outerArray.ElementType;
+                }
+            }
+        }
+
+        if (receiverType is not ArrayType arrayType)
+        {
+            // Handle nested array access: target has suffixes (e.g., d[i].Length where
+            // the postfix is the whole `d[i]` expression). Check if the postfix expression
+            // itself resolves to an ArrayType.
+            if (postfix.Suffix.Length > 0)
+            {
+                // The whole postfix expression (target + suffixes except the last .Length)
+                // might resolve to an ArrayType. Check the expression type of the postfix node.
+                var postfixType = model.GetTypeOf(postfix);
+                if (postfixType is ArrayType innerArrayType)
+                {
+                    if (innerArrayType.KnownLength.HasValue)
+                        return new ConditionConstraint(relOp, innerArrayType.KnownLength.Value);
+                    if (innerArrayType.SymbolicLengthId.HasValue)
+                        return new ConditionConstraint(relOp, 0, innerArrayType.SymbolicLengthId.Value);
+                }
+            }
+            return null;
+        }
+
+        // If the array has a concrete known length, use it.
+        if (arrayType.KnownLength.HasValue)
+            return new ConditionConstraint(relOp, arrayType.KnownLength.Value);
+
+        // If the array has a symbolic length ID, use it.
+        if (arrayType.SymbolicLengthId.HasValue)
+            return new ConditionConstraint(relOp, 0, arrayType.SymbolicLengthId.Value);
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks whether the loop body contains any direct assignment targeting the
+    /// specified variable name. In Mist, compound assignments (+=, -=) are desugared
+    /// to simple assignments (i = i + 1), and increment/decrement operators don't exist,
+    /// so we only need to detect direct assignments.
+    /// </summary>
+    private static bool HasReassignmentInBody(BlockNode body, string varName)
+    {
+        return HasReassignmentInNode(body, varName);
+    }
+
+    /// <summary>
+    /// Recursively walks an AST node looking for assignments targeting the given variable.
+    /// </summary>
+    private static bool HasReassignmentInNode(SyntaxNode node, string varName)
+    {
+        // Check if this node is an assignment expression targeting the variable.
+        if (node is AssignmentNode assignment && assignment.Value is not null)
+        {
+            var targetName = TryExtractIdentifierFromLogicalOr(assignment.Target);
+            if (targetName is not null && string.Equals(targetName, varName, StringComparison.Ordinal))
+                return true;
+        }
+
+        // Recurse into children.
+        foreach (var child in node.Children())
+        {
+            if (child is not null && HasReassignmentInNode(child, varName))
+                return true;
+        }
+
+        return false;
     }
 
     private void CheckForeachStatement(ForeachStatementNode foreachStmt, IType returnType, ISemanticModel model, DiagnosticBag diagnostics)
@@ -8495,7 +8839,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             case PrimitiveTypeRefTypeReferenceNode primitiveRef:
             {
                 var primType = ResolvePrimitiveType(primitiveRef.PrimitiveType);
-                if (primitiveRef.ArrayRank.HasValue && primType is not null)
+                if (primitiveRef.ArrayRank is not null && primType is not null)
                     return new ArrayType(primType);
                 return primType ?? ErrorType.Instance;
             }
@@ -8823,17 +9167,203 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        // adhoc-refinement-constraints feature: validate index argument against
-        // parameter refinement constraints on the indexer (Requirements 6.6, 6.7).
-        if (targetType is not null && targetType is not ArrayType)
+        // Validate refinement constraint on the indexer parameter.
+        // Arrays and custom indexers use the same validation path (Requirement 2.1).
+        if (targetType is ArrayType arrayTarget)
+        {
+            ValidateArrayIndexRefinement(indexSuffix, arrayTarget, model, diagnostics);
+        }
+        else if (targetType is not null)
         {
             ValidateIndexerParameterRefinement(indexSuffix, targetType, model, diagnostics);
         }
+    }
 
-        // Verify the target is an array type (the target type should be ArrayType).
-        // If targetType is not an array, the semantic model builder would have
-        // already flagged it or assigned ErrorType. We don't emit a separate
-        // diagnostic here to avoid cascading.
+    /// <summary>
+    /// Validates the index argument against the ArrayBounds predicate for an array indexer.
+    /// Constructs the predicate (>= 0 and &lt; Length) from the array's KnownLength or
+    /// SymbolicLengthId, then validates using the 3-case logic: literal evaluation,
+    /// narrowing context implication, refinement type implication, or reject with diagnostic.
+    /// </summary>
+    /// <remarks>
+    /// Requirements: 2.1, 2.2, 2.3, 2.4, 5.1, 5.2, 5.3, 5.4
+    /// </remarks>
+    private void ValidateArrayIndexRefinement(
+        IndexSuffixPostfixSuffixNode indexSuffix,
+        ArrayType arrayType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Build the target constraints based on what's known about the array's length.
+        // Per Requirement 2.1: no bypass — validation always runs for ArrayType.
+        // - Concrete length: full bounds check (>= 0 and < KnownLength)
+        // - Symbolic length: full bounds check (>= 0 and < symbolic ID)
+        // - Unknown length: full bounds check with unprovable symbolic ID — the access
+        //   will be correctly rejected. The ONLY way to index an unknown-length array
+        //   is through the for-loop symbolic tautology (i < arr.Length where arr has a
+        //   SymbolicLengthId from being a parameter).
+        var targetConstraints = new List<ConditionConstraint>();
+        targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Gte, 0));
+
+        if (arrayType.KnownLength.HasValue)
+            targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Lt, arrayType.KnownLength.Value));
+        else if (arrayType.SymbolicLengthId.HasValue)
+            targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Lt, 0, arrayType.SymbolicLengthId.Value));
+        else
+            targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Lt, 0, _nextUnprovableSymbolicId--));
+
+        // Case 1 (literal): Evaluate predicate directly.
+        var constantValue = TryExtractLiteralConstantValue(indexSuffix.Index);
+        if (constantValue is not null)
+        {
+            var longVal = constantValue switch
+            {
+                int i => (long)i,
+                long l => l,
+                uint u => (long)u,
+                ulong ul => (long)ul,
+                _ => (long?)null
+            };
+
+            if (longVal.HasValue)
+            {
+                // Check the literal against all target constraints.
+                var allSatisfied = true;
+                foreach (var target in targetConstraints)
+                {
+                    if (target.SymbolicId is not null)
+                    {
+                        // Cannot prove a literal satisfies a symbolic constraint.
+                        allSatisfied = false;
+                        break;
+                    }
+
+                    var satisfied = (target.Op, target.Value) switch
+                    {
+                        (ConditionRelOp.Gte, var v) => longVal.Value >= v,
+                        (ConditionRelOp.Gt, var v) => longVal.Value > v,
+                        (ConditionRelOp.Lte, var v) => longVal.Value <= v,
+                        (ConditionRelOp.Lt, var v) => longVal.Value < v,
+                        _ => false
+                    };
+
+                    if (!satisfied)
+                    {
+                        allSatisfied = false;
+                        break;
+                    }
+                }
+
+                if (allSatisfied)
+                    return; // Literal satisfies all constraints — accept.
+            }
+
+            // Literal fails — emit diagnostic.
+            var boundsDesc = arrayType.KnownLength.HasValue
+                ? $">= 0 and < {arrayType.KnownLength.Value}"
+                : arrayType.SymbolicLengthId.HasValue
+                    ? $">= 0 and < {arrayType.DisplayName}.Length"
+                    : ">= 0";
+            diagnostics.Add(MakeDiagnostic(
+                ParameterRefinementViolation.Value,
+                $"Argument '{constantValue}' does not satisfy refinement constraint '{boundsDesc}' on parameter 'index' of indexer '{arrayType.DisplayName}'.",
+                indexSuffix.Index,
+                model));
+            return;
+        }
+
+        // Case 2 (narrowing context): Check if _narrowingContext[varName] implies predicate.
+        var varName = TryExtractIndexIdentifierName(indexSuffix.Index);
+        if (varName is not null && _narrowingContext.TryGetValue(varName, out var constraints))
+        {
+            // Check if every target constraint is implied by at least one source constraint.
+            var allImplied = true;
+            foreach (var target in targetConstraints)
+            {
+                var implied = false;
+                foreach (var source in constraints)
+                {
+                    if (ConditionConstraintImplies(source, target))
+                    {
+                        implied = true;
+                        break;
+                    }
+                }
+
+                if (!implied)
+                {
+                    allImplied = false;
+                    break;
+                }
+            }
+
+            if (allImplied)
+                return; // Narrowing context proves bounds — accept.
+        }
+
+        // Case 3 (refinement type): Check if argument's RefinementType implies predicate.
+        var argType = model.GetTypeOf(indexSuffix.Index);
+        if (argType is RefinementType sourceRefinement)
+        {
+            var predicateConstraints = ExtractPredicateConstraints(sourceRefinement.Predicate);
+            // Check if the source refinement's constraints imply all target constraints.
+            var allImplied = true;
+            foreach (var target in targetConstraints)
+            {
+                var implied = false;
+                foreach (var source in predicateConstraints)
+                {
+                    if (ConditionConstraintImplies(source, target))
+                    {
+                        implied = true;
+                        break;
+                    }
+                }
+
+                if (!implied)
+                {
+                    allImplied = false;
+                    break;
+                }
+            }
+
+            if (allImplied)
+                return; // Refinement type proves bounds — accept.
+
+            // Refinement type doesn't imply — emit implication failure diagnostic.
+            var boundsDesc2 = arrayType.KnownLength.HasValue
+                ? $">= 0 and < {arrayType.KnownLength.Value}"
+                : $">= 0 and < {arrayType.DisplayName}.Length";
+            diagnostics.Add(MakeDiagnostic(
+                RefinementImplicationFailure.Value,
+                $"Cannot pass '{sourceRefinement.Name}' with constraint '{sourceRefinement.Predicate.Description}' to parameter 'index' of indexer '{arrayType.DisplayName}' with constraint '{boundsDesc2}' because the compiler cannot prove the implication. Use pattern matching to validate.",
+                indexSuffix.Index,
+                model));
+            return;
+        }
+
+        // Case 4: Emit diagnostic — cannot prove bounds.
+        var boundsDescription = arrayType.KnownLength.HasValue
+            ? $">= 0 and < {arrayType.KnownLength.Value}"
+            : $">= 0 and < {arrayType.DisplayName}.Length";
+        diagnostics.Add(MakeDiagnostic(
+            ParameterRefinementViolation.Value,
+            $"Cannot pass non-constant argument to parameter 'index' of indexer '{arrayType.DisplayName}' with refinement constraint '{boundsDescription}' without proving the refinement. Use pattern matching to validate.",
+            indexSuffix.Index,
+            model));
+    }
+
+    /// <summary>
+    /// Extracts a simple identifier name from an index expression node.
+    /// Returns null if the expression is not a simple identifier reference.
+    /// Used by <see cref="ValidateArrayIndexRefinement"/> to look up narrowing context.
+    /// </summary>
+    private static string? TryExtractIndexIdentifierName(ExpressionNode expr)
+    {
+        var primary = UnwrapExpressionToPrimary(expr);
+        if (primary is IdentifierExpressionPrimaryNode identifier)
+            return identifier.Name.Lexeme;
+        return null;
     }
 
     /// <summary>
@@ -11474,6 +12004,31 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Same display name (for types that may not be reference-equal).
         if (source.DisplayName == target.DisplayName)
             return true;
+
+        // ArrayType assignability: a concrete-length array (e.g., int[10]) is
+        // assignable to an unsized or symbolic-length array (int[]) with the same
+        // element type. A symbolic-length array is also assignable to an unsized
+        // array. Two arrays with the same concrete length are assignable.
+        // This is a natural subtype relationship — a sized array is a more
+        // specific version of an unsized array.
+        if (source is ArrayType sourceArray && target is ArrayType targetArray)
+        {
+            if (IsAssignable(sourceArray.ElementType, targetArray.ElementType, model))
+            {
+                // Target is unsized (no known length, no symbolic ID) — any source matches.
+                if (targetArray.KnownLength is null && targetArray.SymbolicLengthId is null)
+                    return true;
+                // Target has a symbolic length — any source with same element type is
+                // acceptable (symbolic just means "unknown at compile time").
+                if (targetArray.SymbolicLengthId is not null)
+                    return true;
+                // Target has a concrete length — source must have the same concrete length.
+                if (targetArray.KnownLength is not null
+                    && sourceArray.KnownLength == targetArray.KnownLength)
+                    return true;
+            }
+            return false;
+        }
 
         // Migration-window shim: `bool` and `Standard.Boolean` (likewise
         // `int`/`Int32`, `string`/`String`, …) can coexist within a
@@ -14563,7 +15118,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (argNode is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg
             && typeRefArg.Type is NamedTypeRefTypeReferenceNode namedRef
             && namedRef.TypeArgs is null
-            && !namedRef.ArrayRank.HasValue)
+            && namedRef.ArrayRank is null)
         {
             var resolvedType = model.GetTypeOf(namedRef);
             if (resolvedType is DependentTypeParameterType forwardedParam)
@@ -14676,7 +15231,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // A bare identifier could be a const reference or a forwarded dependent parameter.
                 if (typeRefArg.Type is NamedTypeRefTypeReferenceNode namedRef
                     && namedRef.TypeArgs is null
-                    && !namedRef.ArrayRank.HasValue)
+                    && namedRef.ArrayRank is null)
                 {
                     // Check what the semantic model resolved this to.
                     var symbol = model.GetDeclaredSymbol(namedRef);

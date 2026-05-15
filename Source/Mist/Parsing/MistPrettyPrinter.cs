@@ -1110,6 +1110,17 @@ public sealed class MistPrettyPrinter
 
     // ─── Type References ─────────────────────────────────────────────────
 
+    private string EmitElementTypeRef(ElementTypeRefNode elementTypeRef)
+    {
+        return elementTypeRef switch
+        {
+            PrimitiveElementTypeRefElementTypeRefNode primitiveRef => EmitPrimitiveType(primitiveRef.PrimitiveType),
+            UnknownElementTypeRefElementTypeRefNode => "unknown",
+            NamedElementTypeRefElementTypeRefNode namedRef => ExtractQualifiedName(namedRef.Name) + EmitTypeArgumentList(namedRef.TypeArgs),
+            _ => "object"
+        };
+    }
+
     private string EmitTypeReference(TypeReferenceNode typeRef)
     {
         switch (typeRef)
@@ -1127,7 +1138,11 @@ public sealed class MistPrettyPrinter
             case PrimitiveTypeRefTypeReferenceNode primitiveRef:
             {
                 var keyword = EmitPrimitiveType(primitiveRef.PrimitiveType);
-                if (primitiveRef.ArrayRank.HasValue)
+                if (primitiveRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
+                {
+                    return $"{keyword}[{sizedRank.Size.Lexeme}]";
+                }
+                else if (primitiveRef.ArrayRank is not null)
                 {
                     return $"{keyword}[]";
                 }
@@ -1141,7 +1156,11 @@ public sealed class MistPrettyPrinter
             {
                 var name = ExtractQualifiedName(namedRef.Name);
                 var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs);
-                if (namedRef.ArrayRank.HasValue)
+                if (namedRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
+                {
+                    return $"{name}{typeArgs}[{sizedRank.Size.Lexeme}]";
+                }
+                else if (namedRef.ArrayRank is not null)
                 {
                     return $"{name}{typeArgs}[]";
                 }
@@ -1178,7 +1197,11 @@ public sealed class MistPrettyPrinter
             case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
             {
                 var keyword = EmitPrimitiveType(primitiveRef.PrimitiveType);
-                if (primitiveRef.ArrayRank.HasValue)
+                if (primitiveRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
+                {
+                    return $"{keyword}[{sizedRank.Size.Lexeme}]";
+                }
+                else if (primitiveRef.ArrayRank is not null)
                 {
                     return $"{keyword}[]";
                 }
@@ -1192,7 +1215,11 @@ public sealed class MistPrettyPrinter
             {
                 var name = ExtractQualifiedName(namedRef.Name);
                 var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs);
-                if (namedRef.ArrayRank.HasValue)
+                if (namedRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
+                {
+                    return $"{name}{typeArgs}[{sizedRank.Size.Lexeme}]";
+                }
+                else if (namedRef.ArrayRank is not null)
                 {
                     return $"{name}{typeArgs}[]";
                 }
@@ -1201,7 +1228,11 @@ public sealed class MistPrettyPrinter
             case ParenthesizedTypeRefSingleTypeRefNode parenRef:
             {
                 var inner = EmitTypeReference(parenRef.Inner);
-                if (parenRef.ArrayRank.HasValue)
+                if (parenRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
+                {
+                    return $"({inner})[{sizedRank.Size.Lexeme}]";
+                }
+                else if (parenRef.ArrayRank is not null)
                 {
                     return $"({inner})[]";
                 }
@@ -2004,7 +2035,7 @@ public sealed class MistPrettyPrinter
                 return "this";
             case ArrayCreationExpressionPrimaryNode arrayCreation:
             {
-                var type = EmitTypeReference(arrayCreation.Type);
+                var type = EmitElementTypeRef(arrayCreation.Type);
                 var size = EmitExpression(arrayCreation.Size);
                 return $"new {type}[{size}]";
             }

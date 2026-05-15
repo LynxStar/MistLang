@@ -281,7 +281,7 @@ public class TypeLiteralParserPropertyTests
         var matchingLiteral = typeLiterals.FirstOrDefault(tl =>
             tl.TypeRef is PrimitiveTypeRefTypeReferenceNode primitiveRef &&
             primitiveRef.PrimitiveType.GetType() == expectedNodeType &&
-            primitiveRef.ArrayRank.HasValue);
+            primitiveRef.ArrayRank is not null);
 
         // The matching literal must exist and have ArrayRank set
         return matchingLiteral is not null;

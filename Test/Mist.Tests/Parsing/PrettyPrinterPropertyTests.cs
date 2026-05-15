@@ -100,7 +100,7 @@ public class PrettyPrinterPropertyTests
     {
         var primary = new ArrayCreationExpressionPrimaryNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new PrimitiveElementTypeRefElementTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
             },

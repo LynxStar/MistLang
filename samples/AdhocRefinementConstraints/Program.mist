@@ -73,12 +73,16 @@ public class Bounded
 
 public class SafeList
 {
-    int[] _items;
+    int[5] _items = new int[5];
     public SafeList()
     {
-        _items = [10, 20, 30, 40, 50];
+        _items[0] = 10;
+        _items[1] = 20;
+        _items[2] = 30;
+        _items[3] = 40;
+        _items[4] = 50;
     }
-    public int this[int index] where index >= 0
+    public int this[int index] where index >= 0 and < 5
     {
         get { return _items[index]; }
         set { _items[index] = value; }

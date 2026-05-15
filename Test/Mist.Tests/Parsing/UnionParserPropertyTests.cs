@@ -112,7 +112,7 @@ public class UnionParserPropertyTests
         if (node is PrimitiveSingleTypeRefSingleTypeRefNode prim)
         {
             var name = EmitPrimitiveName(prim.PrimitiveType);
-            return prim.ArrayRank.HasValue ? name + "[]" : name;
+            return prim.ArrayRank is not null ? name + "[]" : name;
         }
 
         return "unknown";

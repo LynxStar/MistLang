@@ -80,7 +80,7 @@ public class EntryPointPropertyTests
                     Type = new PrimitiveTypeRefTypeReferenceNode
                     {
                         PrimitiveType = new StringTypePrimitiveTypeNode(),
-                        ArrayRank = MakeToken("[]"),
+                        ArrayRank = new UnsizedArrayRankArrayRankSuffixNode(),
                     },
                     Name = MakeToken("args"),
                 },

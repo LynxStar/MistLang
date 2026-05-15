@@ -221,11 +221,9 @@ public sealed class AdhocRefinementGuardEmissionTests
     {
         const string source = """
             class MyList {
-                int[] _items;
-                public MyList() {
-                    _items = new int[10];
-                }
-                public int this[int index] where index >= 0 {
+                int[10] _items = new int[10];
+                public MyList() { }
+                public int this[int index] where index >= 0 and < 10 {
                     get { return _items[index]; }
                     set { _items[index] = value; }
                 }

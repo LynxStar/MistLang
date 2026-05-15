@@ -35,6 +35,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     [ThreadStatic]
     private static IType? _emptyArrayTargetType;
 
+    // ── Symbolic length ID allocation for parameter arrays ────────────────
+    // Generates unique IDs for unsized array parameters so that two references
+    // to the same parameter's .Length resolve to the same symbolic identity.
+    // Reset at the start of each Build() call.
+    [ThreadStatic]
+    private static int _nextSymbolicLengthId;
+
+    // Set to true while resolving a parameter's type reference so that
+    // unsized array types (e.g., int[] items) receive a symbolic length ID.
+    // Cleared immediately after the type reference is resolved.
+    [ThreadStatic]
+    private static bool _allocatingParameterArrayType;
+
     // ── Intrinsic-marker diagnostic IDs (Task 9, Requirements 5.3, 5.6, 5.13, 5.15) ──
     /// <summary>
     /// An intrinsic member was declared with a body. Per Requirement 5.3,
@@ -580,6 +593,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var globalScope = new Scope(parent: null);
         var transitiveScope = new Scope(parent: null);
         var symbolTable = new SymbolTable();
+
+        // Reset symbolic length ID counter for this compilation.
+        _nextSymbolicLengthId = 1;
+        _allocatingParameterArrayType = false;
 
         // (Task 49: PrimitiveTypeRegistry and PrimitiveType have been
         // deleted. No migration-window registry reset is needed.)
@@ -4226,7 +4243,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // forwarded dependent parameter from the declaring type.
                 if (typeRefArg.Type is NamedTypeRefTypeReferenceNode namedRef
                     && namedRef.TypeArgs is null
-                    && !namedRef.ArrayRank.HasValue)
+                    && namedRef.ArrayRank is null)
                 {
                     var argName = namedRef.Name.IDENTIFIER.Lexeme;
                     if (string.IsNullOrEmpty(argName))
@@ -4293,7 +4310,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             case PrimitiveTypeRefTypeReferenceNode primitiveRef:
                 var baseType = ResolvePrimitiveType(primitiveRef.PrimitiveType);
-                if (primitiveRef.ArrayRank.HasValue)
+                if (primitiveRef.ArrayRank is not null)
                     return new ArrayType(baseType);
                 return baseType;
 
@@ -4408,7 +4425,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return new ConstructedType(resolvedType, nestedArgs);
                     }
 
-                    if (namedRef.ArrayRank.HasValue)
+                    if (namedRef.ArrayRank is not null)
                         return new ArrayType(resolvedType);
 
                     return resolvedType;
@@ -9641,11 +9658,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             (PrimitiveTypeRefTypeReferenceNode pa, PrimitiveTypeRefTypeReferenceNode pb) =>
                 PrimitiveTypesMatch(pa.PrimitiveType, pb.PrimitiveType)
-                && pa.ArrayRank.HasValue == pb.ArrayRank.HasValue,
+                && (pa.ArrayRank is not null) == (pb.ArrayRank is not null),
 
             (NamedTypeRefTypeReferenceNode na, NamedTypeRefTypeReferenceNode nb) =>
                 na.Name.IDENTIFIER.Lexeme == nb.Name.IDENTIFIER.Lexeme
-                && na.ArrayRank.HasValue == nb.ArrayRank.HasValue,
+                && (na.ArrayRank is not null) == (nb.ArrayRank is not null),
 
             // Two `unknown` references match each other exactly. This is
             // required for both trait return positions (where `unknown`
@@ -9760,7 +9777,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Named type references match by display name.
             (NamedTypeRefTypeReferenceNode named, _) =>
                 named.Name.IDENTIFIER.Lexeme == substitutedType.DisplayName
-                && !named.ArrayRank.HasValue,
+                && named.ArrayRank is null,
 
             // Void matches void.
             (VoidTypeRefTypeReferenceNode, _) =>
@@ -9780,7 +9797,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // The semantic type's DisplayName may be the stdlib name (e.g., "Int32")
         // rather than the keyword (e.g., "int"). Check both the keyword and the
         // stdlib type name from KeywordAliases.
-        if (type.DisplayName == primName && !primRef.ArrayRank.HasValue)
+        if (type.DisplayName == primName && primRef.ArrayRank is null)
             return true;
 
         // Check against the stdlib type name (e.g., "int" → "Standard.Int32" → "Int32").
@@ -9789,7 +9806,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // qualifiedName is e.g. "Standard.Int32"; extract the simple name.
             var dotIndex = qualifiedName.LastIndexOf('.');
             var simpleName = dotIndex >= 0 ? qualifiedName[(dotIndex + 1)..] : qualifiedName;
-            if (type.DisplayName == simpleName && !primRef.ArrayRank.HasValue)
+            if (type.DisplayName == simpleName && primRef.ArrayRank is null)
                 return true;
         }
 
@@ -9966,7 +9983,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var implName = GetNamedTypeRefName(implNamed, sourceText);
 
             if (traitName == implName
-                && traitNamed.ArrayRank.HasValue == implNamed.ArrayRank.HasValue)
+                && (traitNamed.ArrayRank is not null) == (implNamed.ArrayRank is not null))
             {
                 // If neither side carries type arguments, this is just a
                 // plain name match.
@@ -10062,7 +10079,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // prohibited is widening the struct's own arguments.
             if (traitArg is NamedTypeRefTypeReferenceNode traitNested
                 && implArg is NamedTypeRefTypeReferenceNode implNested
-                && traitNested.ArrayRank.HasValue == implNested.ArrayRank.HasValue
+                && (traitNested.ArrayRank is not null) == (implNested.ArrayRank is not null)
                 && traitNested.TypeArgs is not null
                 && implNested.TypeArgs is not null)
             {
@@ -10231,9 +10248,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             VoidTypeRefTypeReferenceNode => "void",
             PrimitiveTypeRefTypeReferenceNode p =>
-                FormatPrimitiveType(p.PrimitiveType) + (p.ArrayRank.HasValue ? "[]" : ""),
+                FormatPrimitiveType(p.PrimitiveType) + (p.ArrayRank is not null ? "[]" : ""),
             NamedTypeRefTypeReferenceNode n =>
-                n.Name.IDENTIFIER.Lexeme + (n.ArrayRank.HasValue ? "[]" : ""),
+                n.Name.IDENTIFIER.Lexeme + (n.ArrayRank is not null ? "[]" : ""),
             TupleTypeRefTypeReferenceNode t => FormatTupleTypeReference(t),
             _ => "unknown",
         };
@@ -12489,7 +12506,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
+        // Signal that we're resolving a parameter type so unsized array types
+        // receive a symbolic length ID (Requirement 1.4).
+        _allocatingParameterArrayType = true;
         var paramType = ResolveTypeReference(param.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        _allocatingParameterArrayType = false;
         var paramName = param.Name.Lexeme;
         var paramSpan = ToMistSourceSpan(param.Name.Span);
 
@@ -13873,6 +13894,34 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Resolves a TypeReference AST node to an IType.
     /// Lookup order: primitives → string/void → scope chain → imported namespaces → ErrorType.
     /// </summary>
+    /// <summary>
+    /// Resolves an ElementTypeRefNode (used in array creation expressions) to an IType.
+    /// ElementTypeRef is a restricted TypeReference without ArrayRankSuffix.
+    /// </summary>
+    private static IType ResolveElementTypeRef(
+        ElementTypeRefNode elementTypeRef,
+        Scope fileScope,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        switch (elementTypeRef)
+        {
+            case PrimitiveElementTypeRefElementTypeRefNode primitiveRef:
+                return ResolvePrimitiveType(primitiveRef.PrimitiveType);
+            case UnknownElementTypeRefElementTypeRefNode:
+                return UnknownType.Instance;
+            case NamedElementTypeRefElementTypeRefNode namedRef:
+            {
+                var name = ExtractQualifiedName(namedRef.Name, sourceText);
+                return ResolveNamedType(name, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            }
+            default:
+                return ErrorType.Instance;
+        }
+    }
+
     private static IType ResolveTypeReference(
         TypeReferenceNode typeRef,
         Scope fileScope,
@@ -13918,9 +13967,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     primBase = ResolveLegacyPrimitive(primitiveRef.PrimitiveType);
                 }
-                if (primitiveRef.ArrayRank.HasValue)
+                if (primitiveRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
                 {
-                    return new ArrayType(primBase);
+                    var size = long.Parse(sizedRank.Size.Lexeme);
+                    return new ArrayType(primBase, size);
+                }
+                else if (primitiveRef.ArrayRank is not null)
+                {
+                    return _allocatingParameterArrayType
+                        ? new ArrayType(primBase, _nextSymbolicLengthId++)
+                        : new ArrayType(primBase);
                 }
                 return primBase;
 
@@ -13997,9 +14053,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         sourceText));
                 }
 
-                if (namedRef.ArrayRank.HasValue)
+                if (namedRef.ArrayRank is SizedArrayRankArrayRankSuffixNode namedSizedRank)
                 {
-                    return new ArrayType(baseType);
+                    var size = long.Parse(namedSizedRank.Size.Lexeme);
+                    return new ArrayType(baseType, size);
+                }
+                else if (namedRef.ArrayRank is not null)
+                {
+                    return _allocatingParameterArrayType
+                        ? new ArrayType(baseType, _nextSymbolicLengthId++)
+                        : new ArrayType(baseType);
                 }
                 return baseType;
 
@@ -14164,9 +14227,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     primBase = ResolveLegacyPrimitive(primitiveRef.PrimitiveType);
                 }
-                if (primitiveRef.ArrayRank.HasValue)
+                if (primitiveRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
                 {
-                    return new ArrayType(primBase);
+                    var size = long.Parse(sizedRank.Size.Lexeme);
+                    return new ArrayType(primBase, size);
+                }
+                else if (primitiveRef.ArrayRank is not null)
+                {
+                    return _allocatingParameterArrayType
+                        ? new ArrayType(primBase, _nextSymbolicLengthId++)
+                        : new ArrayType(primBase);
                 }
                 return primBase;
             }
@@ -14225,9 +14295,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         sourceText));
                 }
 
-                if (namedRef.ArrayRank.HasValue)
+                if (namedRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
                 {
-                    return new ArrayType(baseType);
+                    var size = long.Parse(sizedRank.Size.Lexeme);
+                    return new ArrayType(baseType, size);
+                }
+                else if (namedRef.ArrayRank is not null)
+                {
+                    return _allocatingParameterArrayType
+                        ? new ArrayType(baseType, _nextSymbolicLengthId++)
+                        : new ArrayType(baseType);
                 }
                 return baseType;
             }
@@ -14236,9 +14313,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 // Resolve the inner type reference (which can be any TypeReference, including unions).
                 var inner = ResolveTypeReference(parenRef.Inner, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-                if (parenRef.ArrayRank.HasValue)
+                if (parenRef.ArrayRank is SizedArrayRankArrayRankSuffixNode parenSizedRank)
                 {
-                    return new ArrayType(inner);
+                    var size = long.Parse(parenSizedRank.Size.Lexeme);
+                    return new ArrayType(inner, size);
+                }
+                else if (parenRef.ArrayRank is not null)
+                {
+                    return _allocatingParameterArrayType
+                        ? new ArrayType(inner, _nextSymbolicLengthId++)
+                        : new ArrayType(inner);
                 }
                 return inner;
             }
@@ -14980,7 +15064,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Disambiguation: check if this is a bare identifier that resolves to a const.
                 if (typeRefArg.Type is NamedTypeRefTypeReferenceNode namedRef
                     && namedRef.TypeArgs is null
-                    && !namedRef.ArrayRank.HasValue)
+                    && namedRef.ArrayRank is null)
                 {
                     var argName = ExtractQualifiedName(namedRef.Name, sourceText);
 
@@ -16017,6 +16101,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var targetType = ResolvePrimary(node.Target, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
+        // Explicitly store the target's type on the PostfixNode.Target node as well,
+        // so that downstream analysis (e.g., for-loop narrowing) can retrieve it
+        // via model.GetTypeOf(postfix.Target).
+        expressionTypes[node.Target] = targetType;
+
         // Apply each postfix suffix in order.
         foreach (var suffix in node.Suffix)
         {
@@ -16531,9 +16620,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             case ArrayCreationExpressionPrimaryNode arrayCreation:
             {
-                var elementType = ResolveTypeReference(arrayCreation.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                var elementType = ResolveElementTypeRef(arrayCreation.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                 ResolveExpression(arrayCreation.Size, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-                result = new ArrayType(elementType);
+                var literalSize = TryExtractIntegerLiteral(arrayCreation.Size);
+                result = literalSize.HasValue
+                    ? new ArrayType(elementType, literalSize.Value)
+                    : new ArrayType(elementType);
                 break;
             }
 
@@ -16760,7 +16852,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // indicating that empty array literals require an explicit element type).
                 if (_emptyArrayTargetType is ArrayType targetArrayType)
                 {
-                    result = targetArrayType;
+                    result = new ArrayType(targetArrayType.ElementType, 0);
                 }
                 else
                 {
@@ -16786,7 +16878,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                 }
 
-                result = new ArrayType(elementType);
+                // Element count = 1 (First) + rest (Expressions).
+                var elementCount = 1 + arrayLiteral.Expressions.Length;
+                result = new ArrayType(elementType, elementCount);
                 break;
             }
 
@@ -17057,6 +17151,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // After Task 42, Array is no longer an ambient type — it's a stdlib type.
         if (targetType is ArrayType)
         {
+            // Special case: .Length on arrays returns int. Standard.Array defines
+            // Length as a type parameter (not a member property), so we resolve it
+            // directly to Int32 here.
+            if (memberName == "Length")
+            {
+                var globalScope2 = FindGlobalScope(fileScope);
+                if (globalScope2 is not null)
+                {
+                    try
+                    {
+                        var int32Type = LookupQualifiedStdlibType(globalScope2, symbolTable, "Standard.Int32");
+                        if (int32Type is not null)
+                            return int32Type;
+                    }
+                    catch (StdlibMissingException)
+                    {
+                        // Fall through to legacy lookup below.
+                    }
+                }
+                // Legacy fallback: return a basic int type.
+                return LegacyPrimitiveTypes.Int;
+            }
+
             var globalScope = FindGlobalScope(fileScope);
             if (globalScope is not null)
             {

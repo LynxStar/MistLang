@@ -2683,7 +2683,7 @@ internal sealed class CSharpSourceWriter
                             var crossFileName = unit.Source.Contents.Substring(span.Start, span.Length);
                             if (substitutions.TryGetValue(crossFileName, out var crossFileSubstituted))
                             {
-                                return namedRef.ArrayRank.HasValue ? $"{crossFileSubstituted}[]" : crossFileSubstituted;
+                                return namedRef.ArrayRank is not null ? $"{crossFileSubstituted}[]" : crossFileSubstituted;
                             }
                             // Use the cross-file name even if it's not a type parameter.
                             if (!string.IsNullOrEmpty(crossFileName))
@@ -2703,7 +2703,7 @@ internal sealed class CSharpSourceWriter
             if (substitutions.TryGetValue(name, out var substituted))
             {
                 // Type parameter substituted with concrete type.
-                return namedRef.ArrayRank.HasValue ? $"{substituted}[]" : substituted;
+                return namedRef.ArrayRank is not null ? $"{substituted}[]" : substituted;
             }
 
             // The name extraction may have failed because the node is from a
@@ -2721,7 +2721,7 @@ internal sealed class CSharpSourceWriter
                         var crossFileName = unit.Source.Contents.Substring(nameSpan.Start, nameSpan.Length);
                         if (substitutions.TryGetValue(crossFileName, out var crossFileSubstituted))
                         {
-                            return namedRef.ArrayRank.HasValue ? $"{crossFileSubstituted}[]" : crossFileSubstituted;
+                            return namedRef.ArrayRank is not null ? $"{crossFileSubstituted}[]" : crossFileSubstituted;
                         }
                     }
                 }
@@ -2733,7 +2733,7 @@ internal sealed class CSharpSourceWriter
                 var typeArgs = EmitTypeArgumentListWithSubstitution(namedRef.TypeArgs, substitutions);
                 var mappedName = CSharpTypeMap.TryGetMappedName(name);
                 var finalName = mappedName ?? name;
-                return namedRef.ArrayRank.HasValue ? $"{finalName}{typeArgs}[]" : $"{finalName}{typeArgs}";
+                return namedRef.ArrayRank is not null ? $"{finalName}{typeArgs}[]" : $"{finalName}{typeArgs}";
             }
 
             // No type args, not a type parameter — emit normally.
@@ -4448,7 +4448,7 @@ internal sealed class CSharpSourceWriter
                     && allArgs[i] is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg
                     && typeRefArg.Type is NamedTypeRefTypeReferenceNode argNamedRef
                     && argNamedRef.TypeArgs is null
-                    && !argNamedRef.ArrayRank.HasValue)
+                    && argNamedRef.ArrayRank is null)
                 {
                     // This position expects a dependent value, but we have an identifier.
                     // It's a forwarded dependent parameter that needs T-prefix rewriting.
@@ -4833,8 +4833,8 @@ internal sealed class CSharpSourceWriter
     {
         return typeRef switch
         {
-            PrimitiveTypeRefTypeReferenceNode primitiveRef => primitiveRef.ArrayRank.HasValue,
-            NamedTypeRefTypeReferenceNode namedRef => namedRef.ArrayRank.HasValue,
+            PrimitiveTypeRefTypeReferenceNode primitiveRef => primitiveRef.ArrayRank is not null,
+            NamedTypeRefTypeReferenceNode namedRef => namedRef.ArrayRank is not null,
             _ => false,
         };
     }
@@ -4853,6 +4853,17 @@ internal sealed class CSharpSourceWriter
         };
     }
 
+    private string EmitElementTypeRef(ElementTypeRefNode elementTypeRef)
+    {
+        return elementTypeRef switch
+        {
+            PrimitiveElementTypeRefElementTypeRefNode primitiveRef => EmitPrimitiveType(primitiveRef.PrimitiveType),
+            UnknownElementTypeRefElementTypeRefNode => "object",
+            NamedElementTypeRefElementTypeRefNode namedRef => ExtractQualifiedName(namedRef.Name) + (namedRef.TypeArgs is not null ? EmitTypeArgumentList(namedRef.TypeArgs) : ""),
+            _ => "object"
+        };
+    }
+
     private string EmitTypeReference(TypeReferenceNode typeRef, bool isValueContext = false)
     {
         switch (typeRef)
@@ -4860,7 +4871,7 @@ internal sealed class CSharpSourceWriter
             case PrimitiveTypeRefTypeReferenceNode primitiveRef:
             {
                 var keyword = EmitPrimitiveType(primitiveRef.PrimitiveType);
-                if (primitiveRef.ArrayRank.HasValue)
+                if (primitiveRef.ArrayRank is not null)
                 {
                     return $"{keyword}[]";
                 }
@@ -4897,7 +4908,7 @@ internal sealed class CSharpSourceWriter
                 if (resolvedType is TypeAliasType aliasFromExprMap)
                 {
                     var emittedType = ResolveAliasForEmission(aliasFromExprMap, namedRef, isValueContext);
-                    return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
+                    return namedRef.ArrayRank is not null ? $"{emittedType}[]" : emittedType;
                 }
                 // ── refinement-types feature: type erasure (Requirement 12.1) ──
                 // Refinement types are erased to their base type in C#. For example,
@@ -4906,7 +4917,7 @@ internal sealed class CSharpSourceWriter
                 if (resolvedType is RefinementType refinementFromExprMap)
                 {
                     var emittedType = CSharpTypeMap.GetTypeName(refinementFromExprMap.BaseType, isValueContext);
-                    return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
+                    return namedRef.ArrayRank is not null ? $"{emittedType}[]" : emittedType;
                 }
                 // ── Union type alias: emit as the helper struct name ──
                 // When a type alias resolves to a UnionType (e.g., `type AgeRange = int >= 3 | byte >= 0`),
@@ -4914,7 +4925,7 @@ internal sealed class CSharpSourceWriter
                 if (resolvedType is UnionType unionFromExprMap)
                 {
                     var emittedType = UnionHelperGenerator.GetHelperTypeName(unionFromExprMap);
-                    return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
+                    return namedRef.ArrayRank is not null ? $"{emittedType}[]" : emittedType;
                 }
                 // Fallback: search all symbols for a type alias with this name.
                 // Only apply if no concrete type (class/struct/interface/newtype) with the
@@ -4948,7 +4959,7 @@ internal sealed class CSharpSourceWriter
                         if (!hasConcreteTypeInCurrentNamespace)
                         {
                             var emittedType = ResolveAliasForEmission(aliasType, namedRef, isValueContext);
-                            return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
+                            return namedRef.ArrayRank is not null ? $"{emittedType}[]" : emittedType;
                         }
                     }
                     // Refinement type alias fallback: same logic as TypeAliasType above.
@@ -4961,7 +4972,7 @@ internal sealed class CSharpSourceWriter
                         if (!hasConcreteTypeInCurrentNamespace)
                         {
                             var emittedType = CSharpTypeMap.GetTypeName(refinementType.BaseType, isValueContext);
-                            return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
+                            return namedRef.ArrayRank is not null ? $"{emittedType}[]" : emittedType;
                         }
                     }
                     // Union type alias fallback: emit as the helper struct name.
@@ -4974,13 +4985,13 @@ internal sealed class CSharpSourceWriter
                         if (!hasConcreteTypeInCurrentNamespace)
                         {
                             var emittedType = UnionHelperGenerator.GetHelperTypeName(unionFallback);
-                            return namedRef.ArrayRank.HasValue ? $"{emittedType}[]" : emittedType;
+                            return namedRef.ArrayRank is not null ? $"{emittedType}[]" : emittedType;
                         }
                     }
                 }
 
                 // Handle "Void" identifier as equivalent to the void keyword.
-                if (name == "Void" && namedRef.TypeArgs is null && !namedRef.ArrayRank.HasValue)
+                if (name == "Void" && namedRef.TypeArgs is null && namedRef.ArrayRank is null)
                 {
                     if (isValueContext)
                     {
@@ -4997,7 +5008,7 @@ internal sealed class CSharpSourceWriter
                 var mappedName = CSharpTypeMap.TryGetMappedName(name);
                 if (mappedName is not null && namedRef.TypeArgs is null)
                 {
-                    return namedRef.ArrayRank.HasValue ? $"{mappedName}[]" : mappedName;
+                    return namedRef.ArrayRank is not null ? $"{mappedName}[]" : mappedName;
                 }
 
                 // Closed_Generic_With_Unknown emission (Task 31 revised,
@@ -5016,13 +5027,13 @@ internal sealed class CSharpSourceWriter
                 if (namedRef.TypeArgs is not null
                     && TypeReferenceContainsUnknown(namedRef))
                 {
-                    return namedRef.ArrayRank.HasValue ? "dynamic[]" : "dynamic";
+                    return namedRef.ArrayRank is not null ? "dynamic[]" : "dynamic";
                 }
 
                 // Check if this named type reference is a dependent type parameter
                 // (e.g., `N` in `FixedBuffer<N>` where N is a method-level dependent param).
                 // Dependent type parameters are emitted with a T-prefix in C#.
-                if (namedRef.TypeArgs is null && !namedRef.ArrayRank.HasValue)
+                if (namedRef.TypeArgs is null && namedRef.ArrayRank is null)
                 {
                     var resolvedNamedType = _model.GetTypeOf(namedRef);
                     if (resolvedNamedType is DependentTypeParameterType depParamType)
@@ -5032,7 +5043,7 @@ internal sealed class CSharpSourceWriter
                 }
 
                 var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs, GetTypeParamsForName(name));
-                if (namedRef.ArrayRank.HasValue)
+                if (namedRef.ArrayRank is not null)
                 {
                     return $"{name}{typeArgs}[]";
                 }
@@ -5090,7 +5101,7 @@ internal sealed class CSharpSourceWriter
             case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
             {
                 var name = GetPrimitiveDisplayName(primitiveRef.PrimitiveType);
-                return primitiveRef.ArrayRank.HasValue ? $"{name}Array" : name;
+                return primitiveRef.ArrayRank is not null ? $"{name}Array" : name;
             }
             case VoidSingleTypeRefSingleTypeRefNode:
                 return "Void";
@@ -5105,14 +5116,14 @@ internal sealed class CSharpSourceWriter
                     CollectTypeArgConstituentNames(namedRef.TypeArgs, typeArgNames);
                     name = $"{name}_{typeArgNames.Count}_{string.Join("_", typeArgNames)}";
                 }
-                return namedRef.ArrayRank.HasValue ? $"{name}Array" : name;
+                return namedRef.ArrayRank is not null ? $"{name}Array" : name;
             }
             case ParenthesizedTypeRefSingleTypeRefNode parenRef:
             {
                 // Parenthesized type refs contain an inner TypeReference.
                 // For union helper naming, we recurse into the inner type.
                 var innerName = GetConstituentNameFromTypeRef(parenRef.Inner);
-                return parenRef.ArrayRank.HasValue ? $"{innerName}Array" : innerName;
+                return parenRef.ArrayRank is not null ? $"{innerName}Array" : innerName;
             }
             case TupleSingleTypeRefSingleTypeRefNode:
                 // Tuple types in union constituents use a generic ValueTuple name.
@@ -5133,7 +5144,7 @@ internal sealed class CSharpSourceWriter
             case PrimitiveTypeRefTypeReferenceNode primitiveRef:
             {
                 var name = GetPrimitiveDisplayName(primitiveRef.PrimitiveType);
-                return primitiveRef.ArrayRank.HasValue ? $"{name}Array" : name;
+                return primitiveRef.ArrayRank is not null ? $"{name}Array" : name;
             }
             case VoidTypeRefTypeReferenceNode:
                 return "Void";
@@ -5148,7 +5159,7 @@ internal sealed class CSharpSourceWriter
                     CollectTypeArgConstituentNames(namedRef.TypeArgs, typeArgNames);
                     name = $"{name}_{typeArgNames.Count}_{string.Join("_", typeArgNames)}";
                 }
-                return namedRef.ArrayRank.HasValue ? $"{name}Array" : name;
+                return namedRef.ArrayRank is not null ? $"{name}Array" : name;
             }
             case UnionTypeRefTypeReferenceNode unionRef:
             {
@@ -7591,7 +7602,7 @@ internal sealed class CSharpSourceWriter
                 return "this";
             case ArrayCreationExpressionPrimaryNode arrayCreation:
             {
-                var type = EmitTypeReference(arrayCreation.Type);
+                var type = EmitElementTypeRef(arrayCreation.Type);
                 var size = EmitExpression(arrayCreation.Size);
                 return $"new {type}[{size}]";
             }
@@ -8066,7 +8077,7 @@ internal sealed class CSharpSourceWriter
                 // a dependent type parameter name on any type in the model, emit T-prefixed.
                 if (typeRefArg.Type is NamedTypeRefTypeReferenceNode namedRef
                     && namedRef.TypeArgs is null
-                    && !namedRef.ArrayRank.HasValue)
+                    && namedRef.ArrayRank is null)
                 {
                     var name = ExtractQualifiedName(namedRef.Name);
                     if (IsDependentTypeParameterName(name))

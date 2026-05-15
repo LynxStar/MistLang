@@ -731,7 +731,7 @@ public sealed class EmitterOutputTests : IDisposable
         // new int[5]
         var arrayCreation = new ArrayCreationExpressionPrimaryNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new PrimitiveElementTypeRefElementTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
             Size = MakeIntLiteralExpression("5"),
         };
         var arrayExpr = WrapPrimaryAsExpression(arrayCreation);
@@ -741,7 +741,7 @@ public sealed class EmitterOutputTests : IDisposable
             Type = new PrimitiveTypeRefTypeReferenceNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-                ArrayRank = MakeToken("[]"),
+                ArrayRank = new UnsizedArrayRankArrayRankSuffixNode(),
             },
             Name = MakeToken("arr"),
             Initializer = arrayExpr,

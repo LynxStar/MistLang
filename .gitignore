@@ -201,6 +201,9 @@ FakesAssemblies/
 # Rider
 .idea
 
+# macOS
+.DS_Store
+
 #Mist CLI
 out
 

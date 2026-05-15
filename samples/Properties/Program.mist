@@ -4,6 +4,30 @@ using System;
 
 namespace Properties;
 
+public class IndexerDemo
+{
+    private int[3] _items = new int[3];
+
+    public IndexerDemo() { }
+
+    public int this[int index] where index >= 0 and < 3
+    {
+        get
+        {
+            return _items[index];
+        }
+        set
+        {
+            _items[index] = value;
+        }
+    }
+
+    public string Describe()
+    {
+        return $"IndexerDemo(length={_items.Length})";
+    }
+}
+
 public class Program
 {
     public static void Main(string[] args)
@@ -97,7 +121,7 @@ public class Program
 
         // 11. Indexers
         Console.WriteLine("--- Indexers ---");
-        var idx = new IndexerDemo(3);
+        var idx = new IndexerDemo();
         idx[0] = 10;
         idx[1] = 20;
         idx[2] = 30;

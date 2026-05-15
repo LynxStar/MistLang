@@ -127,7 +127,10 @@ public class VoidArrayRestrictionPropertyTests
     {
         var primary = new ArrayCreationExpressionPrimaryNode
         {
-            Type = new VoidTypeRefTypeReferenceNode(),
+            Type = new NamedElementTypeRefElementTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok("void") },
+            },
             Size = MistAstGenerator.WrapPrimary(
                 new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = Tok(size.ToString()) }),
         };
@@ -150,7 +153,7 @@ public class VoidArrayRestrictionPropertyTests
         var voidArrayTypeRef = new NamedTypeRefTypeReferenceNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = Tok("Void") },
-            ArrayRank = Tok("[]"),
+            ArrayRank = new UnsizedArrayRankArrayRankSuffixNode(),
         };
 
         var varDecl = new VariableDeclarationStatementStatementNode

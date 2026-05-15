@@ -130,12 +130,12 @@ public class TypeLiteralPrettyPrinterPropertyTests
     {
         if (tl.TypeRef is PrimitiveTypeRefTypeReferenceNode primitiveRef)
         {
-            return (primitiveRef.PrimitiveType.GetType().Name, primitiveRef.ArrayRank.HasValue);
+            return (primitiveRef.PrimitiveType.GetType().Name, primitiveRef.ArrayRank is not null);
         }
 
         if (tl.TypeRef is NamedTypeRefTypeReferenceNode namedRef)
         {
-            return (namedRef.Name.IDENTIFIER.Lexeme, namedRef.ArrayRank.HasValue);
+            return (namedRef.Name.IDENTIFIER.Lexeme, namedRef.ArrayRank is not null);
         }
 
         if (tl.TypeRef is VoidTypeRefTypeReferenceNode)

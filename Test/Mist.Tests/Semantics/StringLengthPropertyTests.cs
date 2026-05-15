@@ -280,7 +280,7 @@ public class StringLengthPropertyTests
             Type = new PrimitiveTypeRefTypeReferenceNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-                ArrayRank = MakeToken("[]"),
+                ArrayRank = new UnsizedArrayRankArrayRankSuffixNode(),
             },
             Name = MakeToken("arr"),
         };

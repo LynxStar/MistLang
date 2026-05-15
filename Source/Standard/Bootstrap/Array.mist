@@ -2,16 +2,13 @@ namespace Standard;
 
 type ZeroOrPositiveInt = int >= 0;
 
-intrinsic public class Array<TValue>
+intrinsic public class Array<TValue, Length:ZeroOrPositiveInt>
 {
 
-    //, Size:ZeroOrPositiveInt
-	//public type ArrayBounds = ZeroOrPositiveInt and < Size;
+    public type ArrayBounds = ZeroOrPositiveInt and < Length;
 
-    //intrinsic public TValue this[ArrayBounds index];
-
-
-    // Length migrated from the former System.Array ambient type —
-    // Requirement 9.13.
     intrinsic public Int32 Length { get; }
+
+    intrinsic public TValue this[ArrayBounds index];
+
 }

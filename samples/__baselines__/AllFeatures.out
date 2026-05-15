@@ -1036,4 +1036,30 @@ Done!
   short == 3 implies short >= 0: nns2 = 3
   byte == 10 implies byte <= 50: amfb = 10
 === Refinement Comparison Engine Done ===
+=== ArrayBoundsFlowAnalysis Sample ===
+--- 1. Literal indices on concrete arrays ---
+  arr[0] = 10
+  arr[2] = 30
+  arr[4] = 50
+--- 2. For-loop with literal bounds ---
+  nums = 10 20 30 40 50 
+--- 3. For-loop with .Length on concrete arrays ---
+  sum of [100, 200, 300, 400] = 1000
+--- 4. For-loop with .Length on parameter arrays (symbolic) ---
+  SumAll([5, 10, 15, 20, 25]) = 75
+  PrintArray: 5 10 15 20 25 
+--- 5. Nested array indexing ---
+  sum of row 0 = 6
+  sum of row 1 = 15
+  sum of row 2 = 24
+--- 6. Indexer with ArrayBounds constraint ---
+  buf[0] = 11
+  buf[4] = 55
+  buf.Describe() = BoundedBuffer(length=5)
+--- 7. Dependent-typed array class ---
+  FixedArray<5>.GetSize() = 5
+  FixedArray<5>.Describe() = FixedArray<5>
+  FixedArray<10>.GetSize() = 10
+  FixedArray<10>.Describe() = FixedArray<10>
+=== ArrayBoundsFlowAnalysis Done ===
 === Done! ===

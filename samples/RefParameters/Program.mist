@@ -51,7 +51,7 @@ public class Container
 public class Program
 {
     public int Field;
-    public int[] Items;
+    public int[3] Items = new int[3];
 
     private static void MutatePoint(ref Point p)
     {
@@ -79,7 +79,7 @@ public class Program
         return ref this.Field;
     }
 
-    public ref int GetItemRef(int index)
+    public ref int GetItemRef(int index) where index >= 0 and < 3
     {
         return ref this.Items[index];
     }
@@ -103,7 +103,9 @@ public class Program
         // [ref-return-field] ref return from method returning reference to field
         Program h = new Program();
         h.Field = 10;
-        h.Items = [1, 2, 3];
+        h.Items[0] = 1;
+        h.Items[1] = 2;
+        h.Items[2] = 3;
         ref int fr = h.GetFieldRef();
         fr = 77;
         Console.WriteLine($"[ref-return-field] {h.Field}");
@@ -125,7 +127,10 @@ public class Program
         Console.WriteLine($"[ref-local-field] {h.Field}");
 
         // [ref-local-array] ref local aliasing an array element
-        int[] nums = [10, 20, 30];
+        var nums = new int[3];
+        nums[0] = 10;
+        nums[1] = 20;
+        nums[2] = 30;
         ref int ea = nums[2];
         ea = 300;
         Console.WriteLine($"[ref-local-array] {nums[2]}");

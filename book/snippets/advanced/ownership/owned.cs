@@ -1,0 +1,22 @@
+using System;
+
+namespace OwnershipSystem;
+
+public class Pair
+{
+    public int X;
+    public int Y;
+    public Pair(int x, int y) { this.X = x; this.Y = y; }
+    public void SetX(int x) { this.X = x; }
+    public string Describe() { return $"Pair({X}, {Y})"; }
+}
+
+public class OwnedDemo
+{
+    public static void Run()
+    {
+        Pair p = new Pair(3, 7);
+        p.SetX(100);
+        Console.WriteLine($"owned pair={p.Describe()}");
+    }
+}

@@ -1,0 +1,13 @@
+namespace RefinementTypes;
+
+type AdultAge = int >= 18;
+type Positive = int > 0;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        AdultAge age = 25;
+        Positive count = 1;
+    }
+}

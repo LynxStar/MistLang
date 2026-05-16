@@ -1,0 +1,6 @@
+public static void ReLend(borrowed Pair p)
+{
+    ReadPair(p);       // re-lend as readonly ref
+    FreezePair(p);     // re-lend as frozen
+    p.SetX(42);        // borrower can still mutate after re-lends return
+}

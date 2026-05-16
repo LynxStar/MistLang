@@ -1,0 +1,17 @@
+using System;
+using Namespaces.Models;
+using Namespaces.Models.Game;
+
+namespace Namespaces;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var player = new Player("Alice", 100);
+        Console.WriteLine(player.Describe());
+
+        var state = new GameState(1, true);
+        Console.WriteLine(state.Summary());
+    }
+}

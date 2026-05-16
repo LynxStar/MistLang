@@ -1,0 +1,13 @@
+namespace RefinementTypes;
+
+type Percentage = int >= 0 and <= 100;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Percentage low = 0;
+        Percentage mid = 50;
+        Percentage high = 100;
+    }
+}

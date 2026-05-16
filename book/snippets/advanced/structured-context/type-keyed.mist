@@ -1,0 +1,7 @@
+// Each type is an independent context key
+with var cfg = new Config("db-connection");
+with var locale = new Locale("fr-FR");
+
+// These access different stacks — they don't interfere
+var c = Consumers.GetConfig();   // reads Config stack
+var l = Consumers.GetLocale();   // reads Locale stack

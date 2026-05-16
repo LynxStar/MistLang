@@ -1,0 +1,15 @@
+class ValOnly<T>
+    where T : struct
+{
+    public T Item;
+
+    public ValOnly(T item)
+    {
+        Item = item;
+    }
+
+    public string Show()
+    {
+        return $"ValOnly: {Item}";
+    }
+}

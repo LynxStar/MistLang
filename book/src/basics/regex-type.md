@@ -9,18 +9,12 @@ A regex literal is written by enclosing a pattern in backticks. The compiler inf
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-var digits = `\d+`;
-Console.WriteLine($"pattern={digits.Pattern}");
-Console.WriteLine($"matches_123={digits.IsMatch("123")}");
-Console.WriteLine($"matches_abc={digits.IsMatch("abc")}");
+{{#include ../../snippets/basics/regex-type/literal-syntax.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-var digits = new System.Text.RegularExpressions.Regex("\\d+", System.Text.RegularExpressions.RegexOptions.Compiled);
-Console.WriteLine($"pattern={digits.ToString()}");
-Console.WriteLine($"matches_123={digits.IsMatch("123")}");
-Console.WriteLine($"matches_abc={digits.IsMatch("abc")}");
+{{#include ../../snippets/basics/regex-type/literal-syntax.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -34,18 +28,12 @@ You can declare a variable with an explicit `regex` type annotation:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-regex letters = `[a-zA-Z]+`;
-Console.WriteLine($"pattern={letters.Pattern}");
-Console.WriteLine($"matches_Hello={letters.IsMatch("Hello")}");
-Console.WriteLine($"matches_123={letters.IsMatch("123")}");
+{{#include ../../snippets/basics/regex-type/explicit-type.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-System.Text.RegularExpressions.Regex letters = new System.Text.RegularExpressions.Regex("[a-zA-Z]+", System.Text.RegularExpressions.RegexOptions.Compiled);
-Console.WriteLine($"pattern={letters.ToString()}");
-Console.WriteLine($"matches_Hello={letters.IsMatch("Hello")}");
-Console.WriteLine($"matches_123={letters.IsMatch("123")}");
+{{#include ../../snippets/basics/regex-type/explicit-type.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -59,18 +47,12 @@ The `IsMatch` method checks whether the pattern matches anywhere within the inpu
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-var wordPattern = `\bcat\b`;
-Console.WriteLine($"cat_in_the_cat_sat={wordPattern.IsMatch("the cat sat")}");
-Console.WriteLine($"cat_in_concatenate={wordPattern.IsMatch("concatenate")}");
-Console.WriteLine($"cat_in_cat={wordPattern.IsMatch("cat")}");
+{{#include ../../snippets/basics/regex-type/is-match.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-var wordPattern = new System.Text.RegularExpressions.Regex("\\bcat\\b", System.Text.RegularExpressions.RegexOptions.Compiled);
-Console.WriteLine($"cat_in_the_cat_sat={wordPattern.IsMatch("the cat sat")}");
-Console.WriteLine($"cat_in_concatenate={wordPattern.IsMatch("concatenate")}");
-Console.WriteLine($"cat_in_cat={wordPattern.IsMatch("cat")}");
+{{#include ../../snippets/basics/regex-type/is-match.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -84,20 +66,12 @@ The `IsFullMatch` method checks whether the entire input string matches the patt
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-var fullDigits = `\d{3}`;
-Console.WriteLine($"fullmatch_123={fullDigits.IsFullMatch("123")}");
-Console.WriteLine($"fullmatch_1234={fullDigits.IsFullMatch("1234")}");
-Console.WriteLine($"fullmatch_12={fullDigits.IsFullMatch("12")}");
-Console.WriteLine($"fullmatch_abc={fullDigits.IsFullMatch("abc")}");
+{{#include ../../snippets/basics/regex-type/is-full-match.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-var fullDigits = new System.Text.RegularExpressions.Regex("\\d{3}", System.Text.RegularExpressions.RegexOptions.Compiled);
-Console.WriteLine($"fullmatch_123={System.Text.RegularExpressions.Regex.IsMatch("123", "^(?:\\d{3})$")}");
-Console.WriteLine($"fullmatch_1234={System.Text.RegularExpressions.Regex.IsMatch("1234", "^(?:\\d{3})$")}");
-Console.WriteLine($"fullmatch_12={System.Text.RegularExpressions.Regex.IsMatch("12", "^(?:\\d{3})$")}");
-Console.WriteLine($"fullmatch_abc={System.Text.RegularExpressions.Regex.IsMatch("abc", "^(?:\\d{3})$")}");
+{{#include ../../snippets/basics/regex-type/is-full-match.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

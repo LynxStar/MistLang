@@ -1,0 +1,46 @@
+namespace RefinementTypes;
+
+type AdultAge = int >= 18;
+type Percentage = int >= 0 and <= 100;
+
+public class Person
+{
+    public AdultAge Age;
+    public string Name;
+
+    public Person(string name)
+    {
+        this.Name = name;
+        this.Age = 18;
+    }
+}
+
+public class Program
+{
+    // Refinement as parameter type
+    private static string DescribeAge(AdultAge age)
+    {
+        return $"Adult age is {age}";
+    }
+
+    // Refinement as return type
+    private static AdultAge GetDefaultAge()
+    {
+        return 25;
+    }
+
+    public static void Main(string[] args)
+    {
+        // Refinement as variable type
+        Percentage score = 85;
+
+        // Refinement as field type (via Person.Age)
+        var person = new Person("Alice");
+
+        // Refinement as return type
+        AdultAge defaultAge = Program.GetDefaultAge();
+
+        // Refinement as parameter type
+        var desc = Program.DescribeAge(defaultAge);
+    }
+}

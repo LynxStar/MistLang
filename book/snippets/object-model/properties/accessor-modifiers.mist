@@ -1,0 +1,22 @@
+using System;
+
+namespace Demo;
+
+public class Account
+{
+    // Public get, private set
+    public string Name { get; private set; }
+
+    // Public get, private set with initializer
+    public int Balance { get; private set; } = 0;
+
+    public Account(string name)
+    {
+        this.Name = name;
+    }
+
+    public void Deposit(int amount)
+    {
+        this.Balance = this.Balance + amount;
+    }
+}

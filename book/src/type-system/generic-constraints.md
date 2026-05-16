@@ -21,34 +21,12 @@ The `class` constraint restricts a type parameter to reference types only. Value
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-class RefOnly<T> where T : class {
-    public T Item;
-    public RefOnly(T item) {
-        Item = item;
-    }
-    public string Show() {
-        return $"RefOnly: {Item}";
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/class-constraint.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-class RefOnly<T>
-    where T : class
-{
-    public T Item;
-
-    public RefOnly(T item)
-    {
-        Item = item;
-    }
-
-    public string Show()
-    {
-        return $"RefOnly: {Item}";
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/class-constraint.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -62,34 +40,12 @@ The `struct` constraint restricts a type parameter to value types only. Referenc
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-class ValOnly<T> where T : struct {
-    public T Item;
-    public ValOnly(T item) {
-        Item = item;
-    }
-    public string Show() {
-        return $"ValOnly: {Item}";
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/struct-constraint.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-class ValOnly<T>
-    where T : struct
-{
-    public T Item;
-
-    public ValOnly(T item)
-    {
-        Item = item;
-    }
-
-    public string Show()
-    {
-        return $"ValOnly: {Item}";
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/struct-constraint.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -103,48 +59,12 @@ Constraining to an interface guarantees that the type parameter implements speci
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-interface IOrderable {
-    int GetOrder();
-}
-
-class Sorter<T> where T : IOrderable {
-    public T First;
-    public T Second;
-    public Sorter(T first, T second) {
-        First = first;
-        Second = second;
-    }
-    public int GetFirstOrder() {
-        return First.GetOrder();
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/interface-constraint.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-interface IOrderable
-{
-    int GetOrder();
-}
-
-class Sorter<T>
-    where T : IOrderable
-{
-    public T First;
-
-    public T Second;
-
-    public Sorter(T first, T second)
-    {
-        First = first;
-        Second = second;
-    }
-
-    public int GetFirstOrder()
-    {
-        return First.GetOrder();
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/interface-constraint.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -158,43 +78,12 @@ Traits can also be used as constraints. A type satisfies a trait constraint if i
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-trait Describable {
-    string Describe();
-}
-
-class Describer<T> where T : Describable {
-    public T Item;
-    public Describer(T item) {
-        Item = item;
-    }
-    public string GetDescription() {
-        return Item.Describe();
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/trait-constraint.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-interface Describable
-{
-    string Describe();
-}
-
-class Describer<T>
-    where T : Describable
-{
-    public T Item;
-
-    public Describer(T item)
-    {
-        Item = item;
-    }
-
-    public string GetDescription()
-    {
-        return Item.Describe();
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/trait-constraint.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -208,59 +97,12 @@ Constraining to a base class guarantees that the type parameter extends that cla
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-class Animal {
-    public string Species;
-    public Animal(string species) {
-        Species = species;
-    }
-    public string GetSpecies() {
-        return Species;
-    }
-}
-
-class AnimalHandler<T> where T : Animal {
-    public T Animal;
-    public AnimalHandler(T animal) {
-        Animal = animal;
-    }
-    public string GetSpeciesName() {
-        return Animal.GetSpecies();
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/base-class-constraint.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-class Animal
-{
-    public string Species;
-
-    public Animal(string species)
-    {
-        Species = species;
-    }
-
-    public string GetSpecies()
-    {
-        return Species;
-    }
-}
-
-class AnimalHandler<T>
-    where T : Animal
-{
-    public T Animal;
-
-    public AnimalHandler(T animal)
-    {
-        Animal = animal;
-    }
-
-    public string GetSpeciesName()
-    {
-        return Animal.GetSpecies();
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/base-class-constraint.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -276,23 +118,12 @@ The `new()` constraint guarantees that the type parameter has a parameterless co
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-class Creator<T> where T : new() {
-    public T Create() {
-        return new T();
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/new-parameterless.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-class Creator<T>
-    where T : new()
-{
-    public T Create()
-    {
-        return new T();
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/new-parameterless.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -306,29 +137,12 @@ The compiler emits parameterized constructor constraints as factory delegates (`
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-class IntFactory<T> where T : new(int) {
-    public T Create(int value) {
-        return new T(value);
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/new-parameterized.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-class IntFactory<T>
-{
-    private readonly Func<int, T> _factoryT_int;
-
-    public IntFactory(Func<int, T> factoryT_int)
-    {
-        _factoryT_int = factoryT_int;
-    }
-
-    public T Create(int value)
-    {
-        return _factoryT_int(value);
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/new-parameterized.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -342,32 +156,12 @@ You can combine multiple constraints on the same type parameter by separating th
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-interface IPrintable {
-    string Print();
-}
-
-class PrintableCreator<T> where T : class, IPrintable, new() {
-    public T CreateNew() {
-        return new T();
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/multiple-constraints.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-interface IPrintable
-{
-    string Print();
-}
-
-class PrintableCreator<T>
-    where T : class, IPrintable, new()
-{
-    public T CreateNew()
-    {
-        return new T();
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/multiple-constraints.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -381,32 +175,12 @@ When a generic type has multiple type parameters, each parameter can have its ow
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-class Pair<K, V> where K : IOrderable where V : new() {
-    public K Key;
-    public V Value;
-    public Pair(K key) {
-        Key = key;
-        Value = new V();
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/multiple-where.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-class Pair<K, V>
-    where K : IOrderable
-    where V : new()
-{
-    public K Key;
-
-    public V Value;
-
-    public Pair(K key)
-    {
-        Key = key;
-        Value = new V();
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/multiple-where.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -420,23 +194,12 @@ Constraints aren't limited to type declarations — generic methods can also hav
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-class MethodConstraints {
-    public static T CreateItem<T>() where T : new() {
-        return new T();
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/method-constraints.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-class MethodConstraints
-{
-    public static T CreateItem<T>()
-        where T : new()
-    {
-        return new T();
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/method-constraints.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -450,47 +213,12 @@ Constraints can also appear on generic interface and struct declarations, not ju
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-interface IRepository<T> where T : class, new() {
-    T GetById(int id);
-    void Save(T item);
-}
+{{#include ../../snippets/type-system/generic-constraints/interface-struct-constraints.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-interface IRepository<T>
-    where T : class, new()
-{
-    T GetById(int id);
-    void Save(T item);
-}
-```
-{{#endtab }}
-{{#endtabs }}
-
-{{#tabs }}
-{{#tab name="Mist" }}
-```mist
-struct Holder<T> where T : IPrintable {
-    public T Value;
-    public Holder(T value) {
-        Value = value;
-    }
-}
-```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-struct Holder<T>
-    where T : IPrintable
-{
-    public T Value;
-
-    public Holder(T value)
-    {
-        Value = value;
-    }
-}
+{{#include ../../snippets/type-system/generic-constraints/interface-struct-constraints.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

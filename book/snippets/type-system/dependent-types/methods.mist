@@ -1,0 +1,16 @@
+using System;
+
+namespace DependentTypes;
+
+public class DependentMethods
+{
+    public static void Repeat<N:int>(string text)
+    {
+        Console.WriteLine($"  Repeat<{N}>: {text}");
+    }
+
+    public static string Process<N:int>(FixedBuffer<N> buf)
+    {
+        return $"Processed buffer of size {buf.GetSize()}";
+    }
+}

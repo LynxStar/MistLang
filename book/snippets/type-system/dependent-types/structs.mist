@@ -1,0 +1,9 @@
+using System;
+
+namespace DependentTypes;
+
+public struct FixedSpan<Length:int>
+{
+    public int GetLength() { return Length; }
+    public string Describe() { return $"FixedSpan<{Length}>"; }
+}

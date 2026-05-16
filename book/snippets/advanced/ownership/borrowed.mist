@@ -1,0 +1,22 @@
+using System;
+
+namespace OwnershipSystem;
+
+public class BorrowedDemo
+{
+    public static void MutatePair(borrowed Pair p)
+    {
+        // Borrowed holder has exclusive mutable access
+        p.SetX(999);
+        Console.WriteLine($"borrowed mutated={p.Describe()}");
+    }
+
+    public static void Run()
+    {
+        owned Pair p = new Pair(1, 2);
+        // Lend as borrowed — owner loses access until borrow returns
+        MutatePair(p);
+        // Owner regains access after the borrow ends
+        Console.WriteLine($"owner after return={p.Describe()}");
+    }
+}

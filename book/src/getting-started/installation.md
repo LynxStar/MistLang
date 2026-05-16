@@ -92,17 +92,7 @@ name = "Hello"
 Create `Program.mist`:
 
 ```mist
-using System;
-
-namespace Hello;
-
-public class Program
-{
-    public static void Main()
-    {
-        Console.WriteLine("Mist is installed!");
-    }
-}
+{{#include ../../snippets/getting-started/installation-verify.mist}}
 ```
 
 Run the compiler:

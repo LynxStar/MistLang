@@ -1,0 +1,23 @@
+using System;
+
+namespace SwitchDemo;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        int | string mixed = 123;
+        var result = mixed switch {
+            int n => $"integer: {n}",
+            string s => $"string: {s}",
+        };
+        Console.WriteLine(result);
+
+        int | string mixed2 = "hello";
+        var result2 = mixed2 switch {
+            int n => $"integer: {n}",
+            string s => $"string: {s}",
+        };
+        Console.WriteLine(result2);
+    }
+}

@@ -9,16 +9,12 @@ The simplest way to create an array is with bracket syntax and `var` inference. 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-var numbers = [1, 2, 3];
-var names = ["Alice", "Bob", "Charlie"];
-var flags = [true, false, true];
+{{#include ../../snippets/basics/array-literals/bracket-syntax.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-var numbers = new[] { 1, 2, 3 };
-var names = new[] { "Alice", "Bob", "Charlie" };
-var flags = new[] { true, false, true };
+{{#include ../../snippets/basics/array-literals/bracket-syntax.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -32,14 +28,12 @@ An empty array literal `[]` requires an explicit type annotation on the variable
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-int[] empty = [];
-string[] noNames = [];
+{{#include ../../snippets/basics/array-literals/empty-arrays.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-int[] empty = Array.Empty<int>();
-string[] noNames = Array.Empty<string>();
+{{#include ../../snippets/basics/array-literals/empty-arrays.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -53,12 +47,12 @@ Array literals can be nested to create multi-dimensional jagged arrays. Each inn
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-var matrix = [[1, 2], [3, 4], [5, 6]];
+{{#include ../../snippets/basics/array-literals/nested.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-var matrix = new[] { new[] { 1, 2 }, new[] { 3, 4 }, new[] { 5, 6 } };
+{{#include ../../snippets/basics/array-literals/nested.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -72,48 +66,12 @@ You can pass an array literal directly at a call site without assigning it to a 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    private static void PrintAll(int[] items)
-    {
-        foreach (int item in items)
-        {
-            Console.WriteLine(item);
-        }
-    }
-
-    public static void Main(string[] args)
-    {
-        PrintAll([10, 20, 30]);
-    }
-}
+{{#include ../../snippets/basics/array-literals/method-arguments.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    private static void PrintAll(int[] items)
-    {
-        foreach (int item in items)
-        {
-            Console.WriteLine(item);
-        }
-    }
-
-    public static void Main(string[] args)
-    {
-        PrintAll(new[] { 10, 20, 30 });
-    }
-}
+{{#include ../../snippets/basics/array-literals/method-arguments.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -127,44 +85,12 @@ A method with an array return type can return an array literal directly.
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    private static int[] GetDefaults()
-    {
-        return [10, 20, 30];
-    }
-
-    public static void Main(string[] args)
-    {
-        int[] values = GetDefaults();
-        Console.WriteLine($"Count: {values.Length}");
-    }
-}
+{{#include ../../snippets/basics/array-literals/return-values.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    private static int[] GetDefaults()
-    {
-        return new[] { 10, 20, 30 };
-    }
-
-    public static void Main(string[] args)
-    {
-        int[] values = GetDefaults();
-        Console.WriteLine($"Count: {values.Length}");
-    }
-}
+{{#include ../../snippets/basics/array-literals/return-values.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -178,16 +104,12 @@ Mist permits a trailing comma after the last element in an array literal. This i
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-var items = [
-    1,
-    2,
-    3,
-];
+{{#include ../../snippets/basics/array-literals/trailing-comma.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-var items = new[] { 1, 2, 3 };
+{{#include ../../snippets/basics/array-literals/trailing-comma.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -201,14 +123,12 @@ When you declare the variable with an explicit array type, the compiler uses tha
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-int[] scores = [85, 92, 78];
-string[] words = ["hello", "world"];
+{{#include ../../snippets/basics/array-literals/explicit-type.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-int[] scores = new int[] { 85, 92, 78 };
-string[] words = new string[] { "hello", "world" };
+{{#include ../../snippets/basics/array-literals/explicit-type.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

@@ -1,0 +1,2 @@
+Console.WriteLine($"void == void: {Void.Void == Void.Void}");
+Console.WriteLine($"void != void: {Void.Void != Void.Void}");

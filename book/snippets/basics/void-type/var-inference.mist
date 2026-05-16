@@ -1,0 +1,2 @@
+var v = Void.Void;
+Console.WriteLine($"void value obtained: {v}");

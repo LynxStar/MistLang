@@ -1,0 +1,33 @@
+using System;
+
+namespace UnionDemo;
+
+public class Program
+{
+    private static void DescribeTriple(int | string | bool value)
+    {
+        if (value is int n)
+        {
+            Console.WriteLine($"  int: {n}");
+        }
+        if (value is string s)
+        {
+            Console.WriteLine($"  string: {s}");
+        }
+        if (value is bool b)
+        {
+            Console.WriteLine($"  bool: {b}");
+        }
+    }
+
+    public static void Main(string[] args)
+    {
+        int | string | bool tri1 = 99;
+        int | string | bool tri2 = "triple";
+        int | string | bool tri3 = true;
+
+        Program.DescribeTriple(tri1);
+        Program.DescribeTriple(tri2);
+        Program.DescribeTriple(tri3);
+    }
+}

@@ -9,30 +9,12 @@ An interface is declared with the `interface` keyword followed by a name and a b
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Shapes;
-
-interface IShape
-{
-    string Name { get; }
-    string Describe();
-    int Area();
-}
+{{#include ../../snippets/object-model/interfaces/declaration.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Shapes;
-
-interface IShape
-{
-    string Name { get; }
-    string Describe();
-    int Area();
-}
+{{#include ../../snippets/object-model/interfaces/declaration.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -44,36 +26,12 @@ Interfaces can also extend other interfaces using the colon syntax, inheriting a
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Interfaces;
-
-interface IDescribable
-{
-    string Describe();
-}
-
-interface IFullyDescribable : IDescribable
-{
-    string DetailedDescribe();
-}
+{{#include ../../snippets/object-model/interfaces/extending.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Interfaces;
-
-interface IDescribable
-{
-    string Describe();
-}
-
-interface IFullyDescribable : IDescribable
-{
-    string DetailedDescribe();
-}
+{{#include ../../snippets/object-model/interfaces/extending.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -87,61 +45,12 @@ A class implements an interface by listing the interface name after a colon in t
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Interfaces;
-
-interface IDescribable
-{
-    string Describe();
-}
-
-public class Person : IDescribable
-{
-    private string name;
-    private int age;
-
-    public Person(string name, int age)
-    {
-        this.name = name;
-        this.age = age;
-    }
-
-    public string Describe()
-    {
-        return $"Person: {name}, age {age}";
-    }
-}
+{{#include ../../snippets/object-model/interfaces/implementation.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Interfaces;
-
-interface IDescribable
-{
-    string Describe();
-}
-
-public class Person : IDescribable
-{
-    private string name;
-
-    private int age;
-
-    public Person(string name, int age)
-    {
-        this.name = name;
-        this.age = age;
-    }
-
-    public string Describe()
-    {
-        return $"Person: {name}, age {age}";
-    }
-}
+{{#include ../../snippets/object-model/interfaces/implementation.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -153,61 +62,12 @@ When a class implements a child interface, it must satisfy all members from the 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Interfaces;
-
-public class Robot : IFullyDescribable
-{
-    private string model;
-    private int version;
-
-    public Robot(string model, int version)
-    {
-        this.model = model;
-        this.version = version;
-    }
-
-    public string Describe()
-    {
-        return $"Robot: {model} v{version}";
-    }
-
-    public string DetailedDescribe()
-    {
-        return $"Robot model {model}, version {version}, fully operational";
-    }
-}
+{{#include ../../snippets/object-model/interfaces/child-implementation.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Interfaces;
-
-public class Robot : IFullyDescribable
-{
-    private string model;
-
-    private int version;
-
-    public Robot(string model, int version)
-    {
-        this.model = model;
-        this.version = version;
-    }
-
-    public string Describe()
-    {
-        return $"Robot: {model} v{version}";
-    }
-
-    public string DetailedDescribe()
-    {
-        return $"Robot model {model}, version {version}, fully operational";
-    }
-}
+{{#include ../../snippets/object-model/interfaces/child-implementation.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -221,58 +81,12 @@ Interface types can be used as variable types and parameter types, allowing code
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Interfaces;
-
-public class Program
-{
-    private static void PrintDescription(IDescribable item)
-    {
-        Console.WriteLine(item.Describe());
-    }
-
-    public static void Main(string[] args)
-    {
-        var person = new Person("Alice", 30);
-        var robot = new Robot("T-800", 2);
-
-        // Interface-typed variables
-        IDescribable describable = person;
-
-        // Pass implementing types to interface parameter
-        PrintDescription(person);
-        PrintDescription(robot);
-    }
-}
+{{#include ../../snippets/object-model/interfaces/polymorphic-usage.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Interfaces;
-
-public class Program
-{
-    private static void PrintDescription(IDescribable item)
-    {
-        Console.WriteLine(item.Describe());
-    }
-
-    public static void Main(string[] args)
-    {
-        var person = new Person("Alice", 30);
-        var robot = new Robot("T-800", 2);
-
-        // Interface-typed variables
-        IDescribable describable = person;
-
-        // Pass implementing types to interface parameter
-        PrintDescription(person);
-        PrintDescription(robot);
-    }
-}
+{{#include ../../snippets/object-model/interfaces/polymorphic-usage.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

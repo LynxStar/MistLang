@@ -1,0 +1,18 @@
+using System;
+
+namespace UnionDemo;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        int | string value = 1;
+        Console.WriteLine($"before: assigned int");
+
+        value = "switched";
+        if (value is string s)
+        {
+            Console.WriteLine($"after: {s}");
+        }
+    }
+}

@@ -1,0 +1,9 @@
+using System;
+
+namespace EnumDemo;
+
+public enum Color {
+    Red,
+    Green,
+    Blue
+}

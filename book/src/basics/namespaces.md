@@ -9,32 +9,12 @@ A file-scoped namespace applies to the entire file. Place it at the top (after a
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Namespaces.Utilities;
-
-public class StringHelper
-{
-    public static string Greet(string name)
-    {
-        return $"Hello, {name}!";
-    }
-}
+{{#include ../../snippets/basics/namespaces/file-scoped.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Namespaces.Utilities;
-
-public class StringHelper
-{
-    public static string Greet(string name)
-    {
-        return $"Hello, {name}!";
-    }
-}
+{{#include ../../snippets/basics/namespaces/file-scoped.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -48,34 +28,12 @@ A block namespace uses braces to scope the enclosed types. This form is useful w
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Namespaces.Helpers
-{
-    public class MathHelper
-    {
-        public static int Add(int a, int b)
-        {
-            return a + b;
-        }
-    }
-}
+{{#include ../../snippets/basics/namespaces/block-namespace.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Namespaces.Helpers
-{
-    public class MathHelper
-    {
-        public static int Add(int a, int b)
-        {
-            return a + b;
-        }
-    }
-}
+{{#include ../../snippets/basics/namespaces/block-namespace.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -85,56 +43,12 @@ You can declare multiple block namespaces in the same file:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Namespaces.MixedA
-{
-    public class AlphaType
-    {
-        public string Name()
-        {
-            return "AlphaType";
-        }
-    }
-}
-
-namespace Namespaces.MixedB
-{
-    public class BetaType
-    {
-        public string Name()
-        {
-            return "BetaType";
-        }
-    }
-}
+{{#include ../../snippets/basics/namespaces/multiple-blocks.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Namespaces.MixedA
-{
-    public class AlphaType
-    {
-        public string Name()
-        {
-            return "AlphaType";
-        }
-    }
-}
-
-namespace Namespaces.MixedB
-{
-    public class BetaType
-    {
-        public string Name()
-        {
-            return "BetaType";
-        }
-    }
-}
+{{#include ../../snippets/basics/namespaces/multiple-blocks.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -154,50 +68,12 @@ A file at the project root with no namespace declaration receives the inferred n
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-// No explicit namespace — inferred as "Namespaces" from project name
-
-public class AppConfig
-{
-    private string appName;
-    private string version;
-
-    public AppConfig(string appName, string version)
-    {
-        this.appName = appName;
-        this.version = version;
-    }
-
-    public string Display()
-    {
-        return $"App: {appName} v{version}";
-    }
-}
+{{#include ../../snippets/basics/namespaces/inference.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Namespaces;
-
-public class AppConfig
-{
-    private string appName;
-    private string version;
-
-    public AppConfig(string appName, string version)
-    {
-        this.appName = appName;
-        this.version = version;
-    }
-
-    public string Display()
-    {
-        return $"App: {appName} v{version}";
-    }
-}
+{{#include ../../snippets/basics/namespaces/inference.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -225,50 +101,12 @@ A file in `Models/` with no explicit namespace:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-// No explicit namespace — inferred as "Namespaces.Models" from folder path
-
-public class Player
-{
-    private string name;
-    private int health;
-
-    public Player(string name, int health)
-    {
-        this.name = name;
-        this.health = health;
-    }
-
-    public string Describe()
-    {
-        return $"Player: {name}, HP: {health}";
-    }
-}
+{{#include ../../snippets/basics/namespaces/nested-dirs.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Namespaces.Models;
-
-public class Player
-{
-    private string name;
-    private int health;
-
-    public Player(string name, int health)
-    {
-        this.name = name;
-        this.health = health;
-    }
-
-    public string Describe()
-    {
-        return $"Player: {name}, HP: {health}";
-    }
-}
+{{#include ../../snippets/basics/namespaces/nested-dirs.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -278,50 +116,12 @@ And a file nested deeper in `Models/Game/`:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-// No explicit namespace — inferred as "Namespaces.Models.Game"
-
-public class GameState
-{
-    private int level;
-    private bool active;
-
-    public GameState(int level, bool active)
-    {
-        this.level = level;
-        this.active = active;
-    }
-
-    public string Summary()
-    {
-        return $"Level: {level}, Active: {active}";
-    }
-}
+{{#include ../../snippets/basics/namespaces/deep-nested.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Namespaces.Models.Game;
-
-public class GameState
-{
-    private int level;
-    private bool active;
-
-    public GameState(int level, bool active)
-    {
-        this.level = level;
-        this.active = active;
-    }
-
-    public string Summary()
-    {
-        return $"Level: {level}, Active: {active}";
-    }
-}
+{{#include ../../snippets/basics/namespaces/deep-nested.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -333,42 +133,12 @@ To reference types from another namespace, add a `using` declaration at the top 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-using Namespaces.Models;
-using Namespaces.Models.Game;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var player = new Player("Alice", 100);
-        Console.WriteLine(player.Describe());
-
-        var state = new GameState(1, true);
-        Console.WriteLine(state.Summary());
-    }
-}
+{{#include ../../snippets/basics/namespaces/using-declarations.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-using Namespaces.Models;
-using Namespaces.Models.Game;
-
-namespace Namespaces;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var player = new Player("Alice", 100);
-        Console.WriteLine(player.Describe());
-
-        var state = new GameState(1, true);
-        Console.WriteLine(state.Summary());
-    }
-}
+{{#include ../../snippets/basics/namespaces/using-declarations.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -382,9 +152,7 @@ Types within the same namespace can reference each other directly without a `usi
 In the example above, `Program.mist` and `AppConfig.mist` both live at the project root with no explicit namespace, so they both belong to the `Namespaces` namespace. `Program` can use `AppConfig` directly:
 
 ```mist
-// Both files are in namespace "Namespaces" — no using needed
-var config = new AppConfig("Namespace Demo", "1.0");
-Console.WriteLine(config.Display());
+{{#include ../../snippets/basics/namespaces/same-namespace.mist}}
 ```
 
 Similarly, `Player.mist` and `Item.mist` both live in the `Models/` directory, so they share the inferred namespace `Namespaces.Models` and can reference each other without imports.

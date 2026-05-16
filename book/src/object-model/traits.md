@@ -9,24 +9,12 @@ A trait is declared with the `trait` keyword followed by a name and a body conta
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace Traits;
-
-trait Printable
-{
-    string Name;
-    int Id;
-}
+{{#include ../../snippets/object-model/traits/declaration.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace Traits;
-
-interface Printable
-{
-    string Name { get; }
-    int Id { get; }
-}
+{{#include ../../snippets/object-model/traits/declaration.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -38,42 +26,12 @@ Traits can extend other traits, inheriting all member requirements from their pa
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace GenericTraits;
-
-trait Readable
-{
-    string Read();
-}
-
-trait Writable
-{
-    void Write(string data);
-}
-
-trait ReadWriteStream : Readable, Writable
-{
-    void Flush();
-}
+{{#include ../../snippets/object-model/traits/extending.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace GenericTraits;
-
-interface Readable
-{
-    string Read();
-}
-
-interface Writable
-{
-    void Write(string data);
-}
-
-interface ReadWriteStream : Readable, Writable
-{
-    void Flush();
-}
+{{#include ../../snippets/object-model/traits/extending.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -87,52 +45,12 @@ A type satisfies a trait when its public members match the trait's declared sign
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace Traits;
-
-trait Printable
-{
-    string Name;
-    int Id;
-}
-
-// User satisfies Printable because it has public
-// properties `Name` (string) and `Id` (int).
-// No explicit declaration is required.
-public class User
-{
-    public string Name { get; set; }
-    public int Id { get; set; }
-
-    public User(string name, int id)
-    {
-        this.Name = name;
-        this.Id = id;
-    }
-}
+{{#include ../../snippets/object-model/traits/structural-satisfaction.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace Traits;
-
-interface Printable
-{
-    string Name { get; }
-    int Id { get; }
-}
-
-public class User : Printable
-{
-    public string Name { get; set; }
-
-    public int Id { get; set; }
-
-    public User(string name, int id)
-    {
-        this.Name = name;
-        this.Id = id;
-    }
-}
+{{#include ../../snippets/object-model/traits/structural-satisfaction.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -148,60 +66,12 @@ When a type has the right member types but different names, a `with` block provi
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace Traits;
-
-trait Printable
-{
-    string Name;
-    int Id;
-}
-
-// Product has `Title` and `Sku` instead of `Name` and `Id`.
-public class Product
-{
-    public string Title { get; set; }
-    public int Sku { get; set; }
-
-    public Product(string title, int sku)
-    {
-        this.Title = title;
-        this.Sku = sku;
-    }
-}
-
-// Map Product's members to Printable's expected names.
-with Product : Printable
-{
-    Title as Name;
-    Sku as Id;
-}
+{{#include ../../snippets/object-model/traits/with-block-fields.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace Traits;
-
-interface Printable
-{
-    string Name { get; }
-    int Id { get; }
-}
-
-public class Product : Printable
-{
-    public string Title { get; set; }
-
-    public int Sku { get; set; }
-
-    public Product(string title, int sku)
-    {
-        this.Title = title;
-        this.Sku = sku;
-    }
-
-    string Printable.Name => this.Title;
-    int Printable.Id => this.Sku;
-}
+{{#include ../../snippets/object-model/traits/with-block-fields.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -213,51 +83,12 @@ The `with` block also works for method mappings:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace GenericTraits;
-
-trait Writable
-{
-    void Write(string data);
-}
-
-public class Logger
-{
-    public Logger()
-    {
-    }
-
-    public void Log(string data)
-    {
-    }
-}
-
-with Logger : Writable
-{
-    Log as Write;
-}
+{{#include ../../snippets/object-model/traits/with-block-methods.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace GenericTraits;
-
-interface Writable
-{
-    void Write(string data);
-}
-
-public class Logger
-{
-    public Logger()
-    {
-    }
-
-    public void Log(string data)
-    {
-    }
-
-    void Writable.Write(string data) => this.Log(data);
-}
+{{#include ../../snippets/object-model/traits/with-block-methods.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -271,60 +102,12 @@ Trait types can be used as variable types and parameter types, accepting any val
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Traits;
-
-public class Program
-{
-    private static void PrintItem(Printable item)
-    {
-        Console.WriteLine($"Name: {item.Name}, Id: {item.Id}");
-    }
-
-    public static void Main(string[] args)
-    {
-        var user = new User("Alice", 42);
-        var product = new Product("Widget", 1001);
-
-        // Trait-typed variables
-        Printable p1 = user;
-        Printable p2 = product;
-
-        // Pass to trait-typed parameter
-        PrintItem(user);
-        PrintItem(product);
-    }
-}
+{{#include ../../snippets/object-model/traits/polymorphic-usage.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Traits;
-
-public class Program
-{
-    private static void PrintItem(Printable item)
-    {
-        Console.WriteLine($"Name: {item.Name}, Id: {item.Id}");
-    }
-
-    public static void Main(string[] args)
-    {
-        var user = new User("Alice", 42);
-        var product = new Product("Widget", 1001);
-
-        // Trait-typed variables
-        Printable p1 = user;
-        Printable p2 = product;
-
-        // Pass to trait-typed parameter
-        PrintItem(user);
-        PrintItem(product);
-    }
-}
+{{#include ../../snippets/object-model/traits/polymorphic-usage.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

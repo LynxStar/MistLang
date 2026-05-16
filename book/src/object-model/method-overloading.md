@@ -11,58 +11,12 @@ Two or more methods can share a name if they accept different numbers of paramet
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Overloading;
-
-public class MathHelper
-{
-    public static int Add(int a, int b)
-    {
-        return a + b;
-    }
-
-    public static int Clamp(int value, int min, int max)
-    {
-        if (value < min)
-        {
-            return min;
-        }
-        if (value > max)
-        {
-            return max;
-        }
-        return value;
-    }
-}
+{{#include ../../snippets/object-model/method-overloading/by-count.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Overloading;
-
-public class MathHelper
-{
-    public static int Add(int a, int b)
-    {
-        return a + b;
-    }
-
-    public static int Clamp(int value, int min, int max)
-    {
-        if (value < min)
-        {
-            return min;
-        }
-        if (value > max)
-        {
-            return max;
-        }
-        return value;
-    }
-}
+{{#include ../../snippets/object-model/method-overloading/by-count.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -72,44 +26,12 @@ Here `Add` takes two parameters while `Clamp` takes three. Although they are dif
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Overloading;
-
-public class Printer
-{
-    private string _prefix;
-
-    public Printer(string prefix)
-    {
-        this._prefix = prefix;
-    }
-
-    public Printer() : this("[default]")
-    {
-    }
-}
+{{#include ../../snippets/object-model/method-overloading/constructor-overloading.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Overloading;
-
-public class Printer
-{
-    private string _prefix;
-
-    public Printer(string prefix)
-    {
-        this._prefix = prefix;
-    }
-
-    public Printer() : this("[default]")
-    {
-    }
-}
+{{#include ../../snippets/object-model/method-overloading/constructor-overloading.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -123,42 +45,12 @@ Methods can also share a name and the same number of parameters if the parameter
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Overloading;
-
-public class MathHelper
-{
-    public static int Add(int a, int b)
-    {
-        return a + b;
-    }
-
-    public static double Add(double a, double b)
-    {
-        return a + b;
-    }
-}
+{{#include ../../snippets/object-model/method-overloading/by-type.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Overloading;
-
-public class MathHelper
-{
-    public static int Add(int a, int b)
-    {
-        return a + b;
-    }
-
-    public static double Add(double a, double b)
-    {
-        return a + b;
-    }
-}
+{{#include ../../snippets/object-model/method-overloading/by-type.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -170,76 +62,12 @@ The same pattern works for instance methods with any number of type-differentiat
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Overloading;
-
-public class Printer
-{
-    private string _prefix;
-
-    public Printer(string prefix)
-    {
-        this._prefix = prefix;
-    }
-
-    public string Format(int value)
-    {
-        return $"{_prefix} int={value}";
-    }
-
-    public string Format(bool value)
-    {
-        return $"{_prefix} bool={value}";
-    }
-
-    public string Format(double value)
-    {
-        return $"{_prefix} double={value}";
-    }
-
-    public string Format(string value)
-    {
-        return $"{_prefix} string={value}";
-    }
-}
+{{#include ../../snippets/object-model/method-overloading/instance-type-overloads.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Overloading;
-
-public class Printer
-{
-    private string _prefix;
-
-    public Printer(string prefix)
-    {
-        this._prefix = prefix;
-    }
-
-    public string Format(int value)
-    {
-        return $"{_prefix} int={value}";
-    }
-
-    public string Format(bool value)
-    {
-        return $"{_prefix} bool={value}";
-    }
-
-    public string Format(double value)
-    {
-        return $"{_prefix} double={value}";
-    }
-
-    public string Format(string value)
-    {
-        return $"{_prefix} string={value}";
-    }
-}
+{{#include ../../snippets/object-model/method-overloading/instance-type-overloads.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

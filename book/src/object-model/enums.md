@@ -9,33 +9,12 @@ An enum with an explicit underlying type annotation declares the type after a co
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace EnumDemo;
-
-public enum Direction : string {
-    North: "N",
-    South: "S",
-    East: "E",
-    West: "W"
-}
+{{#include ../../snippets/object-model/enums/typed.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace EnumDemo;
-
-public record class Direction(string Value)
-{
-    public static readonly Direction North = new Direction("N");
-    public static readonly Direction South = new Direction("S");
-    public static readonly Direction East = new Direction("E");
-    public static readonly Direction West = new Direction("W");
-
-    public static implicit operator string(Direction e) => e.Value;
-}
+{{#include ../../snippets/object-model/enums/typed.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -49,31 +28,12 @@ When no underlying type is specified and members have no explicit values, the en
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace EnumDemo;
-
-public enum Color {
-    Red,
-    Green,
-    Blue
-}
+{{#include ../../snippets/object-model/enums/name-only.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace EnumDemo;
-
-public record class Color(byte Value)
-{
-    public static readonly Color Red = new Color((byte)0);
-    public static readonly Color Green = new Color((byte)1);
-    public static readonly Color Blue = new Color((byte)2);
-
-    public static implicit operator byte(Color e) => e.Value;
-}
+{{#include ../../snippets/object-model/enums/name-only.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -87,35 +47,12 @@ An enum can mix members with explicit values and members without. Members withou
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace EnumDemo;
-
-public enum HttpStatus : int {
-    Ok: 200,
-    Created: 201,
-    BadRequest: 400,
-    NotFound,
-    InternalError: 500
-}
+{{#include ../../snippets/object-model/enums/mixed-values.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace EnumDemo;
-
-public record class HttpStatus(int Value)
-{
-    public static readonly HttpStatus Ok = new HttpStatus(200);
-    public static readonly HttpStatus Created = new HttpStatus(201);
-    public static readonly HttpStatus BadRequest = new HttpStatus(400);
-    public static readonly HttpStatus NotFound = new HttpStatus(401);
-    public static readonly HttpStatus InternalError = new HttpStatus(500);
-
-    public static implicit operator int(HttpStatus e) => e.Value;
-}
+{{#include ../../snippets/object-model/enums/mixed-values.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -129,29 +66,12 @@ The underlying type can be a type union, allowing members to hold values of diff
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace EnumDemo;
-
-public enum MixedResult : int | string {
-    Success: 0,
-    ErrorMsg: "error"
-}
+{{#include ../../snippets/object-model/enums/union-underlying.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace EnumDemo;
-
-public record class MixedResult(Union_Int32_String Value)
-{
-    public static readonly MixedResult Success = new MixedResult(0);
-    public static readonly MixedResult ErrorMsg = new MixedResult("error");
-
-    public static implicit operator Union_Int32_String(MixedResult e) => e.Value;
-}
+{{#include ../../snippets/object-model/enums/union-underlying.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -167,67 +87,12 @@ Enums can use user-defined structs or classes as their underlying type, provided
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace EnumDemo;
-
-public readonly struct Vec2 {
-    public int x;
-    public int y;
-
-    public Vec2(int x, int y)
-    {
-        this.x = x;
-        this.y = y;
-    }
-
-    public string Describe()
-    {
-        return $"({this.x}, {this.y})";
-    }
-}
-
-public enum CardinalDir : Vec2 {
-    Up: new Vec2(0, 1),
-    Down: new Vec2(0, -1),
-    Left: new Vec2(-1, 0),
-    Right: new Vec2(1, 0)
-}
+{{#include ../../snippets/object-model/enums/struct-underlying.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace EnumDemo;
-
-public readonly record struct Vec2
-{
-    public int x;
-
-    public int y;
-
-    public Vec2(int x, int y)
-    {
-        this.x = x;
-        this.y = y;
-    }
-
-    public string Describe()
-    {
-        return $"({this.x}, {this.y})";
-    }
-}
-
-public record class CardinalDir(Vec2 Value)
-{
-    public static readonly CardinalDir Up = new CardinalDir(new Vec2(0, 1));
-    public static readonly CardinalDir Down = new CardinalDir(new Vec2(0, -1));
-    public static readonly CardinalDir Left = new CardinalDir(new Vec2(-1, 0));
-    public static readonly CardinalDir Right = new CardinalDir(new Vec2(1, 0));
-
-    public static implicit operator Vec2(CardinalDir e) => e.Value;
-}
+{{#include ../../snippets/object-model/enums/struct-underlying.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -237,65 +102,12 @@ public record class CardinalDir(Vec2 Value)
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace EnumDemo;
-
-public readonly class Label {
-    public string text;
-    public int code;
-
-    public Label(string text, int code)
-    {
-        this.text = text;
-        this.code = code;
-    }
-
-    public string Describe()
-    {
-        return $"Label({this.text}, {this.code})";
-    }
-}
-
-public enum Severity : Label {
-    Critical: new Label("CRITICAL", 1),
-    Warning: new Label("WARNING", 2),
-    Info: new Label("INFO", 3)
-}
+{{#include ../../snippets/object-model/enums/class-underlying.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace EnumDemo;
-
-public class Label
-{
-    public string text;
-
-    public int code;
-
-    public Label(string text, int code)
-    {
-        this.text = text;
-        this.code = code;
-    }
-
-    public string Describe()
-    {
-        return $"Label({this.text}, {this.code})";
-    }
-}
-
-public record class Severity(Label Value)
-{
-    public static readonly Severity Critical = new Severity(new Label("CRITICAL", 1));
-    public static readonly Severity Warning = new Severity(new Label("WARNING", 2));
-    public static readonly Severity Info = new Severity(new Label("INFO", 3));
-
-    public static implicit operator Label(Severity e) => e.Value;
-}
+{{#include ../../snippets/object-model/enums/class-underlying.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -309,50 +121,12 @@ Enum values implicitly convert to their underlying type. You can assign an enum 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace EnumDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        // Implicit conversion to underlying type
-        int statusValue = HttpStatus.Ok;
-        string dirValue = Direction.North;
-        byte colorValue = Color.Red;
-        Vec2 upVec = CardinalDir.Up;
-
-        Console.WriteLine($"HttpStatus.Ok as int = {statusValue}");
-        Console.WriteLine($"Direction.North as string = {dirValue}");
-        Console.WriteLine($"Color.Red as byte = {colorValue}");
-        Console.WriteLine($"CardinalDir.Up as Vec2 = {upVec.Describe()}");
-    }
-}
+{{#include ../../snippets/object-model/enums/implicit-conversion.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace EnumDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        // Implicit conversion to underlying type
-        int statusValue = HttpStatus.Ok;
-        string dirValue = Direction.North;
-        byte colorValue = Color.Red;
-        Vec2 upVec = CardinalDir.Up;
-
-        Console.WriteLine($"HttpStatus.Ok as int = {statusValue}");
-        Console.WriteLine($"Direction.North as string = {dirValue}");
-        Console.WriteLine($"Color.Red as byte = {colorValue}");
-        Console.WriteLine($"CardinalDir.Up as Vec2 = {upVec.Describe()}");
-    }
-}
+{{#include ../../snippets/object-model/enums/implicit-conversion.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -366,56 +140,12 @@ Enum values support pattern matching with the `is` keyword. The compiler emits a
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace EnumDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Direction d = Direction.North;
-        bool isNorth = d is Direction.North;
-        bool isSouth = d is Direction.South;
-
-        Console.WriteLine($"d is Direction.North = {isNorth}");
-        Console.WriteLine($"d is Direction.South = {isSouth}");
-
-        Color c = Color.Green;
-        bool isGreen = c is Color.Green;
-        bool isRed = c is Color.Red;
-
-        Console.WriteLine($"c is Color.Green = {isGreen}");
-        Console.WriteLine($"c is Color.Red = {isRed}");
-    }
-}
+{{#include ../../snippets/object-model/enums/pattern-matching.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace EnumDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Direction d = Direction.North;
-        bool isNorth = d == Direction.North;
-        bool isSouth = d == Direction.South;
-
-        Console.WriteLine($"d is Direction.North = {isNorth}");
-        Console.WriteLine($"d is Direction.South = {isSouth}");
-
-        Color c = Color.Green;
-        bool isGreen = c == Color.Green;
-        bool isRed = c == Color.Red;
-
-        Console.WriteLine($"c is Color.Green = {isGreen}");
-        Console.WriteLine($"c is Color.Red = {isRed}");
-    }
-}
+{{#include ../../snippets/object-model/enums/pattern-matching.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

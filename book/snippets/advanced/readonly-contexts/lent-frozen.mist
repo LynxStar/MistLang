@@ -1,0 +1,40 @@
+using System;
+
+namespace ReadonlyContexts;
+
+public class Sensor
+{
+    public int Id;
+    public int Reading;
+
+    public Sensor(int id, int reading)
+    {
+        this.Id = id;
+        this.Reading = reading;
+    }
+
+    public int GetReading() { return Reading; }
+    public void SetReading(int r) { this.Reading = r; }
+    public string Describe() { return $"Sensor({Id}, {Reading})"; }
+}
+
+public class LentFrozenDemo
+{
+    public static void WithFrozenRef(frozen Sensor s)
+    {
+        // While this frozen ref exists, the owner is in LentFrozen state
+        Console.WriteLine($"frozen view={s.GetReading()}");
+    }
+
+    public static void Main(string[] args)
+    {
+        owned Sensor s = new Sensor(1, 100);
+
+        // Lend as frozen — owner enters LentFrozen during call
+        WithFrozenRef(s);
+
+        // After frozen returns, owner is back to Live
+        s.SetReading(200);
+        Console.WriteLine($"after thaw={s.Describe()}");
+    }
+}

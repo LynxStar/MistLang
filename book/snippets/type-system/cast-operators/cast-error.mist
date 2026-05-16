@@ -1,0 +1,2 @@
+Measurement m = w;
+// var mK = (Kelvin)m;  // ERROR: No cast operator from 'Measurement' to 'Kelvin'

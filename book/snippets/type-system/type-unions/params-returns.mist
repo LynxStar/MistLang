@@ -1,0 +1,36 @@
+using System;
+
+namespace UnionDemo;
+
+public class Program
+{
+    private static void Describe(int | string value)
+    {
+        if (value is int n)
+        {
+            Console.WriteLine($"  int: {n}");
+        }
+        if (value is string s)
+        {
+            Console.WriteLine($"  string: {s}");
+        }
+    }
+
+    private static int | string GetValue(bool useInt)
+    {
+        if (useInt)
+        {
+            return 100;
+        }
+        return "hello";
+    }
+
+    public static void Main(string[] args)
+    {
+        Program.Describe(7);
+        Program.Describe("Mist");
+
+        int | string result = Program.GetValue(true);
+        Console.WriteLine($"GetValue(true) returned a value");
+    }
+}

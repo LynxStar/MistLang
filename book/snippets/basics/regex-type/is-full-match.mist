@@ -1,0 +1,5 @@
+var fullDigits = `\d{3}`;
+Console.WriteLine($"fullmatch_123={fullDigits.IsFullMatch("123")}");
+Console.WriteLine($"fullmatch_1234={fullDigits.IsFullMatch("1234")}");
+Console.WriteLine($"fullmatch_12={fullDigits.IsFullMatch("12")}");
+Console.WriteLine($"fullmatch_abc={fullDigits.IsFullMatch("abc")}");

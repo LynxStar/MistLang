@@ -1,0 +1,37 @@
+using System;
+
+namespace RefParameters;
+
+public class Sensor
+{
+    public int Reading;
+
+    public Sensor(int reading)
+    {
+        this.Reading = reading;
+    }
+
+    public string Describe()
+    {
+        return $"Sensor({Reading})";
+    }
+}
+
+public class Program
+{
+    public static void ReadSensor(readonly ref Sensor s)
+    {
+        // Can read fields and call methods
+        Console.WriteLine($"reading={s.Describe()}");
+        // Cannot mutate: s.Reading = 10; would be a compile error
+    }
+
+    public static void Main()
+    {
+        owned Sensor s = new Sensor(42);
+        ReadSensor(s);
+        // Owner retains full access after readonly ref returns
+        s.Reading = 100;
+        Console.WriteLine($"after={s.Describe()}");
+    }
+}

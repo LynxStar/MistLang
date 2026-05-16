@@ -23,46 +23,12 @@ Here is a small Mist program and the C# code the compiler emits:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace HelloMist;
-
-public class Greeter
-{
-    private string name;
-
-    public Greeter(string name)
-    {
-        this.name = name;
-    }
-
-    public string Greet()
-    {
-        return $"Hello, {name}!";
-    }
-}
+{{#include ../snippets/introduction/greeter.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace HelloMist;
-
-public class Greeter
-{
-    private string name;
-
-    public Greeter(string name)
-    {
-        this.name = name;
-    }
-
-    public string Greet()
-    {
-        return $"Hello, {name}!";
-    }
-}
+{{#include ../snippets/introduction/greeter.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

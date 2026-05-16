@@ -11,49 +11,12 @@ A standalone block introduces a new scope without any control flow semantics. Va
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ScopingDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var outer = "visible everywhere";
-
-        {
-            var inner = "only visible in this block";
-            Console.WriteLine(inner);
-            Console.WriteLine(outer);  // outer is accessible here
-        }
-
-        // inner is not accessible here — it went out of scope
-        Console.WriteLine(outer);
-    }
-}
+{{#include ../../snippets/advanced/nested-scoping/lexical-scoping.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ScopingDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var outer = "visible everywhere";
-
-        {
-            var inner = "only visible in this block";
-            Console.WriteLine(inner);
-            Console.WriteLine(outer);
-        }
-
-        Console.WriteLine(outer);
-    }
-}
+{{#include ../../snippets/advanced/nested-scoping/lexical-scoping.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -67,49 +30,12 @@ An inner scope may declare a variable with the same name as a variable in an enc
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ScopingDemo;
-
-public class ShadowingDemo
-{
-    public static void Main(string[] args)
-    {
-        var x = 10;
-        Console.WriteLine($"outer x = {x}");
-
-        {
-            var x = 99;  // shadows the outer x
-            Console.WriteLine($"inner x = {x}");
-        }
-
-        // outer x is restored — still 10
-        Console.WriteLine($"outer x after block = {x}");
-    }
-}
+{{#include ../../snippets/advanced/nested-scoping/shadowing.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ScopingDemo;
-
-public class ShadowingDemo
-{
-    public static void Main(string[] args)
-    {
-        var x = 10;
-        Console.WriteLine($"outer x = {x}");
-
-        {
-            var x = 99;
-            Console.WriteLine($"inner x = {x}");
-        }
-
-        Console.WriteLine($"outer x after block = {x}");
-    }
-}
+{{#include ../../snippets/advanced/nested-scoping/shadowing.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -121,54 +47,12 @@ Shadowing works at any nesting depth. Each block can shadow variables from any e
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ScopingDemo;
-
-public class DeepShadowing
-{
-    public static void Main(string[] args)
-    {
-        var name = "first";
-
-        {
-            var name = "second";
-            {
-                var name = "third";
-                Console.WriteLine(name);  // "third"
-            }
-            Console.WriteLine(name);  // "second"
-        }
-
-        Console.WriteLine(name);  // "first"
-    }
-}
+{{#include ../../snippets/advanced/nested-scoping/deep-shadowing.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ScopingDemo;
-
-public class DeepShadowing
-{
-    public static void Main(string[] args)
-    {
-        var name = "first";
-
-        {
-            var name = "second";
-            {
-                var name = "third";
-                Console.WriteLine(name);
-            }
-            Console.WriteLine(name);
-        }
-
-        Console.WriteLine(name);
-    }
-}
+{{#include ../../snippets/advanced/nested-scoping/deep-shadowing.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -182,74 +66,12 @@ This means you can use nested blocks to limit the lifetime of a borrow:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ScopingDemo;
-
-public class Resource
-{
-    public int Id;
-    public Resource(int id) { this.Id = id; }
-    public string Describe() { return $"Resource({Id})"; }
-    public void Update(int id) { this.Id = id; }
-}
-
-public class OwnershipScopeDemo
-{
-    public static void ReadOnly(frozen Resource r)
-    {
-        Console.WriteLine($"frozen view: {r.Describe()}");
-    }
-
-    public static void Main(string[] args)
-    {
-        owned Resource res = new Resource(1);
-
-        {
-            // Borrow is confined to this block
-            ReadOnly(res);
-        }
-
-        // After the block, the owner is fully restored
-        res.Update(2);
-        Console.WriteLine($"after update: {res.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/nested-scoping/ownership-scopes.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ScopingDemo;
-
-public class Resource
-{
-    public int Id;
-    public Resource(int id) { this.Id = id; }
-    public string Describe() { return $"Resource({Id})"; }
-    public void Update(int id) { this.Id = id; }
-}
-
-public class OwnershipScopeDemo
-{
-    public static void ReadOnly(Resource r)
-    {
-        Console.WriteLine($"frozen view: {r.Describe()}");
-    }
-
-    public static void Main(string[] args)
-    {
-        Resource res = new Resource(1);
-
-        {
-            ReadOnly(res);
-        }
-
-        res.Update(2);
-        Console.WriteLine($"after update: {res.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/nested-scoping/ownership-scopes.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -263,69 +85,12 @@ Structured context values declared with `with` are scoped to their enclosing blo
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ScopingDemo;
-
-public class Logger
-{
-    public static void Log(string msg) with string prefix
-    {
-        Console.WriteLine($"[{prefix}] {msg}");
-    }
-}
-
-public class ContextScopeDemo
-{
-    public static void Main(string[] args)
-    {
-        with var prefix = "OUTER";
-        Logger.Log("message 1");
-
-        {
-            with var prefix = "INNER";
-            Logger.Log("message 2");  // uses "INNER"
-        }
-
-        Logger.Log("message 3");  // uses "OUTER" again
-    }
-}
+{{#include ../../snippets/advanced/nested-scoping/context-scopes.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ScopingDemo;
-
-public class Logger
-{
-    public static void Log(string msg)
-    {
-        var prefix = (string)MistContext.Peek<string>();
-        Console.WriteLine($"[{prefix}] {msg}");
-    }
-}
-
-public class ContextScopeDemo
-{
-    public static void Main(string[] args)
-    {
-        MistContext.Push<string>("OUTER");
-        var prefix = "OUTER";
-        Logger.Log("message 1");
-
-        {
-            MistContext.Push<string>("INNER");
-            var prefix = "INNER";
-            Logger.Log("message 2");
-            MistContext.Pop<string>();
-        }
-
-        Logger.Log("message 3");
-        MistContext.Pop<string>();
-    }
-}
+{{#include ../../snippets/advanced/nested-scoping/context-scopes.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -339,82 +104,12 @@ Braces also create scoping boundaries for type declarations. A class, struct, in
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ScopingDemo;
-
-public class Outer
-{
-    public class Inner
-    {
-        public static string Hello() { return "Outer.Inner"; }
-    }
-
-    public enum Status : string
-    {
-        Active: "active",
-        Inactive: "inactive"
-    }
-
-    public static void Demo()
-    {
-        // Within Outer, nested types are accessible by simple name
-        Console.WriteLine(Inner.Hello());
-        Console.WriteLine($"Status.Active = {Status.Active}");
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        // From outside, use the qualified name
-        Console.WriteLine(Outer.Inner.Hello());
-        Outer.Demo();
-    }
-}
+{{#include ../../snippets/advanced/nested-scoping/nested-types.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ScopingDemo;
-
-public class Outer
-{
-    public class Inner
-    {
-        public static string Hello() { return "Outer.Inner"; }
-    }
-
-    public readonly struct Status
-    {
-        public static readonly Status Active = new Status("active");
-        public static readonly Status Inactive = new Status("inactive");
-
-        public string Value { get; }
-        private Status(string value) { Value = value; }
-
-        public static implicit operator string(Status s) => s.Value;
-        public override string ToString() => Value;
-    }
-
-    public static void Demo()
-    {
-        Console.WriteLine(Inner.Hello());
-        Console.WriteLine($"Status.Active = {Status.Active}");
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Console.WriteLine(Outer.Inner.Hello());
-        Outer.Demo();
-    }
-}
+{{#include ../../snippets/advanced/nested-scoping/nested-types.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

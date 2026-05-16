@@ -36,32 +36,12 @@ Create a file called `Program.mist` with the following code:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Hello;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Console.WriteLine("Hello, World!");
-    }
-}
+{{#include ../../snippets/getting-started/hello-world.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Hello;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Console.WriteLine("Hello, World!");
-    }
-}
+{{#include ../../snippets/getting-started/hello-world.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -93,33 +73,31 @@ The `mist build` command compiles your `.mist` source files into a .NET executab
 Let's walk through each part of the program:
 
 ```mist
-using System;
+{{#include ../../snippets/getting-started/hello-world-using.mist}}
 ```
 
 The `using` declaration imports the `System` namespace, which gives you access to `Console` and other fundamental .NET types. Without this line, you'd need to write `System.Console.WriteLine(...)` instead.
 
 ```mist
-namespace Hello;
+{{#include ../../snippets/getting-started/hello-world-namespace.mist}}
 ```
 
 The `namespace` declaration places your code inside the `Hello` namespace. The semicolon-terminated form is a file-scoped namespace — it applies to everything in the file. This matches the project name from `mist.toml`.
 
 ```mist
-public class Program
-{
+{{#include ../../snippets/getting-started/hello-world-class.mist}}
 ```
 
 This declares a public class named `Program`. In Mist, all executable code lives inside classes. The `public` modifier makes the class accessible from outside its namespace.
 
 ```mist
-    public static void Main(string[] args)
-    {
+{{#include ../../snippets/getting-started/hello-world-main.mist}}
 ```
 
 The `Main` method is the entry point of your program. The runtime calls this method when you execute the compiled output. It's `static` because it's called without creating an instance of `Program`, and `void` because it doesn't return a value. The `string[] args` parameter receives any command-line arguments.
 
 ```mist
-        Console.WriteLine("Hello, World!");
+{{#include ../../snippets/getting-started/hello-world-writeline.mist}}
 ```
 
 This calls the `WriteLine` method on the `Console` class from the `System` namespace, printing the string `"Hello, World!"` followed by a newline to standard output.

@@ -1,0 +1,22 @@
+namespace GenericTraits;
+
+trait Writable
+{
+    void Write(string data);
+}
+
+public class Logger
+{
+    public Logger()
+    {
+    }
+
+    public void Log(string data)
+    {
+    }
+}
+
+with Logger : Writable
+{
+    Log as Write;
+}

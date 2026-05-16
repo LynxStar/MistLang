@@ -1,0 +1,16 @@
+public class Service
+{
+    public static string GetConfig() with Config cfg
+    {
+        return cfg.Value;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // ERROR: No Config context available at this call site
+        var result = Service.GetConfig();
+    }
+}

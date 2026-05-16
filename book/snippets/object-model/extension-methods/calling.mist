@@ -1,0 +1,19 @@
+using System;
+
+namespace ExtensionMethods;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var greeting = new Greeting("Hello beautiful world");
+
+        // Call extension methods via dot-notation
+        var wc = greeting.WordCount();
+        var upper = greeting.Uppercase();
+        var repeated = greeting.Repeat(2);
+
+        Console.WriteLine(wc);
+        Console.WriteLine(upper);
+    }
+}

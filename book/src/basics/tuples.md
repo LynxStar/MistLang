@@ -11,14 +11,12 @@ The simplest tuple form groups values by position. Declare the type as `(Type1, 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-(int, string) pair = (42, "forty-two");
-Console.WriteLine($"pair.Item1={pair.Item1} pair.Item2={pair.Item2}");
+{{#include ../../snippets/basics/tuples/positional.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-(int, string) pair = (42, "forty-two");
-Console.WriteLine($"pair.Item1={pair.Item1} pair.Item2={pair.Item2}");
+{{#include ../../snippets/basics/tuples/positional.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -32,16 +30,12 @@ You can give each element a name in the type declaration. Named elements are acc
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-(int x, int y) point = (x: 3, y: 4);
-Console.WriteLine($"point.x={point.x} point.y={point.y}");
-Console.WriteLine($"positional: Item1={point.Item1} Item2={point.Item2}");
+{{#include ../../snippets/basics/tuples/named.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-(int x, int y) point = (x: 3, y: 4);
-Console.WriteLine($"point.x={point.x} point.y={point.y}");
-Console.WriteLine($"positional: Item1={point.Item1} Item2={point.Item2}");
+{{#include ../../snippets/basics/tuples/named.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -59,14 +53,12 @@ Use `var (name1, name2) = tupleExpr;` to deconstruct with inferred types:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-var (a, b) = (10, 20);
-Console.WriteLine($"a={a} b={b}");
+{{#include ../../snippets/basics/tuples/deconstruction-var.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-var (a, b) = (10, 20);
-Console.WriteLine($"a={a} b={b}");
+{{#include ../../snippets/basics/tuples/deconstruction-var.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -78,14 +70,12 @@ Use `(Type1 name1, Type2 name2) = tupleExpr;` to deconstruct with explicit types
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-(int u, int v) = (100, 200);
-Console.WriteLine($"u={u} v={v}");
+{{#include ../../snippets/basics/tuples/deconstruction-typed.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-(int u, int v) = (100, 200);
-Console.WriteLine($"u={u} v={v}");
+{{#include ../../snippets/basics/tuples/deconstruction-typed.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -99,16 +89,12 @@ A tuple element can itself be a tuple, allowing you to represent structured data
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-((int, int), string) nested = ((1, 2), "label");
-Console.WriteLine(
-    $"inner=({nested.Item1.Item1}, {nested.Item1.Item2}) outer={nested.Item2}");
+{{#include ../../snippets/basics/tuples/nested.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-((int, int), string) nested = ((1, 2), "label");
-Console.WriteLine(
-    $"inner=({nested.Item1.Item1}, {nested.Item1.Item2}) outer={nested.Item2}");
+{{#include ../../snippets/basics/tuples/nested.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

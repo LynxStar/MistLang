@@ -9,18 +9,12 @@ The most direct way to declare a variable is with an explicit type. The syntax i
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-int count = 10;
-string greeting = "Hello, Mist!";
-bool isReady = true;
-double pi = 3.14;
+{{#include ../../snippets/basics/variables/explicit-types.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-int count = 10;
-string greeting = "Hello, Mist!";
-bool isReady = true;
-double pi = 3.14;
+{{#include ../../snippets/basics/variables/explicit-types.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -34,16 +28,12 @@ When the type is clear from the initializer expression, you can use `var` to let
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-var message = "Hello from Mist!";
-var total = 0;
-var origin = new Point(0, 0);
+{{#include ../../snippets/basics/variables/type-inference.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-var message = "Hello from Mist!";
-var total = 0;
-var origin = new Point(0, 0);
+{{#include ../../snippets/basics/variables/type-inference.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -61,14 +51,12 @@ Use `var (name1, name2) = tupleExpr;` to deconstruct a tuple with inferred types
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-var (a, b) = (10, 20);
-Console.WriteLine($"a={a} b={b}");
+{{#include ../../snippets/basics/variables/deconstruction-var.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-var (a, b) = (10, 20);
-Console.WriteLine($"a={a} b={b}");
+{{#include ../../snippets/basics/variables/deconstruction-var.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -80,14 +68,12 @@ Use `(Type1 name1, Type2 name2) = tupleExpr;` to deconstruct with explicit types
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-(int u, int v) = (100, 200);
-Console.WriteLine($"u={u} v={v}");
+{{#include ../../snippets/basics/variables/deconstruction-typed.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-(int u, int v) = (100, 200);
-Console.WriteLine($"u={u} v={v}");
+{{#include ../../snippets/basics/variables/deconstruction-typed.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -99,12 +85,7 @@ Both forms create individual variables (`a` and `b`, or `u` and `v`) rather than
 Variables in Mist are scoped to the enclosing block, delimited by `{` and `}`. A variable declared inside a block is not accessible outside that block.
 
 ```mist
-if (condition)
-{
-    int x = 42;
-    Console.WriteLine(x); // OK — x is in scope
-}
-// x is not accessible here — it went out of scope
+{{#include ../../snippets/basics/variables/scoping.mist}}
 ```
 
 This applies to all block-introducing constructs: `if`/`else`, `while`, `for`, `foreach`, and plain brace-delimited blocks. Each block creates a new scope, and variables declared within it are destroyed when the block ends.
@@ -116,18 +97,12 @@ Variables declared with an explicit type or `var` are mutable by default. You ca
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-var total = 0;
-total = total + 5;
-total = total + 10;
-Console.WriteLine($"total={total}");
+{{#include ../../snippets/basics/variables/mutability.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-var total = 0;
-total = total + 5;
-total = total + 10;
-Console.WriteLine($"total={total}");
+{{#include ../../snippets/basics/variables/mutability.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

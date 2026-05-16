@@ -1,0 +1,5 @@
+namespace Newtypes;
+
+type UserId = new int;
+type Label = new string;
+type Flag = new bool;

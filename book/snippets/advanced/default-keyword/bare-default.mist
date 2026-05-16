@@ -1,0 +1,19 @@
+using System;
+
+namespace DefaultDemo;
+
+public class Config
+{
+    public int MaxRetries;
+    public bool Verbose;
+    public string Label;
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Config inferred = default;
+        Console.WriteLine($"MaxRetries={inferred.MaxRetries} Verbose={inferred.Verbose} Label={inferred.Label}");
+    }
+}

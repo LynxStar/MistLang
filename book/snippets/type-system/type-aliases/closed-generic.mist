@@ -1,0 +1,28 @@
+namespace TypeAliases;
+
+public class GenericBox<T>
+{
+    public T value;
+
+    public GenericBox(T v)
+    {
+        this.value = v;
+    }
+
+    public string Describe()
+    {
+        return $"Box({this.value})";
+    }
+}
+
+type IntBox = GenericBox<int>;
+type StringBox = GenericBox<string>;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        IntBox intBox = new IntBox(42);
+        StringBox strBox = new StringBox("Mist");
+    }
+}

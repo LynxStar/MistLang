@@ -1,0 +1,44 @@
+using System;
+
+namespace RefParameters;
+
+public class Pair
+{
+    public int X;
+    public int Y;
+
+    public Pair(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    public void SetX(int x)
+    {
+        this.X = x;
+    }
+
+    public string Describe()
+    {
+        return $"Pair({X}, {Y})";
+    }
+}
+
+public class Program
+{
+    public static void MutateBorrowed(borrowed Pair p)
+    {
+        // Borrowed holder has exclusive mutable access
+        p.SetX(999);
+        Console.WriteLine($"mutated={p.Describe()}");
+    }
+
+    public static void Main()
+    {
+        owned Pair p = new Pair(1, 2);
+        // Lend as borrowed — owner loses all access until call returns
+        MutateBorrowed(p);
+        // Owner regains access after borrowed returns
+        Console.WriteLine($"owner after={p.Describe()}");
+    }
+}

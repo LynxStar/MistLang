@@ -20,26 +20,12 @@ Mist supports all standard .NET integer types. Each type has a fixed size and ra
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-int i = 42;
-uint ui = 100u;
-long l = 100L;
-ulong ul = 999UL;
-short s = 16;
-ushort us = 32;
-byte b = 255;
-sbyte sb = -128;
+{{#include ../../snippets/basics/primitive-types/integer-types.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-int i = 42;
-uint ui = 100u;
-long l = 100L;
-ulong ul = 999UL;
-short s = 16;
-ushort us = 32;
-byte b = 255;
-sbyte sb = -128;
+{{#include ../../snippets/basics/primitive-types/integer-types.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -51,16 +37,12 @@ For fractional numbers, Mist provides `float` (32-bit), `double` (64-bit), and `
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-float f = 2.5f;
-double d = 3.14;
-decimal m = 99.99m;
+{{#include ../../snippets/basics/primitive-types/floating-point.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-float f = 2.5f;
-double d = 3.14;
-decimal m = 99.99m;
+{{#include ../../snippets/basics/primitive-types/floating-point.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -88,14 +70,12 @@ Integer values can be written in hexadecimal using the `0x` prefix:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-int hex = 0xFF;
-Console.WriteLine($"hex={hex}");
+{{#include ../../snippets/basics/primitive-types/hex-literals.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-int hex = 0xFF;
-Console.WriteLine($"hex={hex}");
+{{#include ../../snippets/basics/primitive-types/hex-literals.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -109,16 +89,12 @@ The `bool` type represents a truth value — either `true` or `false`.
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-bool flag = true;
-bool done = false;
-Console.WriteLine($"flag={flag} done={done}");
+{{#include ../../snippets/basics/primitive-types/bool.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-bool flag = true;
-bool done = false;
-Console.WriteLine($"flag={flag} done={done}");
+{{#include ../../snippets/basics/primitive-types/bool.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -130,14 +106,12 @@ The `char` type holds a single Unicode character, written with single quotes:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-char ch = 'Z';
-Console.WriteLine($"char={ch}");
+{{#include ../../snippets/basics/primitive-types/char.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-char ch = 'Z';
-Console.WriteLine($"char={ch}");
+{{#include ../../snippets/basics/primitive-types/char.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -149,14 +123,12 @@ The `string` type holds a sequence of characters, written with double quotes:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-string greeting = "Hello, Mist!";
-Console.WriteLine(greeting);
+{{#include ../../snippets/basics/primitive-types/string.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-string greeting = "Hello, Mist!";
-Console.WriteLine(greeting);
+{{#include ../../snippets/basics/primitive-types/string.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -175,14 +147,12 @@ Strings support standard escape sequences for special characters:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-string escaped = "Line1\nLine2\tTabbed";
-Console.WriteLine(escaped);
+{{#include ../../snippets/basics/primitive-types/escape-sequences.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-string escaped = "Line1\nLine2\tTabbed";
-Console.WriteLine(escaped);
+{{#include ../../snippets/basics/primitive-types/escape-sequences.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -194,20 +164,12 @@ Prefixing a string with `$` enables interpolation. Expressions inside `{` and `}
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-int i = 42;
-string interp = $"The answer is {i}";
-string interpExpr = $"Doubled: {i * 2}";
-Console.WriteLine(interp);
-Console.WriteLine(interpExpr);
+{{#include ../../snippets/basics/primitive-types/string-interpolation.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-int i = 42;
-string interp = $"The answer is {i}";
-string interpExpr = $"Doubled: {i * 2}";
-Console.WriteLine(interp);
-Console.WriteLine(interpExpr);
+{{#include ../../snippets/basics/primitive-types/string-interpolation.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

@@ -1,0 +1,20 @@
+interface Describable
+{
+    string Describe();
+}
+
+class Describer<T>
+    where T : Describable
+{
+    public T Item;
+
+    public Describer(T item)
+    {
+        Item = item;
+    }
+
+    public string GetDescription()
+    {
+        return Item.Describe();
+    }
+}

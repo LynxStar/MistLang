@@ -9,56 +9,12 @@ A generic class declares one or more type parameters in angle brackets after the
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace GenericTypes;
-
-public class GenericBox<T>
-{
-    private T item;
-
-    public GenericBox(T item)
-    {
-        this.item = item;
-    }
-
-    public T GetItem()
-    {
-        return item;
-    }
-
-    public string Describe()
-    {
-        return $"GenericBox({item})";
-    }
-}
+{{#include ../../snippets/type-system/generics/classes.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace GenericTypes;
-
-public class GenericBox<T>
-{
-    private T item;
-
-    public GenericBox(T item)
-    {
-        this.item = item;
-    }
-
-    public T GetItem()
-    {
-        return item;
-    }
-
-    public string Describe()
-    {
-        return $"GenericBox({item})";
-    }
-}
+{{#include ../../snippets/type-system/generics/classes.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -72,51 +28,12 @@ Structs can also be generic. A generic struct follows the same syntax as a gener
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace GenericTypes;
-
-public struct Pair<A, B>
-{
-    public A First;
-    public B Second;
-
-    public Pair(A first, B second)
-    {
-        this.First = first;
-        this.Second = second;
-    }
-
-    public string Describe()
-    {
-        return $"({First}, {Second})";
-    }
-}
+{{#include ../../snippets/type-system/generics/structs.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace GenericTypes;
-
-public struct Pair<A, B>
-{
-    public A First;
-
-    public B Second;
-
-    public Pair(A first, B second)
-    {
-        this.First = first;
-        this.Second = second;
-    }
-
-    public string Describe()
-    {
-        return $"({First}, {Second})";
-    }
-}
+{{#include ../../snippets/type-system/generics/structs.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -130,26 +47,12 @@ Interfaces can declare type parameters, allowing implementors to provide concret
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace GenericTypes;
-
-interface IGenericContainer<T>
-{
-    T GetItem();
-}
+{{#include ../../snippets/type-system/generics/interfaces.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace GenericTypes;
-
-interface IGenericContainer<T>
-{
-    T GetItem();
-}
+{{#include ../../snippets/type-system/generics/interfaces.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -159,46 +62,12 @@ A class implements a generic interface by specifying the concrete type argument 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace GenericTypes;
-
-public class GenericBox<T> : IGenericContainer<T>
-{
-    private T item;
-
-    public GenericBox(T item)
-    {
-        this.item = item;
-    }
-
-    public T GetItem()
-    {
-        return item;
-    }
-}
+{{#include ../../snippets/type-system/generics/implementing.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace GenericTypes;
-
-public class GenericBox<T> : IGenericContainer<T>
-{
-    private T item;
-
-    public GenericBox(T item)
-    {
-        this.item = item;
-    }
-
-    public T GetItem()
-    {
-        return item;
-    }
-}
+{{#include ../../snippets/type-system/generics/implementing.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -212,42 +81,12 @@ Methods can declare their own type parameters independently of the enclosing cla
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace GenericTypes;
-
-public class Utilities
-{
-    public static T Identity<T>(T value)
-    {
-        return value;
-    }
-
-    public static void PrintItem<T>(T item)
-    {
-        Console.WriteLine($"Item: {item}");
-    }
-}
+{{#include ../../snippets/type-system/generics/methods.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace GenericTypes;
-
-public class Utilities
-{
-    public static T Identity<T>(T value)
-    {
-        return value;
-    }
-
-    public static void PrintItem<T>(T item)
-    {
-        Console.WriteLine($"Item: {item}");
-    }
-}
+{{#include ../../snippets/type-system/generics/methods.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -261,52 +100,12 @@ When constructing a generic type or calling a generic method, you supply type ar
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace GenericTypes;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        // Explicit type argument on construction
-        var box = new GenericBox<int>(42);
-        Console.WriteLine(box.GetItem());
-
-        // Explicit type argument on a generic method call
-        var result = Utilities.Identity<string>("hello");
-        Console.WriteLine(result);
-
-        // Interface-typed variable with type argument
-        IGenericContainer<int> container = new GenericBox<int>(99);
-        Console.WriteLine(container.GetItem());
-    }
-}
+{{#include ../../snippets/type-system/generics/type-arguments.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace GenericTypes;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        // Explicit type argument on construction
-        var box = new GenericBox<int>(42);
-        Console.WriteLine(box.GetItem());
-
-        // Explicit type argument on a generic method call
-        var result = Utilities.Identity<string>("hello");
-        Console.WriteLine(result);
-
-        // Interface-typed variable with type argument
-        IGenericContainer<int> container = new GenericBox<int>(99);
-        Console.WriteLine(container.GetItem());
-    }
-}
+{{#include ../../snippets/type-system/generics/type-arguments.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -320,71 +119,12 @@ A generic type or method can declare multiple type parameters separated by comma
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace GenericTypes;
-
-public class KeyValueStore<K, V>
-{
-    private K key;
-    private V value;
-
-    public KeyValueStore(K key, V value)
-    {
-        this.key = key;
-        this.value = value;
-    }
-
-    public K GetKey()
-    {
-        return key;
-    }
-
-    public V GetValue()
-    {
-        return value;
-    }
-
-    public string Describe()
-    {
-        return $"{key} => {value}";
-    }
-}
+{{#include ../../snippets/type-system/generics/multiple-params.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace GenericTypes;
-
-public class KeyValueStore<K, V>
-{
-    private K key;
-
-    private V value;
-
-    public KeyValueStore(K key, V value)
-    {
-        this.key = key;
-        this.value = value;
-    }
-
-    public K GetKey()
-    {
-        return key;
-    }
-
-    public V GetValue()
-    {
-        return value;
-    }
-
-    public string Describe()
-    {
-        return $"{key} => {value}";
-    }
-}
+{{#include ../../snippets/type-system/generics/multiple-params.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -394,40 +134,12 @@ At the call site, you supply each type argument in order:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace GenericTypes;
-
-public class MultiParamDemo
-{
-    public static void Run()
-    {
-        var store = new KeyValueStore<string, int>("age", 30);
-        Console.WriteLine(store.Describe());
-
-        var mixed = new KeyValueStore<int, bool>(1, true);
-        Console.WriteLine(mixed.Describe());
-    }
-}
+{{#include ../../snippets/type-system/generics/multi-param-demo.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace GenericTypes;
-
-public class MultiParamDemo
-{
-    public static void Run()
-    {
-        var store = new KeyValueStore<string, int>("age", 30);
-        Console.WriteLine(store.Describe());
-
-        var mixed = new KeyValueStore<int, bool>(1, true);
-        Console.WriteLine(mixed.Describe());
-    }
-}
+{{#include ../../snippets/type-system/generics/multi-param-demo.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

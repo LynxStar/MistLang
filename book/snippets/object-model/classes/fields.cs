@@ -1,0 +1,9 @@
+using System;
+
+namespace Demo;
+
+public class Point
+{
+    private int x;
+    private int y;
+}

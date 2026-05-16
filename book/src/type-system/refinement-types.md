@@ -11,33 +11,12 @@ A simple refinement type applies a single relational predicate to a base type us
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace RefinementTypes;
-
-type AdultAge = int >= 18;
-type Positive = int > 0;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        AdultAge age = 25;
-        Positive count = 1;
-    }
-}
+{{#include ../../snippets/type-system/refinement-types/simple.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace RefinementTypes;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int age = 25;
-        int count = 1;
-    }
-}
+{{#include ../../snippets/type-system/refinement-types/simple.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -51,34 +30,12 @@ A compound refinement type combines multiple predicates using the `and` combinat
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace RefinementTypes;
-
-type Percentage = int >= 0 and <= 100;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Percentage low = 0;
-        Percentage mid = 50;
-        Percentage high = 100;
-    }
-}
+{{#include ../../snippets/type-system/refinement-types/compound.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace RefinementTypes;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int low = 0;
-        int mid = 50;
-        int high = 100;
-    }
-}
+{{#include ../../snippets/type-system/refinement-types/compound.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -92,63 +49,12 @@ A refinement type can constrain properties of a class or struct type using prope
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace RefinementTypes;
-
-public readonly class Range
-{
-    public int Start;
-    public int End;
-
-    public Range(int start, int end)
-    {
-        this.Start = start;
-        this.End = end;
-    }
-}
-
-type ValidRange = Range { Start: >= 0 };
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var r = new Range(10, 50);
-        if (r is ValidRange valid)
-        {
-            Console.WriteLine($"Valid: Start={valid.Start}");
-        }
-    }
-}
+{{#include ../../snippets/type-system/refinement-types/property-pattern.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace RefinementTypes;
-
-public class Range
-{
-    public int Start;
-    public int End;
-
-    public Range(int start, int end)
-    {
-        this.Start = start;
-        this.End = end;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Range r = new Range(10, 50);
-        if (r.Start >= 0)
-        {
-            Range valid = r;
-            Console.WriteLine($"Valid: Start={valid.Start}");
-        }
-    }
-}
+{{#include ../../snippets/type-system/refinement-types/property-pattern.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -165,67 +71,12 @@ Refinement constraints are enforced in two ways depending on context:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace RefinementTypes;
-
-type AdultAge = int >= 18;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        // Compile-time: literal 20 satisfies >= 18
-        AdultAge known = 20;
-
-        // Runtime: dynamic value checked via pattern matching
-        int userInput = 25;
-        if (userInput is AdultAge validAge)
-        {
-            Console.WriteLine($"Valid adult age: {validAge}");
-        }
-
-        int childInput = 10;
-        if (childInput is AdultAge childAge)
-        {
-            Console.WriteLine("This won't print");
-        }
-        else
-        {
-            Console.WriteLine("Not an adult age");
-        }
-    }
-}
+{{#include ../../snippets/type-system/refinement-types/enforcement.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace RefinementTypes;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        // Compile-time: literal 20 satisfies >= 18
-        int known = 20;
-
-        // Runtime: dynamic value checked via pattern matching
-        int userInput = 25;
-        if (userInput >= 18)
-        {
-            int validAge = userInput;
-            Console.WriteLine($"Valid adult age: {validAge}");
-        }
-
-        int childInput = 10;
-        if (childInput >= 18)
-        {
-            Console.WriteLine("This won't print");
-        }
-        else
-        {
-            Console.WriteLine("Not an adult age");
-        }
-    }
-}
+{{#include ../../snippets/type-system/refinement-types/enforcement.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -239,103 +90,12 @@ Refinement types can appear anywhere a regular type can — as variable types, m
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace RefinementTypes;
-
-type AdultAge = int >= 18;
-type Percentage = int >= 0 and <= 100;
-
-public class Person
-{
-    public AdultAge Age;
-    public string Name;
-
-    public Person(string name)
-    {
-        this.Name = name;
-        this.Age = 18;
-    }
-}
-
-public class Program
-{
-    // Refinement as parameter type
-    private static string DescribeAge(AdultAge age)
-    {
-        return $"Adult age is {age}";
-    }
-
-    // Refinement as return type
-    private static AdultAge GetDefaultAge()
-    {
-        return 25;
-    }
-
-    public static void Main(string[] args)
-    {
-        // Refinement as variable type
-        Percentage score = 85;
-
-        // Refinement as field type (via Person.Age)
-        var person = new Person("Alice");
-
-        // Refinement as return type
-        AdultAge defaultAge = Program.GetDefaultAge();
-
-        // Refinement as parameter type
-        var desc = Program.DescribeAge(defaultAge);
-    }
-}
+{{#include ../../snippets/type-system/refinement-types/all-positions.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace RefinementTypes;
-
-public class Person
-{
-    public int Age;
-    public string Name;
-
-    public Person(string name)
-    {
-        this.Name = name;
-        this.Age = 18;
-    }
-}
-
-public class Program
-{
-    // Refinement as parameter type — runtime guard emitted
-    private static string DescribeAge(int age)
-    {
-        if (!(age >= 18))
-            throw new ArgumentException(
-                $"Value {age} does not satisfy refinement '>= 18' on type 'AdultAge'",
-                nameof(age));
-        return $"Adult age is {age}";
-    }
-
-    // Refinement as return type
-    private static int GetDefaultAge()
-    {
-        return 25;
-    }
-
-    public static void Main(string[] args)
-    {
-        // Refinement as variable type
-        int score = 85;
-
-        // Refinement as field type (via Person.Age)
-        Person person = new Person("Alice");
-
-        // Refinement as return type
-        int defaultAge = Program.GetDefaultAge();
-
-        // Refinement as parameter type
-        string desc = Program.DescribeAge(defaultAge);
-    }
-}
+{{#include ../../snippets/type-system/refinement-types/all-positions.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -349,53 +109,12 @@ When you perform arithmetic on a refined value, the result has the base type rat
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace RefinementTypes;
-
-type AdultAge = int >= 18;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        AdultAge a = 20;
-
-        // Arithmetic produces int, not AdultAge
-        int sum = a + 5;
-        int diff = a - 2;
-
-        // To get back to AdultAge, use pattern matching
-        int computed = a + 10;
-        if (computed is AdultAge verified)
-        {
-            Console.WriteLine($"Still adult: {verified}");
-        }
-    }
-}
+{{#include ../../snippets/type-system/refinement-types/arithmetic.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace RefinementTypes;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int a = 20;
-
-        // Arithmetic produces int, not AdultAge
-        int sum = a + 5;
-        int diff = a - 2;
-
-        // To get back to AdultAge, use pattern matching
-        int computed = a + 10;
-        if (computed >= 18)
-        {
-            int verified = computed;
-            Console.WriteLine($"Still adult: {verified}");
-        }
-    }
-}
+{{#include ../../snippets/type-system/refinement-types/arithmetic.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

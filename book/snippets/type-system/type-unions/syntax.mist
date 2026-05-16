@@ -1,0 +1,15 @@
+using System;
+
+namespace UnionDemo;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        int | string x = 42;
+        int | string y = "hello";
+
+        Console.WriteLine($"x holds an int");
+        Console.WriteLine($"y holds a string");
+    }
+}

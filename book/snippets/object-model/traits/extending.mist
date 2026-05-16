@@ -1,0 +1,16 @@
+namespace GenericTraits;
+
+trait Readable
+{
+    string Read();
+}
+
+trait Writable
+{
+    void Write(string data);
+}
+
+trait ReadWriteStream : Readable, Writable
+{
+    void Flush();
+}

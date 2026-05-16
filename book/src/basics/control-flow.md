@@ -9,58 +9,12 @@ The `if` statement evaluates a boolean condition and executes the corresponding 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int score = 85;
-
-        if (score >= 90)
-        {
-            Console.WriteLine("Grade: A");
-        }
-        else if (score >= 80)
-        {
-            Console.WriteLine("Grade: B");
-        }
-        else
-        {
-            Console.WriteLine("Grade: C or below");
-        }
-    }
-}
+{{#include ../../snippets/basics/control-flow/if-else.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int score = 85;
-
-        if (score >= 90)
-        {
-            Console.WriteLine("Grade: A");
-        }
-        else if (score >= 80)
-        {
-            Console.WriteLine("Grade: B");
-        }
-        else
-        {
-            Console.WriteLine("Grade: C or below");
-        }
-    }
-}
+{{#include ../../snippets/basics/control-flow/if-else.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -74,42 +28,12 @@ A `while` loop repeatedly executes its body as long as the condition evaluates t
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int count = 0;
-        while (count < 3)
-        {
-            Console.WriteLine($"Count: {count}");
-            count = count + 1;
-        }
-    }
-}
+{{#include ../../snippets/basics/control-flow/while-loop.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int count = 0;
-        while (count < 3)
-        {
-            Console.WriteLine($"Count: {count}");
-            count = count + 1;
-        }
-    }
-}
+{{#include ../../snippets/basics/control-flow/while-loop.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -121,38 +45,12 @@ The `for` loop provides a compact syntax for counted iteration. It takes an init
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        for (int i = 0; i < 5; i = i + 1)
-        {
-            Console.WriteLine($"i = {i}");
-        }
-    }
-}
+{{#include ../../snippets/basics/control-flow/for-loop.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        for (int i = 0; i < 5; i = i + 1)
-        {
-            Console.WriteLine($"i = {i}");
-        }
-    }
-}
+{{#include ../../snippets/basics/control-flow/for-loop.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -166,48 +64,12 @@ The `foreach` loop iterates over each element in a collection. You declare the e
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int[] numbers = new int[3];
-        numbers[0] = 10;
-        numbers[1] = 20;
-        numbers[2] = 30;
-
-        foreach (int n in numbers)
-        {
-            Console.WriteLine($"Element: {n}");
-        }
-    }
-}
+{{#include ../../snippets/basics/control-flow/foreach-loop.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int[] numbers = new int[3];
-        numbers[0] = 10;
-        numbers[1] = 20;
-        numbers[2] = 30;
-
-        foreach (int n in numbers)
-        {
-            Console.WriteLine($"Element: {n}");
-        }
-    }
-}
+{{#include ../../snippets/basics/control-flow/foreach-loop.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -221,46 +83,12 @@ The `break` statement exits the innermost enclosing loop immediately. Execution 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        for (int i = 0; i < 10; i = i + 1)
-        {
-            if (i == 3)
-            {
-                break;
-            }
-            Console.WriteLine($"i = {i}");
-        }
-    }
-}
+{{#include ../../snippets/basics/control-flow/break.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        for (int i = 0; i < 10; i = i + 1)
-        {
-            if (i == 3)
-            {
-                break;
-            }
-            Console.WriteLine($"i = {i}");
-        }
-    }
-}
+{{#include ../../snippets/basics/control-flow/break.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -274,62 +102,12 @@ Control flow constructs can be freely nested. Here's a common pattern — a loop
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int[] values = new int[5];
-        values[0] = 3;
-        values[1] = 7;
-        values[2] = 2;
-        values[3] = 9;
-        values[4] = 4;
-
-        var sum = 0;
-        foreach (int v in values)
-        {
-            if (v > 5)
-            {
-                sum = sum + v;
-            }
-        }
-        Console.WriteLine($"Sum of values > 5: {sum}");
-    }
-}
+{{#include ../../snippets/basics/control-flow/nested.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int[] values = new int[5];
-        values[0] = 3;
-        values[1] = 7;
-        values[2] = 2;
-        values[3] = 9;
-        values[4] = 4;
-
-        var sum = 0;
-        foreach (int v in values)
-        {
-            if (v > 5)
-            {
-                sum = sum + v;
-            }
-        }
-        Console.WriteLine($"Sum of values > 5: {sum}");
-    }
-}
+{{#include ../../snippets/basics/control-flow/nested.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

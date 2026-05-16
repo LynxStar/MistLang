@@ -1,0 +1,7 @@
+namespace Traits;
+
+trait Printable
+{
+    string Name;
+    int Id;
+}

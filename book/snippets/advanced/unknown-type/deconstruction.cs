@@ -1,0 +1,17 @@
+using System;
+
+namespace UnknownDemo;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        (int, object) source = (7, "seven");
+        var (num, data) = source;
+        Console.WriteLine($"num={num}");
+        if (data is string ds)
+        {
+            Console.WriteLine($"data narrowed to string: {ds}");
+        }
+    }
+}

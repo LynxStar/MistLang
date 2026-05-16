@@ -11,63 +11,12 @@ The `with var` form declares a context value with an inferred type and binds it 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ContextDemo;
-
-public class Greeter
-{
-    public static string GetGreeting() with string message
-    {
-        return message;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        with var greeting = "hello";
-        Console.WriteLine(greeting);
-        var result = Greeter.GetGreeting();
-        Console.WriteLine(result);
-    }
-}
+{{#include ../../snippets/advanced/structured-context/with-var.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ContextDemo;
-
-public class Greeter
-{
-    public static string GetGreeting()
-    {
-        var message = (string)MistContext.Peek<string>();
-        return message;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var greeting = "hello";
-        MistContext.Push<string>(greeting);
-        try
-        {
-            Console.WriteLine(greeting);
-            var result = Greeter.GetGreeting();
-            Console.WriteLine(result);
-        }
-        finally
-        {
-            MistContext.Pop<string>();
-        }
-    }
-}
+{{#include ../../snippets/advanced/structured-context/with-var.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -81,83 +30,12 @@ The `with Type identifier = expression` form uses an explicit type annotation. T
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ContextDemo;
-
-public class Config
-{
-    public string Value;
-
-    public Config(string value)
-    {
-        this.Value = value;
-    }
-}
-
-public class Consumers
-{
-    public static string GetConfig() with Config cfg
-    {
-        return cfg.Value;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        with Config cfg = new Config("production");
-        Console.WriteLine(cfg.Value);
-        var result = Consumers.GetConfig();
-        Console.WriteLine(result);
-    }
-}
+{{#include ../../snippets/advanced/structured-context/with-type.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ContextDemo;
-
-public class Config
-{
-    public string Value;
-
-    public Config(string value)
-    {
-        this.Value = value;
-    }
-}
-
-public class Consumers
-{
-    public static string GetConfig()
-    {
-        var cfg = (Config)MistContext.Peek<Config>();
-        return cfg.Value;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Config cfg = new Config("production");
-        MistContext.Push<Config>(cfg);
-        try
-        {
-            Console.WriteLine(cfg.Value);
-            var result = Consumers.GetConfig();
-            Console.WriteLine(result);
-        }
-        finally
-        {
-            MistContext.Pop<Config>();
-        }
-    }
-}
+{{#include ../../snippets/advanced/structured-context/with-type.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -171,80 +49,12 @@ The `with Type _ = expression` form pushes a value onto the context stack withou
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ContextDemo;
-
-public class Config
-{
-    public string Value;
-
-    public Config(string value)
-    {
-        this.Value = value;
-    }
-}
-
-public class Consumers
-{
-    public static string GetConfig() with Config cfg
-    {
-        return cfg.Value;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        with Config _ = new Config("discarded-binding");
-        var result = Consumers.GetConfig();
-        Console.WriteLine(result);
-    }
-}
+{{#include ../../snippets/advanced/structured-context/with-type-discard.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ContextDemo;
-
-public class Config
-{
-    public string Value;
-
-    public Config(string value)
-    {
-        this.Value = value;
-    }
-}
-
-public class Consumers
-{
-    public static string GetConfig()
-    {
-        var cfg = (Config)MistContext.Peek<Config>();
-        return cfg.Value;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        MistContext.Push<Config>(new Config("discarded-binding"));
-        try
-        {
-            var result = Consumers.GetConfig();
-            Console.WriteLine(result);
-        }
-        finally
-        {
-            MistContext.Pop<Config>();
-        }
-    }
-}
+{{#include ../../snippets/advanced/structured-context/with-type-discard.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -258,80 +68,12 @@ The `with expression` form is the most concise — it pushes the expression's va
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ContextDemo;
-
-public struct Locale
-{
-    public string Language;
-
-    public Locale(string language)
-    {
-        this.Language = language;
-    }
-}
-
-public class Consumers
-{
-    public static string GetLocale() with Locale loc
-    {
-        return loc.Language;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        with new Locale("en-US");
-        var result = Consumers.GetLocale();
-        Console.WriteLine(result);
-    }
-}
+{{#include ../../snippets/advanced/structured-context/with-expr.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ContextDemo;
-
-public struct Locale
-{
-    public string Language;
-
-    public Locale(string language)
-    {
-        this.Language = language;
-    }
-}
-
-public class Consumers
-{
-    public static string GetLocale()
-    {
-        var loc = (Locale)MistContext.Peek<Locale>();
-        return loc.Language;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        MistContext.Push<Locale>(new Locale("en-US"));
-        try
-        {
-            var result = Consumers.GetLocale();
-            Console.WriteLine(result);
-        }
-        finally
-        {
-            MistContext.Pop<Locale>();
-        }
-    }
-}
+{{#include ../../snippets/advanced/structured-context/with-expr.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -345,78 +87,12 @@ A context block pushes a value for a specific block scope only. When the block e
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ContextDemo;
-
-public class Consumers
-{
-    public static int GetInt() with int n
-    {
-        return n;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        with var count = 10;
-        Console.WriteLine(Consumers.GetInt());
-
-        with(99)
-        {
-            Console.WriteLine(Consumers.GetInt());
-        }
-
-        Console.WriteLine(Consumers.GetInt());
-    }
-}
+{{#include ../../snippets/advanced/structured-context/context-block.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ContextDemo;
-
-public class Consumers
-{
-    public static int GetInt()
-    {
-        var n = (int)MistContext.Peek<int>();
-        return n;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var count = 10;
-        MistContext.Push<int>(count);
-        try
-        {
-            Console.WriteLine(Consumers.GetInt());
-
-            MistContext.Push<int>(99);
-            try
-            {
-                Console.WriteLine(Consumers.GetInt());
-            }
-            finally
-            {
-                MistContext.Pop<int>();
-            }
-
-            Console.WriteLine(Consumers.GetInt());
-        }
-        finally
-        {
-            MistContext.Pop<int>();
-        }
-    }
-}
+{{#include ../../snippets/advanced/structured-context/context-block.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -430,72 +106,12 @@ A method declares its context requirements using one or more `with` clauses afte
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ContextDemo;
-
-public class Service
-{
-    public static string Describe() with string name with int count
-    {
-        return $"name={name}, count={count}";
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        with var name = "alpha";
-        with var count = 5;
-        var result = Service.Describe();
-        Console.WriteLine(result);
-    }
-}
+{{#include ../../snippets/advanced/structured-context/method-with-clause.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ContextDemo;
-
-public class Service
-{
-    public static string Describe()
-    {
-        var name = (string)MistContext.Peek<string>();
-        var count = (int)MistContext.Peek<int>();
-        return $"name={name}, count={count}";
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var name = "alpha";
-        MistContext.Push<string>(name);
-        try
-        {
-            var count = 5;
-            MistContext.Push<int>(count);
-            try
-            {
-                var result = Service.Describe();
-                Console.WriteLine(result);
-            }
-            finally
-            {
-                MistContext.Pop<int>();
-            }
-        }
-        finally
-        {
-            MistContext.Pop<string>();
-        }
-    }
-}
+{{#include ../../snippets/advanced/structured-context/method-with-clause.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -507,13 +123,7 @@ Multiple `with` clauses are chained after the parameter list. Each one peeks the
 Context values are keyed by their exact nominal type. Different types maintain independent context stacks, even if they are structurally similar. This means pushing a `Config` value does not affect the `string` context, and pushing an `IntHolder` does not affect the `StringHolder` context.
 
 ```mist
-// Each type is an independent context key
-with var cfg = new Config("db-connection");
-with var locale = new Locale("fr-FR");
-
-// These access different stacks — they don't interfere
-var c = Consumers.GetConfig();   // reads Config stack
-var l = Consumers.GetLocale();   // reads Locale stack
+{{#include ../../snippets/advanced/structured-context/type-keyed.mist}}
 ```
 
 Type aliases resolve to their underlying type for context keying. A `type Name = string` alias shares the same context key as `string` — pushing a `Name` value satisfies methods that require `string` context.
@@ -525,78 +135,12 @@ Context propagates transparently through intermediate methods. A method that doe
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ContextDemo;
-
-public class Consumer
-{
-    public static string GetMessage() with string msg
-    {
-        return msg;
-    }
-}
-
-public class Intermediary
-{
-    // No with clause — context passes through transparently
-    public static string Forward()
-    {
-        return Consumer.GetMessage();
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        with var message = "propagated";
-        var result = Intermediary.Forward();
-        Console.WriteLine(result);
-    }
-}
+{{#include ../../snippets/advanced/structured-context/propagation.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ContextDemo;
-
-public class Consumer
-{
-    public static string GetMessage()
-    {
-        var msg = (string)MistContext.Peek<string>();
-        return msg;
-    }
-}
-
-public class Intermediary
-{
-    public static string Forward()
-    {
-        return Consumer.GetMessage();
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var message = "propagated";
-        MistContext.Push<string>(message);
-        try
-        {
-            var result = Intermediary.Forward();
-            Console.WriteLine(result);
-        }
-        finally
-        {
-            MistContext.Pop<string>();
-        }
-    }
-}
+{{#include ../../snippets/advanced/structured-context/propagation.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -608,22 +152,7 @@ public class Program
 The compiler statically verifies that every method call site has the required context available. If you call a method that declares `with Config cfg` from a scope where no `Config` has been pushed, the compiler reports an error. This catches missing context at compile time rather than failing at runtime with an empty-stack exception.
 
 ```mist
-public class Service
-{
-    public static string GetConfig() with Config cfg
-    {
-        return cfg.Value;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        // ERROR: No Config context available at this call site
-        var result = Service.GetConfig();
-    }
-}
+{{#include ../../snippets/advanced/structured-context/compile-time-verification.mist}}
 ```
 
 The compiler also verifies context through transitive calls — if `MethodA()` calls `MethodB()` which requires `int` context, then any caller of `MethodA()` must also have `int` context available, even though `MethodA()` itself doesn't declare a `with int` clause.

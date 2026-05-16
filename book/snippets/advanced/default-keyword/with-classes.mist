@@ -1,0 +1,19 @@
+using System;
+
+namespace DefaultDemo;
+
+public class Config
+{
+    public int MaxRetries;
+    public bool Verbose;
+    public string Label;
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Config cfg = default(Config);
+        Console.WriteLine($"MaxRetries={cfg.MaxRetries} Verbose={cfg.Verbose} Label={cfg.Label}");
+    }
+}

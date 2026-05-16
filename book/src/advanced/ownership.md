@@ -11,55 +11,12 @@ The default tier when no ownership annotation is present. Unrestricted bindings 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace OwnershipSystem;
-
-public class Counter
-{
-    public int Value;
-    public Counter(int value) { this.Value = value; }
-    public void Increment() { this.Value = Value + 1; }
-    public string Describe() { return $"Counter({Value})"; }
-}
-
-public class UnrestrictedDemo
-{
-    public static void Run()
-    {
-        var c1 = new Counter(10);
-        var c2 = c1;  // Both c1 and c2 reference the same object
-        c2.Increment();
-        // Mutation through c2 is visible through c1
-        Console.WriteLine($"c1={c1.Describe()}, c2={c2.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ownership/unrestricted.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace OwnershipSystem;
-
-public class Counter
-{
-    public int Value;
-    public Counter(int value) { this.Value = value; }
-    public void Increment() { this.Value = Value + 1; }
-    public string Describe() { return $"Counter({Value})"; }
-}
-
-public class UnrestrictedDemo
-{
-    public static void Run()
-    {
-        var c1 = new Counter(10);
-        var c2 = c1;
-        c2.Increment();
-        Console.WriteLine($"c1={c1.Describe()}, c2={c2.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ownership/unrestricted.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -75,54 +32,12 @@ You declare owned variables with the `owned` keyword before the type:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace OwnershipSystem;
-
-public class Pair
-{
-    public int X;
-    public int Y;
-    public Pair(int x, int y) { this.X = x; this.Y = y; }
-    public void SetX(int x) { this.X = x; }
-    public string Describe() { return $"Pair({X}, {Y})"; }
-}
-
-public class OwnedDemo
-{
-    public static void Run()
-    {
-        owned Pair p = new Pair(3, 7);
-        p.SetX(100);
-        Console.WriteLine($"owned pair={p.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ownership/owned.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace OwnershipSystem;
-
-public class Pair
-{
-    public int X;
-    public int Y;
-    public Pair(int x, int y) { this.X = x; this.Y = y; }
-    public void SetX(int x) { this.X = x; }
-    public string Describe() { return $"Pair({X}, {Y})"; }
-}
-
-public class OwnedDemo
-{
-    public static void Run()
-    {
-        Pair p = new Pair(3, 7);
-        p.SetX(100);
-        Console.WriteLine($"owned pair={p.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ownership/owned.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -136,72 +51,12 @@ You can declare a type as `owned class` to indicate that instances of this type 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace OwnershipSystem;
-
-public owned class UniqueHandle
-{
-    int Id;
-    int RefCount;
-
-    public UniqueHandle(int id)
-    {
-        this.Id = id;
-        this.RefCount = 1;
-    }
-
-    public int GetId() { return Id; }
-
-    public void Touch() { this.RefCount = RefCount + 1; }
-
-    public string Describe() { return $"UniqueHandle(Id={Id}, RefCount={RefCount})"; }
-}
-
-public class OwnedTypeDemo
-{
-    public static void Run()
-    {
-        owned UniqueHandle h = new UniqueHandle(42);
-        h.Touch();
-        Console.WriteLine($"handle={h.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ownership/owned-type.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace OwnershipSystem;
-
-public class UniqueHandle
-{
-    int Id;
-    int RefCount;
-
-    public UniqueHandle(int id)
-    {
-        this.Id = id;
-        this.RefCount = 1;
-    }
-
-    public int GetId() { return Id; }
-
-    public void Touch() { this.RefCount = RefCount + 1; }
-
-    public string Describe() { return $"UniqueHandle(Id={Id}, RefCount={RefCount})"; }
-}
-
-public class OwnedTypeDemo
-{
-    public static void Run()
-    {
-        UniqueHandle h = new UniqueHandle(42);
-        h.Touch();
-        Console.WriteLine($"handle={h.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ownership/owned-type.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -215,62 +70,12 @@ When you assign an owned value to another owned binding, ownership *transfers* �
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace OwnershipSystem;
-
-public class MoveDemo
-{
-    public static void ConsumeHandle(owned UniqueHandle h)
-    {
-        h.Touch();
-        Console.WriteLine($"consumed={h.Describe()}");
-    }
-
-    public static void Run()
-    {
-        owned UniqueHandle h1 = new UniqueHandle(10);
-        Console.WriteLine($"before move={h1.Describe()}");
-
-        // Move ownership to h2 — h1 is now inaccessible
-        owned UniqueHandle h2 = h1;
-        h2.Touch();
-        Console.WriteLine($"after move to h2={h2.Describe()}");
-
-        // Move ownership into a function parameter — h2 is now inaccessible
-        ConsumeHandle(h2);
-        Console.WriteLine($"transfer complete");
-    }
-}
+{{#include ../../snippets/advanced/ownership/move-semantics.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace OwnershipSystem;
-
-public class MoveDemo
-{
-    public static void ConsumeHandle(UniqueHandle h)
-    {
-        h.Touch();
-        Console.WriteLine($"consumed={h.Describe()}");
-    }
-
-    public static void Run()
-    {
-        UniqueHandle h1 = new UniqueHandle(10);
-        Console.WriteLine($"before move={h1.Describe()}");
-
-        UniqueHandle h2 = h1;
-        h2.Touch();
-        Console.WriteLine($"after move to h2={h2.Describe()}");
-
-        ConsumeHandle(h2);
-        Console.WriteLine($"transfer complete");
-    }
-}
+{{#include ../../snippets/advanced/ownership/move-semantics.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -280,10 +85,7 @@ In the emitted C#, moves look like ordinary assignments. The safety guarantee is
 Attempting to use a moved variable produces a compile-time error:
 
 ```mist
-owned UniqueHandle h1 = new UniqueHandle(1);
-owned UniqueHandle h2 = h1;
-// Error: use of moved value 'h1'
-Console.WriteLine(h1.Describe());
+{{#include ../../snippets/advanced/ownership/use-after-move.mist}}
 ```
 
 ## Borrowed
@@ -293,51 +95,12 @@ A `borrowed` parameter receives exclusive mutable access to a value for the dura
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace OwnershipSystem;
-
-public class BorrowedDemo
-{
-    public static void MutatePair(borrowed Pair p)
-    {
-        // Borrowed holder has exclusive mutable access
-        p.SetX(999);
-        Console.WriteLine($"borrowed mutated={p.Describe()}");
-    }
-
-    public static void Run()
-    {
-        owned Pair p = new Pair(1, 2);
-        // Lend as borrowed — owner loses access until borrow returns
-        MutatePair(p);
-        // Owner regains access after the borrow ends
-        Console.WriteLine($"owner after return={p.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ownership/borrowed.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace OwnershipSystem;
-
-public class BorrowedDemo
-{
-    public static void MutatePair(Pair p)
-    {
-        p.SetX(999);
-        Console.WriteLine($"borrowed mutated={p.Describe()}");
-    }
-
-    public static void Run()
-    {
-        Pair p = new Pair(1, 2);
-        MutatePair(p);
-        Console.WriteLine($"owner after return={p.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ownership/borrowed.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -347,12 +110,7 @@ The `borrowed` keyword is erased in C# — at runtime it's a normal parameter pa
 A borrowed recipient can re-lend the value further — as `readonly ref`, `frozen`, or even `borrowed` to another function:
 
 ```mist
-public static void ReLend(borrowed Pair p)
-{
-    ReadPair(p);       // re-lend as readonly ref
-    FreezePair(p);     // re-lend as frozen
-    p.SetX(42);        // borrower can still mutate after re-lends return
-}
+{{#include ../../snippets/advanced/ownership/re-lend.mist}}
 ```
 
 ## Frozen
@@ -362,53 +120,12 @@ A `frozen` parameter provides an immutable view of a value. While the frozen bor
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace OwnershipSystem;
-
-public class FrozenDemo
-{
-    public static void FreezeAndRead(frozen Pair p)
-    {
-        // Can read through frozen — guaranteed stable snapshot
-        var sum = p.X + p.Y;
-        Console.WriteLine($"frozen sum={sum}");
-    }
-
-    public static void Run()
-    {
-        owned Pair p = new Pair(5, 10);
-        // Lend as frozen — owner cannot mutate while frozen borrow is active
-        FreezeAndRead(p);
-        // After frozen borrow returns, owner can mutate again
-        p.SetX(50);
-        Console.WriteLine($"after thaw={p.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ownership/frozen.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace OwnershipSystem;
-
-public class FrozenDemo
-{
-    public static void FreezeAndRead(Pair p)
-    {
-        var sum = p.X + p.Y;
-        Console.WriteLine($"frozen sum={sum}");
-    }
-
-    public static void Run()
-    {
-        Pair p = new Pair(5, 10);
-        FreezeAndRead(p);
-        p.SetX(50);
-        Console.WriteLine($"after thaw={p.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ownership/frozen.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -422,53 +139,12 @@ A `readonly ref` parameter provides a live readonly view of a value. The callee 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace OwnershipSystem;
-
-public class ReadonlyRefDemo
-{
-    public static void ReadPair(readonly ref Pair p)
-    {
-        // Can read fields and call readonly methods
-        var sum = p.X + p.Y;
-        Console.WriteLine($"readonly ref sum={sum}");
-    }
-
-    public static void Run()
-    {
-        owned Pair p = new Pair(3, 7);
-        // Lend as readonly ref — callee can only read
-        ReadPair(p);
-        // Owner retains full access (including mutation)
-        p.SetX(100);
-        Console.WriteLine($"after readonly ref={p.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ownership/readonly-ref.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace OwnershipSystem;
-
-public class ReadonlyRefDemo
-{
-    public static void ReadPair(Pair p)
-    {
-        var sum = p.X + p.Y;
-        Console.WriteLine($"readonly ref sum={sum}");
-    }
-
-    public static void Run()
-    {
-        Pair p = new Pair(3, 7);
-        ReadPair(p);
-        p.SetX(100);
-        Console.WriteLine($"after readonly ref={p.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ownership/readonly-ref.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -494,99 +170,12 @@ Value types (structs) satisfy any ownership tier because they are copied on assi
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace OwnershipSystem;
-
-public struct Vec2
-{
-    public int X;
-    public int Y;
-    public Vec2(int x, int y) { this.X = x; this.Y = y; }
-    public string Describe() { return $"Vec2({X}, {Y})"; }
-}
-
-public class ValueTypeDemo
-{
-    public static void AcceptReadonly(readonly ref Vec2 v)
-    {
-        Console.WriteLine($"readonly ref vec={v.Describe()}");
-    }
-
-    public static void AcceptFrozen(frozen Vec2 v)
-    {
-        Console.WriteLine($"frozen vec={v.Describe()}");
-    }
-
-    public static void AcceptBorrowed(borrowed Vec2 v)
-    {
-        Console.WriteLine($"borrowed vec={v.Describe()}");
-    }
-
-    public static void AcceptOwned(owned Vec2 v)
-    {
-        Console.WriteLine($"owned vec={v.Describe()}");
-    }
-
-    public static void Run()
-    {
-        var v = new Vec2(3, 4);
-        AcceptReadonly(v);
-        AcceptFrozen(v);
-        AcceptBorrowed(v);
-        AcceptOwned(v);
-        // Original is unaffected — each call received a copy
-        Console.WriteLine($"original after all passes={v.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ownership/value-types.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace OwnershipSystem;
-
-public struct Vec2
-{
-    public int X;
-    public int Y;
-    public Vec2(int x, int y) { this.X = x; this.Y = y; }
-    public string Describe() { return $"Vec2({X}, {Y})"; }
-}
-
-public class ValueTypeDemo
-{
-    public static void AcceptReadonly(Vec2 v)
-    {
-        Console.WriteLine($"readonly ref vec={v.Describe()}");
-    }
-
-    public static void AcceptFrozen(Vec2 v)
-    {
-        Console.WriteLine($"frozen vec={v.Describe()}");
-    }
-
-    public static void AcceptBorrowed(Vec2 v)
-    {
-        Console.WriteLine($"borrowed vec={v.Describe()}");
-    }
-
-    public static void AcceptOwned(Vec2 v)
-    {
-        Console.WriteLine($"owned vec={v.Describe()}");
-    }
-
-    public static void Run()
-    {
-        var v = new Vec2(3, 4);
-        AcceptReadonly(v);
-        AcceptFrozen(v);
-        AcceptBorrowed(v);
-        AcceptOwned(v);
-        Console.WriteLine($"original after all passes={v.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ownership/value-types.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

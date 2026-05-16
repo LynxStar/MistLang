@@ -1,0 +1,2 @@
+var w = new Weight(72.5, "kg");
+var wK = (Kelvin)w;  // OK — compile-time type is Weight

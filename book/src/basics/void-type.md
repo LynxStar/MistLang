@@ -11,14 +11,12 @@ You can declare a variable with type `void` and assign it the value `Void.Void`:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-void unit = Void.Void;
-Console.WriteLine($"typed void variable: {unit}");
+{{#include ../../snippets/basics/void-type/variable-type.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-MistVoid unit = MistVoid.Instance;
-Console.WriteLine($"typed void variable: {unit}");
+{{#include ../../snippets/basics/void-type/variable-type.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -28,14 +26,12 @@ You can also use `var` for type inference:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-var v = Void.Void;
-Console.WriteLine($"void value obtained: {v}");
+{{#include ../../snippets/basics/void-type/var-inference.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-var v = MistVoid.Instance;
-Console.WriteLine($"void value obtained: {v}");
+{{#include ../../snippets/basics/void-type/var-inference.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -49,26 +45,12 @@ Methods can accept `void` as a parameter type. This is useful in generic context
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-public static string DescribeVoid(void v)
-{
-    return "received void";
-}
-
-// Calling the method:
-string desc = DescribeVoid(Void.Void);
-Console.WriteLine($"DescribeVoid: {desc}");
+{{#include ../../snippets/basics/void-type/parameter-type.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-public static string DescribeVoid(MistVoid v)
-{
-    return "received void";
-}
-
-// Calling the method:
-string desc = DescribeVoid(MistVoid.Instance);
-Console.WriteLine($"DescribeVoid: {desc}");
+{{#include ../../snippets/basics/void-type/parameter-type.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -82,60 +64,12 @@ The real power of first-class void shows up in generic code. You can instantiate
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-public class Result<T>
-{
-    private T value;
-    private bool success;
-
-    public Result(T value, bool success)
-    {
-        this.value = value;
-        this.success = success;
-    }
-
-    public bool IsSuccess()
-    {
-        return success;
-    }
-}
-
-// Using Result<void> to represent success with no value:
-public static Result<void> SuccessResult()
-{
-    return new Result<void>(Void.Void, true);
-}
-
-var success = SuccessResult();
-Console.WriteLine($"IsSuccess: {success.IsSuccess()}");
+{{#include ../../snippets/basics/void-type/generic-argument.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-public class Result<T>
-{
-    private T value;
-    private bool success;
-
-    public Result(T value, bool success)
-    {
-        this.value = value;
-        this.success = success;
-    }
-
-    public bool IsSuccess()
-    {
-        return success;
-    }
-}
-
-// Using Result<MistVoid> to represent success with no value:
-public static Result<MistVoid> SuccessResult()
-{
-    return new Result<MistVoid>(MistVoid.Instance, true);
-}
-
-var success = SuccessResult();
-Console.WriteLine($"IsSuccess: {success.IsSuccess()}");
+{{#include ../../snippets/basics/void-type/generic-argument.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -149,24 +83,12 @@ When a void method is called as a standalone statement and its return value is n
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-public static void PrintMessage(string msg)
-{
-    Console.WriteLine(msg);
-}
-
-// Called as a statement — return value not captured:
-PrintMessage("fire-and-forget call");
+{{#include ../../snippets/basics/void-type/fire-and-forget.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-public static void PrintMessage(string msg)
-{
-    Console.WriteLine(msg);
-}
-
-// Called as a statement — return value not captured:
-PrintMessage("fire-and-forget call");
+{{#include ../../snippets/basics/void-type/fire-and-forget.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -180,26 +102,12 @@ When a void method explicitly returns `Void.Void` and its return value is captur
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-public static void DoNothing()
-{
-    return Void.Void;
-}
-
-// Return value is captured — triggers MistVoid emission:
-var result = DoNothing();
-Console.WriteLine($"DoNothing() returned: {result}");
+{{#include ../../snippets/basics/void-type/value-returning.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-public static MistVoid DoNothing()
-{
-    return MistVoid.Instance;
-}
-
-// Return value is captured:
-var result = DoNothing();
-Console.WriteLine($"DoNothing() returned: {result}");
+{{#include ../../snippets/basics/void-type/value-returning.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -213,14 +121,12 @@ Since there is only one possible void value, all `Void.Void` instances are equal
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-Console.WriteLine($"void == void: {Void.Void == Void.Void}");
-Console.WriteLine($"void != void: {Void.Void != Void.Void}");
+{{#include ../../snippets/basics/void-type/equality.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-Console.WriteLine($"void == void: {MistVoid.Instance == MistVoid.Instance}");
-Console.WriteLine($"void != void: {MistVoid.Instance != MistVoid.Instance}");
+{{#include ../../snippets/basics/void-type/equality.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -228,16 +134,7 @@ Console.WriteLine($"void != void: {MistVoid.Instance != MistVoid.Instance}");
 The emitted `MistVoid` struct implements `IEquatable<MistVoid>` with these semantics:
 
 ```csharp
-public readonly struct MistVoid : IEquatable<MistVoid>
-{
-    public static readonly MistVoid Instance = default;
-    public bool Equals(MistVoid other) => true;
-    public override bool Equals(object? obj) => obj is MistVoid;
-    public override int GetHashCode() => 0;
-    public static bool operator ==(MistVoid left, MistVoid right) => true;
-    public static bool operator !=(MistVoid left, MistVoid right) => false;
-    public override string ToString() => "Void";
-}
+{{#include ../../snippets/basics/void-type/mistvoid-struct.cs}}
 ```
 
 This makes void safe to use in collections, dictionaries, and equality comparisons without surprises.

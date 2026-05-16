@@ -1,0 +1,8 @@
+using System;
+
+namespace DependentTypes;
+
+public class Matrix<Rows:int, Cols:int>
+{
+    public string Describe() { return $"Matrix<{Rows},{Cols}>"; }
+}

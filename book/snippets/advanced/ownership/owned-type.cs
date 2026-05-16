@@ -1,0 +1,31 @@
+using System;
+
+namespace OwnershipSystem;
+
+public class UniqueHandle
+{
+    int Id;
+    int RefCount;
+
+    public UniqueHandle(int id)
+    {
+        this.Id = id;
+        this.RefCount = 1;
+    }
+
+    public int GetId() { return Id; }
+
+    public void Touch() { this.RefCount = RefCount + 1; }
+
+    public string Describe() { return $"UniqueHandle(Id={Id}, RefCount={RefCount})"; }
+}
+
+public class OwnedTypeDemo
+{
+    public static void Run()
+    {
+        UniqueHandle h = new UniqueHandle(42);
+        h.Touch();
+        Console.WriteLine($"handle={h.Describe()}");
+    }
+}

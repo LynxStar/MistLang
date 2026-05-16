@@ -67,7 +67,7 @@ For example, given the directory layout above with `namespace_root` defaulting t
 To use `Player` from `Program.mist`, you add a `using` declaration:
 
 ```mist
-using Namespaces.Models;
+{{#include ../../snippets/getting-started/project-structure-using.mist}}
 ```
 
 ## Multi-Project Builds with `[[references]]`

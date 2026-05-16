@@ -1,0 +1,8 @@
+public static void DoNothing()
+{
+    return Void.Void;
+}
+
+// Return value is captured — triggers MistVoid emission:
+var result = DoNothing();
+Console.WriteLine($"DoNothing() returned: {result}");

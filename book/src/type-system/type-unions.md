@@ -9,40 +9,12 @@ A union type is written as two or more types separated by `|`. The resulting typ
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace UnionDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int | string x = 42;
-        int | string y = "hello";
-
-        Console.WriteLine($"x holds an int");
-        Console.WriteLine($"y holds a string");
-    }
-}
+{{#include ../../snippets/type-system/type-unions/syntax.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace UnionDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Union_Int32_String x = 42;
-        Union_Int32_String y = "hello";
-
-        Console.WriteLine($"x holds an int");
-        Console.WriteLine($"y holds a string");
-    }
-}
+{{#include ../../snippets/type-system/type-unions/syntax.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -56,84 +28,12 @@ Union types work as parameter types and return types, allowing functions to acce
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace UnionDemo;
-
-public class Program
-{
-    private static void Describe(int | string value)
-    {
-        if (value is int n)
-        {
-            Console.WriteLine($"  int: {n}");
-        }
-        if (value is string s)
-        {
-            Console.WriteLine($"  string: {s}");
-        }
-    }
-
-    private static int | string GetValue(bool useInt)
-    {
-        if (useInt)
-        {
-            return 100;
-        }
-        return "hello";
-    }
-
-    public static void Main(string[] args)
-    {
-        Program.Describe(7);
-        Program.Describe("Mist");
-
-        int | string result = Program.GetValue(true);
-        Console.WriteLine($"GetValue(true) returned a value");
-    }
-}
+{{#include ../../snippets/type-system/type-unions/params-returns.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace UnionDemo;
-
-public class Program
-{
-    private static void Describe(Union_Int32_String value)
-    {
-        if (value.IsInt32)
-        {
-            int n = value.AsInt32;
-            Console.WriteLine($"  int: {n}");
-        }
-        if (value.IsString)
-        {
-            string s = value.AsString;
-            Console.WriteLine($"  string: {s}");
-        }
-    }
-
-    private static Union_Int32_String GetValue(bool useInt)
-    {
-        if (useInt)
-        {
-            return 100;
-        }
-        return "hello";
-    }
-
-    public static void Main(string[] args)
-    {
-        Program.Describe(7);
-        Program.Describe("Mist");
-
-        Union_Int32_String result = Program.GetValue(true);
-        Console.WriteLine($"GetValue(true) returned a value");
-    }
-}
+{{#include ../../snippets/type-system/type-unions/params-returns.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -147,52 +47,12 @@ To access the underlying value of a union-typed variable, use `is` pattern match
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace UnionDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int | string value = 42;
-
-        if (value is int n)
-        {
-            Console.WriteLine($"It's an int: {n}");
-        }
-        if (value is string s)
-        {
-            Console.WriteLine($"It's a string: {s}");
-        }
-    }
-}
+{{#include ../../snippets/type-system/type-unions/narrowing.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace UnionDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Union_Int32_String value = 42;
-
-        if (value.IsInt32)
-        {
-            int n = value.AsInt32;
-            Console.WriteLine($"It's an int: {n}");
-        }
-        if (value.IsString)
-        {
-            string s = value.AsString;
-            Console.WriteLine($"It's a string: {s}");
-        }
-    }
-}
+{{#include ../../snippets/type-system/type-unions/narrowing.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -206,79 +66,12 @@ Unions are not limited to two types. You can combine three or more constituent t
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace UnionDemo;
-
-public class Program
-{
-    private static void DescribeTriple(int | string | bool value)
-    {
-        if (value is int n)
-        {
-            Console.WriteLine($"  int: {n}");
-        }
-        if (value is string s)
-        {
-            Console.WriteLine($"  string: {s}");
-        }
-        if (value is bool b)
-        {
-            Console.WriteLine($"  bool: {b}");
-        }
-    }
-
-    public static void Main(string[] args)
-    {
-        int | string | bool tri1 = 99;
-        int | string | bool tri2 = "triple";
-        int | string | bool tri3 = true;
-
-        Program.DescribeTriple(tri1);
-        Program.DescribeTriple(tri2);
-        Program.DescribeTriple(tri3);
-    }
-}
+{{#include ../../snippets/type-system/type-unions/multi-type.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace UnionDemo;
-
-public class Program
-{
-    private static void DescribeTriple(Union_Boolean_Int32_String value)
-    {
-        if (value.IsInt32)
-        {
-            int n = value.AsInt32;
-            Console.WriteLine($"  int: {n}");
-        }
-        if (value.IsString)
-        {
-            string s = value.AsString;
-            Console.WriteLine($"  string: {s}");
-        }
-        if (value.IsBoolean)
-        {
-            bool b = value.AsBoolean;
-            Console.WriteLine($"  bool: {b}");
-        }
-    }
-
-    public static void Main(string[] args)
-    {
-        Union_Boolean_Int32_String tri1 = 99;
-        Union_Boolean_Int32_String tri2 = "triple";
-        Union_Boolean_Int32_String tri3 = true;
-
-        Program.DescribeTriple(tri1);
-        Program.DescribeTriple(tri2);
-        Program.DescribeTriple(tri3);
-    }
-}
+{{#include ../../snippets/type-system/type-unions/multi-type.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -292,47 +85,12 @@ A union-typed variable can be reassigned from one constituent type to another. T
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace UnionDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int | string value = 1;
-        Console.WriteLine($"before: assigned int");
-
-        value = "switched";
-        if (value is string s)
-        {
-            Console.WriteLine($"after: {s}");
-        }
-    }
-}
+{{#include ../../snippets/type-system/type-unions/reassignment.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace UnionDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Union_Int32_String value = 1;
-        Console.WriteLine($"before: assigned int");
-
-        value = "switched";
-        if (value.IsString)
-        {
-            string s = value.AsString;
-            Console.WriteLine($"after: {s}");
-        }
-    }
-}
+{{#include ../../snippets/type-system/type-unions/reassignment.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

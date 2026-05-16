@@ -24,38 +24,12 @@ The explicit form `default(T)` produces the default value for the named type. Us
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace DefaultDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int i = default(int);
-        bool b = default(bool);
-        string s = default(string);
-        Console.WriteLine($"int={i} bool={b} string={s}");
-    }
-}
+{{#include ../../snippets/advanced/default-keyword/default-t.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace DefaultDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int i = default(int);
-        bool b = default(bool);
-        string s = "";
-        Console.WriteLine($"int={i} bool={b} string={s}");
-    }
-}
+{{#include ../../snippets/advanced/default-keyword/default-t.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -69,59 +43,12 @@ When you call `default` on a class type, the compiler emits a call to the genera
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace DefaultDemo;
-
-public class Config
-{
-    public int MaxRetries;
-    public bool Verbose;
-    public string Label;
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Config cfg = default(Config);
-        Console.WriteLine($"MaxRetries={cfg.MaxRetries} Verbose={cfg.Verbose} Label={cfg.Label}");
-    }
-}
+{{#include ../../snippets/advanced/default-keyword/with-classes.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace DefaultDemo;
-
-public class Config
-{
-    public int MaxRetries;
-    public bool Verbose;
-    public string Label;
-
-    protected Config() { }
-
-    public static Config __CreateDefault()
-    {
-        var inst = new Config();
-        inst.MaxRetries = default(int);
-        inst.Verbose = default(bool);
-        inst.Label = "";
-        return inst;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Config cfg = Config.__CreateDefault();
-        Console.WriteLine($"MaxRetries={cfg.MaxRetries} Verbose={cfg.Verbose} Label={cfg.Label}");
-    }
-}
+{{#include ../../snippets/advanced/default-keyword/with-classes.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -135,59 +62,12 @@ When the target type can be inferred from context (such as a variable declaratio
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace DefaultDemo;
-
-public class Config
-{
-    public int MaxRetries;
-    public bool Verbose;
-    public string Label;
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Config inferred = default;
-        Console.WriteLine($"MaxRetries={inferred.MaxRetries} Verbose={inferred.Verbose} Label={inferred.Label}");
-    }
-}
+{{#include ../../snippets/advanced/default-keyword/bare-default.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace DefaultDemo;
-
-public class Config
-{
-    public int MaxRetries;
-    public bool Verbose;
-    public string Label;
-
-    protected Config() { }
-
-    public static Config __CreateDefault()
-    {
-        var inst = new Config();
-        inst.MaxRetries = default(int);
-        inst.Verbose = default(bool);
-        inst.Label = "";
-        return inst;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Config inferred = Config.__CreateDefault();
-        Console.WriteLine($"MaxRetries={inferred.MaxRetries} Verbose={inferred.Verbose} Label={inferred.Label}");
-    }
-}
+{{#include ../../snippets/advanced/default-keyword/bare-default.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -201,67 +81,12 @@ A `default` block inside a class or struct body specifies custom default values 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace DefaultDemo;
-
-public class AppState
-{
-    public int ErrorCount;
-    public bool Ready;
-    public string Status;
-
-    default {
-        ErrorCount = 5
-        Ready = true
-        Status = "initialized"
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        AppState state = default(AppState);
-        Console.WriteLine($"ErrorCount={state.ErrorCount} Ready={state.Ready} Status={state.Status}");
-    }
-}
+{{#include ../../snippets/advanced/default-keyword/default-block.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace DefaultDemo;
-
-public class AppState
-{
-    public int ErrorCount;
-    public bool Ready;
-    public string Status;
-
-    protected AppState()
-    {
-        this.ErrorCount = 5;
-        this.Ready = true;
-        this.Status = "initialized";
-    }
-
-    public static AppState __CreateDefault()
-    {
-        var inst = new AppState();
-        return inst;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        AppState state = AppState.__CreateDefault();
-        Console.WriteLine($"ErrorCount={state.ErrorCount} Ready={state.Ready} Status={state.Status}");
-    }
-}
+{{#include ../../snippets/advanced/default-keyword/default-block.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -275,79 +100,12 @@ The `default` block also works in struct bodies. For `readonly` structs, the com
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace DefaultDemo;
-
-public readonly struct Container
-{
-    public int Code;
-    public string Label;
-
-    public Container()
-    {
-        this.Code = 99;
-        this.Label = "constructed";
-    }
-
-    default {
-        Code = 42
-        Label = "defaulted"
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var c1 = new Container();
-        Container c2 = default(Container);
-        Console.WriteLine($"new Container() = Code={c1.Code}, Label={c1.Label}");
-        Console.WriteLine($"default(Container) = Code={c2.Code}, Label={c2.Label}");
-    }
-}
+{{#include ../../snippets/advanced/default-keyword/struct-default.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace DefaultDemo;
-
-public readonly struct Container
-{
-    public readonly int Code;
-    public readonly string Label;
-
-    public Container()
-    {
-        this.Code = 99;
-        this.Label = "constructed";
-    }
-
-    private Container(bool __defaultSentinel)
-    {
-        this.Code = 42;
-        this.Label = "defaulted";
-    }
-
-    public static Container __CreateDefault()
-    {
-        var inst = new Container(true);
-        return inst;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var c1 = new Container();
-        Container c2 = Container.__CreateDefault();
-        Console.WriteLine($"new Container() = Code={c1.Code}, Label={c1.Label}");
-        Console.WriteLine($"default(Container) = Code={c2.Code}, Label={c2.Label}");
-    }
-}
+{{#include ../../snippets/advanced/default-keyword/struct-default.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -361,15 +119,7 @@ For readonly structs, the sentinel constructor pattern (`private Container(bool 
 Classes with field initializers (e.g., `public int Timeout = 30;`) also participate in the default system. When you call `default` on such a type, the field initializers provide the default values — no explicit `default` block is needed.
 
 ```mist
-public class Settings
-{
-    public int Timeout = 30;
-    public bool Enabled = true;
-    public string Mode = "auto";
-}
-
-// default(Settings) produces: Timeout=30, Enabled=true, Mode="auto"
-Settings s = default(Settings);
+{{#include ../../snippets/advanced/default-keyword/field-initializers.mist}}
 ```
 
 The `default` block is useful when you want default values that differ from field initializers, or when you want to centralize default logic separately from the field declarations.

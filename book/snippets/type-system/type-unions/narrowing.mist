@@ -1,0 +1,20 @@
+using System;
+
+namespace UnionDemo;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        int | string value = 42;
+
+        if (value is int n)
+        {
+            Console.WriteLine($"It's an int: {n}");
+        }
+        if (value is string s)
+        {
+            Console.WriteLine($"It's a string: {s}");
+        }
+    }
+}

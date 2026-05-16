@@ -1,0 +1,27 @@
+namespace RefinementTypes;
+
+public readonly class Range
+{
+    public int Start;
+    public int End;
+
+    public Range(int start, int end)
+    {
+        this.Start = start;
+        this.End = end;
+    }
+}
+
+type ValidRange = Range { Start: >= 0 };
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var r = new Range(10, 50);
+        if (r is ValidRange valid)
+        {
+            Console.WriteLine($"Valid: Start={valid.Start}");
+        }
+    }
+}

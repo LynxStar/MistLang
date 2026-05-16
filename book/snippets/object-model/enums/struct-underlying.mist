@@ -1,0 +1,26 @@
+using System;
+
+namespace EnumDemo;
+
+public readonly struct Vec2 {
+    public int x;
+    public int y;
+
+    public Vec2(int x, int y)
+    {
+        this.x = x;
+        this.y = y;
+    }
+
+    public string Describe()
+    {
+        return $"({this.x}, {this.y})";
+    }
+}
+
+public enum CardinalDir : Vec2 {
+    Up: new Vec2(0, 1),
+    Down: new Vec2(0, -1),
+    Left: new Vec2(-1, 0),
+    Right: new Vec2(1, 0)
+}

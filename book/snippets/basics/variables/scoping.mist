@@ -1,0 +1,6 @@
+if (condition)
+{
+    int x = 42;
+    Console.WriteLine(x); // OK — x is in scope
+}
+// x is not accessible here — it went out of scope

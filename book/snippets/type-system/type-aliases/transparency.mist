@@ -1,0 +1,20 @@
+namespace TypeAliases;
+
+type UserId = int;
+
+public class Program
+{
+    private static void PrintUserId(UserId id)
+    {
+        Console.WriteLine(id);
+    }
+
+    public static void Main(string[] args)
+    {
+        UserId aliasedId = 100;
+        int rawId = aliasedId;
+
+        int plainInt = 7;
+        Program.PrintUserId(plainInt);
+    }
+}

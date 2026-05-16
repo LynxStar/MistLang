@@ -1,0 +1,25 @@
+using System;
+
+namespace DefaultDemo;
+
+public class AppState
+{
+    public int ErrorCount;
+    public bool Ready;
+    public string Status;
+
+    default {
+        ErrorCount = 5
+        Ready = true
+        Status = "initialized"
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        AppState state = default(AppState);
+        Console.WriteLine($"ErrorCount={state.ErrorCount} Ready={state.Ready} Status={state.Status}");
+    }
+}

@@ -1,0 +1,25 @@
+using System;
+
+namespace EnumDemo;
+
+public readonly class Label {
+    public string text;
+    public int code;
+
+    public Label(string text, int code)
+    {
+        this.text = text;
+        this.code = code;
+    }
+
+    public string Describe()
+    {
+        return $"Label({this.text}, {this.code})";
+    }
+}
+
+public enum Severity : Label {
+    Critical: new Label("CRITICAL", 1),
+    Warning: new Label("WARNING", 2),
+    Info: new Label("INFO", 3)
+}

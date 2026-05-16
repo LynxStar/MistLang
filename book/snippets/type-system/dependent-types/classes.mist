@@ -1,0 +1,10 @@
+using System;
+
+namespace DependentTypes;
+
+public class TypedBuffer<T, Size:int>
+{
+    public T Value;
+    public TypedBuffer(T value) { this.Value = value; }
+    public string Describe() { return $"TypedBuffer<{Size}>(value={this.Value})"; }
+}

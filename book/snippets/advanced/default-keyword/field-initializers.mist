@@ -1,0 +1,9 @@
+public class Settings
+{
+    public int Timeout = 30;
+    public bool Enabled = true;
+    public string Mode = "auto";
+}
+
+// default(Settings) produces: Timeout=30, Enabled=true, Mode="auto"
+Settings s = default(Settings);

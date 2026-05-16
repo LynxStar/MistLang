@@ -1,0 +1,17 @@
+using System;
+
+namespace ExtensionMethods;
+
+extension(Greeting self)
+{
+    public Greeting Repeat(int times)
+    {
+        var repeated = "";
+        for (var i = 0; i < times; i = i + 1)
+        {
+            if (i > 0) { repeated = repeated + " "; }
+            repeated = repeated + self.Message;
+        }
+        return new Greeting(repeated);
+    }
+}

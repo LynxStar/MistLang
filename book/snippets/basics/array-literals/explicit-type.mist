@@ -1,0 +1,2 @@
+int[] scores = [85, 92, 78];
+string[] words = ["hello", "world"];

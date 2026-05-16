@@ -9,80 +9,12 @@ The most common pattern tests whether a value is a specific type and binds the n
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace PatternDemo;
-
-public class Shape
-{
-    public string Kind { get; }
-
-    public Shape(string kind)
-    {
-        this.Kind = kind;
-    }
-}
-
-public class Circle : Shape
-{
-    public int Radius { get; }
-
-    public Circle(int radius) : base("circle")
-    {
-        this.Radius = radius;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Shape shape = new Circle(5);
-        if (shape is Circle c)
-        {
-            Console.WriteLine($"Circle with radius {c.Radius}");
-        }
-    }
-}
+{{#include ../../snippets/type-system/pattern-matching/type-binding.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace PatternDemo;
-
-public class Shape
-{
-    public string Kind { get; }
-
-    public Shape(string kind)
-    {
-        this.Kind = kind;
-    }
-}
-
-public class Circle : Shape
-{
-    public int Radius { get; }
-
-    public Circle(int radius) : base("circle")
-    {
-        this.Radius = radius;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Shape shape = new Circle(5);
-        if (shape is Circle c)
-        {
-            Console.WriteLine($"Circle with radius {c.Radius}");
-        }
-    }
-}
+{{#include ../../snippets/type-system/pattern-matching/type-binding.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -96,80 +28,12 @@ When you only need to check whether a value is a certain type without binding it
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace PatternDemo;
-
-public class Shape
-{
-    public string Kind { get; }
-
-    public Shape(string kind)
-    {
-        this.Kind = kind;
-    }
-}
-
-public class Circle : Shape
-{
-    public int Radius { get; }
-
-    public Circle(int radius) : base("circle")
-    {
-        this.Radius = radius;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Shape shape = new Circle(5);
-        if (shape is Circle)
-        {
-            Console.WriteLine("It's a circle");
-        }
-    }
-}
+{{#include ../../snippets/type-system/pattern-matching/bare-type.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace PatternDemo;
-
-public class Shape
-{
-    public string Kind { get; }
-
-    public Shape(string kind)
-    {
-        this.Kind = kind;
-    }
-}
-
-public class Circle : Shape
-{
-    public int Radius { get; }
-
-    public Circle(int radius) : base("circle")
-    {
-        this.Radius = radius;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Shape shape = new Circle(5);
-        if (shape is Circle)
-        {
-            Console.WriteLine("It's a circle");
-        }
-    }
-}
+{{#include ../../snippets/type-system/pattern-matching/bare-type.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -183,48 +47,12 @@ The `var` pattern always matches and binds the value to a new variable without p
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace PatternDemo;
-
-public class Program
-{
-    private static int ComputeScore()
-    {
-        return 85;
-    }
-
-    public static void Main(string[] args)
-    {
-        if (Program.ComputeScore() is var score and > 0)
-        {
-            Console.WriteLine($"Positive score: {score}");
-        }
-    }
-}
+{{#include ../../snippets/type-system/pattern-matching/var-pattern.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace PatternDemo;
-
-public class Program
-{
-    private static int ComputeScore()
-    {
-        return 85;
-    }
-
-    public static void Main(string[] args)
-    {
-        if (Program.ComputeScore() is var score and > 0)
-        {
-            Console.WriteLine($"Positive score: {score}");
-        }
-    }
-}
+{{#include ../../snippets/type-system/pattern-matching/var-pattern.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -238,60 +66,12 @@ Property patterns match against an object's properties using subpatterns inside 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace PatternDemo;
-
-public class Circle
-{
-    public int Radius { get; }
-
-    public Circle(int radius)
-    {
-        this.Radius = radius;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var bigCircle = new Circle(10);
-        if (bigCircle is { Radius: > 5 })
-        {
-            Console.WriteLine("Found a circle with radius > 5");
-        }
-    }
-}
+{{#include ../../snippets/type-system/pattern-matching/property-patterns.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace PatternDemo;
-
-public class Circle
-{
-    public int Radius { get; }
-
-    public Circle(int radius)
-    {
-        this.Radius = radius;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var bigCircle = new Circle(10);
-        if (bigCircle is { Radius: > 5 })
-        {
-            Console.WriteLine("Found a circle with radius > 5");
-        }
-    }
-}
+{{#include ../../snippets/type-system/pattern-matching/property-patterns.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -301,64 +81,12 @@ Each property in the braces is checked against its subpattern. Here `Radius: > 5
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace PatternDemo;
-
-public class Rectangle
-{
-    public int Width { get; }
-    public int Height { get; }
-
-    public Rectangle(int width, int height)
-    {
-        this.Width = width;
-        this.Height = height;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var rect = new Rectangle(4, 4);
-        if (rect is { Width: >= 1 and <= 10, Height: >= 1 and <= 10 })
-        {
-            Console.WriteLine("Small rectangle (both sides 1-10)");
-        }
-    }
-}
+{{#include ../../snippets/type-system/pattern-matching/multi-property.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace PatternDemo;
-
-public class Rectangle
-{
-    public int Width { get; }
-    public int Height { get; }
-
-    public Rectangle(int width, int height)
-    {
-        this.Width = width;
-        this.Height = height;
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var rect = new Rectangle(4, 4);
-        if (rect is { Width: >= 1 and <= 10, Height: >= 1 and <= 10 })
-        {
-            Console.WriteLine("Small rectangle (both sides 1-10)");
-        }
-    }
-}
+{{#include ../../snippets/type-system/pattern-matching/multi-property.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -372,40 +100,12 @@ Relational patterns compare a value against a constant using `>`, `<`, `>=`, or 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace PatternDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int score = 85;
-        if (score is > 0 and < 100)
-        {
-            Console.WriteLine($"Score {score} is between 1 and 99");
-        }
-    }
-}
+{{#include ../../snippets/type-system/pattern-matching/relational.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace PatternDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int score = 85;
-        if (score is > 0 and < 100)
-        {
-            Console.WriteLine($"Score {score} is between 1 and 99");
-        }
-    }
-}
+{{#include ../../snippets/type-system/pattern-matching/relational.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -419,52 +119,12 @@ The `and`, `or`, and `not` combinators compose patterns into more complex condit
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace PatternDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int temperature = 72;
-        if (temperature is >= 60 and <= 80)
-        {
-            Console.WriteLine($"Temperature {temperature} is comfortable");
-        }
-
-        int value = 15;
-        if (value is < 0 or > 10)
-        {
-            Console.WriteLine($"Value {value} is outside 0-10 range");
-        }
-    }
-}
+{{#include ../../snippets/type-system/pattern-matching/logical-combinators.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace PatternDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int temperature = 72;
-        if (temperature is >= 60 and <= 80)
-        {
-            Console.WriteLine($"Temperature {temperature} is comfortable");
-        }
-
-        int value = 15;
-        if (value is < 0 or > 10)
-        {
-            Console.WriteLine($"Value {value} is outside 0-10 range");
-        }
-    }
-}
+{{#include ../../snippets/type-system/pattern-matching/logical-combinators.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -478,62 +138,12 @@ List patterns match arrays by element position. Each element in the pattern brac
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace PatternDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int[] pair = new int[2];
-        pair[0] = 1;
-        pair[1] = 2;
-        if (pair is [> 0, > 0])
-        {
-            Console.WriteLine("Array has two positive elements");
-        }
-
-        int[] triple = new int[3];
-        triple[0] = 10;
-        triple[1] = 20;
-        triple[2] = 30;
-        if (triple is [> 0, ..])
-        {
-            Console.WriteLine("Array starts with a positive number");
-        }
-    }
-}
+{{#include ../../snippets/type-system/pattern-matching/list-patterns.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace PatternDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int[] pair = new int[2];
-        pair[0] = 1;
-        pair[1] = 2;
-        if (pair is [> 0, > 0])
-        {
-            Console.WriteLine("Array has two positive elements");
-        }
-
-        int[] triple = new int[3];
-        triple[0] = 10;
-        triple[1] = 20;
-        triple[2] = 30;
-        if (triple is [> 0, ..])
-        {
-            Console.WriteLine("Array starts with a positive number");
-        }
-    }
-}
+{{#include ../../snippets/type-system/pattern-matching/list-patterns.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

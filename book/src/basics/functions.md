@@ -9,56 +9,12 @@ A function declaration specifies the return type, name, and parameters. Paramete
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class MathUtils
-{
-    public static int Add(int a, int b)
-    {
-        return a + b;
-    }
-
-    public static string Greet(string name)
-    {
-        return $"Hello, {name}!";
-    }
-
-    public static void Main(string[] args)
-    {
-        int result = Add(3, 4);
-        Console.WriteLine($"Add(3, 4) = {result}");
-        Console.WriteLine(Greet("Mist"));
-    }
-}
+{{#include ../../snippets/basics/functions/declarations.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class MathUtils
-{
-    public static int Add(int a, int b)
-    {
-        return a + b;
-    }
-
-    public static string Greet(string name)
-    {
-        return $"Hello, {name}!";
-    }
-
-    public static void Main(string[] args)
-    {
-        int result = Add(3, 4);
-        Console.WriteLine($"Add(3, 4) = {result}");
-        Console.WriteLine(Greet("Mist"));
-    }
-}
+{{#include ../../snippets/basics/functions/declarations.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -72,60 +28,12 @@ A static method belongs to the class itself rather than to any particular instan
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Counter
-{
-    private static int totalCreated;
-
-    public Counter()
-    {
-        totalCreated = totalCreated + 1;
-    }
-
-    public static int GetTotalCreated()
-    {
-        return totalCreated;
-    }
-
-    public static void Main(string[] args)
-    {
-        var c1 = new Counter();
-        var c2 = new Counter();
-        Console.WriteLine($"Total: {Counter.GetTotalCreated()}");
-    }
-}
+{{#include ../../snippets/basics/functions/static-methods.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Counter
-{
-    private static int totalCreated;
-
-    public Counter()
-    {
-        totalCreated = totalCreated + 1;
-    }
-
-    public static int GetTotalCreated()
-    {
-        return totalCreated;
-    }
-
-    public static void Main(string[] args)
-    {
-        var c1 = new Counter();
-        var c2 = new Counter();
-        Console.WriteLine($"Total: {Counter.GetTotalCreated()}");
-    }
-}
+{{#include ../../snippets/basics/functions/static-methods.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -139,76 +47,12 @@ An instance method operates on a specific object. It has access to the object's 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Point
-{
-    private int x;
-    private int y;
-
-    public Point(int x, int y)
-    {
-        this.x = x;
-        this.y = y;
-    }
-
-    public string Describe()
-    {
-        return $"Point({x}, {y})";
-    }
-
-    public Point Translate(int dx, int dy)
-    {
-        return new Point(this.x + dx, this.y + dy);
-    }
-
-    public static void Main(string[] args)
-    {
-        var p = new Point(3, 4);
-        Console.WriteLine(p.Describe());
-        var moved = p.Translate(10, 20);
-        Console.WriteLine(moved.Describe());
-    }
-}
+{{#include ../../snippets/basics/functions/instance-methods.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Point
-{
-    private int x;
-    private int y;
-
-    public Point(int x, int y)
-    {
-        this.x = x;
-        this.y = y;
-    }
-
-    public string Describe()
-    {
-        return $"Point({x}, {y})";
-    }
-
-    public Point Translate(int dx, int dy)
-    {
-        return new Point(this.x + dx, this.y + dy);
-    }
-
-    public static void Main(string[] args)
-    {
-        var p = new Point(3, 4);
-        Console.WriteLine(p.Describe());
-        var moved = p.Translate(10, 20);
-        Console.WriteLine(moved.Describe());
-    }
-}
+{{#include ../../snippets/basics/functions/instance-methods.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -222,80 +66,12 @@ Mist supports `public` and `private` access modifiers on methods. A `public` met
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Account
-{
-    private int balance;
-
-    public Account(int initial)
-    {
-        this.balance = initial;
-    }
-
-    private int ApplyFee(int amount)
-    {
-        return amount - 1;
-    }
-
-    public void Deposit(int amount)
-    {
-        this.balance = this.balance + ApplyFee(amount);
-    }
-
-    public int GetBalance()
-    {
-        return this.balance;
-    }
-
-    public static void Main(string[] args)
-    {
-        var acct = new Account(100);
-        acct.Deposit(50);
-        Console.WriteLine($"Balance: {acct.GetBalance()}");
-    }
-}
+{{#include ../../snippets/basics/functions/access-modifiers.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Account
-{
-    private int balance;
-
-    public Account(int initial)
-    {
-        this.balance = initial;
-    }
-
-    private int ApplyFee(int amount)
-    {
-        return amount - 1;
-    }
-
-    public void Deposit(int amount)
-    {
-        this.balance = this.balance + ApplyFee(amount);
-    }
-
-    public int GetBalance()
-    {
-        return this.balance;
-    }
-
-    public static void Main(string[] args)
-    {
-        var acct = new Account(100);
-        acct.Deposit(50);
-        Console.WriteLine($"Balance: {acct.GetBalance()}");
-    }
-}
+{{#include ../../snippets/basics/functions/access-modifiers.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -309,44 +85,12 @@ Functions that perform an action without producing a value use `void` as their r
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Logger
-{
-    public static void Log(string message)
-    {
-        Console.WriteLine($"[LOG] {message}");
-    }
-
-    public static void Main(string[] args)
-    {
-        Log("Application started");
-        Log("Processing complete");
-    }
-}
+{{#include ../../snippets/basics/functions/void-return.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Logger
-{
-    public static void Log(string message)
-    {
-        Console.WriteLine($"[LOG] {message}");
-    }
-
-    public static void Main(string[] args)
-    {
-        Log("Application started");
-        Log("Processing complete");
-    }
-}
+{{#include ../../snippets/basics/functions/void-return.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -360,52 +104,12 @@ A function can call itself to solve problems that decompose into smaller subprob
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    public static int Factorial(int n)
-    {
-        if (n <= 1)
-        {
-            return 1;
-        }
-        return n * Factorial(n - 1);
-    }
-
-    public static void Main(string[] args)
-    {
-        Console.WriteLine($"5! = {Factorial(5)}");
-        Console.WriteLine($"10! = {Factorial(10)}");
-    }
-}
+{{#include ../../snippets/basics/functions/recursion.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Program
-{
-    public static int Factorial(int n)
-    {
-        if (n <= 1)
-        {
-            return 1;
-        }
-        return n * Factorial(n - 1);
-    }
-
-    public static void Main(string[] args)
-    {
-        Console.WriteLine($"5! = {Factorial(5)}");
-        Console.WriteLine($"10! = {Factorial(10)}");
-    }
-}
+{{#include ../../snippets/basics/functions/recursion.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

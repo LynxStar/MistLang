@@ -1,0 +1,17 @@
+namespace TypeAliases;
+
+type UserId = int;
+type UserName = string;
+type Score = double;
+type Flag = bool;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        UserId id = 42;
+        UserName name = "Alice";
+        Score score = 98.5;
+        Flag active = true;
+    }
+}

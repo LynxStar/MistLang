@@ -1,0 +1,21 @@
+using System;
+
+namespace Demo;
+
+public class Person
+{
+    // Read-write auto-property
+    public string Name { get; set; }
+
+    // Read-only auto-property (set only in constructor)
+    public string Id { get; }
+
+    // Auto-property with default value
+    public int Age { get; set; } = 0;
+
+    public Person(string name, string id)
+    {
+        this.Name = name;
+        this.Id = id;
+    }
+}

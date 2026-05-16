@@ -9,39 +9,12 @@ A simple type alias gives a new name to an existing type using the `type Name = 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace TypeAliases;
-
-type UserId = int;
-type UserName = string;
-type Score = double;
-type Flag = bool;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        UserId id = 42;
-        UserName name = "Alice";
-        Score score = 98.5;
-        Flag active = true;
-    }
-}
+{{#include ../../snippets/type-system/type-aliases/simple.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace TypeAliases;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int id = 42;
-        string name = "Alice";
-        double score = 98.5;
-        bool active = true;
-    }
-}
+{{#include ../../snippets/type-system/type-aliases/simple.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -55,39 +28,12 @@ A type alias can name a union type, giving a concise label to a multi-type union
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace TypeAliases;
-
-type StringOrInt = int | string;
-type Outcome = int | string | bool;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        StringOrInt x = 42;
-        StringOrInt y = "hello";
-        Outcome r1 = 99;
-        Outcome r2 = "success";
-        Outcome r3 = true;
-    }
-}
+{{#include ../../snippets/type-system/type-aliases/union-aliases.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace TypeAliases;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Union_Int32_String x = 42;
-        Union_Int32_String y = "hello";
-        Union_Boolean_Int32_String r1 = 99;
-        Union_Boolean_Int32_String r2 = "success";
-        Union_Boolean_Int32_String r3 = true;
-    }
-}
+{{#include ../../snippets/type-system/type-aliases/union-aliases.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -101,63 +47,12 @@ An alias can name a specific instantiation of a generic type. This is useful whe
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace TypeAliases;
-
-public class GenericBox<T>
-{
-    public T value;
-
-    public GenericBox(T v)
-    {
-        this.value = v;
-    }
-
-    public string Describe()
-    {
-        return $"Box({this.value})";
-    }
-}
-
-type IntBox = GenericBox<int>;
-type StringBox = GenericBox<string>;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        IntBox intBox = new IntBox(42);
-        StringBox strBox = new StringBox("Mist");
-    }
-}
+{{#include ../../snippets/type-system/type-aliases/closed-generic.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace TypeAliases;
-
-public class GenericBox<T>
-{
-    public T value;
-
-    public GenericBox(T v)
-    {
-        this.value = v;
-    }
-
-    public string Describe()
-    {
-        return $"Box({this.value})";
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        GenericBox<int> intBox = new GenericBox<int>(42);
-        GenericBox<string> strBox = new GenericBox<string>("Mist");
-    }
-}
+{{#include ../../snippets/type-system/type-aliases/closed-generic.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -171,62 +66,12 @@ A type alias can itself have type parameters. The type parameter is substituted 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace TypeAliases;
-
-public class GenericBox<T>
-{
-    public T value;
-
-    public GenericBox(T v)
-    {
-        this.value = v;
-    }
-
-    public string Describe()
-    {
-        return $"Box({this.value})";
-    }
-}
-
-type Box<T> = GenericBox<T>;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Box<int> boxInt = new Box<int>(7);
-        Box<string> boxStr = new Box<string>("world");
-    }
-}
+{{#include ../../snippets/type-system/type-aliases/generic-aliases.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace TypeAliases;
-
-public class GenericBox<T>
-{
-    public T value;
-
-    public GenericBox(T v)
-    {
-        this.value = v;
-    }
-
-    public string Describe()
-    {
-        return $"Box({this.value})";
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        GenericBox<int> boxInt = new GenericBox<int>(7);
-        GenericBox<string> boxStr = new GenericBox<string>("world");
-    }
-}
+{{#include ../../snippets/type-system/type-aliases/generic-aliases.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -240,48 +85,12 @@ Type aliases are fully transparent. A value declared with an alias type can be a
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace TypeAliases;
-
-type UserId = int;
-
-public class Program
-{
-    private static void PrintUserId(UserId id)
-    {
-        Console.WriteLine(id);
-    }
-
-    public static void Main(string[] args)
-    {
-        UserId aliasedId = 100;
-        int rawId = aliasedId;
-
-        int plainInt = 7;
-        Program.PrintUserId(plainInt);
-    }
-}
+{{#include ../../snippets/type-system/type-aliases/transparency.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace TypeAliases;
-
-public class Program
-{
-    private static void PrintUserId(int id)
-    {
-        Console.WriteLine(id);
-    }
-
-    public static void Main(string[] args)
-    {
-        int aliasedId = 100;
-        int rawId = aliasedId;
-
-        int plainInt = 7;
-        Program.PrintUserId(plainInt);
-    }
-}
+{{#include ../../snippets/type-system/type-aliases/transparency.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

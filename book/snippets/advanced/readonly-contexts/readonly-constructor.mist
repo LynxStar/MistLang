@@ -1,0 +1,28 @@
+using System;
+
+namespace ReadonlyContexts;
+
+public readonly class PrivilegeRemovalDemo
+{
+    public int X;
+    public int Y;
+
+    public PrivilegeRemovalDemo(int x, int y)
+    {
+        // Constructor privilege: can assign fields
+        this.X = x;
+        this.Y = y;
+
+        // Readonly block suspends constructor privilege
+        readonly
+        {
+            // Can only read fields here, not assign
+            var sum = X + Y;
+        }
+    }
+
+    public string Describe()
+    {
+        return $"PrivilegeRemovalDemo(X={X}, Y={Y})";
+    }
+}

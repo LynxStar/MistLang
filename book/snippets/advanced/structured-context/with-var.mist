@@ -1,0 +1,22 @@
+using System;
+
+namespace ContextDemo;
+
+public class Greeter
+{
+    public static string GetGreeting() with string message
+    {
+        return message;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        with var greeting = "hello";
+        Console.WriteLine(greeting);
+        var result = Greeter.GetGreeting();
+        Console.WriteLine(result);
+    }
+}

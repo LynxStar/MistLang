@@ -1,0 +1,27 @@
+using System;
+
+namespace ContextDemo;
+
+public class Consumers
+{
+    public static int GetInt() with int n
+    {
+        return n;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        with var count = 10;
+        Console.WriteLine(Consumers.GetInt());
+
+        with(99)
+        {
+            Console.WriteLine(Consumers.GetInt());
+        }
+
+        Console.WriteLine(Consumers.GetInt());
+    }
+}

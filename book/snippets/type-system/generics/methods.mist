@@ -1,0 +1,16 @@
+using System;
+
+namespace GenericTypes;
+
+public class Utilities
+{
+    public static T Identity<T>(T value)
+    {
+        return value;
+    }
+
+    public static void PrintItem<T>(T item)
+    {
+        Console.WriteLine($"Item: {item}");
+    }
+}

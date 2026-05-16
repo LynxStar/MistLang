@@ -1,0 +1,8 @@
+class MethodConstraints
+{
+    public static T CreateItem<T>()
+        where T : new()
+    {
+        return new T();
+    }
+}

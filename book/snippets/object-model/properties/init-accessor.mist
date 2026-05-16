@@ -1,0 +1,28 @@
+using System;
+
+namespace Demo;
+
+public class Record
+{
+    // Auto init-only property
+    public string Name { get; init; }
+
+    // Init with block body for validation
+    public int Year
+    {
+        get;
+        init
+        {
+            if (value > 0)
+            {
+                field = value;
+            }
+        }
+    }
+
+    public Record(string name, int year)
+    {
+        this.Name = name;
+        this.Year = year;
+    }
+}

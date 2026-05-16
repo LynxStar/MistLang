@@ -1,0 +1,10 @@
+using System;
+
+namespace EnumDemo;
+
+public enum Direction : string {
+    North: "N",
+    South: "S",
+    East: "E",
+    West: "W"
+}

@@ -1,0 +1,5 @@
+var target = new FixedBuffer<5>();
+if (target is FixedBuffer<5> matched)
+{
+    Console.WriteLine("target is FixedBuffer<5> = true");
+}

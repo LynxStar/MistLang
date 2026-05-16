@@ -1,0 +1,14 @@
+using System;
+
+namespace DefaultDemo;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        int i = default(int);
+        bool b = default(bool);
+        string s = default(string);
+        Console.WriteLine($"int={i} bool={b} string={s}");
+    }
+}

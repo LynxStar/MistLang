@@ -11,85 +11,12 @@ The `frozen` modifier on a parameter declares that the callee receives an immuta
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ReadonlyContexts;
-
-public class Pair
-{
-    public int X;
-    public int Y;
-
-    public Pair(int x, int y)
-    {
-        this.X = x;
-        this.Y = y;
-    }
-
-    public int Sum() { return X + Y; }
-    public string Describe() { return $"Pair({X}, {Y})"; }
-    public void SetX(int x) { this.X = x; }
-}
-
-public class FrozenDemo
-{
-    public static void FreezeAndRead(frozen Pair p)
-    {
-        // Can read through frozen — guaranteed stable snapshot
-        var sum = p.Sum();
-        Console.WriteLine($"frozen sum={sum}");
-    }
-
-    public static void Main(string[] args)
-    {
-        owned Pair p = new Pair(5, 10);
-        FreezeAndRead(p);
-        // After frozen borrow returns, owner can mutate again
-        p.SetX(50);
-        Console.WriteLine($"after thaw={p.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/readonly-contexts/frozen-parameter.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ReadonlyContexts;
-
-public class Pair
-{
-    public int X;
-    public int Y;
-
-    public Pair(int x, int y)
-    {
-        this.X = x;
-        this.Y = y;
-    }
-
-    public int Sum() { return X + Y; }
-    public string Describe() { return $"Pair({X}, {Y})"; }
-    public void SetX(int x) { this.X = x; }
-}
-
-public class FrozenDemo
-{
-    // frozen modifier is erased — enforcement is compile-time only
-    public static void FreezeAndRead(Pair p)
-    {
-        var sum = p.Sum();
-        Console.WriteLine($"frozen sum={sum}");
-    }
-
-    public static void Main(string[] args)
-    {
-        Pair p = new Pair(5, 10);
-        FreezeAndRead(p);
-        p.SetX(50);
-        Console.WriteLine($"after thaw={p.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/readonly-contexts/frozen-parameter.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -109,88 +36,12 @@ The owner *can* still lend the variable as `frozen` or `readonly ref` to other c
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ReadonlyContexts;
-
-public class Sensor
-{
-    public int Id;
-    public int Reading;
-
-    public Sensor(int id, int reading)
-    {
-        this.Id = id;
-        this.Reading = reading;
-    }
-
-    public int GetReading() { return Reading; }
-    public void SetReading(int r) { this.Reading = r; }
-    public string Describe() { return $"Sensor({Id}, {Reading})"; }
-}
-
-public class LentFrozenDemo
-{
-    public static void WithFrozenRef(frozen Sensor s)
-    {
-        // While this frozen ref exists, the owner is in LentFrozen state
-        Console.WriteLine($"frozen view={s.GetReading()}");
-    }
-
-    public static void Main(string[] args)
-    {
-        owned Sensor s = new Sensor(1, 100);
-
-        // Lend as frozen — owner enters LentFrozen during call
-        WithFrozenRef(s);
-
-        // After frozen returns, owner is back to Live
-        s.SetReading(200);
-        Console.WriteLine($"after thaw={s.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/readonly-contexts/lent-frozen.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ReadonlyContexts;
-
-public class Sensor
-{
-    public int Id;
-    public int Reading;
-
-    public Sensor(int id, int reading)
-    {
-        this.Id = id;
-        this.Reading = reading;
-    }
-
-    public int GetReading() { return Reading; }
-    public void SetReading(int r) { this.Reading = r; }
-    public string Describe() { return $"Sensor({Id}, {Reading})"; }
-}
-
-public class LentFrozenDemo
-{
-    // frozen erased — LentFrozen state is compile-time only
-    public static void WithFrozenRef(Sensor s)
-    {
-        Console.WriteLine($"frozen view={s.GetReading()}");
-    }
-
-    public static void Main(string[] args)
-    {
-        Sensor s = new Sensor(1, 100);
-
-        WithFrozenRef(s);
-
-        s.SetReading(200);
-        Console.WriteLine($"after thaw={s.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/readonly-contexts/lent-frozen.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -204,83 +55,12 @@ The `readonly { }` block creates a lexical scope where all field access is treat
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ReadonlyContexts;
-
-public class ReadonlyBlockDemo
-{
-    public int Value;
-
-    public ReadonlyBlockDemo(int value)
-    {
-        this.Value = value;
-    }
-
-    public string SafeRead()
-    {
-        var result = "";
-        readonly
-        {
-            // Inside readonly block: can read fields, call readonly methods
-            var v = Value;
-            result = $"SafeRead={v}";
-        }
-        return result;
-    }
-
-    public string MixedMethod()
-    {
-        var before = Value;
-        this.Value = Value + 1;
-        var after = 0;
-        readonly
-        {
-            // Can only read here — mutation would be a compile error
-            after = Value;
-        }
-        return $"before={before}, after={after}";
-    }
-}
+{{#include ../../snippets/advanced/readonly-contexts/readonly-block.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ReadonlyContexts;
-
-public class ReadonlyBlockDemo
-{
-    public int Value;
-
-    public ReadonlyBlockDemo(int value)
-    {
-        this.Value = value;
-    }
-
-    public string SafeRead()
-    {
-        var result = "";
-        // readonly block emits as a regular block
-        {
-            var v = Value;
-            result = $"SafeRead={v}";
-        }
-        return result;
-    }
-
-    public string MixedMethod()
-    {
-        var before = Value;
-        this.Value = Value + 1;
-        var after = 0;
-        {
-            after = Value;
-        }
-        return $"before={before}, after={after}";
-    }
-}
+{{#include ../../snippets/advanced/readonly-contexts/readonly-block.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -294,63 +74,12 @@ A particularly useful application of `readonly` blocks is inside constructors. C
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ReadonlyContexts;
-
-public readonly class PrivilegeRemovalDemo
-{
-    public int X;
-    public int Y;
-
-    public PrivilegeRemovalDemo(int x, int y)
-    {
-        // Constructor privilege: can assign fields
-        this.X = x;
-        this.Y = y;
-
-        // Readonly block suspends constructor privilege
-        readonly
-        {
-            // Can only read fields here, not assign
-            var sum = X + Y;
-        }
-    }
-
-    public string Describe()
-    {
-        return $"PrivilegeRemovalDemo(X={X}, Y={Y})";
-    }
-}
+{{#include ../../snippets/advanced/readonly-contexts/readonly-constructor.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ReadonlyContexts;
-
-public class PrivilegeRemovalDemo
-{
-    public int X;
-    public int Y;
-
-    public PrivilegeRemovalDemo(int x, int y)
-    {
-        this.X = x;
-        this.Y = y;
-
-        // Readonly block emits as a regular block
-        {
-            var sum = X + Y;
-        }
-    }
-
-    public string Describe()
-    {
-        return $"PrivilegeRemovalDemo(X={X}, Y={Y})";
-    }
-}
+{{#include ../../snippets/advanced/readonly-contexts/readonly-constructor.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

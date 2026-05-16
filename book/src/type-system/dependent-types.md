@@ -11,32 +11,12 @@ A dependent type parameter uses the `Name:PrimitiveType` syntax inside the type 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace DependentTypes;
-
-public class FixedBuffer<Size:int>
-{
-    public int GetSize() { return Size; }
-    public string Describe() { return $"FixedBuffer<{Size}>"; }
-}
+{{#include ../../snippets/type-system/dependent-types/syntax.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace DependentTypes;
-
-[DependentType("Size", typeof(int))]
-public class FixedBuffer<TSize>
-    where TSize : IConstInt
-{
-    public static int Size => TSize.Value;
-
-    public int GetSize() { return Size; }
-    public string Describe() { return $"FixedBuffer<{Size}>"; }
-}
+{{#include ../../snippets/type-system/dependent-types/syntax.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -55,47 +35,12 @@ Dependent parameters support all integral types, `bool`, and `char`. These are t
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace DependentTypes;
-
-public class IntParam<V:int> { public int GetValue() { return V; } }
-public class BoolParam<V:bool> { public string Describe() { return $"BoolParam<{V}>"; } }
-public class CharParam<V:char> { public string Describe() { return $"CharParam<{V}>"; } }
+{{#include ../../snippets/type-system/dependent-types/allowed-types.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace DependentTypes;
-
-[DependentType("V", typeof(int))]
-public class IntParam<TV>
-    where TV : IConstInt
-{
-    public static int V => TV.Value;
-
-    public int GetValue() { return V; }
-}
-
-[DependentType("V", typeof(bool))]
-public class BoolParam<TV>
-    where TV : IConstBool
-{
-    public static bool V => TV.Value;
-
-    public string Describe() { return $"BoolParam<{V}>"; }
-}
-
-[DependentType("V", typeof(char))]
-public class CharParam<TV>
-    where TV : IConstChar
-{
-    public static char V => TV.Value;
-
-    public string Describe() { return $"CharParam<{V}>"; }
-}
+{{#include ../../snippets/type-system/dependent-types/allowed-types.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -109,34 +54,12 @@ Inside the type body, a dependent parameter name acts as a static value. You can
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace DependentTypes;
-
-public class Matrix<Rows:int, Cols:int>
-{
-    public string Describe() { return $"Matrix<{Rows},{Cols}>"; }
-}
+{{#include ../../snippets/type-system/dependent-types/using-values.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace DependentTypes;
-
-[DependentType("Rows", typeof(int))]
-[DependentType("Cols", typeof(int))]
-public class Matrix<TRows, TCols>
-    where TRows : IConstInt
-    where TCols : IConstInt
-{
-    public static int Rows => TRows.Value;
-
-    public static int Cols => TCols.Value;
-
-    public string Describe() { return $"Matrix<{Rows},{Cols}>"; }
-}
+{{#include ../../snippets/type-system/dependent-types/using-values.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -150,35 +73,12 @@ Classes are the most common host for dependent type parameters. You can mix regu
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace DependentTypes;
-
-public class TypedBuffer<T, Size:int>
-{
-    public T Value;
-    public TypedBuffer(T value) { this.Value = value; }
-    public string Describe() { return $"TypedBuffer<{Size}>(value={this.Value})"; }
-}
+{{#include ../../snippets/type-system/dependent-types/classes.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace DependentTypes;
-
-[DependentType("Size", typeof(int))]
-public class TypedBuffer<T, TSize>
-    where TSize : IConstInt
-{
-    public static int Size => TSize.Value;
-
-    public T Value;
-
-    public TypedBuffer(T value) { this.Value = value; }
-    public string Describe() { return $"TypedBuffer<{Size}>(value={this.Value})"; }
-}
+{{#include ../../snippets/type-system/dependent-types/classes.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -192,32 +92,12 @@ Structs support dependent type parameters with the same syntax and semantics as 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace DependentTypes;
-
-public struct FixedSpan<Length:int>
-{
-    public int GetLength() { return Length; }
-    public string Describe() { return $"FixedSpan<{Length}>"; }
-}
+{{#include ../../snippets/type-system/dependent-types/structs.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace DependentTypes;
-
-[DependentType("Length", typeof(int))]
-public struct FixedSpan<TLength>
-    where TLength : IConstInt
-{
-    public static int Length => TLength.Value;
-
-    public int GetLength() { return Length; }
-    public string Describe() { return $"FixedSpan<{Length}>"; }
-}
+{{#include ../../snippets/type-system/dependent-types/structs.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -231,42 +111,12 @@ Interfaces can declare dependent type parameters to define contracts that depend
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace DependentTypes;
-
-interface IFixedCollection<Size:int>
-{
-    int GetSize();
-    string GetInfo();
-}
-
-public class TinyCollection : IFixedCollection<8>
-{
-    public int GetSize() { return 8; }
-    public string GetInfo() { return $"TinyCollection(size={this.GetSize()})"; }
-}
+{{#include ../../snippets/type-system/dependent-types/interfaces.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace DependentTypes;
-
-[DependentType("Size", typeof(int))]
-interface IFixedCollection<TSize>
-    where TSize : IConstInt
-{
-    int GetSize();
-    string GetInfo();
-}
-
-public class TinyCollection : IFixedCollection<Const_Int_8>
-{
-    public int GetSize() { return 8; }
-    public string GetInfo() { return $"TinyCollection(size={this.GetSize()})"; }
-}
+{{#include ../../snippets/type-system/dependent-types/interfaces.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -280,42 +130,12 @@ Traits can also declare dependent type parameters. A type satisfies a dependent 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace DependentTypes;
-
-trait ISized<N:int>
-{
-    int GetCapacity();
-}
-
-public class SizedBox<N:int>
-{
-    public int GetCapacity() { return N; }
-}
+{{#include ../../snippets/type-system/dependent-types/traits.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace DependentTypes;
-
-[DependentType("N", typeof(int))]
-interface ISized<TN>
-    where TN : IConstInt
-{
-    int GetCapacity();
-}
-
-[DependentType("N", typeof(int))]
-public class SizedBox<TN>
-    where TN : IConstInt
-{
-    public static int N => TN.Value;
-
-    public int GetCapacity() { return N; }
-}
+{{#include ../../snippets/type-system/dependent-types/traits.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -329,44 +149,12 @@ Methods can declare their own dependent type parameters, independent of the encl
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace DependentTypes;
-
-public class DependentMethods
-{
-    public static void Repeat<N:int>(string text)
-    {
-        Console.WriteLine($"  Repeat<{N}>: {text}");
-    }
-
-    public static string Process<N:int>(FixedBuffer<N> buf)
-    {
-        return $"Processed buffer of size {buf.GetSize()}";
-    }
-}
+{{#include ../../snippets/type-system/dependent-types/methods.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace DependentTypes;
-
-public class DependentMethods
-{
-    public static void Repeat<TN>(string text)
-        where TN : IConstInt
-    {
-        Console.WriteLine($"  Repeat<{TN.Value}>: {text}");
-    }
-
-    public static string Process<TN>(FixedBuffer<TN> buf)
-        where TN : IConstInt
-    {
-        return $"Processed buffer of size {buf.GetSize()}";
-    }
-}
+{{#include ../../snippets/type-system/dependent-types/methods.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -390,32 +178,12 @@ Different dependent values produce distinct types. `FixedBuffer<5>` and `FixedBu
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace DependentTypes;
-
-public class TypeIdentity
-{
-    public static string AcceptFive(FixedBuffer<5> buf)
-    {
-        return $"Accepted FixedBuffer<{buf.GetSize()}>";
-    }
-}
+{{#include ../../snippets/type-system/dependent-types/type-identity.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace DependentTypes;
-
-public class TypeIdentity
-{
-    public static string AcceptFive(FixedBuffer<Const_Int_5> buf)
-    {
-        return $"Accepted FixedBuffer<{buf.GetSize()}>";
-    }
-}
+{{#include ../../snippets/type-system/dependent-types/type-identity.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -425,9 +193,5 @@ The function `AcceptFive` only accepts `FixedBuffer<5>`. Passing a `FixedBuffer<
 You can also use pattern matching to check dependent type identity at runtime:
 
 ```mist
-var target = new FixedBuffer<5>();
-if (target is FixedBuffer<5> matched)
-{
-    Console.WriteLine("target is FixedBuffer<5> = true");
-}
+{{#include ../../snippets/type-system/dependent-types/pattern-matching.mist}}
 ```

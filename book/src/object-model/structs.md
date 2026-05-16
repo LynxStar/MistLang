@@ -9,46 +9,12 @@ Declare a struct with the `struct` keyword followed by a name and a brace-delimi
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-public struct Color
-{
-    public int r;
-    public int g;
-    public int b;
-
-    public Color(int r, int g, int b)
-    {
-        this.r = r;
-        this.g = g;
-        this.b = b;
-    }
-
-    public int Brightness()
-    {
-        return (this.r + this.g + this.b) / 3;
-    }
-}
+{{#include ../../snippets/object-model/structs/declaration.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-public struct Color
-{
-    public int r;
-    public int g;
-    public int b;
-
-    public Color(int r, int g, int b)
-    {
-        this.r = r;
-        this.g = g;
-        this.b = b;
-    }
-
-    public int Brightness()
-    {
-        return (this.r + this.g + this.b) / 3;
-    }
-}
+{{#include ../../snippets/object-model/structs/declaration.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -62,32 +28,12 @@ The fundamental distinction between structs and classes is their assignment beha
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-// Struct: copy semantics
-var a = new Color(255, 0, 0);
-var b = a;          // b is an independent copy
-b.r = 0;            // modifying b does not affect a
-Console.WriteLine($"a.r={a.r} b.r={b.r}");
-// Output: a.r=255 b.r=0
-
-// Class: reference semantics
-var p1 = new Point(3, 4);
-var p2 = p1;        // p2 points to the same object
-// Changes through p2 would be visible through p1
+{{#include ../../snippets/object-model/structs/value-semantics.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-// Struct: copy semantics
-var a = new Color(255, 0, 0);
-var b = a;          // b is an independent copy
-b.r = 0;            // modifying b does not affect a
-Console.WriteLine($"a.r={a.r} b.r={b.r}");
-// Output: a.r=255 b.r=0
-
-// Class: reference semantics
-var p1 = new Point(3, 4);
-var p2 = p1;        // p2 points to the same object
-// Changes through p2 would be visible through p1
+{{#include ../../snippets/object-model/structs/value-semantics.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -101,52 +47,12 @@ Adding the `readonly` modifier to a struct declaration prevents mutation of its 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-public readonly struct Vector2
-{
-    public int X;
-    public int Y;
-
-    public Vector2(int x, int y)
-    {
-        this.X = x;
-        this.Y = y;
-    }
-
-    public int MagnitudeSquared()
-    {
-        return X * X + Y * Y;
-    }
-
-    public string Describe()
-    {
-        return $"Vector2(X={X}, Y={Y})";
-    }
-}
+{{#include ../../snippets/object-model/structs/readonly-struct.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-public readonly struct Vector2
-{
-    public int X;
-    public int Y;
-
-    public Vector2(int x, int y)
-    {
-        this.X = x;
-        this.Y = y;
-    }
-
-    public readonly int MagnitudeSquared()
-    {
-        return X * X + Y * Y;
-    }
-
-    public readonly string Describe()
-    {
-        return $"Vector2(X={X}, Y={Y})";
-    }
-}
+{{#include ../../snippets/object-model/structs/readonly-struct.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

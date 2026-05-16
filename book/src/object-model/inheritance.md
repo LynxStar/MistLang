@@ -11,92 +11,12 @@ To derive from a base class, place a colon (`:`) followed by the base class name
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-public class Animal
-{
-    private string name;
-    private int age;
-
-    public Animal(string name, int age)
-    {
-        this.name = name;
-        this.age = age;
-    }
-
-    public string GetName()
-    {
-        return name;
-    }
-
-    public int GetAge()
-    {
-        return age;
-    }
-
-    public string Describe()
-    {
-        return $"{name} (age {age})";
-    }
-}
-
-public class Dog : Animal
-{
-    private string breed;
-
-    public Dog(string name, int age, string breed) : base(name, age)
-    {
-        this.breed = breed;
-    }
-
-    public string GetBreed()
-    {
-        return breed;
-    }
-}
+{{#include ../../snippets/object-model/inheritance/extending.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-public class Animal
-{
-    private string name;
-    private int age;
-
-    public Animal(string name, int age)
-    {
-        this.name = name;
-        this.age = age;
-    }
-
-    public string GetName()
-    {
-        return name;
-    }
-
-    public int GetAge()
-    {
-        return age;
-    }
-
-    public string Describe()
-    {
-        return $"{name} (age {age})";
-    }
-}
-
-public class Dog : Animal
-{
-    private string breed;
-
-    public Dog(string name, int age, string breed) : base(name, age)
-    {
-        this.breed = breed;
-    }
-
-    public string GetBreed()
-    {
-        return breed;
-    }
-}
+{{#include ../../snippets/object-model/inheritance/extending.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -110,38 +30,12 @@ When a derived class has a constructor, it must forward the required arguments t
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-public class GuideDog : Dog
-{
-    private string handler;
-
-    public GuideDog(string name, int age, string breed, string handler) : base(name, age, breed)
-    {
-        this.handler = handler;
-    }
-
-    public string GetHandler()
-    {
-        return handler;
-    }
-}
+{{#include ../../snippets/object-model/inheritance/base-constructor.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-public class GuideDog : Dog
-{
-    private string handler;
-
-    public GuideDog(string name, int age, string breed, string handler) : base(name, age, breed)
-    {
-        this.handler = handler;
-    }
-
-    public string GetHandler()
-    {
-        return handler;
-    }
-}
+{{#include ../../snippets/object-model/inheritance/base-constructor.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -155,68 +49,12 @@ A derived class can provide a specialized implementation of a method by declarin
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-public class Dog : Animal
-{
-    private string breed;
-
-    public Dog(string name, int age, string breed) : base(name, age)
-    {
-        this.breed = breed;
-    }
-
-    public string DescribeDog()
-    {
-        return $"{GetName()} is a {breed}, age {GetAge()}";
-    }
-}
-
-public class GuideDog : Dog
-{
-    private string handler;
-
-    public GuideDog(string name, int age, string breed, string handler) : base(name, age, breed)
-    {
-        this.handler = handler;
-    }
-
-    public string DescribeGuideDog()
-    {
-        return $"{GetName()} is a {GetBreed()} guide dog, age {GetAge()}, handler: {handler}";
-    }
-}
+{{#include ../../snippets/object-model/inheritance/method-overriding.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-public class Dog : Animal
-{
-    private string breed;
-
-    public Dog(string name, int age, string breed) : base(name, age)
-    {
-        this.breed = breed;
-    }
-
-    public string DescribeDog()
-    {
-        return $"{GetName()} is a {breed}, age {GetAge()}";
-    }
-}
-
-public class GuideDog : Dog
-{
-    private string handler;
-
-    public GuideDog(string name, int age, string breed, string handler) : base(name, age, breed)
-    {
-        this.handler = handler;
-    }
-
-    public string DescribeGuideDog()
-    {
-        return $"{GetName()} is a {GetBreed()} guide dog, age {GetAge()}, handler: {handler}";
-    }
-}
+{{#include ../../snippets/object-model/inheritance/method-overriding.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

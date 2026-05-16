@@ -1,0 +1,27 @@
+using System;
+
+namespace SwitchDemo;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        int code = 99;
+        var meaning = code switch
+        {
+            0 => "Zero",
+            1 => "One",
+            var _ => "Other",
+        };
+        Console.WriteLine($"Code {code} => {meaning}");
+
+        int code2 = 50;
+        var meaning2 = code2 switch
+        {
+            0 => "Zero",
+            1 => "One",
+            _ => "Other",
+        };
+        Console.WriteLine($"Code {code2} => {meaning2}");
+    }
+}

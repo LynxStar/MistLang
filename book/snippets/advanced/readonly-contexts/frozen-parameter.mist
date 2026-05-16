@@ -1,0 +1,38 @@
+using System;
+
+namespace ReadonlyContexts;
+
+public class Pair
+{
+    public int X;
+    public int Y;
+
+    public Pair(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    public int Sum() { return X + Y; }
+    public string Describe() { return $"Pair({X}, {Y})"; }
+    public void SetX(int x) { this.X = x; }
+}
+
+public class FrozenDemo
+{
+    public static void FreezeAndRead(frozen Pair p)
+    {
+        // Can read through frozen — guaranteed stable snapshot
+        var sum = p.Sum();
+        Console.WriteLine($"frozen sum={sum}");
+    }
+
+    public static void Main(string[] args)
+    {
+        owned Pair p = new Pair(5, 10);
+        FreezeAndRead(p);
+        // After frozen borrow returns, owner can mutate again
+        p.SetX(50);
+        Console.WriteLine($"after thaw={p.Describe()}");
+    }
+}

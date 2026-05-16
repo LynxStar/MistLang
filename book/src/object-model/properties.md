@@ -9,74 +9,12 @@ Block-bodied accessors use `get { }` and `set { }` blocks to define custom logic
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Thermostat
-{
-    private int _temperature;
-
-    public Thermostat(int initial)
-    {
-        this._temperature = initial;
-    }
-
-    public int Temperature
-    {
-        get
-        {
-            return _temperature;
-        }
-        set
-        {
-            if (value < -273)
-            {
-                _temperature = -273;
-            }
-            else
-            {
-                _temperature = value;
-            }
-        }
-    }
-}
+{{#include ../../snippets/object-model/properties/block-bodied.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Thermostat
-{
-    private int _temperature;
-
-    public Thermostat(int initial)
-    {
-        this._temperature = initial;
-    }
-
-    public int Temperature
-    {
-        get
-        {
-            return _temperature;
-        }
-        set
-        {
-            if (value < -273)
-            {
-                _temperature = -273;
-            }
-            else
-            {
-                _temperature = value;
-            }
-        }
-    }
-}
+{{#include ../../snippets/object-model/properties/block-bodied.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -90,69 +28,12 @@ When an accessor contains a single expression, you can use the `=>` syntax for a
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Rectangle
-{
-    private int _width;
-    private int _height;
-
-    public Rectangle(int width, int height)
-    {
-        this._width = width;
-        this._height = height;
-    }
-
-    // Read-only computed property (top-level =>)
-    public int Area => _width * _height;
-
-    // Expression-bodied get accessor
-    public int Width
-    {
-        get => _width;
-    }
-
-    // Expression-bodied get and set accessors
-    public int Height
-    {
-        get => _height;
-        set => _height = value;
-    }
-}
+{{#include ../../snippets/object-model/properties/expression-bodied.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Rectangle
-{
-    private int _width;
-    private int _height;
-
-    public Rectangle(int width, int height)
-    {
-        this._width = width;
-        this._height = height;
-    }
-
-    public int Area => _width * _height;
-
-    public int Width
-    {
-        get => _width;
-    }
-
-    public int Height
-    {
-        get => _height;
-        set => _height = value;
-    }
-}
+{{#include ../../snippets/object-model/properties/expression-bodied.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -166,65 +47,12 @@ The `init` accessor allows a property to be set during object construction (incl
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Record
-{
-    // Auto init-only property
-    public string Name { get; init; }
-
-    // Init with block body for validation
-    public int Year
-    {
-        get;
-        init
-        {
-            if (value > 0)
-            {
-                field = value;
-            }
-        }
-    }
-
-    public Record(string name, int year)
-    {
-        this.Name = name;
-        this.Year = year;
-    }
-}
+{{#include ../../snippets/object-model/properties/init-accessor.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Record
-{
-    public string Name { get; init; }
-
-    private int _year;
-    public int Year
-    {
-        get => _year;
-        init
-        {
-            if (value > 0)
-            {
-                _year = value;
-            }
-        }
-    }
-
-    public Record(string name, int year)
-    {
-        this.Name = name;
-        this.Year = year;
-    }
-}
+{{#include ../../snippets/object-model/properties/init-accessor.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -238,49 +66,12 @@ Auto-implemented properties declare `get` and `set` (or `get` alone) with semico
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Person
-{
-    // Read-write auto-property
-    public string Name { get; set; }
-
-    // Read-only auto-property (set only in constructor)
-    public string Id { get; }
-
-    // Auto-property with default value
-    public int Age { get; set; } = 0;
-
-    public Person(string name, string id)
-    {
-        this.Name = name;
-        this.Id = id;
-    }
-}
+{{#include ../../snippets/object-model/properties/auto-implemented.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Person
-{
-    public string Name { get; set; }
-
-    public string Id { get; }
-
-    public int Age { get; set; } = 0;
-
-    public Person(string name, string id)
-    {
-        this.Name = name;
-        this.Id = id;
-    }
-}
+{{#include ../../snippets/object-model/properties/auto-implemented.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -294,30 +85,12 @@ A property initializer assigns a default value using `= expression;` after the a
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Config
-{
-    public int Timeout { get; set; } = 30;
-    public bool Verbose { get; set; } = false;
-    public string Name { get; set; } = "default";
-}
+{{#include ../../snippets/object-model/properties/initializers.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Config
-{
-    public int Timeout { get; set; } = 30;
-    public bool Verbose { get; set; } = false;
-    public string Name { get; set; } = "default";
-}
+{{#include ../../snippets/object-model/properties/initializers.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -329,62 +102,12 @@ You can also use property initializer blocks when constructing objects with `new
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Config
-{
-    public int Timeout { get; set; } = 0;
-    public bool Verbose { get; set; } = false;
-    public string Name { get; set; } = "";
-
-    public Config()
-    {
-        this.Timeout = 0;
-        this.Verbose = false;
-        this.Name = "";
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var cfg = new Config { Timeout = 60, Verbose = true, Name = "production" };
-        Console.WriteLine($"Timeout={cfg.Timeout}, Name={cfg.Name}");
-    }
-}
+{{#include ../../snippets/object-model/properties/initializer-blocks.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Config
-{
-    public int Timeout { get; set; } = 0;
-    public bool Verbose { get; set; } = false;
-    public string Name { get; set; } = "";
-
-    public Config()
-    {
-        this.Timeout = 0;
-        this.Verbose = false;
-        this.Name = "";
-    }
-}
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var cfg = new Config { Timeout = 60, Verbose = true, Name = "production" };
-        Console.WriteLine($"Timeout={cfg.Timeout}, Name={cfg.Name}");
-    }
-}
+{{#include ../../snippets/object-model/properties/initializer-blocks.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -398,52 +121,12 @@ You can restrict the visibility of individual accessors by placing an access mod
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Account
-{
-    // Public get, private set
-    public string Name { get; private set; }
-
-    // Public get, private set with initializer
-    public int Balance { get; private set; } = 0;
-
-    public Account(string name)
-    {
-        this.Name = name;
-    }
-
-    public void Deposit(int amount)
-    {
-        this.Balance = this.Balance + amount;
-    }
-}
+{{#include ../../snippets/object-model/properties/accessor-modifiers.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Account
-{
-    public string Name { get; private set; }
-
-    public int Balance { get; private set; } = 0;
-
-    public Account(string name)
-    {
-        this.Name = name;
-    }
-
-    public void Deposit(int amount)
-    {
-        this.Balance = this.Balance + amount;
-    }
-}
+{{#include ../../snippets/object-model/properties/accessor-modifiers.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

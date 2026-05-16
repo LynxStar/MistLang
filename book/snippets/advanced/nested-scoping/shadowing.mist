@@ -1,0 +1,20 @@
+using System;
+
+namespace ScopingDemo;
+
+public class ShadowingDemo
+{
+    public static void Main(string[] args)
+    {
+        var x = 10;
+        Console.WriteLine($"outer x = {x}");
+
+        {
+            var x = 99;  // shadows the outer x
+            Console.WriteLine($"inner x = {x}");
+        }
+
+        // outer x is restored — still 10
+        Console.WriteLine($"outer x after block = {x}");
+    }
+}

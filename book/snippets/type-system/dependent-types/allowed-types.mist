@@ -1,0 +1,7 @@
+using System;
+
+namespace DependentTypes;
+
+public class IntParam<V:int> { public int GetValue() { return V; } }
+public class BoolParam<V:bool> { public string Describe() { return $"BoolParam<{V}>"; } }
+public class CharParam<V:char> { public string Describe() { return $"CharParam<{V}>"; } }

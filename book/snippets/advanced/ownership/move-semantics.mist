@@ -1,0 +1,27 @@
+using System;
+
+namespace OwnershipSystem;
+
+public class MoveDemo
+{
+    public static void ConsumeHandle(owned UniqueHandle h)
+    {
+        h.Touch();
+        Console.WriteLine($"consumed={h.Describe()}");
+    }
+
+    public static void Run()
+    {
+        owned UniqueHandle h1 = new UniqueHandle(10);
+        Console.WriteLine($"before move={h1.Describe()}");
+
+        // Move ownership to h2 — h1 is now inaccessible
+        owned UniqueHandle h2 = h1;
+        h2.Touch();
+        Console.WriteLine($"after move to h2={h2.Describe()}");
+
+        // Move ownership into a function parameter — h2 is now inaccessible
+        ConsumeHandle(h2);
+        Console.WriteLine($"transfer complete");
+    }
+}

@@ -1,0 +1,20 @@
+using System;
+
+namespace Namespaces.Models;
+
+public class Player
+{
+    private string name;
+    private int health;
+
+    public Player(string name, int health)
+    {
+        this.name = name;
+        this.health = health;
+    }
+
+    public string Describe()
+    {
+        return $"Player: {name}, HP: {health}";
+    }
+}

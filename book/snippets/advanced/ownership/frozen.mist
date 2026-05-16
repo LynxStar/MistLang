@@ -1,0 +1,23 @@
+using System;
+
+namespace OwnershipSystem;
+
+public class FrozenDemo
+{
+    public static void FreezeAndRead(frozen Pair p)
+    {
+        // Can read through frozen — guaranteed stable snapshot
+        var sum = p.X + p.Y;
+        Console.WriteLine($"frozen sum={sum}");
+    }
+
+    public static void Run()
+    {
+        owned Pair p = new Pair(5, 10);
+        // Lend as frozen — owner cannot mutate while frozen borrow is active
+        FreezeAndRead(p);
+        // After frozen borrow returns, owner can mutate again
+        p.SetX(50);
+        Console.WriteLine($"after thaw={p.Describe()}");
+    }
+}

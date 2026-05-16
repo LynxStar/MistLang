@@ -1,0 +1,22 @@
+namespace Traits;
+
+trait Printable
+{
+    string Name;
+    int Id;
+}
+
+// User satisfies Printable because it has public
+// properties `Name` (string) and `Id` (int).
+// No explicit declaration is required.
+public class User
+{
+    public string Name { get; set; }
+    public int Id { get; set; }
+
+    public User(string name, int id)
+    {
+        this.Name = name;
+        this.Id = id;
+    }
+}

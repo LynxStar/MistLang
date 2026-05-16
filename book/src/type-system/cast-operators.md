@@ -9,84 +9,12 @@ An implicit cast operator is declared with `public static implicit operator Targ
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace CastOperators;
-
-public class Celsius
-{
-    private double degrees;
-
-    public Celsius(double degrees)
-    {
-        this.degrees = degrees;
-    }
-
-    public double GetDegrees()
-    {
-        return degrees;
-    }
-
-    // Implicit cast: Celsius → Fahrenheit
-    // Applied automatically at assignment and argument sites.
-    public static implicit operator Fahrenheit(Celsius c)
-    {
-        return new Fahrenheit(c.GetDegrees() * 1.8 + 32.0);
-    }
-}
-
-public class Fahrenheit
-{
-    private double degrees;
-
-    public Fahrenheit(double degrees)
-    {
-        this.degrees = degrees;
-    }
-
-    public string Describe()
-    {
-        return $"{degrees} F";
-    }
-}
+{{#include ../../snippets/type-system/cast-operators/implicit-operator.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace CastOperators;
-
-public class Celsius
-{
-    private double degrees;
-
-    public Celsius(double degrees)
-    {
-        this.degrees = degrees;
-    }
-
-    public double GetDegrees()
-    {
-        return degrees;
-    }
-
-    public static implicit operator Fahrenheit(Celsius c)
-    {
-        return new Fahrenheit(c.GetDegrees() * 1.8 + 32.0);
-    }
-}
-
-public class Fahrenheit
-{
-    private double degrees;
-
-    public Fahrenheit(double degrees)
-    {
-        this.degrees = degrees;
-    }
-
-    public string Describe()
-    {
-        return $"{degrees} F";
-    }
-}
+{{#include ../../snippets/type-system/cast-operators/implicit-operator.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -100,36 +28,12 @@ When you assign a `Celsius` value to a variable typed as `Fahrenheit`, the impli
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace CastOperators;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var boiling = new Celsius(100.0);
-        Fahrenheit boilingF = boiling;  // implicit cast applied here
-        Console.WriteLine(boilingF.Describe());
-    }
-}
+{{#include ../../snippets/type-system/cast-operators/assignment-conversion.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace CastOperators;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var boiling = new Celsius(100.0);
-        Fahrenheit boilingF = ((Fahrenheit)boiling);
-        Console.WriteLine(boilingF.Describe());
-    }
-}
+{{#include ../../snippets/type-system/cast-operators/assignment-conversion.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -143,44 +47,12 @@ Implicit casts also apply when passing an argument to a method that expects the 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace CastOperators;
-
-public class Program
-{
-    private static void PrintTemperature(Fahrenheit f)
-    {
-        Console.WriteLine($"Temperature: {f.Describe()}");
-    }
-
-    public static void Main(string[] args)
-    {
-        var freezing = new Celsius(0.0);
-        PrintTemperature(freezing);  // implicit cast: Celsius → Fahrenheit
-    }
-}
+{{#include ../../snippets/type-system/cast-operators/argument-conversion.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace CastOperators;
-
-public class Program
-{
-    private static void PrintTemperature(Fahrenheit f)
-    {
-        Console.WriteLine($"Temperature: {f.Describe()}");
-    }
-
-    public static void Main(string[] args)
-    {
-        var freezing = new Celsius(0.0);
-        PrintTemperature(freezing);
-    }
-}
+{{#include ../../snippets/type-system/cast-operators/argument-conversion.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -194,84 +66,12 @@ An explicit cast operator is declared with `public static explicit operator Targ
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace CastOperators;
-
-public class Celsius
-{
-    private double degrees;
-
-    public Celsius(double degrees)
-    {
-        this.degrees = degrees;
-    }
-
-    public double GetDegrees()
-    {
-        return degrees;
-    }
-
-    // Explicit cast: Celsius → Kelvin
-    // Requires the programmer to write (Kelvin)expr.
-    public static explicit operator Kelvin(Celsius c)
-    {
-        return new Kelvin(c.GetDegrees() + 273.15);
-    }
-}
-
-public class Kelvin
-{
-    private double degrees;
-
-    public Kelvin(double degrees)
-    {
-        this.degrees = degrees;
-    }
-
-    public string Describe()
-    {
-        return $"{degrees} K";
-    }
-}
+{{#include ../../snippets/type-system/cast-operators/explicit-operator.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace CastOperators;
-
-public class Celsius
-{
-    private double degrees;
-
-    public Celsius(double degrees)
-    {
-        this.degrees = degrees;
-    }
-
-    public double GetDegrees()
-    {
-        return degrees;
-    }
-
-    public static explicit operator Kelvin(Celsius c)
-    {
-        return new Kelvin(c.GetDegrees() + 273.15);
-    }
-}
-
-public class Kelvin
-{
-    private double degrees;
-
-    public Kelvin(double degrees)
-    {
-        this.degrees = degrees;
-    }
-
-    public string Describe()
-    {
-        return $"{degrees} K";
-    }
-}
+{{#include ../../snippets/type-system/cast-operators/explicit-operator.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -285,36 +85,12 @@ To invoke an explicit operator, you write `(TargetType)expression`:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace CastOperators;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var body = new Celsius(37.0);
-        var bodyK = (Kelvin)body;  // explicit cast required
-        Console.WriteLine(bodyK.Describe());
-    }
-}
+{{#include ../../snippets/type-system/cast-operators/cast-expression.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace CastOperators;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var body = new Celsius(37.0);
-        var bodyK = ((Kelvin)body);
-        Console.WriteLine(bodyK.Describe());
-    }
-}
+{{#include ../../snippets/type-system/cast-operators/cast-expression.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -328,73 +104,12 @@ Cast operators are resolved against the **compile-time (static) type** of the ex
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-namespace CastOperators;
-
-public class Measurement
-{
-    private string unit;
-
-    public Measurement(string unit)
-    {
-        this.unit = unit;
-    }
-}
-
-public class Weight : Measurement
-{
-    private double value;
-
-    public Weight(double value, string unit) : base(unit)
-    {
-        this.value = value;
-    }
-
-    public double GetValue()
-    {
-        return value;
-    }
-
-    // Only visible when compile-time type is Weight
-    public static explicit operator Kelvin(Weight w)
-    {
-        return new Kelvin(w.GetValue());
-    }
-}
+{{#include ../../snippets/type-system/cast-operators/compile-time-resolution.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-namespace CastOperators;
-
-public class Measurement
-{
-    private string unit;
-
-    public Measurement(string unit)
-    {
-        this.unit = unit;
-    }
-}
-
-public class Weight : Measurement
-{
-    private double value;
-
-    public Weight(double value, string unit) : base(unit)
-    {
-        this.value = value;
-    }
-
-    public double GetValue()
-    {
-        return value;
-    }
-
-    public static explicit operator Kelvin(Weight w)
-    {
-        return new Kelvin(w.GetValue());
-    }
-}
+{{#include ../../snippets/type-system/cast-operators/compile-time-resolution.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -402,15 +117,13 @@ public class Weight : Measurement
 With this hierarchy, the following code compiles because the variable's static type is `Weight`:
 
 ```mist
-var w = new Weight(72.5, "kg");
-var wK = (Kelvin)w;  // OK — compile-time type is Weight
+{{#include ../../snippets/type-system/cast-operators/cast-ok.mist}}
 ```
 
 But if you assign the same value to a base-typed variable, the cast becomes unavailable:
 
 ```mist
-Measurement m = w;
-// var mK = (Kelvin)m;  // ERROR: No cast operator from 'Measurement' to 'Kelvin'
+{{#include ../../snippets/type-system/cast-operators/cast-error.mist}}
 ```
 
 Even though `m` holds a `Weight` at runtime, the compiler only sees `Measurement` — which does not declare a cast to `Kelvin`. This static resolution eliminates any possibility of a runtime cast failure: if the code compiles, the cast will always succeed.

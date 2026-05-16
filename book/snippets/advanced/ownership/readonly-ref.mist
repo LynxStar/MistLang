@@ -1,0 +1,23 @@
+using System;
+
+namespace OwnershipSystem;
+
+public class ReadonlyRefDemo
+{
+    public static void ReadPair(readonly ref Pair p)
+    {
+        // Can read fields and call readonly methods
+        var sum = p.X + p.Y;
+        Console.WriteLine($"readonly ref sum={sum}");
+    }
+
+    public static void Run()
+    {
+        owned Pair p = new Pair(3, 7);
+        // Lend as readonly ref — callee can only read
+        ReadPair(p);
+        // Owner retains full access (including mutation)
+        p.SetX(100);
+        Console.WriteLine($"after readonly ref={p.Describe()}");
+    }
+}

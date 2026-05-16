@@ -1,0 +1,15 @@
+using System;
+
+namespace PatternDemo;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        int score = 85;
+        if (score is > 0 and < 100)
+        {
+            Console.WriteLine($"Score {score} is between 1 and 99");
+        }
+    }
+}

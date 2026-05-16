@@ -1,0 +1,27 @@
+using System;
+
+namespace ScopingDemo;
+
+public class Logger
+{
+    public static void Log(string msg) with string prefix
+    {
+        Console.WriteLine($"[{prefix}] {msg}");
+    }
+}
+
+public class ContextScopeDemo
+{
+    public static void Main(string[] args)
+    {
+        with var prefix = "OUTER";
+        Logger.Log("message 1");
+
+        {
+            with var prefix = "INNER";
+            Logger.Log("message 2");  // uses "INNER"
+        }
+
+        Logger.Log("message 3");  // uses "OUTER" again
+    }
+}

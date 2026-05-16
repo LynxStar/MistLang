@@ -1,0 +1,22 @@
+using System;
+
+namespace ContextDemo;
+
+public class Service
+{
+    public static string Describe() with string name with int count
+    {
+        return $"name={name}, count={count}";
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        with var name = "alpha";
+        with var count = 5;
+        var result = Service.Describe();
+        Console.WriteLine(result);
+    }
+}

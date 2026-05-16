@@ -9,62 +9,12 @@ An extension block is declared with the `extension` keyword followed by the rece
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ExtensionMethods;
-
-public class Greeting
-{
-    public string Message;
-
-    public Greeting(string message)
-    {
-        Message = message;
-    }
-}
-
-extension(Greeting self)
-{
-    public int WordCount()
-    {
-        return self.Message.Length;
-    }
-
-    public string Uppercase()
-    {
-        return self.Message;
-    }
-}
+{{#include ../../snippets/object-model/extension-methods/declaring.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ExtensionMethods;
-
-public class Greeting
-{
-    public string Message;
-
-    public Greeting(string message)
-    {
-        Message = message;
-    }
-}
-
-public static class GreetingExtensions_GreetingExtensions_L14
-{
-    public static int WordCount(this Greeting self)
-    {
-        return self.Message.Length;
-    }
-
-    public static string Uppercase(this Greeting self)
-    {
-        return self.Message;
-    }
-}
+{{#include ../../snippets/object-model/extension-methods/declaring.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -76,44 +26,12 @@ Extension methods can also accept additional parameters beyond the implicit rece
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ExtensionMethods;
-
-extension(Greeting self)
-{
-    public Greeting Repeat(int times)
-    {
-        var repeated = "";
-        for (var i = 0; i < times; i = i + 1)
-        {
-            if (i > 0) { repeated = repeated + " "; }
-            repeated = repeated + self.Message;
-        }
-        return new Greeting(repeated);
-    }
-}
+{{#include ../../snippets/object-model/extension-methods/with-params.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ExtensionMethods;
-
-public static class GreetingExtensions_GreetingExtensions_L5
-{
-    public static Greeting Repeat(this Greeting self, int times)
-    {
-        var repeated = "";
-        for (var i = 0; i < times; i = i + 1)
-        {
-            if (i > 0) { repeated = repeated + " "; }
-            repeated = repeated + self.Message;
-        }
-        return new Greeting(repeated);
-    }
-}
+{{#include ../../snippets/object-model/extension-methods/with-params.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -127,48 +45,12 @@ Extension methods are called using dot-notation on an instance of the receiver t
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace ExtensionMethods;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var greeting = new Greeting("Hello beautiful world");
-
-        // Call extension methods via dot-notation
-        var wc = greeting.WordCount();
-        var upper = greeting.Uppercase();
-        var repeated = greeting.Repeat(2);
-
-        Console.WriteLine(wc);
-        Console.WriteLine(upper);
-    }
-}
+{{#include ../../snippets/object-model/extension-methods/calling.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace ExtensionMethods;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var greeting = new Greeting("Hello beautiful world");
-
-        // Compiler rewrites dot-notation to static method calls
-        var wc = GreetingExtensions_GreetingExtensions_L14.WordCount(greeting);
-        var upper = GreetingExtensions_GreetingExtensions_L14.Uppercase(greeting);
-        var repeated = GreetingExtensions_GreetingExtensions_L5.Repeat(greeting, 2);
-
-        Console.WriteLine(wc);
-        Console.WriteLine(upper);
-    }
-}
+{{#include ../../snippets/object-model/extension-methods/calling.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -180,42 +62,12 @@ Extension methods on primitive types work the same way. Here, `string` is extend
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace StringUtils;
-
-extension(string self)
-{
-    public bool IsNullOrEmpty()
-    {
-        return self.Length == 0;
-    }
-
-    public string Reverse()
-    {
-        return self;
-    }
-}
+{{#include ../../snippets/object-model/extension-methods/primitive-extensions.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace StringUtils;
-
-public static class stringExtensions_StringUtils_L5
-{
-    public static bool IsNullOrEmpty(this string self)
-    {
-        return self.Length == 0;
-    }
-
-    public static string Reverse(this string self)
-    {
-        return self;
-    }
-}
+{{#include ../../snippets/object-model/extension-methods/primitive-extensions.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

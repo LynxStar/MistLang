@@ -1,0 +1,16 @@
+using System;
+
+namespace UnknownDemo;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        unknown maybeInt = 17;
+        if (maybeInt is int narrowed)
+        {
+            int doubled = narrowed + narrowed;
+            Console.WriteLine($"narrowed int doubled: {doubled}");
+        }
+    }
+}

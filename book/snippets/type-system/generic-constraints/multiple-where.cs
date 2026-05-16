@@ -1,0 +1,14 @@
+class Pair<K, V>
+    where K : IOrderable
+    where V : new()
+{
+    public K Key;
+
+    public V Value;
+
+    public Pair(K key)
+    {
+        Key = key;
+        Value = new V();
+    }
+}

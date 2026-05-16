@@ -9,47 +9,12 @@ A switch expression is written as `value switch { arms }`, where each arm maps a
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace SwitchDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int num = 2;
-        var parity = num switch {
-            1 => "odd",
-            2 => "even",
-            3 => "odd",
-            var _ => "unknown",
-        };
-        Console.WriteLine($"num={num} parity={parity}");
-    }
-}
+{{#include ../../snippets/type-system/switch-expressions/postfix-syntax.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace SwitchDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int num = 2;
-        var parity = num switch
-        {
-            1 => "odd",
-            2 => "even",
-            3 => "odd",
-            var _ => "unknown",
-        };
-        Console.WriteLine($"num={num} parity={parity}");
-    }
-}
+{{#include ../../snippets/type-system/switch-expressions/postfix-syntax.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -63,85 +28,12 @@ Constant patterns match a specific literal value — integers, strings, or boole
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace SwitchDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int day = 3;
-        var dayName = day switch {
-            1 => "Monday",
-            2 => "Tuesday",
-            3 => "Wednesday",
-            4 => "Thursday",
-            5 => "Friday",
-            var _ => "Weekend",
-        };
-        Console.WriteLine($"Day {day} is {dayName}");
-
-        string command = "quit";
-        var response = command switch {
-            "start" => "Starting...",
-            "stop" => "Stopping...",
-            "quit" => "Goodbye!",
-            var _ => "Unknown command",
-        };
-        Console.WriteLine($"Command '{command}' => {response}");
-
-        bool isActive = true;
-        var status = isActive switch {
-            true => "Active",
-            false => "Inactive",
-        };
-        Console.WriteLine($"isActive={isActive} => {status}");
-    }
-}
+{{#include ../../snippets/type-system/switch-expressions/constant-patterns.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace SwitchDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int day = 3;
-        var dayName = day switch
-        {
-            1 => "Monday",
-            2 => "Tuesday",
-            3 => "Wednesday",
-            4 => "Thursday",
-            5 => "Friday",
-            var _ => "Weekend",
-        };
-        Console.WriteLine($"Day {day} is {dayName}");
-
-        string command = "quit";
-        var response = command switch
-        {
-            "start" => "Starting...",
-            "stop" => "Stopping...",
-            "quit" => "Goodbye!",
-            var _ => "Unknown command",
-        };
-        Console.WriteLine($"Command '{command}' => {response}");
-
-        bool isActive = true;
-        var status = isActive switch
-        {
-            true => "Active",
-            false => "Inactive",
-        };
-        Console.WriteLine($"isActive={isActive} => {status}");
-    }
-}
+{{#include ../../snippets/type-system/switch-expressions/constant-patterns.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -155,58 +47,12 @@ When the scrutinee is a type union, you can use type patterns to narrow the valu
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace SwitchDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int | string mixed = 123;
-        var result = mixed switch {
-            int n => $"integer: {n}",
-            string s => $"string: {s}",
-        };
-        Console.WriteLine(result);
-
-        int | string mixed2 = "hello";
-        var result2 = mixed2 switch {
-            int n => $"integer: {n}",
-            string s => $"string: {s}",
-        };
-        Console.WriteLine(result2);
-    }
-}
+{{#include ../../snippets/type-system/switch-expressions/type-patterns.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace SwitchDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        Union_Int32_String mixed = 123;
-        var result = mixed switch
-        {
-            { IsInt32: true, AsInt32: var n } => $"integer: {n}",
-            { IsString: true, AsString: var s } => $"string: {s}",
-        };
-        Console.WriteLine(result);
-
-        Union_Int32_String mixed2 = "hello";
-        var result2 = mixed2 switch
-        {
-            { IsInt32: true, AsInt32: var n } => $"integer: {n}",
-            { IsString: true, AsString: var s } => $"string: {s}",
-        };
-        Console.WriteLine(result2);
-    }
-}
+{{#include ../../snippets/type-system/switch-expressions/type-patterns.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -220,62 +66,12 @@ The discard pattern serves as a catch-all arm that matches any value not handled
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace SwitchDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int code = 99;
-        var meaning = code switch {
-            0 => "Zero",
-            1 => "One",
-            var _ => "Other",
-        };
-        Console.WriteLine($"Code {code} => {meaning}");
-
-        int code2 = 50;
-        var meaning2 = code2 switch {
-            0 => "Zero",
-            1 => "One",
-            _ => "Other",
-        };
-        Console.WriteLine($"Code {code2} => {meaning2}");
-    }
-}
+{{#include ../../snippets/type-system/switch-expressions/discard-pattern.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace SwitchDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int code = 99;
-        var meaning = code switch
-        {
-            0 => "Zero",
-            1 => "One",
-            var _ => "Other",
-        };
-        Console.WriteLine($"Code {code} => {meaning}");
-
-        int code2 = 50;
-        var meaning2 = code2 switch
-        {
-            0 => "Zero",
-            1 => "One",
-            _ => "Other",
-        };
-        Console.WriteLine($"Code {code2} => {meaning2}");
-    }
-}
+{{#include ../../snippets/type-system/switch-expressions/discard-pattern.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -289,62 +85,12 @@ A `when` guard adds an additional boolean condition to a switch arm. The arm onl
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace SwitchDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int number = -5;
-        var sign = number switch {
-            int n when n > 0 => "positive",
-            int n when n < 0 => "negative",
-            var _ => "zero",
-        };
-        Console.WriteLine($"Number {number} => {sign}");
-
-        int amount = 150;
-        var tier = amount switch {
-            int n when n >= 100 => $"premium (value={n})",
-            int n when n >= 50 => $"standard (value={n})",
-            var _ => "basic",
-        };
-        Console.WriteLine($"Amount {amount} => {tier}");
-    }
-}
+{{#include ../../snippets/type-system/switch-expressions/when-guards.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace SwitchDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int number = -5;
-        var sign = number switch
-        {
-            int n when n > 0 => "positive",
-            int n when n < 0 => "negative",
-            var _ => "zero",
-        };
-        Console.WriteLine($"Number {number} => {sign}");
-
-        int amount = 150;
-        var tier = amount switch
-        {
-            int n when n >= 100 => $"premium (value={n})",
-            int n when n >= 50 => $"standard (value={n})",
-            var _ => "basic",
-        };
-        Console.WriteLine($"Amount {amount} => {tier}");
-    }
-}
+{{#include ../../snippets/type-system/switch-expressions/when-guards.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -358,68 +104,12 @@ Relational patterns (`<`, `<=`, `>`, `>=`) compare the scrutinee against a const
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace SwitchDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int temp = 75;
-        var comfort = temp switch {
-            < 32 => "Freezing",
-            < 60 => "Cold",
-            <= 80 => "Comfortable",
-            var _ => "Hot",
-        };
-        Console.WriteLine($"Temperature {temp} => {comfort}");
-
-        int score = 85;
-        var grade = score switch {
-            >= 90 and <= 100 => "A",
-            >= 80 and < 90 => "B",
-            >= 70 and < 80 => "C",
-            >= 60 and < 70 => "D",
-            var _ => "F",
-        };
-        Console.WriteLine($"Score {score} => Grade {grade}");
-    }
-}
+{{#include ../../snippets/type-system/switch-expressions/relational-logical.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace SwitchDemo;
-
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        int temp = 75;
-        var comfort = temp switch
-        {
-            < 32 => "Freezing",
-            < 60 => "Cold",
-            <= 80 => "Comfortable",
-            var _ => "Hot",
-        };
-        Console.WriteLine($"Temperature {temp} => {comfort}");
-
-        int score = 85;
-        var grade = score switch
-        {
-            >= 90 and <= 100 => "A",
-            >= 80 and < 90 => "B",
-            >= 70 and < 80 => "C",
-            >= 60 and < 70 => "D",
-            var _ => "F",
-        };
-        Console.WriteLine($"Score {score} => Grade {grade}");
-    }
-}
+{{#include ../../snippets/type-system/switch-expressions/relational-logical.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

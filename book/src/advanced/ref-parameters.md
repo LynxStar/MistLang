@@ -17,82 +17,12 @@ Because `readonly ref` is an ownership-tier constraint, it is enforced entirely 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace RefParameters;
-
-public class Sensor
-{
-    public int Reading;
-
-    public Sensor(int reading)
-    {
-        this.Reading = reading;
-    }
-
-    public string Describe()
-    {
-        return $"Sensor({Reading})";
-    }
-}
-
-public class Program
-{
-    public static void ReadSensor(readonly ref Sensor s)
-    {
-        // Can read fields and call methods
-        Console.WriteLine($"reading={s.Describe()}");
-        // Cannot mutate: s.Reading = 10; would be a compile error
-    }
-
-    public static void Main()
-    {
-        owned Sensor s = new Sensor(42);
-        ReadSensor(s);
-        // Owner retains full access after readonly ref returns
-        s.Reading = 100;
-        Console.WriteLine($"after={s.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ref-parameters/readonly-ref.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace RefParameters;
-
-public class Sensor
-{
-    public int Reading;
-
-    public Sensor(int reading)
-    {
-        this.Reading = reading;
-    }
-
-    public string Describe()
-    {
-        return $"Sensor({Reading})";
-    }
-}
-
-public class Program
-{
-    public static void ReadSensor(Sensor s)
-    {
-        // readonly ref is erased — passed by value at runtime
-        Console.WriteLine($"reading={s.Describe()}");
-    }
-
-    public static void Main()
-    {
-        Sensor s = new Sensor(42);
-        ReadSensor(s);
-        s.Reading = 100;
-        Console.WriteLine($"after={s.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ref-parameters/readonly-ref.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -108,96 +38,12 @@ Like `readonly ref`, `borrowed` is erased in the emitted C#. The enforcement is 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace RefParameters;
-
-public class Pair
-{
-    public int X;
-    public int Y;
-
-    public Pair(int x, int y)
-    {
-        this.X = x;
-        this.Y = y;
-    }
-
-    public void SetX(int x)
-    {
-        this.X = x;
-    }
-
-    public string Describe()
-    {
-        return $"Pair({X}, {Y})";
-    }
-}
-
-public class Program
-{
-    public static void MutateBorrowed(borrowed Pair p)
-    {
-        // Borrowed holder has exclusive mutable access
-        p.SetX(999);
-        Console.WriteLine($"mutated={p.Describe()}");
-    }
-
-    public static void Main()
-    {
-        owned Pair p = new Pair(1, 2);
-        // Lend as borrowed — owner loses all access until call returns
-        MutateBorrowed(p);
-        // Owner regains access after borrowed returns
-        Console.WriteLine($"owner after={p.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ref-parameters/borrowed.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace RefParameters;
-
-public class Pair
-{
-    public int X;
-    public int Y;
-
-    public Pair(int x, int y)
-    {
-        this.X = x;
-        this.Y = y;
-    }
-
-    public void SetX(int x)
-    {
-        this.X = x;
-    }
-
-    public string Describe()
-    {
-        return $"Pair({X}, {Y})";
-    }
-}
-
-public class Program
-{
-    public static void MutateBorrowed(Pair p)
-    {
-        // borrowed is erased — passed by value at runtime
-        p.SetX(999);
-        Console.WriteLine($"mutated={p.Describe()}");
-    }
-
-    public static void Main()
-    {
-        Pair p = new Pair(1, 2);
-        MutateBorrowed(p);
-        Console.WriteLine($"owner after={p.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ref-parameters/borrowed.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -213,84 +59,12 @@ Use `ref` when you need to mutate a value type in place (since value types are c
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace RefParameters;
-
-public struct Point
-{
-    public int X;
-    public int Y;
-
-    public Point(int x, int y)
-    {
-        this.X = x;
-        this.Y = y;
-    }
-
-    public string Describe()
-    {
-        return $"Point({X}, {Y})";
-    }
-}
-
-public class Program
-{
-    private static void MutatePoint(ref Point p)
-    {
-        p.X = 100;
-        p.Y = 200;
-    }
-
-    public static void Main()
-    {
-        Point pt = new Point(1, 2);
-        Console.WriteLine($"before: {pt.Describe()}");
-        MutatePoint(ref pt);
-        Console.WriteLine($"after: {pt.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ref-parameters/ref-struct.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace RefParameters;
-
-public struct Point
-{
-    public int X;
-    public int Y;
-
-    public Point(int x, int y)
-    {
-        this.X = x;
-        this.Y = y;
-    }
-
-    public string Describe()
-    {
-        return $"Point({X}, {Y})";
-    }
-}
-
-public class Program
-{
-    private static void MutatePoint(ref Point p)
-    {
-        p.X = 100;
-        p.Y = 200;
-    }
-
-    public static void Main()
-    {
-        Point pt = new Point(1, 2);
-        Console.WriteLine($"before: {pt.Describe()}");
-        MutatePoint(ref pt);
-        Console.WriteLine($"after: {pt.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ref-parameters/ref-struct.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -304,78 +78,12 @@ When `ref` is applied to a reference type parameter, the callee can reassign the
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace RefParameters;
-
-public class Container
-{
-    public int Value;
-
-    public Container(int value)
-    {
-        this.Value = value;
-    }
-
-    public string Describe()
-    {
-        return $"Container({Value})";
-    }
-}
-
-public class Program
-{
-    private static void ReplaceContainer(ref Container c)
-    {
-        c = new Container(999);
-    }
-
-    public static void Main()
-    {
-        Container box = new Container(42);
-        Console.WriteLine($"before: {box.Describe()}");
-        ReplaceContainer(ref box);
-        Console.WriteLine($"after: {box.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ref-parameters/ref-class.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace RefParameters;
-
-public class Container
-{
-    public int Value;
-
-    public Container(int value)
-    {
-        this.Value = value;
-    }
-
-    public string Describe()
-    {
-        return $"Container({Value})";
-    }
-}
-
-public class Program
-{
-    private static void ReplaceContainer(ref Container c)
-    {
-        c = new Container(999);
-    }
-
-    public static void Main()
-    {
-        Container box = new Container(42);
-        Console.WriteLine($"before: {box.Describe()}");
-        ReplaceContainer(ref box);
-        Console.WriteLine($"after: {box.Describe()}");
-    }
-}
+{{#include ../../snippets/advanced/ref-parameters/ref-class.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

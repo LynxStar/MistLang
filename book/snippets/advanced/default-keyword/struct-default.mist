@@ -1,0 +1,31 @@
+using System;
+
+namespace DefaultDemo;
+
+public readonly struct Container
+{
+    public int Code;
+    public string Label;
+
+    public Container()
+    {
+        this.Code = 99;
+        this.Label = "constructed";
+    }
+
+    default {
+        Code = 42
+        Label = "defaulted"
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var c1 = new Container();
+        Container c2 = default(Container);
+        Console.WriteLine($"new Container() = Code={c1.Code}, Label={c1.Label}");
+        Console.WriteLine($"default(Container) = Code={c2.Code}, Label={c2.Label}");
+    }
+}

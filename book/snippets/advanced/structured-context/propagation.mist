@@ -1,0 +1,30 @@
+using System;
+
+namespace ContextDemo;
+
+public class Consumer
+{
+    public static string GetMessage() with string msg
+    {
+        return msg;
+    }
+}
+
+public class Intermediary
+{
+    // No with clause — context passes through transparently
+    public static string Forward()
+    {
+        return Consumer.GetMessage();
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        with var message = "propagated";
+        var result = Intermediary.Forward();
+        Console.WriteLine(result);
+    }
+}

@@ -1,0 +1,31 @@
+using System;
+
+namespace ContextDemo;
+
+public struct Locale
+{
+    public string Language;
+
+    public Locale(string language)
+    {
+        this.Language = language;
+    }
+}
+
+public class Consumers
+{
+    public static string GetLocale() with Locale loc
+    {
+        return loc.Language;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        with new Locale("en-US");
+        var result = Consumers.GetLocale();
+        Console.WriteLine(result);
+    }
+}

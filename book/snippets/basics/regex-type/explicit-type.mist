@@ -1,0 +1,4 @@
+regex letters = `[a-zA-Z]+`;
+Console.WriteLine($"pattern={letters.Pattern}");
+Console.WriteLine($"matches_Hello={letters.IsMatch("Hello")}");
+Console.WriteLine($"matches_123={letters.IsMatch("123")}");

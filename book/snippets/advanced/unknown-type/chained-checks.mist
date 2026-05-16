@@ -1,0 +1,12 @@
+if (value is int i)
+{
+    Console.WriteLine($"int: {i}");
+}
+if (value is string s)
+{
+    Console.WriteLine($"string: {s}");
+}
+if (value is bool b)
+{
+    Console.WriteLine($"bool: {b}");
+}

@@ -1,0 +1,20 @@
+using System;
+
+namespace ScopingDemo;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var outer = "visible everywhere";
+
+        {
+            var inner = "only visible in this block";
+            Console.WriteLine(inner);
+            Console.WriteLine(outer);  // outer is accessible here
+        }
+
+        // inner is not accessible here — it went out of scope
+        Console.WriteLine(outer);
+    }
+}

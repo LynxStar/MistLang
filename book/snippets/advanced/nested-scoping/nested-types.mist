@@ -1,0 +1,34 @@
+using System;
+
+namespace ScopingDemo;
+
+public class Outer
+{
+    public class Inner
+    {
+        public static string Hello() { return "Outer.Inner"; }
+    }
+
+    public enum Status : string
+    {
+        Active: "active",
+        Inactive: "inactive"
+    }
+
+    public static void Demo()
+    {
+        // Within Outer, nested types are accessible by simple name
+        Console.WriteLine(Inner.Hello());
+        Console.WriteLine($"Status.Active = {Status.Active}");
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // From outside, use the qualified name
+        Console.WriteLine(Outer.Inner.Hello());
+        Outer.Demo();
+    }
+}

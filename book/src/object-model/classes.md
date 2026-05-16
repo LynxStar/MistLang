@@ -9,28 +9,12 @@ A class is declared with the `class` keyword followed by a name and a brace-deli
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Point
-{
-    private int x;
-    private int y;
-}
+{{#include ../../snippets/object-model/classes/fields.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Point
-{
-    private int x;
-    private int y;
-}
+{{#include ../../snippets/object-model/classes/fields.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -44,40 +28,12 @@ A constructor initializes a new instance of the class. It has the same name as t
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Point
-{
-    private int x;
-    private int y;
-
-    public Point(int x, int y)
-    {
-        this.x = x;
-        this.y = y;
-    }
-}
+{{#include ../../snippets/object-model/classes/constructors.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Point
-{
-    private int x;
-    private int y;
-
-    public Point(int x, int y)
-    {
-        this.x = x;
-        this.y = y;
-    }
-}
+{{#include ../../snippets/object-model/classes/constructors.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -91,48 +47,12 @@ A class can have multiple constructors. One constructor can delegate to another 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Point
-{
-    private int x;
-    private int y;
-
-    public Point(int x, int y)
-    {
-        this.x = x;
-        this.y = y;
-    }
-
-    public Point() : this(0, 0)
-    {
-    }
-}
+{{#include ../../snippets/object-model/classes/constructor-chaining.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Point
-{
-    private int x;
-    private int y;
-
-    public Point(int x, int y)
-    {
-        this.x = x;
-        this.y = y;
-    }
-
-    public Point() : this(0, 0)
-    {
-    }
-}
+{{#include ../../snippets/object-model/classes/constructor-chaining.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -146,60 +66,12 @@ Inside an instance method or constructor, `this` refers to the current object. U
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Point
-{
-    private int x;
-    private int y;
-
-    public Point(int x, int y)
-    {
-        this.x = x;
-        this.y = y;
-    }
-
-    public Point Translate(int dx, int dy)
-    {
-        return new Point(this.x + dx, this.y + dy);
-    }
-
-    public string Describe()
-    {
-        return $"Point({this.x}, {this.y})";
-    }
-}
+{{#include ../../snippets/object-model/classes/this-keyword.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Point
-{
-    private int x;
-    private int y;
-
-    public Point(int x, int y)
-    {
-        this.x = x;
-        this.y = y;
-    }
-
-    public Point Translate(int dx, int dy)
-    {
-        return new Point(this.x + dx, this.y + dy);
-    }
-
-    public string Describe()
-    {
-        return $"Point({this.x}, {this.y})";
-    }
-}
+{{#include ../../snippets/object-model/classes/this-keyword.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -213,62 +85,12 @@ Instance methods operate on a specific object. They can read and write the objec
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Point
-{
-    private int x;
-    private int y;
-
-    public Point(int x, int y)
-    {
-        this.x = x;
-        this.y = y;
-    }
-
-    public int DistanceFromOrigin()
-    {
-        return Math.Abs(this.x) + Math.Abs(this.y);
-    }
-
-    public static void Main(string[] args)
-    {
-        var p = new Point(3, 4);
-        Console.WriteLine($"Distance: {p.DistanceFromOrigin()}");
-    }
-}
+{{#include ../../snippets/object-model/classes/instance-methods.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Point
-{
-    private int x;
-    private int y;
-
-    public Point(int x, int y)
-    {
-        this.x = x;
-        this.y = y;
-    }
-
-    public int DistanceFromOrigin()
-    {
-        return Math.Abs(this.x) + Math.Abs(this.y);
-    }
-
-    public static void Main(string[] args)
-    {
-        var p = new Point(3, 4);
-        Console.WriteLine($"Distance: {p.DistanceFromOrigin()}");
-    }
-}
+{{#include ../../snippets/object-model/classes/instance-methods.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -282,60 +104,12 @@ A static method belongs to the class itself, not to any instance. It cannot acce
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Counter
-{
-    private static int totalCreated;
-
-    public Counter()
-    {
-        totalCreated = totalCreated + 1;
-    }
-
-    public static int GetTotalCreated()
-    {
-        return totalCreated;
-    }
-
-    public static void Main(string[] args)
-    {
-        var c1 = new Counter();
-        var c2 = new Counter();
-        Console.WriteLine($"Total: {Counter.GetTotalCreated()}");
-    }
-}
+{{#include ../../snippets/object-model/classes/static-methods.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Counter
-{
-    private static int totalCreated;
-
-    public Counter()
-    {
-        totalCreated = totalCreated + 1;
-    }
-
-    public static int GetTotalCreated()
-    {
-        return totalCreated;
-    }
-
-    public static void Main(string[] args)
-    {
-        var c1 = new Counter();
-        var c2 = new Counter();
-        Console.WriteLine($"Total: {Counter.GetTotalCreated()}");
-    }
-}
+{{#include ../../snippets/object-model/classes/static-methods.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -349,64 +123,12 @@ A static field is shared across all instances of a class. It's declared with the
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Counter
-{
-    private static int totalCreated;
-    private string name;
-
-    public Counter(string name)
-    {
-        this.name = name;
-        totalCreated = totalCreated + 1;
-    }
-
-    public static int GetTotalCreated()
-    {
-        return totalCreated;
-    }
-
-    public static void Main(string[] args)
-    {
-        var a = new Counter("Alpha");
-        var b = new Counter("Beta");
-        Console.WriteLine($"Total created: {Counter.GetTotalCreated()}");
-    }
-}
+{{#include ../../snippets/object-model/classes/static-fields.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Counter
-{
-    private static int totalCreated;
-    private string name;
-
-    public Counter(string name)
-    {
-        this.name = name;
-        totalCreated = totalCreated + 1;
-    }
-
-    public static int GetTotalCreated()
-    {
-        return totalCreated;
-    }
-
-    public static void Main(string[] args)
-    {
-        var a = new Counter("Alpha");
-        var b = new Counter("Beta");
-        Console.WriteLine($"Total created: {Counter.GetTotalCreated()}");
-    }
-}
+{{#include ../../snippets/object-model/classes/static-fields.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -420,80 +142,12 @@ Mist supports `public` and `private` access modifiers on class members. A `publi
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-using System;
-
-namespace Demo;
-
-public class Counter
-{
-    private static int totalCreated;
-    private string name;
-    private int value;
-
-    public Counter(string name)
-    {
-        this.name = name;
-        this.value = 0;
-        totalCreated = totalCreated + 1;
-    }
-
-    public void Increment()
-    {
-        this.value = this.value + 1;
-    }
-
-    public string Describe()
-    {
-        return $"Counter '{name}' = {value}";
-    }
-
-    public static void Main(string[] args)
-    {
-        var c = new Counter("Alpha");
-        c.Increment();
-        c.Increment();
-        Console.WriteLine(c.Describe());
-    }
-}
+{{#include ../../snippets/object-model/classes/access-modifiers.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-using System;
-
-namespace Demo;
-
-public class Counter
-{
-    private static int totalCreated;
-    private string name;
-    private int value;
-
-    public Counter(string name)
-    {
-        this.name = name;
-        this.value = 0;
-        totalCreated = totalCreated + 1;
-    }
-
-    public void Increment()
-    {
-        this.value = this.value + 1;
-    }
-
-    public string Describe()
-    {
-        return $"Counter '{name}' = {value}";
-    }
-
-    public static void Main(string[] args)
-    {
-        var c = new Counter("Alpha");
-        c.Increment();
-        c.Increment();
-        Console.WriteLine(c.Describe());
-    }
-}
+{{#include ../../snippets/object-model/classes/access-modifiers.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

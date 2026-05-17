@@ -17,7 +17,14 @@ namespace Mist.Driver.Contracts;
 /// array in <c>mist.toml</c>. Defaults to an empty array when no references
 /// section is present.
 /// </param>
+/// <param name="EntryPoint">
+/// The optional <c>entry_point</c> field from <c>mist.toml</c>. When set to
+/// <c>"top-level"</c>, the project uses a top-level statement file as its entry point.
+/// When set to a fully qualified class name, that class's <c>static void Main</c> is used.
+/// Defaults to <see langword="null"/> (no explicit entry point configured).
+/// </param>
 public sealed record ProjectConfiguration(
     string Name,
     string NamespaceRoot,
-    ImmutableArray<ProjectReference> References);
+    ImmutableArray<ProjectReference> References,
+    string? EntryPoint = null);

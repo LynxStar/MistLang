@@ -93,6 +93,9 @@ public sealed class MistPrettyPrinter
                 case ExtensionItemTopLevelItemNode extensionItem:
                     EmitExtensionBlockDeclaration(extensionItem.ExtensionDeclaration);
                     break;
+                case StatementItemTopLevelItemNode stmtItem:
+                    EmitStatement(stmtItem.Statement);
+                    break;
             }
         }
     }

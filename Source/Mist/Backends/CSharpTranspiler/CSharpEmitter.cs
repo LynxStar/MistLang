@@ -89,7 +89,9 @@ public sealed class CSharpEmitter
 
                 // Skip emitting files that contain no meaningful type declarations
                 // (e.g., stdlib files where all types are backend-backed and were skipped).
-                if (!IsEmptyEmission(csContent))
+                // Top-level statement files are never empty — they always have statements to emit.
+                var hasTopLevelStatements = compilationUnit.Items.Any(item => item is StatementItemTopLevelItemNode);
+                if (hasTopLevelStatements || !IsEmptyEmission(csContent))
                     files[relativePath] = csContent;
 
                 if (writer.NeedsMistVoidStruct)
@@ -323,6 +325,24 @@ internal sealed class CSharpSourceWriter
 
     public string EmitCompilationUnit(CompilationUnitNode cu)
     {
+        // Detect top-level statements — if present, delegate to the TLS-specific emitter.
+        var topLevelStatements = cu.Items
+            .OfType<StatementItemTopLevelItemNode>()
+            .ToList();
+
+        if (topLevelStatements.Count > 0)
+        {
+            if (_isReferencedProject)
+            {
+                // Referenced project TLS files: skip the top-level statements (they are
+                // the entry point of the referenced project, not relevant here) and emit
+                // only the type declarations as a normal compilation unit.
+                return EmitReferencedProjectTlsUnit(cu);
+            }
+
+            return EmitTopLevelStatementUnit(cu, topLevelStatements);
+        }
+
         // Analyze which void methods have their return values consumed at call sites.
         AnalyzeValueReturningVoidMethods(cu);
 
@@ -465,6 +485,342 @@ internal sealed class CSharpSourceWriter
                     EmitNewtypeDeclaration(newtypeItem.NewtypeDeclaration);
                     break;
                 }
+            }
+        }
+
+        return _sb.ToString();
+    }
+
+    /// <summary>
+    /// Emits a compilation unit that contains top-level statements using C# top-level statement syntax.
+    /// Statements are emitted directly (no class/method wrapper), followed by type declarations in their namespace.
+    /// </summary>
+    private string EmitTopLevelStatementUnit(CompilationUnitNode cu, List<StatementItemTopLevelItemNode> statements)
+    {
+        // Analyze which void methods have their return values consumed at call sites.
+        AnalyzeValueReturningVoidMethods(cu);
+
+        // 1. Emit using declarations at the top.
+        var usings = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var usingDecl in cu.Usings)
+        {
+            var name = ExtractQualifiedName(usingDecl.Name);
+            usings.Add(name);
+        }
+
+        foreach (var ns in _backendNamespaces)
+        {
+            usings.Add(ns);
+        }
+
+        if (SourceReferencesRegex())
+        {
+            usings.Add("System.Text.RegularExpressions");
+        }
+
+        // 3. Collect type declarations (non-statement items) for namespace analysis.
+        var typeDecls = cu.Items
+            .Where(i => i is not StatementItemTopLevelItemNode)
+            .ToList();
+
+        // Determine the namespace for type declarations early so we can add a using for it.
+        // In a TLS file, type declarations get their own namespace block, and the
+        // top-level statements need a using directive to reference those types.
+        string? inferredNamespace = null;
+
+        // Check file-scoped namespace declarations first.
+        foreach (var item in typeDecls)
+        {
+            if (item is NamespaceItemTopLevelItemNode nsItem
+                && nsItem.NamespaceDeclaration is FileScopedNamespaceNamespaceDeclarationNode fileScopedNs)
+            {
+                inferredNamespace = ExtractQualifiedName(fileScopedNs.Name);
+                break;
+            }
+        }
+
+        // If no file-scoped namespace, find the namespace from type declarations.
+        if (inferredNamespace is null)
+        {
+            foreach (var item in typeDecls)
+            {
+                switch (item)
+                {
+                    case TypeItemTopLevelItemNode typeItem:
+                        inferredNamespace = GetTypeContainingNamespace(typeItem.TypeDeclaration);
+                        break;
+                    case NewtypeItemTopLevelItemNode newtypeItem:
+                    {
+                        var newtypeSymbol = _model.GetDeclaredSymbol(newtypeItem.NewtypeDeclaration);
+                        inferredNamespace = GetNewtypeContainingNamespace(newtypeSymbol);
+                        break;
+                    }
+                    case NamespaceItemTopLevelItemNode nsItem
+                        when nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode:
+                        // Block namespaces carry their own name.
+                        break;
+                }
+
+                if (inferredNamespace is not null)
+                    break;
+            }
+        }
+
+        // If type declarations live in a namespace, add a using for it so
+        // top-level statements can reference those types without qualification.
+        if (inferredNamespace is not null)
+        {
+            usings.Add(inferredNamespace);
+        }
+
+        foreach (var ns in usings.OrderBy(n => n, StringComparer.Ordinal))
+        {
+            AppendLine($"using {ns};");
+        }
+
+        if (usings.Count > 0)
+        {
+            AppendLine();
+        }
+
+        // 2. Emit top-level statements directly (no class/method wrapper).
+        // Iterate items in order and emit only the statement items.
+        foreach (var item in cu.Items)
+        {
+            if (item is StatementItemTopLevelItemNode stmtItem)
+            {
+                EmitStatement(stmtItem.Statement);
+            }
+        }
+
+        // 3. Emit type declarations after statements, wrapped in their namespace block.
+        if (typeDecls.Count > 0)
+        {
+            // Separate statements from type declarations with a blank line.
+            if (statements.Count > 0)
+            {
+                AppendLine();
+            }
+
+            // Emit type declarations inside a namespace block if we have a namespace.
+            if (inferredNamespace is not null)
+            {
+                _currentNamespace = inferredNamespace;
+                AppendLine($"namespace {inferredNamespace}");
+                AppendLine("{");
+                _indentLevel++;
+
+                foreach (var item in typeDecls)
+                {
+                    switch (item)
+                    {
+                        case TypeItemTopLevelItemNode typeItem:
+                            EmitTypeDeclaration(typeItem.TypeDeclaration);
+                            break;
+                        case ExtensionItemTopLevelItemNode extensionItem:
+                            EmitExtensionBlock(extensionItem.ExtensionDeclaration);
+                            break;
+                        case TypeAliasItemTopLevelItemNode:
+                            // Type aliases are erased — no C# declaration is emitted.
+                            break;
+                        case NewtypeItemTopLevelItemNode newtypeItem:
+                            EmitNewtypeDeclaration(newtypeItem.NewtypeDeclaration);
+                            break;
+                        case NamespaceItemTopLevelItemNode nsItem:
+                            // Skip file-scoped namespace declarations — they are already
+                            // handled by the wrapping block namespace above. Only emit
+                            // block namespaces (nested namespaces within the TLS file).
+                            if (nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode)
+                            {
+                                EmitNamespaceDeclaration(nsItem.NamespaceDeclaration);
+                            }
+                            else if (nsItem.NamespaceDeclaration is FileScopedNamespaceNamespaceDeclarationNode fileScopedNs
+                                     && fileScopedNs.Body.Length > 0)
+                            {
+                                // Emit any type declarations inside the file-scoped namespace body.
+                                foreach (var bodyItem in fileScopedNs.Body)
+                                {
+                                    switch (bodyItem)
+                                    {
+                                        case NamespaceTypeItemNamespaceBodyItemNode typeBodyItem:
+                                            EmitTypeDeclaration(typeBodyItem.TypeDeclaration);
+                                            break;
+                                        case NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem:
+                                            EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
+                                            break;
+                                        case NamespaceTypeAliasItemNamespaceBodyItemNode:
+                                            break;
+                                        case NamespaceNewtypeItemNamespaceBodyItemNode newtypeBodyItem:
+                                            EmitNewtypeDeclaration(newtypeBodyItem.NewtypeDeclaration);
+                                            break;
+                                    }
+                                }
+                            }
+                            break;
+                    }
+                }
+
+                _indentLevel--;
+                AppendLine("}");
+            }
+            else
+            {
+                // No namespace — emit declarations at top level (handles explicit
+                // block namespaces that carry their own name).
+                foreach (var item in typeDecls)
+                {
+                    switch (item)
+                    {
+                        case TypeItemTopLevelItemNode typeItem:
+                            EmitTypeDeclaration(typeItem.TypeDeclaration);
+                            break;
+                        case ExtensionItemTopLevelItemNode extensionItem:
+                            EmitExtensionBlock(extensionItem.ExtensionDeclaration);
+                            break;
+                        case TypeAliasItemTopLevelItemNode:
+                            break;
+                        case NewtypeItemTopLevelItemNode newtypeItem:
+                            EmitNewtypeDeclaration(newtypeItem.NewtypeDeclaration);
+                            break;
+                        case NamespaceItemTopLevelItemNode nsItem:
+                            EmitNamespaceDeclaration(nsItem.NamespaceDeclaration);
+                            break;
+                    }
+                }
+            }
+        }
+
+        return _sb.ToString();
+    }
+
+    /// <summary>
+    /// Emits a referenced project's TLS file by skipping the top-level statements
+    /// and emitting only the type declarations. The statements are the entry point
+    /// of the referenced project and are not relevant to the consuming project.
+    /// </summary>
+    private string EmitReferencedProjectTlsUnit(CompilationUnitNode cu)
+    {
+        // Analyze which void methods have their return values consumed at call sites.
+        AnalyzeValueReturningVoidMethods(cu);
+
+        // Collect type declarations (non-statement items).
+        var typeDecls = cu.Items
+            .Where(i => i is not StatementItemTopLevelItemNode)
+            .ToList();
+
+        if (typeDecls.Count == 0)
+            return "";
+
+        // Emit using declarations.
+        var usings = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var usingDecl in cu.Usings)
+        {
+            var name = ExtractQualifiedName(usingDecl.Name);
+            usings.Add(name);
+        }
+
+        foreach (var ns in _backendNamespaces)
+        {
+            usings.Add(ns);
+        }
+
+        foreach (var ns in usings.OrderBy(n => n, StringComparer.Ordinal))
+        {
+            AppendLine($"using {ns};");
+        }
+
+        if (usings.Count > 0)
+        {
+            AppendLine();
+        }
+
+        // Determine the namespace for type declarations.
+        string? inferredNamespace = null;
+
+        foreach (var item in typeDecls)
+        {
+            if (item is NamespaceItemTopLevelItemNode nsItem
+                && nsItem.NamespaceDeclaration is FileScopedNamespaceNamespaceDeclarationNode fileScopedNs)
+            {
+                inferredNamespace = ExtractQualifiedName(fileScopedNs.Name);
+                break;
+            }
+        }
+
+        if (inferredNamespace is null)
+        {
+            foreach (var item in typeDecls)
+            {
+                switch (item)
+                {
+                    case TypeItemTopLevelItemNode typeItem:
+                        inferredNamespace = GetTypeContainingNamespace(typeItem.TypeDeclaration);
+                        break;
+                    case NewtypeItemTopLevelItemNode newtypeItem:
+                    {
+                        var newtypeSymbol = _model.GetDeclaredSymbol(newtypeItem.NewtypeDeclaration);
+                        inferredNamespace = GetNewtypeContainingNamespace(newtypeSymbol);
+                        break;
+                    }
+                }
+
+                if (inferredNamespace is not null)
+                    break;
+            }
+        }
+
+        // Emit type declarations with their namespace.
+        if (inferredNamespace is not null)
+        {
+            _currentNamespace = inferredNamespace;
+            AppendLine($"namespace {inferredNamespace};");
+            AppendLine();
+        }
+
+        foreach (var item in typeDecls)
+        {
+            switch (item)
+            {
+                case TypeItemTopLevelItemNode typeItem:
+                    EmitTypeDeclaration(typeItem.TypeDeclaration);
+                    break;
+                case ExtensionItemTopLevelItemNode extensionItem:
+                    EmitExtensionBlock(extensionItem.ExtensionDeclaration);
+                    break;
+                case TypeAliasItemTopLevelItemNode:
+                    break;
+                case NewtypeItemTopLevelItemNode newtypeItem:
+                    EmitNewtypeDeclaration(newtypeItem.NewtypeDeclaration);
+                    break;
+                case NamespaceItemTopLevelItemNode nsItem:
+                    if (nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode)
+                    {
+                        EmitNamespaceDeclaration(nsItem.NamespaceDeclaration);
+                    }
+                    else if (nsItem.NamespaceDeclaration is FileScopedNamespaceNamespaceDeclarationNode fileScopedNs
+                             && fileScopedNs.Body.Length > 0)
+                    {
+                        foreach (var bodyItem in fileScopedNs.Body)
+                        {
+                            switch (bodyItem)
+                            {
+                                case NamespaceTypeItemNamespaceBodyItemNode typeBodyItem:
+                                    EmitTypeDeclaration(typeBodyItem.TypeDeclaration);
+                                    break;
+                                case NamespaceExtensionItemNamespaceBodyItemNode extensionBodyItem:
+                                    EmitExtensionBlock(extensionBodyItem.ExtensionDeclaration);
+                                    break;
+                                case NamespaceTypeAliasItemNamespaceBodyItemNode:
+                                    break;
+                                case NamespaceNewtypeItemNamespaceBodyItemNode newtypeBodyItem:
+                                    EmitNewtypeDeclaration(newtypeBodyItem.NewtypeDeclaration);
+                                    break;
+                            }
+                        }
+                    }
+                    break;
             }
         }
 
@@ -3513,11 +3869,6 @@ internal sealed class CSharpSourceWriter
 
     private void EmitMethodDeclaration(MethodDeclarationNode methodDecl)
     {
-        // Skip Main methods from referenced projects to avoid multiple
-        // entry points in the generated C# project.
-        if (_isReferencedProject && methodDecl.Name.Lexeme == "Main")
-            return;
-
         var modifiers = EmitModifiers(methodDecl.Modifiers);
         var returnType = EmitTypeReference(methodDecl.ReturnType);
         var name = methodDecl.Name.Lexeme;

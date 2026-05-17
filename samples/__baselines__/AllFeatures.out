@@ -1062,4 +1062,11 @@ Done!
   FixedArray<10>.GetSize() = 10
   FixedArray<10>.Describe() = FixedArray<10>
 === ArrayBoundsFlowAnalysis Done ===
+=== Top-Level Statements: Disambiguation Demo ===
+  This class has static void Main(string[] args)
+  But entry_point = "top-level" in mist.toml means TLS is the entry point
+  Calling Main explicitly to prove it is just a normal static method:
+  Main called explicitly (not as entry point)
+  Main args.Length: 2
+  Disambiguation complete — Main is callable but not the entry point
 === Done! ===

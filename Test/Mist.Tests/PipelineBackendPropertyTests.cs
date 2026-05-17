@@ -99,7 +99,7 @@ public class PipelineBackendPropertyTests
         try
         {
             var sourcePath = Path.Combine(tempDir, "test.mist");
-            File.WriteAllText(sourcePath, "let x = 42;");
+            File.WriteAllText(sourcePath, "public class Foo { }");
 
             var options = new CompilerOptions(
                 ProjectFolder: tempDir,

@@ -1,0 +1,8 @@
+using System;
+
+Console.WriteLine($"Received {args.Length} arguments");
+
+if (args.Length > 0)
+{
+    Console.WriteLine($"First argument: {args[0]}");
+}

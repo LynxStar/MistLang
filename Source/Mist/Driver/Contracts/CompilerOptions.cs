@@ -15,4 +15,5 @@ public sealed record CompilerOptions(
     string ProjectName,
     string NamespaceRoot,
     ImmutableArray<string> EnabledAnalyzerIds,
-    bool EmitToDisk = true);
+    bool EmitToDisk = true,
+    string? EntryPoint = null);

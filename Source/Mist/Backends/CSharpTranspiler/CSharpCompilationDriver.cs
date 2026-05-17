@@ -215,7 +215,8 @@ public sealed class CSharpCompilationDriver
         string binDirectory,
         string projectName,
         DiagnosticBag diagnostics,
-        int emittedFileCount = 0)
+        int emittedFileCount = 0,
+        string? mainTypeName = null)
     {
         if (!Directory.Exists(binDirectory))
             Directory.CreateDirectory(binDirectory);
@@ -248,7 +249,8 @@ public sealed class CSharpCompilationDriver
             RoslynApi.OutputKind.ConsoleApplication,
             optimizationLevel: RoslynApi.OptimizationLevel.Debug,
             nullableContextOptions: RoslynApi.NullableContextOptions.Enable,
-            deterministic: true);
+            deterministic: true,
+            mainTypeName: mainTypeName);
 
         var compilation = CSharpCompilation.Create(
             assemblyName: projectName,

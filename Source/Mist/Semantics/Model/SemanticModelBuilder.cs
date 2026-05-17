@@ -814,10 +814,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var ast = asts[i];
             var sourceText = i < compilation.Units.Length ? compilation.Units[i].Source : null;
+            var unitHasTopLevelStatements = i < compilation.Units.Length && compilation.Units[i].HasTopLevelStatements;
 
             try
             {
-                Pass2_ResolveTypes(ast, globalScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                Pass2_ResolveTypes(ast, globalScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, unitHasTopLevelStatements, diagnostics);
             }
             catch (Exception ex)
             {
@@ -1003,6 +1004,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // type parameters (if generic). The scope is stored for Pass 2
                     // to resolve the receiver type and register member symbols.
                     RegisterExtensionBlock(extensionItem.ExtensionDeclaration, currentScope, currentNamespace, sourceText, diagnostics, extensionBlockScopes);
+                    break;
+                }
+                case StatementItemTopLevelItemNode:
+                {
+                    // Top-level statements don't declare types — skip during type registration.
                     break;
                 }
             }
@@ -10834,6 +10840,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
         IAmbientTypeResolver? ambientTypeResolver,
         SourceText? sourceText,
+        bool hasTopLevelStatements,
         DiagnosticBag diagnostics)
     {
         if (ast is not CompilationUnitNode compilationUnit)
@@ -10922,6 +10929,36 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Resolve types in items (namespace body types and top-level types).
         // For each namespace section, we use a file scope whose parent is the
         // appropriate namespace scope so that same-namespace types are visible.
+
+        // For files with top-level statements, create a synthetic scope that acts
+        // like a method body scope. This scope is a child of the file scope so it
+        // has access to all types in the global scope (via the parent chain). Local
+        // variables declared by preceding top-level statements are registered here,
+        // making them visible to later statements (sequential scope semantics).
+        Scope? tlsScope = null;
+        if (hasTopLevelStatements)
+        {
+            tlsScope = new Scope(parent: fileScope);
+
+            // Synthesize an implicit `args` local variable of type string[]
+            // so that top-level statements can access command-line arguments.
+            IType stringType;
+            try
+            {
+                stringType = LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.String");
+            }
+            catch (StdlibMissingException)
+            {
+                stringType = LegacyPrimitiveTypes.String;
+            }
+
+            var stringArrayType = new ArrayType(stringType);
+            var argsSymbol = new Symbol(
+                "args", SymbolKind.LocalVariable, SymbolOrigin.UserCode,
+                tlsScope, stringArrayType, declarationSpan: null);
+            tlsScope.AddMember(argsSymbol);
+        }
+
         foreach (var item in compilationUnit.Items)
         {
             switch (item)
@@ -10984,6 +11021,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
                 case NewtypeItemTopLevelItemNode newtypeItem:
                     ResolveNewtypeDeclaration(newtypeItem.NewtypeDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                    break;
+                case StatementItemTopLevelItemNode stmtItem when tlsScope is not null:
+                    // Resolve the top-level statement within the synthetic TLS scope.
+                    // The TLS scope acts like a method body scope: local variables
+                    // declared here become visible to subsequent statements.
+                    ResolveStatement(stmtItem.Statement, tlsScope, fileScope, enclosingType: null!, isStatic: true, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     break;
             }
         }
@@ -12646,7 +12689,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case ReturnStatementStatementNode returnStmt:
                 if (returnStmt.ReturnStatement.Value is not null)
                 {
-                    ResolveExpression(returnStmt.ReturnStatement.Value, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    var returnValueType = ResolveExpression(returnStmt.ReturnStatement.Value, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                    // Top-level statements: return expressions must be integer types (exit codes).
+                    // enclosingType is null only in TLS mode (passed as null! from Pass2_ResolveTypes).
+                    if (enclosingType is null && returnValueType is not ErrorType && !IsIntegerType(returnValueType))
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            "MIST_TLS_RETURN_TYPE",
+                            DiagnosticSeverity.Error,
+                            $"Top-level 'return' must return an integer exit code, but got '{returnValueType.DisplayName}'.",
+                            returnStmt.ReturnStatement,
+                            sourceText));
+                    }
                 }
                 break;
             case IfStatementStatementNode ifStmt:
@@ -18184,6 +18239,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
         return false;
+    }
+
+    /// <summary>
+    /// Returns true if the given type is an integer type (int, uint, long, ulong,
+    /// short, ushort, byte, sbyte). Used to validate TLS return expressions.
+    /// </summary>
+    private static bool IsIntegerType(IType type)
+    {
+        // Unwrap refinement types to their base type.
+        if (type is RefinementType refinement)
+            type = refinement.BaseType;
+
+        return type.DisplayName is "int" or "Int32"
+            or "uint" or "UInt32"
+            or "long" or "Int64"
+            or "ulong" or "UInt64"
+            or "short" or "Int16"
+            or "ushort" or "UInt16"
+            or "byte" or "Byte"
+            or "sbyte" or "SByte";
     }
 
     /// <summary>

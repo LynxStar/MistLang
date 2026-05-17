@@ -1,0 +1,164 @@
+// TopLevelStatements — Demonstrates top-level statements as the program entry point.
+//
+// This file has NO class wrapping, NO static void Main. All executable code is
+// at file scope. This would fail to compile if top-level statements were not supported.
+//
+// Permutation axes exercised:
+//   1. Using declarations
+//   2. File-scoped namespace declaration
+//   3. Variable declarations (explicit type and var)
+//   4. Expression statements (Console.WriteLine, string interpolation)
+//   5. Control flow (if, for, while, foreach)
+//   6. Implicit args variable usage
+//   7. Return with integer exit code
+//   8. Type declarations (class, struct) after statements
+
+using System;
+
+namespace TopLevelStatements;
+
+// === 1. Variable Declarations ===
+Console.WriteLine("=== Variable Declarations ===");
+
+// Explicit type
+int explicitInt = 42;
+Console.WriteLine($"  explicit int: {explicitInt}");
+
+string explicitStr = "hello from TLS";
+Console.WriteLine($"  explicit string: {explicitStr}");
+
+bool explicitBool = true;
+Console.WriteLine($"  explicit bool: {explicitBool}");
+
+// var inference
+var inferredInt = 100;
+Console.WriteLine($"  var int: {inferredInt}");
+
+var inferredStr = "inferred";
+Console.WriteLine($"  var string: {inferredStr}");
+
+var inferredDouble = 3.14;
+Console.WriteLine($"  var double: {inferredDouble}");
+
+// === 2. Expression Statements ===
+Console.WriteLine("=== Expression Statements ===");
+
+// Direct method call
+Console.WriteLine("  direct call: Console.WriteLine works at top level");
+
+// String interpolation with expressions
+var sum = explicitInt + inferredInt;
+Console.WriteLine($"  interpolation: {explicitInt} + {inferredInt} = {sum}");
+
+// === 3. Control Flow — if ===
+Console.WriteLine("=== Control Flow: if ===");
+
+if (explicitInt > 10)
+{
+    Console.WriteLine($"  if: {explicitInt} > 10 is true");
+}
+else
+{
+    Console.WriteLine($"  if: {explicitInt} > 10 is false");
+}
+
+if (inferredInt == 100)
+{
+    Console.WriteLine("  if: inferredInt equals 100");
+}
+
+// === 4. Control Flow — for ===
+Console.WriteLine("=== Control Flow: for ===");
+
+var forSum = 0;
+for (int i = 0; i < 5; i = i + 1)
+{
+    forSum = forSum + i;
+    Console.WriteLine($"  for iteration: i={i}");
+}
+Console.WriteLine($"  for sum 0..4: {forSum}");
+
+// === 5. Control Flow — while ===
+Console.WriteLine("=== Control Flow: while ===");
+
+var whileCount = 0;
+while (whileCount < 3)
+{
+    Console.WriteLine($"  while iteration: count={whileCount}");
+    whileCount = whileCount + 1;
+}
+Console.WriteLine($"  while final count: {whileCount}");
+
+// === 6. Control Flow — foreach ===
+Console.WriteLine("=== Control Flow: foreach ===");
+
+var items = new string[3];
+items[0] = "alpha";
+items[1] = "beta";
+items[2] = "gamma";
+
+foreach (string item in items)
+{
+    Console.WriteLine($"  foreach item: {item}");
+}
+
+// === 7. Implicit args Variable ===
+Console.WriteLine("=== Implicit args Variable ===");
+
+Console.WriteLine($"  args.Length: {args.Length}");
+
+if (args.Length > 0)
+{
+    Console.WriteLine($"  args[0]: {args[0]}");
+}
+else
+{
+    Console.WriteLine("  no arguments provided");
+}
+
+// === 8. Type Declarations After Statements ===
+Console.WriteLine("=== Type Declarations After Statements ===");
+
+// Use the class and struct declared below (proves they are accessible from TLS)
+var helper = new TlsHelper("top-level");
+Console.WriteLine($"  class instance: {helper.Describe()}");
+
+var point = new TlsPoint(10, 20);
+Console.WriteLine($"  struct instance: ({point.x}, {point.y})");
+
+// === 9. Return with Exit Code ===
+Console.WriteLine("=== Return with Exit Code ===");
+Console.WriteLine("  returning exit code 0");
+
+return 0;
+
+// --- Type declarations after top-level statements ---
+// These belong to the TopLevelStatements namespace (from the file-scoped declaration above).
+// They are NOT file-local — they are visible to other files in the same namespace.
+
+public class TlsHelper
+{
+    private string label;
+
+    public TlsHelper(string label)
+    {
+        this.label = label;
+    }
+
+    public string Describe()
+    {
+        return $"TlsHelper(label={this.label})";
+    }
+}
+
+public struct TlsPoint
+{
+    public int x;
+    public int y;
+
+    public TlsPoint(int x, int y)
+    {
+        this.x = x;
+        this.y = y;
+    }
+}

@@ -7,6 +7,7 @@
 - [Installation](getting-started/installation.md)
 - [Hello, World!](getting-started/hello-world.md)
 - [Project Structure](getting-started/project-structure.md)
+- [Top-Level Statements](getting-started/top-level-statements.md)
 
 # Basics
 

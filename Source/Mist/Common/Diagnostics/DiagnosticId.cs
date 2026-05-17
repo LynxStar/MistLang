@@ -80,6 +80,10 @@ public readonly record struct DiagnosticId(string Value)
     public static readonly DiagnosticId ProjectCircularReference =
         new("MIST_PROJECT_CIRCULAR_REFERENCE");
 
+    /// <summary>The entry_point field is present but empty or whitespace.</summary>
+    public static readonly DiagnosticId ProjectEmptyEntryPoint =
+        new("MIST_PROJECT_EMPTY_ENTRY_POINT");
+
     // ── Default keyword diagnostics ──────────────────────────────────────
 
     /// <summary><c>default(T)</c> where T is not a defaultable type.</summary>
@@ -128,4 +132,27 @@ public readonly record struct DiagnosticId(string Value)
 
     /// <summary>A trait inheritance chain contains a cycle.</summary>
     public static readonly DiagnosticId TraitInheritanceCycle = new("MIST_TRAIT_INHERITANCE_CYCLE");
+
+    // ── Entry point diagnostics ──────────────────────────────────────────
+
+    /// <summary>Multiple files contain top-level statements in the same project.</summary>
+    public static readonly DiagnosticId MultipleTopLevelStatementFiles = new("MIST_EP_0001");
+
+    /// <summary>TLS + Main conflict without <c>entry_point</c> config in mist.toml.</summary>
+    public static readonly DiagnosticId TlsAndMainWithoutConfig = new("MIST_EP_0002");
+
+    /// <summary>TLS exists but <c>entry_point</c> specifies a class name (TLS must be entry point).</summary>
+    public static readonly DiagnosticId TlsWithClassEntryPoint = new("MIST_EP_0003");
+
+    /// <summary>Multiple classes contain <c>static void Main</c> without <c>entry_point</c> config.</summary>
+    public static readonly DiagnosticId MultipleMainsWithoutConfig = new("MIST_EP_0004");
+
+    /// <summary><c>entry_point = "top-level"</c> specified but no file contains top-level statements.</summary>
+    public static readonly DiagnosticId TopLevelEntryPointButNoTls = new("MIST_EP_0005");
+
+    /// <summary>A TLS file contains a block namespace declaration (only file-scoped namespaces are allowed).</summary>
+    public static readonly DiagnosticId TlsWithBlockNamespace = new("MIST_EP_0006");
+
+    /// <summary><c>entry_point</c> specifies a class that doesn't exist or lacks a <c>static void Main</c>.</summary>
+    public static readonly DiagnosticId EntryPointClassNotFound = new("MIST_EP_0007");
 }

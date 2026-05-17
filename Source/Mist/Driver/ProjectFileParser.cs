@@ -189,6 +189,26 @@ public static partial class ProjectFileParser
             namespaceRoot = name;
         }
 
+        // 8.5. entry_point field (optional)
+        string? entryPoint = null;
+        if (model.TryGetValue("entry_point", out var epObj) && epObj is string epStr)
+        {
+            if (string.IsNullOrWhiteSpace(epStr))
+            {
+                diagnostics.Add(new Diagnostic(
+                    DiagnosticId.ProjectEmptyEntryPoint,
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Driver,
+                    $"Entry point in '{filePath}' must not be empty or whitespace when specified.",
+                    Location: default,
+                    CompilationUnitPath: filePath,
+                    AnalyzerName: null));
+                return null;
+            }
+
+            entryPoint = epStr;
+        }
+
         // 9. Read [[references]] array (optional)
         var references = ImmutableArray.CreateBuilder<ProjectReference>();
 
@@ -261,6 +281,6 @@ public static partial class ProjectFileParser
             }
         }
 
-        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable());
+        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint);
     }
 }

@@ -1,0 +1,25 @@
+using System;
+
+namespace MyApp;
+
+// Top-level statements — these are the entry point
+var helper = new Helper("world");
+Console.WriteLine(helper.Greet());
+
+return 0;
+
+// Type declarations — these belong to the MyApp namespace
+public class Helper
+{
+    private string target;
+
+    public Helper(string target)
+    {
+        this.target = target;
+    }
+
+    public string Greet()
+    {
+        return $"Hello, {this.target}!";
+    }
+}

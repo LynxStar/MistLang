@@ -6,6 +6,7 @@ using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;
+using Mist.Generated;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
 using Mist.Semantics;
@@ -210,7 +211,7 @@ public sealed class CompilerDriver : ICompilerDriver
         combinedUnits.AddRange(refUnits);
         combinedUnits.AddRange(userUnits);
 
-        var compilation = new MistCompilation(combinedUnits.ToImmutable());
+        var compilation = new MistCompilation(combinedUnits.ToImmutable(), options.EntryPoint);
 
         loadingStopwatch.Stop();
         var stdlibCount = compilation.Units.Count(u => u.IsStdlib);
@@ -284,6 +285,8 @@ public sealed class CompilerDriver : ICompilerDriver
             asts.AddRange(cachedStdlib.Value.Asts);
         }
 
+        var unitsWithTopLevelStatements = new HashSet<CompilationUnit>();
+
         foreach(var (unit, tokenStream) in tokenStreams)
         {
             var parseBag = new DiagnosticBag();
@@ -304,8 +307,25 @@ public sealed class CompilerDriver : ICompilerDriver
                 asts.Add(parseResult.Root);
                 if (unit.IsStdlib)
                     stdlibAstsForCache?.Add(parseResult.Root);
+
+                // Detect top-level statements in the parsed AST.
+                if (parseResult.Root is CompilationUnitNode cu
+                    && cu.Items.Any(item => item is StatementItemTopLevelItemNode))
+                {
+                    unitsWithTopLevelStatements.Add(unit);
+                }
             }
             // If parse errors, exclude AST from semantic model (R16.4)
+        }
+
+        // Update CompilationUnits that contain top-level statements.
+        if (unitsWithTopLevelStatements.Count > 0)
+        {
+            var updatedUnits = compilation.Units.Select(u =>
+                unitsWithTopLevelStatements.Contains(u)
+                    ? u with { HasTopLevelStatements = true }
+                    : u).ToImmutableArray();
+            compilation = compilation with { Units = updatedUnits };
         }
 
         // Populate the stdlib cache if this is the first successful compile.

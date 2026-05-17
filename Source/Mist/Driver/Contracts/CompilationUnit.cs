@@ -38,4 +38,11 @@ public sealed record CompilationUnit(Common.Text.SourceText Source)
     /// (stdlib / user's own units).
     /// </summary>
     public string? OriginProjectPath { get; init; }
+
+    /// <summary>
+    /// True if this compilation unit's AST contains at least one
+    /// StatementItemTopLevelItemNode (a top-level statement).
+    /// Set after parsing, before semantic model construction.
+    /// </summary>
+    public bool HasTopLevelStatements { get; init; }
 }

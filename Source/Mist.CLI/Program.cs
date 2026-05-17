@@ -230,13 +230,14 @@ internal class Program
             BinDirectory: cliArgs.BinDirectory,
             ProjectName: config.Name,
             NamespaceRoot: config.NamespaceRoot,
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
+            EntryPoint: config.EntryPoint);
 
         // Construct the compiler pipeline
         var lexer = new MistLexer();
         var parser = new MistParser();
         var semanticModelBuilder = new SemanticModelBuilder();
-        ImmutableArray<IAnalyzer> analyzers = [new TypeCheckerAnalyzer(), new ContextCheckerAnalyzer(), new ReadonlyAnalyzer(), new OwnershipAnalyzer()];
+        ImmutableArray<IAnalyzer> analyzers = [new TypeCheckerAnalyzer(), new ContextCheckerAnalyzer(), new ReadonlyAnalyzer(), new OwnershipAnalyzer(), new EntryPointAnalyzer()];
         ImmutableArray<IBackend> backends = [new CSharpTranspilerBackend()];
 
         var driver = new CompilerDriver(lexer, parser, semanticModelBuilder, analyzers, backends, progressReporter);

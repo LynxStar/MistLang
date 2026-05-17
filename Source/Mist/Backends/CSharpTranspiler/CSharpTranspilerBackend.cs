@@ -1,6 +1,9 @@
 using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
+using Mist.Generated;
 using Mist.Semantics.Contracts;
+using Mist.Semantics.Model;
+using Mist.Semantics.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler;
 
@@ -41,8 +44,14 @@ public sealed class CSharpTranspilerBackend : IBackend
                 ? Directory.GetFiles(outputDirectory, "*.cs", SearchOption.AllDirectories).Length
                 : 0;
 
+            // Determine the entry point type name for the Roslyn compilation.
+            // If the root project uses top-level statements, C# handles entry point
+            // selection automatically. Otherwise, we need to specify which class
+            // contains Main to avoid CS0017 when referenced projects also have Main.
+            var mainTypeName = DetermineMainTypeName(model);
+
             // Step 2: Compile the emitted C# project
-            var compileResult = CSharpCompilationDriver.Compile(outputDirectory, binDirectory, projectName, bag, emittedFileCount);
+            var compileResult = CSharpCompilationDriver.Compile(outputDirectory, binDirectory, projectName, bag, emittedFileCount, mainTypeName);
 
             return compileResult;
         }
@@ -65,6 +74,127 @@ public sealed class CSharpTranspilerBackend : IBackend
                 PrimaryArtifactPath: null,
                 Diagnostics: bag.ToImmutableArray());
         }
+    }
+
+    /// <summary>
+    /// Determines the fully qualified type name containing the entry point Main method.
+    /// Returns null if the root project uses top-level statements (C# handles this automatically)
+    /// or if there is only one Main method across all compilation units.
+    /// </summary>
+    private static string? DetermineMainTypeName(ISemanticModel model)
+    {
+        // If the root project has top-level statements, C# uses those as the entry point.
+        var hasRootTls = model.Compilation.Units
+            .Any(u => !u.IsStdlib && u.OriginProjectPath is null && u.HasTopLevelStatements);
+
+        if (hasRootTls)
+            return null;
+
+        // Check if any referenced project has a Main method. If so, we need to
+        // specify the root project's Main class to avoid CS0017.
+        var hasReferencedMain = false;
+        string? rootMainClass = null;
+
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Origin == SymbolOrigin.Backend)
+                continue;
+            if (symbol.Kind != SymbolKind.Method || symbol.Name != "Main")
+                continue;
+
+            // Find which unit this symbol belongs to.
+            Storm.Runtime.SyntaxNode? declaringNode = null;
+            try { declaringNode = model.GetDeclaringNode(symbol); }
+            catch { continue; }
+
+            if (declaringNode is not MethodDeclarationNode methodDecl)
+                continue;
+
+            // Must be static.
+            if (!methodDecl.Modifiers.Any(m => m is StaticModifierModifierNode))
+                continue;
+
+            // Must return void.
+            if (methodDecl.ReturnType is not VoidTypeRefTypeReferenceNode)
+                continue;
+
+            // Determine if this is from a referenced project or the root project.
+            var isFromReference = false;
+            for (var i = 0; i < model.Asts.Length && i < model.Units.Count; i++)
+            {
+                if (model.Units[i].OriginProjectPath is null)
+                    continue;
+                if (IsNodeInAst(declaringNode, model.Asts[i]))
+                {
+                    isFromReference = true;
+                    break;
+                }
+            }
+
+            if (isFromReference)
+            {
+                hasReferencedMain = true;
+            }
+            else
+            {
+                // This is a Main in the root project. Find its containing class.
+                var typeScope = symbol.ContainingScope;
+                var parentScope = typeScope?.Parent;
+                if (parentScope is not null)
+                {
+                    foreach (var member in parentScope.Members)
+                    {
+                        if (member.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+                            continue;
+
+                        var memberScope = member.DeclaredType switch
+                        {
+                            ClassType ct => ct.MemberScope,
+                            StructType st => st.MemberScope,
+                            _ => null,
+                        };
+
+                        if (memberScope == typeScope)
+                        {
+                            var containingNamespace = member.DeclaredType switch
+                            {
+                                ClassType ct => ct.ContainingNamespace,
+                                StructType st => st.ContainingNamespace,
+                                _ => null,
+                            };
+
+                            rootMainClass = containingNamespace is not null
+                                ? $"{containingNamespace}.{member.Name}"
+                                : member.Name;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Only specify mainTypeName if there are multiple Main methods
+        // (one in root + one or more in referenced projects).
+        if (hasReferencedMain && rootMainClass is not null)
+            return rootMainClass;
+
+        return null;
+    }
+
+    private static bool IsNodeInAst(Storm.Runtime.SyntaxNode target, Storm.Runtime.SyntaxNode root)
+    {
+        if (ReferenceEquals(target, root))
+            return true;
+
+        foreach (var child in root.Children())
+        {
+            if (child is null)
+                continue;
+            if (IsNodeInAst(target, child))
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>

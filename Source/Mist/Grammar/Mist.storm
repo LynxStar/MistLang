@@ -95,6 +95,7 @@ rule TopLevelItem
     | typeAliasDeclaration:TypeAliasDeclaration  as TypeAliasItem
     | withDeclaration:WithDeclaration            as WithItem
     | extensionDeclaration:ExtensionBlockDeclaration as ExtensionItem
+    | statement:Statement                        as StatementItem
     ;
 
 rule UsingDeclaration = USING name:QualifiedIdentifier SEMICOLON;

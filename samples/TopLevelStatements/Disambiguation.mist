@@ -1,0 +1,49 @@
+// Disambiguation — Demonstrates that a class with static void Main can coexist
+// with top-level statements when entry_point = "top-level" is set in mist.toml.
+//
+// This file has BOTH RunDemo() and Main(string[] args). Because the project's
+// mist.toml sets entry_point = "top-level", the top-level statements in
+// Program.mist are the actual entry point. The Main method here is compiled as
+// a normal static method — callable but NOT the program's start point.
+//
+// If entry_point were not set, this would be a compile error (MIST_EP_0002).
+
+using System;
+
+namespace TopLevelStatements;
+
+public class Program
+{
+    /// <summary>
+    /// This Main method exists but is NOT the entry point.
+    /// The entry_point = "top-level" setting in mist.toml means the
+    /// top-level statements in Program.mist run instead.
+    /// </summary>
+    public static void Main(string[] args)
+    {
+        // This code only runs if called explicitly — it is never the entry point.
+        Console.WriteLine("  Main called explicitly (not as entry point)");
+        Console.WriteLine($"  Main args.Length: {args.Length}");
+    }
+
+    /// <summary>
+    /// RunDemo demonstrates the disambiguation mechanism by:
+    /// 1. Proving this class's Main is callable as a regular method
+    /// 2. Showing that the program started via TLS, not via Main
+    /// </summary>
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Top-Level Statements: Disambiguation Demo ===");
+        Console.WriteLine("  This class has static void Main(string[] args)");
+        Console.WriteLine("  But entry_point = \"top-level\" in mist.toml means TLS is the entry point");
+        Console.WriteLine("  Calling Main explicitly to prove it is just a normal static method:");
+
+        // Call Main as a regular static method — proves it compiled as a normal method
+        var demoArgs = new string[2];
+        demoArgs[0] = "demo";
+        demoArgs[1] = "arg";
+        Program.Main(demoArgs);
+
+        Console.WriteLine("  Disambiguation complete — Main is callable but not the entry point");
+    }
+}

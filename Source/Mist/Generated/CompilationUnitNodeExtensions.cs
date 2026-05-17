@@ -46,6 +46,34 @@ public static class CompilationUnitNodeExtensions
     }
 
     /// <summary>
+    /// Gets all top-level statement items from the Items list.
+    /// Returns the <see cref="StatementItemTopLevelItemNode"/> wrappers for each statement at file scope.
+    /// </summary>
+    public static ImmutableArray<StatementItemTopLevelItemNode> GetTopLevelStatements(this CompilationUnitNode cu)
+    {
+        var builder = ImmutableArray.CreateBuilder<StatementItemTopLevelItemNode>();
+        foreach (var item in cu.Items)
+        {
+            if (item is StatementItemTopLevelItemNode stmtItem)
+                builder.Add(stmtItem);
+        }
+        return builder.ToImmutable();
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the compilation unit contains any top-level statements.
+    /// </summary>
+    public static bool HasTopLevelStatements(this CompilationUnitNode cu)
+    {
+        foreach (var item in cu.Items)
+        {
+            if (item is StatementItemTopLevelItemNode)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// Wraps a single TypeDeclarationNode into a TopLevelItemNode.
     /// </summary>
     public static TopLevelItemNode AsTopLevelItem(this TypeDeclarationNode typeDecl)

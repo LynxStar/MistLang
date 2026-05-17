@@ -10,6 +10,7 @@ The table below summarizes all available fields:
 |-------|----------|------|-------------|
 | `name` | Yes | String | The project name. Used as the default namespace root and output assembly name. |
 | `namespace_root` | No | String | Overrides the root segment for inferred namespaces. Defaults to `name` when omitted. |
+| `entry_point` | No | String | Disambiguates the program entry point when multiple candidates exist. |
 | `[[references]]` | No | Array of tables | Declares dependencies on other Mist projects. Each entry requires a `path` field. |
 
 ## The `name` Field
@@ -45,6 +46,44 @@ namespace_root = "GameEngine"
 ```
 
 In this example, a file at `Models/Player.mist` without an explicit namespace declaration receives the inferred namespace `GameEngine.Models.Player` rather than `my-game-engine.Models.Player`.
+
+## The `entry_point` Field
+
+The optional `entry_point` field disambiguates the program entry point when a project has multiple candidates. You only need this field when there is ambiguity — for example, a project with both a top-level statement file and a `static void Main` method, or multiple classes containing `static void Main`.
+
+**Valid values:**
+
+| Value | Meaning |
+|-------|---------|
+| `"top-level"` | Use the top-level statement file as the entry point. |
+| A fully qualified class name (e.g., `"MyApp.Program"`) | Use the `static void Main` in that class as the entry point. |
+
+**When you don't need it:**
+
+- If your project has exactly one top-level statement file and no `static void Main` methods, the compiler uses the TLS file automatically.
+- If your project has exactly one class with `static void Main` and no top-level statements, the compiler uses that class automatically.
+
+**Constraints:**
+
+- Must not be empty or whitespace-only when present
+- When a top-level statement file exists, the only valid value is `"top-level"` — a TLS file must always be the entry point when present
+
+```toml
+# Use the top-level statement file as the entry point
+entry_point = "top-level"
+```
+
+```toml
+# Use a specific class's Main method as the entry point
+entry_point = "MyApp.Program"
+```
+
+If the specified entry point cannot be found, the compiler reports an error:
+
+- `entry_point = "top-level"` but no file contains top-level statements: `entry_point = "top-level" specified in mist.toml but no file contains top-level statements.`
+- `entry_point = "MyApp.Program"` but no matching class has a `static void Main`: `entry_point specifies 'MyApp.Program' but no class with that name contains a static void Main method.`
+
+For full details on top-level statements and entry point rules, see [Top-Level Statements](../getting-started/top-level-statements.md).
 
 ## The `[[references]]` Array
 
@@ -169,6 +208,10 @@ The compiler validates `mist.toml` strictly and halts compilation on any error:
 | `name` exceeds 128 characters | `Project name exceeds the maximum length of 128 characters.` |
 | Empty `namespace_root` | `Namespace root must not be empty or whitespace when specified.` |
 | Invalid characters in `namespace_root` | Lists the invalid characters found |
+| Empty `entry_point` | `entry_point must not be empty or whitespace when specified.` |
+| `entry_point = "top-level"` but no TLS file | `entry_point = "top-level" specified in mist.toml but no file contains top-level statements.` |
+| `entry_point` specifies unknown class | `entry_point specifies '{class}' but no class with that name contains a static void Main method.` |
+| `entry_point` specifies class but TLS exists | `Cannot specify entry_point = "{class}" when a top-level statement file exists.` |
 | `references` is not an array of tables | `The 'references' field must be an array of tables ([[references]]).` |
 | Reference entry missing `path` | `Reference entry is missing the required 'path' field.` |
 | Reference entry with empty `path` | `Reference entry has an empty or whitespace 'path' field.` |

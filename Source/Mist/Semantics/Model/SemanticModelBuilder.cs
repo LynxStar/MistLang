@@ -814,10 +814,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var ast = asts[i];
             var sourceText = i < compilation.Units.Length ? compilation.Units[i].Source : null;
+            var unitGlobalUsings = i < compilation.Units.Length
+                ? compilation.Units[i].GlobalUsings
+                : ImmutableArray<string>.Empty;
 
             try
             {
-                Pass2_ResolveTypes(ast, globalScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                Pass2_ResolveTypes(ast, globalScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics, unitGlobalUsings);
             }
             catch (Exception ex)
             {
@@ -10834,7 +10837,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
         IAmbientTypeResolver? ambientTypeResolver,
         SourceText? sourceText,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        ImmutableArray<string> globalUsings)
     {
         if (ast is not CompilationUnitNode compilationUnit)
         {
@@ -10905,6 +10909,44 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
+        // Process global usings — add each as an imported namespace on the file scope.
+        foreach (var globalNs in globalUsings)
+        {
+            var nsExists = false;
+
+            // Check user-defined namespaces.
+            foreach (var member in globalScope.Members)
+            {
+                if (member.Kind == SymbolKind.Namespace && member.Name == globalNs)
+                {
+                    nsExists = true;
+                    break;
+                }
+            }
+
+            // Check ambient namespaces.
+            if (!nsExists && ambientTypeResolver is not null)
+            {
+                nsExists = ambientTypeResolver.HasNamespace(globalNs);
+            }
+
+            if (nsExists)
+            {
+                fileScope.AddImportedNamespace(globalNs);
+            }
+            else
+            {
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_GLOBAL_USING_UNDEFINED_NAMESPACE"),
+                    DiagnosticSeverity.Warning,
+                    PipelineStage.SemanticModelConstruction,
+                    $"Global using namespace '{globalNs}' could not be found.",
+                    Location: default,
+                    CompilationUnitPath: sourceText?.Path ?? "<unknown>",
+                    AnalyzerName: null));
+            }
+        }
+
         // Collect the explicit using declarations (from source-level `using` statements).
         // These are the namespaces that should be copied to every namespace section.
         // The auto-imported "own namespace" (from DetermineFileNamespaceName) should NOT
@@ -10945,6 +10987,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         // as that belongs to the first namespace in the file and should not
                         // leak into different-name namespace sections (Requirement 4.2).
                         foreach (var ns in explicitUsingImports)
+                        {
+                            sectionFileScope.AddImportedNamespace(ns);
+                        }
+                        // Copy global usings to this section scope so that globally-used
+                        // namespaces are available in all namespace sections.
+                        foreach (var ns in globalUsings)
                         {
                             sectionFileScope.AddImportedNamespace(ns);
                         }

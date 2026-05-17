@@ -50,6 +50,7 @@ public class Program
         NestedScoping.Program.RunDemo();
         RefinementComparison.Program.RunDemo();
         ArrayBoundsFlowAnalysis.Program.RunDemo();
+        GlobalUsings.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

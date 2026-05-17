@@ -17,7 +17,14 @@ namespace Mist.Driver.Contracts;
 /// array in <c>mist.toml</c>. Defaults to an empty array when no references
 /// section is present.
 /// </param>
+/// <param name="GlobalUsings">
+/// The list of namespace strings declared in the <c>[global_usings]</c> section
+/// of <c>mist.toml</c>. These namespaces are implicitly imported into every
+/// source file within the declaring project. Defaults to an empty array when
+/// no <c>[global_usings]</c> section is present.
+/// </param>
 public sealed record ProjectConfiguration(
     string Name,
     string NamespaceRoot,
-    ImmutableArray<ProjectReference> References);
+    ImmutableArray<ProjectReference> References,
+    ImmutableArray<string> GlobalUsings = default);

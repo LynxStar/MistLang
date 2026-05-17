@@ -156,3 +156,29 @@ In the example above, `Program.mist` and `AppConfig.mist` both live at the proje
 ```
 
 Similarly, `Player.mist` and `Item.mist` both live in the `Models/` directory, so they share the inferred namespace `Namespaces.Models` and can reference each other without imports.
+
+## Global Usings
+
+If you find yourself adding the same `using` declarations to every file in your project, you can promote them to **global usings**. Global usings are declared in your `mist.toml` project file — not in source files — and behave identically to having an explicit `using` at the top of every file in the project.
+
+Add a `[global_usings]` section to your `mist.toml` with a `namespaces` array listing the namespaces you want imported everywhere:
+
+```toml
+{{#include ../../snippets/basics/namespaces/global-usings.toml}}
+```
+
+With this configuration, every `.mist` file in the project can reference types from `MyProject.Models` and `MyProject.Services` by simple name without writing `using` declarations:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/basics/namespaces/global-usings.mist}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+A few things to keep in mind:
+
+- **Project-scoped only.** Global usings apply exclusively to the project that declares them. If project A references project B, project A does *not* inherit project B's global usings. Each project controls its own implicit imports.
+- **Redundant usings are fine.** If a file contains an explicit `using` for a namespace that is already globally imported, the compiler accepts it silently — no warning, no error.
+- **Ambiguity rules still apply.** If two globally-used namespaces both export a type with the same name, referencing that type without qualification produces the same `MIST_AMBIGUOUS_TYPE` error as with explicit usings.

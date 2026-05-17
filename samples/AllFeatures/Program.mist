@@ -51,6 +51,7 @@ public class Program
         RefinementComparison.Program.RunDemo();
         ArrayBoundsFlowAnalysis.Program.RunDemo();
         TopLevelStatements.Program.RunDemo();
+        GlobalUsings.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

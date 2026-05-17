@@ -125,6 +125,13 @@ public sealed class CompilerDriver : ICompilerDriver
         var refUnits = ImmutableArray<CompilationUnit>.Empty;
         ImmutableHashSet<string>? directReferencePaths = null;
 
+        // Track the root project's global usings. When a mist.toml is parsed,
+        // we use its GlobalUsings for user units; otherwise we fall back to
+        // CompilerOptions.GlobalUsings (the test path).
+        var userGlobalUsings = options.GlobalUsings.IsDefault
+            ? ImmutableArray<string>.Empty
+            : options.GlobalUsings;
+
         if (!string.IsNullOrEmpty(options.ProjectFolder)
             && File.Exists(Path.Combine(options.ProjectFolder, ProjectFileParser.FileName)))
         {
@@ -136,70 +143,91 @@ public sealed class CompilerDriver : ICompilerDriver
                 allDiagnostics.Add(d);
             }
 
-            if (projectConfig is not null && !projectConfig.References.IsEmpty
-                && !refParseBag.HasErrors)
+            if (projectConfig is not null && !refParseBag.HasErrors)
             {
-                // Build the set of directly-referenced canonical paths from
-                // the root project's declared references. This set is passed
-                // to the semantic model builder to enforce transitive
-                // visibility: only symbols from direct references (and
-                // stdlib / user code) are visible during name resolution.
-                directReferencePaths = projectConfig.References
-                    .Select(r => r.Path)
-                    .ToImmutableHashSet(StringComparer.Ordinal);
+                // Use the root project config's GlobalUsings for user units.
+                userGlobalUsings = projectConfig.GlobalUsings.IsDefault
+                    ? ImmutableArray<string>.Empty
+                    : projectConfig.GlobalUsings;
 
-                var resolveBag = new DiagnosticBag();
-                var resolved = ProjectReferenceResolver.Resolve(
-                    options.ProjectFolder,
-                    projectConfig.References,
-                    resolveBag);
-
-                foreach (var d in resolveBag.ToImmutableArray())
+                if (!projectConfig.References.IsEmpty)
                 {
-                    allDiagnostics.Add(d);
-                }
+                    // Build the set of directly-referenced canonical paths from
+                    // the root project's declared references. This set is passed
+                    // to the semantic model builder to enforce transitive
+                    // visibility: only symbols from direct references (and
+                    // stdlib / user code) are visible during name resolution.
+                    directReferencePaths = projectConfig.References
+                        .Select(r => r.Path)
+                        .ToImmutableHashSet(StringComparer.Ordinal);
 
-                if (!resolveBag.HasErrors)
-                {
-                    var refUnitBuilder = ImmutableArray.CreateBuilder<CompilationUnit>();
-                    foreach (var proj in resolved)
+                    var resolveBag = new DiagnosticBag();
+                    var resolved = ProjectReferenceResolver.Resolve(
+                        options.ProjectFolder,
+                        projectConfig.References,
+                        resolveBag);
+
+                    foreach (var d in resolveBag.ToImmutableArray())
                     {
-                        foreach (var path in proj.SourcePaths)
+                        allDiagnostics.Add(d);
+                    }
+
+                    if (!resolveBag.HasErrors)
+                    {
+                        var refUnitBuilder = ImmutableArray.CreateBuilder<CompilationUnit>();
+                        foreach (var proj in resolved)
                         {
-                            try
+                            var projGlobalUsings = proj.Configuration.GlobalUsings.IsDefault
+                                ? ImmutableArray<string>.Empty
+                                : proj.Configuration.GlobalUsings;
+
+                            foreach (var path in proj.SourcePaths)
                             {
-                                var contents = File.ReadAllText(path);
-                                var sourceText = new SourceText(path, contents);
-                                refUnitBuilder.Add(new CompilationUnit(sourceText)
+                                try
                                 {
-                                    NamespaceRoot = proj.Configuration.NamespaceRoot,
-                                    ProjectFolder = proj.ProjectFolder,
-                                    OriginProjectPath = proj.CanonicalTomlPath,
-                                });
-                            }
-                            catch (Exception ex)
-                            {
-                                allDiagnostics.Add(new Diagnostic(
-                                    new DiagnosticId("MIST_FILE_ERROR"),
-                                    DiagnosticSeverity.Error,
-                                    PipelineStage.Driver,
-                                    $"Failed to read referenced source file '{path}': {ex.Message}",
-                                    Location: default,
-                                    CompilationUnitPath: path,
-                                    AnalyzerName: null));
+                                    var contents = File.ReadAllText(path);
+                                    var sourceText = new SourceText(path, contents);
+                                    refUnitBuilder.Add(new CompilationUnit(sourceText)
+                                    {
+                                        NamespaceRoot = proj.Configuration.NamespaceRoot,
+                                        ProjectFolder = proj.ProjectFolder,
+                                        OriginProjectPath = proj.CanonicalTomlPath,
+                                        GlobalUsings = projGlobalUsings,
+                                    });
+                                }
+                                catch (Exception ex)
+                                {
+                                    allDiagnostics.Add(new Diagnostic(
+                                        new DiagnosticId("MIST_FILE_ERROR"),
+                                        DiagnosticSeverity.Error,
+                                        PipelineStage.Driver,
+                                        $"Failed to read referenced source file '{path}': {ex.Message}",
+                                        Location: default,
+                                        CompilationUnitPath: path,
+                                        AnalyzerName: null));
+                                }
                             }
                         }
+                        refUnits = refUnitBuilder.ToImmutable();
                     }
-                    refUnits = refUnitBuilder.ToImmutable();
-                }
-                else
-                {
-                    return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
+                    else
+                    {
+                        return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
+                    }
                 }
             }
             else if (refParseBag.HasErrors)
             {
                 return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
+            }
+        }
+
+        // Apply global usings to user compilation units.
+        if (!userGlobalUsings.IsEmpty)
+        {
+            for (var i = 0; i < userUnits.Count; i++)
+            {
+                userUnits[i] = userUnits[i] with { GlobalUsings = userGlobalUsings };
             }
         }
 

@@ -12,6 +12,7 @@ The table below summarizes all available fields:
 | `namespace_root` | No | String | Overrides the root segment for inferred namespaces. Defaults to `name` when omitted. |
 | `entry_point` | No | String | Disambiguates the program entry point when multiple candidates exist. |
 | `[[references]]` | No | Array of tables | Declares dependencies on other Mist projects. Each entry requires a `path` field. |
+| `[global_usings]` | No | Table | Declares namespaces implicitly imported into every source file in the project. |
 
 ## The `name` Field
 
@@ -126,6 +127,48 @@ If a referenced path does not exist, the compiler reports a diagnostic:
 - If the directory exists but contains no `mist.toml`: `Referenced directory '/path/to/dir' does not contain a 'mist.toml' file.`
 - If the path does not exist at all: `Referenced project path '/path/to/file' does not exist.`
 
+## The `[global_usings]` Section
+
+The optional `[global_usings]` section declares namespaces that are implicitly imported into every source file within the project. This eliminates the need for repetitive `using` declarations across files.
+
+Global usings are scoped to the declaring project only. When project A references project B, project A does **not** inherit project B's global usings. Each project's global usings apply exclusively to its own source files.
+
+| Field | Required | Type | Description |
+|-------|----------|------|-------------|
+| `namespaces` | Yes (when section present) | Array of strings | The list of namespaces to implicitly import. |
+
+```toml
+[global_usings]
+namespaces = ["System", "System.Collections.Generic", "MyProject.Models"]
+```
+
+### Valid Namespace Syntax
+
+Each entry in the `namespaces` array must be a fully qualified namespace name — a dot-separated sequence of identifiers matching the pattern:
+
+```
+^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$
+```
+
+In plain terms: each segment starts with a letter or underscore, followed by zero or more letters, digits, or underscores. Segments are separated by dots.
+
+Valid examples: `System`, `MyProject.Models`, `_Internal.Utils`
+
+### Error Behavior
+
+| Condition | Diagnostic | Severity |
+|-----------|-----------|----------|
+| Section present but missing `namespaces` field | `MIST_GLOBAL_USING_MISSING_NAMESPACES` | Error |
+| Empty or whitespace-only entry | `MIST_GLOBAL_USING_EMPTY_NAMESPACE` | Error |
+| Entry contains invalid characters | `MIST_GLOBAL_USING_INVALID_NAMESPACE` | Error |
+| `namespaces` is not an array | `MIST_GLOBAL_USING_INVALID_FORMAT` | Error |
+| Non-string element in `namespaces` | `MIST_GLOBAL_USING_INVALID_FORMAT` | Error |
+| Duplicate entry (case-sensitive) | `MIST_GLOBAL_USING_DUPLICATE_NAMESPACE` | Warning |
+
+All error diagnostics halt compilation. The duplicate warning is non-fatal — the duplicate is removed and parsing continues.
+
+All diagnostics include the path to the `mist.toml` file for orientation.
+
 ## Example Configurations
 
 ### Minimal Configuration
@@ -194,6 +237,23 @@ path = "../Classes"
 path = "../Traits"
 ```
 
+### Project with Global Usings
+
+A project that uses global usings to avoid repetitive imports:
+
+```toml
+name = "MyApp"
+namespace_root = "MyApp"
+
+[global_usings]
+namespaces = ["System", "MyApp.Models", "MyApp.Services"]
+
+[[references]]
+path = "../SharedLib"
+```
+
+With this configuration, every `.mist` file in the project can reference types from `System`, `MyApp.Models`, and `MyApp.Services` without explicit `using` declarations. The referenced `SharedLib` project does not inherit these global usings.
+
 ## Error Behavior
 
 The compiler validates `mist.toml` strictly and halts compilation on any error:
@@ -217,3 +277,8 @@ The compiler validates `mist.toml` strictly and halts compilation on any error:
 | Reference entry with empty `path` | `Reference entry has an empty or whitespace 'path' field.` |
 | Referenced project not found | Reports the missing path |
 | Circular reference | Reports the full cycle chain |
+| `[global_usings]` missing `namespaces` field | `MIST_GLOBAL_USING_MISSING_NAMESPACES` |
+| Empty or whitespace namespace entry | `MIST_GLOBAL_USING_EMPTY_NAMESPACE` |
+| Invalid characters in namespace entry | `MIST_GLOBAL_USING_INVALID_NAMESPACE` |
+| `namespaces` is not an array or contains non-strings | `MIST_GLOBAL_USING_INVALID_FORMAT` |
+| Duplicate namespace entry | `MIST_GLOBAL_USING_DUPLICATE_NAMESPACE` (warning, parsing continues) |

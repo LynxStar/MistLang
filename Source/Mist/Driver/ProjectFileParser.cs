@@ -19,6 +19,9 @@ public static partial class ProjectFileParser
     [GeneratedRegex(@"^[a-zA-Z0-9\-_\.]+$")]
     private static partial Regex ValidNamePattern();
 
+    [GeneratedRegex(@"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$")]
+    private static partial Regex ValidNamespacePattern();
+
     /// <summary>
     /// Parses the <c>mist.toml</c> file from the given project folder.
     /// Returns <c>null</c> and populates diagnostics on any error.
@@ -281,6 +284,119 @@ public static partial class ProjectFileParser
             }
         }
 
-        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint);
+        // 10. Read [global_usings] section (optional)
+        var globalUsings = ImmutableArray<string>.Empty;
+
+        if (model.TryGetValue("global_usings", out var guObj))
+        {
+            if (guObj is not TomlTable guTable)
+            {
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_GLOBAL_USING_INVALID_FORMAT"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Driver,
+                    $"The '[global_usings]' section in '{filePath}' must be a table.",
+                    Location: default,
+                    CompilationUnitPath: filePath,
+                    AnalyzerName: null));
+                return null;
+            }
+
+            if (!guTable.TryGetValue("namespaces", out var nsObj))
+            {
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_GLOBAL_USING_MISSING_NAMESPACES"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Driver,
+                    $"The '[global_usings]' section in '{filePath}' is missing the required 'namespaces' field.",
+                    Location: default,
+                    CompilationUnitPath: filePath,
+                    AnalyzerName: null));
+                return null;
+            }
+
+            if (nsObj is not TomlArray nsArray)
+            {
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_GLOBAL_USING_INVALID_FORMAT"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Driver,
+                    $"The 'namespaces' field in '[global_usings]' section of '{filePath}' must be an array.",
+                    Location: default,
+                    CompilationUnitPath: filePath,
+                    AnalyzerName: null));
+                return null;
+            }
+
+            var builder = ImmutableArray.CreateBuilder<string>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+
+            for (var i = 0; i < nsArray.Count; i++)
+            {
+                if (nsArray[i] is not string entry)
+                {
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_GLOBAL_USING_INVALID_FORMAT"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.Driver,
+                        $"Element at index {i} in 'namespaces' array of '{filePath}' must be a string.",
+                        Location: default,
+                        CompilationUnitPath: filePath,
+                        AnalyzerName: null));
+                    return null;
+                }
+
+                if (string.IsNullOrWhiteSpace(entry))
+                {
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_GLOBAL_USING_EMPTY_NAMESPACE"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.Driver,
+                        $"Namespace entry at index {i} in '{filePath}' must not be empty or whitespace.",
+                        Location: default,
+                        CompilationUnitPath: filePath,
+                        AnalyzerName: null));
+                    return null;
+                }
+
+                if (!ValidNamespacePattern().IsMatch(entry))
+                {
+                    var invalidChars = entry
+                        .Where(c => !char.IsLetterOrDigit(c) && c != '_' && c != '.')
+                        .Distinct()
+                        .OrderBy(c => c);
+                    var invalidList = string.Join(", ", invalidChars.Select(c => $"'{c}'"));
+
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_GLOBAL_USING_INVALID_NAMESPACE"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.Driver,
+                        $"Namespace entry '{entry}' in '{filePath}' contains invalid characters: {invalidList}.",
+                        Location: default,
+                        CompilationUnitPath: filePath,
+                        AnalyzerName: null));
+                    return null;
+                }
+
+                if (!seen.Add(entry))
+                {
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_GLOBAL_USING_DUPLICATE_NAMESPACE"),
+                        DiagnosticSeverity.Warning,
+                        PipelineStage.Driver,
+                        $"Duplicate namespace '{entry}' in '{filePath}' will be ignored.",
+                        Location: default,
+                        CompilationUnitPath: filePath,
+                        AnalyzerName: null));
+                    continue;
+                }
+
+                builder.Add(entry);
+            }
+
+            globalUsings = builder.ToImmutable();
+        }
+
+        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint, globalUsings);
     }
 }

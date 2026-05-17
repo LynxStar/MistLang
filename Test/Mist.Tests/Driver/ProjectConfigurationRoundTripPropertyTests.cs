@@ -1,0 +1,229 @@
+// Feature: global-usings, Property 1: ProjectConfiguration round-trip
+// **Validates: Requirements 1.1, 1.2, 1.3, 1.6, 3.1, 7.1, 7.2, 7.4**
+//
+// For any valid ProjectConfiguration (with valid name, namespace root, references,
+// and global usings list), serializing it to TOML and parsing the result back SHALL
+// produce a ProjectConfiguration where Name, NamespaceRoot, References, and GlobalUsings
+// are structurally equal to the original (order-sensitive for GlobalUsings).
+
+using System.Collections.Immutable;
+using System.Text;
+using FsCheck;
+using FsCheck.Fluent;
+using FsCheck.Xunit;
+using Mist.Common.Diagnostics;
+using Mist.Driver;
+using Mist.Driver.Contracts;
+
+namespace Mist.Tests.Driver;
+
+/// <summary>
+/// Property-based tests for <see cref="ProjectConfiguration"/> round-trip
+/// through TOML serialization and <see cref="ProjectFileParser.Parse"/>.
+/// All tests are pure in-process — no process spawning.
+/// </summary>
+public sealed class ProjectConfigurationRoundTripPropertyTests
+{
+    // ═══════════════════════════════════════════════════════════════════════
+    // Generators
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Generates a valid project name matching <c>^[a-zA-Z0-9\-_\.]+$</c> with max length 128.
+    /// </summary>
+    private static Gen<string> GenProjectName()
+    {
+        var validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.".ToCharArray();
+        return Gen.Choose(1, 20).SelectMany(len =>
+            Gen.ArrayOf(Gen.Elements(validChars), len)
+                .Select(chars => new string(chars)));
+    }
+
+    /// <summary>
+    /// Generates a valid namespace identifier segment: starts with letter or underscore,
+    /// followed by alphanumeric or underscore characters.
+    /// </summary>
+    private static Gen<string> GenIdentifier()
+    {
+        var startChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_".ToCharArray();
+        var restChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_".ToCharArray();
+
+        return Gen.Elements(startChars).SelectMany(first =>
+            Gen.Choose(0, 8).SelectMany(restLen =>
+                Gen.ArrayOf(Gen.Elements(restChars), restLen)
+                    .Select(rest => first + new string(rest))));
+    }
+
+    /// <summary>
+    /// Generates a valid namespace string matching
+    /// <c>^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$</c>.
+    /// </summary>
+    private static Gen<string> GenNamespace()
+    {
+        return Gen.Choose(1, 4).SelectMany(segmentCount =>
+            Gen.ArrayOf(GenIdentifier(), segmentCount)
+                .Select(segments => string.Join(".", segments)));
+    }
+
+    /// <summary>
+    /// Generates a list of distinct valid namespace strings (0–10 entries).
+    /// </summary>
+    private static Gen<ImmutableArray<string>> GenGlobalUsings()
+    {
+        return Gen.Choose(0, 10).SelectMany(count =>
+            Gen.ArrayOf(GenNamespace(), count + 5)
+                .Select(namespaces =>
+                {
+                    // Deduplicate while preserving order, then take up to count
+                    var distinct = namespaces.Distinct(StringComparer.Ordinal).Take(count).ToArray();
+                    return distinct.ToImmutableArray();
+                }));
+    }
+
+    /// <summary>
+    /// Generates a valid <see cref="ProjectConfiguration"/> with random name,
+    /// namespace root, references, and global usings.
+    /// </summary>
+    private static Gen<ProjectConfiguration> GenProjectConfiguration()
+    {
+        return GenProjectName().SelectMany(name =>
+            GenProjectName().SelectMany(nsRoot =>
+                Gen.Choose(0, 3).SelectMany(refCount =>
+                    Gen.ArrayOf(GenProjectName(), refCount).SelectMany(refNames =>
+                        GenGlobalUsings().Select(globalUsings =>
+                        {
+                            // Build references with synthetic absolute paths
+                            var refs = refNames
+                                .Select(r => new ProjectReference($"/refs/{r}/mist.toml"))
+                                .ToImmutableArray();
+
+                            return new ProjectConfiguration(name, nsRoot, refs, GlobalUsings: globalUsings);
+                        })))));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Serialization
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Serializes a <see cref="ProjectConfiguration"/> to TOML format.
+    /// </summary>
+    private static string SerializeToToml(ProjectConfiguration config)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"name = \"{EscapeTomlString(config.Name)}\"");
+        sb.AppendLine($"namespace_root = \"{EscapeTomlString(config.NamespaceRoot)}\"");
+
+        if (!config.GlobalUsings.IsDefaultOrEmpty)
+        {
+            sb.AppendLine();
+            sb.AppendLine("[global_usings]");
+            var nsEntries = string.Join(", ", config.GlobalUsings.Select(ns => $"\"{EscapeTomlString(ns)}\""));
+            sb.AppendLine($"namespaces = [{nsEntries}]");
+        }
+
+        foreach (var reference in config.References)
+        {
+            sb.AppendLine();
+            sb.AppendLine("[[references]]");
+            sb.AppendLine($"path = \"{EscapeTomlString(reference.Path)}\"");
+        }
+
+        return sb.ToString();
+    }
+
+    private static string EscapeTomlString(string value)
+    {
+        return value
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Arbitrary
+    // ═══════════════════════════════════════════════════════════════════════
+
+    public static Arbitrary<ProjectConfiguration> ArbProjectConfiguration() =>
+        GenProjectConfiguration().ToArbitrary();
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Property test
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Property 1: ProjectConfiguration round-trip.
+    /// For any valid ProjectConfiguration, serializing to TOML and parsing back
+    /// produces a structurally equal ProjectConfiguration.
+    /// </summary>
+    [Property(MaxTest = 100, Arbitrary = new[] { typeof(ProjectConfigurationRoundTripPropertyTests) })]
+    public bool RoundTrip_SerializeAndParse_ProducesEqualConfiguration(ProjectConfiguration original)
+    {
+        var toml = SerializeToToml(original);
+
+        // Write to a temp directory and parse back
+        var tempDir = Path.Combine(Path.GetTempPath(), $"mist_pbt_rt_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var tomlPath = Path.Combine(tempDir, ProjectFileParser.FileName);
+            File.WriteAllText(tomlPath, toml);
+
+            var diagnostics = new DiagnosticBag();
+            var parsed = ProjectFileParser.Parse(tempDir, diagnostics);
+
+            if (parsed is null)
+            {
+                // Parse failed — this should not happen for valid configurations
+                var diagMessages = string.Join("; ", diagnostics.ToImmutableArray().Select(d => d.Message));
+                throw new Exception(
+                    $"Parse returned null for valid config. TOML:\n{toml}\nDiagnostics: {diagMessages}");
+            }
+
+            // Assert structural equality
+            if (parsed.Name != original.Name)
+                return false;
+
+            if (parsed.NamespaceRoot != original.NamespaceRoot)
+                return false;
+
+            // References: compare paths (parser normalizes paths, so compare by count and filename)
+            if (parsed.References.Length != original.References.Length)
+                return false;
+
+            for (var i = 0; i < original.References.Length; i++)
+            {
+                // The parser normalizes relative paths to absolute using the project folder.
+                // Since we write absolute paths in serialization, they should round-trip.
+                var parsedPath = parsed.References[i].Path;
+                var originalPath = original.References[i].Path;
+
+                // The parser appends mist.toml if not present, and normalizes.
+                // Our serialized paths already end with mist.toml, so after normalization
+                // they should match.
+                var expectedNormalized = Path.GetFullPath(
+                    Path.IsPathRooted(originalPath)
+                        ? originalPath
+                        : Path.Combine(tempDir, originalPath));
+
+                if (parsedPath != expectedNormalized)
+                    return false;
+            }
+
+            // GlobalUsings: order-sensitive comparison
+            if (parsed.GlobalUsings.Length != original.GlobalUsings.Length)
+                return false;
+
+            for (var i = 0; i < original.GlobalUsings.Length; i++)
+            {
+                if (parsed.GlobalUsings[i] != original.GlobalUsings[i])
+                    return false;
+            }
+
+            return true;
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, recursive: true); } catch { }
+        }
+    }
+}

@@ -1,0 +1,45 @@
+using System;
+
+// Redundant explicit using for a globally-used namespace.
+// GlobalUsings.Models is already in [global_usings] — this must be accepted without error.
+using GlobalUsings.Models;
+
+// NOTE: No explicit "using GlobalUsings.Services;" — relies entirely on global usings.
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== GlobalUsings Demo ===");
+
+        // --- Permutation 1: Type from globally-used namespace without explicit using ---
+        // Formatter is in GlobalUsings.Services, which has NO explicit using above.
+        // This would produce MIST_UNDEFINED_TYPE if global usings were broken.
+        var formatter = new Formatter("LOG");
+        Console.WriteLine($"[Global using only] {formatter.Format("hello from services")}");
+
+        // --- Permutation 2: Type from globally-used namespace with redundant explicit using ---
+        // Product is in GlobalUsings.Models, which IS also explicitly imported above.
+        // This proves redundant explicit using is accepted without error.
+        var product = new Product("Widget", 42);
+        Console.WriteLine($"[Redundant explicit using] {product.Describe()}");
+
+        // --- Permutation 3: Multiple globally-used namespaces in the same file ---
+        // Both Product (Models) and Formatter (Services) used together.
+        // Would fail if either global using were broken.
+        var output = formatter.FormatProduct(product);
+        Console.WriteLine($"[Multiple global usings] {output}");
+
+        // --- Permutation 4: Constructing another instance to prove resolution is stable ---
+        var product2 = new Product("Gadget", 99);
+        var formatter2 = new Formatter("INFO");
+        Console.WriteLine($"[Second instances] {formatter2.FormatProduct(product2)}");
+
+        Console.WriteLine("=== GlobalUsings Done ===");
+    }
+}

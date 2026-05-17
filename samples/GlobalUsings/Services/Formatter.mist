@@ -1,0 +1,25 @@
+using System;
+
+// Namespace inferred as "GlobalUsings.Services" from folder path.
+// This type is available by simple name in any file because
+// GlobalUsings.Services is declared in [global_usings].
+
+public class Formatter
+{
+    private string prefix;
+
+    public Formatter(string prefix)
+    {
+        this.prefix = prefix;
+    }
+
+    public string Format(string value)
+    {
+        return $"{prefix}: {value}";
+    }
+
+    public string FormatProduct(Product product)
+    {
+        return $"{prefix}: {product.Describe()}";
+    }
+}

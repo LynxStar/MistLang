@@ -361,6 +361,19 @@ internal sealed class CSharpSourceWriter
             usings.Add(ns);
         }
 
+        // Add global usings for this compilation unit.
+        foreach (var unit in _model.Units)
+        {
+            if (ReferenceEquals(unit.Source, _sourceText))
+            {
+                foreach (var globalNs in unit.GlobalUsings)
+                {
+                    usings.Add(globalNs);
+                }
+                break;
+            }
+        }
+
         // Emit using System.Text.RegularExpressions when the file references Standard.Regex.
         if (SourceReferencesRegex())
         {

@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace Mist.Driver.Contracts;
 
 /// <summary>
@@ -45,4 +47,11 @@ public sealed record CompilationUnit(Common.Text.SourceText Source)
     /// Set after parsing, before semantic model construction.
     /// </summary>
     public bool HasTopLevelStatements { get; init; }
+
+    /// <summary>
+    /// The global usings declared in this unit's owning project's <c>mist.toml</c>.
+    /// Applied during semantic model construction as implicit imports.
+    /// Empty for stdlib units.
+    /// </summary>
+    public ImmutableArray<string> GlobalUsings { get; init; } = ImmutableArray<string>.Empty;
 }

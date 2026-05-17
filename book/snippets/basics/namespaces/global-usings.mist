@@ -1,0 +1,11 @@
+// No explicit using needed — Models and Services are globally imported
+namespace MyProject;
+
+class Program
+{
+    public static void Main()
+    {
+        var user = new User("Alice");        // User is in MyProject.Models
+        var svc = new UserService();         // UserService is in MyProject.Services
+    }
+}

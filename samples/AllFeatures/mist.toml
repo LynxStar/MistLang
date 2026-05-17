@@ -119,3 +119,6 @@ path = "../ArrayBoundsFlowAnalysis"
 
 [[references]]
 path = "../TopLevelStatements"
+
+[[references]]
+path = "../GlobalUsings"

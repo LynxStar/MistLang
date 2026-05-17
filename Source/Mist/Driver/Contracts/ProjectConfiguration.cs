@@ -23,8 +23,15 @@ namespace Mist.Driver.Contracts;
 /// When set to a fully qualified class name, that class's <c>static void Main</c> is used.
 /// Defaults to <see langword="null"/> (no explicit entry point configured).
 /// </param>
+/// <param name="GlobalUsings">
+/// The list of namespace strings declared in the <c>[global_usings]</c> section
+/// of <c>mist.toml</c>. These namespaces are implicitly imported into every
+/// source file within the declaring project. Defaults to an empty array when
+/// no <c>[global_usings]</c> section is present.
+/// </param>
 public sealed record ProjectConfiguration(
     string Name,
     string NamespaceRoot,
     ImmutableArray<ProjectReference> References,
-    string? EntryPoint = null);
+    string? EntryPoint = null,
+    ImmutableArray<string> GlobalUsings = default);

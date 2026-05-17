@@ -1,0 +1,6 @@
+# mist.toml
+name = "MyProject"
+namespace_root = "MyProject"
+
+[global_usings]
+namespaces = ["MyProject.Models", "MyProject.Services"]

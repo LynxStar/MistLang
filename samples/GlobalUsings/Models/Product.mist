@@ -1,0 +1,32 @@
+using System;
+
+// Namespace inferred as "GlobalUsings.Models" from folder path.
+// This type is available by simple name in any file because
+// GlobalUsings.Models is declared in [global_usings].
+
+public class Product
+{
+    private string name;
+    private int price;
+
+    public Product(string name, int price)
+    {
+        this.name = name;
+        this.price = price;
+    }
+
+    public string GetName()
+    {
+        return name;
+    }
+
+    public int GetPrice()
+    {
+        return price;
+    }
+
+    public string Describe()
+    {
+        return $"Product({name}, ${price})";
+    }
+}

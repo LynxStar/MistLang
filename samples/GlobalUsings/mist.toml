@@ -1,0 +1,7 @@
+name = "GlobalUsings"
+
+[global_usings]
+namespaces = [
+    "GlobalUsings.Models",
+    "GlobalUsings.Services"
+]

@@ -12,5 +12,8 @@ public class Matrix<TRows, TCols>
 
     public static int Cols => TCols.Value;
 
-    public string Describe() { return $"Matrix<{Rows},{Cols}>"; }
+    public string Describe()
+    {
+        return $"Matrix<{TRows.Value},{TCols.Value}>";
+    }
 }

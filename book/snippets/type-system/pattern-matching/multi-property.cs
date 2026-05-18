@@ -5,6 +5,7 @@ namespace PatternDemo;
 public class Rectangle
 {
     public int Width { get; }
+
     public int Height { get; }
 
     public Rectangle(int width, int height)
@@ -12,8 +13,19 @@ public class Rectangle
         this.Width = width;
         this.Height = height;
     }
-}
 
+    protected Rectangle()
+    {
+        this.Width = 0;
+        this.Height = 0;
+    }
+
+    public static Rectangle __CreateDefault()
+    {
+        var inst = new Rectangle();
+        return inst;
+    }
+}
 public class Program
 {
     public static void Main(string[] args)
@@ -23,5 +35,11 @@ public class Program
         {
             Console.WriteLine("Small rectangle (both sides 1-10)");
         }
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

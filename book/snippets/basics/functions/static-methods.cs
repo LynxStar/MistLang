@@ -22,4 +22,10 @@ public class Counter
         var c2 = new Counter();
         Console.WriteLine($"Total: {Counter.GetTotalCreated()}");
     }
+
+    public static Counter __CreateDefault()
+    {
+        var inst = new Counter();
+        return inst;
+    }
 }

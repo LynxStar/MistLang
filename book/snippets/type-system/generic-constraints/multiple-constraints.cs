@@ -1,8 +1,9 @@
+namespace Snippet;
+
 interface IPrintable
 {
     string Print();
 }
-
 class PrintableCreator<T>
     where T : class, IPrintable, new()
 {

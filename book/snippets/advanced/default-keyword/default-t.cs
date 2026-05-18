@@ -11,4 +11,10 @@ public class Program
         string s = "";
         Console.WriteLine($"int={i} bool={b} string={s}");
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

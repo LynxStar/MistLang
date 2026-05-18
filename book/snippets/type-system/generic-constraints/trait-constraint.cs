@@ -1,8 +1,9 @@
+namespace Snippet;
+
 interface Describable
 {
     string Describe();
 }
-
 class Describer<T>
     where T : Describable
 {

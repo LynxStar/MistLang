@@ -9,4 +9,10 @@ public class Program
         double score = 98.5;
         bool active = true;
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

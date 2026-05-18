@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Source\Mist\Mist.csproj" />
+  </ItemGroup>
+
+  <!-- Include the Standard Library so the compiler can resolve stdlib types. -->
+  <ItemGroup>
+    <Content Include="..\..\Source\Standard\**\*.mist"
+             CopyToOutputDirectory="PreserveNewest"
+             TargetPath="Standard\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

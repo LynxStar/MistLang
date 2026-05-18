@@ -8,4 +8,10 @@ public class TypeIdentity
     {
         return $"Accepted FixedBuffer<{buf.GetSize()}>";
     }
+
+    public static TypeIdentity __CreateDefault()
+    {
+        var inst = new TypeIdentity();
+        return inst;
+    }
 }

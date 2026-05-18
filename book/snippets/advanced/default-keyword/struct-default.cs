@@ -5,6 +5,7 @@ namespace DefaultDemo;
 public readonly struct Container
 {
     public readonly int Code;
+
     public readonly string Label;
 
     public Container()
@@ -12,6 +13,7 @@ public readonly struct Container
         this.Code = 99;
         this.Label = "constructed";
     }
+
 
     private Container(bool __defaultSentinel)
     {
@@ -25,7 +27,6 @@ public readonly struct Container
         return inst;
     }
 }
-
 public class Program
 {
     public static void Main(string[] args)
@@ -34,5 +35,11 @@ public class Program
         Container c2 = Container.__CreateDefault();
         Console.WriteLine($"new Container() = Code={c1.Code}, Label={c1.Label}");
         Console.WriteLine($"default(Container) = Code={c2.Code}, Label={c2.Label}");
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

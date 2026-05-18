@@ -1,3 +1,5 @@
+namespace Snippet;
+
 class Animal
 {
     public string Species;
@@ -11,8 +13,18 @@ class Animal
     {
         return Species;
     }
-}
 
+    protected Animal()
+    {
+        this.Species = "";
+    }
+
+    public static Animal __CreateDefault()
+    {
+        var inst = new Animal();
+        return inst;
+    }
+}
 class AnimalHandler<T>
     where T : Animal
 {

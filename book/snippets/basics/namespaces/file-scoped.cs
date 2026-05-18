@@ -8,4 +8,10 @@ public class StringHelper
     {
         return $"Hello, {name}!";
     }
+
+    public static StringHelper __CreateDefault()
+    {
+        var inst = new StringHelper();
+        return inst;
+    }
 }

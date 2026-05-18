@@ -14,4 +14,10 @@ public class Logger
         Log("Application started");
         Log("Processing complete");
     }
+
+    public static Logger __CreateDefault()
+    {
+        var inst = new Logger();
+        return inst;
+    }
 }

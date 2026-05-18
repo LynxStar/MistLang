@@ -2,11 +2,11 @@ using System;
 
 namespace EnumDemo;
 
-public readonly record struct Vec2
+public readonly struct Vec2
 {
-    public int x;
+    public readonly int x;
 
-    public int y;
+    public readonly int y;
 
     public Vec2(int x, int y)
     {
@@ -14,12 +14,23 @@ public readonly record struct Vec2
         this.y = y;
     }
 
-    public string Describe()
+    public readonly string Describe()
     {
         return $"({this.x}, {this.y})";
     }
-}
 
+    private Vec2(bool __defaultSentinel)
+    {
+        this.x = 0;
+        this.y = 0;
+    }
+
+    public static Vec2 __CreateDefault()
+    {
+        var inst = new Vec2(true);
+        return inst;
+    }
+}
 public record class CardinalDir(Vec2 Value)
 {
     public static readonly CardinalDir Up = new CardinalDir(new Vec2(0, 1));

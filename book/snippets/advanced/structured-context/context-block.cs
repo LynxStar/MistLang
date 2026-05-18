@@ -9,8 +9,13 @@ public class Consumers
         var n = (int)MistContext.Peek<int>();
         return n;
     }
-}
 
+    public static Consumers __CreateDefault()
+    {
+        var inst = new Consumers();
+        return inst;
+    }
+}
 public class Program
 {
     public static void Main(string[] args)
@@ -20,7 +25,6 @@ public class Program
         try
         {
             Console.WriteLine(Consumers.GetInt());
-
             MistContext.Push<int>(99);
             try
             {
@@ -30,12 +34,17 @@ public class Program
             {
                 MistContext.Pop<int>();
             }
-
             Console.WriteLine(Consumers.GetInt());
         }
         finally
         {
             MistContext.Pop<int>();
         }
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

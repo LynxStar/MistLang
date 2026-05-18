@@ -1,3 +1,5 @@
+namespace Snippet;
+
 class RefOnly<T>
     where T : class
 {

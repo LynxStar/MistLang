@@ -5,6 +5,7 @@ namespace Demo;
 public class Counter
 {
     private static int totalCreated;
+
     private string name;
 
     public Counter(string name)
@@ -23,5 +24,16 @@ public class Counter
         var a = new Counter("Alpha");
         var b = new Counter("Beta");
         Console.WriteLine($"Total created: {Counter.GetTotalCreated()}");
+    }
+
+    protected Counter()
+    {
+        this.name = "";
+    }
+
+    public static Counter __CreateDefault()
+    {
+        var inst = new Counter();
+        return inst;
     }
 }

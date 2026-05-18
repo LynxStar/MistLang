@@ -1,3 +1,5 @@
+namespace Snippet;
+
 class Creator<T>
     where T : new()
 {

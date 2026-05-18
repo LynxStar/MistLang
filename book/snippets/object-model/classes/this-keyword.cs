@@ -5,6 +5,7 @@ namespace Demo;
 public class Point
 {
     private int x;
+
     private int y;
 
     public Point(int x, int y)
@@ -21,5 +22,17 @@ public class Point
     public string Describe()
     {
         return $"Point({this.x}, {this.y})";
+    }
+
+    protected Point()
+    {
+        this.x = 0;
+        this.y = 0;
+    }
+
+    public static Point __CreateDefault()
+    {
+        var inst = new Point();
+        return inst;
     }
 }

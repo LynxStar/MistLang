@@ -10,9 +10,19 @@ public class Greeting
     {
         Message = message;
     }
-}
 
-public static class GreetingExtensions_GreetingExtensions_L14
+    protected Greeting()
+    {
+        this.Message = "";
+    }
+
+    public static Greeting __CreateDefault()
+    {
+        var inst = new Greeting();
+        return inst;
+    }
+}
+public static class GreetingExtensions_declaring_L15
 {
     public static int WordCount(this Greeting self)
     {

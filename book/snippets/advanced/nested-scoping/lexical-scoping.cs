@@ -1,19 +1,25 @@
-using System;
+using System.Text.RegularExpressions;
 
-namespace ScopingDemo;
+namespace Standard;
 
-public class Program
+public class Optional<T>
 {
-    public static void Main(string[] args)
+    private T value;
+
+    private bool hasValue;
+
+    public Optional()
     {
-        var outer = "visible everywhere";
-
-        {
-            var inner = "only visible in this block";
-            Console.WriteLine(inner);
-            Console.WriteLine(outer);
-        }
-
-        Console.WriteLine(outer);
+        hasValue = false;
     }
+
+    public Optional(T value)
+    {
+        this.value = value;
+        this.hasValue = true;
+    }
+
+    public bool HasValue => hasValue;
+
+    public T Value => value;
 }

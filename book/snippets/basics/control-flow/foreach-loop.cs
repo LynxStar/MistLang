@@ -10,10 +10,15 @@ public class Program
         numbers[0] = 10;
         numbers[1] = 20;
         numbers[2] = 30;
-
         foreach (int n in numbers)
         {
             Console.WriteLine($"Element: {n}");
         }
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

@@ -4,15 +4,14 @@ namespace ReadonlyContexts;
 
 public class PrivilegeRemovalDemo
 {
-    public int X;
-    public int Y;
+    public readonly int X;
+
+    public readonly int Y;
 
     public PrivilegeRemovalDemo(int x, int y)
     {
         this.X = x;
         this.Y = y;
-
-        // Readonly block emits as a regular block
         {
             var sum = X + Y;
         }
@@ -21,5 +20,17 @@ public class PrivilegeRemovalDemo
     public string Describe()
     {
         return $"PrivilegeRemovalDemo(X={X}, Y={Y})";
+    }
+
+    protected PrivilegeRemovalDemo()
+    {
+        this.X = 0;
+        this.Y = 0;
+    }
+
+    public static PrivilegeRemovalDemo __CreateDefault()
+    {
+        var inst = new PrivilegeRemovalDemo();
+        return inst;
     }
 }

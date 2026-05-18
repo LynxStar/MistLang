@@ -1,22 +1,25 @@
-using System;
+using System.Text.RegularExpressions;
 
-namespace ScopingDemo;
+namespace Standard;
 
-public class DeepShadowing
+public class Optional<T>
 {
-    public static void Main(string[] args)
+    private T value;
+
+    private bool hasValue;
+
+    public Optional()
     {
-        var name = "first";
-
-        {
-            var name = "second";
-            {
-                var name = "third";
-                Console.WriteLine(name);
-            }
-            Console.WriteLine(name);
-        }
-
-        Console.WriteLine(name);
+        hasValue = false;
     }
+
+    public Optional(T value)
+    {
+        this.value = value;
+        this.hasValue = true;
+    }
+
+    public bool HasValue => hasValue;
+
+    public T Value => value;
 }

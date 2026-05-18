@@ -2,7 +2,7 @@ using System;
 
 namespace StringUtils;
 
-public static class stringExtensions_StringUtils_L5
+public static class StringExtensions_primitive_extensions_L5
 {
     public static bool IsNullOrEmpty(this string self)
     {

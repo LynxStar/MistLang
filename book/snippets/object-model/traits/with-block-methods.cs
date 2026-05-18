@@ -4,8 +4,7 @@ interface Writable
 {
     void Write(string data);
 }
-
-public class Logger
+public class Logger : Writable
 {
     public Logger()
     {
@@ -16,4 +15,10 @@ public class Logger
     }
 
     void Writable.Write(string data) => this.Log(data);
+
+    public static Logger __CreateDefault()
+    {
+        var inst = new Logger();
+        return inst;
+    }
 }

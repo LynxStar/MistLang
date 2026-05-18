@@ -12,4 +12,10 @@ public class Program
             Console.WriteLine($"Score {score} is between 1 and 99");
         }
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

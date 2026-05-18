@@ -15,8 +15,18 @@ public class Container
     {
         return $"Container({Value})";
     }
-}
 
+    protected Container()
+    {
+        this.Value = 0;
+    }
+
+    public static Container __CreateDefault()
+    {
+        var inst = new Container();
+        return inst;
+    }
+}
 public class Program
 {
     private static void ReplaceContainer(ref Container c)
@@ -30,5 +40,11 @@ public class Program
         Console.WriteLine($"before: {box.Describe()}");
         ReplaceContainer(ref box);
         Console.WriteLine($"after: {box.Describe()}");
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

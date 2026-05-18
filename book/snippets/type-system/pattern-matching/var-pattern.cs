@@ -16,4 +16,10 @@ public class Program
             Console.WriteLine($"Positive score: {score}");
         }
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

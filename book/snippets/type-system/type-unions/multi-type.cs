@@ -28,9 +28,14 @@ public class Program
         Union_Boolean_Int32_String tri1 = 99;
         Union_Boolean_Int32_String tri2 = "triple";
         Union_Boolean_Int32_String tri3 = true;
-
         Program.DescribeTriple(tri1);
         Program.DescribeTriple(tri2);
         Program.DescribeTriple(tri3);
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

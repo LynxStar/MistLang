@@ -7,7 +7,6 @@ public class Program
     public static void Main(string[] args)
     {
         Union_Int32_String value = 42;
-
         if (value.IsInt32)
         {
             int n = value.AsInt32;
@@ -18,5 +17,11 @@ public class Program
             string s = value.AsString;
             Console.WriteLine($"It's a string: {s}");
         }
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

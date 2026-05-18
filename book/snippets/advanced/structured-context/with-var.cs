@@ -9,8 +9,13 @@ public class Greeter
         var message = (string)MistContext.Peek<string>();
         return message;
     }
-}
 
+    public static Greeter __CreateDefault()
+    {
+        var inst = new Greeter();
+        return inst;
+    }
+}
 public class Program
 {
     public static void Main(string[] args)
@@ -27,5 +32,11 @@ public class Program
         {
             MistContext.Pop<string>();
         }
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

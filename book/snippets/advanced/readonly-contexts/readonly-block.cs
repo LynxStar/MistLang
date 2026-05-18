@@ -14,7 +14,6 @@ public class ReadonlyBlockDemo
     public string SafeRead()
     {
         var result = "";
-        // readonly block emits as a regular block
         {
             var v = Value;
             result = $"SafeRead={v}";
@@ -31,5 +30,16 @@ public class ReadonlyBlockDemo
             after = Value;
         }
         return $"before={before}, after={after}";
+    }
+
+    protected ReadonlyBlockDemo()
+    {
+        this.Value = 0;
+    }
+
+    public static ReadonlyBlockDemo __CreateDefault()
+    {
+        var inst = new ReadonlyBlockDemo();
+        return inst;
     }
 }

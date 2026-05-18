@@ -5,27 +5,30 @@ namespace ScopingDemo;
 public class Resource
 {
     public int Id;
-    public Resource(int id) { this.Id = id; }
-    public string Describe() { return $"Resource({Id})"; }
-    public void Update(int id) { this.Id = id; }
-}
 
-public class OwnershipScopeDemo
-{
-    public static void ReadOnly(Resource r)
+    public Resource(int id)
     {
-        Console.WriteLine($"frozen view: {r.Describe()}");
+        this.Id = id;
     }
 
-    public static void Main(string[] args)
+    public string Describe()
     {
-        Resource res = new Resource(1);
+        return $"Resource({Id})";
+    }
 
-        {
-            ReadOnly(res);
-        }
+    public void Update(int id)
+    {
+        this.Id = id;
+    }
 
-        res.Update(2);
-        Console.WriteLine($"after update: {res.Describe()}");
+    protected Resource()
+    {
+        this.Id = 0;
+    }
+
+    public static Resource __CreateDefault()
+    {
+        var inst = new Resource();
+        return inst;
     }
 }

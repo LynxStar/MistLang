@@ -14,14 +14,19 @@ public class Program
             var _ => "Other",
         };
         Console.WriteLine($"Code {code} => {meaning}");
-
         int code2 = 50;
         var meaning2 = code2 switch
         {
             0 => "Zero",
             1 => "One",
-            _ => "Other",
+            var _ => "Other",
         };
         Console.WriteLine($"Code {code2} => {meaning2}");
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

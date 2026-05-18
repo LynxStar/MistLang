@@ -8,6 +8,13 @@ public class FixedBuffer<TSize>
 {
     public static int Size => TSize.Value;
 
-    public int GetSize() { return Size; }
-    public string Describe() { return $"FixedBuffer<{Size}>"; }
+    public int GetSize()
+    {
+        return TSize.Value;
+    }
+
+    public string Describe()
+    {
+        return $"FixedBuffer<{TSize.Value}>";
+    }
 }

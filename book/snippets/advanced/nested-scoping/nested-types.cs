@@ -6,19 +6,24 @@ public class Outer
 {
     public class Inner
     {
-        public static string Hello() { return "Outer.Inner"; }
+        public static string Hello()
+        {
+            return "Outer.Inner";
+        }
+
+        public static Inner __CreateDefault()
+        {
+            var inst = new Inner();
+            return inst;
+        }
     }
 
-    public readonly struct Status
+    public record class Status(string Value)
     {
         public static readonly Status Active = new Status("active");
         public static readonly Status Inactive = new Status("inactive");
 
-        public string Value { get; }
-        private Status(string value) { Value = value; }
-
-        public static implicit operator string(Status s) => s.Value;
-        public override string ToString() => Value;
+        public static implicit operator string(Status e) => e.Value;
     }
 
     public static void Demo()
@@ -26,13 +31,24 @@ public class Outer
         Console.WriteLine(Inner.Hello());
         Console.WriteLine($"Status.Active = {Status.Active}");
     }
-}
 
+    public static Outer __CreateDefault()
+    {
+        var inst = new Outer();
+        return inst;
+    }
+}
 public class Program
 {
     public static void Main(string[] args)
     {
         Console.WriteLine(Outer.Inner.Hello());
         Outer.Demo();
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

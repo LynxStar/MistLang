@@ -12,7 +12,6 @@ public readonly struct UserId
     public static explicit operator UserId(int value) => new UserId(value);
     public static explicit operator int(UserId id) => id.Value;
 }
-
 public readonly struct Label
 {
     public readonly string Value;
@@ -25,7 +24,6 @@ public readonly struct Label
     public static explicit operator Label(string value) => new Label(value);
     public static explicit operator string(Label id) => id.Value;
 }
-
 public readonly struct Flag
 {
     public readonly bool Value;

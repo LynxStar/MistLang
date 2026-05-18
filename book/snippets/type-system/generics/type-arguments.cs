@@ -6,16 +6,17 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        // Explicit type argument on construction
         var box = new GenericBox<int>(42);
         Console.WriteLine(box.GetItem());
-
-        // Explicit type argument on a generic method call
         var result = Utilities.Identity<string>("hello");
         Console.WriteLine(result);
-
-        // Interface-typed variable with type argument
         IGenericContainer<int> container = new GenericBox<int>(99);
         Console.WriteLine(container.GetItem());
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

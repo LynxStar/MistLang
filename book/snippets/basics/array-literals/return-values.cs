@@ -14,4 +14,10 @@ public class Program
         int[] values = GetDefaults();
         Console.WriteLine($"Count: {values.Length}");
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

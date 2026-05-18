@@ -7,7 +7,6 @@ public class Program
     public static void Main(string[] args)
     {
         int score = 85;
-
         if (score >= 90)
         {
             Console.WriteLine("Grade: A");
@@ -20,5 +19,11 @@ public class Program
         {
             Console.WriteLine("Grade: C or below");
         }
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

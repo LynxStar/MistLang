@@ -14,7 +14,7 @@ public struct Pair<A, B>
         this.Second = second;
     }
 
-    public string Describe()
+    public readonly string Describe()
     {
         return $"({First}, {Second})";
     }

@@ -17,4 +17,10 @@ public class FrozenDemo
         p.SetX(50);
         Console.WriteLine($"after thaw={p.Describe()}");
     }
+
+    public static FrozenDemo __CreateDefault()
+    {
+        var inst = new FrozenDemo();
+        return inst;
+    }
 }

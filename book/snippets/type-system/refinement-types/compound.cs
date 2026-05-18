@@ -8,4 +8,10 @@ public class Program
         int mid = 50;
         int high = 100;
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

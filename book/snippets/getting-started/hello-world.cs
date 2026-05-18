@@ -8,4 +8,10 @@ public class Program
     {
         Console.WriteLine("Hello, World!");
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

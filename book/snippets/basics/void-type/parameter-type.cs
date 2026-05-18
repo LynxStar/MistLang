@@ -1,8 +1,25 @@
-public static string DescribeVoid(MistVoid v)
-{
-    return "received void";
-}
+using System.Text.RegularExpressions;
 
-// Calling the method:
-string desc = DescribeVoid(MistVoid.Instance);
-Console.WriteLine($"DescribeVoid: {desc}");
+namespace Standard;
+
+public class Optional<T>
+{
+    private T value;
+
+    private bool hasValue;
+
+    public Optional()
+    {
+        hasValue = false;
+    }
+
+    public Optional(T value)
+    {
+        this.value = value;
+        this.hasValue = true;
+    }
+
+    public bool HasValue => hasValue;
+
+    public T Value => value;
+}

@@ -10,8 +10,18 @@ public class Config
     {
         this.Value = value;
     }
-}
 
+    protected Config()
+    {
+        this.Value = "";
+    }
+
+    public static Config __CreateDefault()
+    {
+        var inst = new Config();
+        return inst;
+    }
+}
 public class Consumers
 {
     public static string GetConfig()
@@ -19,8 +29,13 @@ public class Consumers
         var cfg = (Config)MistContext.Peek<Config>();
         return cfg.Value;
     }
-}
 
+    public static Consumers __CreateDefault()
+    {
+        var inst = new Consumers();
+        return inst;
+    }
+}
 public class Program
 {
     public static void Main(string[] args)
@@ -37,5 +52,11 @@ public class Program
         {
             MistContext.Pop<Config>();
         }
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

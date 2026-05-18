@@ -1,12 +1,10 @@
+using MyApp;
 using System;
 
-// Top-level statements (no namespace wrapping)
-var helper = new MyApp.Helper("world");
+var helper = new Helper("world");
 Console.WriteLine(helper.Greet());
-
 return 0;
 
-// Type declarations in their namespace
 namespace MyApp
 {
     public class Helper
@@ -21,6 +19,17 @@ namespace MyApp
         public string Greet()
         {
             return $"Hello, {this.target}!";
+        }
+
+        protected Helper()
+        {
+            this.target = "";
+        }
+
+        public static Helper __CreateDefault()
+        {
+            var inst = new Helper();
+            return inst;
         }
     }
 }

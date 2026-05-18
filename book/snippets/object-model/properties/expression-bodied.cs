@@ -5,6 +5,7 @@ namespace Demo;
 public class Rectangle
 {
     private int _width;
+
     private int _height;
 
     public Rectangle(int width, int height)
@@ -15,14 +16,19 @@ public class Rectangle
 
     public int Area => _width * _height;
 
-    public int Width
+    public int Width { get => _width; }
+
+    public int Height { get => _height; set => _height = value; }
+
+    protected Rectangle()
     {
-        get => _width;
+        this._width = 0;
+        this._height = 0;
     }
 
-    public int Height
+    public static Rectangle __CreateDefault()
     {
-        get => _height;
-        set => _height = value;
+        var inst = new Rectangle();
+        return inst;
     }
 }

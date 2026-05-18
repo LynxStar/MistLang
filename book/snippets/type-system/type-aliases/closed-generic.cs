@@ -14,12 +14,17 @@ public class GenericBox<T>
         return $"Box({this.value})";
     }
 }
-
 public class Program
 {
     public static void Main(string[] args)
     {
         GenericBox<int> intBox = new GenericBox<int>(42);
         GenericBox<string> strBox = new GenericBox<string>("Mist");
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

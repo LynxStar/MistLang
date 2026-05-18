@@ -1,10 +1,11 @@
 using System;
 
-namespace Namespaces.Models.Game;
+namespace Snippet;
 
 public class GameState
 {
     private int level;
+
     private bool active;
 
     public GameState(int level, bool active)
@@ -16,5 +17,17 @@ public class GameState
     public string Summary()
     {
         return $"Level: {level}, Active: {active}";
+    }
+
+    protected GameState()
+    {
+        this.level = 0;
+        this.active = false;
+    }
+
+    public static GameState __CreateDefault()
+    {
+        var inst = new GameState();
+        return inst;
     }
 }

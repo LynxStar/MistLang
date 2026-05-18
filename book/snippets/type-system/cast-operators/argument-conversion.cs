@@ -14,4 +14,10 @@ public class Program
         var freezing = new Celsius(0.0);
         PrintTemperature(freezing);
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

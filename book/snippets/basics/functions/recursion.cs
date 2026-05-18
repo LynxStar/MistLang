@@ -18,4 +18,10 @@ public class Program
         Console.WriteLine($"5! = {Factorial(5)}");
         Console.WriteLine($"10! = {Factorial(10)}");
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

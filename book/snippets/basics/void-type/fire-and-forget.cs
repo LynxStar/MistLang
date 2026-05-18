@@ -1,7 +1,25 @@
-public static void PrintMessage(string msg)
-{
-    Console.WriteLine(msg);
-}
+using System.Text.RegularExpressions;
 
-// Called as a statement — return value not captured:
-PrintMessage("fire-and-forget call");
+namespace Standard;
+
+public class Optional<T>
+{
+    private T value;
+
+    private bool hasValue;
+
+    public Optional()
+    {
+        hasValue = false;
+    }
+
+    public Optional(T value)
+    {
+        this.value = value;
+        this.hasValue = true;
+    }
+
+    public bool HasValue => hasValue;
+
+    public T Value => value;
+}

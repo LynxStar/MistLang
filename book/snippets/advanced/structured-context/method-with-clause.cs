@@ -10,8 +10,13 @@ public class Service
         var count = (int)MistContext.Peek<int>();
         return $"name={name}, count={count}";
     }
-}
 
+    public static Service __CreateDefault()
+    {
+        var inst = new Service();
+        return inst;
+    }
+}
 public class Program
 {
     public static void Main(string[] args)
@@ -36,5 +41,11 @@ public class Program
         {
             MistContext.Pop<string>();
         }
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

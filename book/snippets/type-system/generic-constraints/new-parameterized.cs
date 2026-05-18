@@ -1,3 +1,5 @@
+namespace Snippet;
+
 class IntFactory<T>
 {
     private readonly Func<int, T> _factoryT_int;

@@ -21,4 +21,10 @@ public class Program
         Describe(42);
         Describe("mist");
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

@@ -5,7 +5,9 @@ namespace Demo;
 public class Counter
 {
     private static int totalCreated;
+
     private string name;
+
     private int value;
 
     public Counter(string name)
@@ -31,5 +33,17 @@ public class Counter
         c.Increment();
         c.Increment();
         Console.WriteLine(c.Describe());
+    }
+
+    protected Counter()
+    {
+        this.name = "";
+        this.value = 0;
+    }
+
+    public static Counter __CreateDefault()
+    {
+        var inst = new Counter();
+        return inst;
     }
 }

@@ -11,4 +11,10 @@ public class Program
             Console.WriteLine($"i = {i}");
         }
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

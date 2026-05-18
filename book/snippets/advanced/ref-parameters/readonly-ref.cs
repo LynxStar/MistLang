@@ -15,13 +15,22 @@ public class Sensor
     {
         return $"Sensor({Reading})";
     }
-}
 
+    protected Sensor()
+    {
+        this.Reading = 0;
+    }
+
+    public static Sensor __CreateDefault()
+    {
+        var inst = new Sensor();
+        return inst;
+    }
+}
 public class Program
 {
-    public static void ReadSensor(Sensor s)
+    public static void ReadSensor(ref readonly Sensor s)
     {
-        // readonly ref is erased — passed by value at runtime
         Console.WriteLine($"reading={s.Describe()}");
     }
 
@@ -31,5 +40,11 @@ public class Program
         ReadSensor(s);
         s.Reading = 100;
         Console.WriteLine($"after={s.Describe()}");
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

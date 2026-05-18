@@ -4,9 +4,9 @@ namespace EnumDemo;
 
 public class Label
 {
-    public string text;
+    public readonly string text;
 
-    public int code;
+    public readonly int code;
 
     public Label(string text, int code)
     {
@@ -18,8 +18,19 @@ public class Label
     {
         return $"Label({this.text}, {this.code})";
     }
-}
 
+    protected Label()
+    {
+        this.text = "";
+        this.code = 0;
+    }
+
+    public static Label __CreateDefault()
+    {
+        var inst = new Label();
+        return inst;
+    }
+}
 public record class Severity(Label Value)
 {
     public static readonly Severity Critical = new Severity(new Label("CRITICAL", 1));

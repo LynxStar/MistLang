@@ -14,7 +14,6 @@ public class Program
             var _ => "zero",
         };
         Console.WriteLine($"Number {number} => {sign}");
-
         int amount = 150;
         var tier = amount switch
         {
@@ -23,5 +22,11 @@ public class Program
             var _ => "basic",
         };
         Console.WriteLine($"Amount {amount} => {tier}");
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

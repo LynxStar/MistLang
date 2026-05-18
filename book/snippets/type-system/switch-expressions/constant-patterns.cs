@@ -17,7 +17,6 @@ public class Program
             var _ => "Weekend",
         };
         Console.WriteLine($"Day {day} is {dayName}");
-
         string command = "quit";
         var response = command switch
         {
@@ -27,7 +26,6 @@ public class Program
             var _ => "Unknown command",
         };
         Console.WriteLine($"Command '{command}' => {response}");
-
         bool isActive = true;
         var status = isActive switch
         {
@@ -35,5 +33,11 @@ public class Program
             false => "Inactive",
         };
         Console.WriteLine($"isActive={isActive} => {status}");
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

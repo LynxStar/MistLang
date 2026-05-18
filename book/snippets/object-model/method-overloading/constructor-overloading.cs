@@ -14,4 +14,11 @@ public class Printer
     public Printer() : this("[default]")
     {
     }
+
+    public static Printer __CreateDefault()
+    {
+        var inst = new Printer();
+        inst._prefix = "";
+        return inst;
+    }
 }

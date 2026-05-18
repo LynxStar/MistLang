@@ -1,3 +1,5 @@
+namespace Snippet;
+
 class ValOnly<T>
     where T : struct
 {

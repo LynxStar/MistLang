@@ -8,9 +8,14 @@ namespace Namespaces.MixedA
         {
             return "AlphaType";
         }
+
+        public static AlphaType __CreateDefault()
+        {
+            var inst = new AlphaType();
+            return inst;
+        }
     }
 }
-
 namespace Namespaces.MixedB
 {
     public class BetaType
@@ -18,6 +23,12 @@ namespace Namespaces.MixedB
         public string Name()
         {
             return "BetaType";
+        }
+
+        public static BetaType __CreateDefault()
+        {
+            var inst = new BetaType();
+            return inst;
         }
     }
 }

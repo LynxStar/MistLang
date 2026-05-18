@@ -8,6 +8,13 @@ public struct FixedSpan<TLength>
 {
     public static int Length => TLength.Value;
 
-    public int GetLength() { return Length; }
-    public string Describe() { return $"FixedSpan<{Length}>"; }
+    public readonly int GetLength()
+    {
+        return TLength.Value;
+    }
+
+    public readonly string Describe()
+    {
+        return $"FixedSpan<{TLength.Value}>";
+    }
 }

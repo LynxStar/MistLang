@@ -5,14 +5,31 @@ namespace OwnershipSystem;
 public struct Vec2
 {
     public int X;
-    public int Y;
-    public Vec2(int x, int y) { this.X = x; this.Y = y; }
-    public string Describe() { return $"Vec2({X}, {Y})"; }
-}
 
+    public int Y;
+
+    public Vec2(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    public readonly string Describe()
+    {
+        return $"Vec2({X}, {Y})";
+    }
+
+    public static Vec2 __CreateDefault()
+    {
+        var inst = new Vec2();
+        inst.X = 0;
+        inst.Y = 0;
+        return inst;
+    }
+}
 public class ValueTypeDemo
 {
-    public static void AcceptReadonly(Vec2 v)
+    public static void AcceptReadonly(ref readonly Vec2 v)
     {
         Console.WriteLine($"readonly ref vec={v.Describe()}");
     }
@@ -40,5 +57,11 @@ public class ValueTypeDemo
         AcceptBorrowed(v);
         AcceptOwned(v);
         Console.WriteLine($"original after all passes={v.Describe()}");
+    }
+
+    public static ValueTypeDemo __CreateDefault()
+    {
+        var inst = new ValueTypeDemo();
+        return inst;
     }
 }

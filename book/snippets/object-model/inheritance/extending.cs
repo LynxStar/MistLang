@@ -1,6 +1,9 @@
+namespace Snippet;
+
 public class Animal
 {
     private string name;
+
     private int age;
 
     public Animal(string name, int age)
@@ -23,8 +26,19 @@ public class Animal
     {
         return $"{name} (age {age})";
     }
-}
 
+    protected Animal()
+    {
+        this.name = "";
+        this.age = 0;
+    }
+
+    public static Animal __CreateDefault()
+    {
+        var inst = new Animal();
+        return inst;
+    }
+}
 public class Dog : Animal
 {
     private string breed;
@@ -37,5 +51,16 @@ public class Dog : Animal
     public string GetBreed()
     {
         return breed;
+    }
+
+    protected Dog()
+    {
+        this.breed = "";
+    }
+
+    public static Dog __CreateDefault()
+    {
+        var inst = new Dog();
+        return inst;
     }
 }

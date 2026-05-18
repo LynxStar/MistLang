@@ -6,7 +6,6 @@ interface IDescribable
 {
     string Describe();
 }
-
 public class Person : IDescribable
 {
     private string name;
@@ -22,5 +21,17 @@ public class Person : IDescribable
     public string Describe()
     {
         return $"Person: {name}, age {age}";
+    }
+
+    protected Person()
+    {
+        this.name = "";
+        this.age = 0;
+    }
+
+    public static Person __CreateDefault()
+    {
+        var inst = new Person();
+        return inst;
     }
 }

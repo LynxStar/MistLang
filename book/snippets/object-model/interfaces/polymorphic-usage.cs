@@ -13,12 +13,14 @@ public class Program
     {
         var person = new Person("Alice", 30);
         var robot = new Robot("T-800", 2);
-
-        // Interface-typed variables
         IDescribable describable = person;
-
-        // Pass implementing types to interface parameter
         PrintDescription(person);
         PrintDescription(robot);
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

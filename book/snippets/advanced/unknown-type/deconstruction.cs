@@ -14,4 +14,10 @@ public class Program
             Console.WriteLine($"data narrowed to string: {ds}");
         }
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

@@ -5,6 +5,7 @@ namespace RefParameters;
 public class Pair
 {
     public int X;
+
     public int Y;
 
     public Pair(int x, int y)
@@ -22,13 +23,23 @@ public class Pair
     {
         return $"Pair({X}, {Y})";
     }
-}
 
+    protected Pair()
+    {
+        this.X = 0;
+        this.Y = 0;
+    }
+
+    public static Pair __CreateDefault()
+    {
+        var inst = new Pair();
+        return inst;
+    }
+}
 public class Program
 {
     public static void MutateBorrowed(Pair p)
     {
-        // borrowed is erased — passed by value at runtime
         p.SetX(999);
         Console.WriteLine($"mutated={p.Describe()}");
     }
@@ -38,5 +49,11 @@ public class Program
         Pair p = new Pair(1, 2);
         MutateBorrowed(p);
         Console.WriteLine($"owner after={p.Describe()}");
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

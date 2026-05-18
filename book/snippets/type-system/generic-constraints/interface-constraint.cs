@@ -1,8 +1,9 @@
+namespace Snippet;
+
 interface IOrderable
 {
     int GetOrder();
 }
-
 class Sorter<T>
     where T : IOrderable
 {

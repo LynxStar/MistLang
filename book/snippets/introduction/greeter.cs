@@ -15,4 +15,15 @@ public class Greeter
     {
         return $"Hello, {name}!";
     }
+
+    protected Greeter()
+    {
+        this.name = "";
+    }
+
+    public static Greeter __CreateDefault()
+    {
+        var inst = new Greeter();
+        return inst;
+    }
 }

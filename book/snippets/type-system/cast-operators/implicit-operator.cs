@@ -18,8 +18,18 @@ public class Celsius
     {
         return new Fahrenheit(c.GetDegrees() * 1.8 + 32.0);
     }
-}
 
+    protected Celsius()
+    {
+        this.degrees = 0;
+    }
+
+    public static Celsius __CreateDefault()
+    {
+        var inst = new Celsius();
+        return inst;
+    }
+}
 public class Fahrenheit
 {
     private double degrees;
@@ -32,5 +42,16 @@ public class Fahrenheit
     public string Describe()
     {
         return $"{degrees} F";
+    }
+
+    protected Fahrenheit()
+    {
+        this.degrees = 0;
+    }
+
+    public static Fahrenheit __CreateDefault()
+    {
+        var inst = new Fahrenheit();
+        return inst;
     }
 }

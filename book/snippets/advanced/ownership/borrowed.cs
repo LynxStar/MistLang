@@ -16,4 +16,10 @@ public class BorrowedDemo
         MutatePair(p);
         Console.WriteLine($"owner after return={p.Describe()}");
     }
+
+    public static BorrowedDemo __CreateDefault()
+    {
+        var inst = new BorrowedDemo();
+        return inst;
+    }
 }

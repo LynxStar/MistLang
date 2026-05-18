@@ -13,4 +13,10 @@ public class Program
             count = count + 1;
         }
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

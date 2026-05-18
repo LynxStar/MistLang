@@ -13,7 +13,6 @@ public class Program
         {
             Console.WriteLine("Array has two positive elements");
         }
-
         int[] triple = new int[3];
         triple[0] = 10;
         triple[1] = 20;
@@ -22,5 +21,11 @@ public class Program
         {
             Console.WriteLine("Array starts with a positive number");
         }
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

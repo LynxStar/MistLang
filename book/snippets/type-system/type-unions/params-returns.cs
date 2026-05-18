@@ -31,8 +31,13 @@ public class Program
     {
         Program.Describe(7);
         Program.Describe("Mist");
-
         Union_Int32_String result = Program.GetValue(true);
         Console.WriteLine($"GetValue(true) returned a value");
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

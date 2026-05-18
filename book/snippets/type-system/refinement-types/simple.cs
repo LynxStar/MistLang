@@ -7,4 +7,10 @@ public class Program
         int age = 25;
         int count = 1;
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

@@ -13,4 +13,10 @@ public class Utilities
     {
         Console.WriteLine($"Item: {item}");
     }
+
+    public static Utilities __CreateDefault()
+    {
+        var inst = new Utilities();
+        return inst;
+    }
 }

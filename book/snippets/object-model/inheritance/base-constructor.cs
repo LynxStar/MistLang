@@ -1,3 +1,5 @@
+namespace Snippet;
+
 public class GuideDog : Dog
 {
     private string handler;
@@ -10,5 +12,16 @@ public class GuideDog : Dog
     public string GetHandler()
     {
         return handler;
+    }
+
+    protected GuideDog()
+    {
+        this.handler = "";
+    }
+
+    public static GuideDog __CreateDefault()
+    {
+        var inst = new GuideDog();
+        return inst;
     }
 }

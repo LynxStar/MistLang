@@ -16,4 +16,10 @@ public class Program
         };
         Console.WriteLine($"num={num} parity={parity}");
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

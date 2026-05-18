@@ -10,6 +10,13 @@ public class TypedBuffer<T, TSize>
 
     public T Value;
 
-    public TypedBuffer(T value) { this.Value = value; }
-    public string Describe() { return $"TypedBuffer<{Size}>(value={this.Value})"; }
+    public TypedBuffer(T value)
+    {
+        this.Value = value;
+    }
+
+    public string Describe()
+    {
+        return $"TypedBuffer<{TSize.Value}>(value={this.Value})";
+    }
 }

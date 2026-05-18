@@ -10,4 +10,10 @@ public class Program
         var bodyK = ((Kelvin)body);
         Console.WriteLine(bodyK.Describe());
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

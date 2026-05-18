@@ -18,8 +18,18 @@ public class Celsius
     {
         return new Kelvin(c.GetDegrees() + 273.15);
     }
-}
 
+    protected Celsius()
+    {
+        this.degrees = 0;
+    }
+
+    public static Celsius __CreateDefault()
+    {
+        var inst = new Celsius();
+        return inst;
+    }
+}
 public class Kelvin
 {
     private double degrees;
@@ -32,5 +42,16 @@ public class Kelvin
     public string Describe()
     {
         return $"{degrees} K";
+    }
+
+    protected Kelvin()
+    {
+        this.degrees = 0;
+    }
+
+    public static Kelvin __CreateDefault()
+    {
+        var inst = new Kelvin();
+        return inst;
     }
 }

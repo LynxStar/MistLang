@@ -21,4 +21,10 @@ public class MathHelper
         }
         return value;
     }
+
+    public static MathHelper __CreateDefault()
+    {
+        var inst = new MathHelper();
+        return inst;
+    }
 }

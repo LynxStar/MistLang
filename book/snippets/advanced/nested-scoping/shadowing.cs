@@ -1,19 +1,25 @@
-using System;
+using System.Text.RegularExpressions;
 
-namespace ScopingDemo;
+namespace Standard;
 
-public class ShadowingDemo
+public class Optional<T>
 {
-    public static void Main(string[] args)
+    private T value;
+
+    private bool hasValue;
+
+    public Optional()
     {
-        var x = 10;
-        Console.WriteLine($"outer x = {x}");
-
-        {
-            var x = 99;
-            Console.WriteLine($"inner x = {x}");
-        }
-
-        Console.WriteLine($"outer x after block = {x}");
+        hasValue = false;
     }
+
+    public Optional(T value)
+    {
+        this.value = value;
+        this.hasValue = true;
+    }
+
+    public bool HasValue => hasValue;
+
+    public T Value => value;
 }

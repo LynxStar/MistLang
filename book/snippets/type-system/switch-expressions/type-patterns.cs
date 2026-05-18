@@ -13,7 +13,6 @@ public class Program
             { IsString: true, AsString: var s } => $"string: {s}",
         };
         Console.WriteLine(result);
-
         Union_Int32_String mixed2 = "hello";
         var result2 = mixed2 switch
         {
@@ -21,5 +20,11 @@ public class Program
             { IsString: true, AsString: var s } => $"string: {s}",
         };
         Console.WriteLine(result2);
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

@@ -10,8 +10,14 @@ public struct Locale
     {
         this.Language = language;
     }
-}
 
+    public static Locale __CreateDefault()
+    {
+        var inst = new Locale();
+        inst.Language = "";
+        return inst;
+    }
+}
 public class Consumers
 {
     public static string GetLocale()
@@ -19,8 +25,13 @@ public class Consumers
         var loc = (Locale)MistContext.Peek<Locale>();
         return loc.Language;
     }
-}
 
+    public static Consumers __CreateDefault()
+    {
+        var inst = new Consumers();
+        return inst;
+    }
+}
 public class Program
 {
     public static void Main(string[] args)
@@ -35,5 +46,11 @@ public class Program
         {
             MistContext.Pop<Locale>();
         }
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

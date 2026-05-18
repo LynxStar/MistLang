@@ -1,7 +1,10 @@
+namespace Snippet;
+
 public readonly struct Vector2
 {
-    public int X;
-    public int Y;
+    public readonly int X;
+
+    public readonly int Y;
 
     public Vector2(int x, int y)
     {
@@ -17,5 +20,17 @@ public readonly struct Vector2
     public readonly string Describe()
     {
         return $"Vector2(X={X}, Y={Y})";
+    }
+
+    private Vector2(bool __defaultSentinel)
+    {
+        this.X = 0;
+        this.Y = 0;
+    }
+
+    public static Vector2 __CreateDefault()
+    {
+        var inst = new Vector2(true);
+        return inst;
     }
 }

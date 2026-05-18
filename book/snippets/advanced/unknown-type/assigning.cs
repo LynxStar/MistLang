@@ -13,4 +13,10 @@ public class Program
         u = true;
         Console.WriteLine(u);
     }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
 }

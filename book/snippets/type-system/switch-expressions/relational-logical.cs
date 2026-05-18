@@ -15,7 +15,6 @@ public class Program
             var _ => "Hot",
         };
         Console.WriteLine($"Temperature {temp} => {comfort}");
-
         int score = 85;
         var grade = score switch
         {
@@ -26,5 +25,11 @@ public class Program
             var _ => "F",
         };
         Console.WriteLine($"Score {score} => Grade {grade}");
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

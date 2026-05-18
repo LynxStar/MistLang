@@ -1,5 +1,6 @@
+namespace Snippet;
+
 class Pair<K, V>
-    where K : IOrderable
     where V : new()
 {
     public K Key;

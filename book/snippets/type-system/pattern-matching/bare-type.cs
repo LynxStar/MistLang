@@ -10,8 +10,18 @@ public class Shape
     {
         this.Kind = kind;
     }
-}
 
+    protected Shape()
+    {
+        this.Kind = "";
+    }
+
+    public static Shape __CreateDefault()
+    {
+        var inst = new Shape();
+        return inst;
+    }
+}
 public class Circle : Shape
 {
     public int Radius { get; }
@@ -20,8 +30,18 @@ public class Circle : Shape
     {
         this.Radius = radius;
     }
-}
 
+    protected Circle()
+    {
+        this.Radius = 0;
+    }
+
+    public static Circle __CreateDefault()
+    {
+        var inst = new Circle();
+        return inst;
+    }
+}
 public class Program
 {
     public static void Main(string[] args)
@@ -31,5 +51,11 @@ public class Program
         {
             Console.WriteLine("It's a circle");
         }
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

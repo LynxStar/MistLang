@@ -12,7 +12,6 @@ public class Program
         values[2] = 2;
         values[3] = 9;
         values[4] = 4;
-
         var sum = 0;
         foreach (int v in values)
         {
@@ -22,5 +21,11 @@ public class Program
             }
         }
         Console.WriteLine($"Sum of values > 5: {sum}");
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
     }
 }

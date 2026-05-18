@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace Traits;
 
 interface Printable
@@ -5,7 +7,6 @@ interface Printable
     string Name { get; }
     int Id { get; }
 }
-
 public class Product : Printable
 {
     public string Title { get; set; }
@@ -19,5 +20,18 @@ public class Product : Printable
     }
 
     string Printable.Name => this.Title;
+
     int Printable.Id => this.Sku;
+
+    protected Product()
+    {
+        this.Title = "";
+        this.Sku = 0;
+    }
+
+    public static Product __CreateDefault()
+    {
+        var inst = new Product();
+        return inst;
+    }
 }

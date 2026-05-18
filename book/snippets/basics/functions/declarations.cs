@@ -20,4 +20,10 @@ public class MathUtils
         Console.WriteLine($"Add(3, 4) = {result}");
         Console.WriteLine(Greet("Mist"));
     }
+
+    public static MathUtils __CreateDefault()
+    {
+        var inst = new MathUtils();
+        return inst;
+    }
 }

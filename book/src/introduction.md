@@ -65,7 +65,7 @@ This small example shows three features working together: a **type alias** (`Per
 The book is organized into seven parts, each building on the previous:
 
 - **Getting Started** — Install the toolchain, write your first program, and understand project layout.
-- **Basics** — Primitive types, variables, namespaces, control flow, functions, arrays, tuples, and regex literals.
+- **Basics** — Primitive types, variables, namespaces, control flow, methods, arrays, tuples, and regex literals.
 - **Object Model** — Classes, inheritance, structs, properties, interfaces, traits, enums, overloading, and extension methods.
 - **Type System** — Generics, constraints, type unions, aliases, newtypes, pattern matching, switch expressions, cast operators, refinement types, and dependent types.
 - **Advanced Features** — Ownership tiers, ref parameters, readonly contexts, structured context, the unknown type, default values, and nested scoping.

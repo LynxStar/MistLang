@@ -16,7 +16,7 @@
 - [Variables](basics/variables.md)
 - [Namespaces](basics/namespaces.md)
 - [Control Flow](basics/control-flow.md)
-- [Functions](basics/functions.md)
+- [Methods](basics/functions.md)
 - [Array Literals](basics/array-literals.md)
 - [Tuples](basics/tuples.md)
 

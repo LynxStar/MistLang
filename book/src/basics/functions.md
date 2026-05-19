@@ -1,8 +1,8 @@
-# Functions
+# Methods
 
-Functions in Mist let you encapsulate reusable logic. They are declared inside a class body and can be either static (called on the class itself) or instance methods (called on an object). The syntax closely mirrors C# — you specify a return type, a name, parameters in parentheses, and a body in braces.
+Methods in Mist let you encapsulate reusable logic. They are declared inside a class body and can be either static (called on the class itself) or instance methods (called on an object). The syntax closely mirrors C# — you specify a return type, a name, parameters in parentheses, and a body in braces.
 
-## Function Declarations
+## Method Declarations
 
 A function declaration specifies the return type, name, and parameters. Parameters are typed and comma-separated. The function body contains the logic and uses `return` to produce a value.
 
@@ -38,7 +38,7 @@ A static method belongs to the class itself rather than to any particular instan
 {{#endtab }}
 {{#endtabs }}
 
-Static methods can only access static fields — they have no `this` reference. They're useful for utility functions and factory methods.
+Static methods can only access static fields — they have no `this` reference. They're useful for utility methods and factory methods.
 
 ## Instance Methods
 
@@ -80,7 +80,7 @@ Here `ApplyFee` is `private` — it's a helper that only `Deposit` uses internal
 
 ## Void Return Type
 
-Functions that perform an action without producing a value use `void` as their return type. A void function doesn't need a `return` statement (though `return;` is valid for early exit).
+Methods that perform an action without producing a value use `void` as their return type. A void method doesn't need a `return` statement (though `return;` is valid for early exit).
 
 {{#tabs }}
 {{#tab name="Mist" }}

@@ -2,13 +2,13 @@
 
 ## What Void Means in Mist
 
-In most languages, `void` means "nothing" — a function returns no value, and you can't do anything with it. Mist takes a different approach: `void` is a real type with exactly one value, `Void.Void`. In type theory this is called a **unit type** — a type inhabited by a single value that carries no information.
+In most languages, `void` means "nothing" — a method returns no value, and you can't do anything with it. Mist takes a different approach: `void` is a real type with exactly one value, `Void.Void`. In type theory this is called a **unit type** — a type inhabited by a single value that carries no information.
 
-This makes `void` a first-class citizen. You can store it in variables, pass it as a parameter, use it as a generic type argument, and return it from functions. There is no special case — `void` behaves like any other type, it just happens to have only one possible value.
+This makes `void` a first-class citizen. You can store it in variables, pass it as a parameter, use it as a generic type argument, and return it from methods. There is no special case — `void` behaves like any other type, it just happens to have only one possible value.
 
 ## Why This Matters
 
-The traditional split between "void functions" and "value-returning functions" forces duplication in generic code. If you want a `Result<T>` type, you need a separate `Result` (no type parameter) for operations that don't produce a value. With Mist's approach, `Result<void>` works naturally — no special-casing required.
+The traditional split between "void methods" and "value-returning methods" forces duplication in generic code. If you want a `Result<T>` type, you need a separate `Result` (no type parameter) for operations that don't produce a value. With Mist's approach, `Result<void>` works naturally — no special-casing required.
 
 ## The Void Value
 

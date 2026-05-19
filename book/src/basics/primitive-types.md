@@ -4,7 +4,7 @@ Mist provides a full set of primitive types for working with numbers, text, and 
 
 ## Type Keywords and Standard Library Types
 
-The primitive type keywords in Mist are aliases for types defined in the Standard Library. You can use either form — the keyword is simply shorthand:
+The primitive type keywords in Mist are reserved aliases that always resolve to types in the Standard Library, regardless of what other types might exist with the same name in user-defined namespaces. Even if you declare your own `Standard.Int32`, the keyword `int` still refers to the compiler's built-in Standard Library type.
 
 | Keyword | Standard Library Type |
 |---------|----------------------|
@@ -24,7 +24,7 @@ The primitive type keywords in Mist are aliases for types defined in the Standar
 | `string` | `Standard.String` |
 | `regex` | `Standard.Regex` |
 
-Writing `int x = 5;` is identical to writing `Standard.Int32 x = 5;`. The keywords exist purely for convenience and readability.
+These are not normal type aliases that participate in name resolution — they are hard-wired by the compiler. Writing `int x = 5;` is identical to writing `Standard.Int32 x = 5;`, and no user code can change what `int` means.
 
 ## Integer Types
 

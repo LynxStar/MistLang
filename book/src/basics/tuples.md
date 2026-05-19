@@ -23,6 +23,20 @@ The simplest tuple form groups values by position. Declare the type as `(Type1, 
 
 Positional access works for tuples of any arity — a three-element tuple has `Item1`, `Item2`, and `Item3`.
 
+## Type Inference
+
+You can use `var` and the compiler infers the full tuple type from the elements:
+
+```mist
+var foo = (8, -93.2934, "banana", false);
+// inferred type: (int, double, string, bool)
+
+Console.WriteLine(foo.Item1);  // 8
+Console.WriteLine(foo.Item3);  // banana
+```
+
+This works with any combination of element types — the compiler determines each element's type independently.
+
 ## Named Tuples
 
 You can give each element a name in the type declaration. Named elements are accessible by their declared name and by their positional name (`Item1`, `Item2`, etc.).

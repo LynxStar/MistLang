@@ -1,10 +1,10 @@
 # Primitive Types
 
-Mist provides a full set of primitive types for working with numbers, text, and boolean logic. These types map directly to their .NET counterparts, so the emitted C# uses the same type names and literal syntax you'd expect.
+Mist provides a full set of primitive types for working with numbers, text, and boolean logic.
 
 ## Integer Types
 
-Mist supports all standard .NET integer types. Each type has a fixed size and range.
+Mist supports signed and unsigned integer types at various bit widths. Each type has a fixed size and range.
 
 | Type | Size | Range |
 |------|------|-------|
@@ -81,6 +81,44 @@ Integer values can be written in hexadecimal using the `0x` prefix:
 {{#endtabs }}
 
 The value `0xFF` is the integer 255. Hex literals can be used anywhere an integer literal is expected.
+
+## Binary Literals
+
+Integer values can also be written in binary using the `0b` prefix:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/basics/primitive-types/binary-literals.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/basics/primitive-types/binary-literals.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Binary literals are useful for bit masks, flags, and hardware-related code where the individual bit pattern matters.
+
+## Digit Separators
+
+Numeric literals can include underscores (`_`) as visual separators to improve readability. The compiler ignores them — they don't affect the value:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/basics/primitive-types/digit-separators.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/basics/primitive-types/digit-separators.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Underscores work in decimal, hex, and binary literals. Place them wherever they help you read the number — between digit groups, after prefixes, or to separate nibbles in binary.
 
 ## Bool
 

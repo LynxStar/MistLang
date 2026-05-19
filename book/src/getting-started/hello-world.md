@@ -1,6 +1,6 @@
 # Hello, World!
 
-Now that you have Mist installed, let's write your first program. By the end of this section you'll have a working project that prints a message to the console.
+In the installation chapter you ran your first Mist program using a top-level statement — a single line of code with no ceremony. That's the quickest way to get something running, but most real programs use a more traditional structure with namespaces, classes, and an explicit entry point. This chapter walks through that structure so you understand what each piece does.
 
 ## Creating a Project
 
@@ -94,7 +94,9 @@ This declares a public class named `Program`. In Mist, all executable code lives
 {{#include ../../snippets/getting-started/hello-world-main.mist}}
 ```
 
-The `Main` method is the entry point of your program. The runtime calls this method when you execute the compiled output. It's `static` because it's called without creating an instance of `Program`, and `void` because it doesn't return a value. The `string[] args` parameter receives any command-line arguments.
+The `Main` method is the entry point of your program — the method the runtime calls when you execute the compiled output. This is the traditional way to specify where execution begins: a `public static void Main` method inside a class. It's `static` because it's called without creating an instance of `Program`, and the `string[] args` parameter receives any command-line arguments.
+
+The return type here is `void`, which works the same as in C — the method runs and exits. Mist's `void` type has some additional nuances covered in the [Void Type](../basics/void-type.md) chapter, but for now you can treat it exactly as you would in C or C#.
 
 ```mist
 {{#include ../../snippets/getting-started/hello-world-writeline.mist}}

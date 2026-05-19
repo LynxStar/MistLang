@@ -115,7 +115,7 @@ Expected output:
 Mist is installed!
 ```
 
-If you see the output above, everything is working. The `build` command compiles without running, placing C# output in `out/` and the executable in `bin/`.
+Congratulations — you just wrote and ran your first Mist program! This verification uses a top-level statement (the simplest possible Mist program). In the [Hello, World!](./hello-world.md) chapter we'll walk through a more traditional program structure with namespaces, classes, and an explicit entry point.
 
 ## Troubleshooting
 

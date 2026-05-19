@@ -12919,7 +12919,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Bare `ref` on a local variable is a ref local (C#-style ref semantics).
                 // `readonly ref` on a local variable remains an ownership lend (lending semantics)
                 // until the grammar supports disambiguation via ref on the initializer.
-                if (typed.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode)
+                if (typed.ReadonlyModifier is not null && typed.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode)
+                {
+                    // readonly ref T x = expr; → ReadonlyRef lending semantics (not a readonly ref local).
+                    varSymbol.OwnershipTier = OwnershipTier.ReadonlyRef;
+                }
+                else if (typed.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode)
                 {
                     varSymbol.RefKind = RefKind.Ref;
                     varSymbol.OwnershipTier = OwnershipTier.Unrestricted;
@@ -12927,6 +12932,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 else
                 {
                     varSymbol.OwnershipTier = MapOwnershipSpecifier(typed.OwnershipSpecifier);
+                }
+
+                if (typed.ReadonlyModifier is not null && typed.OwnershipSpecifier is not RefSpecifierOwnershipSpecifierNode)
+                {
+                    varSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
                 }
 
                 blockScope.AddMember(varSymbol);
@@ -12948,7 +12958,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Bare `ref` on a local variable is a ref local (C#-style ref semantics).
                 // `readonly ref` on a local variable remains an ownership lend (lending semantics)
                 // until the grammar supports disambiguation via ref on the initializer.
-                if (inferred.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode)
+                if (inferred.ReadonlyModifier is not null && inferred.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode)
+                {
+                    // readonly ref var x = expr; → ReadonlyRef lending semantics (not a readonly ref local).
+                    varSymbol.OwnershipTier = OwnershipTier.ReadonlyRef;
+                }
+                else if (inferred.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode)
                 {
                     varSymbol.RefKind = RefKind.Ref;
                     varSymbol.OwnershipTier = OwnershipTier.Unrestricted;
@@ -12956,6 +12971,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 else
                 {
                     varSymbol.OwnershipTier = MapOwnershipSpecifier(inferred.OwnershipSpecifier);
+                }
+
+                if (inferred.ReadonlyModifier is not null && inferred.OwnershipSpecifier is not RefSpecifierOwnershipSpecifierNode)
+                {
+                    varSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
                 }
 
                 blockScope.AddMember(varSymbol);
@@ -12971,6 +12991,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var firstName = varTuple.FirstName.Lexeme;
                 CheckDuplicateLocal(firstName, blockScope, sourceText, diagnostics);
                 var firstSymbol = new Symbol(firstName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, ErrorType.Instance, ToMistSourceSpan(varTuple.FirstName.Span));
+                if (varTuple.ReadonlyModifier is not null)
+                {
+                    firstSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+                }
                 blockScope.AddMember(firstSymbol);
                 symbolTable.Register(firstSymbol, varDecl);
 
@@ -12980,6 +13004,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var name = restName.Lexeme;
                     CheckDuplicateLocal(name, blockScope, sourceText, diagnostics);
                     var restSymbol = new Symbol(name, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, ErrorType.Instance, ToMistSourceSpan(restName.Span));
+                    if (varTuple.ReadonlyModifier is not null)
+                    {
+                        restSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+                    }
                     blockScope.AddMember(restSymbol);
                     symbolTable.Register(restSymbol, varDecl);
                 }
@@ -12996,6 +13024,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var name = element.Name.Lexeme;
                     CheckDuplicateLocal(name, blockScope, sourceText, diagnostics);
                     var sym = new Symbol(name, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, declaredType, ToMistSourceSpan(element.Name.Span));
+                    if (typedTuple.ReadonlyModifier is not null)
+                    {
+                        sym.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+                    }
                     blockScope.AddMember(sym);
                     symbolTable.Register(sym, varDecl);
                 }

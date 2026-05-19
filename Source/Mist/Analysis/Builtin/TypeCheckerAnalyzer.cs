@@ -3140,6 +3140,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             case BreakStatementStatementNode:
                 // No type checking needed for break.
                 break;
+            case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
+                // Recurse into the readonly block's body so that statements inside
+                // (including assignments to readonly locals) are type-checked.
+                CheckBlock(readonlyBlockStmt.ReadonlyBlock.Body, returnType, model, diagnostics);
+                break;
         }
     }
 
@@ -4817,6 +4822,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if (assignment.Value is not null)
         {
+            // ── readonly-locals feature: readonly local reassignment prohibition ──
+            // MIST_READONLY_LOCAL_0001: Cannot reassign readonly local variable.
+            CheckReadonlyLocalReassignment(assignment, model, diagnostics);
+
             // ── ref-parameters feature: ref readonly assignment prohibition ──
             // MIST_REF_0005: Cannot assign through a ref readonly local.
             // MIST_REF_0009: Cannot assign through a ref readonly return value.
@@ -4934,6 +4943,45 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Checks if an assignment target is a readonly local variable.
+    /// Emits <c>MIST_READONLY_LOCAL_0001</c> when the target is a local variable
+    /// with <see cref="ReadonlyStatus.ExplicitReadonly"/>.
+    /// </summary>
+    private static void CheckReadonlyLocalReassignment(
+        AssignmentNode assignment,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Extract the PostfixNode from the assignment target.
+        var postfix = TryExtractPostfixFromLogicalOr(assignment.Target);
+        if (postfix is null)
+            return;
+
+        // Only check simple identifiers (no member access or indexing suffixes).
+        if (postfix.Suffix.Length != 0)
+            return;
+
+        if (postfix.Target is not IdentifierExpressionPrimaryNode)
+            return;
+
+        var symbol = model.GetDeclaredSymbol(postfix.Target);
+        if (symbol is not Symbol sym)
+            return;
+
+        if (sym.Kind != SymbolKind.LocalVariable)
+            return;
+
+        if (sym.ReadonlyStatus != ReadonlyStatus.ExplicitReadonly)
+            return;
+
+        diagnostics.Add(MakeDiagnostic(
+            "MIST_READONLY_LOCAL_0001",
+            $"Cannot reassign readonly local variable '{sym.Name}'",
+            assignment,
+            model));
     }
 
     /// <summary>
@@ -7894,6 +7942,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
 
         var expr = refArg.Expression;
+
+        // ── readonly-locals feature: reject passing readonly locals by mutable ref ──
+        if (CheckReadonlyLocalRefArgument(refArg, expr, model, diagnostics))
+            return;
+
         if (IsAssignableStorageLocation(expr, model, out var description))
             return;
 
@@ -7902,6 +7955,44 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             $"A ref argument must be an assignable variable, field, or array element; '{description}' is not a valid storage location",
             (SyntaxNode)refArg,
             model));
+    }
+
+    /// <summary>
+    /// Checks if a ref argument expression resolves to a local variable with
+    /// <see cref="ReadonlyStatus.ExplicitReadonly"/>. If so, emits
+    /// <c>MIST_READONLY_LOCAL_0001</c> and returns <c>true</c> to indicate the
+    /// diagnostic was handled. Returns <c>false</c> if the expression is not a
+    /// readonly local (allowing the caller to proceed with other checks).
+    /// </summary>
+    private static bool CheckReadonlyLocalRefArgument(
+        RefArgumentArgumentNode refArg,
+        ExpressionNode expr,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var postfix = TryExtractPostfixNode(expr);
+        if (postfix is null || postfix.Suffix.Length > 0)
+            return false;
+
+        if (postfix.Target is not IdentifierExpressionPrimaryNode identifier)
+            return false;
+
+        var symbol = model.GetDeclaredSymbol(identifier);
+        if (symbol is not Symbol concreteSymbol)
+            return false;
+
+        if (concreteSymbol.Kind != SymbolKind.LocalVariable)
+            return false;
+
+        if (concreteSymbol.ReadonlyStatus != ReadonlyStatus.ExplicitReadonly)
+            return false;
+
+        diagnostics.Add(MakeDiagnostic(
+            "MIST_READONLY_LOCAL_0001",
+            $"Cannot pass readonly local variable '{concreteSymbol.Name}' by mutable reference",
+            (SyntaxNode)refArg,
+            model));
+        return true;
     }
 
     /// <summary>

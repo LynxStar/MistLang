@@ -52,6 +52,7 @@ public class Program
         ArrayBoundsFlowAnalysis.Program.RunDemo();
         TopLevelStatements.Program.RunDemo();
         GlobalUsings.Program.RunDemo();
+        ReadonlyLocals.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

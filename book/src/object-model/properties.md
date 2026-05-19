@@ -4,7 +4,7 @@ Properties in Mist provide controlled access to an object's data through getter 
 
 ## Block-Bodied Accessors
 
-Block-bodied accessors use `get { }` and `set { }` blocks to define custom logic for reading and writing a property. The `set` accessor receives the assigned value through the implicit `value` parameter.
+Block-bodied accessors use `get { }` and `set { }` blocks to define custom logic for reading and writing a property. The `set` accessor receives the assigned value through the implicit `value` parameter, and the `field` keyword refers to the compiler-generated backing field.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -19,11 +19,11 @@ Block-bodied accessors use `get { }` and `set { }` blocks to define custom logic
 {{#endtab }}
 {{#endtabs }}
 
-The `get` block returns the backing field, and the `set` block validates the incoming `value` before storing it. This pattern gives you full control over how a property behaves on read and write.
+The `get` block returns `field` (the backing field), and the `set` block validates the incoming `value` before storing it in `field`. This pattern gives you full control over how a property behaves on read and write without needing to declare a separate backing field.
 
 ## Expression-Bodied Accessors
 
-When an accessor contains a single expression, you can use the `=>` syntax for a more compact declaration. This works for both `get` and `set` accessors, as well as for read-only computed properties.
+When an accessor contains a single expression, you can use the `=>` syntax for a more compact declaration. This works for both `get` and `set` accessors, as well as for read-only computed properties. Use `field` to refer to the backing field in expression-bodied accessors.
 
 {{#tabs }}
 {{#tab name="Mist" }}

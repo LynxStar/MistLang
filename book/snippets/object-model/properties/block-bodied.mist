@@ -4,28 +4,26 @@ namespace Demo;
 
 public class Thermostat
 {
-    private int _temperature;
-
     public Thermostat(int initial)
     {
-        this._temperature = initial;
+        this.Temperature = initial;
     }
 
     public int Temperature
     {
         get
         {
-            return _temperature;
+            return field;
         }
         set
         {
             if (value < -273)
             {
-                _temperature = -273;
+                field = -273;
             }
             else
             {
-                _temperature = value;
+                field = value;
             }
         }
     }

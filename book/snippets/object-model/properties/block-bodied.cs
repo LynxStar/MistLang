@@ -4,18 +4,17 @@ namespace Demo;
 
 public class Thermostat
 {
-    private int _temperature;
-
     public Thermostat(int initial)
     {
-        this._temperature = initial;
+        this.Temperature = initial;
     }
 
-    public int Temperature { get { return _temperature; } set { if (value < -273) { _temperature = -273; } } }
+    private int _Temperature_k__BackingField;
+    public int Temperature { get { return _Temperature_k__BackingField; } set { if (value < -273) { _Temperature_k__BackingField = -273; } } }
 
     protected Thermostat()
     {
-        this._temperature = 0;
+        this.Temperature = 0;
     }
 
     public static Thermostat __CreateDefault()

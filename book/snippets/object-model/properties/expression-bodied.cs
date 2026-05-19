@@ -4,26 +4,23 @@ namespace Demo;
 
 public class Rectangle
 {
-    private int _width;
-
-    private int _height;
-
     public Rectangle(int width, int height)
     {
-        this._width = width;
-        this._height = height;
+        this.Width = width;
+        this.Height = height;
     }
 
-    public int Area => _width * _height;
+    public int Area => Width * Height;
 
-    public int Width { get => _width; }
+    private int _Width_k__BackingField;
+    public int Width { get => _Width_k__BackingField; }
 
-    public int Height { get => _height; set => _height = value; }
+    private int _Height_k__BackingField;
+    public int Height { get => _Height_k__BackingField; set => _Height_k__BackingField = value; }
 
     protected Rectangle()
     {
-        this._width = 0;
-        this._height = 0;
+        this.Height = 0;
     }
 
     public static Rectangle __CreateDefault()

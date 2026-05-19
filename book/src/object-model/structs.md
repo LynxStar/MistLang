@@ -1,10 +1,15 @@
-# Structs
+# Classes vs Structs
 
-Structs are value types — they live on the stack (or inline within their containing type) and are copied on assignment. Use a struct when you need a small, self-contained piece of data with value semantics, such as a color, a coordinate, or a measurement. Unlike classes, two struct variables are independent copies: modifying one never affects the other.
+Mist has two kinds of concrete types: classes and structs. They share the same syntax for fields, methods, and constructors (covered in [Concrete Types](./concrete-types.md)), but differ in how they behave at runtime.
 
-## Struct Declaration
+## The Key Difference
 
-Declare a struct with the `struct` keyword followed by a name and a brace-delimited body. A struct can contain fields, constructors, and methods — the same members as a class.
+- **Classes** are reference types — variables hold a reference to a heap-allocated object. Assignment copies the reference, so two variables can point to the same object.
+- **Structs** are value types — variables hold the data directly (on the stack or inline). Assignment copies the entire value, so each variable is independent.
+
+## Declaring a Struct
+
+Declare a struct with the `struct` keyword. A struct can contain fields, constructors, and methods — the same members as a class.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -19,11 +24,9 @@ Declare a struct with the `struct` keyword followed by a name and a brace-delimi
 {{#endtab }}
 {{#endtabs }}
 
-Structs support the same access modifiers (`public`, `private`), constructors, and instance methods as classes. The key difference is in how they behave at runtime.
+Structs support the same access modifiers (`public`, `private`), constructors, and instance methods as classes.
 
-## Value-Type vs Reference-Type Semantics
-
-The fundamental distinction between structs and classes is their assignment behavior. When you assign a struct to a new variable, the entire value is copied. When you assign a class instance, only the reference is copied — both variables point to the same object.
+## Copy Semantics
 
 {{#tabs }}
 {{#tab name="Mist" }}

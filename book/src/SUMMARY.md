@@ -22,11 +22,11 @@
 
 # Object Model
 
-- [Classes](object-model/classes.md)
-- [Structs](object-model/structs.md)
+- [Concrete Types](object-model/concrete-types.md)
+- [Properties](object-model/properties.md)
+- [Classes vs Structs](object-model/structs.md)
 - [Readonly](object-model/readonly.md)
 - [Inheritance](object-model/inheritance.md)
-- [Properties](object-model/properties.md)
 - [Interfaces](object-model/interfaces.md)
 - [Traits](object-model/traits.md)
 - [Enums](object-model/enums.md)

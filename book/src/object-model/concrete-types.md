@@ -1,8 +1,8 @@
-# Classes
+# Concrete Types
 
-Classes are reference types that bundle data (fields) and behavior (methods) into a single unit. They support constructors for initialization, access modifiers for encapsulation, and both instance and static members. Mist's class syntax maps directly to C# classes — the transpiler emits nearly identical code.
+Classes and structs are Mist's concrete types — they define objects with fields (data) and methods (behavior). This chapter covers the anatomy shared by both: how to declare fields, write constructors, define methods, and control access. The differences between classes and structs are covered in [Classes vs Structs](./structs.md).
 
-## Class Declaration with Fields
+## Fields
 
 A class is declared with the `class` keyword followed by a name and a brace-delimited body. Fields are declared inside the body with a type, name, and optional initializer.
 

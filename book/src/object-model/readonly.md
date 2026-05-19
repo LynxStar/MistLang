@@ -123,6 +123,20 @@ Inside a readonly context (a readonly method, a readonly type's method, or a `fr
 
 These checks are compile-time only. The emitted code has no runtime overhead — the `readonly` modifier is either erased or lowered to C#'s own `readonly` modifier for struct methods.
 
+## Readonly Properties
+
+Properties interact with readonly in two ways:
+
+**Readonly getter-only properties** — A property with only a `get` accessor (no `set`) can only be assigned in the constructor. This is the property equivalent of a readonly field:
+
+```mist
+public readonly string Name { get; }
+```
+
+**The `init` accessor** — A property with `init` instead of `set` can be assigned during construction (including property initializer blocks) but is immutable afterward. See the [Properties](./properties.md) chapter for details on `init`.
+
+**Readonly type + properties** — In a `readonly class` or `readonly struct`, all properties are implicitly readonly. Any property with a `set` accessor would be rejected by the compiler since it would mutate state.
+
 ## Further Reading
 
 For advanced readonly patterns including `frozen` parameters, readonly blocks, and interaction with the ownership system, see the [Readonly Contexts](../advanced/readonly-contexts.md) chapter.

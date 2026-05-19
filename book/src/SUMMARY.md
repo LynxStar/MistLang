@@ -23,8 +23,9 @@
 # Object Model
 
 - [Classes](object-model/classes.md)
-- [Inheritance](object-model/inheritance.md)
 - [Structs](object-model/structs.md)
+- [Readonly](object-model/readonly.md)
+- [Inheritance](object-model/inheritance.md)
 - [Properties](object-model/properties.md)
 - [Interfaces](object-model/interfaces.md)
 - [Traits](object-model/traits.md)

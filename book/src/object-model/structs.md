@@ -40,23 +40,14 @@ The fundamental distinction between structs and classes is their assignment beha
 
 This makes structs ideal for small, immutable data. Because each variable holds its own copy, there's no risk of unintended aliasing — a common source of bugs with reference types.
 
-## Readonly Structs
+## When to Use Structs vs Classes
 
-Adding the `readonly` modifier to a struct declaration prevents mutation of its fields after construction. The compiler enforces that no method or property setter modifies the struct's state.
+| | Class | Struct |
+|---|---|---|
+| **Semantics** | Reference type (heap-allocated, shared by reference) | Value type (stack-allocated, copied on assignment) |
+| **Assignment** | Copies the reference — both variables point to the same object | Copies the entire value — each variable is independent |
+| **Identity** | Two variables can alias the same object | No aliasing — each copy is distinct |
+| **Inheritance** | Supports single inheritance | No inheritance |
+| **Best for** | Large objects, shared state, polymorphism via interfaces | Small data carriers, coordinates, measurements, colors |
 
-{{#tabs }}
-{{#tab name="Mist" }}
-```mist
-{{#include ../../snippets/object-model/structs/readonly-struct.mist}}
-```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-{{#include ../../snippets/object-model/structs/readonly-struct.cs}}
-```
-{{#endtab }}
-{{#endtabs }}
-
-Notice that in the emitted C#, methods on a `readonly struct` receive the `readonly` modifier. This tells the C# compiler that the method does not mutate the struct, enabling optimizations like avoiding defensive copies when the struct is passed by reference.
-
-Readonly structs are a good default for value types that represent immutable data — coordinates, colors, measurements, or any "data carrier" where mutation after construction is not needed.
+Use structs for small, self-contained values where copy semantics are desirable. Use classes for larger objects or when you need shared references.

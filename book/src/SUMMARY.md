@@ -19,7 +19,6 @@
 - [Functions](basics/functions.md)
 - [Array Literals](basics/array-literals.md)
 - [Tuples](basics/tuples.md)
-- [Regex Type](basics/regex-type.md)
 
 # Object Model
 

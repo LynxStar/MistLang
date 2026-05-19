@@ -2,6 +2,30 @@
 
 Mist provides a full set of primitive types for working with numbers, text, and boolean logic.
 
+## Type Keywords and Standard Library Types
+
+The primitive type keywords in Mist are aliases for types defined in the Standard Library. You can use either form — the keyword is simply shorthand:
+
+| Keyword | Standard Library Type |
+|---------|----------------------|
+| `int` | `Standard.Int32` |
+| `uint` | `Standard.UInt32` |
+| `long` | `Standard.Int64` |
+| `ulong` | `Standard.UInt64` |
+| `short` | `Standard.Int16` |
+| `ushort` | `Standard.UInt16` |
+| `byte` | `Standard.Byte` |
+| `sbyte` | `Standard.SByte` |
+| `float` | `Standard.Single` |
+| `double` | `Standard.Double` |
+| `decimal` | `Standard.Decimal` |
+| `bool` | `Standard.Boolean` |
+| `char` | `Standard.Char` |
+| `string` | `Standard.String` |
+| `regex` | `Standard.Regex` |
+
+Writing `int x = 5;` is identical to writing `Standard.Int32 x = 5;`. The keywords exist purely for convenience and readability.
+
 ## Integer Types
 
 Mist supports signed and unsigned integer types at various bit widths. Each type has a fixed size and range.
@@ -213,3 +237,81 @@ Prefixing a string with `$` enables interpolation. Expressions inside `{` and `}
 {{#endtabs }}
 
 Interpolated strings can contain any expression, including method calls and arithmetic. The expression result is converted to a string using its `ToString()` method.
+
+## Regex
+
+The `regex` type provides first-class support for regular expressions. Regex literals use backtick delimiters, making patterns easy to write without excessive escaping.
+
+### Regex Literal Syntax
+
+A regex literal is written by enclosing a pattern in backticks. The compiler infers the type as `regex`:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/basics/regex-type/literal-syntax.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/basics/regex-type/literal-syntax.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The backtick syntax avoids the double-backslash escaping that string-based regex patterns require. Inside backticks, `\d` means the regex digit metacharacter directly.
+
+### Explicit Type Annotation
+
+You can declare a variable with an explicit `regex` type annotation:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/basics/regex-type/explicit-type.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/basics/regex-type/explicit-type.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+### IsMatch (Partial Match)
+
+The `IsMatch` method checks whether the pattern matches anywhere within the input string. It returns `true` if any substring of the input matches the pattern:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/basics/regex-type/is-match.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/basics/regex-type/is-match.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+In this example, `\bcat\b` matches the word "cat" as a whole word. It finds a match in `"the cat sat"` and `"cat"`, but not in `"concatenate"` because the word boundaries don't align.
+
+### IsFullMatch (Full Match)
+
+The `IsFullMatch` method checks whether the entire input string matches the pattern from start to end. Unlike `IsMatch`, a partial match is not sufficient:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/basics/regex-type/is-full-match.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/basics/regex-type/is-full-match.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The pattern `\d{3}` matches exactly three digits. `IsFullMatch("123")` returns `true` because the entire string is three digits. `IsFullMatch("1234")` returns `false` because the string has four characters, even though it contains a three-digit substring.

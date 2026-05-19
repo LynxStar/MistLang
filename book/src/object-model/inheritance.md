@@ -42,9 +42,9 @@ When a derived class has a constructor, it must forward the required arguments t
 
 `GuideDog` extends `Dog`, which itself extends `Animal` — forming a three-level hierarchy. The `GuideDog` constructor chains to `Dog`'s constructor via `: base(name, age, breed)`, which in turn chains to `Animal`'s constructor. Each level initializes its own fields while delegating the rest upward.
 
-## Method Overriding
+## Methods in Derived Classes
 
-A derived class can provide a specialized implementation of a method by declaring a method that builds on or replaces the behavior inherited from the base class. The derived method can call inherited methods to reuse base class logic while adding its own behavior.
+A derived class can define its own methods that call inherited methods to build on base class behavior. Each level in the hierarchy can compose richer functionality by reusing logic from its ancestors.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -59,4 +59,4 @@ A derived class can provide a specialized implementation of a method by declarin
 {{#endtab }}
 {{#endtabs }}
 
-Each level in the hierarchy provides its own describe method that calls inherited methods (`GetName()`, `GetAge()`, `GetBreed()`) to compose a richer description. This pattern lets derived classes specialize behavior while reusing the logic defined in their ancestors.
+Each level in the hierarchy defines its own describe method that calls inherited methods (`GetName()`, `GetAge()`, `GetBreed()`) to compose a richer description. Note that Mist does not support method overriding — derived classes cannot replace a base class method with the same signature. Instead, each class defines distinctly-named methods that build on inherited behavior.

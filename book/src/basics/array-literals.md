@@ -1,10 +1,45 @@
-# Array Literals
+# Arrays
 
-Mist provides a concise bracket syntax for creating arrays inline. Instead of writing `new int[] { 1, 2, 3 }`, you write `[1, 2, 3]` and let the compiler handle the allocation. The syntax works with type inference, explicit type annotations, nested arrays, and anywhere an array value is expected — arguments, return values, and assignments.
+Arrays in Mist are fixed-size, bounds-checked collections. Unlike many languages where arrays are simple contiguous buffers with unchecked access, Mist arrays carry their size in the type system and the compiler statically proves that every index access is within bounds.
 
-## Bracket Syntax with `var`
+## The Array Type
 
-The simplest way to create an array is with bracket syntax and `var` inference. The compiler determines the element type from the values you provide.
+The underlying array type is `Array<T, Length>` from the Standard Library, where `Length` is a dependent type parameter constrained to be a non-negative integer. In practice you'll use shorthand syntax:
+
+| Syntax | Meaning |
+|--------|---------|
+| `int[5]` | `Array<int, 5>` — an array of exactly 5 ints |
+| `int[]` | `Array<int, unknown>` — an array of ints with unknown (runtime-determined) length |
+| `var arr = new int[5]` | Compiler infers `int[5]` — the size is known |
+| `var arr = [1, 2, 3]` | Compiler infers `int[3]` from the literal |
+
+The `T[]` form is shorthand for `Array<T, unknown>` — the length exists at runtime but isn't tracked in the type. The `T[N]` form tracks the exact size at compile time.
+
+## Bounds Checking
+
+Array indexing uses a refinement type called `ArrayBounds` defined as `>= 0 and < Length`. The compiler must prove that any index expression satisfies this constraint at compile time. If it can't, the code won't compile.
+
+This means:
+- Literal indices on known-size arrays are checked at compile time
+- Loop induction variables bounded by `.Length` are proven safe automatically
+- Arbitrary expressions that can't be proven safe are rejected
+
+The details of how this works are covered in the [Refinement Types](../type-system/refinement-types.md) and [Dependent Types](../type-system/dependent-types.md) chapters. For practical purposes: use standard `for` loop patterns with `.Length` and the compiler handles the rest.
+
+## Creating Arrays
+
+### With `new`
+
+Create an array of a specific size using `new T[size]`:
+
+```mist
+var numbers = new int[5];    // int[5] — five zeros
+var names = new string[3];   // string[3] — three nulls
+```
+
+### With Array Literals
+
+Array literals use bracket syntax. The compiler infers the element type and size:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -19,11 +54,9 @@ The simplest way to create an array is with bracket syntax and `var` inference. 
 {{#endtab }}
 {{#endtabs }}
 
-When you use `var`, the compiler infers the array type from the elements. `[1, 2, 3]` becomes an `int[]`, `["Alice", "Bob", "Charlie"]` becomes a `string[]`, and so on. The emitted C# uses `new[]` with an initializer list.
+### Empty Arrays
 
-## Empty Arrays with Explicit Type
-
-An empty array literal `[]` requires an explicit type annotation on the variable — the compiler can't infer the element type from zero elements.
+An empty array literal `[]` requires an explicit type annotation since the compiler can't infer the element type from zero elements:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -38,11 +71,9 @@ An empty array literal `[]` requires an explicit type annotation on the variable
 {{#endtab }}
 {{#endtabs }}
 
-The compiler emits `Array.Empty<T>()` for empty array literals, which returns a cached empty array instance rather than allocating a new one each time.
+### Nested Arrays
 
-## Nested Arrays
-
-Array literals can be nested to create multi-dimensional jagged arrays. Each inner bracket creates a sub-array.
+Array literals can be nested to create jagged arrays:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -57,68 +88,9 @@ Array literals can be nested to create multi-dimensional jagged arrays. Each inn
 {{#endtab }}
 {{#endtabs }}
 
-The type of `matrix` is `int[][]` — an array of arrays. Each inner `[1, 2]` becomes its own `new[] { 1, 2 }` in the emitted C#.
+### Explicit Type Annotation
 
-## Arrays as Method Arguments
-
-You can pass an array literal directly at a call site without assigning it to a variable first.
-
-{{#tabs }}
-{{#tab name="Mist" }}
-```mist
-{{#include ../../snippets/basics/array-literals/method-arguments.mist}}
-```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-{{#include ../../snippets/basics/array-literals/method-arguments.cs}}
-```
-{{#endtab }}
-{{#endtabs }}
-
-The array literal is constructed at the call site and passed directly to the parameter.
-
-## Arrays as Return Values
-
-A method with an array return type can return an array literal directly.
-
-{{#tabs }}
-{{#tab name="Mist" }}
-```mist
-{{#include ../../snippets/basics/array-literals/return-values.mist}}
-```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-{{#include ../../snippets/basics/array-literals/return-values.cs}}
-```
-{{#endtab }}
-{{#endtabs }}
-
-The compiler emits `new[]` for the return expression, letting C# infer the array type from the method's declared return type.
-
-## Trailing Comma
-
-Mist permits a trailing comma after the last element in an array literal. This is purely a convenience for formatting — it has no effect on the resulting array.
-
-{{#tabs }}
-{{#tab name="Mist" }}
-```mist
-{{#include ../../snippets/basics/array-literals/trailing-comma.mist}}
-```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-{{#include ../../snippets/basics/array-literals/trailing-comma.cs}}
-```
-{{#endtab }}
-{{#endtabs }}
-
-Trailing commas make it easier to add or remove elements without touching adjacent lines — useful in version control diffs.
-
-## Explicit Type Annotation
-
-When you declare the variable with an explicit array type, the compiler uses that type information in the emitted code.
+You can declare the variable with an explicit array type:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -133,4 +105,89 @@ When you declare the variable with an explicit array type, the compiler uses tha
 {{#endtab }}
 {{#endtabs }}
 
-With an explicit type annotation, the emitted C# uses `new T[] { ... }` instead of `new[] { ... }`. Both forms produce the same runtime result, but the explicit form makes the element type visible in the generated code.
+### Trailing Comma
+
+A trailing comma after the last element is permitted for formatting convenience:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/basics/array-literals/trailing-comma.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/basics/array-literals/trailing-comma.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+## Passing Arrays
+
+### As Method Arguments
+
+Array literals can be passed directly at call sites:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/basics/array-literals/method-arguments.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/basics/array-literals/method-arguments.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+### As Return Values
+
+Methods can return array literals directly:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/basics/array-literals/return-values.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/basics/array-literals/return-values.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+## Indexing and Iteration
+
+Access elements by index. The compiler verifies bounds statically:
+
+```mist
+var items = [10, 20, 30];
+int first = items[0];   // proven safe: 0 >= 0 and < 3
+int last = items[2];    // proven safe: 2 >= 0 and < 3
+```
+
+Iterate with a standard `for` loop — the compiler recognizes `i < arr.Length` as proving bounds:
+
+```mist
+var data = new int[4];
+for (int i = 0; i < data.Length; i = i + 1)
+{
+    data[i] = i * 10;  // proven safe: i >= 0 and < Length
+}
+```
+
+When an array is passed as a parameter with unknown length (`int[]`), the same pattern works — the compiler uses symbolic reasoning to prove `i < items.Length` satisfies the bounds constraint for `items[i]`:
+
+```mist
+public static int Sum(int[] items)
+{
+    int total = 0;
+    for (int i = 0; i < items.Length; i = i + 1)
+    {
+        total = total + items[i];  // symbolic tautology: i < Length proves bounds
+    }
+    return total;
+}
+```

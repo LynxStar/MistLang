@@ -17,7 +17,7 @@
 - [Namespaces](basics/namespaces.md)
 - [Control Flow](basics/control-flow.md)
 - [Methods](basics/functions.md)
-- [Array Literals](basics/array-literals.md)
+- [Arrays](basics/array-literals.md)
 - [Tuples](basics/tuples.md)
 
 # Object Model

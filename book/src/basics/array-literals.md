@@ -124,39 +124,53 @@ A trailing comma after the last element is permitted for formatting convenience:
 
 ## Passing Arrays
 
-### As Method Arguments
+A method can accept an array with a known size or an unknown size. When the parameter uses `T[]` (unknown size), the compiler uses symbolic reasoning with `.Length` to prove index access is safe:
 
-Array literals can be passed directly at call sites:
-
-{{#tabs }}
-{{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/basics/array-literals/method-arguments.mist}}
+// Accepts exactly 3 elements — caller must pass a 3-element array
+private static int SumThree(int[3] items)
+{
+    return items[0] + items[1] + items[2];  // all proven safe: indices < 3
+}
+
+// Accepts any size — uses .Length for safe iteration
+private static int SumAll(int[] items)
+{
+    int total = 0;
+    for (int i = 0; i < items.Length; i = i + 1)
+    {
+        total = total + items[i];  // proven safe: i < Length
+    }
+    return total;
+}
 ```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-{{#include ../../snippets/basics/array-literals/method-arguments.cs}}
-```
-{{#endtab }}
-{{#endtabs }}
 
-### As Return Values
+A sized array (`int[3]`) can be passed where an unsized array (`int[]`) is expected — the size widens to unknown:
 
-Methods can return array literals directly:
-
-{{#tabs }}
-{{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/basics/array-literals/return-values.mist}}
+var triple = [1, 2, 3];       // int[3]
+int result = SumAll(triple);  // int[3] widens to int[]
 ```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-{{#include ../../snippets/basics/array-literals/return-values.cs}}
+
+## Returning Arrays
+
+A method can return a sized array or widen to `T[]`:
+
+```mist
+// Returns exactly 3 elements — size is part of the return type
+private static int[3] GetDefaults()
+{
+    return [10, 20, 30];
+}
+
+// Returns unknown size — callers don't know the length statically
+private static int[] GetItems()
+{
+    return [10, 20, 30];  // int[3] widens to int[]
+}
 ```
-{{#endtab }}
-{{#endtabs }}
+
+Returning `T[N]` preserves the size information for the caller. Returning `T[]` erases it — useful when the method might return different sizes depending on input.
 
 ## Indexing and Iteration
 

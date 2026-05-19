@@ -95,4 +95,11 @@ public interface ISemanticModel
     /// meaning the runtime guard can be safely elided.
     /// </summary>
     bool IsGuardElidable(ISymbol parameterSymbol);
+
+    /// <summary>
+    /// Returns the list of live (un-awaited, un-returned) tasks for the given
+    /// block scope node, or an empty list if no live tasks were recorded.
+    /// The emitter uses this to generate scope-exit await code.
+    /// </summary>
+    IReadOnlyList<LiveTaskInfo> GetLiveTasks(Storm.Runtime.SyntaxNode blockScopeNode);
 }

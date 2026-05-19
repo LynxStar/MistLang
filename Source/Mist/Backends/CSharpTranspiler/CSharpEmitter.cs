@@ -45,6 +45,16 @@ public sealed class CSharpEmitter
     /// </summary>
     public static Dictionary<string, string> EmitToMemory(ISemanticModel model, string projectName, DiagnosticBag diagnostics)
     {
+        // Ensure the needs-async propagation pass has run. This is idempotent —
+        // if the backend already ran it, re-running is harmless (already-marked
+        // symbols stay marked).
+        NeedsAsyncPropagationPass.Run(model);
+
+        // Run the ValueTask usage analysis pass to determine which async methods
+        // can emit ValueTask<T> instead of Task<T>. Must run after needs-async
+        // propagation so that all async method symbols are properly identified.
+        ValueTaskUsageAnalysisPass.Run(model);
+
         var files = new Dictionary<string, string>(StringComparer.Ordinal);
 
         // Collect namespaces from Backend-origin symbols for using directives.
@@ -285,6 +295,13 @@ internal sealed class CSharpSourceWriter
     /// is deferred to the start of the then-branch block.
     /// </summary>
     private readonly List<string> _pendingUnionPatternBindings = new();
+    /// <summary>
+    /// Maps discarded task origin nodes (expression nodes from expression statements)
+    /// to their <see cref="LiveTaskInfo"/> for the current block being emitted.
+    /// When non-null, <see cref="EmitStatement"/> intercepts matching expression
+    /// statements and emits them as <c>var __task_N = {call};</c> instead of <c>{call};</c>.
+    /// </summary>
+    private Dictionary<Storm.Runtime.SyntaxNode, LiveTaskInfo>? _currentBlockDiscardedTasks;
     private readonly bool _isReferencedProject;
     /// <summary>
     /// Tracks whether the emitter is currently inside a struct declaration.
@@ -304,6 +321,17 @@ internal sealed class CSharpSourceWriter
     /// for array literals assigned to explicitly-typed array variables.
     /// </summary>
     private IType? _arrayLiteralTargetElementType;
+    /// <summary>
+    /// The symbol of the method currently being emitted. Used to determine whether
+    /// the enclosing context is sync or async for auto-unwrap emission.
+    /// </summary>
+    private Symbol? _currentMethodSymbol;
+    /// <summary>
+    /// Set to <c>true</c> while emitting the operand of an <c>async</c> functor expression.
+    /// When inside an async functor, auto-unwrap of async method calls is suppressed
+    /// because the functor explicitly captures the <c>Task&lt;T&gt;</c>.
+    /// </summary>
+    private bool _insideAsyncFunctor;
     private const string IndentUnit = "    ";
 
     /// <summary>
@@ -2170,6 +2198,10 @@ internal sealed class CSharpSourceWriter
         var previousReturnType = _currentMethodReturnType;
         _currentMethodReturnType = ResolveMethodReturnType(methodDecl);
 
+        // Track the enclosing method symbol for auto-unwrap emission.
+        var previousMethodSymbol = _currentMethodSymbol;
+        _currentMethodSymbol = extMethodSymbol;
+
         if (methodDecl.Body.GetBlock() is BlockNode block)
         {
             var withClauses = extMethodSymbol?.WithClauses;
@@ -2181,6 +2213,7 @@ internal sealed class CSharpSourceWriter
         }
 
         _currentMethodReturnType = previousReturnType;
+        _currentMethodSymbol = previousMethodSymbol;
     }
 
     /// <summary>
@@ -3910,10 +3943,41 @@ internal sealed class CSharpSourceWriter
             _ => ""
         };
 
+        // ── Async method signature emission (Task 12.1) ──
+        // When NeedsCSharpAsync is true, emit the `async` keyword and adjust
+        // the return type to Task<T> (or non-generic Task for void).
+        var asyncPrefix = "";
+        if (methodSymbol is { NeedsCSharpAsync: true })
+        {
+            asyncPrefix = "async ";
+
+            if (methodSymbol.IsAsync)
+            {
+                // Method declared async in Mist: EffectiveReturnType is already Task<T>.
+                // Use the usage analysis result to choose ValueTask<T> vs Task<T>.
+                returnType = EmitAsyncReturnType(methodSymbol);
+            }
+            else
+            {
+                // Sync method that needs C# async due to propagation:
+                // Wrap the declared return type in Task<T>.
+                if (methodDecl.ReturnType is VoidTypeRefTypeReferenceNode)
+                {
+                    returnType = "System.Threading.Tasks.Task";
+                }
+                else
+                {
+                    returnType = $"System.Threading.Tasks.Task<{returnType}>";
+                }
+            }
+        }
+
         // Context-sensitive void return type: if this void method's return value
         // is consumed at any call site, emit MistVoid instead of void.
+        // (Only applies when not already wrapped in Task by async emission above.)
         var isValueReturningVoid = methodDecl.ReturnType is VoidTypeRefTypeReferenceNode
-            && _valueReturningVoidMethods.Contains(name);
+            && _valueReturningVoidMethods.Contains(name)
+            && asyncPrefix.Length == 0;
         if (isValueReturningVoid)
         {
             returnType = "MistVoid";
@@ -3931,7 +3995,7 @@ internal sealed class CSharpSourceWriter
                 : factoryParams;
         }
 
-        AppendLine($"{modifiers}{readonlyPrefix}{refReturnPrefix}{returnType} {name}{typeParams}({parameters})");
+        AppendLine($"{modifiers}{asyncPrefix}{readonlyPrefix}{refReturnPrefix}{returnType} {name}{typeParams}({parameters})");
         // Emit constraint clauses for the method's type parameters.
         EmitConstraintClauses(methodTypeParams);
 
@@ -3950,6 +4014,10 @@ internal sealed class CSharpSourceWriter
             ? methodTypeParams
             : null;
 
+        // Track the enclosing method symbol for auto-unwrap emission.
+        var previousMethodSymbol = _currentMethodSymbol;
+        _currentMethodSymbol = methodSymbol;
+
         if (methodDecl.Body.GetBlock() is BlockNode block)
         {
             var withClauses = methodSymbol?.WithClauses;
@@ -3964,6 +4032,7 @@ internal sealed class CSharpSourceWriter
         _inValueReturningVoidMethod = previousFlag;
         _currentMethodReturnType = previousReturnType;
         _currentMethodFactoryTypeParams = previousFactoryTypeParams;
+        _currentMethodSymbol = previousMethodSymbol;
     }
 
     /// <summary>
@@ -5714,6 +5783,7 @@ internal sealed class CSharpSourceWriter
     /// <summary>
     /// Emits the statements within a block (including pending union pattern bindings)
     /// without emitting the surrounding braces or adjusting indentation.
+    /// Also emits scope-exit await for any live tasks tracked by the semantic model.
     /// </summary>
     private void EmitBlockStatements(BlockNode block)
     {
@@ -5728,7 +5798,68 @@ internal sealed class CSharpSourceWriter
             _pendingUnionPatternBindings.Clear();
         }
 
+        // Query the semantic model for live tasks in this block scope.
+        var liveTasks = _model.GetLiveTasks(block);
+
+        // Set up the discarded task lookup so EmitStatement can intercept
+        // expression statements that are discarded tasks and emit them as
+        // variable declarations (var __task_N = {call};).
+        var previousDiscardedTasks = _currentBlockDiscardedTasks;
+        if (liveTasks.Count > 0)
+        {
+            _currentBlockDiscardedTasks = new Dictionary<Storm.Runtime.SyntaxNode, LiveTaskInfo>();
+            foreach (var task in liveTasks)
+            {
+                // Discarded tasks have synthetic __task_N names and their origin
+                // is the expression node (not a variable declaration node).
+                if (task.GeneratedVariableName.StartsWith("__task_", StringComparison.Ordinal))
+                {
+                    _currentBlockDiscardedTasks[task.OriginNode] = task;
+                }
+            }
+        }
+        else
+        {
+            _currentBlockDiscardedTasks = null;
+        }
+
         EmitStatementsFromIndex(block.Statements, 0);
+
+        // Emit scope-exit await for all live tasks in this block.
+        EmitScopeExitAwait(liveTasks);
+
+        _currentBlockDiscardedTasks = previousDiscardedTasks;
+    }
+
+    /// <summary>
+    /// Emits the scope-exit await for all live (un-awaited, un-returned) tasks in a block.
+    /// If there is exactly one live task, emits <c>await __task_0;</c>.
+    /// If there are multiple live tasks, emits <c>await Task.WhenAll(__task_0, __task_1, ...);</c>.
+    /// </summary>
+    private void EmitScopeExitAwait(IReadOnlyList<LiveTaskInfo> liveTasks)
+    {
+        if (liveTasks.Count == 0)
+            return;
+
+        // Collect variable names for all live tasks that were not consumed.
+        var taskNames = new List<string>();
+        foreach (var task in liveTasks)
+        {
+            if (!task.IsExplicitlyAwaited && !task.IsReturned)
+                taskNames.Add(task.GeneratedVariableName);
+        }
+
+        if (taskNames.Count == 0)
+            return;
+
+        if (taskNames.Count == 1)
+        {
+            AppendLine($"await {taskNames[0]};");
+        }
+        else
+        {
+            AppendLine($"await System.Threading.Tasks.Task.WhenAll({string.Join(", ", taskNames)});");
+        }
     }
 
     /// <summary>
@@ -5940,7 +6071,18 @@ internal sealed class CSharpSourceWriter
                 AppendLine("break;");
                 break;
             case ExpressionStatementStatementNode exprStmt:
-                AppendLine($"{EmitExpression(exprStmt.ExpressionStatement.Expression)};");
+                // Scope-exit await: if this expression statement is a discarded task,
+                // emit it as a variable declaration (var __task_N = {call};) so it can
+                // be awaited at scope exit.
+                if (_currentBlockDiscardedTasks is not null
+                    && _currentBlockDiscardedTasks.TryGetValue(exprStmt.ExpressionStatement.Expression, out var taskInfo))
+                {
+                    AppendLine($"var {taskInfo.GeneratedVariableName} = {EmitExpression(exprStmt.ExpressionStatement.Expression)};");
+                }
+                else
+                {
+                    AppendLine($"{EmitExpression(exprStmt.ExpressionStatement.Expression)};");
+                }
                 break;
             // Task 12.5 — Readonly blocks emit as regular blocks (no C# equivalent).
             case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
@@ -7239,11 +7381,112 @@ internal sealed class CSharpSourceWriter
                 var operand = EmitUnary(negate.Operand);
                 return EmitUnaryOperator(negate, "-", operand);
             }
+            case AsyncExpressionUnaryNode asyncExpr:
+            {
+                // Set the flag to suppress auto-unwrap inside the async functor operand.
+                var previousAsyncFunctorFlag = _insideAsyncFunctor;
+                _insideAsyncFunctor = true;
+                var operand = EmitUnary(asyncExpr.Operand);
+                _insideAsyncFunctor = previousAsyncFunctorFlag;
+                // Determine if the target method is async.
+                // If async: emit the call directly (captures the Task without await).
+                // If sync: wrap in Task.Run(() => call).
+                if (IsAsyncFunctorTargetAsync(asyncExpr))
+                    return operand;
+                return $"System.Threading.Tasks.Task.Run(() => {operand})";
+            }
+            case AwaitExpressionUnaryNode awaitExpr:
+            {
+                var operand = EmitUnary(awaitExpr.Operand);
+                return $"await {operand}";
+            }
             case PostfixExpressionUnaryNode postfix:
                 return EmitPostfix(postfix.Primary);
             default:
                 return "";
         }
+    }
+
+    /// <summary>
+    /// Determines whether the target method of an <c>async</c> functor expression
+    /// is itself declared <c>async</c>. When the target is async, the emitter
+    /// emits the call directly (capturing the Task) rather than wrapping in
+    /// <c>Task.Run</c>.
+    /// </summary>
+    private bool IsAsyncFunctorTargetAsync(AsyncExpressionUnaryNode asyncExpr)
+    {
+        // The operand should be a PostfixExpressionUnaryNode containing the method call.
+        if (asyncExpr.Operand is not PostfixExpressionUnaryNode postfixUnary)
+            return false;
+
+        var postfix = postfixUnary.Primary;
+
+        // Case 1: Direct invocation — identifier(args)
+        if (postfix.Suffix.Length > 0 && postfix.Suffix[^1] is InvocationSuffixPostfixSuffixNode)
+        {
+            var targetSymbol = _model.GetDeclaredSymbol(postfix.Target);
+            return targetSymbol is Symbol { IsAsync: true };
+        }
+
+        // Case 2: Member method call — obj.Method(args)
+        if (postfix.Suffix.Length > 0 && postfix.Suffix[^1] is MethodCallSuffixPostfixSuffixNode methodCall)
+        {
+            var memberName = methodCall.Name.Lexeme;
+
+            // Determine the receiver type for the method call.
+            // The receiver is the type of the expression before the last suffix.
+            IType? receiverType;
+            if (postfix.Suffix.Length == 1)
+                receiverType = _model.GetTypeOf(postfix.Target);
+            else
+                receiverType = _model.GetTypeOf(postfix.Suffix[^2]);
+
+            if (receiverType is null)
+                return false;
+
+            // Look up the method symbol in the receiver type.
+            var methodSymbol = FindMethodInType(receiverType, memberName);
+            return methodSymbol is { IsAsync: true };
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Finds a method symbol by name in a type's member scope.
+    /// Used by <see cref="IsAsyncFunctorTargetAsync"/> to resolve method calls.
+    /// </summary>
+    private static Symbol? FindMethodInType(IType type, string methodName)
+    {
+        var scope = GetMemberScopeForType(type);
+        if (scope is null)
+            return null;
+
+        var found = scope.Lookup(methodName);
+        if (found is Symbol { Kind: SymbolKind.Method } sym)
+            return sym;
+
+        // Check base type for classes.
+        if (type is ClassType classType && classType.BaseType is not null)
+            return FindMethodInType(classType.BaseType, methodName);
+
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the member scope for a type, handling constructed types by
+    /// looking at their generic definition.
+    /// </summary>
+    private static IScope? GetMemberScopeForType(IType type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            InterfaceType it => it.MemberScope,
+            ConstructedType constructed => GetMemberScopeForType(constructed.GenericDefinition),
+            _ => null,
+        };
     }
 
     /// <summary>
@@ -7381,6 +7624,37 @@ internal sealed class CSharpSourceWriter
     {
         var symbol = _model.GetDeclaredSymbol(methodDecl);
         return symbol?.DeclaredType;
+    }
+
+    /// <summary>
+    /// Emits the C# return type for an async method, choosing between
+    /// <c>ValueTask&lt;T&gt;</c> and <c>Task&lt;T&gt;</c> based on the
+    /// <see cref="ValueTaskUsageAnalysisPass"/> result stored on the symbol.
+    /// </summary>
+    private static string EmitAsyncReturnType(Symbol methodSymbol)
+    {
+        var effectiveType = methodSymbol.EffectiveReturnType;
+        if (effectiveType is null)
+            return "System.Threading.Tasks.Task";
+
+        if (effectiveType is not ConstructedType ct || ct.TypeArguments.Count == 0)
+            return CSharpTypeMap.GetTypeName(effectiveType);
+
+        var innerType = ct.TypeArguments[0];
+
+        // Task<Void> → non-generic Task or ValueTask (no generic argument).
+        if (innerType.IsVoid())
+        {
+            return methodSymbol.UseValueTask
+                ? "System.Threading.Tasks.ValueTask"
+                : "System.Threading.Tasks.Task";
+        }
+
+        // Task<T> → ValueTask<T> or Task<T>.
+        var innerTypeName = CSharpTypeMap.GetTypeName(innerType, isValueContext: true);
+        return methodSymbol.UseValueTask
+            ? $"System.Threading.Tasks.ValueTask<{innerTypeName}>"
+            : $"System.Threading.Tasks.Task<{innerTypeName}>";
     }
 
     // ── Operator dispatch helpers ────────────────────────────────────────
@@ -7605,7 +7879,61 @@ internal sealed class CSharpSourceWriter
             primaryReceiverType = _model.GetTypeOf(suffix);
         }
 
+        // Auto-unwrap: in a sync context, async method calls are implicitly awaited.
+        // Emit `await` prefix if the invocation targets an async method, the enclosing
+        // method is sync (not declared async in Mist), and we're not inside an async functor.
+        // Top-level statements (_currentMethodSymbol is null) are always a sync context —
+        // C#'s top-level statement support automatically generates `async Task Main` when
+        // `await` is used, so emitting `await` here is sufficient (Task 13.1).
+        if (!_insideAsyncFunctor
+            && (_currentMethodSymbol is null or { IsAsync: false })
+            && IsPostfixAsyncMethodCall(postfix))
+        {
+            primaryResult = $"await {primaryResult}";
+        }
+
         return primaryResult;
+    }
+
+    /// <summary>
+    /// Determines whether a <see cref="PostfixNode"/> represents a call to an
+    /// async method. Used by the auto-unwrap logic in <see cref="EmitPostfix"/>
+    /// to decide whether to prepend <c>await</c> in sync contexts.
+    /// </summary>
+    private bool IsPostfixAsyncMethodCall(PostfixNode postfix)
+    {
+        if (postfix.Suffix.Length == 0)
+            return false;
+
+        // Case 1: Direct invocation — identifier(args)
+        if (postfix.Suffix[^1] is InvocationSuffixPostfixSuffixNode)
+        {
+            var targetSymbol = _model.GetDeclaredSymbol(postfix.Target);
+            return targetSymbol is Symbol { IsAsync: true };
+        }
+
+        // Case 2: Member method call — obj.Method(args)
+        if (postfix.Suffix[^1] is MethodCallSuffixPostfixSuffixNode methodCall)
+        {
+            var memberName = methodCall.Name.Lexeme;
+
+            // Determine the receiver type for the method call.
+            // The receiver is the type of the expression before the last suffix.
+            IType? receiverType;
+            if (postfix.Suffix.Length == 1)
+                receiverType = _model.GetTypeOf(postfix.Target);
+            else
+                receiverType = _model.GetTypeOf(postfix.Suffix[^2]);
+
+            if (receiverType is null)
+                return false;
+
+            // Look up the method symbol in the receiver type.
+            var methodSymbol = FindMethodInType(receiverType, memberName);
+            return methodSymbol is { IsAsync: true };
+        }
+
+        return false;
     }
 
     /// <summary>

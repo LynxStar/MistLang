@@ -48,6 +48,35 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     [ThreadStatic]
     private static bool _allocatingParameterArrayType;
 
+    // ── Async context tracking ───────────────────────────────────────────
+    // Set to true while resolving expressions inside an async method body.
+    // When false (sync context), async method invocations are auto-unwrapped
+    // from Task<T> to T. Cleared after method body resolution completes.
+    [ThreadStatic]
+    private static bool _isInAsyncContext;
+
+    // ── Live task tracking ────────────────────────────────────────────────
+    // Tracks tasks that are created but not yet awaited or returned within
+    // each block scope. At scope exit, un-consumed tasks are recorded in the
+    // semantic model for the emitter to generate scope-exit await code.
+    //
+    // _liveTaskScopes is a stack of per-block-scope task lists. Each time a
+    // new block scope is entered, a new list is pushed. When the scope exits,
+    // the list is popped and un-consumed tasks are stored in the result map.
+    //
+    // _liveTaskCounter generates unique variable names (__task_0, __task_1, etc.)
+    // per method body.
+    [ThreadStatic]
+    private static Stack<List<LiveTaskInfo>>? _liveTaskScopes;
+
+    [ThreadStatic]
+    private static int _liveTaskCounter;
+
+    // The result map populated during resolution. Keyed by block scope node,
+    // valued by the list of live tasks that need scope-exit await.
+    [ThreadStatic]
+    private static Dictionary<Storm.Runtime.SyntaxNode, List<LiveTaskInfo>>? _liveTaskResult;
+
     // ── Intrinsic-marker diagnostic IDs (Task 9, Requirements 5.3, 5.6, 5.13, 5.15) ──
     /// <summary>
     /// An intrinsic member was declared with a body. Per Requirement 5.3,
@@ -598,6 +627,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         _nextSymbolicLengthId = 1;
         _allocatingParameterArrayType = false;
 
+        // Initialize live task tracking for this compilation.
+        _liveTaskResult = new Dictionary<Storm.Runtime.SyntaxNode, List<LiveTaskInfo>>();
+
         // (Task 49: PrimitiveTypeRegistry and PrimitiveType have been
         // deleted. No migration-window registry reset is needed.)
 
@@ -885,7 +917,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             expressionTypes,
             traitSatisfactionMap,
             extensionRegistry,
-            parameterRefinements);
+            parameterRefinements,
+            _liveTaskResult);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1608,18 +1641,39 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var aliasSpan = ToMistSourceSpan(aliasDecl.Name.Span);
 
         // Check for duplicate alias name in the same scope.
+        // A non-generic type alias is allowed to coexist with a generic class/struct
+        // of the same name (arity-based overloading, e.g., `type Task = Task<void>;`
+        // alongside `class Task<TResult>`).
+        var aliasTypeParams = aliasDecl.TypeParams;
+        var aliasArity = aliasTypeParams?.TypeParameters.Length ?? 0;
+
         foreach (var member in parentScope.Members)
         {
-            if (member.Name == aliasName)
+            if (member.Name != aliasName)
+                continue;
+
+            // Allow a non-generic alias to coexist with a generic type of the same name.
+            if (aliasArity == 0 && member.Kind is SymbolKind.Class or SymbolKind.Struct)
             {
-                diagnostics.Add(MakeDiagnosticWithLocation(
-                    DuplicateTypeAlias.Value,
-                    DiagnosticSeverity.Error,
-                    $"Type alias '{aliasName}' is already defined in this scope.",
-                    aliasDecl,
-                    sourceText));
-                return;
+                var memberType = member.DeclaredType;
+                var memberTypeParamCount = memberType switch
+                {
+                    ClassType ct => ct.TypeParameters.Count,
+                    StructType st => st.TypeParameters.Count,
+                    _ => 0
+                };
+
+                if (memberTypeParamCount > 0)
+                    continue; // Different arity — not a conflict.
             }
+
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                DuplicateTypeAlias.Value,
+                DiagnosticSeverity.Error,
+                $"Type alias '{aliasName}' is already defined in this scope.",
+                aliasDecl,
+                sourceText));
+            return;
         }
 
         // Extract type parameters (if generic alias).
@@ -1841,7 +1895,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         // Resolve the return type.
                         var returnType = ResolveTypeReference(
                             methodDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-                        methodSymbol.DeclaredType = returnType;
+
+                        // Detect async modifier and wrap return type in Task<T>.
+                        var isAsync = methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode);
+                        if (isAsync)
+                        {
+                            methodSymbol.IsAsync = true;
+                            methodSymbol.DeclaredReturnType = returnType;
+                            var effectiveReturnType = ConstructTaskType(returnType, fileScope, symbolTable);
+                            methodSymbol.EffectiveReturnType = effectiveReturnType;
+                            methodSymbol.DeclaredType = effectiveReturnType;
+                        }
+                        else
+                        {
+                            methodSymbol.DeclaredReturnType = returnType;
+                            methodSymbol.EffectiveReturnType = returnType;
+                            methodSymbol.DeclaredType = returnType;
+                        }
 
                         // Register parameters.
                         if (methodDecl.Parameters is not null)
@@ -12138,7 +12208,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
         if (methodSymbol is not null)
         {
-            methodSymbol.DeclaredType = returnType;
+            // Detect async modifier and wrap return type in Task<T>.
+            var isAsync = methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode);
+            if (isAsync)
+            {
+                methodSymbol.IsAsync = true;
+                methodSymbol.DeclaredReturnType = returnType;
+
+                // Construct Task<T> as the effective return type.
+                // For void return type, construct Task<Void>.
+                var effectiveReturnType = ConstructTaskType(returnType, fileScope, symbolTable);
+                methodSymbol.EffectiveReturnType = effectiveReturnType;
+                methodSymbol.DeclaredType = effectiveReturnType;
+            }
+            else
+            {
+                methodSymbol.DeclaredReturnType = returnType;
+                methodSymbol.EffectiveReturnType = returnType;
+                methodSymbol.DeclaredType = returnType;
+            }
 
             // When the parser sees "public owned Foo Method(...)", it may parse "owned"
             // as a modifier (OwnedModifier) rather than as the returnOwnership specifier.
@@ -12212,7 +12300,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Resolve the body. A no-body (;) form is accepted by the grammar but
         // has no statements to resolve.
         if (methodDecl.Body.GetBlock() is BlockNode methodBlock)
-            ResolveBlock(methodBlock, methodScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        {
+            // Track async context: if this method has the async modifier,
+            // expressions inside its body are in an async context (no auto-unwrap).
+            var previousAsyncContext = _isInAsyncContext;
+            _isInAsyncContext = methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode);
+
+            // Initialize live task tracking for this method body.
+            var previousLiveTaskScopes = _liveTaskScopes;
+            var previousLiveTaskCounter = _liveTaskCounter;
+            _liveTaskScopes = new Stack<List<LiveTaskInfo>>();
+            _liveTaskCounter = 0;
+
+            try
+            {
+                ResolveBlock(methodBlock, methodScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            }
+            finally
+            {
+                _liveTaskScopes = previousLiveTaskScopes;
+                _liveTaskCounter = previousLiveTaskCounter;
+                _isInAsyncContext = previousAsyncContext;
+            }
+        }
     }
 
     /// <summary>
@@ -12711,9 +12821,33 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var blockScope = new Scope(parent: parentScope);
 
+        // Push a new live task scope for this block.
+        _liveTaskScopes?.Push(new List<LiveTaskInfo>());
+
         foreach (var stmt in block.Statements)
         {
             ResolveStatement(stmt, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        }
+
+        // Pop the live task scope and record un-consumed tasks.
+        if (_liveTaskScopes is not null && _liveTaskScopes.Count > 0)
+        {
+            var scopeTasks = _liveTaskScopes.Pop();
+
+            // Filter to only tasks that were not explicitly awaited or returned.
+            var liveTasks = new List<LiveTaskInfo>();
+            foreach (var task in scopeTasks)
+            {
+                if (!task.IsExplicitlyAwaited && !task.IsReturned)
+                {
+                    liveTasks.Add(task);
+                }
+            }
+
+            if (liveTasks.Count > 0 && _liveTaskResult is not null)
+            {
+                _liveTaskResult[block] = liveTasks;
+            }
         }
     }
 
@@ -12738,6 +12872,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (returnStmt.ReturnStatement.Value is not null)
                 {
                     var returnValueType = ResolveExpression(returnStmt.ReturnStatement.Value, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                    // Mark returned tasks as consumed (Requirement 7.1):
+                    // If the return value is a Task<T> variable, mark it as returned
+                    // so it's excluded from scope-exit await.
+                    if (IsStandardTaskType(returnValueType))
+                    {
+                        MarkTaskAsReturned(returnStmt.ReturnStatement.Value, symbolTable);
+                    }
 
                     // Top-level statements: return expressions must be integer types (exit codes).
                     // enclosingType is null only in TLS mode (passed as null! from Pass2_ResolveTypes).
@@ -12766,8 +12908,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 ResolveForeachStatement(foreachStmt.ForeachStatement, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
             case ExpressionStatementStatementNode exprStmt:
-                ResolveExpression(exprStmt.ExpressionStatement.Expression, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            {
+                var exprType = ResolveExpression(exprStmt.ExpressionStatement.Expression, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                // Track discarded tasks in async contexts (Requirement 6.1):
+                // When an async method is invoked and the result is not assigned
+                // or awaited, track it as a live task for scope-exit await.
+                if (_isInAsyncContext
+                    && _liveTaskScopes is not null
+                    && _liveTaskScopes.Count > 0
+                    && IsStandardTaskType(exprType)
+                    && IsDiscardedAsyncInvocation(exprStmt.ExpressionStatement.Expression))
+                {
+                    var varName = $"__task_{_liveTaskCounter++}";
+                    var taskInfo = new LiveTaskInfo(varName, exprType, exprStmt.ExpressionStatement.Expression);
+                    _liveTaskScopes.Peek().Add(taskInfo);
+                }
                 break;
+            }
             case BreakStatementStatementNode:
                 // No type resolution needed.
                 break;
@@ -12931,6 +13089,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 blockScope.AddMember(varSymbol);
                 symbolTable.Register(varSymbol, varDecl);
+
+                // Track Task<T> locals for scope-exit await (Requirements 6.4, 7.4):
+                // In an async context, if a variable is assigned the result of an async
+                // method call (Task<T>), track it as a live task. In a sync context,
+                // if a variable is assigned a Task<T> from the async functor, track it.
+                if (_liveTaskScopes is not null
+                    && _liveTaskScopes.Count > 0
+                    && IsStandardTaskType(declaredType))
+                {
+                    var taskInfo = new LiveTaskInfo(typed.Name.Lexeme, declaredType, varDecl);
+                    _liveTaskScopes.Peek().Add(taskInfo);
+                }
                 break;
             }
             case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
@@ -12960,6 +13130,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 blockScope.AddMember(varSymbol);
                 symbolTable.Register(varSymbol, varDecl);
+
+                // Track Task<T> locals for scope-exit await (Requirements 6.4, 7.4):
+                // In an async context, if a variable is assigned the result of an async
+                // method call (Task<T>), track it as a live task. In a sync context,
+                // if a variable is assigned a Task<T> from the async functor, track it.
+                if (_liveTaskScopes is not null
+                    && _liveTaskScopes.Count > 0
+                    && IsStandardTaskType(initType))
+                {
+                    var taskInfo = new LiveTaskInfo(inferred.Name.Lexeme, initType, varDecl);
+                    _liveTaskScopes.Peek().Add(taskInfo);
+                }
                 break;
             }
             case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
@@ -14682,9 +14864,229 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         return LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.Type");
     }
 
+    /// <summary>
+    /// Constructs a <c>Task&lt;T&gt;</c> type by looking up the stdlib <c>Standard.Task</c>
+    /// generic class and wrapping the given <paramref name="innerType"/> as its type argument.
+    /// For <c>void</c> return types, the inner type is <c>Standard.Void</c> (producing
+    /// <c>Task&lt;Void&gt;</c>). If the stdlib is not loaded (e.g., in unit tests), returns
+    /// the <paramref name="innerType"/> unchanged as a graceful fallback.
+    /// </summary>
+    internal static IType ConstructTaskType(IType innerType, Scope fileScope, SymbolTable symbolTable)
+    {
+        var globalScope = FindGlobalScope(fileScope) ?? fileScope;
+        try
+        {
+            var taskClass = LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.Task");
+            return new ConstructedType(taskClass, new[] { innerType });
+        }
+        catch (StdlibMissingException)
+        {
+            // Stdlib not loaded (unit tests with minimal AST) — fall back gracefully.
+            return innerType;
+        }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the given type is a <c>Standard.Task&lt;T&gt;</c>
+    /// constructed type (the Mist concurrency primitive).
+    /// </summary>
+    internal static bool IsStandardTaskType(IType type)
+    {
+        return type is ConstructedType ct
+            && ct.GenericDefinition is ClassType { DisplayName: "Task", ContainingNamespace: "Standard", IsBackendBacked: true };
+    }
+
+    /// <summary>
+    /// Unwraps a <c>Task&lt;T&gt;</c> type to its inner type argument <c>T</c>.
+    /// Returns the type unchanged if it is not a <c>Task&lt;T&gt;</c>.
+    /// </summary>
+    internal static IType UnwrapTaskType(IType type)
+    {
+        if (type is ConstructedType ct
+            && ct.GenericDefinition is ClassType { DisplayName: "Task", ContainingNamespace: "Standard", IsBackendBacked: true }
+            && ct.TypeArguments.Count > 0)
+        {
+            return ct.TypeArguments[0];
+        }
+        return type;
+    }
+
     // (Task 49: PopulatePrimitiveTypeRegistry has been deleted along with
     // PrimitiveTypeRegistry. Stdlib types are resolved directly via
     // ResolvePrimitiveKeyword in Pass 2.)
+
+    // ── Live task tracking helpers ───────────────────────────────────────
+
+    /// <summary>
+    /// Determines whether an expression statement represents a discarded async
+    /// invocation — i.e., a method call whose result (Task&lt;T&gt;) is not
+    /// assigned to a variable or explicitly awaited.
+    /// </summary>
+    private static bool IsDiscardedAsyncInvocation(ExpressionNode expr)
+    {
+        // Walk through the expression wrapper to the underlying unary node.
+        // A discarded invocation is an expression statement where the expression is
+        // a method call (postfix with invocation suffix) or an async functor expression.
+        var assignment = expr.Assignment;
+        if (assignment.Value is not null)
+            return false; // It's an assignment, not a discarded expression.
+
+        var logicalOr = assignment.Target;
+        if (logicalOr.Right is not null)
+            return false;
+
+        var logicalAnd = logicalOr.Left;
+        if (logicalAnd.Right is not null)
+            return false;
+
+        var equality = logicalAnd.Left;
+        if (equality.Right is not null)
+            return false;
+
+        var relational = equality.Left;
+        if (relational is not RelationalComparisonRelationalNode relComp)
+            return false;
+        if (relComp.Right is not null)
+            return false;
+
+        var additive = relComp.Left;
+        if (additive.Right is not null)
+            return false;
+
+        var multiplicative = additive.Left;
+        if (multiplicative.Right is not null)
+            return false;
+
+        var unary = multiplicative.Left;
+
+        // Check if it's an async functor expression.
+        if (unary is AsyncExpressionUnaryNode)
+            return true;
+
+        // Check if it's a postfix expression ending in an invocation.
+        if (unary is PostfixExpressionUnaryNode postfix)
+        {
+            var suffixes = postfix.Primary.Suffix;
+            if (suffixes.Length > 0 && suffixes[^1] is InvocationSuffixPostfixSuffixNode)
+                return true;
+
+            // Also check for method call suffix (obj.Method()).
+            if (suffixes.Length > 0 && suffixes[^1] is MethodCallSuffixPostfixSuffixNode)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Marks a live task as explicitly awaited by searching the current scope's
+    /// live task list for a task whose variable name matches the awaited operand.
+    /// </summary>
+    private static void MarkTaskAsAwaited(UnaryNode operand, SymbolTable symbolTable)
+    {
+        if (_liveTaskScopes is null || _liveTaskScopes.Count == 0)
+            return;
+
+        var varName = ExtractVariableNameFromUnary(operand);
+        if (varName is null)
+            return;
+
+        // Search all scope levels (innermost first) for a matching live task.
+        foreach (var scopeTasks in _liveTaskScopes)
+        {
+            foreach (var task in scopeTasks)
+            {
+                if (task.GeneratedVariableName == varName && !task.IsExplicitlyAwaited)
+                {
+                    task.IsExplicitlyAwaited = true;
+                    return;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Marks a live task as returned by searching the current scope's live task
+    /// list for a task whose variable name matches the returned expression.
+    /// </summary>
+    private static void MarkTaskAsReturned(ExpressionNode returnValue, SymbolTable symbolTable)
+    {
+        if (_liveTaskScopes is null || _liveTaskScopes.Count == 0)
+            return;
+
+        var varName = ExtractVariableNameFromExpression(returnValue);
+        if (varName is null)
+            return;
+
+        // Search all scope levels (innermost first) for a matching live task.
+        foreach (var scopeTasks in _liveTaskScopes)
+        {
+            foreach (var task in scopeTasks)
+            {
+                if (task.GeneratedVariableName == varName && !task.IsReturned)
+                {
+                    task.IsReturned = true;
+                    return;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extracts the variable name from a unary expression node, if it's a simple
+    /// identifier reference (e.g., <c>await myTask</c> → "myTask").
+    /// </summary>
+    private static string? ExtractVariableNameFromUnary(UnaryNode node)
+    {
+        if (node is PostfixExpressionUnaryNode postfix
+            && postfix.Primary.Suffix.Length == 0
+            && postfix.Primary.Target is IdentifierExpressionPrimaryNode identifier)
+        {
+            return identifier.Name.Lexeme;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Extracts the variable name from an expression node, if it's a simple
+    /// identifier reference (e.g., <c>return myTask</c> → "myTask").
+    /// </summary>
+    private static string? ExtractVariableNameFromExpression(ExpressionNode expr)
+    {
+        // Walk through the expression wrapper layers to find a simple identifier.
+        var assignment = expr.Assignment;
+        if (assignment.Value is not null)
+            return null;
+
+        var logicalOr = assignment.Target;
+        if (logicalOr.Right is not null)
+            return null;
+
+        var logicalAnd = logicalOr.Left;
+        if (logicalAnd.Right is not null)
+            return null;
+
+        var equality = logicalAnd.Left;
+        if (equality.Right is not null)
+            return null;
+
+        var relational = equality.Left;
+        if (relational is not RelationalComparisonRelationalNode relComp)
+            return null;
+        if (relComp.Right is not null)
+            return null;
+
+        var additive = relComp.Left;
+        if (additive.Right is not null)
+            return null;
+
+        var multiplicative = additive.Left;
+        if (multiplicative.Right is not null)
+            return null;
+
+        var unary = multiplicative.Left;
+        return ExtractVariableNameFromUnary(unary);
+    }
 
     /// <summary>
     /// Resolves a named type by searching the scope chain and imported namespaces.
@@ -16153,6 +16555,40 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 expressionTypes[node] = type;
                 return type;
             }
+            case AsyncExpressionUnaryNode asyncExpr:
+            {
+                // Resolve the operand expression (should be a method invocation).
+                var operandType = ResolveUnary(asyncExpr.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                // Wrap the operand's type in Task<T>.
+                var taskType = ConstructTaskType(operandType, fileScope, symbolTable);
+                expressionTypes[node] = taskType;
+                return taskType;
+            }
+            case AwaitExpressionUnaryNode awaitExpr:
+            {
+                // Resolve the operand expression (should be of type Task<T>).
+                var operandType = ResolveUnary(awaitExpr.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                // If the operand is Task<T>, unwrap to T. Otherwise, return UnknownType
+                // (the diagnostic for non-Task operands is added in task 8.5).
+                if (operandType is ConstructedType ct && IsStandardTaskType(ct))
+                {
+                    var innerType = ct.TypeArguments[0];
+                    expressionTypes[node] = innerType;
+
+                    // Mark the awaited task as consumed (Requirement 6.3):
+                    // If the operand is a variable reference to a tracked live task,
+                    // mark it as explicitly awaited so it's excluded from scope-exit await.
+                    MarkTaskAsAwaited(awaitExpr.Operand, symbolTable);
+
+                    return innerType;
+                }
+
+                var unknownResult = UnknownType.Instance;
+                expressionTypes[node] = unknownResult;
+                return unknownResult;
+            }
             default:
                 expressionTypes[node] = ErrorType.Instance;
                 return ErrorType.Instance;
@@ -16213,6 +16649,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach (var suffix in node.Suffix)
         {
             targetType = ResolvePostfixSuffix(suffix, targetType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        }
+
+        // Auto-unwrap for direct invocations of async methods in sync contexts.
+        // When the last suffix is an InvocationSuffix (e.g., AsyncMethod()), and
+        // the target identifier resolves to an async method, unwrap Task<T> to T.
+        if (!_isInAsyncContext
+            && node.Suffix.Length > 0
+            && node.Suffix[^1] is InvocationSuffixPostfixSuffixNode
+            && IsStandardTaskType(targetType))
+        {
+            // Look up the symbol for the target identifier to check IsAsync.
+            var targetSymbol = symbolTable.GetDeclaredSymbol(node.Target);
+            if (targetSymbol is Symbol { IsAsync: true })
+            {
+                targetType = UnwrapTaskType(targetType);
+                expressionTypes[node.Suffix[^1]] = targetType;
+            }
         }
 
         expressionTypes[node] = targetType;
@@ -16322,6 +16775,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (methodCall.Arguments is not null)
                 {
                     ResolveArgumentList(methodCall.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                }
+
+                // Auto-unwrap: in a sync context, if the invoked method is async,
+                // unwrap Task<T> to T so the caller sees the inner type.
+                if (!_isInAsyncContext && memberType is not ErrorType)
+                {
+                    var methodSym = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                    if (methodSym is Symbol { IsAsync: true } && IsStandardTaskType(memberType))
+                    {
+                        memberType = UnwrapTaskType(memberType);
+                    }
                 }
 
                 // The result type is the return type of the method (stored as DeclaredType on the member symbol).
@@ -16848,6 +17312,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     else if (!isStatic && enclosingType is ClassType enclosingClass)
                     {
                         IType? inheritedMemberType = null;
+                        ISymbol? inheritedSymbol = null;
                         var ancestor = enclosingClass.BaseType as ClassType;
                         while (ancestor is not null)
                         {
@@ -16856,6 +17321,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 if (m.Name == name)
                                 {
                                     inheritedMemberType = m.DeclaredType ?? ErrorType.Instance;
+                                    inheritedSymbol = m;
                                     break;
                                 }
                             }
@@ -16867,6 +17333,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         if (inheritedMemberType is not null)
                         {
                             result = inheritedMemberType;
+
+                            // Register usage site so downstream analysis (e.g., auto-unwrap
+                            // for async methods) can resolve the symbol from the identifier node.
+                            if (inheritedSymbol is not null && inheritedSymbol.Kind is SymbolKind.Method)
+                            {
+                                symbolTable.RegisterUsageSite(identifier, inheritedSymbol);
+                            }
                         }
                         else
                         {

@@ -41,6 +41,7 @@ internal static class CSharpTypeMap
         ["Standard.Console"] = "System.Console",
         ["Standard.Math"] = "System.Math",
         ["Standard.Convert"] = "System.Convert",
+        ["Standard.Task"] = "System.Threading.Tasks.Task",
 
         // ── Legacy Mist-primitive keyword lexemes (test compat) ──────────
         // Kept so that tests that build a semantic model without loading
@@ -201,6 +202,14 @@ internal static class CSharpTypeMap
         TupleType t => EmitTupleTypeName(t, isValueContext),
         TypeParameterType tp => tp.Name,
 
+        // Standard.Task<T> — maps to System.Threading.Tasks.Task<T> or non-generic Task.
+        // Task<Void> where value is not used → "Task" (non-generic).
+        // Task<Void> where value is used (isValueContext) → "Task<MistVoid>".
+        // Task<T> where T is not Void → "Task<T>".
+        // For the initial implementation, always emit Task<T> (ValueTask optimization comes later).
+        ConstructedType ctTask when IsStandardTask(ctTask)
+            => EmitTaskTypeName(ctTask, isValueContext),
+
         // Closed_Generic_With_Unknown (Task 31 revised) — a constructed type
         // whose type arguments transitively contain UnknownType lowers to C#
         // `dynamic`. See the XML remarks above for the rationale.
@@ -252,6 +261,44 @@ internal static class CSharpTypeMap
             }
         }
         return $"{GetTypeName(ct.GenericDefinition, isValueContext)}<{string.Join(", ", argParts)}>";
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the <see cref="ConstructedType"/>'s generic definition
+    /// is the <c>Standard.Task</c> class (the Mist concurrency primitive).
+    /// </summary>
+    private static bool IsStandardTask(ConstructedType ct)
+    {
+        return ct.GenericDefinition is ClassType { DisplayName: "Task", ContainingNamespace: "Standard", IsBackendBacked: true };
+    }
+
+    /// <summary>
+    /// Emits the C# type name for a <c>Standard.Task&lt;T&gt;</c> constructed type.
+    /// <list type="bullet">
+    ///   <item><c>Task&lt;Void&gt;</c> (value not used) → <c>Task</c> (non-generic)</item>
+    ///   <item><c>Task&lt;Void&gt;</c> (value used / isValueContext) → <c>Task&lt;MistVoid&gt;</c></item>
+    ///   <item><c>Task&lt;T&gt;</c> where T is not Void → <c>Task&lt;{GetTypeName(T)}&gt;</c></item>
+    /// </list>
+    /// For the initial implementation, always emits <c>Task&lt;T&gt;</c> (the ValueTask
+    /// optimization is deferred to task 12.6).
+    /// </summary>
+    private static string EmitTaskTypeName(ConstructedType ct, bool isValueContext)
+    {
+        var innerType = ct.TypeArguments[0];
+
+        if (innerType.IsVoid())
+        {
+            // Task<Void> where value is used → Task<MistVoid>
+            if (isValueContext)
+                return "System.Threading.Tasks.Task<MistVoid>";
+
+            // Task<Void> where value is not used → non-generic Task
+            return "System.Threading.Tasks.Task";
+        }
+
+        // Task<T> where T is not Void → Task<T>
+        var innerTypeName = GetTypeName(innerType, isValueContext: true);
+        return $"System.Threading.Tasks.Task<{innerTypeName}>";
     }
 
     /// <summary>

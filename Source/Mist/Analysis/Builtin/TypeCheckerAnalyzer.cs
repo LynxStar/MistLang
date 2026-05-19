@@ -583,6 +583,66 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId EnumUnionConstituentNotReadonly = new("MIST_TC_0103");
 
+    // ── structured-concurrency feature: modifier incompatibility ─────────
+    //
+    // Note on numbering: the structured-concurrency design document's
+    // Diagnostic ID Allocation table proposed MIST_TC_0070 for this
+    // diagnostic. That code was already allocated to the type-unions feature
+    // (see UnionNonConstituentAssignment above), so the async+intrinsic
+    // diagnostic was reallocated to MIST_TC_0104 — the next free code after
+    // the enum diagnostics (MIST_TC_0102, 0103). This continues the same
+    // reallocation strategy used throughout this file.
+
+    /// <summary>
+    /// Emitted when a method declaration has both the <c>async</c> and
+    /// <c>intrinsic</c> modifiers. An intrinsic method is backend-backed
+    /// and cannot be async (Requirement 2.4).
+    /// </summary>
+    internal static readonly DiagnosticId AsyncIntrinsicIncompatible = new("MIST_TC_0104");
+
+    /// <summary>
+    /// Emitted when the <c>await</c> functor is applied to an expression
+    /// whose type is not <c>Task&lt;T&gt;</c>. The diagnostic message
+    /// includes the actual type of the operand (Requirement 4.3).
+    /// </summary>
+    internal static readonly DiagnosticId AwaitNonTaskOperand = new("MIST_TC_0105");
+
+    /// <summary>
+    /// Emitted when an <c>async</c> method explicitly declares <c>Task&lt;T&gt;</c>
+    /// as its return type. The compiler wraps the return type automatically, so
+    /// the developer must not write <c>Task&lt;T&gt;</c> explicitly (Requirement 2.6).
+    /// </summary>
+    internal static readonly DiagnosticId AsyncExplicitTaskReturnType = new("MIST_TC_0106");
+
+    /// <summary>
+    /// Emitted when the <c>async</c> modifier is applied to a constructor
+    /// or operator declaration. Constructors and operators cannot be async
+    /// (Requirement 2.5).
+    /// </summary>
+    internal static readonly DiagnosticId AsyncOnConstructorOrOperator = new("MIST_TC_0108");
+
+    /// <summary>
+    /// Emitted when the <c>async</c> functor is applied to an expression
+    /// that is not a method invocation. The async functor requires a method
+    /// invocation operand (Requirement 3.7).
+    /// </summary>
+    internal static readonly DiagnosticId AsyncFunctorNonInvocationOperand = new("MIST_TC_0107");
+
+    /// <summary>
+    /// Emitted as a warning when the <c>async</c> functor is applied to an
+    /// async method in an async context, producing <c>Task&lt;Task&lt;T&gt;&gt;</c>.
+    /// This is technically valid but almost certainly unintended (Requirement 3.6).
+    /// </summary>
+    internal static readonly DiagnosticId AsyncFunctorDoubleWrap = new("MIST_TC_0109");
+
+    /// <summary>
+    /// Emitted when a <c>Task&lt;T&gt;</c> value is stored in a field, property,
+    /// or collection (array element type). Storing tasks in these locations would
+    /// allow them to escape their structured scope, violating structured concurrency
+    /// (Requirement 7.5).
+    /// </summary>
+    internal static readonly DiagnosticId TaskStorageRestriction = new("MIST_TC_0110");
+
     // ── enums feature: assignability diagnostic ──────────────────────────
 
     /// <summary>
@@ -1119,6 +1179,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── Cast operator declarations ───────────────────────────────────
         if (declaringNode is CastOperatorDeclarationNode castOpDecl)
         {
+            // ── MIST_TC_0108: async on operator (Requirement 2.5) ──
+            foreach (var mod in castOpDecl.Modifiers)
+            {
+                if (mod is AsyncModifierModifierNode)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0108",
+                        "The 'async' modifier is not valid on operators",
+                        declaringNode,
+                        model));
+                    break;
+                }
+            }
+
             var returnType = methodSymbol.DeclaredType ?? ErrorType.Instance;
             _currentEnclosingType = FindDeclaringType(methodSymbol);
             _currentMethodSymbol = methodSymbol;
@@ -1137,10 +1211,88 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
+        // ── Regular operator declarations ────────────────────────────────
+        if (declaringNode is OperatorDeclarationNode opDecl)
+        {
+            // ── MIST_TC_0108: async on operator (Requirement 2.5) ──
+            foreach (var mod in opDecl.Modifiers)
+            {
+                if (mod is AsyncModifierModifierNode)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0108",
+                        "The 'async' modifier is not valid on operators",
+                        declaringNode,
+                        model));
+                    break;
+                }
+            }
+
+            var returnType3 = methodSymbol.DeclaredType ?? ErrorType.Instance;
+            _currentEnclosingType = FindDeclaringType(methodSymbol);
+            _currentMethodSymbol = methodSymbol;
+            _insideConstructor = false;
+            _insidePropertyAccessor = false;
+
+            if (opDecl.Body.GetBlock() is BlockNode opBlock)
+            {
+                CollectClosureCapturedVariables(opBlock);
+                CheckRefLambdaCaptureProhibition(opBlock, model, diagnostics);
+                CheckBlock(opBlock, returnType3, model, diagnostics);
+            }
+            return;
+        }
+
         if (declaringNode is not MethodDeclarationNode methodDecl)
             return;
 
-        var returnType2 = methodSymbol.DeclaredType ?? ErrorType.Instance;
+        // ── MIST_TC_0104: async + intrinsic incompatibility (Requirement 2.4) ──
+        // Note on numbering: the structured-concurrency design document's Diagnostic
+        // ID Allocation table proposed MIST_TC_0070 for this diagnostic. That code
+        // was already allocated to the type-unions feature (see
+        // UnionNonConstituentAssignment above), so the async+intrinsic diagnostic
+        // was reallocated to MIST_TC_0104 — the next free code after the enum
+        // diagnostics (MIST_TC_0102, 0103). This continues the same reallocation
+        // strategy used throughout this file.
+        var hasAsync = false;
+        var hasIntrinsic = false;
+        foreach (var mod in methodDecl.Modifiers)
+        {
+            if (mod is AsyncModifierModifierNode)
+                hasAsync = true;
+            else if (mod is IntrinsicModifierModifierNode)
+                hasIntrinsic = true;
+        }
+
+        if (hasAsync && hasIntrinsic)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0104",
+                $"Method '{methodSymbol.Name}' cannot be both 'async' and 'intrinsic'",
+                declaringNode,
+                model));
+        }
+
+        // ── MIST_TC_0106: async method explicitly declares Task<T> return type (Requirement 2.6) ──
+        // When a method has the `async` modifier, the compiler wraps the return type
+        // in Task<T> automatically. If the developer also writes Task<T> explicitly,
+        // that's an error — it would result in double-wrapping (Task<Task<T>>).
+        if (hasAsync && methodSymbol is Symbol { DeclaredReturnType: { } declaredReturn }
+            && SemanticModelBuilder.IsStandardTaskType(declaredReturn))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0106",
+                $"Async method '{methodSymbol.Name}' must not explicitly declare 'Task<T>' as its return type; the compiler wraps the return type automatically",
+                declaringNode,
+                model));
+        }
+
+        // For async methods, use DeclaredReturnType (the unwrapped type T) for
+        // return statement checking, since the developer writes `return T` not
+        // `return Task<T>`. The compiler wraps the return type automatically.
+        var returnType2 = (methodSymbol is Symbol { IsAsync: true, DeclaredReturnType: { } asyncDeclaredReturn }
+            ? asyncDeclaredReturn
+            : methodSymbol.DeclaredType) ?? ErrorType.Instance;
         _currentEnclosingType = FindDeclaringType(methodSymbol);
         _currentMethodSymbol = methodSymbol;
         _insideConstructor = false;
@@ -1755,6 +1907,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (declaringNode is not ConstructorDeclarationNode ctorDecl)
             return;
 
+        // ── MIST_TC_0108: async on constructor (Requirement 2.5) ──
+        foreach (var mod in ctorDecl.Modifiers)
+        {
+            if (mod is AsyncModifierModifierNode)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0108",
+                    "The 'async' modifier is not valid on constructors",
+                    declaringNode,
+                    model));
+                break;
+            }
+        }
+
         _currentEnclosingType = FindDeclaringType(ctorSymbol);
         _insideConstructor = true;
         _insidePropertyAccessor = false;
@@ -1786,6 +1952,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if (declaringNode is not FieldDeclarationNode fieldDecl)
             return;
+
+        // ── MIST_TC_0110: Task<T> storage restriction (Requirement 7.5) ──
+        // Task<T> cannot be stored in a field — it would allow the task to escape
+        // its structured scope.
+        var fieldType = fieldSymbol.DeclaredType;
+        if (fieldType is not null && IsTaskStorageViolation(fieldType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0110",
+                "Cannot store 'Task<T>' in a field; tasks must be awaited or returned to maintain structured concurrency",
+                declaringNode,
+                model));
+        }
 
         // Field initializers: the grammar stores the initializer as part of the
         // field declaration. The semantic model builder resolves the field type.
@@ -1821,6 +2000,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         var propInfo = GetPropertyMetadata(propertySymbol);
         var propType = propertySymbol.DeclaredType ?? ErrorType.Instance;
+
+        // ── MIST_TC_0110: Task<T> storage restriction (Requirement 7.5) ──
+        // Task<T> cannot be stored in a property — it would allow the task to escape
+        // its structured scope.
+        if (IsTaskStorageViolation(propType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0110",
+                "Cannot store 'Task<T>' in a property; tasks must be awaited or returned to maintain structured concurrency",
+                declaringNode,
+                model));
+        }
 
         switch (declaringNode)
         {
@@ -6542,7 +6733,216 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CheckUnaryNode(castExpr.Operand, model, diagnostics);
                 CheckCastExpression(castExpr, model, diagnostics);
                 break;
+            case AsyncExpressionUnaryNode asyncExpr:
+                CheckUnaryNode(asyncExpr.Operand, model, diagnostics);
+                CheckAsyncFunctorOperand(asyncExpr, model, diagnostics);
+                CheckAsyncFunctorDoubleWrap(asyncExpr, model, diagnostics);
+                break;
+            case AwaitExpressionUnaryNode awaitExpr:
+                CheckUnaryNode(awaitExpr.Operand, model, diagnostics);
+                CheckAwaitOperandType(awaitExpr, model, diagnostics);
+                break;
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Async functor operand validation (MIST_TC_0107)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates that the operand of an <c>async</c> functor expression is a
+    /// method invocation. The operand must be a <see cref="PostfixExpressionUnaryNode"/>
+    /// whose <see cref="PostfixNode"/> has an <see cref="InvocationSuffixPostfixSuffixNode"/>
+    /// or <see cref="MethodCallSuffixPostfixSuffixNode"/> as its last suffix.
+    /// If not, emits <c>MIST_TC_0107</c> (Requirement 3.7).
+    /// Suppresses the diagnostic when the operand type is
+    /// <see cref="UnknownType"/> or <see cref="ErrorType"/> (indicating
+    /// a prior error that already produced a diagnostic).
+    /// </summary>
+    private static void CheckAsyncFunctorOperand(
+        AsyncExpressionUnaryNode asyncExpr,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var operand = asyncExpr.Operand;
+
+        // If the operand resolved to an error type, suppress cascading diagnostics.
+        var operandType = model.GetTypeOf(operand);
+        if (operandType is UnknownType || IsErrorType(operandType ?? ErrorType.Instance))
+            return;
+
+        // A valid operand is a PostfixExpressionUnaryNode whose PostfixNode ends
+        // with an invocation suffix (direct call) or method call suffix (dot call).
+        if (operand is PostfixExpressionUnaryNode postfixExpr)
+        {
+            var postfix = postfixExpr.Primary;
+            if (postfix.Suffix.Length > 0)
+            {
+                var lastSuffix = postfix.Suffix[^1];
+                if (lastSuffix is InvocationSuffixPostfixSuffixNode or MethodCallSuffixPostfixSuffixNode)
+                    return;
+            }
+        }
+
+        var expressionKind = DescribeUnaryExpressionKind(operand);
+        diagnostics.Add(MakeDiagnostic(
+            AsyncFunctorNonInvocationOperand.Value,
+            $"The 'async' functor requires a method invocation operand, but got {expressionKind}",
+            asyncExpr,
+            model));
+    }
+
+    /// <summary>
+    /// Returns a human-readable description of the expression kind for use in
+    /// the <c>MIST_TC_0107</c> diagnostic message.
+    /// </summary>
+    private static string DescribeUnaryExpressionKind(UnaryNode operand)
+    {
+        switch (operand)
+        {
+            case PostfixExpressionUnaryNode postfixExpr:
+            {
+                var postfix = postfixExpr.Primary;
+                if (postfix.Suffix.Length == 0)
+                {
+                    return postfix.Target switch
+                    {
+                        IdentifierExpressionPrimaryNode => "a variable reference",
+                        IntegerLiteralExpressionPrimaryNode => "a literal",
+                        FloatLiteralExpressionPrimaryNode => "a literal",
+                        StringLiteralExpressionPrimaryNode => "a literal",
+                        TrueLiteralExpressionPrimaryNode => "a literal",
+                        FalseLiteralExpressionPrimaryNode => "a literal",
+                        CharLiteralExpressionPrimaryNode => "a literal",
+                        ThisExpressionPrimaryNode => "a 'this' expression",
+                        _ => "an expression"
+                    };
+                }
+
+                var lastSuffix = postfix.Suffix[^1];
+                return lastSuffix switch
+                {
+                    MemberAccessSuffixPostfixSuffixNode => "a property access",
+                    IndexSuffixPostfixSuffixNode => "an index access",
+                    SwitchExpressionSuffixPostfixSuffixNode => "a switch expression",
+                    _ => "an expression"
+                };
+            }
+            case CastExpressionUnaryNode:
+                return "a cast expression";
+            case LogicalNotUnaryNode:
+                return "a logical not expression";
+            case NegateUnaryNode:
+                return "a negation expression";
+            case AwaitExpressionUnaryNode:
+                return "an await expression";
+            case AsyncExpressionUnaryNode:
+                return "an async expression";
+            default:
+                return "an expression";
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Async functor double-wrap warning (MIST_TC_0109)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Emits a warning when the <c>async</c> functor is applied to an async
+    /// method in an async context, producing <c>Task&lt;Task&lt;T&gt;&gt;</c>.
+    /// This is technically valid but almost certainly unintended
+    /// (Requirement 3.6).
+    /// Suppresses the warning when the operand type is
+    /// <see cref="UnknownType"/> or <see cref="ErrorType"/> (indicating
+    /// a prior error that already produced a diagnostic), or when the
+    /// enclosing method is not async.
+    /// </summary>
+    private void CheckAsyncFunctorDoubleWrap(
+        AsyncExpressionUnaryNode asyncExpr,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Only relevant in an async context.
+        if (_currentMethodSymbol is not Symbol { IsAsync: true })
+            return;
+
+        // Suppress if the operand resolved to an error type.
+        var operandType = model.GetTypeOf(asyncExpr.Operand);
+        if (operandType is null || operandType is UnknownType || IsErrorType(operandType))
+            return;
+
+        // In an async context, if the operand (a method invocation) already has
+        // type Task<T>, it means the target method is async. The async functor
+        // will wrap it again to Task<Task<T>> — the double-wrap condition.
+        if (!SemanticModelBuilder.IsStandardTaskType(operandType))
+            return;
+
+        diagnostics.Add(MakeDiagnosticWarning(
+            AsyncFunctorDoubleWrap.Value,
+            "Applying 'async' functor to an async method in an async context produces 'Task<Task<T>>' \u2014 this is likely unintended",
+            asyncExpr,
+            model));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Await operand type validation (MIST_TC_0105)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates that the operand of an <c>await</c> expression has type
+    /// <c>Task&lt;T&gt;</c>. If the operand type is not a
+    /// <see cref="ConstructedType"/> whose generic definition is
+    /// <c>Standard.Task</c>, emits <c>MIST_TC_0105</c> including the
+    /// actual type in the message (Requirement 4.3).
+    /// Suppresses the diagnostic when the operand type is
+    /// <see cref="UnknownType"/> or <see cref="ErrorType"/> (indicating
+    /// a prior error that already produced a diagnostic).
+    /// </summary>
+    private static void CheckAwaitOperandType(
+        AwaitExpressionUnaryNode awaitExpr,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var operandType = model.GetTypeOf(awaitExpr.Operand);
+        if (operandType is null || operandType is UnknownType || IsErrorType(operandType))
+            return;
+
+        if (SemanticModelBuilder.IsStandardTaskType(operandType))
+            return;
+
+        diagnostics.Add(MakeDiagnostic(
+            AwaitNonTaskOperand.Value,
+            $"The 'await' functor requires an operand of type 'Task<T>', but got '{operandType.DisplayName}'",
+            awaitExpr,
+            model));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Task<T> storage restriction (MIST_TC_0110)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Returns <c>true</c> when the given type represents a storage violation
+    /// for <c>Task&lt;T&gt;</c>: either the type itself is <c>Task&lt;T&gt;</c>,
+    /// or it is an array whose element type is <c>Task&lt;T&gt;</c>.
+    /// Task&lt;T&gt; cannot be stored in fields, properties, or collections
+    /// because it would allow the task to escape its structured scope
+    /// (Requirement 7.5).
+    /// </summary>
+    private static bool IsTaskStorageViolation(IType type)
+    {
+        if (IsErrorType(type))
+            return false;
+
+        // Direct Task<T> type
+        if (SemanticModelBuilder.IsStandardTaskType(type))
+            return true;
+
+        // Array with Task<T> element type (collection)
+        if (type is ArrayType arrayType && SemanticModelBuilder.IsStandardTaskType(arrayType.ElementType))
+            return true;
+
+        return false;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

@@ -1,0 +1,27 @@
+using Standard;
+
+async int Compute()
+{
+    return 42;
+}
+
+public class BadExample
+{
+    // ERROR: Task<T> cannot be stored in a field
+    // Task<int> cachedTask;
+
+    // ERROR: Task<T> cannot be stored in a collection
+    // List<Task<int>> taskList;
+}
+
+// OK: Task<T> can be returned (ownership transfers to caller)
+async void Caller()
+{
+    var task = GetTask();
+    var result = await task;
+}
+
+Task<int> GetTask()
+{
+    return async Compute();
+}

@@ -1,0 +1,22 @@
+using Standard;
+
+public class DataService
+{
+    // The compiler wraps the return type: int becomes Task<int>
+    async int FetchCount()
+    {
+        return 42;
+    }
+
+    // void becomes Task<Void> (aliased as Task)
+    async void LogMessage(string message)
+    {
+        Console.WriteLine(message);
+    }
+
+    // Valid on static methods too
+    public static async string GetName()
+    {
+        return "Mist";
+    }
+}

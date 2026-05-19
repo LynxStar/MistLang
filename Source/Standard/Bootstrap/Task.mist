@@ -1,0 +1,11 @@
+namespace Standard;
+
+intrinsic public class Task<TResult>
+{
+    intrinsic public static Task Yield();
+    intrinsic public static Task Delay(Int32 milliseconds);
+    intrinsic public static Task<TResult[]> WhenAll(Task<TResult>[] tasks);
+    intrinsic public static Task<TResult> WhenAny(Task<TResult>[] tasks);
+}
+
+type Task = Task<void>;

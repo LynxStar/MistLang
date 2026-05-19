@@ -1070,4 +1070,38 @@ Done!
 [Multiple global usings] LOG: Product(Widget, $42)
 [Second instances] INFO: Product(Gadget, $99)
 === GlobalUsings Done ===
+=== Structured Concurrency Sample ===
+[task-type-reference]
+  Task<int> obtained, type is Task
+[async-method-declaration]
+  ComputeAsync() auto-awaited=7
+[await-in-async]
+  awaited result=7
+[multi-await]
+  first=7 second=7 same=True
+[discarded-sync-implicit-await]
+  sync-discard: logged
+  implicit await completed
+[discarded-async-scope-exit]
+  task-a: logged
+  task-b: logged
+  scope-exit will await both tasks
+[async-functor-sync]
+  async ComputeSync() produced Task, awaiting...
+[async-functor-async]
+  async ComputeAsync() captured Task (no auto-await)
+[await-unwrap]
+  unwrapped value=fetched
+[sequential-sync]
+  seq: step=1
+  seq: step=2
+  seq: step=3
+  sequential results: 1, 2, 3
+[concurrent-async]
+  concurrent-a: step=1
+  concurrent-b: step=2
+  tasks scheduled concurrently
+[entry-point-async]
+  entry point called async method, result=fetched
+=== Structured Concurrency Done ===
 === Done! ===

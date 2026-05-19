@@ -532,10 +532,10 @@ public class Program {
 
             // Skip types whose static methods are emitted via CSharpTypeMap
             // name resolution rather than IntrinsicEmissionTable templates.
-            // Console, Math, and Convert map 1:1 to their CLR equivalents
+            // Console, Math, Convert, and Task map 1:1 to their CLR equivalents
             // and the emitter resolves them through TryGetMappedName in
             // EmitPrimary — no template needed (design: Approach B).
-            if (declaringType is "Standard.Console" or "Standard.Math" or "Standard.Convert")
+            if (declaringType is "Standard.Console" or "Standard.Math" or "Standard.Convert" or "Standard.Task")
                 continue;
 
             var name = intrinsicSymbol.Name;

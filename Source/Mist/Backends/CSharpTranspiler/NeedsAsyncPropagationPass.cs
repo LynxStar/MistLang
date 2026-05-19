@@ -1,0 +1,355 @@
+using Mist.Generated;
+using Mist.Semantics.Contracts;
+using Mist.Semantics.Model;
+using Mist.Semantics.Model.Types;
+
+namespace Mist.Backends.CSharpTranspiler;
+
+/// <summary>
+/// Computes which Mist methods require the C# <c>async</c> keyword in emitted code.
+///
+/// In C#, <c>await</c> can only appear inside an <c>async</c> method. But in Mist,
+/// a sync method can call async methods (with auto-unwrap) or use explicit <c>await</c>.
+/// This pass determines which methods need the C# <c>async</c> annotation by:
+///
+/// <list type="number">
+///   <item>Seeding: methods declared <c>async</c> in Mist.</item>
+///   <item>Seeding: sync methods that directly invoke async methods (triggering auto-unwrap).</item>
+///   <item>Seeding: sync methods that use explicit <c>await</c>.</item>
+///   <item>Propagating transitively: if method A needs C# async, then any sync method
+///         that calls A also needs C# async (because A's C# signature returns Task&lt;T&gt;).</item>
+/// </list>
+///
+/// The propagation is computed as a fixed-point over the call graph.
+/// Results are stored on each method symbol's <see cref="Symbol.NeedsCSharpAsync"/> property.
+/// </summary>
+internal static class NeedsAsyncPropagationPass
+{
+    /// <summary>
+    /// Runs the needs-async propagation pass over the semantic model.
+    /// After this method returns, every method symbol that requires the C#
+    /// <c>async</c> keyword will have <see cref="Symbol.NeedsCSharpAsync"/> set to <c>true</c>.
+    /// </summary>
+    public static void Run(ISemanticModel model)
+    {
+        // Step 1: Collect all method symbols and their declaring AST nodes.
+        var methodSymbols = new List<Symbol>();
+        var symbolToNode = new Dictionary<Symbol, Storm.Runtime.SyntaxNode>();
+
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol is not Symbol sym)
+                continue;
+            if (sym.Kind != SymbolKind.Method)
+                continue;
+
+            Storm.Runtime.SyntaxNode? declaringNode;
+            try { declaringNode = model.GetDeclaringNode(sym); }
+            catch { continue; }
+
+            if (declaringNode is null)
+                continue;
+
+            methodSymbols.Add(sym);
+            symbolToNode[sym] = declaringNode;
+        }
+
+        // Step 2: Seed — mark methods that directly need C# async.
+        // Also build a call graph: for each method, record which other method symbols it calls.
+        var callerToCallees = new Dictionary<Symbol, HashSet<Symbol>>();
+
+        foreach (var method in methodSymbols)
+        {
+            // Seed rule 1: methods declared async in Mist always need C# async.
+            if (method.IsAsync)
+            {
+                method.NeedsCSharpAsync = true;
+            }
+
+            var declaringNode = symbolToNode[method];
+            var block = GetMethodBodyBlock(declaringNode);
+            if (block is null)
+                continue;
+
+            // Walk the method body to find await expressions, async method calls,
+            // and all method invocations (for the call graph).
+            var callees = new HashSet<Symbol>();
+            var needsAsync = method.NeedsCSharpAsync;
+
+            WalkMethodBody(block, model, method, ref needsAsync, callees);
+
+            method.NeedsCSharpAsync = needsAsync;
+            if (callees.Count > 0)
+            {
+                callerToCallees[method] = callees;
+            }
+        }
+
+        // Step 3: Build reverse call graph (callee → callers).
+        var calleeToCallers = new Dictionary<Symbol, List<Symbol>>();
+        foreach (var (caller, callees) in callerToCallees)
+        {
+            foreach (var callee in callees)
+            {
+                if (!calleeToCallers.TryGetValue(callee, out var callers))
+                {
+                    callers = new List<Symbol>();
+                    calleeToCallers[callee] = callers;
+                }
+                callers.Add(caller);
+            }
+        }
+
+        // Step 4: Fixed-point propagation.
+        // If a callee needs C# async, then any caller that invokes it (and is not
+        // already marked) also needs C# async — because the callee's C# return type
+        // is now Task<T>, requiring await at the call site in the emitted C#.
+        var worklist = new Queue<Symbol>();
+        foreach (var method in methodSymbols)
+        {
+            if (method.NeedsCSharpAsync)
+            {
+                worklist.Enqueue(method);
+            }
+        }
+
+        while (worklist.Count > 0)
+        {
+            var callee = worklist.Dequeue();
+
+            if (!calleeToCallers.TryGetValue(callee, out var callers))
+                continue;
+
+            foreach (var caller in callers)
+            {
+                if (caller.NeedsCSharpAsync)
+                    continue;
+
+                // The caller invokes a method that needs C# async.
+                // The caller will need to emit `await` for that call, so it
+                // also needs C# async.
+                caller.NeedsCSharpAsync = true;
+                worklist.Enqueue(caller);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extracts the body block from a method declaration AST node.
+    /// Returns null for bodyless methods (intrinsic, interface, trait signatures).
+    /// </summary>
+    private static BlockNode? GetMethodBodyBlock(Storm.Runtime.SyntaxNode declaringNode)
+    {
+        return declaringNode switch
+        {
+            MethodDeclarationNode methodDecl => methodDecl.Body.GetBlock(),
+            ConstructorDeclarationNode ctorDecl => ctorDecl.Body.GetBlock(),
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Walks a method body AST looking for:
+    /// <list type="bullet">
+    ///   <item><c>AwaitExpressionUnaryNode</c> — the method uses explicit await (seed rule 3).</item>
+    ///   <item>Direct invocations of async methods in sync context (seed rule 2).</item>
+    ///   <item>All method invocations — recorded in <paramref name="callees"/> for the call graph.</item>
+    /// </list>
+    /// </summary>
+    private static void WalkMethodBody(
+        Storm.Runtime.SyntaxNode node,
+        ISemanticModel model,
+        Symbol enclosingMethod,
+        ref bool needsAsync,
+        HashSet<Symbol> callees)
+    {
+        switch (node)
+        {
+            case AwaitExpressionUnaryNode awaitExpr:
+                // Seed rule 3: explicit await requires C# async on the enclosing method.
+                needsAsync = true;
+                // Walk the operand to collect any nested callees.
+                WalkMethodBody(awaitExpr.Operand, model, enclosingMethod, ref needsAsync, callees);
+                return;
+
+            case PostfixExpressionUnaryNode postfixExpr:
+                // Delegate to the postfix node handler.
+                WalkPostfixNode(postfixExpr.Primary, model, enclosingMethod, ref needsAsync, callees);
+                return;
+
+            case PostfixNode postfix:
+                WalkPostfixNode(postfix, model, enclosingMethod, ref needsAsync, callees);
+                return;
+        }
+
+        // Default: walk all children.
+        foreach (var child in node.Children())
+        {
+            if (child is null)
+                continue;
+            WalkMethodBody(child, model, enclosingMethod, ref needsAsync, callees);
+        }
+    }
+
+    /// <summary>
+    /// Handles a <see cref="PostfixNode"/> which represents expressions like
+    /// <c>foo()</c> or <c>obj.Method()</c>. Resolves the target symbol for
+    /// direct invocations and member method calls.
+    /// </summary>
+    private static void WalkPostfixNode(
+        PostfixNode postfix,
+        ISemanticModel model,
+        Symbol enclosingMethod,
+        ref bool needsAsync,
+        HashSet<Symbol> callees)
+    {
+        // Check for direct invocation: identifier(args)
+        // The target identifier has a registered symbol via RegisterUsageSite.
+        if (postfix.Suffix.Length > 0 && postfix.Suffix[^1] is InvocationSuffixPostfixSuffixNode)
+        {
+            var targetSymbol = model.GetDeclaredSymbol(postfix.Target);
+            if (targetSymbol is Symbol { Kind: SymbolKind.Method } calleeSym)
+            {
+                callees.Add(calleeSym);
+
+                // Seed rule 2: sync method directly invoking an async method
+                // triggers auto-unwrap, which requires await in emitted C#.
+                if (!enclosingMethod.IsAsync && calleeSym.IsAsync)
+                {
+                    needsAsync = true;
+                }
+            }
+        }
+
+        // Check for member method calls in the suffix chain: obj.Method(args)
+        foreach (var suffix in postfix.Suffix)
+        {
+            if (suffix is MethodCallSuffixPostfixSuffixNode methodCall)
+            {
+                // Try to resolve the callee symbol from the suffix node.
+                // The semantic model may have registered it via GetDeclaredSymbol
+                // if the builder stored it, or we can look it up by name from
+                // the receiver type.
+                var calleeSym = TryResolveMethodCallSymbol(methodCall, postfix, model);
+                if (calleeSym is not null)
+                {
+                    callees.Add(calleeSym);
+
+                    // Seed rule 2: sync method calling an async method.
+                    if (!enclosingMethod.IsAsync && calleeSym.IsAsync)
+                    {
+                        needsAsync = true;
+                    }
+                }
+
+                // Walk arguments for nested invocations.
+                if (methodCall.Arguments is not null)
+                {
+                    WalkMethodBody(methodCall.Arguments, model, enclosingMethod, ref needsAsync, callees);
+                }
+            }
+            else if (suffix is InvocationSuffixPostfixSuffixNode invocation)
+            {
+                // Walk arguments for nested invocations.
+                if (invocation.Arguments is not null)
+                {
+                    WalkMethodBody(invocation.Arguments, model, enclosingMethod, ref needsAsync, callees);
+                }
+            }
+            else
+            {
+                // Walk other suffix types for nested expressions.
+                WalkMethodBody(suffix, model, enclosingMethod, ref needsAsync, callees);
+            }
+        }
+
+        // Walk the target primary expression for nested invocations.
+        WalkMethodBody(postfix.Target, model, enclosingMethod, ref needsAsync, callees);
+    }
+
+    /// <summary>
+    /// Attempts to resolve the method symbol for a member method call suffix.
+    /// Uses the semantic model's type information to find the method on the receiver type.
+    /// </summary>
+    private static Symbol? TryResolveMethodCallSymbol(
+        MethodCallSuffixPostfixSuffixNode methodCall,
+        PostfixNode postfix,
+        ISemanticModel model)
+    {
+        // Strategy: look up the receiver type from the expression type of the
+        // preceding suffix or target, then find the method by name in that type's scope.
+        var memberName = methodCall.Name.Lexeme;
+
+        // Determine the receiver type. The receiver is the type of the expression
+        // before this suffix in the chain.
+        IType? receiverType = null;
+
+        // Find the index of this method call in the suffix array.
+        var suffixIndex = -1;
+        for (var i = 0; i < postfix.Suffix.Length; i++)
+        {
+            if (ReferenceEquals(postfix.Suffix[i], methodCall))
+            {
+                suffixIndex = i;
+                break;
+            }
+        }
+
+        if (suffixIndex == 0)
+        {
+            // The receiver is the target primary expression.
+            receiverType = model.GetTypeOf(postfix.Target);
+        }
+        else if (suffixIndex > 0)
+        {
+            // The receiver is the result of the previous suffix.
+            receiverType = model.GetTypeOf(postfix.Suffix[suffixIndex - 1]);
+        }
+
+        if (receiverType is null)
+            return null;
+
+        // Look up the method by name in the receiver type's member scope.
+        return FindMethodInType(receiverType, memberName);
+    }
+
+    /// <summary>
+    /// Finds a method symbol by name in a type's member scope.
+    /// </summary>
+    private static Symbol? FindMethodInType(IType type, string methodName)
+    {
+        var scope = GetMemberScope(type);
+        if (scope is null)
+            return null;
+
+        var found = scope.Lookup(methodName);
+        if (found is Symbol sym && sym.Kind == SymbolKind.Method)
+        {
+            return sym;
+        }
+
+        // Check base type for classes.
+        if (type is ClassType classType && classType.BaseType is not null)
+        {
+            return FindMethodInType(classType.BaseType, methodName);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the member scope for a type, handling constructed types by
+    /// looking at their generic definition.
+    /// </summary>
+    private static IScope? GetMemberScope(IType type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            InterfaceType it => it.MemberScope,
+            ConstructedType constructed => GetMemberScope(constructed.GenericDefinition),
+            _ => null,
+        };
+    }
+}

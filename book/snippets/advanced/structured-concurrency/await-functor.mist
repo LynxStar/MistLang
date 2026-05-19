@@ -1,0 +1,16 @@
+using Standard;
+
+async int ComputeValue()
+{
+    return 42;
+}
+
+async void Main()
+{
+    var task = ComputeValue();   // task: Task<int>
+
+    // Suspend until the task completes, unwrap to int
+    var result = await task;     // result: int
+
+    Console.WriteLine(result);   // 42
+}

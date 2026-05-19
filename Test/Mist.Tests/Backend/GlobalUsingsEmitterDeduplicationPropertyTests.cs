@@ -59,26 +59,28 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
     // ─── Generators ─────────────────────────────────────────────────────
 
     /// <summary>
-    /// Generates a valid namespace segment: starts with [a-zA-Z_], followed by [a-zA-Z0-9_]*.
+    /// A fixed pool of namespace segments that are guaranteed to NOT collide with
+    /// any Mist keyword (if, else, for, int, bool, class, async, await, etc.).
+    /// Using a fixed pool eliminates flakiness from random generation hitting keywords.
     /// </summary>
-    private static Gen<string> GenSegment()
-    {
-        var startChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_".ToCharArray();
-        var tailChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_".ToCharArray();
-
-        return Gen.Elements(startChars).SelectMany(first =>
-            Gen.Choose(1, 5).SelectMany(tailLen =>
-                Gen.ArrayOf(Gen.Elements(tailChars), tailLen)
-                    .Select(tail => first + new string(tail))));
-    }
+    private static readonly string[] SafeSegments =
+    [
+        "Alpha", "Bravo", "Charlie", "Delta", "Echo",
+        "Foxtrot", "Golf", "Hotel", "India", "Juliet",
+        "Kilo", "Lima", "Mike", "November", "Oscar",
+        "Papa", "Quebec", "Romeo", "Sierra", "Tango",
+        "Uniform", "Victor", "Whiskey", "Xray", "Yankee", "Zulu",
+        "Mercury", "Venus", "Earth", "Mars", "Jupiter",
+        "Saturn", "Uranus", "Neptune", "Pluto", "Ceres",
+    ];
 
     /// <summary>
-    /// Generates a valid namespace: 1-3 dot-separated segments.
+    /// Generates a valid namespace: 1-3 dot-separated segments from the safe pool.
     /// </summary>
     private static Gen<string> GenNamespace()
     {
         return Gen.Choose(1, 3).SelectMany(segCount =>
-            Gen.ArrayOf(GenSegment(), segCount)
+            Gen.ArrayOf(Gen.Elements(SafeSegments), segCount)
                 .Select(segs => string.Join(".", segs)));
     }
 

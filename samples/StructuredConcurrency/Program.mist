@@ -1,0 +1,196 @@
+// StructuredConcurrency — Demonstrates structured concurrency features in Mist.
+//
+// This sample showcases:
+//   1. Task type references (Task<T> as return type)
+//   2. Async method declaration (async modifier wraps return in Task<T>)
+//   3. Await in async context (explicit await to unwrap Task<T>)
+//   4. Multi-await on same task (each await returns same result)
+//   5. Discarded tasks in sync context (implicit await)
+//   6. Discarded tasks in async context (scope-exit await)
+//   7. Async functor on sync methods (lifts into Task<T>)
+//   8. Async functor on async methods (cancels auto-unwrap)
+//   9. Await functor unwrapping (await Task<T> → T)
+//  10. Sequential ordering in sync context
+//  11. Concurrent ordering in async context
+//  12. Entry point async support
+
+using Standard;
+
+namespace StructuredConcurrency;
+
+// ─── Helper methods ──────────────────────────────────────────────────────────
+
+public class Helpers
+{
+    // A sync method that returns an int — used for async functor demos
+    public static int ComputeSync()
+    {
+        return 42;
+    }
+
+    // A sync method that returns a string
+    public static string GreetSync()
+    {
+        return "hello";
+    }
+
+    // An async method returning int — compiler wraps to Task<int>
+    public static async int ComputeAsync()
+    {
+        return 7;
+    }
+
+    // An async method returning string
+    public static async string FetchAsync()
+    {
+        return "fetched";
+    }
+
+    // An async void method — compiler wraps to Task<void> (Task)
+    public static async void LogAsync(string label)
+    {
+        Console.WriteLine($"  {label}: logged");
+    }
+
+    // A non-async method that returns Task<int> explicitly via async functor
+    public static Task<int> GetTaskExplicit()
+    {
+        return async Helpers.ComputeSync();
+    }
+
+    // Demonstrates sequential ordering — prints step numbers
+    public static async int Step(string label, int value)
+    {
+        Console.WriteLine($"  {label}: step={value}");
+        return value;
+    }
+}
+
+// ─── Async context demonstrations ────────────────────────────────────────────
+
+public class AsyncDemos
+{
+    // Demonstrates await in async context
+    public static async void DemoAwaitInAsync()
+    {
+        Console.WriteLine("[await-in-async]");
+        var task = Helpers.ComputeAsync();
+        var result = await task;
+        Console.WriteLine($"  awaited result={result}");
+    }
+
+    // Demonstrates multi-await on same task
+    public static async void DemoMultiAwait()
+    {
+        Console.WriteLine("[multi-await]");
+        var task = Helpers.ComputeAsync();
+        var first = await task;
+        var second = await task;
+        Console.WriteLine($"  first={first} second={second} same={first == second}");
+    }
+
+    // Demonstrates discarded tasks in async context (scope-exit await)
+    public static async void DemoDiscardedAsyncScopeExit()
+    {
+        Console.WriteLine("[discarded-async-scope-exit]");
+        // These discarded tasks are awaited at scope exit
+        Helpers.LogAsync("task-a");
+        Helpers.LogAsync("task-b");
+        Console.WriteLine("  scope-exit will await both tasks");
+    }
+
+    // Demonstrates concurrent ordering in async context
+    public static async void DemoConcurrentAsync()
+    {
+        Console.WriteLine("[concurrent-async]");
+        // In async context, these tasks are scheduled concurrently
+        // and awaited at scope exit
+        Helpers.Step("concurrent-a", 1);
+        Helpers.Step("concurrent-b", 2);
+        Console.WriteLine("  tasks scheduled concurrently");
+    }
+
+    // Demonstrates await functor unwrapping in async context
+    public static async void DemoAwaitUnwrap()
+    {
+        Console.WriteLine("[await-unwrap]");
+        var task = Helpers.FetchAsync();
+        // await unwraps Task<string> to string
+        var value = await task;
+        Console.WriteLine($"  unwrapped value={value}");
+    }
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Program.RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Structured Concurrency Sample ===");
+
+        // 1. Task type references — using Task<T> as an explicit return type
+        Console.WriteLine("[task-type-reference]");
+        var taskRef = Helpers.GetTaskExplicit();
+        Console.WriteLine($"  Task<int> obtained, type is Task");
+
+        // 2. Async method declaration — async modifier wraps return type
+        Console.WriteLine("[async-method-declaration]");
+        // In sync context, calling an async method auto-awaits the result
+        var computed = Helpers.ComputeAsync();
+        Console.WriteLine($"  ComputeAsync() auto-awaited={computed}");
+
+        // 3. Await in async context — demonstrated via async helper
+        AsyncDemos.DemoAwaitInAsync();
+
+        // 4. Multi-await on same task
+        AsyncDemos.DemoMultiAwait();
+
+        // 5. Discarded tasks in sync context (implicit await)
+        Console.WriteLine("[discarded-sync-implicit-await]");
+        // In sync context, discarded async calls are implicitly awaited
+        Helpers.LogAsync("sync-discard");
+        Console.WriteLine("  implicit await completed");
+
+        // 6. Discarded tasks in async context (scope-exit await)
+        AsyncDemos.DemoDiscardedAsyncScopeExit();
+
+        // 7. Async functor on sync methods — lifts sync call into Task<T>
+        Console.WriteLine("[async-functor-sync]");
+        var syncTask = async Helpers.ComputeSync();
+        Console.WriteLine($"  async ComputeSync() produced Task, awaiting...");
+
+        // 8. Async functor on async methods — cancels auto-unwrap in sync context
+        Console.WriteLine("[async-functor-async]");
+        var asyncTask = async Helpers.ComputeAsync();
+        Console.WriteLine($"  async ComputeAsync() captured Task (no auto-await)");
+
+        // 9. Await functor unwrapping
+        AsyncDemos.DemoAwaitUnwrap();
+
+        // 10. Sequential ordering in sync context
+        Console.WriteLine("[sequential-sync]");
+        // In sync context, each async call is auto-awaited before the next
+        var s1 = Helpers.Step("seq", 1);
+        var s2 = Helpers.Step("seq", 2);
+        var s3 = Helpers.Step("seq", 3);
+        Console.WriteLine($"  sequential results: {s1}, {s2}, {s3}");
+
+        // 11. Concurrent ordering in async context
+        AsyncDemos.DemoConcurrentAsync();
+
+        // 12. Entry point async support
+        Console.WriteLine("[entry-point-async]");
+        // This Main method is sync but can call async methods transitively.
+        // The compiler emits async Task Main in C# to support this.
+        var entryResult = Helpers.FetchAsync();
+        Console.WriteLine($"  entry point called async method, result={entryResult}");
+
+        Console.WriteLine("=== Structured Concurrency Done ===");
+    }
+}

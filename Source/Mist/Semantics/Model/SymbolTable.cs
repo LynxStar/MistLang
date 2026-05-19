@@ -109,6 +109,60 @@ public sealed class Symbol : ISymbol
     /// reference. Defaults to <see cref="Model.RefKind.None"/> (standard return-by-value).
     /// </summary>
     public RefKind ReturnRefKind { get; internal set; } = RefKind.None;
+
+    /// <summary>
+    /// Indicates whether the method was declared with the <c>async</c> modifier.
+    /// When true, the method's <see cref="DeclaredReturnType"/> records what the
+    /// developer wrote (T) and <see cref="EffectiveReturnType"/> records the
+    /// compiler-constructed <c>Task&lt;T&gt;</c>. Defaults to <c>false</c>.
+    /// </summary>
+    public bool IsAsync { get; internal set; }
+
+    /// <summary>
+    /// Indicates whether this async method should emit <c>ValueTask&lt;T&gt;</c>
+    /// instead of <c>Task&lt;T&gt;</c> in the generated C#. This is computed by
+    /// <c>ValueTaskUsageAnalysisPass</c> in the C# transpiler backend.
+    /// <para>
+    /// A method qualifies for <c>ValueTask&lt;T&gt;</c> when its returned task is
+    /// awaited at most once and is never assigned to a multi-read variable,
+    /// passed as a method argument, or returned from the enclosing method.
+    /// </para>
+    /// Defaults to <c>false</c> (conservative: emit <c>Task&lt;T&gt;</c>).
+    /// </summary>
+    public bool UseValueTask { get; internal set; }
+
+    /// <summary>
+    /// Indicates whether this method requires the C# <c>async</c> keyword in
+    /// emitted code. This is computed by the needs-async propagation pass and
+    /// is true when:
+    /// <list type="bullet">
+    ///   <item>The method is declared <c>async</c> in Mist.</item>
+    ///   <item>The method (sync in Mist) directly invokes an async method,
+    ///         triggering auto-unwrap which requires <c>await</c> in C#.</item>
+    ///   <item>The method uses an explicit <c>await</c> expression.</item>
+    ///   <item>The method calls another method that needs C# <c>async</c>
+    ///         (transitive propagation over the call graph).</item>
+    /// </list>
+    /// Defaults to <c>false</c>. Set by
+    /// <c>NeedsAsyncPropagationPass</c> in the C# transpiler backend.
+    /// </summary>
+    public bool NeedsCSharpAsync { get; internal set; }
+
+    /// <summary>
+    /// The return type as written by the developer (T, not Task&lt;T&gt;).
+    /// For async methods this differs from <see cref="DeclaredType"/> which
+    /// stores the effective return type (Task&lt;T&gt;). For non-async methods
+    /// this is the same as <see cref="DeclaredType"/>. Null for non-method symbols.
+    /// </summary>
+    public IType? DeclaredReturnType { get; internal set; }
+
+    /// <summary>
+    /// The effective return type visible to callers. For async methods this is
+    /// <c>Task&lt;T&gt;</c> (a <see cref="Types.ConstructedType"/> whose generic
+    /// definition is the stdlib <c>Task</c> class). For non-async methods this
+    /// is the same as <see cref="DeclaredType"/>. Null for non-method symbols.
+    /// </summary>
+    public IType? EffectiveReturnType { get; internal set; }
 }
 
 /// <summary>

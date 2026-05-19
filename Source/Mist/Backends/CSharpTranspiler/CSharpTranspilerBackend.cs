@@ -23,6 +23,10 @@ public sealed class CSharpTranspilerBackend : IBackend
 
         try
         {
+            // Step 0: Run the needs-async propagation pass to determine which
+            // methods require the C# `async` keyword in emitted code.
+            NeedsAsyncPropagationPass.Run(model);
+
             // Step 1: Emit C# source files
             CSharpEmitter.Emit(model, outputDirectory, projectName, bag);
 
@@ -114,8 +118,19 @@ public sealed class CSharpTranspilerBackend : IBackend
             if (!methodDecl.Modifiers.Any(m => m is StaticModifierModifierNode))
                 continue;
 
-            // Must return void.
-            if (methodDecl.ReturnType is not VoidTypeRefTypeReferenceNode)
+            // Valid entry point return types:
+            // - void (standard or async entry point)
+            // - int with async modifier (exit code entry point, Requirement 11.4)
+            var isVoidReturn = methodDecl.ReturnType is VoidTypeRefTypeReferenceNode;
+            var isIntReturn = methodDecl.ReturnType is PrimitiveTypeRefTypeReferenceNode primitiveRef
+                && primitiveRef.PrimitiveType is IntTypePrimitiveTypeNode
+                && primitiveRef.ArrayRank is null;
+
+            if (!isVoidReturn && !isIntReturn)
+                continue;
+
+            // int return type is only valid with the async modifier.
+            if (isIntReturn && !methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode))
                 continue;
 
             // Determine if this is from a referenced project or the root project.

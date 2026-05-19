@@ -16,6 +16,7 @@ public sealed class SemanticModel : ISemanticModel
     private Dictionary<Storm.Runtime.SyntaxNode, ISymbol> _resolvedOperators;
     private Dictionary<ISymbol, RefinementPredicate> _parameterRefinements;
     private HashSet<ISymbol> _guardNeededParameters;
+    private Dictionary<Storm.Runtime.SyntaxNode, List<LiveTaskInfo>> _liveTasksByScope;
 
     internal SemanticModel(
         MistCompilation compilation,
@@ -26,7 +27,8 @@ public sealed class SemanticModel : ISemanticModel
         Dictionary<Storm.Runtime.SyntaxNode, IType>? expressionTypes = null,
         TraitSatisfactionMap? traitSatisfactionMap = null,
         ExtensionRegistry? extensionRegistry = null,
-        Dictionary<ISymbol, RefinementPredicate>? parameterRefinements = null)
+        Dictionary<ISymbol, RefinementPredicate>? parameterRefinements = null,
+        Dictionary<Storm.Runtime.SyntaxNode, List<LiveTaskInfo>>? liveTasksByScope = null)
     {
         Compilation = compilation;
         Units = units;
@@ -37,6 +39,7 @@ public sealed class SemanticModel : ISemanticModel
         _resolvedOperators = new Dictionary<Storm.Runtime.SyntaxNode, ISymbol>();
         _parameterRefinements = parameterRefinements ?? new Dictionary<ISymbol, RefinementPredicate>();
         _guardNeededParameters = new HashSet<ISymbol>();
+        _liveTasksByScope = liveTasksByScope ?? new Dictionary<Storm.Runtime.SyntaxNode, List<LiveTaskInfo>>();
         TraitSatisfactionMap = traitSatisfactionMap ?? new TraitSatisfactionMap();
         ExtensionRegistry = extensionRegistry ?? new ExtensionRegistry();
     }
@@ -122,4 +125,21 @@ public sealed class SemanticModel : ISemanticModel
         return _parameterRefinements.ContainsKey(parameterSymbol)
             && !_guardNeededParameters.Contains(parameterSymbol);
     }
+
+    /// <summary>
+    /// Returns the list of live (un-awaited, un-returned) tasks for the given
+    /// block scope node, or an empty list if no live tasks were recorded.
+    /// The emitter uses this to generate scope-exit await code.
+    /// </summary>
+    public IReadOnlyList<LiveTaskInfo> GetLiveTasks(Storm.Runtime.SyntaxNode blockScopeNode)
+    {
+        return _liveTasksByScope.TryGetValue(blockScopeNode, out var tasks)
+            ? tasks
+            : Array.Empty<LiveTaskInfo>();
+    }
+
+    /// <summary>
+    /// Returns all block scope nodes that have live tasks recorded.
+    /// </summary>
+    internal IReadOnlyDictionary<Storm.Runtime.SyntaxNode, List<LiveTaskInfo>> LiveTasksByScope => _liveTasksByScope;
 }

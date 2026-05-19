@@ -1,0 +1,21 @@
+using Standard;
+
+async string FetchData()
+{
+    return "data";
+}
+
+async void SendNotification()
+{
+    Console.WriteLine("Notification sent");
+}
+
+// This is an async context — tasks are not auto-awaited
+async void ProcessAll()
+{
+    FetchData();          // discarded task — awaited at scope exit
+    SendNotification();   // discarded task — awaited at scope exit
+
+    Console.WriteLine("Processing...");
+    // Both tasks are implicitly awaited here when the scope exits
+}

@@ -289,6 +289,7 @@ rule Modifier
     | INTRINSIC as IntrinsicModifier
     | READONLY  as ReadonlyModifier
     | OWNED     as OwnedModifier
+    | ASYNC     as AsyncModifier
     ;
 
 // ─── Parser Rules — Ownership Specifiers ─────────────────────────────────────
@@ -569,6 +570,8 @@ rule Multiplicative = left:Unary (operator:(STAR | SLASH | MODULO) right:Unary)*
 
 rule Unary
     = LEFT_PARENTHESIS targetType:TypeReference RIGHT_PARENTHESIS operand:Unary  as CastExpression
+    | ASYNC operand:Unary                                                         as AsyncExpression
+    | AWAIT operand:Unary                                                         as AwaitExpression
     | EXCLAMATION operand:Unary    as LogicalNot
     | MINUS operand:Unary          as Negate
     | primary:Postfix              as PostfixExpression

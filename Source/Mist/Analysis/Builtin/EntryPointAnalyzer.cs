@@ -199,8 +199,19 @@ public sealed class EntryPointAnalyzer : IAnalyzer
             if (!methodDecl.Modifiers.Any(m => m is StaticModifierModifierNode))
                 continue;
 
-            // Must return void.
-            if (methodDecl.ReturnType is not VoidTypeRefTypeReferenceNode)
+            // Valid entry point return types:
+            // - void (standard entry point)
+            // - int (exit code entry point, requires async modifier per Requirement 11.4)
+            var isVoidReturn = methodDecl.ReturnType is VoidTypeRefTypeReferenceNode;
+            var isIntReturn = methodDecl.ReturnType is PrimitiveTypeRefTypeReferenceNode primitiveRef
+                && primitiveRef.PrimitiveType is IntTypePrimitiveTypeNode
+                && primitiveRef.ArrayRank is null;
+
+            if (!isVoidReturn && !isIntReturn)
+                continue;
+
+            // int return type is only valid with the async modifier (Requirement 11.4).
+            if (isIntReturn && !methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode))
                 continue;
 
             // Must have either no parameters or a single string[] parameter.

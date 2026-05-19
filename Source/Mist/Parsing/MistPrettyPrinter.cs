@@ -1925,6 +1925,10 @@ public sealed class MistPrettyPrinter
     {
         switch (unary)
         {
+            case AsyncExpressionUnaryNode asyncExpr:
+                return $"async {EmitUnary(asyncExpr.Operand)}";
+            case AwaitExpressionUnaryNode awaitExpr:
+                return $"await {EmitUnary(awaitExpr.Operand)}";
             case CastExpressionUnaryNode castExpr:
                 return $"({EmitTypeReference(castExpr.TargetType)}){EmitUnary(castExpr.Operand)}";
             case LogicalNotUnaryNode logicalNot:
@@ -2164,6 +2168,9 @@ public sealed class MistPrettyPrinter
                     break;
                 case OwnedModifierModifierNode:
                     parts.Add("owned");
+                    break;
+                case AsyncModifierModifierNode:
+                    parts.Add("async");
                     break;
             }
         }

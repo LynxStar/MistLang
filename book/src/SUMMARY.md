@@ -55,6 +55,7 @@
 - [The Unknown Type](advanced/unknown-type.md)
 - [Default Keyword](advanced/default-keyword.md)
 - [Nested Scoping](advanced/nested-scoping.md)
+- [Structured Concurrency](advanced/structured-concurrency.md)
 
 # Standard Library
 

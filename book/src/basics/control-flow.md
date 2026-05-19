@@ -76,6 +76,8 @@ The `foreach` loop iterates over each element in a collection. You declare the e
 
 The loop variable is scoped to the `foreach` block and takes on the value of each element in sequence.
 
+> **Note:** The Mist compiler does not currently verify that the collection expression is actually enumerable. The `foreach` statement is emitted directly to the backend, which performs its own enumeration resolution. With the C# backend, this means the collection must satisfy C#'s foreach requirements (implement `IEnumerable<T>`, or have a duck-typed `GetEnumerator()` method). If the expression is not enumerable, you will get a backend compilation error rather than a Mist compiler error.
+
 ## Break
 
 The `break` statement exits the innermost enclosing loop immediately. Execution continues with the first statement after the loop.

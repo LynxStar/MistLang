@@ -194,7 +194,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | `if` / `else if` / `else` | ✅ | |
 | `while` | ✅ | |
 | `for` | ✅ | With initializer, condition, iterator |
-| `foreach` / `in` | ✅ | |
+| `foreach` / `in` | 🔲 | Emitted directly — not enforced by Mist compiler |
 | `break` | ✅ | |
 | `return` (with/without value) | ✅ | |
 | `do...while` | 🔲 | |

@@ -23,6 +23,7 @@ The primitive type keywords in Mist are reserved aliases that always resolve to 
 | `char` | `Standard.Char` |
 | `string` | `Standard.String` |
 | `regex` | `Standard.Regex` |
+| `void` | `Standard.Void` |
 
 These are not normal type aliases that participate in name resolution — they are hard-wired by the compiler. Writing `int x = 5;` is identical to writing `Standard.Int32 x = 5;`, and no user code can change what `int` means.
 

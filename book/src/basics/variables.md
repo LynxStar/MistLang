@@ -1,6 +1,6 @@
 # Variables
 
-Variables in Mist store values that you can use and modify throughout your program. Mist provides explicit type annotations for clarity, `var` for type inference when the type is obvious from context, and tuple deconstruction for unpacking multiple values in a single declaration.
+Variables in Mist store values that you can use and modify throughout your program. Mist provides explicit type annotations for clarity and `var` for type inference when the type is obvious from context.
 
 ## Explicit Type Annotations
 
@@ -39,46 +39,6 @@ When the type is clear from the initializer expression, you can use `var` to let
 {{#endtabs }}
 
 The inferred type is determined at compile time — `message` is a `string`, `total` is an `int`, and `origin` is a `Point`. Using `var` reduces repetition without sacrificing type safety.
-
-## Tuple Deconstruction
-
-When a tuple is assigned to multiple variables at once, Mist supports deconstruction syntax. This unpacks each element of the tuple into its own named variable in a single statement.
-
-### The `var` Form
-
-Use `var (name1, name2) = tupleExpr;` to deconstruct a tuple with inferred types for each element:
-
-{{#tabs }}
-{{#tab name="Mist" }}
-```mist
-{{#include ../../snippets/basics/variables/deconstruction-var.mist}}
-```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-{{#include ../../snippets/basics/variables/deconstruction-var.cs}}
-```
-{{#endtab }}
-{{#endtabs }}
-
-### The Typed Form
-
-Use `(Type1 name1, Type2 name2) = tupleExpr;` to deconstruct with explicit types on each element:
-
-{{#tabs }}
-{{#tab name="Mist" }}
-```mist
-{{#include ../../snippets/basics/variables/deconstruction-typed.mist}}
-```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-{{#include ../../snippets/basics/variables/deconstruction-typed.cs}}
-```
-{{#endtab }}
-{{#endtabs }}
-
-Both forms create individual variables (`a` and `b`, or `u` and `v`) rather than a single tuple variable. The typed form is useful when you want to document the expected types explicitly or when the compiler can't infer them from context.
 
 ## Scoping Rules
 

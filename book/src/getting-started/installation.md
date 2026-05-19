@@ -4,7 +4,7 @@ This chapter walks you through installing the Mist compiler on your machine. By 
 
 ## Prerequisites
 
-Mist targets .NET 10 and requires the .NET SDK to build from source. Before you begin, ensure you have:
+Mist is currently implemented in C#, targets .NET 10, and requires the .NET SDK to build from source. It also has a single backend, a C# transpiler which has the same requirements to use. Before you begin, ensure you have:
 
 - **.NET SDK 10.0 or later** — Download it from [https://dotnet.microsoft.com/download](https://dotnet.microsoft.com/download). The SDK includes the runtime, so no separate runtime install is needed.
 
@@ -30,7 +30,9 @@ If your platform supports the .NET 10 SDK, it supports Mist.
 
 ## Installation Steps
 
-### Option A: Build from Source
+### Option A: Build and Run via `dotnet run`
+
+The simplest way to use Mist during development. Build the CLI project and invoke it through `dotnet run`:
 
 1. Clone the Mist repository:
 
@@ -42,42 +44,44 @@ If your platform supports the .NET 10 SDK, it supports Mist.
 2. Build the CLI project:
 
    ```sh
-   dotnet build Source/Mist.Cli/Mist.CLI.csproj -c Release
+   dotnet build Source/Mist.CLI/Mist.CLI.csproj -c Release
    ```
 
-3. The compiled binary is located at:
-
-   ```
-   Source/Mist.Cli/bin/Release/net10.0/mist
-   ```
-
-4. Add the binary directory to your `PATH`, or copy the binary to a directory already on your `PATH`:
+3. Run the compiler using `dotnet run`, passing arguments after `--`:
 
    ```sh
-   export PATH="$PATH:$(pwd)/Source/Mist.Cli/bin/Release/net10.0"
+   dotnet run --project Source/Mist.CLI -- build ./my-project
+   dotnet run --project Source/Mist.CLI -- run ./my-project
    ```
 
-### Option B: Publish a Self-Contained Binary
+This approach requires the .NET SDK on every invocation but needs no installation or PATH changes.
 
-For a single-file deployment that does not require the .NET SDK on the target machine:
+### Option B: Install via Publish Script
 
-1. Publish the CLI as a self-contained, trimmed binary:
+For a permanent installation that puts `mist` on your PATH, use the publish script in the repository root. It auto-detects your platform, builds a self-contained binary, installs it to `~/.mist/bin/`, and configures your shell PATH.
 
-   ```sh
-   dotnet publish Source/Mist.Cli/Mist.CLI.csproj -c Release
-   ```
+**macOS / Linux:**
 
-2. The published binary is located at:
+```sh
+./publish.sh
+```
 
-   ```
-   Source/Mist.Cli/bin/Release/net10.0/publish/mist
-   ```
+**Windows (PowerShell):**
 
-3. Copy the `mist` binary (and the `Standard/` directory next to it) to your preferred install location and add it to your `PATH`.
+```powershell
+./publish.ps1
+```
+
+After the script completes, restart your terminal (or source your shell profile as instructed) and the `mist` command is available globally:
+
+```sh
+mist build ./my-project
+mist run ./my-project
+```
 
 ## Verifying the Installation
 
-Once `mist` is on your `PATH`, verify it works by compiling a minimal project. Create a directory with a `mist.toml` and a source file:
+Verify the compiler works by compiling a minimal project. Create a directory with a `mist.toml` and a source file:
 
 ```sh
 mkdir hello && cd hello
@@ -95,30 +99,14 @@ Create `Program.mist`:
 {{#include ../../snippets/getting-started/installation-verify.mist}}
 ```
 
-Run the compiler:
+Run the compiler (use whichever approach matches your installation):
 
 ```sh
-mist build
-```
+# Option A (dotnet run):
+dotnet run --project /path/to/mist/Source/Mist.CLI -- run ./hello
 
-Expected output:
-
-```
-[Stage 0] Cleaning ... done (Xms)
-[Stage 1] Parsing ... done (Xms)
-[Stage 2] Semantic Model ... done (Xms)
-[Stage 3] Analysis ... done (Xms)
-[Stage 4] Code Generation ... done (Xms)
-
-Build succeeded — 0 errors, 0 warnings (Xms)
-```
-
-If you see `Build succeeded`, the installation is working correctly. The compiled C# output is in the `out/` directory and the executable artifact is in `bin/`.
-
-You can also compile and run in one step:
-
-```sh
-mist run
+# Option B (installed binary):
+mist run ./hello
 ```
 
 Expected output:
@@ -126,6 +114,8 @@ Expected output:
 ```
 Mist is installed!
 ```
+
+If you see the output above, everything is working. The `build` command compiles without running, placing C# output in `out/` and the executable in `bin/`.
 
 ## Troubleshooting
 

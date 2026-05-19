@@ -1,18 +1,34 @@
 using System;
 
-namespace HelloMist;
+namespace Introduction;
 
-public class Greeter
+// Type alias — a transparent name for an existing type
+type Percentage = int;
+
+public class Scorer
 {
-    private string name;
-
-    public Greeter(string name)
+    // Adhoc refinement — inline constraint on a parameter
+    public static string | int Grade(Percentage score) where score >= 0 and <= 100
     {
-        this.name = name;
+        if (score >= 90)
+        {
+            return "A";
+        }
+        return score;
     }
 
-    public string Greet()
+    public static void Main(string[] args)
     {
-        return $"Hello, {name}!";
+        // Type union — the return value could be a string or an int
+        var result = Scorer.Grade(95);
+
+        if (result is string letter)
+        {
+            Console.WriteLine($"Grade: {letter}");
+        }
+        if (result is int numeric)
+        {
+            Console.WriteLine($"Score: {numeric}");
+        }
     }
 }

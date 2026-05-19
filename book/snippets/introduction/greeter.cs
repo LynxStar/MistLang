@@ -1,29 +1,36 @@
 using System;
 
-namespace HelloMist;
+namespace Introduction;
 
-public class Greeter
+public class Scorer
 {
-    private string name;
-
-    public Greeter(string name)
+    public static Union_Int32_String Grade(int score)
     {
-        this.name = name;
+        if (score >= 90)
+        {
+            return "A";
+        }
+        return score;
     }
 
-    public string Greet()
+    public static void Main(string[] args)
     {
-        return $"Hello, {name}!";
+        var result = Scorer.Grade(95);
+        if (result.IsString)
+        {
+            string letter = result.AsString;
+            Console.WriteLine($"Grade: {letter}");
+        }
+        if (result.IsInt32)
+        {
+            int numeric = result.AsInt32;
+            Console.WriteLine($"Score: {numeric}");
+        }
     }
 
-    protected Greeter()
+    public static Scorer __CreateDefault()
     {
-        this.name = "";
-    }
-
-    public static Greeter __CreateDefault()
-    {
-        var inst = new Greeter();
+        var inst = new Scorer();
         return inst;
     }
 }

@@ -90,7 +90,7 @@ Array literals can be nested to create jagged arrays:
 
 ### Explicit Type Annotation
 
-You can declare the variable with an explicit array type:
+When you declare the variable with an explicit sized array type, the compiler uses that type information in the emitted code. Use `T[N]` when the size is known:
 
 {{#tabs }}
 {{#tab name="Mist" }}

@@ -1,2 +1,2 @@
-int[] scores = [85, 92, 78];
-string[] words = ["hello", "world"];
+int[3] scores = [85, 92, 78];
+string[2] words = ["hello", "world"];

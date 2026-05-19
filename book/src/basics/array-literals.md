@@ -9,11 +9,11 @@ The underlying array type is `Array<T, Length>` from the Standard Library, where
 | Syntax | Meaning |
 |--------|---------|
 | `int[5]` | `Array<int, 5>` — an array of exactly 5 ints |
-| `int[]` | `Array<int, unknown>` — an array of ints with unknown (runtime-determined) length |
+| `int[]` | `Array<int, unknown>` — an array of ints whose length is not statically known |
 | `var arr = new int[5]` | Compiler infers `int[5]` — the size is known |
 | `var arr = [1, 2, 3]` | Compiler infers `int[3]` from the literal |
 
-The `T[]` form is shorthand for `Array<T, unknown>` — the length exists at runtime but isn't tracked in the type. The `T[N]` form tracks the exact size at compile time.
+The `T[]` form is shorthand for `Array<T, unknown>` — the length exists but isn't statically known in this context. The `T[N]` form tracks the exact size at compile time.
 
 ## Bounds Checking
 

@@ -242,6 +242,8 @@ Interpolated strings can contain any expression, including method calls and arit
 
 The `regex` type provides first-class support for regular expressions. Regex literals use backtick delimiters, making patterns easy to write without excessive escaping.
 
+> **Note:** Mist does not define its own regex flavor or engine. The regex syntax and matching behavior are determined entirely by the backend. With the current C# transpiler backend, regex literals use .NET's `System.Text.RegularExpressions` engine. Future backends may use a different engine with different capabilities.
+
 ### Regex Literal Syntax
 
 A regex literal is written by enclosing a pattern in backticks. The compiler infers the type as `regex`:

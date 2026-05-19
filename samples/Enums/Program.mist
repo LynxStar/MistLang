@@ -21,7 +21,7 @@
 //  18. Enum with user-defined interface underlying type
 //  19. Enum with trait-implementing class underlying type
 
-using System;
+using Standard;
 
 namespace Enums;
 

@@ -1,7 +1,7 @@
 // Counter — Demonstrates static fields, static methods,
 // instance fields, field initializers, and mixed access modifiers.
 
-using System;
+using Standard;
 
 namespace Classes;
 

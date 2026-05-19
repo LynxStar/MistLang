@@ -81,7 +81,7 @@ public sealed class DefaultInstanceIndependenceTests : IDisposable
     private static string BuildMistProgram()
     {
         return """
-            using System;
+            using Standard;
 
             namespace TestProgram;
 

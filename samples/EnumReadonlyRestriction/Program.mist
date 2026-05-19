@@ -12,7 +12,7 @@
 //   9. Implicit conversion from readonly-base enum to underlying type
 //  10. Pattern matching with readonly-base enums
 
-using System;
+using Standard;
 
 namespace EnumReadonlyRestriction;
 

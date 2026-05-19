@@ -1,6 +1,6 @@
 // InitAccessors — Demonstrates init; and init { ... } forms.
 
-using System;
+using Standard;
 
 namespace Properties;
 

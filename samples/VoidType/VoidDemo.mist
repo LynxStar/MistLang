@@ -2,7 +2,7 @@
 // Void is a first-class value type with a single instance (Void.Void),
 // usable anywhere a type is expected except as an array element type.
 
-using System;
+using Standard;
 
 namespace VoidType;
 

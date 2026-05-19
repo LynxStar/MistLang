@@ -4,6 +4,11 @@ using Mist.Semantics.Model.Types;
 
 namespace Mist.Tests.Semantics;
 
+/// <summary>
+/// Tests for CSharpAmbientTypeResolver after the stdlib migration.
+/// Console, Math, and Convert have been migrated to the Standard Library.
+/// The resolver remains in the codebase for future use but has no registered types.
+/// </summary>
 public class AmbientTypeResolverTests
 {
     private readonly CSharpAmbientTypeResolver _resolver = new();
@@ -11,9 +16,10 @@ public class AmbientTypeResolverTests
     // --- HasNamespace ---
 
     [Fact]
-    public void HasNamespace_ReturnsTrue_ForSystem()
+    public void HasNamespace_ReturnsFalse_ForSystem()
     {
-        Assert.True(_resolver.HasNamespace("System"));
+        // After stdlib migration, no types are registered in the System namespace.
+        Assert.False(_resolver.HasNamespace("System"));
     }
 
     [Fact]
@@ -34,13 +40,13 @@ public class AmbientTypeResolverTests
     [InlineData("System", "Console")]
     [InlineData("System", "Math")]
     [InlineData("System", "Convert")]
-    public void ResolveType_ReturnsNonNull_ForKnownTypes(string ns, string typeName)
+    public void ResolveType_ReturnsNull_ForMigratedTypes(string ns, string typeName)
     {
+        // Console, Math, and Convert have been migrated to stdlib.
         var type = _resolver.ResolveType(ns, typeName);
-        Assert.NotNull(type);
+        Assert.Null(type);
     }
 
-    // String and Array are no longer ambient types (Req 9.1, 9.2, 9.6)
     [Theory]
     [InlineData("System", "String")]
     [InlineData("System", "Array")]
@@ -64,90 +70,7 @@ public class AmbientTypeResolverTests
         Assert.Null(type);
     }
 
-    [Theory]
-    [InlineData("System", "Console", "Console")]
-    [InlineData("System", "Math", "Math")]
-    [InlineData("System", "Convert", "Convert")]
-    public void ResolveType_ReturnsCorrectDisplayName(string ns, string typeName, string expectedDisplayName)
-    {
-        var type = _resolver.ResolveType(ns, typeName);
-        Assert.NotNull(type);
-        Assert.Equal(expectedDisplayName, type.DisplayName);
-    }
-
-    [Theory]
-    [InlineData("System", "Console")]
-    [InlineData("System", "Math")]
-    [InlineData("System", "Convert")]
-    public void ResolveType_ReturnsClassType(string ns, string typeName)
-    {
-        var type = _resolver.ResolveType(ns, typeName);
-        Assert.IsType<ClassType>(type);
-        Assert.Equal(TypeKind.Class, type!.Kind);
-    }
-
     // --- GetMembers ---
-
-    [Fact]
-    public void GetMembers_ReturnsExpectedMembers_ForConsole()
-    {
-        var type = _resolver.ResolveType("System", "Console")!;
-        var members = _resolver.GetMembers(type);
-
-        Assert.NotEmpty(members);
-        Assert.Contains(members, m => m.Name == "WriteLine");
-        Assert.Contains(members, m => m.Name == "ReadLine");
-        Assert.Contains(members, m => m.Name == "Write");
-    }
-
-    [Fact]
-    public void GetMembers_ReturnsExpectedMembers_ForString_NoLongerExposed()
-    {
-        // String is no longer an ambient type (Req 9.1, 9.6).
-        var type = _resolver.ResolveType("System", "String");
-        Assert.Null(type);
-    }
-
-    [Fact]
-    public void GetMembers_ReturnsExpectedMembers_ForMath()
-    {
-        var type = _resolver.ResolveType("System", "Math")!;
-        var members = _resolver.GetMembers(type);
-
-        Assert.NotEmpty(members);
-        Assert.Contains(members, m => m.Name == "Abs");
-        Assert.Contains(members, m => m.Name == "Max");
-        Assert.Contains(members, m => m.Name == "Min");
-    }
-
-    [Fact]
-    public void GetMembers_ReturnsExpectedMembers_ForConvert()
-    {
-        var type = _resolver.ResolveType("System", "Convert")!;
-        var members = _resolver.GetMembers(type);
-
-        Assert.NotEmpty(members);
-        Assert.Contains(members, m => m.Name == "ToInt32");
-        Assert.Contains(members, m => m.Name == "ToString");
-    }
-
-    [Fact]
-    public void GetMembers_AllMembersHaveBackendOrigin()
-    {
-        var type = _resolver.ResolveType("System", "Console")!;
-        var members = _resolver.GetMembers(type);
-
-        Assert.All(members, m => Assert.Equal(SymbolOrigin.Backend, m.Origin));
-    }
-
-    [Fact]
-    public void GetMembers_AllMembersHaveMethodKind()
-    {
-        var type = _resolver.ResolveType("System", "Console")!;
-        var members = _resolver.GetMembers(type);
-
-        Assert.All(members, m => Assert.Equal(SymbolKind.Method, m.Kind));
-    }
 
     [Fact]
     public void GetMembers_ReturnsEmpty_ForUnresolvedType()
@@ -163,17 +86,11 @@ public class AmbientTypeResolverTests
     // --- GetTypeNamesInNamespace ---
 
     [Fact]
-    public void GetTypeNamesInNamespace_ReturnsExpectedNames_ForSystem()
+    public void GetTypeNamesInNamespace_ReturnsEmpty_ForSystem()
     {
+        // After stdlib migration, no types are registered in the System namespace.
         var names = _resolver.GetTypeNamesInNamespace("System");
-
-        Assert.Contains("Console", names);
-        Assert.Contains("Math", names);
-        Assert.Contains("Convert", names);
-        // String and Array are no longer ambient types (Req 9.1, 9.2, 9.6)
-        Assert.DoesNotContain("String", names);
-        Assert.DoesNotContain("Array", names);
-        Assert.Equal(3, names.Length);
+        Assert.True(names.IsEmpty);
     }
 
     [Fact]
@@ -183,46 +100,13 @@ public class AmbientTypeResolverTests
         Assert.True(names.IsEmpty);
     }
 
-    // --- Caching: calling ResolveType twice returns the same instance ---
-
-    [Theory]
-    [InlineData("System", "Console")]
-    [InlineData("System", "Math")]
-    [InlineData("System", "Convert")]
-    public void ResolveType_ReturnsSameInstance_WhenCalledTwice(string ns, string typeName)
-    {
-        var first = _resolver.ResolveType(ns, typeName);
-        var second = _resolver.ResolveType(ns, typeName);
-
-        Assert.NotNull(first);
-        Assert.Same(first, second);
-    }
-
-    // --- Lazy materialization: unreferenced types are not in the cache ---
+    // --- Resolver can still be instantiated (future-use preservation) ---
 
     [Fact]
-    public void LazyMaterialization_UnreferencedTypesAreNotResolved()
+    public void Resolver_CanBeInstantiated_ForFutureUse()
     {
-        // Create a fresh resolver so nothing is cached yet
-        var freshResolver = new CSharpAmbientTypeResolver();
-
-        // Resolve only Console
-        var console = freshResolver.ResolveType("System", "Console");
-        Assert.NotNull(console);
-
-        // Math was never resolved — GetMembers should return empty for a type
-        // that was not resolved through this resolver
-        var scope = new Mist.Semantics.Model.Scope(parent: null);
-        var fakeMath = new ClassType("Math", scope, "System");
-        var members = freshResolver.GetMembers(fakeMath);
-        Assert.True(members.IsEmpty);
-
-        // Now resolve Math through the resolver
-        var math = freshResolver.ResolveType("System", "Math");
-        Assert.NotNull(math);
-
-        // GetMembers should now return members for the resolved Math type
-        var mathMembers = freshResolver.GetMembers(math!);
-        Assert.NotEmpty(mathMembers);
+        var resolver = new CSharpAmbientTypeResolver();
+        Assert.NotNull(resolver);
+        Assert.False(resolver.HasNamespace("System"));
     }
 }

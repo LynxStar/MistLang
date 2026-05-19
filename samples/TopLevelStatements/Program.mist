@@ -13,7 +13,7 @@
 //   7. Return with integer exit code
 //   8. Type declarations (class, struct) after statements
 
-using System;
+using Standard;
 
 namespace TopLevelStatements;
 

@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 // Demonstrates: File-scoped namespace declaration (Req 10.4)
 namespace Namespaces.Utilities;

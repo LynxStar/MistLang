@@ -18,7 +18,7 @@
 // filters write-path members on the widened receiver at compile time
 // (Reachability Analyzer, Phase C).
 
-using System;
+using Standard;
 
 namespace AllFeatures;
 

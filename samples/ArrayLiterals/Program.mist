@@ -13,7 +13,7 @@
 //  10. String array
 //  11. Boolean array
 
-using System;
+using Standard;
 
 namespace ArrayLiterals;
 

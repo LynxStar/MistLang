@@ -14,7 +14,7 @@
 //     `(int x, int y) pair` bind `x` and `y` as separate locals in
 //     the then-branch (matching C# semantics).
 
-using System;
+using Standard;
 
 namespace Tuples;
 

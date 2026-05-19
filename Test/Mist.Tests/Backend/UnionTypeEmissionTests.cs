@@ -67,7 +67,7 @@ public sealed class UnionTypeEmissionTests : IDisposable
     private static string BuildMistProgram()
     {
         return """
-            using System;
+            using Standard;
 
             namespace TestProgram;
 

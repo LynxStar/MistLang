@@ -1,6 +1,6 @@
 // IPropertyDemo — Demonstrates interface property declarations.
 
-using System;
+using Standard;
 
 namespace Properties;
 

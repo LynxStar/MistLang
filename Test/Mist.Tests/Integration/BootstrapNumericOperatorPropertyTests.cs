@@ -140,7 +140,7 @@ public sealed class BootstrapNumericOperatorPropertyTests : IDisposable
         }
 
         return $$"""
-            using System;
+            using Standard;
 
             namespace TestProgram;
 

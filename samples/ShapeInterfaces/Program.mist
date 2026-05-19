@@ -1,6 +1,6 @@
 // ShapeInterfaces — Covers interfaces with properties.
 
-using System;
+using Standard;
 
 namespace ShapeInterfaces;
 

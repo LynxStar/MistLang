@@ -152,7 +152,7 @@ public class NoBackingTypeLeakPropertyTests
     private static string GenerateSource(LeakScenario scenario)
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("using System;");
+        sb.AppendLine("using Standard;");
         sb.AppendLine("namespace TestNs;");
         sb.AppendLine("public class Program {");
         sb.AppendLine("    public static void Main(string[] args) {");

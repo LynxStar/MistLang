@@ -7,6 +7,7 @@ using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
@@ -115,6 +116,20 @@ public sealed class EmitterOutputTests : IDisposable
         var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
         return _builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), resolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+    }
+
+    private ISemanticModel BuildModelWithStdlib(
+        CompilationUnitNode ast,
+        string source)
+    {
+        var (stdlibUnits, stdlibAsts) = Helpers.StdlibTestHelper.LoadStdlib();
+        var sourceText = new SourceText("test.mist", source);
+        var userUnit = new CompilationUnit(sourceText);
+        var allUnits = stdlibUnits.Add(userUnit);
+        var allAsts = stdlibAsts.Add(ast);
+        var compilation = new MistCompilation(allUnits);
+        var diagnostics = new DiagnosticBag();
+        return _builder.Build(compilation, allAsts, null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private string EmitAndGetCsContent(ISemanticModel model)
@@ -481,7 +496,7 @@ public sealed class EmitterOutputTests : IDisposable
     {
         CleanOutputDir();
 
-        var source = "using System;\nclass Program {\n    Console c;\n    public static void Main() { }\n}";
+        var source = "using Standard;\nclass Program {\n    Console c;\n    public static void Main() { }\n}";
 
         var qualifiedId = new QualifiedIdentifierNode
         {
@@ -515,16 +530,16 @@ public sealed class EmitterOutputTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
+            Usings = ImmutableArray.Create(MakeUsingDeclaration("Standard")),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
-        var resolver = new CSharpAmbientTypeResolver();
-        var model = BuildModel(ast, source, resolver);
+        var model = BuildModelWithStdlib(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
-        Assert.Contains("using System;", csContent);
+        // Console is now emitted as fully-qualified System.Console via CSharpTypeMap.
+        Assert.Contains("System.Console", csContent);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

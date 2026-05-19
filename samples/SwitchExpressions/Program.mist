@@ -1,6 +1,6 @@
 // SwitchExpressions — Demonstrates exhaustive switch expressions in Mist.
 
-using System;
+using Standard;
 
 namespace SwitchExpressions;
 

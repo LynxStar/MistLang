@@ -1,6 +1,6 @@
 // StaticProps — Demonstrates static properties.
 
-using System;
+using Standard;
 
 namespace Properties;
 

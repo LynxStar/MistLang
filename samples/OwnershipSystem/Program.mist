@@ -1,7 +1,7 @@
 // OwnershipSystem — Comprehensive sample exercising every ownership tier and pattern.
 // Each demo prints labeled output to prove the feature works end-to-end.
 
-using System;
+using Standard;
 
 namespace OwnershipSystem;
 

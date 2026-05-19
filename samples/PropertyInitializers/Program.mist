@@ -14,7 +14,7 @@
 //  11. Initializing a public field
 //  12. Complex value expressions in initializer
 
-using System;
+using Standard;
 
 namespace PropertyInitializers;
 

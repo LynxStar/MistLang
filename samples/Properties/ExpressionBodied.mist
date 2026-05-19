@@ -1,6 +1,6 @@
 // ExpressionBodied — Demonstrates expression-bodied properties and accessors.
 
-using System;
+using Standard;
 
 namespace Properties;
 

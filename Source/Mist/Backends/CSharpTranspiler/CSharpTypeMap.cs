@@ -38,6 +38,9 @@ internal static class CSharpTypeMap
         ["Standard.Regex"] = "System.Text.RegularExpressions.Regex",
         ["Standard.Void"] = "void",
         ["Standard.Type"] = "System.Type",
+        ["Standard.Console"] = "System.Console",
+        ["Standard.Math"] = "System.Math",
+        ["Standard.Convert"] = "System.Convert",
 
         // ── Legacy Mist-primitive keyword lexemes (test compat) ──────────
         // Kept so that tests that build a semantic model without loading

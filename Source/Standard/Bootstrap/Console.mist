@@ -1,0 +1,10 @@
+namespace Standard;
+
+intrinsic public class Console
+{
+    intrinsic public static Void WriteLine(String value);
+    intrinsic public static Void WriteLine(unknown value);
+    intrinsic public static Void WriteLine();
+    intrinsic public static Void Write(String value);
+    intrinsic public static Void Write(unknown value);
+}

@@ -1,6 +1,6 @@
 // ComputedProps — Demonstrates computed properties (get-only with body).
 
-using System;
+using Standard;
 
 namespace Properties;
 

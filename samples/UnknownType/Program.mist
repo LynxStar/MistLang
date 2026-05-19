@@ -20,7 +20,7 @@
 // still forbids write-path members on such a receiver at compile time,
 // so the DLR only sees reachability-safe calls.
 
-using System;
+using Standard;
 
 namespace UnknownType;
 

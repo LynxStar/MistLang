@@ -8,7 +8,7 @@
 //   5. Aliases are transparent — interchangeable with underlying type
 //   6. Constructing objects via alias names
 
-using System;
+using Standard;
 
 namespace TypeAliases;
 

@@ -1,6 +1,6 @@
 // TypeUnions — Demonstrates type union features in Mist.
 
-using System;
+using Standard;
 
 namespace TypeUnions;
 

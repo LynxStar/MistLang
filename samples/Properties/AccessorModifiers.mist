@@ -1,6 +1,6 @@
 // AccessorModifiers — Demonstrates private set; patterns.
 
-using System;
+using Standard;
 
 namespace Properties;
 

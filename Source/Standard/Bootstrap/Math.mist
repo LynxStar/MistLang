@@ -1,0 +1,8 @@
+namespace Standard;
+
+intrinsic public class Math
+{
+    intrinsic public static Int32 Abs(Int32 value);
+    intrinsic public static Int32 Max(Int32 val1, Int32 val2);
+    intrinsic public static Int32 Min(Int32 val1, Int32 val2);
+}

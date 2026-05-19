@@ -222,7 +222,7 @@ public sealed class ContextPropagationPropertyTests : IDisposable
     private static string BuildBatchedProgram(IReadOnlyList<ContextPropagationScenario> scenarios)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("using System;");
+        sb.AppendLine("using Standard;");
         sb.AppendLine();
 
         // Emit a simple context-carrying class for string context

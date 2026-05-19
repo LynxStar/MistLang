@@ -7,7 +7,7 @@
 //   4. Member access on newtype instances
 //   5. Explicit casting between newtype and source type
 
-using System;
+using Standard;
 
 namespace Newtypes;
 

@@ -14,6 +14,7 @@ using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
@@ -94,13 +95,13 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
     }
 
     /// <summary>
-    /// Known ambient type names from CSharpAmbientTypeResolver.
-    /// String and Array are no longer ambient types after Task 42 (Req 9.1, 9.2, 9.6).
+    /// Known ambient type names — now stdlib types accessed via using Standard;.
+    /// After the stdlib migration, Console, Math, and Convert are in the Standard namespace.
     /// </summary>
     private static readonly string[] KnownAmbientTypes = ["Console", "Math", "Convert"];
 
     /// <summary>
-    /// Builds a program that references the given ambient types via field declarations
+    /// Builds a program that references the given stdlib types via field declarations
     /// and includes a static void Main() entry point.
     /// </summary>
     private static (CompilationUnitNode Ast, string Source) BuildProgramWithAmbientRefs(
@@ -144,13 +145,13 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
+            Usings = ImmutableArray.Create(MakeUsingDeclaration("Standard")),
             Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItems(),
         };
 
         // Build a source string that matches the AST structure for span extraction.
-        var source = "using System;\nclass TestClass {\n";
+        var source = "using Standard;\nclass TestClass {\n";
         for (var i = 0; i < referencedAmbientTypes.Count; i++)
         {
             source += $"    {referencedAmbientTypes[i]} field{i};\n";
@@ -165,10 +166,14 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         string source,
         IAmbientTypeResolver? resolver = null)
     {
+        var (stdlibUnits, stdlibAsts) = Helpers.StdlibTestHelper.LoadStdlib();
         var sourceText = new SourceText("test.mist", source);
-        var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
+        var userUnit = new CompilationUnit(sourceText);
+        var allUnits = stdlibUnits.Add(userUnit);
+        var allAsts = stdlibAsts.Add(ast);
+        var compilation = new MistCompilation(allUnits);
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), resolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+        return _builder.Build(compilation, allAsts, resolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private string EmitAndGetCsContent(ISemanticModel model)
@@ -237,8 +242,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         CleanOutputDir();
 
         var (ast, source) = BuildProgramWithAmbientRefs(scenario.ReferencedTypes);
-        var resolver = new CSharpAmbientTypeResolver();
-        var model = BuildModel(ast, source, resolver);
+        var model = BuildModel(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
         if (string.IsNullOrEmpty(csContent))
@@ -275,16 +279,18 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         CleanOutputDir();
 
         var (ast, source) = BuildProgramWithAmbientRefs(scenario.ReferencedTypes);
-        var resolver = new CSharpAmbientTypeResolver();
-        var model = BuildModel(ast, source, resolver);
+        var model = BuildModel(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
         if (string.IsNullOrEmpty(csContent))
             return false;
 
-        // All known ambient types are in the "System" namespace.
-        // The emitted C# should contain "using System;" as a directive.
-        return csContent.Contains("using System;");
+        // After stdlib migration, Console/Math/Convert are emitted as fully-qualified
+        // CLR names (System.Console, System.Math, System.Convert) via CSharpTypeMap.
+        // The emitted C# should contain these fully-qualified references.
+        return csContent.Contains("System.Console") ||
+               csContent.Contains("System.Math") ||
+               csContent.Contains("System.Convert");
     }
 
     /// <summary>
@@ -360,13 +366,13 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         CleanOutputDir();
 
         var (ast, source) = BuildProgramWithAmbientRefs(["Console"]);
-        var resolver = new CSharpAmbientTypeResolver();
-        var model = BuildModel(ast, source, resolver);
+        var model = BuildModel(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
         Assert.DoesNotContain("class Console", csContent);
         Assert.Contains("class TestClass", csContent);
-        Assert.Contains("using System;", csContent);
+        // Console is emitted as fully-qualified System.Console via CSharpTypeMap.
+        Assert.Contains("System.Console", csContent);
     }
 
     [Fact]
@@ -375,8 +381,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         CleanOutputDir();
 
         var (ast, source) = BuildProgramWithAmbientRefs(KnownAmbientTypes);
-        var resolver = new CSharpAmbientTypeResolver();
-        var model = BuildModel(ast, source, resolver);
+        var model = BuildModel(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
         foreach (var ambientType in KnownAmbientTypes)
@@ -386,6 +391,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         }
 
         Assert.Contains("class TestClass", csContent);
-        Assert.Contains("using System;", csContent);
+        // Types are emitted as fully-qualified CLR names via CSharpTypeMap.
+        Assert.Contains("System.Console", csContent);
     }
 }

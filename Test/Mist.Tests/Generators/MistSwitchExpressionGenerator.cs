@@ -382,11 +382,11 @@ public static class MistSwitchExpressionGenerator
     }
 
     /// <summary>
-    /// Wraps a body in a program that includes <c>using System;</c> for Console access.
+    /// Wraps a body in a program that includes <c>using Standard;</c> for Console access.
     /// </summary>
     private static string WrapInProgramWithUsing(string body)
     {
-        return "using System;\n\nnamespace TestNs;\n\npublic class Program\n{\n    public static void Main()\n    {\n    "
+        return "using Standard;\n\nnamespace TestNs;\n\npublic class Program\n{\n    public static void Main()\n    {\n    "
             + body + "\n    }\n}";
     }
 

@@ -143,7 +143,7 @@ public sealed class SwitchEmissionPropertyTests : IDisposable
             body.Append($"        {scenarioBody}\n");
         }
 
-        return "using System;\n\nnamespace TestProgram;\n\npublic class Program\n{\n    public static void Main()\n    {\n"
+        return "using Standard;\n\nnamespace TestProgram;\n\npublic class Program\n{\n    public static void Main()\n    {\n"
             + body
             + "    }\n}\n";
     }

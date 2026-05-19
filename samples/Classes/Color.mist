@@ -1,7 +1,7 @@
 // Color — Demonstrates structs, public fields, constructors,
 // instance methods, arithmetic, comparison, and if/else.
 
-using System;
+using Standard;
 
 namespace Classes;
 

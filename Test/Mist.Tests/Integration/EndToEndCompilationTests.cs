@@ -505,7 +505,9 @@ public sealed class EndToEndCompilationTests : IDisposable
     [Fact]
     public void HandCraftedAst_WithAmbientTypes_ResolvesSystemConsole()
     {
-        // Build an AST that uses System.Console via ambient type resolver
+        // After stdlib migration, using System; produces UNDEFINED_NAMESPACE
+        // because the ambient resolver no longer has types in the System namespace.
+        // Console, Math, and Convert are now in the Standard namespace (stdlib).
         var source = "using System;\nnamespace MyApp;\npublic class Program {\n    public static void Main() { }\n}";
 
         var mainMethod = new MethodDeclarationNode
@@ -554,21 +556,12 @@ public sealed class EndToEndCompilationTests : IDisposable
             projectFolder: "/test",
             diagnostics);
 
-        // The using System should be resolved without errors
+        // using System; should now produce UNDEFINED_NAMESPACE since the
+        // ambient resolver has no types registered in the System namespace.
         var undefinedNsDiags = diagnostics.ToImmutableArray()
             .Where(d => d.Id.Value == "MIST_UNDEFINED_NAMESPACE")
             .ToList();
-        Assert.Empty(undefinedNsDiags);
-
-        // Emit C# and verify using directive is present
-        var emitDiagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitDiagnostics);
-
-        var csFiles = Directory.GetFiles(_outputDir, "*.cs");
-        Assert.NotEmpty(csFiles);
-
-        var csContent = File.ReadAllText(csFiles[0]);
-        Assert.Contains("using System;", csContent);
+        Assert.NotEmpty(undefinedNsDiags);
     }
 
     [Fact]

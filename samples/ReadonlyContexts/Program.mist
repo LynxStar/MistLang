@@ -1,7 +1,7 @@
 // ReadonlyContexts — Comprehensive sample exercising every readonly feature in Mist.
 // Each permutation prints labeled output to stdout for correctness verification.
 
-using System;
+using Standard;
 
 namespace ReadonlyContexts;
 

@@ -8,7 +8,7 @@
 //
 // If entry_point were not set, this would be a compile error (MIST_EP_0002).
 
-using System;
+using Standard;
 
 namespace TopLevelStatements;
 

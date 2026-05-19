@@ -1,7 +1,7 @@
 // MathHelper — Demonstrates method overloading with a static utility class
 // and cross-hierarchy overloading with inheritance.
 
-using System;
+using Standard;
 
 namespace Overloading;
 

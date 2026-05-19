@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 // No explicit namespace — inferred as "Namespaces.Models.Game" from nested folder path
 // Demonstrates: Nested inferred namespace from Models/Game/ (Req 10.3)

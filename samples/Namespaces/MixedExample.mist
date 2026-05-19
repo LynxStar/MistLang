@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 // Demonstrates: Multiple namespace declarations in a single file (Req 10.6)
 // Uses two block namespaces since C# doesn't allow mixing file-scoped and block in one file

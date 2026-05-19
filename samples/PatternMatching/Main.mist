@@ -1,6 +1,6 @@
 // PatternMatching — Demonstrates is-expression pattern matching in Mist.
 
-using System;
+using Standard;
 
 namespace PatternMatching;
 

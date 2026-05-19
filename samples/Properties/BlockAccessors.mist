@@ -1,6 +1,6 @@
 // BlockAccessors — Demonstrates block-body get/set with custom logic.
 
-using System;
+using Standard;
 
 namespace Properties;
 

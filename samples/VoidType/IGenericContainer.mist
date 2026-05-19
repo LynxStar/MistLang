@@ -1,6 +1,6 @@
 // IGenericContainer<T> — Demonstrates a generic interface.
 
-using System;
+using Standard;
 
 namespace VoidType;
 

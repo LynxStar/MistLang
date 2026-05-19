@@ -1,6 +1,6 @@
 // GenericTypes — Covers generic classes and generic interfaces.
 
-using System;
+using Standard;
 
 namespace GenericTypes;
 

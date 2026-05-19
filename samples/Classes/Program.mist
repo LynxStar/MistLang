@@ -1,6 +1,6 @@
 // Classes — Covers classes, structs, and static members.
 
-using System;
+using Standard;
 
 namespace Classes;
 

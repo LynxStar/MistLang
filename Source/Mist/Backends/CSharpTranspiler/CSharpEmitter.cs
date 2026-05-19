@@ -182,6 +182,10 @@ public sealed class CSharpEmitter
     {
         var namespaces = new HashSet<string>(StringComparer.Ordinal);
 
+        // Always include System — the C# backend emits types like Func<>,
+        // Array, ArgumentException, etc. that live in the System namespace.
+        namespaces.Add("System");
+
         foreach (var symbol in model.AllSymbols)
         {
             if (symbol.Origin == SymbolOrigin.Backend)
@@ -8180,6 +8184,22 @@ internal sealed class CSharpSourceWriter
                 {
                     return $"T{identName}.Value";
                 }
+
+                // Check if this identifier resolves to a stdlib type that has
+                // a CSharpTypeMap mapping (e.g., Console → System.Console).
+                if (resolvedType is ClassType ct && ct.IsBackendBacked && ct.ContainingNamespace == "Standard")
+                {
+                    var mapped = CSharpTypeMap.TryGetMappedName(identName);
+                    if (mapped is not null)
+                        return mapped;
+                }
+                if (resolvedType is StructType st && st.IsBackendBacked && st.ContainingNamespace == "Standard")
+                {
+                    var mapped = CSharpTypeMap.TryGetMappedName(identName);
+                    if (mapped is not null)
+                        return mapped;
+                }
+
                 return identName;
             }
             case FieldKeywordExpressionPrimaryNode:

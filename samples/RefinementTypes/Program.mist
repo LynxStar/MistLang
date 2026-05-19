@@ -15,7 +15,7 @@
 //  12. Subset assignability between refinement types
 //  13. Widening from refinement to base type
 
-using System;
+using Standard;
 
 namespace RefinementTypes;
 

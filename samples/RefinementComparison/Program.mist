@@ -4,7 +4,7 @@
 // of one refinement type to a variable of another. These assignments would
 // FAIL to compile if the comparison engine didn't prove the implication.
 
-using System;
+using Standard;
 
 namespace RefinementComparison;
 

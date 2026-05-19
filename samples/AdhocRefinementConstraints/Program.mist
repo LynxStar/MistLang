@@ -1,7 +1,7 @@
 // AdhocRefinementConstraints — Demonstrates ad-hoc refinement constraint features in Mist.
 // Every declaration USES its constraint. Every line proves the feature works.
 
-using System;
+using Standard;
 
 namespace AdhocRefinementConstraints;
 

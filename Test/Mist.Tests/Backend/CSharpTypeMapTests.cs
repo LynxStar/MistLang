@@ -271,4 +271,26 @@ public class CSharpTypeMapTests
         var constructed = new ConstructedType(listType, new IType[] { standardInt32 });
         Assert.Equal("List<int>", CSharpTypeMap.GetTypeName(constructed));
     }
+
+    // ── Stdlib Console/Math/Convert type map entries (Task 7.3) ──────────
+
+    [Theory]
+    [InlineData("Console", "System.Console")]
+    [InlineData("Math", "System.Math")]
+    [InlineData("Convert", "System.Convert")]
+    public void TryGetMappedName_StdlibUtilityTypes_ReturnsClrEquivalent(string mistName, string expected)
+    {
+        var result = CSharpTypeMap.TryGetMappedName(mistName);
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData("Console", "System.Console")]
+    [InlineData("Math", "System.Math")]
+    [InlineData("Convert", "System.Convert")]
+    public void GetKeyword_StdlibUtilityClassTypes_ReturnsClrEquivalent(string displayName, string expected)
+    {
+        var utilityType = MakeStdlibClass(displayName);
+        Assert.Equal(expected, CSharpTypeMap.GetKeyword(utilityType));
+    }
 }

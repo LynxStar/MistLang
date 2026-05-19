@@ -1,7 +1,7 @@
 // DependentTypes — Demonstrates dependent type parameter features in Mist.
 // Every class USES its dependent value. Every line proves the feature works.
 
-using System;
+using Standard;
 
 namespace DependentTypes;
 

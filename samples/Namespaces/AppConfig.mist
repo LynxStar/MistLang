@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 // No explicit namespace — inferred as "Namespaces" (matches NamespaceRoot)
 // Demonstrates: Same-namespace scoping — Program.mist can reference AppConfig without using (Req 10.8)

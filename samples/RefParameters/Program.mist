@@ -12,7 +12,7 @@
 //   9. Ref forwarding (passing a ref parameter as a ref argument)
 //  10. Struct mutation visibility through ref
 
-using System;
+using Standard;
 
 namespace RefParameters;
 

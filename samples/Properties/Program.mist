@@ -1,6 +1,6 @@
 // Properties — Comprehensive sample exercising every property feature in Mist.
 
-using System;
+using Standard;
 
 namespace Properties;
 

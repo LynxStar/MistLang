@@ -261,7 +261,7 @@ public sealed class RegexTranspilationPropertyTests : IDisposable
         }
 
         return $$"""
-            using System;
+            using Standard;
 
             namespace TestProgram;
 

@@ -490,7 +490,7 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
         }
 
         return $$"""
-            using System;
+            using Standard;
 
             namespace TestProgram;
 

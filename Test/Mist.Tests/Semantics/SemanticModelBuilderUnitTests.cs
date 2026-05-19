@@ -458,7 +458,9 @@ public class SemanticModelBuilderUnitTests
     [Fact]
     public void UsingDeclaration_AmbientNamespace_AcceptedWithoutDiagnostic()
     {
-        // using System; class C { }
+        // After stdlib migration, using System; produces UNDEFINED_NAMESPACE
+        // because the ambient resolver no longer has types in the System namespace.
+        // Console, Math, and Convert are now in the Standard namespace (stdlib).
         var usingDecl = new UsingDeclarationNode
         {
             Name = new QualifiedIdentifierNode
@@ -484,7 +486,7 @@ public class SemanticModelBuilderUnitTests
         var resolver = new CSharpAmbientTypeResolver();
         var (_, diagnostics) = BuildModelWithDiagnostics(ast, ambientTypeResolver: resolver);
 
-        Assert.DoesNotContain(diagnostics, d => d.Id.Value.Contains("UNDEFINED_NAMESPACE"));
+        Assert.Contains(diagnostics, d => d.Id.Value.Contains("UNDEFINED_NAMESPACE"));
     }
 
     [Fact]
@@ -561,12 +563,11 @@ public class SemanticModelBuilderUnitTests
         var resolver = new CSharpAmbientTypeResolver();
         var (model, diagnostics) = BuildModelWithDiagnostics(ast, ambientTypeResolver: resolver);
 
-        // Console should be resolved — no undefined identifier diagnostic for "Console".
-        Assert.DoesNotContain(diagnostics,
+        // After stdlib migration, Console is no longer resolvable via using System;
+        // The ambient resolver has no types registered, so Console produces an
+        // undefined identifier diagnostic.
+        Assert.Contains(diagnostics,
             d => d.Id.Value.Contains("UNDEFINED_IDENTIFIER") && d.Message.Contains("Console"));
-        // No undefined member diagnostic for "WriteLine".
-        Assert.DoesNotContain(diagnostics,
-            d => d.Id.Value.Contains("UNDEFINED_MEMBER") && d.Message.Contains("WriteLine"));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -968,27 +969,17 @@ public class SemanticModelBuilderUnitTests
     [Fact]
     public void BackendSymbols_HaveBackendOrigin_AndNullDeclarationSpan()
     {
-        // Verify that ambient type symbols created by the resolver have Backend origin
-        // and null DeclarationSpan. We verify this through the CSharpAmbientTypeResolver
-        // directly, since ambient symbols are registered in an internal file scope
-        // during Pass 2 and are not exposed via model.AllSymbols.
+        // After stdlib migration, the ambient resolver has no registered types.
+        // Console, Math, and Convert are now stdlib types with SymbolOrigin.Source.
+        // This test verifies the resolver still works (returns null) and that
+        // user-defined symbols have UserCode origin.
         var resolver = new CSharpAmbientTypeResolver();
 
-        // Resolve Console — this creates the type and its member symbols.
+        // Resolve Console — should return null since it's been migrated to stdlib.
         var consoleType = resolver.ResolveType("System", "Console");
-        Assert.NotNull(consoleType);
+        Assert.Null(consoleType);
 
-        var members = resolver.GetMembers(consoleType!);
-        Assert.NotEmpty(members);
-
-        // All member symbols should have Backend origin and null DeclarationSpan.
-        foreach (var member in members)
-        {
-            Assert.Equal(SymbolOrigin.Backend, member.Origin);
-            Assert.Null(member.DeclarationSpan);
-        }
-
-        // Now verify in a full build that user-defined symbols have UserCode origin.
+        // Verify user-defined symbols still have UserCode origin.
         var classDecl = new ClassDeclarationNode
         {
             Name = MakeToken("C", start: 6),
@@ -1059,27 +1050,16 @@ public class SemanticModelBuilderUnitTests
         var resolver = new CSharpAmbientTypeResolver();
         var (model, diagnostics) = BuildModelWithDiagnostics(ast, ambientTypeResolver: resolver);
 
-        // No undefined type diagnostics — Console should resolve.
-        Assert.DoesNotContain(diagnostics, d => d.Id.Value.Contains("UNDEFINED_TYPE"));
+        // After stdlib migration, using System; no longer resolves Console.
+        // The ambient resolver has no types, so Console produces UNDEFINED_TYPE.
+        Assert.Contains(diagnostics, d => d.Id.Value.Contains("UNDEFINED_TYPE") || d.Id.Value.Contains("UNDEFINED_NAMESPACE"));
 
-        // User symbols are in AllSymbols (via SymbolTable).
+        // User symbols are still in AllSymbols (via SymbolTable).
         var userSymbols = model.AllSymbols.Where(s => s.Origin == SymbolOrigin.UserCode).ToList();
         Assert.NotEmpty(userSymbols);
 
         // All user symbols should have non-null DeclarationSpan.
         Assert.All(userSymbols, s => Assert.NotNull(s.DeclarationSpan));
-
-        // The field's declared type should be the ambient Console type (ClassType).
-        var fieldSymbol = model.AllSymbols.First(s => s.Name == "f" && s.Kind == SymbolKind.Field);
-        Assert.Equal(SymbolOrigin.UserCode, fieldSymbol.Origin);
-        var fieldType = Assert.IsType<ClassType>(fieldSymbol.DeclaredType);
-        Assert.Equal("Console", fieldType.DisplayName);
-
-        // Verify the ambient type's members have Backend origin.
-        var consoleMembers = resolver.GetMembers(fieldType);
-        Assert.NotEmpty(consoleMembers);
-        Assert.All(consoleMembers, m => Assert.Equal(SymbolOrigin.Backend, m.Origin));
-        Assert.All(consoleMembers, m => Assert.Null(m.DeclarationSpan));
     }
 
     // ═══════════════════════════════════════════════════════════════════════

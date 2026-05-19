@@ -1,6 +1,6 @@
 // VoidType — Covers the void unit type feature.
 
-using System;
+using Standard;
 
 namespace VoidType;
 

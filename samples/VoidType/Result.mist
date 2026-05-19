@@ -1,6 +1,6 @@
 // Result<T> — A generic Result type. When T is void, it represents success with no value.
 
-using System;
+using Standard;
 
 namespace VoidType;
 

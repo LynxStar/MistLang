@@ -7,9 +7,6 @@ path = "../Primitives"
 path = "../Classes"
 
 [[references]]
-path = "../AmbientTypes"
-
-[[references]]
 path = "../ShapeInterfaces"
 
 [[references]]

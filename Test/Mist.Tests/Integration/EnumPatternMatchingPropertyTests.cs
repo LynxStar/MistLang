@@ -123,7 +123,7 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
     private static string BuildBatchedProgram(IReadOnlyList<PatternMatchScenario> scenarios)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("using System;");
+        sb.AppendLine("using Standard;");
         sb.AppendLine();
 
         // Collect unique enum definitions (by name + members).

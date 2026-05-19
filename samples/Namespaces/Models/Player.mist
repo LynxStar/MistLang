@@ -1,4 +1,4 @@
-using System;
+using Standard;
 
 // No explicit namespace — inferred as "Namespaces.Models" from folder path
 // Demonstrates: Inferred namespace from subdirectory (Req 10.3)

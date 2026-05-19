@@ -1,6 +1,6 @@
 // AutoProps — Demonstrates auto-properties with get; set; and initializers.
 
-using System;
+using Standard;
 
 namespace Properties;
 

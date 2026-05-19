@@ -1,6 +1,6 @@
 // IShape — Demonstrates interface declarations, interface inheritance, and interface properties.
 
-using System;
+using Standard;
 
 namespace ShapeInterfaces;
 

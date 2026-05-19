@@ -1,6 +1,6 @@
 // Rectangle — Demonstrates a class implementing a child interface (IResizable : IShape) with properties.
 
-using System;
+using Standard;
 
 namespace ShapeInterfaces;
 

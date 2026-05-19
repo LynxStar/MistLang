@@ -119,7 +119,7 @@ public sealed class PipelineDebugTests : IDisposable
     public void MinimalProgramMist_ParsedAstHasNonEmptyNamespaceBody()
     {
         // This is the exact same source that passes in unit tests
-        var contents = "using System;\n\nnamespace HelloMist;\n\npublic class Program\n{\n    public static void Main(string[] args)\n    {\n    }\n}";
+        var contents = "using Standard;\n\nnamespace HelloMist;\n\npublic class Program\n{\n    public static void Main(string[] args)\n    {\n    }\n}";
         var sourceText = new SourceText("test.mist", contents);
 
         var lexer = new Mist.Lexing.MistLexer();
@@ -145,25 +145,25 @@ public sealed class PipelineDebugTests : IDisposable
     /// </summary>
     [Theory]
     [InlineData("WithInterpolatedString",
-        "using System;\nnamespace HelloMist;\npublic class Program {\n    public static void Main(string[] args) {\n        Console.WriteLine($\"Hello {args}\");\n    }\n}")]
+        "using Standard;\nnamespace HelloMist;\npublic class Program {\n    public static void Main(string[] args) {\n        Console.WriteLine($\"Hello {args}\");\n    }\n}")]
     [InlineData("WithIfElse",
-        "using System;\nnamespace HelloMist;\npublic class Program {\n    public static void Main(string[] args) {\n        if (true) { } else { }\n    }\n}")]
+        "using Standard;\nnamespace HelloMist;\npublic class Program {\n    public static void Main(string[] args) {\n        if (true) { } else { }\n    }\n}")]
     [InlineData("WithForLoop",
-        "using System;\nnamespace HelloMist;\npublic class Program {\n    public static void Main(string[] args) {\n        for (int i = 0; i < 5; i = i + 1) { }\n    }\n}")]
+        "using Standard;\nnamespace HelloMist;\npublic class Program {\n    public static void Main(string[] args) {\n        for (int i = 0; i < 5; i = i + 1) { }\n    }\n}")]
     [InlineData("WithWhileLoop",
-        "using System;\nnamespace HelloMist;\npublic class Program {\n    public static void Main(string[] args) {\n        while (true) { break; }\n    }\n}")]
+        "using Standard;\nnamespace HelloMist;\npublic class Program {\n    public static void Main(string[] args) {\n        while (true) { break; }\n    }\n}")]
     [InlineData("WithTwoMethods",
-        "using System;\nnamespace HelloMist;\npublic class Program {\n    private static int Factorial(int n) { return 1; }\n    public static void Main(string[] args) { }\n}")]
+        "using Standard;\nnamespace HelloMist;\npublic class Program {\n    private static int Factorial(int n) { return 1; }\n    public static void Main(string[] args) { }\n}")]
     [InlineData("WithFieldAndMethod",
-        "using System;\nnamespace HelloMist;\npublic class Program {\n    private int x;\n    public static void Main(string[] args) { }\n}")]
+        "using Standard;\nnamespace HelloMist;\npublic class Program {\n    private int x;\n    public static void Main(string[] args) { }\n}")]
     [InlineData("WithVarDecl",
-        "using System;\nnamespace HelloMist;\npublic class Program {\n    public static void Main(string[] args) {\n        var x = 10;\n    }\n}")]
+        "using Standard;\nnamespace HelloMist;\npublic class Program {\n    public static void Main(string[] args) {\n        var x = 10;\n    }\n}")]
     [InlineData("WithNewObject",
-        "using System;\nnamespace HelloMist;\npublic class Program {\n    public static void Main(string[] args) {\n        var p = new Point(3, 4);\n    }\n}")]
+        "using Standard;\nnamespace HelloMist;\npublic class Program {\n    public static void Main(string[] args) {\n        var p = new Point(3, 4);\n    }\n}")]
     [InlineData("WithForeach",
-        "using System;\nnamespace HelloMist;\npublic class Program {\n    public static void Main(string[] args) {\n        foreach (int n in args) { }\n    }\n}")]
+        "using Standard;\nnamespace HelloMist;\npublic class Program {\n    public static void Main(string[] args) {\n        foreach (int n in args) { }\n    }\n}")]
     [InlineData("WithArrayCreation",
-        "using System;\nnamespace HelloMist;\npublic class Program {\n    public static void Main(string[] args) {\n        int[] numbers = new int[5];\n    }\n}")]
+        "using Standard;\nnamespace HelloMist;\npublic class Program {\n    public static void Main(string[] args) {\n        int[] numbers = new int[5];\n    }\n}")]
     public void IncrementalComplexity_NamespaceBodyNotEmpty(string name, string contents)
     {
         var sourceText = new SourceText("test.mist", contents);

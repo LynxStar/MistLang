@@ -1,7 +1,7 @@
 // Point — Demonstrates classes, constructors, constructor chaining,
 // private fields, public methods, this keyword, Math ambient type.
 
-using System;
+using Standard;
 
 namespace Classes;
 

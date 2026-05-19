@@ -162,7 +162,7 @@ public sealed class RefMutationVisibilityPropertyTests : IDisposable
         }
 
         return $$"""
-            using System;
+            using Standard;
 
             namespace TestProgram;
 

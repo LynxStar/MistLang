@@ -1,6 +1,6 @@
 // Circle — Demonstrates a class implementing an interface with auto-properties and computed properties.
 
-using System;
+using Standard;
 
 namespace ShapeInterfaces;
 

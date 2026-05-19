@@ -141,7 +141,7 @@ public sealed class UnionEmitterPropertyTests : IDisposable
 
             // Build a minimal Mist program using the union type
             var source = string.Join("\n",
-                "using System;",
+                "using Standard;",
                 "",
                 "namespace TestProgram;",
                 "",

@@ -1,7 +1,7 @@
 // BlockNamespaces — Demonstrates block namespaces nested inside block namespaces
 // and repeated block namespaces with the same name.
 
-using System;
+using Standard;
 
 // ─── 12. Block namespaces nested inside block namespaces ─────────────────────
 // Uses qualified name syntax (NestedScoping.Networking.Protocol) because the

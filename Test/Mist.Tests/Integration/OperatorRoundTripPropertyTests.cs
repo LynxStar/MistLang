@@ -116,7 +116,7 @@ public sealed class OperatorRoundTripPropertyTests : IDisposable
         }
 
         return $$"""
-            using System;
+            using Standard;
 
             namespace TestProgram;
 
@@ -144,7 +144,7 @@ public sealed class OperatorRoundTripPropertyTests : IDisposable
         }
 
         return $$"""
-            using System;
+            using Standard;
 
             namespace TestProgram;
 

@@ -17,7 +17,7 @@
 //  14. File-scoped namespace with nested types inside type declarations
 //  15. Referencing nested types by qualified name from outside the parent
 
-using System;
+using Standard;
 using NestedScoping.Networking.Protocol;
 using NestedScoping.Utilities;
 

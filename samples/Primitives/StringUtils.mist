@@ -1,7 +1,7 @@
 // StringUtils — Demonstrates a static utility class with
 // string methods, boolean logic, and static-only members.
 
-using System;
+using Standard;
 
 namespace Primitives;
 
@@ -28,7 +28,7 @@ public class StringUtils
     {
         int value = Convert.ToInt32(numStr);
         int doubled = value * 2;
-        return Convert.ToString(doubled);
+        return $"{doubled}";
     }
 
     // Demonstrates: static method, string.Length property access

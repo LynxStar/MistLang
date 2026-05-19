@@ -1,6 +1,6 @@
 // DefaultKeyword — Demonstrates the default keyword for value initialization.
 
-using System;
+using Standard;
 
 namespace DefaultKeyword;
 

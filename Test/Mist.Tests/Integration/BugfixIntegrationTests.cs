@@ -217,7 +217,7 @@ public sealed class BugfixIntegrationTests : IDisposable
     public void MultiFile_AllThreeBugScenarios_NoErrorDiagnostics()
     {
         // ── File 1: Geometry class — Bug 1 (multi-param ctor) + Bug 2 (field initializer) ──
-        var source1 = "using System;\nnamespace TestApp;\npublic class Geometry {\n    private int dimension = 2;\n    public Geometry(int x, int y) { this.x = x; this.y = y; }\n}";
+        var source1 = "using Standard;\nnamespace TestApp;\npublic class Geometry {\n    private int dimension = 2;\n    public Geometry(int x, int y) { this.x = x; this.y = y; }\n}";
 
         // Constructor with 2 parameters (Bug 1)
         var ctorParam = MakeParameter("int", "x");
@@ -269,7 +269,7 @@ public sealed class BugfixIntegrationTests : IDisposable
 
         var ast1 = new CompilationUnitNode
         {
-            Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
+            Usings = ImmutableArray.Create(MakeUsingDeclaration("Standard")),
             Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("TestApp"),
@@ -280,7 +280,7 @@ public sealed class BugfixIntegrationTests : IDisposable
         };
 
         // ── File 2: StringHelper class — Bug 3 (string.Length property access) ──
-        var source2 = "using System;\nnamespace TestApp;\npublic class StringHelper {\n    public int GetLength(string input) { int len = input.Length; return len; }\n}";
+        var source2 = "using Standard;\nnamespace TestApp;\npublic class StringHelper {\n    public int GetLength(string input) { int len = input.Length; return len; }\n}";
 
         var stringParam = new ParameterNode
         {
@@ -335,7 +335,7 @@ public sealed class BugfixIntegrationTests : IDisposable
 
         var ast2 = new CompilationUnitNode
         {
-            Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
+            Usings = ImmutableArray.Create(MakeUsingDeclaration("Standard")),
             Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("TestApp"),
@@ -346,7 +346,7 @@ public sealed class BugfixIntegrationTests : IDisposable
         };
 
         // ── File 3: Program class with Main entry point ──
-        var source3 = "using System;\nnamespace TestApp;\npublic class Program {\n    public static void Main() { }\n}";
+        var source3 = "using Standard;\nnamespace TestApp;\npublic class Program {\n    public static void Main() { }\n}";
 
         var mainMethod = new MethodDeclarationNode
         {
@@ -369,7 +369,7 @@ public sealed class BugfixIntegrationTests : IDisposable
 
         var ast3 = new CompilationUnitNode
         {
-            Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
+            Usings = ImmutableArray.Create(MakeUsingDeclaration("Standard")),
             Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("TestApp"),
@@ -496,7 +496,7 @@ public sealed class BugfixIntegrationTests : IDisposable
         };
 
         // ── File 2: Class with string.Length property access (Bug 3) ──
-        var source2 = "using System;\nnamespace TestApp;\npublic class TextUtil {\n    public int Measure(string text) { int len = text.Length; return len; }\n}";
+        var source2 = "using Standard;\nnamespace TestApp;\npublic class TextUtil {\n    public int Measure(string text) { int len = text.Length; return len; }\n}";
 
         var textParam = new ParameterNode
         {
@@ -550,7 +550,7 @@ public sealed class BugfixIntegrationTests : IDisposable
 
         var ast2 = new CompilationUnitNode
         {
-            Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
+            Usings = ImmutableArray.Create(MakeUsingDeclaration("Standard")),
             Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
             {
                 Name = MakeQualifiedId("TestApp"),

@@ -1,6 +1,6 @@
 // Primitives — Covers primitive types, operators, control flow, recursion, arrays, and string operations.
 
-using System;
+using Standard;
 
 namespace Primitives;
 

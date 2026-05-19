@@ -1,0 +1,6 @@
+namespace Standard;
+
+intrinsic public class Convert
+{
+    intrinsic public static Int32 ToInt32(String value);
+}

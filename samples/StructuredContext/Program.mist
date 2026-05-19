@@ -18,7 +18,7 @@
 //  15. Interface method dispatch with with-clause
 //  16. Trait structural dispatch with with-clause
 
-using System;
+using Standard;
 
 namespace StructuredContext;
 

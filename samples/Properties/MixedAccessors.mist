@@ -1,6 +1,6 @@
 // MixedAccessors — Demonstrates mixed accessor forms.
 
-using System;
+using Standard;
 
 namespace Properties;
 

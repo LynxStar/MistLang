@@ -1,7 +1,7 @@
 // DeepOwnershipTypes — Comprehensive sample exercising every deep ownership pattern.
 // Each demo prints labeled output to prove the feature works end-to-end.
 
-using System;
+using Standard;
 
 namespace DeepOwnershipTypes;
 

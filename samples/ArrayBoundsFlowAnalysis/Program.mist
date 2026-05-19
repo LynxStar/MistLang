@@ -13,7 +13,7 @@
 //   6. Indexer parameters using ad-hoc refinement constraints
 //   7. Dependent-typed class with sized array field
 
-using System;
+using Standard;
 
 namespace ArrayBoundsFlowAnalysis;
 

@@ -1,6 +1,6 @@
 // GenericBox<T> — Demonstrates a generic class implementing a generic interface.
 
-using System;
+using Standard;
 
 namespace GenericTypes;
 

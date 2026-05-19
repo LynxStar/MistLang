@@ -60,7 +60,7 @@ public sealed class UnionPatternMatchingEmissionTests : IDisposable
     private static string BuildMistProgram()
     {
         return """
-            using System;
+            using Standard;
 
             namespace TestProgram;
 

@@ -16,7 +16,7 @@
 //  13. Passing string literal to regex parameter (compile-time validated)
 //  14. Passing string variable with explicit cast to regex parameter
 
-using System;
+using Standard;
 
 namespace RegexLiterals;
 

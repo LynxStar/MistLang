@@ -1,6 +1,6 @@
 using System;
 
-namespace Snippet;
+namespace Namespaces.Models;
 
 public class Player
 {

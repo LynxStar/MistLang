@@ -56,7 +56,7 @@ Array literals use bracket syntax. The compiler infers the element type and size
 
 ### Empty Arrays
 
-An empty array literal `[]` requires an explicit type annotation since the compiler can't infer the element type from zero elements:
+An empty array literal `[]` requires an explicit type annotation since the compiler can't infer the element type from zero elements. Use `T[0]` to express that the size is known to be zero:
 
 {{#tabs }}
 {{#tab name="Mist" }}

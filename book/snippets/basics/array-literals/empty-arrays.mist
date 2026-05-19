@@ -1,2 +1,2 @@
-int[] empty = [];
-string[] noNames = [];
+int[0] empty = [];
+string[0] noNames = [];

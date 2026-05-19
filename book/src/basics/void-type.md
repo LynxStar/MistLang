@@ -1,12 +1,18 @@
 # Void and Unit Type
 
-In most languages, `void` means "nothing" — a method returns no value, and that's the end of it. Mist takes a different approach: `void` is a first-class value type with a single instance, `Void.Void`. This means you can store it in variables, pass it as a parameter, and use it as a generic type argument. The compiler emits a `MistVoid` struct in the generated C# to represent this value.
+## What Void Means in Mist
 
-This design eliminates the need for separate "void" and "non-void" code paths in generic code. A `Result<void>` works just as naturally as a `Result<int>`.
+In most languages, `void` means "nothing" — a function returns no value, and you can't do anything with it. Mist takes a different approach: `void` is a real type with exactly one value, `Void.Void`. In type theory this is called a **unit type** — a type inhabited by a single value that carries no information.
 
-## Void as a Variable Type
+This makes `void` a first-class citizen. You can store it in variables, pass it as a parameter, use it as a generic type argument, and return it from functions. There is no special case — `void` behaves like any other type, it just happens to have only one possible value.
 
-You can declare a variable with type `void` and assign it the value `Void.Void`:
+## Why This Matters
+
+The traditional split between "void functions" and "value-returning functions" forces duplication in generic code. If you want a `Result<T>` type, you need a separate `Result` (no type parameter) for operations that don't produce a value. With Mist's approach, `Result<void>` works naturally — no special-casing required.
+
+## The Void Value
+
+The single instance of the `void` type is written as `Void.Void`:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -21,7 +27,7 @@ You can declare a variable with type `void` and assign it the value `Void.Void`:
 {{#endtab }}
 {{#endtabs }}
 
-You can also use `var` for type inference:
+Type inference works as expected:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -35,8 +41,6 @@ You can also use `var` for type inference:
 ```
 {{#endtab }}
 {{#endtabs }}
-
-In both cases, the variable holds the singleton `MistVoid.Instance` value.
 
 ## Void as a Parameter Type
 
@@ -55,8 +59,6 @@ Methods can accept `void` as a parameter type. This is useful in generic context
 {{#endtab }}
 {{#endtabs }}
 
-The parameter type `void` becomes `MistVoid` in the emitted C#, and `Void.Void` becomes `MistVoid.Instance`.
-
 ## Void as a Generic Type Argument
 
 The real power of first-class void shows up in generic code. You can instantiate any generic type with `void`:
@@ -74,11 +76,11 @@ The real power of first-class void shows up in generic code. You can instantiate
 {{#endtab }}
 {{#endtabs }}
 
-When `void` is used as a type argument, the compiler substitutes `MistVoid` in the emitted C#. This means `Result<void>` becomes `Result<MistVoid>` — a perfectly valid generic instantiation that requires no special-casing.
+A `Result<void>` is just as valid as a `Result<int>` — no separate non-generic overload needed.
 
-## Fire-and-Forget Void Methods
+## Void Methods
 
-When a void method is called as a standalone statement and its return value is not used, the compiler emits a standard C# `void` method:
+A method with return type `void` can either be used in fire-and-forget style (the familiar pattern) or have its return value captured:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -93,11 +95,7 @@ When a void method is called as a standalone statement and its return value is n
 {{#endtab }}
 {{#endtabs }}
 
-This is the familiar pattern from C# — the method performs a side effect and returns nothing.
-
-## Value-Returning Void Methods
-
-When a void method explicitly returns `Void.Void` and its return value is captured by the caller, the compiler emits a `MistVoid` return type instead of C# `void`:
+When the return value is explicitly used, the method returns `Void.Void`:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -112,11 +110,9 @@ When a void method explicitly returns `Void.Void` and its return value is captur
 {{#endtab }}
 {{#endtabs }}
 
-The distinction is automatic: if the compiler detects that a void method's return value is consumed (assigned to a variable, passed as an argument, etc.), it emits `MistVoid` as the return type with `return MistVoid.Instance`. If the return value is never used, it emits standard C# `void`.
+## Equality Semantics
 
-## Void Equality Semantics
-
-Since there is only one possible void value, all `Void.Void` instances are equal. The `==` operator always returns `true`, `!=` always returns `false`, and `GetHashCode()` returns a constant value (0):
+Since there is only one possible void value, all `Void.Void` instances are equal. The `==` operator always returns `true` and `!=` always returns `false`:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -131,10 +127,19 @@ Since there is only one possible void value, all `Void.Void` instances are equal
 {{#endtab }}
 {{#endtabs }}
 
-The emitted `MistVoid` struct implements `IEquatable<MistVoid>` with these semantics:
+This makes void safe to use in collections, dictionaries, and equality comparisons without surprises.
+
+## C# Emission
+
+The C# backend represents Mist's `void` type using a `MistVoid` struct — a zero-size value type with a singleton `Instance` field:
 
 ```csharp
 {{#include ../../snippets/basics/void-type/mistvoid-struct.cs}}
 ```
 
-This makes void safe to use in collections, dictionaries, and equality comparisons without surprises.
+The compiler chooses between two emission strategies depending on how the void method's return value is used:
+
+- **Fire-and-forget** — When a void method's return value is never consumed (not assigned, not passed as an argument), the compiler emits a standard C# `void` method. This produces idiomatic C# for the common case.
+- **Value-returning** — When a void method's return value is captured (assigned to a variable, passed as an argument, used in a generic context), the compiler emits `MistVoid` as the return type with `return MistVoid.Instance`.
+
+This distinction is automatic. You write the same Mist code either way — the compiler inspects usage at each call site to decide which emission strategy to use.

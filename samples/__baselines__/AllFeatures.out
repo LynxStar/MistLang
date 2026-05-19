@@ -1070,6 +1070,30 @@ Done!
 [Multiple global usings] LOG: Product(Widget, $42)
 [Second instances] INFO: Product(Gadget, $99)
 === GlobalUsings Done ===
+--- Inferred Type ---
+x=7
+--- Explicit Type ---
+y=42
+--- Var Tuple Deconstruction ---
+a=1
+b=2
+--- Typed Tuple Deconstruction ---
+c=3
+d=hello
+--- Ownership Specifier ---
+h.Value=99
+h.Describe=Holder(Value=99)
+--- Readonly Block ---
+inner=55, inner2=66
+--- Constructor Body ---
+cfg.ComputedValue=25
+cfg.Label=item_25
+cfg.Describe=Configured(ComputedValue=25, Label=item_25)
+--- Multiple Readonly Locals ---
+first=100
+second=200
+third=300
+sum=400
 === Structured Concurrency Sample ===
 [task-type-reference]
   Task<int> obtained, type is Task

@@ -1,0 +1,116 @@
+// ReadonlyLocals — Demonstrates every readonly local variable syntax variant.
+// Each section prints labeled output to prove the readonly binding works end-to-end.
+
+using Standard;
+
+namespace ReadonlyLocals;
+
+// ─── Helper class for ownership specifier demo ───────────────────────────────
+
+public class Holder
+{
+    public int Value;
+
+    public Holder(int value)
+    {
+        this.Value = value;
+    }
+
+    public string Describe()
+    {
+        return $"Holder(Value={Value})";
+    }
+}
+
+// ─── Helper class for constructor body demo ──────────────────────────────────
+
+public class Configured
+{
+    public int ComputedValue;
+    public string Label;
+
+    public Configured(int baseValue, string prefix)
+    {
+        // Readonly locals inside a constructor body
+        readonly var multiplier = 3;
+        readonly int offset = 10;
+        this.ComputedValue = baseValue * multiplier + offset;
+        this.Label = $"{prefix}_{ComputedValue}";
+    }
+
+    public string Describe()
+    {
+        return $"Configured(ComputedValue={ComputedValue}, Label={Label})";
+    }
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        // ── 1. Readonly with inferred type ───────────────────────────────
+        Console.WriteLine("--- Inferred Type ---");
+        readonly var x = 7;
+        Console.WriteLine($"x={x}");
+
+        // ── 2. Readonly with explicit type ───────────────────────────────
+        Console.WriteLine("--- Explicit Type ---");
+        readonly int y = 42;
+        Console.WriteLine($"y={y}");
+
+        // ── 3. Readonly with tuple deconstruction (var form) ─────────────
+        Console.WriteLine("--- Var Tuple Deconstruction ---");
+        readonly var (a, b) = (1, 2);
+        Console.WriteLine($"a={a}");
+        Console.WriteLine($"b={b}");
+
+        // ── 4. Readonly with typed tuple deconstruction ──────────────────
+        Console.WriteLine("--- Typed Tuple Deconstruction ---");
+        readonly (int c, string d) = (3, "hello");
+        Console.WriteLine($"c={c}");
+        Console.WriteLine($"d={d}");
+
+        // ── 5. Readonly combined with ownership specifier ────────────────
+        Console.WriteLine("--- Ownership Specifier ---");
+        readonly owned var h = new Holder(99);
+        Console.WriteLine($"h.Value={h.Value}");
+        Console.WriteLine($"h.Describe={h.Describe()}");
+
+        // ── 6. Readonly locals inside a readonly block ───────────────────
+        Console.WriteLine("--- Readonly Block ---");
+        var blockResult = "";
+        readonly
+        {
+            readonly var inner = 55;
+            readonly int inner2 = 66;
+            blockResult = $"inner={inner}, inner2={inner2}";
+        }
+        Console.WriteLine(blockResult);
+
+        // ── 7. Readonly locals inside a method body (this method) ────────
+        //    and constructor body (Configured class above)
+        Console.WriteLine("--- Constructor Body ---");
+        var cfg = new Configured(5, "item");
+        Console.WriteLine($"cfg.ComputedValue={cfg.ComputedValue}");
+        Console.WriteLine($"cfg.Label={cfg.Label}");
+        Console.WriteLine($"cfg.Describe={cfg.Describe()}");
+
+        // ── 8. Multiple readonly locals in the same scope ────────────────
+        Console.WriteLine("--- Multiple Readonly Locals ---");
+        readonly var first = 100;
+        readonly var second = 200;
+        readonly int third = 300;
+        readonly var sum = first + second + third;
+        Console.WriteLine($"first={first}");
+        Console.WriteLine($"second={second}");
+        Console.WriteLine($"third={third}");
+        Console.WriteLine($"sum={sum}");
+    }
+}

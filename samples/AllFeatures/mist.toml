@@ -121,4 +121,7 @@ path = "../TopLevelStatements"
 path = "../GlobalUsings"
 
 [[references]]
+path = "../ReadonlyLocals"
+
+[[references]]
 path = "../StructuredConcurrency"

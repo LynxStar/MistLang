@@ -51,6 +51,7 @@ public class Program
         ArrayBoundsFlowAnalysis.Program.RunDemo();
         TopLevelStatements.Program.RunDemo();
         GlobalUsings.Program.RunDemo();
+        ReadonlyLocals.Program.RunDemo();
         StructuredConcurrency.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }

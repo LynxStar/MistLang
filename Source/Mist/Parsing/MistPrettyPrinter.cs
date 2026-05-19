@@ -612,16 +612,18 @@ public sealed class MistPrettyPrinter
                 {
                     case TypedVariableDeclarationVariableDeclarationStatementNode typed:
                     {
+                        var readonlyPrefix = typed.ReadonlyModifier is not null ? "readonly " : "";
                         var type = EmitTypeReference(typed.Type);
                         var name = typed.Name.Lexeme;
                         var init = EmitExpression(typed.Initializer);
-                        return $"{type} {name} = {init};";
+                        return $"{readonlyPrefix}{type} {name} = {init};";
                     }
                     case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
                     {
+                        var readonlyPrefix = inferred.ReadonlyModifier is not null ? "readonly " : "";
                         var name = inferred.Name.Lexeme;
                         var init = EmitExpression(inferred.Initializer);
-                        return $"var {name} = {init};";
+                        return $"{readonlyPrefix}var {name} = {init};";
                     }
                     default:
                         return "";
@@ -1412,34 +1414,38 @@ public sealed class MistPrettyPrinter
         {
             case TypedVariableDeclarationVariableDeclarationStatementNode typed:
             {
+                var readonlyPrefix = typed.ReadonlyModifier is not null ? "readonly " : "";
                 var ownership = EmitOwnershipSpecifier(typed.OwnershipSpecifier);
                 var type = EmitTypeReference(typed.Type);
                 var name = typed.Name.Lexeme;
                 var init = EmitExpression(typed.Initializer);
-                AppendLine($"{ownership}{type} {name} = {init};");
+                AppendLine($"{readonlyPrefix}{ownership}{type} {name} = {init};");
                 break;
             }
             case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
             {
+                var readonlyPrefix = inferred.ReadonlyModifier is not null ? "readonly " : "";
                 var ownership = EmitOwnershipSpecifier(inferred.OwnershipSpecifier);
                 var name = inferred.Name.Lexeme;
                 var init = EmitExpression(inferred.Initializer);
-                AppendLine($"{ownership}var {name} = {init};");
+                AppendLine($"{readonlyPrefix}{ownership}var {name} = {init};");
                 break;
             }
             case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
             {
+                var readonlyPrefix = varTuple.ReadonlyModifier is not null ? "readonly " : "";
                 var names = new List<string> { varTuple.FirstName.Lexeme };
                 foreach (var restName in varTuple.RestNames)
                 {
                     names.Add(restName.Lexeme);
                 }
                 var init = EmitExpression(varTuple.Initializer);
-                AppendLine($"var ({string.Join(", ", names)}) = {init};");
+                AppendLine($"{readonlyPrefix}var ({string.Join(", ", names)}) = {init};");
                 break;
             }
             case TypedTupleDeconstructionVariableDeclarationStatementNode typedTuple:
             {
+                var readonlyPrefix = typedTuple.ReadonlyModifier is not null ? "readonly " : "";
                 var parts = new List<string>();
 
                 string FormatDeconstructionElement(TupleDeconstructionElementNode element)
@@ -1456,7 +1462,7 @@ public sealed class MistPrettyPrinter
                 }
 
                 var init = EmitExpression(typedTuple.Initializer);
-                AppendLine($"({string.Join(", ", parts)}) = {init};");
+                AppendLine($"{readonlyPrefix}({string.Join(", ", parts)}) = {init};");
                 break;
             }
         }

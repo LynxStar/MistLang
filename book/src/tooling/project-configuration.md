@@ -152,7 +152,7 @@ Each entry in the `namespaces` array must be a fully qualified namespace name â€
 
 In plain terms: each segment starts with a letter or underscore, followed by zero or more letters, digits, or underscores. Segments are separated by dots.
 
-Valid examples: `System`, `MyProject.Models`, `_Internal.Utils`
+Valid examples: `Standard`, `MyProject.Models`, `_Internal.Utils`
 
 ### Error Behavior
 
@@ -246,13 +246,13 @@ name = "MyApp"
 namespace_root = "MyApp"
 
 [global_usings]
-namespaces = ["System", "MyApp.Models", "MyApp.Services"]
+namespaces = ["Standard", "MyApp.Models", "MyApp.Services"]
 
 [[references]]
 path = "../SharedLib"
 ```
 
-With this configuration, every `.mist` file in the project can reference types from `System`, `MyApp.Models`, and `MyApp.Services` without explicit `using` declarations. The referenced `SharedLib` project does not inherit these global usings.
+With this configuration, every `.mist` file in the project can reference types from `Standard`, `MyApp.Models`, and `MyApp.Services` without explicit `using` declarations. The referenced `SharedLib` project does not inherit these global usings.
 
 ## Error Behavior
 

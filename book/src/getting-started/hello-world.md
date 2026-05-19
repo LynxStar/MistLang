@@ -76,7 +76,7 @@ Let's walk through each part of the program:
 {{#include ../../snippets/getting-started/hello-world-using.mist}}
 ```
 
-The `using` declaration imports the `System` namespace, which gives you access to `Console` and other fundamental .NET types. Without this line, you'd need to write `System.Console.WriteLine(...)` instead.
+The `using` declaration imports the `Standard` namespace, which gives you access to `Console` and other fundamental types. Without this line, you'd need to write `Standard.Console.WriteLine(...)` instead.
 
 ```mist
 {{#include ../../snippets/getting-started/hello-world-namespace.mist}}
@@ -102,7 +102,7 @@ The return type here is `void`, which works the same as in C — the method runs
 {{#include ../../snippets/getting-started/hello-world-writeline.mist}}
 ```
 
-This calls the `WriteLine` method on the `Console` class from the `System` namespace, printing the string `"Hello, World!"` followed by a newline to standard output.
+This calls the `WriteLine` method on the `Console` class from the `Standard` namespace, printing the string `"Hello, World!"` followed by a newline to standard output.
 
 ## What's Next
 

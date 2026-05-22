@@ -90,3 +90,45 @@ While the syntax is the same, the runtime behavior differs:
 
 - **Class inheritance** preserves a runtime subtype relationship. A `Dog` reference stored in an `Animal` variable still points to the original `Dog` object on the heap. No data is lost.
 - **Struct inheritance** is a compile-time composition mechanism. Assigning a `Point3D` to a `Point` variable copies only the base fields (`X`, `Y`) into a new independent value. The `Z` field is not carried along — this is safe narrowing, not slicing a reference.
+
+## Widening and Narrowing
+
+### Derived to Base (Widening)
+
+A derived type can always be assigned to a variable of its base type implicitly — no cast required. For classes, this stores the derived reference in a base-typed variable (the full object is preserved on the heap). For structs, this copies only the base fields into a new value.
+
+```mist
+// Class: Dog → Animal (reference preserved, no data loss)
+Animal a = new Dog("Rex", 5, "Labrador");
+// a still points to the full Dog object
+
+// Struct: Point3D → Point (copies X and Y, Z is discarded)
+Point p = new Point3D(1, 2, 3);
+// p is an independent Point with X=1, Y=2
+```
+
+This works transitively: if `C` extends `B` extends `A`, then `C` is assignable to both `B` and `A`.
+
+### Base to Derived (Narrowing)
+
+Assigning a base type to a derived type is always rejected — the compiler emits a type mismatch error. A base value does not have the derived type's additional fields, so the assignment would produce an incomplete value.
+
+```mist
+// Both of these are compile-time errors:
+// Dog d = someAnimal;    // ERROR — Animal is not assignable to Dog
+// Point3D p = somePoint; // ERROR — Point is not assignable to Point3D
+```
+
+For classes, you can use pattern matching to test whether a base-typed variable actually holds a derived instance at runtime:
+
+```mist
+Animal a = new Dog("Rex", 5, "Labrador");
+
+if (a is Dog dog)
+{
+    // Inside this branch, `dog` is typed as Dog
+    Console.WriteLine(dog.GetBreed());
+}
+```
+
+For structs, pattern narrowing from base to derived is not possible — since the derived-to-base conversion copies only the base fields, the derived data is gone. There is no runtime identity to recover.

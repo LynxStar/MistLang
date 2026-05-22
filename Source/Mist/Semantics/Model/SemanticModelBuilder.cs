@@ -1561,8 +1561,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 case InterfacePropertyMemberInterfaceMemberDeclarationNode propertyMember:
                     RegisterInterfacePropertyDeclaration(propertyMember.Property, typeScope, symbolTable);
                     break;
+                case InterfaceAssociatedTypeMemberInterfaceMemberDeclarationNode associatedTypeMember:
+                    RegisterAssociatedTypeSlotDeclaration(associatedTypeMember.AssociatedType, interfaceType, typeScope, symbolTable, sourceText, diagnostics);
+                    break;
+                case InterfaceUnconstrainedAssociatedTypeMemberInterfaceMemberDeclarationNode unconstrainedMember:
+                    RegisterUnconstrainedAssociatedTypeSlotDeclaration(unconstrainedMember.UnconstrainedAssociatedType, interfaceType, typeScope, symbolTable, sourceText, diagnostics);
+                    break;
+                case InterfaceModifiedAssociatedTypeMemberInterfaceMemberDeclarationNode modifiedMember:
+                    EmitModifiersOnAssociatedTypeSlotDiagnostic(modifiedMember.ModifiedAssociatedType, sourceText, diagnostics);
+                    break;
             }
         }
+
+        // Check for duplicate associated type slot names.
+        DetectDuplicateAssociatedTypeSlots(interfaceDecl.Members, interfaceName, sourceText, diagnostics);
 
         // If the interface is readonly, set all members to ImplicitReadonly.
         if (isReadonly)
@@ -1629,8 +1641,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     symbolTable.Register(propSymbol, propertyDecl);
                     break;
                 }
+                case TraitAssociatedTypeMemberTraitMemberDeclarationNode associatedTypeMember:
+                    RegisterAssociatedTypeSlotDeclaration(associatedTypeMember.AssociatedType, traitType, typeScope, symbolTable, sourceText, diagnostics);
+                    break;
+                case TraitUnconstrainedAssociatedTypeMemberTraitMemberDeclarationNode unconstrainedMember:
+                    RegisterUnconstrainedAssociatedTypeSlotDeclaration(unconstrainedMember.UnconstrainedAssociatedType, traitType, typeScope, symbolTable, sourceText, diagnostics);
+                    break;
+                case TraitModifiedAssociatedTypeMemberTraitMemberDeclarationNode modifiedMember:
+                    EmitModifiersOnAssociatedTypeSlotDiagnostic(modifiedMember.ModifiedAssociatedType, sourceText, diagnostics);
+                    break;
             }
         }
+
+        // Check for duplicate associated type slot names.
+        DetectDuplicateAssociatedTypeSlots(traitDecl.Members, traitName, sourceText, diagnostics);
 
         // If the trait is readonly, set all members to ImplicitReadonly.
         if (isReadonly)
@@ -2434,6 +2458,242 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         symbolTable.Register(propSymbol, propertyDecl);
     }
 
+    /// <summary>
+    /// Checks for duplicate associated type slot names in an interface's members.
+    /// Emits <c>MIST_AT_0001</c> pointing to the second (duplicate) declaration.
+    /// </summary>
+    private static void DetectDuplicateAssociatedTypeSlots(
+        ImmutableArray<InterfaceMemberDeclarationNode> members,
+        string typeName,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var seenSlotNames = new HashSet<string>();
+
+        foreach (var member in members)
+        {
+            string? slotName;
+            Storm.Runtime.SyntaxNode declarationNode;
+
+            switch (member)
+            {
+                case InterfaceAssociatedTypeMemberInterfaceMemberDeclarationNode assoc:
+                    slotName = assoc.AssociatedType.Name.Lexeme;
+                    declarationNode = assoc.AssociatedType;
+                    break;
+                case InterfaceUnconstrainedAssociatedTypeMemberInterfaceMemberDeclarationNode unconstrained:
+                    slotName = unconstrained.UnconstrainedAssociatedType.Name.Lexeme;
+                    declarationNode = unconstrained.UnconstrainedAssociatedType;
+                    break;
+                default:
+                    continue;
+            }
+
+            if (!seenSlotNames.Add(slotName))
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    DiagnosticId.DuplicateAssociatedTypeSlot.Value,
+                    DiagnosticSeverity.Error,
+                    $"Interface/trait '{typeName}' declares duplicate associated type slot '{slotName}'",
+                    declarationNode,
+                    sourceText));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks for duplicate associated type slot names in a trait's members.
+    /// Emits <c>MIST_AT_0001</c> pointing to the second (duplicate) declaration.
+    /// </summary>
+    private static void DetectDuplicateAssociatedTypeSlots(
+        ImmutableArray<TraitMemberDeclarationNode> members,
+        string typeName,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var seenSlotNames = new HashSet<string>();
+
+        foreach (var member in members)
+        {
+            string? slotName;
+            Storm.Runtime.SyntaxNode declarationNode;
+
+            switch (member)
+            {
+                case TraitAssociatedTypeMemberTraitMemberDeclarationNode assoc:
+                    slotName = assoc.AssociatedType.Name.Lexeme;
+                    declarationNode = assoc.AssociatedType;
+                    break;
+                case TraitUnconstrainedAssociatedTypeMemberTraitMemberDeclarationNode unconstrained:
+                    slotName = unconstrained.UnconstrainedAssociatedType.Name.Lexeme;
+                    declarationNode = unconstrained.UnconstrainedAssociatedType;
+                    break;
+                default:
+                    continue;
+            }
+
+            if (!seenSlotNames.Add(slotName))
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    DiagnosticId.DuplicateAssociatedTypeSlot.Value,
+                    DiagnosticSeverity.Error,
+                    $"Interface/trait '{typeName}' declares duplicate associated type slot '{slotName}'",
+                    declarationNode,
+                    sourceText));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Emits <c>MIST_AT_0005</c> when modifiers precede an associated type slot declaration.
+    /// The diagnostic points to the first modifier token.
+    /// </summary>
+    private static void EmitModifiersOnAssociatedTypeSlotDiagnostic(
+        ModifiedAssociatedTypeSlotDeclarationNode modifiedDecl,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        if (modifiedDecl.Modifiers.Length == 0)
+            return;
+
+        // Point to the first modifier node.
+        var firstModifier = modifiedDecl.Modifiers[0];
+        diagnostics.Add(MakeDiagnosticWithLocation(
+            DiagnosticId.ModifiersOnAssociatedTypeSlot.Value,
+            DiagnosticSeverity.Error,
+            "Modifiers are not permitted on associated type slot declarations",
+            firstModifier,
+            sourceText));
+    }
+
+    /// <summary>
+    /// Emits <c>MIST_AT_0006</c> when an abstract type slot declaration appears in a class or struct body.
+    /// The diagnostic points to the <c>type</c> keyword token.
+    /// </summary>
+    private static void EmitAssociatedTypeSlotInWrongContextDiagnostic(
+        Storm.Runtime.Token typeKeywordToken,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        diagnostics.Add(MakeDiagnosticWithTokenLocation(
+            DiagnosticId.AssociatedTypeSlotInWrongContext.Value,
+            DiagnosticSeverity.Error,
+            "Abstract type slots are only permitted in interfaces and traits",
+            typeKeywordToken,
+            sourceText));
+    }
+
+    /// <summary>
+    /// Registers a constrained associated type slot declaration as a symbol in the
+    /// declaring interface or trait's member scope. Creates an <see cref="AssociatedTypeSlotType"/>
+    /// with empty constraints (resolved later in <see cref="Pass1_ResolveConstraints"/>)
+    /// and registers any type parameters declared on the slot.
+    /// </summary>
+    private static void RegisterAssociatedTypeSlotDeclaration(
+        AssociatedTypeSlotDeclarationNode slotDecl,
+        IType declaringType,
+        Scope typeScope,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var slotName = slotDecl.Name.Lexeme;
+        var slotSpan = ToMistSourceSpan(slotDecl.Name.Span);
+
+        // Extract type parameters on the slot itself (e.g., type Iterator<TState> : ...).
+        var typeParams = ExtractTypeParameters(slotDecl.TypeParams, slotName, sourceText, diagnostics);
+
+        // Create the slot's own member scope for its type parameters.
+        var slotScope = new Scope(parent: typeScope);
+
+        // Register each type parameter as a symbol in the slot's scope.
+        if (typeParams.Count > 0 && slotDecl.TypeParams is not null)
+        {
+            foreach (var tp in typeParams)
+            {
+                var (tpName, tpOrdinal) = GetTypeParameterNameAndOrdinal(tp);
+                var tpSpan = GetTypeParameterSpan(slotDecl.TypeParams, tpOrdinal);
+                var tpSymbol = new Symbol(tpName, SymbolKind.Class, SymbolOrigin.UserCode, slotScope, tp, tpSpan);
+                slotScope.AddMember(tpSymbol);
+            }
+        }
+
+        // Create the AssociatedTypeSlotType with empty constraints initially.
+        // Constraints will be resolved during Pass1_ResolveConstraints.
+        var slotType = new AssociatedTypeSlotType(
+            displayName: slotName,
+            memberScope: slotScope,
+            containingNamespace: declaringType switch
+            {
+                InterfaceType it => it.ContainingNamespace,
+                TraitType tt => tt.ContainingNamespace,
+                _ => null
+            },
+            declaringType: declaringType,
+            constraints: new TypeParameterConstraints(),
+            typeParameters: typeParams);
+
+        // Register the slot as a symbol in the declaring type's member scope.
+        var slotSymbol = new Symbol(slotName, SymbolKind.TypeAlias, SymbolOrigin.UserCode, typeScope, slotType, slotSpan);
+        slotSymbol.TypeParameters = typeParams;
+        typeScope.AddMember(slotSymbol);
+        symbolTable.Register(slotSymbol, slotDecl);
+    }
+
+    /// <summary>
+    /// Registers an unconstrained associated type slot declaration (e.g., <c>type Name;</c>)
+    /// as a symbol in the declaring interface or trait's member scope.
+    /// </summary>
+    private static void RegisterUnconstrainedAssociatedTypeSlotDeclaration(
+        UnconstrainedAssociatedTypeSlotDeclarationNode slotDecl,
+        IType declaringType,
+        Scope typeScope,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var slotName = slotDecl.Name.Lexeme;
+        var slotSpan = ToMistSourceSpan(slotDecl.Name.Span);
+
+        // Extract type parameters on the slot itself.
+        var typeParams = ExtractTypeParameters(slotDecl.TypeParams, slotName, sourceText, diagnostics);
+
+        // Create the slot's own member scope for its type parameters.
+        var slotScope = new Scope(parent: typeScope);
+
+        // Register each type parameter as a symbol in the slot's scope.
+        if (typeParams.Count > 0 && slotDecl.TypeParams is not null)
+        {
+            foreach (var tp in typeParams)
+            {
+                var (tpName, tpOrdinal) = GetTypeParameterNameAndOrdinal(tp);
+                var tpSpan = GetTypeParameterSpan(slotDecl.TypeParams, tpOrdinal);
+                var tpSymbol = new Symbol(tpName, SymbolKind.Class, SymbolOrigin.UserCode, slotScope, tp, tpSpan);
+                slotScope.AddMember(tpSymbol);
+            }
+        }
+
+        // Create the AssociatedTypeSlotType with empty constraints (unconstrained slot).
+        var slotType = new AssociatedTypeSlotType(
+            displayName: slotName,
+            memberScope: slotScope,
+            containingNamespace: declaringType switch
+            {
+                InterfaceType it => it.ContainingNamespace,
+                TraitType tt => tt.ContainingNamespace,
+                _ => null
+            },
+            declaringType: declaringType,
+            constraints: new TypeParameterConstraints(),
+            typeParameters: typeParams);
+
+        // Register the slot as a symbol in the declaring type's member scope.
+        var slotSymbol = new Symbol(slotName, SymbolKind.TypeAlias, SymbolOrigin.UserCode, typeScope, slotType, slotSpan);
+        slotSymbol.TypeParameters = typeParams;
+        typeScope.AddMember(slotSymbol);
+        symbolTable.Register(slotSymbol, slotDecl);
+    }
+
     private static void RegisterMemberDeclaration(
         MemberDeclarationNode memberDecl,
         Scope typeScope,
@@ -2475,6 +2735,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     namespaceName: null,
                     sourceText,
                     diagnostics);
+                break;
+            case AssociatedTypeMemberMemberDeclarationNode associatedTypeMember:
+                EmitAssociatedTypeSlotInWrongContextDiagnostic(associatedTypeMember.AssociatedType.TYPE, sourceText, diagnostics);
+                break;
+            case UnconstrainedAssociatedTypeMemberMemberDeclarationNode unconstrainedMember:
+                EmitAssociatedTypeSlotInWrongContextDiagnostic(unconstrainedMember.UnconstrainedAssociatedType.TYPE, sourceText, diagnostics);
+                break;
+            case ModifiedAssociatedTypeMemberMemberDeclarationNode modifiedMember:
+                EmitModifiersOnAssociatedTypeSlotDiagnostic(modifiedMember.ModifiedAssociatedType, sourceText, diagnostics);
+                EmitAssociatedTypeSlotInWrongContextDiagnostic(modifiedMember.ModifiedAssociatedType.TYPE, sourceText, diagnostics);
                 break;
         }
     }
@@ -5431,6 +5701,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 typeParam.Constraints = constraints;
             }
         }
+
+        // Resolve constraint lists on associated type slot declarations.
+        // The slot's main constraint list (after ':') defines what the concrete
+        // type must satisfy. This is stored on AssociatedTypeSlotType.Constraints.
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.DeclaredType is not AssociatedTypeSlotType slotType)
+                continue;
+
+            var declaringNode = symbolTable.GetDeclaringNode(symbol);
+            if (declaringNode is not AssociatedTypeSlotDeclarationNode slotDecl)
+                continue;
+
+            var sourceText = GetSourceTextForSymbol(symbol, symbolTable)
+                ?? GetSourceTextFromOrigin(declaringNode);
+
+            var resolvedConstraints = ResolveAssociatedTypeSlotConstraintList(
+                slotDecl.Constraints, symbol, declaringNode, symbolTable, asts, compilation, diagnostics, sourceText);
+
+            slotType.Constraints = resolvedConstraints;
+        }
     }
 
     /// <summary>
@@ -5796,6 +6087,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case BlockIndexerIndexerDeclarationNode blockIndexerDecl:
                 return (blockIndexerDecl.Constraints, Array.Empty<IType>());
 
+            case AssociatedTypeSlotDeclarationNode slotDecl when symbol is Symbol slotSymbol:
+                return (slotDecl.SlotWhereConstraints, slotSymbol.TypeParameters);
+
             default:
                 return (ImmutableArray<WhereClauseNode>.Empty, Array.Empty<IType>());
         }
@@ -6021,6 +6315,101 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             baseClassConstraints, structTypeConstraints,
             constructorConstraints,
             typeParam, clause, sourceText, diagnostics);
+
+        return new TypeParameterConstraints
+        {
+            HasClassConstraint = hasClassConstraint,
+            HasStructConstraint = hasStructConstraint,
+            BaseClassConstraint = baseClassConstraint,
+            InterfaceConstraints = interfaceConstraints,
+            TraitConstraints = traitConstraints,
+            ConstructorConstraints = constructorConstraints,
+            HasReadonlyConstraint = hasReadonlyConstraint,
+            HasMutableConstraint = hasMutableConstraint,
+        };
+    }
+
+    /// <summary>
+    /// Resolves the constraint list on an associated type slot declaration.
+    /// This is the constraint list after ':' in <c>type Name : ConstraintList;</c>.
+    /// Uses the same constraint resolution logic as <see cref="ResolveConstraintClause"/>
+    /// but operates on a <see cref="ConstraintListNode"/> directly rather than a where clause.
+    /// </summary>
+    private static TypeParameterConstraints ResolveAssociatedTypeSlotConstraintList(
+        ConstraintListNode constraintList,
+        ISymbol declaringSymbol,
+        Storm.Runtime.SyntaxNode declaringNode,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics,
+        SourceText? sourceText)
+    {
+        var hasClassConstraint = false;
+        var hasStructConstraint = false;
+        var hasReadonlyConstraint = false;
+        var hasMutableConstraint = false;
+        IType? baseClassConstraint = null;
+        var interfaceConstraints = new List<IType>();
+        var traitConstraints = new List<IType>();
+        var constructorConstraints = new List<IReadOnlyList<IType>>();
+
+        // Track base class and struct constraints for validation.
+        var baseClassConstraints = new List<IType>();
+        var structTypeConstraints = new List<IType>();
+
+        // Collect all constraints from the list (first + rest).
+        var allConstraints = new List<ConstraintNode> { constraintList.Constraint };
+        allConstraints.AddRange(constraintList.Constraints);
+
+        foreach (var constraint in allConstraints)
+        {
+            switch (constraint)
+            {
+                case ClassConstraintConstraintNode:
+                    hasClassConstraint = true;
+                    break;
+
+                case StructConstraintConstraintNode:
+                    hasStructConstraint = true;
+                    break;
+
+                case ReadonlyConstraintConstraintNode:
+                    hasReadonlyConstraint = true;
+                    break;
+
+                case MutableConstraintConstraintNode:
+                    hasMutableConstraint = true;
+                    break;
+
+                case ConstructorConstraintConstraintNode ctorConstraint:
+                {
+                    var paramTypes = ResolveConstructorConstraintParams(
+                        ctorConstraint, declaringSymbol, declaringNode, symbolTable, asts, compilation, diagnostics, sourceText);
+                    constructorConstraints.Add(paramTypes);
+                    break;
+                }
+
+                case TypeConstraintConstraintNode typeConstraint:
+                {
+                    var resolvedType = ResolveConstraintTypeReference(
+                        typeConstraint, declaringSymbol, declaringNode, asts, compilation, diagnostics, sourceText);
+
+                    if (resolvedType is null || resolvedType is ErrorType)
+                    {
+                        // Already emitted diagnostic in ResolveConstraintTypeReference.
+                        break;
+                    }
+
+                    // Classify the resolved type as interface, trait, or base class constraint.
+                    ClassifyConstraintType(
+                        resolvedType, ref baseClassConstraint,
+                        interfaceConstraints, traitConstraints,
+                        baseClassConstraints, structTypeConstraints);
+                    break;
+                }
+            }
+        }
 
         return new TypeParameterConstraints
         {
@@ -9540,6 +9929,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var visitedInterfaces = new HashSet<InterfaceType>();
         CollectRequiredMembers(interfaces, requiredMethods, requiredProperties, visitedInterfaces);
 
+        // Build a substitution map for associated type slots: maps slot names in
+        // the interface to the set of acceptable concrete type names in the implementor.
+        var associatedTypeSubstitutions = BuildAssociatedTypeSubstitutionMap(
+            interfaces, memberScope, classType);
+
         // For each required method, search for a matching implementation.
         foreach (var (requiredInterface, requiredMethod) in requiredMethods)
         {
@@ -9550,7 +9944,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Search the implementing type's member scope for a method with the same name.
             var matchResult = FindMatchingMethod(
                 requiredMethod.Name, requiredMethodDecl,
-                memberScope, classType, symbolTable);
+                memberScope, classType, symbolTable, associatedTypeSubstitutions);
 
             switch (matchResult)
             {
@@ -9729,6 +10123,625 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     AnalyzerName: null));
             }
         }
+
+        // For each interface, check that the implementor provides concrete type members
+        // for all associated type slots.
+        ValidateAssociatedTypeSlotObligations(
+            typeName, interfaces, memberScope, classType, symbolTable, asts, compilation, diagnostics);
+    }
+
+    /// <summary>
+    /// Builds a substitution map for associated type slots: maps each slot name
+    /// to the set of acceptable concrete type names in the implementor.
+    /// For a slot named "X":
+    /// - "X" itself is always acceptable (the implementor might have a nested type named "X")
+    /// - If the implementor has a type alias "type X = Y", then "Y" is also acceptable
+    /// </summary>
+    private static Dictionary<string, HashSet<string>> BuildAssociatedTypeSubstitutionMap(
+        IReadOnlyList<IType> interfaces,
+        IScope memberScope,
+        ClassType? classType)
+    {
+        var substitutions = new Dictionary<string, HashSet<string>>();
+
+        // Collect all associated type slots from the interface hierarchy.
+        var requiredSlots = new List<(InterfaceType Interface, ISymbol SlotSymbol, AssociatedTypeSlotType SlotType)>();
+        var visitedInterfaces = new HashSet<InterfaceType>();
+        CollectRequiredAssociatedTypeSlots(interfaces, requiredSlots, visitedInterfaces);
+
+        foreach (var (_, slotSymbol, slotType) in requiredSlots)
+        {
+            var slotName = slotSymbol.Name;
+            if (substitutions.ContainsKey(slotName))
+                continue;
+
+            var acceptableNames = new HashSet<string> { slotName };
+
+            // Search the implementor's scope for the concrete type member.
+            var concreteTypeName = FindConcreteTypeMemberName(slotName, slotType.TypeParameters.Count, memberScope, classType);
+            if (concreteTypeName is not null && concreteTypeName != slotName)
+            {
+                acceptableNames.Add(concreteTypeName);
+            }
+
+            substitutions[slotName] = acceptableNames;
+        }
+
+        return substitutions;
+    }
+
+    /// <summary>
+    /// Searches the implementing type's member scope (and base type chain for classes)
+    /// for a concrete type member matching the given slot name and arity, and returns
+    /// the resolved concrete type name. For type aliases, this returns the underlying
+    /// type's display name. For nested types, this returns the nested type's name.
+    /// Returns null if no concrete type member is found.
+    /// </summary>
+    private static string? FindConcreteTypeMemberName(
+        string slotName,
+        int requiredArity,
+        IScope memberScope,
+        ClassType? classType)
+    {
+        // Search the direct member scope.
+        var name = SearchScopeForConcreteTypeMemberName(slotName, requiredArity, memberScope);
+        if (name is not null)
+            return name;
+
+        // For classes, walk the base type chain.
+        if (classType is not null)
+        {
+            var ancestor = classType.BaseType as ClassType;
+            while (ancestor is not null)
+            {
+                name = SearchScopeForConcreteTypeMemberName(slotName, requiredArity, ancestor.MemberScope);
+                if (name is not null)
+                    return name;
+                ancestor = ancestor.BaseType as ClassType;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Searches a single scope for a concrete type member with the given name and arity,
+    /// and returns the resolved concrete type name.
+    /// </summary>
+    private static string? SearchScopeForConcreteTypeMemberName(string slotName, int requiredArity, IScope scope)
+    {
+        foreach (var member in scope.Members)
+        {
+            if (member.Name != slotName)
+                continue;
+
+            // Type alias that is NOT an associated type slot (i.e., it's a concrete type alias).
+            if (member.Kind == SymbolKind.TypeAlias && member.DeclaredType is not AssociatedTypeSlotType)
+            {
+                var memberArity = member is Symbol sym ? sym.TypeParameters.Count : 0;
+                if (memberArity == requiredArity)
+                {
+                    // If it's a type alias, return the underlying type's display name.
+                    if (member.DeclaredType is TypeAliasType alias)
+                        return alias.UnderlyingType.DisplayName;
+
+                    // Otherwise return the declared type's display name.
+                    return member.DeclaredType?.DisplayName ?? slotName;
+                }
+            }
+
+            // Nested type declarations (class/struct) with matching name and arity.
+            if (member.Kind is SymbolKind.Class or SymbolKind.Struct)
+            {
+                var memberArity = member.DeclaredType switch
+                {
+                    ClassType ct => ct.TypeParameters.Count,
+                    StructType st => st.TypeParameters.Count,
+                    _ => 0
+                };
+                if (memberArity == requiredArity)
+                {
+                    // The nested type has the same name as the slot.
+                    return member.Name;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Validates that the implementing type provides concrete type members for all
+    /// associated type slots declared in its interfaces (transitively).
+    /// Emits <c>MIST_AT_0002</c> for each missing concrete type member.
+    /// </summary>
+    private static void ValidateAssociatedTypeSlotObligations(
+        string typeName,
+        IReadOnlyList<IType> interfaces,
+        IScope memberScope,
+        ClassType? classType,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // Collect all associated type slots from the interface hierarchy.
+        var requiredSlots = new List<(InterfaceType Interface, ISymbol SlotSymbol, AssociatedTypeSlotType SlotType)>();
+        var visitedInterfaces = new HashSet<InterfaceType>();
+        CollectRequiredAssociatedTypeSlots(interfaces, requiredSlots, visitedInterfaces);
+
+        foreach (var (requiredInterface, slotSymbol, slotType) in requiredSlots)
+        {
+            var slotName = slotSymbol.Name;
+            var slotArity = slotType.TypeParameters.Count;
+
+            // Look for a matching concrete type member in the implementor's scope (by name and arity).
+            var concreteType = FindConcreteTypeMemberType(slotName, slotArity, memberScope, classType);
+
+            if (concreteType is null)
+            {
+                var sourceText = FindSourceTextForType(typeName, symbolTable, asts, compilation);
+                var declaringNode = FindDeclaringNodeForType(typeName, symbolTable);
+
+                var message = $"Type '{typeName}' does not provide a concrete type for associated type slot '{slotName}' required by '{requiredInterface.DisplayName}'";
+
+                if (declaringNode is not null)
+                {
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        DiagnosticId.MissingAssociatedTypeMember.Value,
+                        DiagnosticSeverity.Error,
+                        message,
+                        declaringNode,
+                        sourceText));
+                }
+                else
+                {
+                    string? path = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
+
+                    diagnostics.Add(new Diagnostic(
+                        DiagnosticId.MissingAssociatedTypeMember,
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        message,
+                        Location: default,
+                        CompilationUnitPath: path ?? "<unknown>",
+                        AnalyzerName: null));
+                }
+            }
+            else
+            {
+                // Concrete type member found — validate that it satisfies all constraints.
+                ValidateAssociatedTypeConstraints(
+                    concreteType, slotType, slotName, requiredInterface,
+                    typeName, symbolTable, asts, compilation, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates that a concrete type member satisfies all constraints declared on the
+    /// associated type slot. Emits <c>MIST_AT_0003</c> for each unsatisfied constraint.
+    /// </summary>
+    private static void ValidateAssociatedTypeConstraints(
+        IType concreteType,
+        AssociatedTypeSlotType slotType,
+        string slotName,
+        InterfaceType requiredInterface,
+        string implementorTypeName,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        var constraints = slotType.Constraints;
+        if (constraints is null)
+            return;
+
+        var concreteTypeName = concreteType.DisplayName;
+        var interfaceName = requiredInterface.DisplayName;
+
+        // Check struct constraint: concrete type must be a struct.
+        if (constraints.HasStructConstraint)
+        {
+            if (concreteType.Kind != TypeKind.Struct)
+            {
+                EmitUnsatisfiedConstraintDiagnostic(
+                    concreteTypeName, "struct", slotName, interfaceName,
+                    implementorTypeName, concreteTypeName, symbolTable, asts, compilation, diagnostics);
+            }
+        }
+
+        // Check class constraint: concrete type must be a class.
+        if (constraints.HasClassConstraint)
+        {
+            if (concreteType.Kind != TypeKind.Class)
+            {
+                EmitUnsatisfiedConstraintDiagnostic(
+                    concreteTypeName, "class", slotName, interfaceName,
+                    implementorTypeName, concreteTypeName, symbolTable, asts, compilation, diagnostics);
+            }
+        }
+
+        // Check interface constraints: concrete type must implement each interface.
+        foreach (var ifaceConstraint in constraints.InterfaceConstraints)
+        {
+            if (!ConcreteTypeImplementsInterface(concreteType, ifaceConstraint))
+            {
+                EmitUnsatisfiedConstraintDiagnostic(
+                    concreteTypeName, ifaceConstraint.DisplayName, slotName, interfaceName,
+                    implementorTypeName, concreteTypeName, symbolTable, asts, compilation, diagnostics);
+            }
+        }
+
+        // Check trait constraints: concrete type must satisfy each trait.
+        foreach (var traitConstraint in constraints.TraitConstraints)
+        {
+            if (!ConcreteTypeSatisfiesTrait(concreteType, traitConstraint))
+            {
+                EmitUnsatisfiedConstraintDiagnostic(
+                    concreteTypeName, traitConstraint.DisplayName, slotName, interfaceName,
+                    implementorTypeName, concreteTypeName, symbolTable, asts, compilation, diagnostics);
+            }
+        }
+
+        // Check constructor constraints: concrete type must have a public parameterless constructor.
+        foreach (var requiredParams in constraints.ConstructorConstraints)
+        {
+            if (requiredParams.Count == 0)
+            {
+                // new() constraint — check for public parameterless constructor.
+                if (!HasPublicParameterlessConstructor(concreteType, symbolTable))
+                {
+                    EmitUnsatisfiedConstraintDiagnostic(
+                        concreteTypeName, "new()", slotName, interfaceName,
+                        implementorTypeName, concreteTypeName, symbolTable, asts, compilation, diagnostics);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Emits a <c>MIST_AT_0003</c> diagnostic for an unsatisfied constraint.
+    /// The diagnostic location points to the concrete type member declaration.
+    /// </summary>
+    private static void EmitUnsatisfiedConstraintDiagnostic(
+        string concreteTypeName,
+        string constraintName,
+        string slotName,
+        string interfaceName,
+        string implementorTypeName,
+        string concreteTypeSearchName,
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        var message = $"Concrete type '{concreteTypeName}' does not satisfy constraint '{constraintName}' required by associated type slot '{slotName}' in '{interfaceName}'";
+
+        // Try to point the diagnostic at the concrete type member declaration.
+        var declaringNode = FindDeclaringNodeForType(concreteTypeSearchName, symbolTable);
+        var sourceText = FindSourceTextForType(concreteTypeSearchName, symbolTable, asts, compilation);
+
+        // If we can't find the concrete type's node, fall back to the implementor's node.
+        if (declaringNode is null)
+        {
+            declaringNode = FindDeclaringNodeForType(implementorTypeName, symbolTable);
+            sourceText = FindSourceTextForType(implementorTypeName, symbolTable, asts, compilation);
+        }
+
+        if (declaringNode is not null)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                DiagnosticId.UnsatisfiedAssociatedTypeConstraint.Value,
+                DiagnosticSeverity.Error,
+                message,
+                declaringNode,
+                sourceText));
+        }
+        else
+        {
+            string? path = FindCompilationUnitPathForType(implementorTypeName, symbolTable, asts, compilation);
+
+            diagnostics.Add(new Diagnostic(
+                DiagnosticId.UnsatisfiedAssociatedTypeConstraint,
+                DiagnosticSeverity.Error,
+                PipelineStage.SemanticModelConstruction,
+                message,
+                Location: default,
+                CompilationUnitPath: path ?? "<unknown>",
+                AnalyzerName: null));
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a concrete type implements a given interface constraint.
+    /// Handles both plain <see cref="InterfaceType"/> and <see cref="ConstructedType"/> constraints.
+    /// </summary>
+    private static bool ConcreteTypeImplementsInterface(IType concreteType, IType interfaceConstraint)
+    {
+        var interfaces = concreteType switch
+        {
+            ClassType ct => ct.Interfaces,
+            StructType st => st.Interfaces,
+            _ => Array.Empty<IType>() as IReadOnlyList<IType>,
+        };
+
+        // Walk the class base type chain for classes.
+        if (concreteType is ClassType classType)
+        {
+            if (InterfaceListContainsConstraint(interfaces, interfaceConstraint))
+                return true;
+
+            var ancestor = classType.BaseType as ClassType;
+            while (ancestor is not null)
+            {
+                if (InterfaceListContainsConstraint(ancestor.Interfaces, interfaceConstraint))
+                    return true;
+                ancestor = ancestor.BaseType as ClassType;
+            }
+            return false;
+        }
+
+        return InterfaceListContainsConstraint(interfaces, interfaceConstraint);
+    }
+
+    /// <summary>
+    /// Checks whether an interface list contains a match for the given interface constraint.
+    /// Supports both plain <see cref="InterfaceType"/> and <see cref="ConstructedType"/> matching.
+    /// </summary>
+    private static bool InterfaceListContainsConstraint(
+        IReadOnlyList<IType> interfaces,
+        IType constraint,
+        HashSet<IType>? visited = null)
+    {
+        foreach (var ifaceType in interfaces)
+        {
+            if (InterfaceMatchesConstraint(ifaceType, constraint))
+                return true;
+
+            // Recursively check inherited interfaces.
+            if (ifaceType is InterfaceType iface)
+            {
+                visited ??= new HashSet<IType>(ReferenceEqualityComparer.Instance);
+                if (visited.Add(iface))
+                {
+                    if (InterfaceListContainsConstraint(iface.Interfaces, constraint, visited))
+                        return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether a single interface type matches the given constraint.
+    /// </summary>
+    private static bool InterfaceMatchesConstraint(IType ifaceType, IType constraint)
+    {
+        if (ReferenceEquals(ifaceType, constraint))
+            return true;
+
+        if (ifaceType.DisplayName == constraint.DisplayName)
+            return true;
+
+        // Handle constructed type matching (e.g., IEnumerator<int> matches IEnumerator<T>).
+        if (constraint is InterfaceType plainConstraint && ifaceType is InterfaceType plainIface)
+            return ReferenceEquals(plainIface, plainConstraint) || plainIface.DisplayName == plainConstraint.DisplayName;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether a concrete type satisfies a trait constraint.
+    /// Uses display name matching against the type's trait conformances.
+    /// </summary>
+    private static bool ConcreteTypeSatisfiesTrait(IType concreteType, IType traitConstraint)
+    {
+        // Check the SatisfiedTraits list first (populated by with-blocks and call-site checking).
+        var satisfiedTraits = concreteType switch
+        {
+            ClassType ct => ct.SatisfiedTraits as IReadOnlyList<IType>,
+            StructType st => st.SatisfiedTraits as IReadOnlyList<IType>,
+            _ => Array.Empty<IType>() as IReadOnlyList<IType>,
+        };
+
+        foreach (var trait in satisfiedTraits)
+        {
+            if (trait.DisplayName == traitConstraint.DisplayName || ReferenceEquals(trait, traitConstraint))
+                return true;
+        }
+
+        // Also check the Interfaces list (trait conformance may be recorded there).
+        var interfaces = concreteType switch
+        {
+            ClassType ct => ct.Interfaces,
+            StructType st => st.Interfaces,
+            _ => Array.Empty<IType>() as IReadOnlyList<IType>,
+        };
+
+        foreach (var iface in interfaces)
+        {
+            if (iface.DisplayName == traitConstraint.DisplayName || ReferenceEquals(iface, traitConstraint))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether a concrete type has a public parameterless constructor.
+    /// Structs always have an implicit parameterless constructor.
+    /// Classes with no declared constructors have an implicit public parameterless constructor.
+    /// </summary>
+    private static bool HasPublicParameterlessConstructor(IType concreteType, SymbolTable symbolTable)
+    {
+        // Structs always have a parameterless constructor.
+        if (concreteType.Kind == TypeKind.Struct)
+            return true;
+
+        // Collect constructors from the type's member scope.
+        var memberScope = concreteType switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            _ => null,
+        };
+
+        if (memberScope is null)
+            return false;
+
+        var constructors = memberScope.Members
+            .Where(m => m.Kind == SymbolKind.Constructor)
+            .ToList();
+
+        // If no constructors are declared, the type has an implicit public parameterless constructor.
+        if (constructors.Count == 0)
+            return true;
+
+        // Check if any declared constructor is public and parameterless.
+        foreach (var ctor in constructors)
+        {
+            var ctorNode = symbolTable.GetDeclaringNode(ctor);
+            if (ctorNode is ConstructorDeclarationNode ctorDecl && ctorDecl.Parameters is null)
+            {
+                // Check if it's public.
+                if (IsMemberPublic(ctor, symbolTable))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Recursively collects all associated type slots from the interface hierarchy.
+    /// </summary>
+    private static void CollectRequiredAssociatedTypeSlots(
+        IReadOnlyList<IType> interfaces,
+        List<(InterfaceType Interface, ISymbol SlotSymbol, AssociatedTypeSlotType SlotType)> requiredSlots,
+        HashSet<InterfaceType> visited)
+    {
+        foreach (var ifaceType in interfaces)
+        {
+            if (ifaceType is not InterfaceType iface)
+                continue;
+
+            if (!visited.Add(iface))
+                continue;
+
+            // Find all associated type slot members in this interface.
+            foreach (var member in iface.MemberScope.Members)
+            {
+                if (member.Kind == SymbolKind.TypeAlias && member.DeclaredType is AssociatedTypeSlotType slotType)
+                {
+                    requiredSlots.Add((iface, member, slotType));
+                }
+            }
+
+            // Recurse into parent interfaces.
+            if (iface.Interfaces.Count > 0)
+            {
+                CollectRequiredAssociatedTypeSlots(iface.Interfaces, requiredSlots, visited);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Searches the implementing type's member scope (and base type chain for classes)
+    /// for a concrete type member matching the given name and arity.
+    /// A concrete type member is a <see cref="SymbolKind.TypeAlias"/> whose
+    /// <see cref="ISymbol.DeclaredType"/> is NOT an <see cref="AssociatedTypeSlotType"/>.
+    /// Returns the resolved concrete type, or <c>null</c> if not found.
+    /// </summary>
+    private static IType? FindConcreteTypeMemberType(
+        string slotName,
+        int requiredArity,
+        IScope memberScope,
+        ClassType? classType)
+    {
+        // Search the direct member scope.
+        var result = SearchScopeForConcreteTypeMemberType(slotName, requiredArity, memberScope);
+        if (result is not null)
+            return result;
+
+        // For classes, walk the base type chain.
+        if (classType is not null)
+        {
+            var ancestor = classType.BaseType as ClassType;
+            while (ancestor is not null)
+            {
+                result = SearchScopeForConcreteTypeMemberType(slotName, requiredArity, ancestor.MemberScope);
+                if (result is not null)
+                    return result;
+                ancestor = ancestor.BaseType as ClassType;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Searches the implementing type's member scope (and base type chain for classes)
+    /// for a concrete type member matching the given name and arity.
+    /// A concrete type member is a <see cref="SymbolKind.TypeAlias"/> whose
+    /// <see cref="ISymbol.DeclaredType"/> is NOT an <see cref="AssociatedTypeSlotType"/>.
+    /// </summary>
+    private static bool FindConcreteTypeMember(
+        string slotName,
+        int requiredArity,
+        IScope memberScope,
+        ClassType? classType)
+    {
+        return FindConcreteTypeMemberType(slotName, requiredArity, memberScope, classType) is not null;
+    }
+
+    /// <summary>
+    /// Searches a single scope for a concrete type member with the given name and arity.
+    /// Returns the resolved concrete type, or <c>null</c> if not found.
+    /// </summary>
+    private static IType? SearchScopeForConcreteTypeMemberType(string slotName, int requiredArity, IScope scope)
+    {
+        foreach (var member in scope.Members)
+        {
+            if (member.Name != slotName)
+                continue;
+
+            // Must be a type alias that is NOT an associated type slot (i.e., it's a concrete type).
+            if (member.Kind == SymbolKind.TypeAlias && member.DeclaredType is not AssociatedTypeSlotType)
+            {
+                // Check arity: the concrete type member must have the same number of type parameters.
+                var memberArity = member is Symbol sym ? sym.TypeParameters.Count : 0;
+                if (memberArity == requiredArity)
+                {
+                    // Unwrap type alias to get the underlying type.
+                    return member.DeclaredType is TypeAliasType alias ? alias.UnderlyingType : member.DeclaredType;
+                }
+            }
+
+            // Also accept nested type declarations (class/struct) with matching name and arity.
+            if (member.Kind is SymbolKind.Class or SymbolKind.Struct)
+            {
+                var memberArity = member.DeclaredType switch
+                {
+                    ClassType ct => ct.TypeParameters.Count,
+                    StructType st => st.TypeParameters.Count,
+                    _ => 0
+                };
+                if (memberArity == requiredArity)
+                    return member.DeclaredType;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Searches a single scope for a concrete type member with the given name and arity.
+    /// </summary>
+    private static bool SearchScopeForConcreteTypeMember(string slotName, int requiredArity, IScope scope)
+    {
+        return SearchScopeForConcreteTypeMemberType(slotName, requiredArity, scope) is not null;
     }
 
     /// <summary>
@@ -9838,7 +10851,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         InterfaceMethodDeclarationNode requiredMethodDecl,
         IScope memberScope,
         ClassType? classType,
-        SymbolTable symbolTable)
+        SymbolTable symbolTable,
+        Dictionary<string, HashSet<string>>? associatedTypeSubstitutions = null)
     {
         // Track whether we found any method with the same name across all scopes.
         var foundAnyWithName = false;
@@ -9847,7 +10861,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         MethodMatchResult.RefKindMismatchResult? refKindMismatch = null;
 
         // Search the direct member scope first.
-        var result = SearchScopeForMethod(methodName, requiredMethodDecl, memberScope, symbolTable);
+        var result = SearchScopeForMethod(methodName, requiredMethodDecl, memberScope, symbolTable, associatedTypeSubstitutions);
         if (result is MethodMatchResult.MatchedResult)
             return result;
         if (result is MethodMatchResult.RefKindMismatchResult directRefKindMismatch)
@@ -9868,7 +10882,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var ancestor = classType.BaseType as ClassType;
             while (ancestor is not null)
             {
-                result = SearchScopeForMethod(methodName, requiredMethodDecl, ancestor.MemberScope, symbolTable);
+                result = SearchScopeForMethod(methodName, requiredMethodDecl, ancestor.MemberScope, symbolTable, associatedTypeSubstitutions);
                 if (result is MethodMatchResult.MatchedResult)
                     return result;
                 if (result is MethodMatchResult.RefKindMismatchResult ancestorRefKindMismatch)
@@ -9909,7 +10923,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         string methodName,
         InterfaceMethodDeclarationNode requiredMethodDecl,
         IScope scope,
-        SymbolTable symbolTable)
+        SymbolTable symbolTable,
+        Dictionary<string, HashSet<string>>? associatedTypeSubstitutions = null)
     {
         var foundAnyWithName = false;
         string? lastActualSig = null;
@@ -9928,11 +10943,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (memberNode is not MethodDeclarationNode implMethodDecl)
                 continue;
 
-            if (SignaturesMatch(requiredMethodDecl, implMethodDecl))
+            if (SignaturesMatch(requiredMethodDecl, implMethodDecl, associatedTypeSubstitutions))
                 return MethodMatchResult.Match(member);
 
             // Check if types match but RefKind values differ (for MIST_REF_0012).
-            if (TypesMatchButRefKindsDiffer(requiredMethodDecl, implMethodDecl))
+            if (TypesMatchButRefKindsDiffer(requiredMethodDecl, implMethodDecl, associatedTypeSubstitutions))
             {
                 refKindMismatchImplName = member.Name;
                 refKindMismatchInterfaceName = methodName;
@@ -9959,13 +10974,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// Checks whether an implementing method's signature matches the required
     /// interface method's signature (return type, parameter types, and parameter ref kinds).
+    /// When associated type substitutions are provided, type references to associated
+    /// type slot names in the interface signature are matched against the concrete type
+    /// member names in the implementor's signature.
     /// </summary>
     private static bool SignaturesMatch(
         InterfaceMethodDeclarationNode required,
-        MethodDeclarationNode actual)
+        MethodDeclarationNode actual,
+        Dictionary<string, HashSet<string>>? associatedTypeSubstitutions = null)
     {
         // Compare return types.
-        if (!TypeReferencesMatch(required.ReturnType, actual.ReturnType))
+        if (!TypeReferencesMatchWithAssociatedTypes(required.ReturnType, actual.ReturnType, associatedTypeSubstitutions))
             return false;
 
         // Compare parameter types.
@@ -9977,7 +10996,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         for (var i = 0; i < requiredParams.Count; i++)
         {
-            if (!TypeReferencesMatch(requiredParams[i], actualParams[i]))
+            if (!TypeReferencesMatchWithAssociatedTypes(requiredParams[i], actualParams[i], associatedTypeSubstitutions))
                 return false;
         }
 
@@ -9995,10 +11014,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static bool TypesMatchButRefKindsDiffer(
         InterfaceMethodDeclarationNode required,
-        MethodDeclarationNode actual)
+        MethodDeclarationNode actual,
+        Dictionary<string, HashSet<string>>? associatedTypeSubstitutions = null)
     {
         // Check return types match.
-        if (!TypeReferencesMatch(required.ReturnType, actual.ReturnType))
+        if (!TypeReferencesMatchWithAssociatedTypes(required.ReturnType, actual.ReturnType, associatedTypeSubstitutions))
             return false;
 
         // Check parameter types match.
@@ -10010,7 +11030,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         for (var i = 0; i < requiredParams.Count; i++)
         {
-            if (!TypeReferencesMatch(requiredParams[i], actualParams[i]))
+            if (!TypeReferencesMatchWithAssociatedTypes(requiredParams[i], actualParams[i], associatedTypeSubstitutions))
                 return false;
         }
 
@@ -10158,6 +11178,46 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Compares two type references with associated type substitution support.
+    /// When the interface type reference is a named type that matches an associated
+    /// type slot name, the implementor's type reference is checked against the set
+    /// of acceptable concrete type names for that slot.
+    /// </summary>
+    private static bool TypeReferencesMatchWithAssociatedTypes(
+        TypeReferenceNode interfaceRef,
+        TypeReferenceNode implRef,
+        Dictionary<string, HashSet<string>>? associatedTypeSubstitutions)
+    {
+        // If no substitutions are provided, fall back to standard comparison.
+        if (associatedTypeSubstitutions is null || associatedTypeSubstitutions.Count == 0)
+            return TypeReferencesMatch(interfaceRef, implRef);
+
+        // Check if the interface type reference is a named type that matches a slot name.
+        if (interfaceRef is NamedTypeRefTypeReferenceNode namedInterface)
+        {
+            var interfaceName = namedInterface.Name.IDENTIFIER.Lexeme;
+            if (!string.IsNullOrEmpty(interfaceName)
+                && associatedTypeSubstitutions.TryGetValue(interfaceName, out var acceptableNames))
+            {
+                // The interface type is an associated type slot reference.
+                // The implementor must use one of the acceptable concrete type names.
+                if (implRef is NamedTypeRefTypeReferenceNode namedImpl)
+                {
+                    var implName = namedImpl.Name.IDENTIFIER.Lexeme;
+                    return !string.IsNullOrEmpty(implName)
+                        && acceptableNames.Contains(implName)
+                        && (namedInterface.ArrayRank is not null) == (namedImpl.ArrayRank is not null);
+                }
+
+                return false;
+            }
+        }
+
+        // For non-slot type references, use the standard comparison.
+        return TypeReferencesMatch(interfaceRef, implRef);
     }
 
     /// <summary>
@@ -14860,6 +15920,37 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     return dpt;
                 }
 
+                // ── Associated type resolution: T.SlotName in generic contexts ──
+                // When a qualified name like "T.SlotName" is used as a type reference
+                // and the first part is a type parameter constrained by an interface
+                // with associated type slots, resolve through the constraint's member scope.
+                {
+                    var firstDot = typeName.IndexOf('.');
+                    if (firstDot > 0 && firstDot < typeName.Length - 1)
+                    {
+                        var leftPart = typeName.Substring(0, firstDot);
+                        var rightPart = typeName.Substring(firstDot + 1);
+
+                        var leftSymbol = fileScope.Lookup(leftPart);
+                        if (leftSymbol is not null && leftSymbol.DeclaredType is TypeParameterType typeParamLeft)
+                        {
+                            var resolvedSlot = ResolveAssociatedTypeSlotFromConstraints(typeParamLeft, rightPart);
+                            if (resolvedSlot is not null)
+                                return resolvedSlot;
+
+                            // The left part is a type parameter but the right part is not
+                            // an associated type slot of any constraining interface/trait.
+                            diagnostics.Add(MakeDiagnosticWithLocation(
+                                DiagnosticId.UnresolvedAssociatedTypeReference.Value,
+                                DiagnosticSeverity.Error,
+                                $"Type parameter '{leftPart}' does not have an associated type '{rightPart}'; '{leftPart}' is not constrained by an interface or trait declaring '{rightPart}'.",
+                                namedRef,
+                                sourceText));
+                            return ErrorType.Instance;
+                        }
+                    }
+                }
+
                 baseType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
 
                 // Handle type arguments if present.
@@ -15025,6 +16116,54 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Resolves an associated type slot name from a type parameter's constraints.
+    /// When a type parameter <c>T</c> is constrained by an interface or trait that declares
+    /// an associated type slot with the given name, returns the <see cref="AssociatedTypeSlotType"/>.
+    /// Returns <c>null</c> if no constraining interface or trait declares a slot with that name.
+    /// </summary>
+    private static AssociatedTypeSlotType? ResolveAssociatedTypeSlotFromConstraints(
+        TypeParameterType typeParam,
+        string slotName)
+    {
+        if (typeParam.Constraints is null)
+            return null;
+
+        var constraints = typeParam.Constraints;
+
+        // Check interface constraints (may be InterfaceType or ConstructedType wrapping InterfaceType).
+        foreach (var ifaceConstraint in constraints.InterfaceConstraints)
+        {
+            var ifaceType = ifaceConstraint is ConstructedType ct
+                ? ct.GenericDefinition as InterfaceType
+                : ifaceConstraint as InterfaceType;
+
+            if (ifaceType is not null)
+            {
+                var member = ifaceType.MemberScope.Lookup(slotName);
+                if (member is not null && member.DeclaredType is AssociatedTypeSlotType slotType)
+                    return slotType;
+            }
+        }
+
+        // Check trait constraints (may be TraitType or ConstructedTraitType).
+        foreach (var traitConstraint in constraints.TraitConstraints)
+        {
+            var traitType = traitConstraint as TraitType;
+            if (traitConstraint is ConstructedTraitType ctt)
+                traitType = ctt.GenericTraitDefinition;
+
+            if (traitType is not null)
+            {
+                var member = traitType.MemberScope.Lookup(slotName);
+                if (member is not null && member.DeclaredType is AssociatedTypeSlotType slotType)
+                    return slotType;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Resolves a <see cref="SingleTypeRefNode"/> to an <see cref="IType"/>.
     /// Mirrors the logic of <see cref="ResolveTypeReference"/> but for the
     /// <c>SingleTypeRef</c> grammar alternatives (which exclude the union
@@ -15100,6 +16239,35 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             sourceText));
                     }
                     return tpt;
+                }
+
+                // ── Associated type resolution: T.SlotName in generic contexts ──
+                // When a qualified name like "T.SlotName" is used as a type reference
+                // and the first part is a type parameter constrained by an interface
+                // with associated type slots, resolve through the constraint's member scope.
+                var firstDot = typeName.IndexOf('.');
+                if (firstDot > 0 && firstDot < typeName.Length - 1)
+                {
+                    var leftPart = typeName.Substring(0, firstDot);
+                    var rightPart = typeName.Substring(firstDot + 1);
+
+                    var leftSymbol = fileScope.Lookup(leftPart);
+                    if (leftSymbol is not null && leftSymbol.DeclaredType is TypeParameterType typeParamLeft)
+                    {
+                        var resolvedSlot = ResolveAssociatedTypeSlotFromConstraints(typeParamLeft, rightPart);
+                        if (resolvedSlot is not null)
+                            return resolvedSlot;
+
+                        // The left part is a type parameter but the right part is not
+                        // an associated type slot of any constraining interface/trait.
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            DiagnosticId.UnresolvedAssociatedTypeReference.Value,
+                            DiagnosticSeverity.Error,
+                            $"Type parameter '{leftPart}' does not have an associated type '{rightPart}'; '{leftPart}' is not constrained by an interface or trait declaring '{rightPart}'.",
+                            namedRef,
+                            sourceText));
+                        return ErrorType.Instance;
+                    }
                 }
 
                 var baseType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
@@ -16327,22 +17495,39 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static Scope CreateTypeParameterScope(Scope typeScope, Scope fileScope)
     {
         var hasTypeParams = false;
+        var hasNestedTypes = false;
+        var hasAssociatedTypeSlots = false;
         foreach (var member in typeScope.Members)
         {
             if (member.DeclaredType is TypeParameterType or DependentTypeParameterType)
             {
                 hasTypeParams = true;
-                break;
+            }
+            else if (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Enum)
+            {
+                hasNestedTypes = true;
+            }
+            else if (member.DeclaredType is AssociatedTypeSlotType)
+            {
+                hasAssociatedTypeSlots = true;
             }
         }
 
-        if (!hasTypeParams)
+        if (!hasTypeParams && !hasNestedTypes && !hasAssociatedTypeSlots)
             return fileScope;
 
         var scope = new Scope(parent: fileScope);
         foreach (var member in typeScope.Members)
         {
             if (member.DeclaredType is TypeParameterType or DependentTypeParameterType)
+            {
+                scope.AddMember(member);
+            }
+            else if (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Enum)
+            {
+                scope.AddMember(member);
+            }
+            else if (member.DeclaredType is AssociatedTypeSlotType)
             {
                 scope.AddMember(member);
             }
@@ -18154,6 +19339,72 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // to the MIST_UNDEFINED_MEMBER diagnostic below.
         }
 
+        // ── Associated type slot member access (Requirements 5.1–5.3) ──
+        // When the receiver is an AssociatedTypeSlotType, look up the member
+        // in the slot's constraint types (interfaces, traits, base class).
+        // This allows method calls and member access on values whose type is
+        // an associated type reference (e.g., T.Enumerator).
+        if (targetType is AssociatedTypeSlotType slotTarget)
+        {
+            var slotConstraints = slotTarget.Constraints;
+            if (slotConstraints is not null)
+            {
+                // Check interface constraints.
+                foreach (var ifaceConstraint in slotConstraints.InterfaceConstraints)
+                {
+                    var ifaceType = ifaceConstraint is ConstructedType ctIface
+                        ? ctIface.GenericDefinition as InterfaceType
+                        : ifaceConstraint as InterfaceType;
+
+                    if (ifaceType is not null)
+                    {
+                        var member = ifaceType.MemberScope.Lookup(memberName);
+                        if (member is not null)
+                            return member.DeclaredType ?? ErrorType.Instance;
+
+                        // Also check inherited interfaces transitively.
+                        var inherited = LookupInheritedInterfaceMember(ifaceType, memberName);
+                        if (inherited is not null)
+                            return inherited;
+                    }
+                }
+
+                // Check trait constraints.
+                foreach (var traitConstraint in slotConstraints.TraitConstraints)
+                {
+                    var traitType = traitConstraint as TraitType;
+                    if (traitConstraint is ConstructedTraitType ctt)
+                        traitType = ctt.GenericTraitDefinition;
+
+                    if (traitType is not null)
+                    {
+                        var member = traitType.MemberScope.Lookup(memberName);
+                        if (member is not null)
+                            return member.DeclaredType ?? ErrorType.Instance;
+                    }
+                }
+
+                // Check base class constraint (including inherited members).
+                if (slotConstraints.BaseClassConstraint is ClassType slotBaseClass)
+                {
+                    ClassType? current = slotBaseClass;
+                    while (current is not null)
+                    {
+                        foreach (var m in current.MemberScope.Members)
+                        {
+                            if (m.Name == memberName)
+                                return m.DeclaredType ?? ErrorType.Instance;
+                        }
+
+                        current = current.BaseType as ClassType;
+                    }
+                }
+            }
+
+            // If constraints exist but none provide the member, fall through
+            // to the MIST_UNDEFINED_MEMBER diagnostic below.
+        }
+
         // Enum member access: EnumName.MemberName resolves to the EnumType itself.
         // Enum members are static fields in the enum's MemberScope. If the member
         // exists, the result type is the EnumType (not the underlying type).
@@ -19152,6 +20403,68 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return null;
         }
 
+        // ── Associated type slot member access (Requirements 5.1–5.3) ──
+        // When the receiver is an AssociatedTypeSlotType, look up the member
+        // in the slot's constraint types.
+        if (targetType is AssociatedTypeSlotType slotTarget)
+        {
+            var slotConstraints = slotTarget.Constraints;
+            if (slotConstraints is not null)
+            {
+                // Check interface constraints.
+                foreach (var ifaceConstraint in slotConstraints.InterfaceConstraints)
+                {
+                    var ifaceType = ifaceConstraint is ConstructedType ctIface
+                        ? ctIface.GenericDefinition as InterfaceType
+                        : ifaceConstraint as InterfaceType;
+
+                    if (ifaceType is not null)
+                    {
+                        var member = ifaceType.MemberScope.Lookup(memberName);
+                        if (member is not null)
+                            return member;
+
+                        var inherited = LookupInheritedInterfaceMemberSymbol(ifaceType, memberName);
+                        if (inherited is not null)
+                            return inherited;
+                    }
+                }
+
+                // Check trait constraints.
+                foreach (var traitConstraint in slotConstraints.TraitConstraints)
+                {
+                    var traitType = traitConstraint as TraitType;
+                    if (traitConstraint is ConstructedTraitType ctt)
+                        traitType = ctt.GenericTraitDefinition;
+
+                    if (traitType is not null)
+                    {
+                        var member = traitType.MemberScope.Lookup(memberName);
+                        if (member is not null)
+                            return member;
+                    }
+                }
+
+                // Check base class constraint (including inherited members).
+                if (slotConstraints.BaseClassConstraint is ClassType slotBaseClass)
+                {
+                    ClassType? current = slotBaseClass;
+                    while (current is not null)
+                    {
+                        foreach (var m in current.MemberScope.Members)
+                        {
+                            if (m.Name == memberName)
+                                return m;
+                        }
+
+                        current = current.BaseType as ClassType;
+                    }
+                }
+            }
+
+            return null;
+        }
+
         // For ConstructedType, look up in the generic definition's member scope.
         if (targetType is ConstructedType ct)
             targetType = ct.GenericDefinition;
@@ -19444,7 +20757,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
-        return qualifiedId.IDENTIFIER.Lexeme;
+        // Fallback: reconstruct the dotted name from the AST tokens.
+        // QualifiedIdentifier = IDENTIFIER (DOT IDENTIFIER)* — so we need
+        // to join the first IDENTIFIER with any additional IDENTIFIERs.
+        if (qualifiedId.IDENTIFIERs.IsDefaultOrEmpty)
+            return qualifiedId.IDENTIFIER.Lexeme;
+
+        var sb = new System.Text.StringBuilder(qualifiedId.IDENTIFIER.Lexeme);
+        foreach (var token in qualifiedId.IDENTIFIERs)
+        {
+            if (!string.IsNullOrEmpty(token.Lexeme))
+            {
+                sb.Append('.');
+                sb.Append(token.Lexeme);
+            }
+        }
+        return sb.ToString();
     }
 
     /// <summary>
@@ -20512,5 +21840,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static Common.Text.SourceSpan ToMistSourceSpan(Storm.Runtime.SourceSpan span)
     {
         return new Common.Text.SourceSpan(span.Start, span.Length);
+    }
+
+    private static Diagnostic MakeDiagnosticWithTokenLocation(
+        string id,
+        DiagnosticSeverity severity,
+        string message,
+        Storm.Runtime.Token token,
+        SourceText? sourceText)
+    {
+        LinePositionSpan location = default;
+        string compilationUnitPath = sourceText?.Path ?? "<unknown>";
+
+        if (sourceText is not null && token.Span.Length > 0)
+        {
+            var mistSpan = new SourceSpan(token.Span.Start, token.Span.Length);
+            location = sourceText.ToLinePositionSpan(mistSpan);
+        }
+
+        return new Diagnostic(
+            new DiagnosticId(id),
+            severity,
+            PipelineStage.SemanticModelConstruction,
+            message,
+            Location: location,
+            CompilationUnitPath: compilationUnitPath,
+            AnalyzerName: null);
     }
 }

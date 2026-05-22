@@ -37,6 +37,7 @@
 
 - [Generics](type-system/generics.md)
 - [Generic Constraints](type-system/generic-constraints.md)
+- [Associated Types](type-system/associated-types.md)
 - [Type Unions](type-system/type-unions.md)
 - [Type Aliases](type-system/type-aliases.md)
 - [Newtypes](type-system/newtypes.md)

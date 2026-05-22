@@ -20,6 +20,12 @@ public enum TypeKind
     /// <c>object</c> by the emitter.
     /// </summary>
     Unknown,
+
+    /// <summary>
+    /// An abstract type slot declared in an interface or trait. Implementors must
+    /// provide a concrete type member satisfying the slot's constraints.
+    /// </summary>
+    AssociatedTypeSlot,
 }
 
 /// <summary>

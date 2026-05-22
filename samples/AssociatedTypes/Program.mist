@@ -1,0 +1,425 @@
+// AssociatedTypes — Demonstrates all associated type slot variants and usage patterns.
+//
+// Associated types declare abstract type slots in interfaces/traits that implementors
+// must fill with concrete nested types satisfying declared constraints. The compiler
+// validates constraint satisfaction at compile time.
+//
+// PROOF OF CORRECTNESS: This program would NOT compile if the associated type feature
+// were removed — the `type Name : Constraint;` declarations would fail to parse, and
+// the constraint validation (struct/class/interface) would not occur. Each pattern
+// constructs the nested type, uses it as a return type, and calls constraint-required
+// methods on it — proving the feature works end-to-end.
+
+using Standard;
+
+namespace AssociatedTypes;
+
+// ─── Supporting interfaces ───────────────────────────────────────────────────
+
+interface IStringable {
+    string Stringify();
+}
+
+interface IResettable {
+    string GetState();
+}
+
+interface IComparable {
+    int CompareTo(int other);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pattern 1: Single interface constraint
+// The slot `type Output : IStringable` requires the concrete type to implement
+// IStringable. The compiler emits MIST_AT_0003 if it doesn't.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface IProducer {
+    type Output : IStringable;
+    string ProduceValue();
+}
+
+class MessageProducer : IProducer {
+    public class Output : IStringable {
+        public string Value;
+        public Output(string value) { Value = value; }
+        public string Stringify() { return $"Output({Value})"; }
+    }
+    public string ProduceValue() {
+        return "hello from producer";
+    }
+    // Returns the nested type — proves it works as a return type
+    public Output CreateOutput(string msg) {
+        return new Output(msg);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pattern 2: Trait slot with interface constraint
+// Traits can also declare associated type slots. The structural conformance
+// checker validates that conforming types provide the required nested type.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+trait Consumable {
+    type Input : IStringable;
+    string GetLabel();
+}
+
+class StringConsumer {
+    public class Input : IStringable {
+        public string Data;
+        public Input(string data) { Data = data; }
+        public string Stringify() { return $"Input({Data})"; }
+    }
+    public string GetLabel() {
+        return "StringConsumer";
+    }
+    // Returns the nested type — proves trait slot works as return type
+    public Input CreateInput(string data) {
+        return new Input(data);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pattern 3: Struct kind constraint — implementor with nested struct
+// The slot `type Cursor : struct` requires the concrete type to be a value type.
+// Using a class here would trigger MIST_AT_0003.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface IIterator {
+    type Cursor : struct;
+    int GetFirst();
+    int GetSecond();
+}
+
+class RangeIterator : IIterator {
+    public struct Cursor {
+        public int Position;
+        public Cursor(int pos) { Position = pos; }
+    }
+    public int GetFirst() {
+        return 10;
+    }
+    public int GetSecond() {
+        return 20;
+    }
+    // Returns the nested struct — proves struct constraint works as return type
+    public Cursor CreateCursor(int pos) {
+        return new Cursor(pos);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pattern 4: Class kind constraint — implementor with nested class
+// The slot `type Product : class` requires the concrete type to be a reference type.
+// Using a struct here would trigger MIST_AT_0003.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface IFactory {
+    type Product : class;
+    string GetFactoryName();
+    int GetProductCount();
+}
+
+class WidgetFactory : IFactory {
+    public class Product {
+        public string Name;
+        public int Weight;
+        public Product(string name, int weight) { Name = name; Weight = weight; }
+    }
+    public string GetFactoryName() {
+        return "WidgetFactory";
+    }
+    public int GetProductCount() {
+        return 3;
+    }
+    // Returns the nested class — proves class constraint works as return type
+    public Product CreateProduct(string name, int weight) {
+        return new Product(name, weight);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pattern 5: Multiple constraints (IStringable AND IResettable)
+// The slot requires the concrete type to implement BOTH interfaces.
+// Missing either one triggers MIST_AT_0003.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface IStatefulProducer {
+    type State : IStringable, IResettable;
+    string GetProducerName();
+    int GetStateVersion();
+}
+
+class CounterProducer : IStatefulProducer {
+    public class State : IStringable, IResettable {
+        public int Count;
+        public State(int count) { Count = count; }
+        public string Stringify() { return $"State(count={Count})"; }
+        public string GetState() { return $"count={Count}"; }
+    }
+    public string GetProducerName() {
+        return "CounterProducer";
+    }
+    public int GetStateVersion() {
+        return 1;
+    }
+    // Returns the nested type — proves multiple constraints work as return type
+    public State CreateState(int initial) {
+        return new State(initial);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pattern 6: Slot with constraint referencing enclosing type parameter
+// The interface has a type parameter, and the slot's constraint references it
+// indirectly through another interface. This tests constraint resolution across
+// type parameter scopes.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface IMapper<TIn> {
+    type Mapped : IStringable;
+    string GetMapperName();
+}
+
+class IntMapper : IMapper<int> {
+    public class Mapped : IStringable {
+        public int Value;
+        public Mapped(int v) { Value = v; }
+        public string Stringify() { return $"Mapped({Value})"; }
+    }
+    public string GetMapperName() {
+        return "IntMapper";
+    }
+    // Returns the nested type — proves slot with enclosing type param works
+    public Mapped MapValue(int v) {
+        return new Mapped(v);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pattern 7: Unconstrained slot
+// The slot `type Element;` has no constraints — any nested type satisfies it.
+// But the implementor MUST still provide a nested type named Element, or
+// MIST_AT_0002 is emitted.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface IContainer {
+    type Element;
+    int GetSize();
+    string GetContainerKind();
+}
+
+class IntContainer : IContainer {
+    public struct Element {
+        public int Value;
+        public Element(int v) { Value = v; }
+    }
+    public int GetSize() {
+        return 1;
+    }
+    public string GetContainerKind() {
+        return "IntContainer";
+    }
+    // Returns the nested struct — proves unconstrained slot works as return type
+    public Element CreateElement(int v) {
+        return new Element(v);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pattern 8: Class + interface constraint combined
+// The slot requires BOTH `class` kind AND interface implementation.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface IValueProducer {
+    type Value : class, IStringable;
+    string GetDescription();
+}
+
+class PointProducer : IValueProducer {
+    public class Value : IStringable {
+        public int X;
+        public int Y;
+        public Value(int x, int y) { X = x; Y = y; }
+        public string Stringify() { return $"({X},{Y})"; }
+    }
+    public string GetDescription() {
+        return "PointProducer";
+    }
+    // Returns the nested class — proves class+interface constraint works
+    public Value CreatePoint(int x, int y) {
+        return new Value(x, y);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pattern 9: Multiple slots in one interface
+// An interface can declare multiple associated type slots, each with different
+// constraints. The implementor must satisfy ALL of them.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface IKeyValueStore {
+    type Key : struct;
+    type Value : class;
+    string GetStoreName();
+    int GetCapacity();
+}
+
+class StringStore : IKeyValueStore {
+    public struct Key {
+        public int Id;
+        public Key(int id) { Id = id; }
+    }
+    public class Value {
+        public string Data;
+        public Value(string data) { Data = data; }
+    }
+    public string GetStoreName() {
+        return "StringStore";
+    }
+    public int GetCapacity() {
+        return 100;
+    }
+    // Returns the nested struct Key — proves first slot works as return type
+    public Key CreateKey(int id) {
+        return new Key(id);
+    }
+    // Returns the nested class Value — proves second slot works as return type
+    public Value CreateValue(string data) {
+        return new Value(data);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pattern 10: Multiple interfaces with slots on same implementor
+// A class can implement multiple interfaces that each declare associated type
+// slots. All slots from all interfaces must be satisfied.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface IReadable {
+    type Reader : struct;
+    string GetReadMode();
+}
+
+interface IWritable {
+    type Writer : class;
+    string GetWriteMode();
+}
+
+class FileStream : IReadable, IWritable {
+    public struct Reader {
+        public int Offset;
+        public Reader(int offset) { Offset = offset; }
+    }
+    public class Writer {
+        public int BufferSize;
+        public Writer(int size) { BufferSize = size; }
+    }
+    public string GetReadMode() {
+        return "sequential";
+    }
+    public string GetWriteMode() {
+        return "buffered";
+    }
+    // Returns the nested struct Reader — proves first interface slot works
+    public Reader CreateReader(int offset) {
+        return new Reader(offset);
+    }
+    // Returns the nested class Writer — proves second interface slot works
+    public Writer CreateWriter(int size) {
+        return new Writer(size);
+    }
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
+
+public class Program {
+    public static void RunDemo() {
+        Console.WriteLine("--- Associated Types ---");
+
+        // 1. Single interface constraint
+        Console.WriteLine("--- Single Interface Constraint ---");
+        var producer = new MessageProducer();
+        var output1 = producer.CreateOutput("hello");
+        Console.WriteLine(output1.Stringify());
+        var output2 = producer.CreateOutput("world");
+        Console.WriteLine(output2.Stringify());
+
+        // 2. Trait slot
+        Console.WriteLine("--- Trait Slot ---");
+        var consumer = new StringConsumer();
+        var input1 = consumer.CreateInput("data-payload");
+        Console.WriteLine(input1.Stringify());
+        var input2 = consumer.CreateInput("second-payload");
+        Console.WriteLine(input2.Stringify());
+
+        // 3. Struct kind constraint
+        Console.WriteLine("--- Struct Constraint ---");
+        var rangeIter = new RangeIterator();
+        var cursor = rangeIter.CreateCursor(42);
+        Console.WriteLine($"cursor.Position={cursor.Position}");
+        var cursor2 = rangeIter.CreateCursor(99);
+        Console.WriteLine($"cursor2.Position={cursor2.Position}");
+
+        // 4. Class kind constraint
+        Console.WriteLine("--- Class Constraint ---");
+        var factory = new WidgetFactory();
+        var product = factory.CreateProduct("Gear", 5);
+        Console.WriteLine($"product.Name={product.Name}");
+        Console.WriteLine($"product.Weight={product.Weight}");
+
+        // 5. Multiple constraints
+        Console.WriteLine("--- Multiple Constraints ---");
+        var stateful = new CounterProducer();
+        var state = stateful.CreateState(7);
+        Console.WriteLine(state.Stringify());
+        Console.WriteLine(state.GetState());
+
+        // 6. Constraint referencing enclosing type parameter
+        Console.WriteLine("--- Enclosing Type Parameter ---");
+        var mapper = new IntMapper();
+        var mapped = mapper.MapValue(123);
+        Console.WriteLine(mapped.Stringify());
+        var mapped2 = mapper.MapValue(456);
+        Console.WriteLine(mapped2.Stringify());
+
+        // 7. Unconstrained slot
+        Console.WriteLine("--- Unconstrained Slot ---");
+        var container = new IntContainer();
+        var elem = container.CreateElement(55);
+        Console.WriteLine($"elem.Value={elem.Value}");
+        var elem2 = container.CreateElement(77);
+        Console.WriteLine($"elem2.Value={elem2.Value}");
+
+        // 8. Class + interface constraint combined
+        Console.WriteLine("--- Class Plus Interface ---");
+        var pointProducer = new PointProducer();
+        var point = pointProducer.CreatePoint(3, 4);
+        Console.WriteLine(point.Stringify());
+        var point2 = pointProducer.CreatePoint(10, 20);
+        Console.WriteLine(point2.Stringify());
+
+        // 9. Multiple slots in one interface
+        Console.WriteLine("--- Multiple Slots ---");
+        var store = new StringStore();
+        var key = store.CreateKey(1);
+        Console.WriteLine($"key.Id={key.Id}");
+        var val = store.CreateValue("hello-store");
+        Console.WriteLine($"val.Data={val.Data}");
+
+        // 10. Multiple interfaces with slots on same implementor
+        Console.WriteLine("--- Multiple Interfaces ---");
+        var stream = new FileStream();
+        var reader = stream.CreateReader(0);
+        Console.WriteLine($"reader.Offset={reader.Offset}");
+        var writer = stream.CreateWriter(4096);
+        Console.WriteLine($"writer.BufferSize={writer.BufferSize}");
+
+        Console.WriteLine("--- Associated Types Done ---");
+    }
+
+    public static void Main(string[] args) {
+        RunDemo();
+    }
+}

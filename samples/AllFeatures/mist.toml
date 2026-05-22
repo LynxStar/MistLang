@@ -128,3 +128,6 @@ path = "../StructuredConcurrency"
 
 [[references]]
 path = "../StructInheritance"
+
+[[references]]
+path = "../AssociatedTypes"

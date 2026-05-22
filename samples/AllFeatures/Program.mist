@@ -54,6 +54,7 @@ public class Program
         ReadonlyLocals.Program.RunDemo();
         StructuredConcurrency.Program.RunDemo();
         StructInheritance.Program.RunDemo();
+        AssociatedTypes.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

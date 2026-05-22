@@ -78,6 +78,8 @@ The loop variable is scoped to the `foreach` block and takes on the value of eac
 
 > **Note:** The Mist compiler does not currently verify that the collection expression is actually enumerable. The `foreach` statement is emitted directly to the backend, which performs its own enumeration resolution. With the C# backend, this means the collection must satisfy C#'s foreach requirements (implement `IEnumerable<T>`, or have a duck-typed `GetEnumerator()` method). If the expression is not enumerable, you will get a backend compilation error rather than a Mist compiler error.
 
+> **Design intent:** The intended design is to back `foreach` using `Iterable<TValue>` and `IEnumerator<TValue>` interfaces with associated types, similar to Rust's `IntoIterator` / `Iterator` pattern. The `Iterable<TValue>` interface will declare an associated type slot for the enumerator (e.g., `type Enumerator : IEnumerator<TValue>, struct;`), allowing the compiler to resolve the concrete enumerator type statically and enabling zero-allocation iteration without boxing. See the [Associated Types](../type-system/associated-types.md) chapter for details.
+
 ## Break
 
 The `break` statement exits the innermost enclosing loop immediately. Execution continues with the first statement after the loop.

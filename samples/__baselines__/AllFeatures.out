@@ -997,6 +997,9 @@ Done!
   Entry.Kind(), Metadata.Kind(), Category.System called from Registry.DemoSiblings()
   Level4.Depth() called from Level3.UseLevel4()
   All verified: Outer.Inner (class in class)
+--- 16. Nested types in type positions ---
+  class: Widget x5, Gadget x3
+  struct: Bolt:100
 === Nested Scoping Done ===
 === Refinement Comparison Engine Sample ===
 --- [eq-implies-relational] ---
@@ -1161,4 +1164,36 @@ sum=400
   origin.X=77, converted.X=77
   origin.Y=88, converted.Y=88
 Done!
+--- Associated Types ---
+--- Single Interface Constraint ---
+Output(hello)
+Output(world)
+--- Trait Slot ---
+Input(data-payload)
+Input(second-payload)
+--- Struct Constraint ---
+cursor.Position=42
+cursor2.Position=99
+--- Class Constraint ---
+product.Name=Gear
+product.Weight=5
+--- Multiple Constraints ---
+State(count=7)
+count=7
+--- Enclosing Type Parameter ---
+Mapped(123)
+Mapped(456)
+--- Unconstrained Slot ---
+elem.Value=55
+elem2.Value=77
+--- Class Plus Interface ---
+(3,4)
+(10,20)
+--- Multiple Slots ---
+key.Id=1
+val.Data=hello-store
+--- Multiple Interfaces ---
+reader.Offset=0
+writer.BufferSize=4096
+--- Associated Types Done ---
 === Done! ===

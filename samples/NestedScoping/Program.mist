@@ -16,6 +16,7 @@
 //  13. Repeated block namespaces with same name (see BlockNamespaces.mist)
 //  14. File-scoped namespace with nested types inside type declarations
 //  15. Referencing nested types by qualified name from outside the parent
+//  16. Nested types used in type positions (return type, parameter type, new)
 
 using Standard;
 using NestedScoping.Networking.Protocol;
@@ -173,6 +174,91 @@ public class Registry
     }
 }
 
+// ─── 16. Nested types used in type positions ─────────────────────────────────
+// Nested types used as return types, parameter types, field types, local
+// variable types, and in new expressions — from classes, structs, interfaces,
+// and traits. This proves nested types work as full type references in all
+// contexts, not just as targets for static method calls.
+
+public class Factory
+{
+    public class Product
+    {
+        public string Name;
+        public int Quantity;
+        public Product(string name, int quantity) { Name = name; Quantity = quantity; }
+    }
+
+    // Field typed as nested type
+    Product _lastCreated;
+
+    // Return type is nested type
+    public Product Create(string name, int qty)
+    {
+        _lastCreated = new Product(name, qty);
+        return _lastCreated;
+    }
+
+    // Parameter type is nested type
+    public string Describe(Product p)
+    {
+        return $"{p.Name} x{p.Quantity}";
+    }
+
+    // Local variable typed as nested type
+    public string CreateAndDescribe()
+    {
+        Product item = new Product("Gadget", 3);
+        return Describe(item);
+    }
+
+    public static string Demo()
+    {
+        var f = new Factory();
+        Product item = f.Create("Widget", 5);
+        var desc = f.Describe(item);
+        var desc2 = f.CreateAndDescribe();
+        return $"{desc}, {desc2}";
+    }
+}
+
+// Nested type in a struct — struct containing a nested class used in type positions
+public struct Inventory
+{
+    public class Record
+    {
+        public string Item;
+        public int Count;
+        public Record(string item, int count) { Item = item; Count = count; }
+    }
+
+    // Field typed as nested type
+    Record _current;
+
+    public Inventory(string item, int count)
+    {
+        _current = new Record(item, count);
+    }
+
+    // Return type is nested type from within struct
+    public Record GetCurrent()
+    {
+        return _current;
+    }
+
+    // Parameter type is nested type from within struct
+    public string FormatRecord(Record r)
+    {
+        return $"{r.Item}:{r.Count}";
+    }
+
+    public string Demo()
+    {
+        Record rec = GetCurrent();
+        return FormatRecord(rec);
+    }
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 public class Program
@@ -246,6 +332,12 @@ public class Program
         Console.WriteLine("  Entry.Kind(), Metadata.Kind(), Category.System called from Registry.DemoSiblings()");
         Console.WriteLine("  Level4.Depth() called from Level3.UseLevel4()");
         Console.WriteLine($"  All verified: {Outer.DemoClassInClass()}");
+
+        // 16. Nested types in type positions (return type, parameter type, field type, local variable type, new)
+        //     Tested in: class (Factory), struct (Inventory)
+        Console.WriteLine("--- 16. Nested types in type positions ---");
+        Console.WriteLine($"  class: {Factory.Demo()}");
+        Console.WriteLine($"  struct: {new Inventory("Bolt", 100).Demo()}");
 
         Console.WriteLine("=== Nested Scoping Done ===");
     }

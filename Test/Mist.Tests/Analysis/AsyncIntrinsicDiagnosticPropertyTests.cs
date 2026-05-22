@@ -145,7 +145,7 @@ public class AsyncIntrinsicDiagnosticPropertyTests
             Name = Tok(scenario.MethodName),
             ReturnType = returnTypeRef,
             Parameters = null,
-            Body = null,
+            Body = null!, // Intrinsic methods are semicolon-terminated with no body
             Modifiers = modifiers.ToImmutable(),
         };
 

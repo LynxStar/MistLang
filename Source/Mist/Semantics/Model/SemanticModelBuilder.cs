@@ -602,6 +602,51 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId NestedTypeConflictsWithTypeParameter = new("MIST0304");
 
+    // ── Struct inheritance diagnostic IDs (struct-inheritance spec, Requirements 1.2, 2.1–2.6, 3.3, 7.3, 7.4) ──
+
+    /// <summary>
+    /// A struct inheritance chain contains a cycle (e.g., <c>struct A : B</c>
+    /// and <c>struct B : A</c>). The <c>BaseType</c> is set to <c>null</c>
+    /// on the offending struct to break the cycle.
+    /// </summary>
+    internal static readonly DiagnosticId StructCircularInheritance = new("MIST_STRUCT_CIRCULAR_INHERITANCE");
+
+    /// <summary>
+    /// A struct inheritance chain exceeds the maximum allowed depth of 64.
+    /// The <c>BaseType</c> is set to <c>null</c> to prevent infinite loops.
+    /// </summary>
+    internal static readonly DiagnosticId StructMaxDepth = new("MIST_STRUCT_MAX_DEPTH");
+
+    /// <summary>
+    /// A struct's base list contains more than one struct type. Only single
+    /// struct inheritance is supported; additional struct entries are rejected.
+    /// </summary>
+    internal static readonly DiagnosticId StructMultipleInheritance = new("MIST_STRUCT_MULTIPLE_INHERITANCE");
+
+    /// <summary>
+    /// A field declared in a derived struct has the same name as a field
+    /// inherited from an ancestor struct, which would cause ambiguity.
+    /// </summary>
+    internal static readonly DiagnosticId StructFieldHiding = new("MIST_STRUCT_FIELD_HIDING");
+
+    /// <summary>
+    /// A struct's base list names a type that is not a struct (e.g., a class
+    /// or other non-struct/non-interface type used in the base position).
+    /// </summary>
+    internal static readonly DiagnosticId StructInvalidBase = new("MIST_STRUCT_INVALID_BASE");
+
+    /// <summary>
+    /// A derived struct constructor does not provide <c>: base(...)</c> but
+    /// the base struct has no parameterless constructor.
+    /// </summary>
+    internal static readonly DiagnosticId StructBaseCtorRequired = new("MIST_STRUCT_BASE_CTOR_REQUIRED");
+
+    /// <summary>
+    /// A derived struct constructor's <c>: base(...)</c> arguments do not
+    /// match any constructor on the base struct.
+    /// </summary>
+    internal static readonly DiagnosticId StructBaseCtorMismatch = new("MIST_STRUCT_BASE_CTOR_MISMATCH");
+
     /// <summary>
     /// The set of primitive type keywords allowed as dependent type parameter annotations.
     /// </summary>
@@ -742,6 +787,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // This runs after all types are registered so that forward references
         // to base classes are supported.
         Pass1_ResolveBaseTypes(asts, globalScope, symbolTable, compilation, diagnostics);
+
+        // Pass 1b (cont.): Resolve struct base types for struct inheritance.
+        // Mirrors the class base type resolution above. Checks if the first
+        // entry in a struct's interface list resolves to a StructType and, if
+        // so, sets it as the struct's BaseType.
+        Pass1_ResolveStructBaseTypes(symbolTable, asts, compilation, diagnostics);
 
         // Pass 1b (cont.): Resolve interface lists on classes, structs, and interfaces.
         // After base types are resolved, resolve interface names on all types.
@@ -4031,6 +4082,145 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Resolves base struct types for struct inheritance. Mirrors the class
+    /// base type resolution logic in <see cref="Pass1_ResolveBaseTypes"/>.
+    /// Iterates all struct symbols, checks if the first entry in the struct's
+    /// interface list resolves to a <see cref="StructType"/>, and if so sets
+    /// it as <see cref="StructType.BaseType"/>. If the first entry resolves
+    /// to a <see cref="ClassType"/> or other non-struct/non-interface type,
+    /// emits <c>MIST_STRUCT_INVALID_BASE</c>.
+    /// </summary>
+    private static void Pass1_ResolveStructBaseTypes(
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind != SymbolKind.Struct || symbol.DeclaredType is not StructType structType)
+                continue;
+
+            var declaringNode = symbolTable.GetDeclaringNode(symbol);
+            if (declaringNode is not StructDeclarationNode structDecl)
+                continue;
+
+            if (structDecl.Interfaces is null)
+                continue;
+
+            var entries = ExtractBaseListEntries(structDecl.Interfaces);
+            if (entries.Count == 0)
+                continue;
+
+            var firstEntry = entries[0];
+            var firstName = firstEntry.Name.Lexeme;
+            if (string.IsNullOrEmpty(firstName))
+                continue;
+
+            var parentScope = symbol.ContainingScope;
+            var resolvedSymbol = parentScope.Lookup(firstName);
+
+            if (resolvedSymbol?.DeclaredType is StructType resolvedStructType)
+            {
+                // First entry is a struct → record as base type.
+                var typeArgs = firstEntry.TypeArgs;
+                structType.BaseType = ResolveGenericTypeReference(
+                    resolvedStructType, typeArgs, firstName,
+                    structType, structDecl, asts, compilation, diagnostics);
+            }
+            else if (resolvedSymbol?.DeclaredType is ClassType)
+            {
+                // A struct cannot inherit from a class.
+                var sourceText = GetSourceTextFromOrigin(structDecl);
+
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    StructInvalidBase.Value,
+                    DiagnosticSeverity.Error,
+                    $"Struct '{structType.DisplayName}' cannot inherit from '{firstName}' because it is not a struct.",
+                    structDecl,
+                    sourceText));
+            }
+            // If it resolves to an interface or trait, leave it for
+            // ResolveStructInterfaceList to handle normally.
+        }
+
+        // After all struct base types are resolved, detect cycles and
+        // chains exceeding the maximum depth.
+        DetectStructInheritanceCycles(symbolTable, asts, compilation, diagnostics);
+
+        // After cycles are broken, populate inherited public members into
+        // each derived struct's MemberScope so that member lookup works
+        // without a manual chain walk (Requirements 2.7, 3.2, 3.4, 3.5, 3.6).
+        PopulateInheritedStructMembers(symbolTable);
+    }
+
+    /// <summary>
+    /// Walks the ancestor chain for each struct with a base type and injects
+    /// public fields, methods, and properties from ancestors into the derived
+    /// struct's <see cref="StructType.MemberScope"/>. Only public members are
+    /// injected; private members remain inaccessible from the derived struct.
+    /// Members already declared on the derived struct are not overwritten.
+    /// </summary>
+    private static void PopulateInheritedStructMembers(SymbolTable symbolTable)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind != SymbolKind.Struct || symbol.DeclaredType is not StructType structType)
+                continue;
+
+            if (structType.BaseType is null)
+                continue;
+
+            // BaseType may be a StructType directly or a ConstructedType
+            // wrapping a StructType (for generic struct inheritance).
+            var baseStruct = structType.BaseType as StructType
+                ?? (structType.BaseType as ConstructedType)?.GenericDefinition as StructType;
+
+            if (baseStruct is null)
+                continue;
+
+            if (structType.MemberScope is not Scope derivedScope)
+                continue;
+
+            // Collect names already declared directly on the derived struct
+            // so we don't overwrite them with inherited members.
+            var declaredNames = new HashSet<string>();
+            foreach (var member in derivedScope.Members)
+            {
+                declaredNames.Add(member.Name);
+            }
+
+            // Walk the ancestor chain and inject public members.
+            var current = baseStruct;
+            while (current is not null)
+            {
+                foreach (var member in current.MemberScope.Members)
+                {
+                    // Only inject fields, methods, and properties.
+                    if (member.Kind is not (SymbolKind.Field or SymbolKind.Method or SymbolKind.Property))
+                        continue;
+
+                    // Skip members already present in the derived scope (either
+                    // declared directly or inherited from a closer ancestor).
+                    if (declaredNames.Contains(member.Name))
+                        continue;
+
+                    // Only inject public members.
+                    if (!IsMemberPublic(member, symbolTable))
+                        continue;
+
+                    derivedScope.AddMember(member);
+                    declaredNames.Add(member.Name);
+                }
+
+                // Walk up: BaseType may also be a ConstructedType wrapping a StructType.
+                current = current.BaseType as StructType
+                    ?? (current.BaseType as ConstructedType)?.GenericDefinition as StructType;
+            }
+        }
+    }
+
+    /// <summary>
     /// Resolves a type reference in an inheritance context (base clause or interface list),
     /// handling type arguments to produce a <see cref="ConstructedType"/> when appropriate.
     /// Emits diagnostics for arity mismatches, non-generic type arguments, and missing type arguments.
@@ -4808,6 +4998,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Resolves the interface list for a struct declaration.
+    /// If <see cref="StructType.BaseType"/> is already set (consumed by
+    /// <c>Pass1_ResolveStructBaseTypes</c>), the first entry is skipped.
+    /// Any additional struct types in the remaining entries emit
+    /// <c>MIST_STRUCT_MULTIPLE_INHERITANCE</c>.
     /// </summary>
     private static void ResolveStructInterfaceList(
         ISymbol structSymbol,
@@ -4828,9 +5022,35 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (entries.Count == 0)
             return;
 
+        // If Pass1_ResolveStructBaseTypes consumed the first entry as a base struct, skip it.
+        var startIndex = structType.BaseType is not null ? 1 : 0;
+
+        // Check remaining entries for additional struct types and emit an error if found.
         var parentScope = structSymbol.ContainingScope;
+        for (var i = startIndex; i < entries.Count; i++)
+        {
+            var name = entries[i].Name.Lexeme;
+            if (string.IsNullOrEmpty(name))
+                continue;
+
+            var resolvedSymbol = parentScope.Lookup(name);
+            if (resolvedSymbol?.DeclaredType is StructType)
+            {
+                var sourceText = GetSourceTextForSymbol(structSymbol, symbolTable);
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    StructMultipleInheritance.Value,
+                    DiagnosticSeverity.Error,
+                    $"Struct '{structType.DisplayName}' cannot inherit from multiple structs. Only single struct inheritance is supported.",
+                    structDecl,
+                    sourceText));
+                continue;
+            }
+        }
+
+        // Resolve remaining entries as interfaces (existing logic).
+        var interfaceEntries = entries.Skip(startIndex);
         var resolvedInterfaces = ResolveInterfaceEntries(
-            entries,
+            interfaceEntries,
             parentScope,
             structType,
             structDecl,
@@ -6072,14 +6292,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // MIST_CONSTRAINT_0005: Struct used as base class constraint.
-        foreach (var structType in structTypeConstraints)
+        // With struct inheritance, a struct constraint is valid when the type parameter
+        // also has a `struct` constraint (analogous to base-class constraints on
+        // class-constrained parameters). Only emit the error when the parameter does
+        // NOT have a `struct` constraint.
+        if (!hasStructConstraint)
         {
-            diagnostics.Add(MakeDiagnosticWithLocation(
-                ConstraintStructAsBaseClass.Value,
-                DiagnosticSeverity.Error,
-                $"Struct '{structType.DisplayName}' cannot be used as a base class constraint.",
-                clause,
-                sourceText));
+            foreach (var structType in structTypeConstraints)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    ConstraintStructAsBaseClass.Value,
+                    DiagnosticSeverity.Error,
+                    $"Struct '{structType.DisplayName}' cannot be used as a base class constraint.",
+                    clause,
+                    sourceText));
+            }
         }
 
         // MIST_CONSTRAINT_0006: Base class + struct incompatibility.
@@ -9103,6 +9330,145 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // Pass 1c (cont.) — Detect struct inheritance cycles
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Walks each struct's ancestor chain to detect circular inheritance and
+    /// chains exceeding the maximum depth of 64 levels. On cycle detection,
+    /// emits <c>MIST_STRUCT_CIRCULAR_INHERITANCE</c> and sets
+    /// <c>BaseType = null</c>. On depth exceeded, emits
+    /// <c>MIST_STRUCT_MAX_DEPTH</c> and sets <c>BaseType = null</c>.
+    /// </summary>
+    private static void DetectStructInheritanceCycles(
+        SymbolTable symbolTable,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        const int MaxDepth = 64;
+
+        // Track structs that have already been verified as cycle-free so we
+        // don't re-walk them.
+        var verified = new HashSet<StructType>();
+
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind != SymbolKind.Struct || symbol.DeclaredType is not StructType structType)
+                continue;
+
+            if (structType.BaseType is null || verified.Contains(structType))
+                continue;
+
+            // Walk the BaseType chain from this struct, tracking visited structs.
+            var visited = new HashSet<StructType>();
+            var chain = new List<StructType>();
+            var current = structType;
+
+            while (current is not null)
+            {
+                if (!visited.Add(current))
+                {
+                    // Cycle detected — current was already visited.
+                    var cycleStart = chain.IndexOf(current);
+                    var cycleMembers = chain.Skip(cycleStart).Select(c => c.DisplayName).ToList();
+                    cycleMembers.Add(current.DisplayName);
+                    var chainStr = string.Join(" -> ", cycleMembers);
+
+                    // Find the struct declaration node that closes the cycle.
+                    var closingStruct = chain[^1];
+                    Storm.Runtime.SyntaxNode? closingNode = null;
+                    foreach (var sym in symbolTable.AllSymbols)
+                    {
+                        if (sym.DeclaredType == closingStruct)
+                        {
+                            closingNode = symbolTable.GetDeclaringNode(sym);
+                            break;
+                        }
+                    }
+
+                    var closingSourceText = closingNode is not null
+                        ? GetSourceTextFromOrigin(closingNode)
+                        : null;
+
+                    if (closingNode is not null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            StructCircularInheritance.Value,
+                            DiagnosticSeverity.Error,
+                            $"Circular inheritance detected in struct chain: '{chainStr}'.",
+                            closingNode,
+                            closingSourceText));
+                    }
+                    else
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            StructCircularInheritance,
+                            DiagnosticSeverity.Error,
+                            PipelineStage.SemanticModelConstruction,
+                            $"Circular inheritance detected in struct chain: '{chainStr}'.",
+                            Location: default,
+                            CompilationUnitPath: "<unknown>",
+                            AnalyzerName: null));
+                    }
+
+                    // Break the cycle by nulling the BaseType on the closing struct.
+                    closingStruct.BaseType = null;
+                    break;
+                }
+
+                chain.Add(current);
+
+                // Check max depth (only count edges, not the root itself).
+                if (chain.Count - 1 > MaxDepth)
+                {
+                    // Depth exceeded — emit diagnostic on the original struct.
+                    var declaringNode = symbolTable.GetDeclaringNode(symbol);
+                    var sourceText = declaringNode is not null
+                        ? GetSourceTextFromOrigin(declaringNode)
+                        : null;
+
+                    if (declaringNode is not null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            StructMaxDepth.Value,
+                            DiagnosticSeverity.Error,
+                            $"Struct '{structType.DisplayName}' exceeds the maximum inheritance depth of {MaxDepth}.",
+                            declaringNode,
+                            sourceText));
+                    }
+                    else
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            StructMaxDepth,
+                            DiagnosticSeverity.Error,
+                            PipelineStage.SemanticModelConstruction,
+                            $"Struct '{structType.DisplayName}' exceeds the maximum inheritance depth of {MaxDepth}.",
+                            Location: default,
+                            CompilationUnitPath: "<unknown>",
+                            AnalyzerName: null));
+                    }
+
+                    // Break the chain by nulling the BaseType on the original struct.
+                    structType.BaseType = null;
+                    break;
+                }
+
+                current = current.BaseType as StructType;
+            }
+
+            // All structs in this chain that didn't form a cycle are verified.
+            foreach (var s in chain)
+            {
+                if (s.BaseType is not null || s == structType)
+                {
+                    verified.Add(s);
+                }
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // Pass 1d — Validate interface satisfaction
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -10743,6 +11109,130 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
             }
         }
+
+        // ─── Struct base constructor satisfaction ───────────────────────────
+        // Mirror the class logic above for structs with base struct types.
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind != SymbolKind.Struct || symbol.DeclaredType is not StructType structType)
+            {
+                continue;
+            }
+
+            if (structType.BaseType is null)
+            {
+                continue;
+            }
+
+            var baseType = structType.BaseType;
+
+            // Get the member scope from the base struct type.
+            IScope? baseScope = baseType switch
+            {
+                StructType bst => bst.MemberScope,
+                ConstructedType cst => cst.MemberScope,
+                _ => null,
+            };
+            if (baseScope is null)
+                continue;
+
+            // Find explicit constructors on the base struct.
+            var baseConstructors = baseScope.Members
+                .Where(m => m.Kind == SymbolKind.Constructor)
+                .ToList();
+
+            // If the base struct has no explicit constructors, it has an implicit
+            // parameterless constructor — no issue.
+            if (baseConstructors.Count == 0)
+            {
+                continue;
+            }
+
+            // Check if the base struct has at least one parameterless constructor.
+            var baseHasParameterlessCtor = baseConstructors.Any(ctor =>
+            {
+                var ctorNode = symbolTable.GetDeclaringNode(ctor);
+                return ctorNode is ConstructorDeclarationNode ctorDecl && ctorDecl.Parameters is null;
+            });
+
+            // If the base struct has a parameterless constructor, derived structs
+            // can implicitly call it — no issue.
+            if (baseHasParameterlessCtor)
+            {
+                continue;
+            }
+
+            // The base struct requires constructor arguments. Check if the derived
+            // struct satisfies this requirement.
+            var derivedConstructors = structType.MemberScope.Members
+                .Where(m => m.Kind == SymbolKind.Constructor)
+                .ToList();
+
+            if (derivedConstructors.Count == 0)
+            {
+                // Derived struct has no explicit constructors and the base struct
+                // requires arguments — emit diagnostic.
+                Storm.Runtime.SyntaxNode? structNode = null;
+                foreach (var sym in symbolTable.AllSymbols)
+                {
+                    if (sym.DeclaredType == structType)
+                    {
+                        structNode = symbolTable.GetDeclaringNode(sym);
+                        break;
+                    }
+                }
+
+                if (structNode is not null)
+                {
+                    var structSourceText = GetSourceTextFromOrigin(structNode);
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        StructBaseCtorRequired.Value,
+                        DiagnosticSeverity.Error,
+                        $"Struct '{baseType.DisplayName}' requires constructor arguments. Add ': base(...)' to the constructor of '{structType.DisplayName}'.",
+                        structNode,
+                        structSourceText));
+                }
+                else
+                {
+                    diagnostics.Add(new Diagnostic(
+                        StructBaseCtorRequired,
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        $"Struct '{baseType.DisplayName}' requires constructor arguments. Add ': base(...)' to the constructor of '{structType.DisplayName}'.",
+                        Location: default,
+                        CompilationUnitPath: "<unknown>",
+                        AnalyzerName: null));
+                }
+                continue;
+            }
+
+            // Check each derived constructor: any constructor without `: base(...)` is
+            // an error since the base struct has no parameterless constructor.
+            foreach (var derivedCtor in derivedConstructors)
+            {
+                var ctorNode = symbolTable.GetDeclaringNode(derivedCtor);
+                if (ctorNode is not ConstructorDeclarationNode ctorDecl)
+                {
+                    continue;
+                }
+
+                var hasBaseChain = ctorDecl.Chain is BaseChainConstructorChainNode;
+
+                if (!hasBaseChain)
+                {
+                    // This constructor does not chain to the base struct, but the
+                    // base struct requires arguments — emit diagnostic.
+                    var ctorSourceText = GetSourceTextForSymbol(symbol, symbolTable);
+
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        StructBaseCtorRequired.Value,
+                        DiagnosticSeverity.Error,
+                        $"Struct '{baseType.DisplayName}' requires constructor arguments. Add ': base(...)' to the constructor of '{structType.DisplayName}'.",
+                        ctorDecl,
+                        ctorSourceText));
+                }
+            }
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -12127,6 +12617,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (fieldSymbol is not null)
         {
             fieldSymbol.DeclaredType = fieldType;
+        }
+
+        // Field hiding detection (struct-inheritance spec, Requirement 3.3).
+        // If the enclosing type is a struct with a base struct, check whether
+        // the field name collides with any ancestor field.
+        if (enclosingType is StructType structType && structType.BaseType is StructType baseForHiding)
+        {
+            var fieldName = fieldDecl.Name.Lexeme;
+            var ancestorWithField = FindFieldInStructAncestors(baseForHiding, fieldName);
+            if (ancestorWithField is not null)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    StructFieldHiding.Value,
+                    DiagnosticSeverity.Error,
+                    $"Field '{fieldName}' in struct '{structType.DisplayName}' hides field '{fieldName}' inherited from '{ancestorWithField.DisplayName}'.",
+                    fieldDecl,
+                    sourceText));
+            }
         }
 
         // Resolve the optional initializer expression.
@@ -19975,6 +20483,30 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             Location: location,
             CompilationUnitPath: compilationUnitPath,
             AnalyzerName: null);
+    }
+
+    /// <summary>
+    /// Walks the struct ancestor chain starting from <paramref name="baseStruct"/>
+    /// looking for a field with the given name. Returns the ancestor struct that
+    /// declares the field, or <c>null</c> if no ancestor has a field with that name.
+    /// </summary>
+    private static StructType? FindFieldInStructAncestors(StructType? baseStruct, string fieldName)
+    {
+        var current = baseStruct;
+        while (current is not null)
+        {
+            foreach (var member in current.MemberScope.Members)
+            {
+                if (member.Kind == SymbolKind.Field && member.Name == fieldName)
+                {
+                    return current;
+                }
+            }
+
+            current = current.BaseType as StructType;
+        }
+
+        return null;
     }
 
     private static Common.Text.SourceSpan ToMistSourceSpan(Storm.Runtime.SourceSpan span)

@@ -1,0 +1,54 @@
+// SYNTAX TEST "source.mist"
+
+// ===== Struct inheritance: single base struct =====
+
+struct Point3D : Point {
+// <- keyword.declaration.mist
+//     ^^^^^^^ entity.name.type.struct.mist
+    int Z;
+}
+
+// ===== Struct inheritance: generic base struct =====
+
+struct Derived<T> : Base<T> {
+// <- keyword.declaration.mist
+//     ^^^^^^^ entity.name.type.mist
+//                  ^^^^ entity.name.type.mist
+    T Extra;
+}
+
+// ===== Struct inheritance: base struct + interface =====
+
+struct Multi : Base, IInterface {
+// <- keyword.declaration.mist
+//     ^^^^^ entity.name.type.struct.mist
+    int Value;
+}
+
+// ===== Struct inheritance: multi-level =====
+
+struct ColorPoint3D : Point3D {
+// <- keyword.declaration.mist
+//     ^^^^^^^^^^^^ entity.name.type.struct.mist
+    int Color;
+}
+
+// ===== Struct inheritance: generic with multiple type args =====
+
+struct Pair<A, B> : Base<A> {
+// <- keyword.declaration.mist
+//     ^^^^ entity.name.type.mist
+//                  ^^^^ entity.name.type.mist
+    B Second;
+}
+
+// ===== Struct inheritance: base constructor chaining =====
+
+struct Point3D : Point {
+    int Z;
+
+    Point3D(int x, int y, int z) : base(x, y) {
+//  ^^^^^^^ entity.name.function.mist
+        Z = z;
+    }
+}

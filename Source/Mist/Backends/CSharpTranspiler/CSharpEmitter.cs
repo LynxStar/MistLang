@@ -3294,7 +3294,13 @@ internal sealed class CSharpSourceWriter
         var interfaceList = "";
         if (structDecl.Interfaces is not null)
         {
-            var baseParts = EmitBaseListWithTypeArgs(structDecl.Interfaces);
+            // If the struct has a base struct, skip the first entry in the base list
+            // (it was consumed as the base struct type, not an interface). The CLR does
+            // not support struct inheritance, so we must NOT emit `: BaseStruct`.
+            var hasBaseStruct = symbol?.DeclaredType is StructType stWithBase && stWithBase.BaseType is not null;
+            var baseParts = hasBaseStruct
+                ? EmitBaseListSkippingFirst(structDecl.Interfaces)
+                : EmitBaseListWithTypeArgs(structDecl.Interfaces);
 
             // Append trait interfaces for this struct
             var traitNames = new List<string>();
@@ -3306,9 +3312,12 @@ internal sealed class CSharpSourceWriter
                 }
             }
 
-            interfaceList = traitNames.Count > 0
-                ? $" : {baseParts}, {string.Join(", ", traitNames)}"
-                : $" : {baseParts}";
+            if (baseParts.Length > 0 && traitNames.Count > 0)
+                interfaceList = $" : {baseParts}, {string.Join(", ", traitNames)}";
+            else if (baseParts.Length > 0)
+                interfaceList = $" : {baseParts}";
+            else if (traitNames.Count > 0)
+                interfaceList = $" : {string.Join(", ", traitNames)}";
         }
         else if (symbol?.DeclaredType is StructType structType)
         {
@@ -3390,12 +3399,44 @@ internal sealed class CSharpSourceWriter
             }
         }
 
+        // Emit flattened ancestor fields (root-first order). Since the CLR does not
+        // support struct inheritance, all ancestor fields are emitted directly in the
+        // derived struct body. Root ancestor fields appear first, then immediate base
+        // fields, then the struct's own declared fields.
+        var hasAncestorFields = false;
+        if (symbol?.DeclaredType is StructType derivedStruct && derivedStruct.BaseType is not null)
+        {
+            var ancestors = new List<StructType>(derivedStruct.GetAncestorChain());
+            ancestors.Reverse(); // root-first order
+
+            foreach (var ancestor in ancestors)
+            {
+                foreach (var field in ancestor.MemberScope.Members)
+                {
+                    if (field.Kind != SymbolKind.Field)
+                        continue;
+
+                    // Only emit fields that were declared directly on this ancestor
+                    // (not inherited into its scope from its own ancestors).
+                    if (!ReferenceEquals(field.ContainingScope, ancestor.MemberScope))
+                        continue;
+
+                    if (hasAncestorFields || hasFactoryFields || hasDependentProperties)
+                    {
+                        AppendLine();
+                    }
+                    EmitInheritedFieldDeclaration(field);
+                    hasAncestorFields = true;
+                }
+            }
+        }
+
         // Emit every member in declaration order. No name-based grouping or
         // deduplication is performed, so overloaded methods and constructors
         // are each emitted as separate C# declarations.
         for (var i = 0; i < structDecl.Members.Length; i++)
         {
-            if (i > 0 || hasFactoryFields || hasDependentProperties)
+            if (i > 0 || hasFactoryFields || hasDependentProperties || hasAncestorFields)
             {
                 AppendLine();
             }
@@ -3475,9 +3516,86 @@ internal sealed class CSharpSourceWriter
             }
         }
 
+        // Emit implicit conversion operators for struct inheritance.
+        // Each operator converts the derived struct to an ancestor by copying fields.
+        if (symbol?.DeclaredType is StructType derivedStructForConversions
+            && derivedStructForConversions.BaseType is not null)
+        {
+            EmitStructImplicitConversions(derivedStructForConversions, name);
+        }
+
         _insideStruct = previousInsideStruct;
         _indentLevel--;
         AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emits implicit conversion operators from a derived struct to each of its
+    /// ancestor structs. Each operator constructs the ancestor by copying all
+    /// fields that belong to that ancestor (including fields the ancestor itself
+    /// inherited).
+    /// </summary>
+    private void EmitStructImplicitConversions(StructType derivedStruct, string derivedName)
+    {
+        var current = derivedStruct.BaseType as StructType;
+        while (current is not null)
+        {
+            var baseName = CSharpTypeMap.GetTypeName(current);
+            AppendLine();
+            AppendLine($"public static implicit operator {baseName}({derivedName} value)");
+            AppendLine("{");
+            _indentLevel++;
+            AppendLine($"return new {baseName}");
+            AppendLine("{");
+            _indentLevel++;
+            foreach (var field in GetAllFieldsForStruct(current))
+            {
+                AppendLine($"{field.Name} = value.{field.Name},");
+            }
+            _indentLevel--;
+            AppendLine("};");
+            _indentLevel--;
+            AppendLine("}");
+
+            current = current.BaseType as StructType;
+        }
+    }
+
+    /// <summary>
+    /// Collects all field symbols for a struct type, including fields inherited
+    /// from its ancestors. Uses the ancestor's <see cref="StructType.GetAncestorChain"/>
+    /// to walk up the chain and collect fields from each level, ensuring all fields
+    /// are included regardless of visibility (since the emitted C# struct has all
+    /// fields flattened as public).
+    /// </summary>
+    private static IReadOnlyList<ISymbol> GetAllFieldsForStruct(StructType structType)
+    {
+        var fields = new List<ISymbol>();
+        var seen = new HashSet<string>();
+
+        // Collect ancestor fields in root-first order.
+        var ancestors = structType.GetAncestorChain();
+        for (var i = ancestors.Count - 1; i >= 0; i--)
+        {
+            foreach (var member in ancestors[i].MemberScope.Members)
+            {
+                if (member.Kind == SymbolKind.Field && seen.Add(member.Name))
+                {
+                    fields.Add(member);
+                }
+            }
+        }
+
+        // Add the struct's own declared fields.
+        foreach (var member in structType.MemberScope.Members)
+        {
+            if (member.Kind == SymbolKind.Field && seen.Add(member.Name))
+            {
+                fields.Add(member);
+            }
+        }
+
+        return fields;
     }
 
     /// <summary>
@@ -3823,6 +3941,34 @@ internal sealed class CSharpSourceWriter
         }
     }
 
+    /// <summary>
+    /// Emits a field declaration from a semantic symbol (used for flattened ancestor fields
+    /// in struct inheritance). Preserves the original field name, type, and access modifier.
+    /// </summary>
+    private void EmitInheritedFieldDeclaration(ISymbol field)
+    {
+        var fieldType = field.DeclaredType;
+        var typeName = fieldType is not null ? CSharpTypeMap.GetTypeName(fieldType, isValueContext: true) : "object";
+        var fieldName = field.Name;
+
+        // Determine access modifier from the declaring AST node.
+        var accessModifier = "";
+        var declaringNode = _model.GetDeclaringNode(field);
+        if (declaringNode is FieldDeclarationNode fieldDecl)
+        {
+            accessModifier = EmitModifiers(fieldDecl.Modifiers);
+        }
+
+        // Emit readonly modifier if the field is readonly.
+        var readonlyPrefix = "";
+        if (field is Symbol sym && sym.ReadonlyStatus is not ReadonlyStatus.Mutable and not ReadonlyStatus.Unknown)
+        {
+            readonlyPrefix = "readonly ";
+        }
+
+        AppendLine($"{accessModifier}{readonlyPrefix}{typeName} {fieldName};");
+    }
+
     private void EmitCastOperatorDeclaration(CastOperatorDeclarationNode castOpDecl)
     {
         var modifiers = EmitModifiers(castOpDecl.Modifiers);
@@ -3863,6 +4009,10 @@ internal sealed class CSharpSourceWriter
             }
         }
 
+        // Collect inlined base field assignments for struct constructors with `: base(...)`.
+        // C# structs cannot use `: base(...)` syntax, so we suppress the chain and inline
+        // the base constructor's field assignments at the start of the constructor body.
+        List<string>? inlinedBaseAssignments = null;
         var chain = "";
         if (ctorDecl.Chain is ThisChainConstructorChainNode thisChain)
         {
@@ -3870,7 +4020,16 @@ internal sealed class CSharpSourceWriter
         }
         else if (ctorDecl.Chain is BaseChainConstructorChainNode baseChain)
         {
-            chain = " : base(" + EmitArgumentList(baseChain.Arguments) + ")";
+            if (_insideStruct)
+            {
+                // Struct constructors cannot emit `: base(...)` — inline the base
+                // constructor's field assignments instead (Requirement 7.5).
+                inlinedBaseAssignments = CollectInlinedBaseConstructorAssignments(ctorDecl, baseChain);
+            }
+            else
+            {
+                chain = " : base(" + EmitArgumentList(baseChain.Arguments) + ")";
+            }
         }
 
         AppendLine($"{modifiers}{name}({parameters}){chain}");
@@ -3883,10 +4042,20 @@ internal sealed class CSharpSourceWriter
             // Collect refinement guards for constructor parameters.
             var refinementGuards = CollectRefinementParameterGuards(ctorDecl.Parameters);
 
-            if (_currentClassFactoryTypeParams is not null || refinementGuards.Count > 0 || withClauses is { Count: > 0 })
+            if (_currentClassFactoryTypeParams is not null || refinementGuards.Count > 0
+                || withClauses is { Count: > 0 } || inlinedBaseAssignments is { Count: > 0 })
             {
                 AppendLine("{");
                 _indentLevel++;
+
+                // Emit inlined base constructor field assignments first (struct inheritance).
+                if (inlinedBaseAssignments is { Count: > 0 })
+                {
+                    foreach (var assignment in inlinedBaseAssignments)
+                    {
+                        AppendLine(assignment);
+                    }
+                }
 
                 // Emit with-clause peek bindings at constructor entry.
                 EmitWithClausePeekBindings(withClauses);
@@ -3915,6 +4084,212 @@ internal sealed class CSharpSourceWriter
             // semantic validation handles whether it is legal on this decl.
             AppendLine(";");
         }
+    }
+
+    /// <summary>
+    /// Collects the inlined field assignments for a struct constructor with a <c>: base(args)</c>
+    /// chain. Since C# structs cannot use <c>: base(...)</c>, we find the base constructor's
+    /// parameter-to-field mappings and emit <c>this.FieldName = argExpr;</c> for each one.
+    /// </summary>
+    private List<string> CollectInlinedBaseConstructorAssignments(
+        ConstructorDeclarationNode ctorDecl,
+        BaseChainConstructorChainNode baseChain)
+    {
+        var assignments = new List<string>();
+
+        // Find the enclosing struct type.
+        var ctorSymbol = _model.GetDeclaredSymbol(ctorDecl);
+        if (ctorSymbol is null)
+            return assignments;
+
+        var enclosingType = FindEnclosingStructType(ctorSymbol);
+        if (enclosingType is null || enclosingType.BaseType is not StructType baseStruct)
+            return assignments;
+
+        // Find constructors on the base struct.
+        var baseConstructors = baseStruct.MemberScope.Members
+            .Where(m => m.Kind == SymbolKind.Constructor)
+            .ToList();
+
+        if (baseConstructors.Count == 0)
+            return assignments;
+
+        // Collect the base chain argument expressions.
+        var baseArgExprs = baseChain.Arguments?.GetAllExpressions()
+            ?? ImmutableArray<ExpressionNode>.Empty;
+
+        // Find the matching base constructor by parameter count.
+        ISymbol? matchingCtor = null;
+        foreach (var baseCtor in baseConstructors)
+        {
+            Storm.Runtime.SyntaxNode? baseCtorNode;
+            try { baseCtorNode = _model.GetDeclaringNode(baseCtor); }
+            catch { continue; }
+
+            if (baseCtorNode is not ConstructorDeclarationNode baseCtorDecl)
+                continue;
+
+            var paramCount = CountParameters(baseCtorDecl.Parameters);
+            if (paramCount == baseArgExprs.Length)
+            {
+                matchingCtor = baseCtor;
+                break;
+            }
+        }
+
+        if (matchingCtor is null)
+            return assignments;
+
+        // Get the base constructor's declaring node.
+        Storm.Runtime.SyntaxNode? matchingCtorNode;
+        try { matchingCtorNode = _model.GetDeclaringNode(matchingCtor); }
+        catch { return assignments; }
+
+        if (matchingCtorNode is not ConstructorDeclarationNode matchingCtorDecl)
+            return assignments;
+
+        // Build a map from parameter name → argument index.
+        var paramNames = CollectParameterNames(matchingCtorDecl.Parameters);
+
+        // Extract field assignments from the base constructor body.
+        // Each statement of the form `FieldName = paramName;` maps to
+        // `this.FieldName = emittedArg;` where emittedArg is the corresponding
+        // argument from the derived constructor's `: base(args)`.
+        var baseBody = matchingCtorDecl.Body.GetBlock();
+        if (baseBody is null)
+            return assignments;
+
+        foreach (var stmt in baseBody.Statements)
+        {
+            if (stmt is not ExpressionStatementStatementNode exprStmt)
+                continue;
+
+            var expr = exprStmt.ExpressionStatement.Expression;
+            var assignment = expr.Assignment;
+
+            // Check if this is a simple assignment (has a Value part).
+            if (assignment.Value is null)
+                continue;
+
+            // The target should be a simple identifier (field name).
+            var targetText = GetSimpleIdentifierFromAssignmentTarget(assignment.Target);
+            if (targetText is null)
+                continue;
+
+            // The value should be a simple identifier matching a parameter name.
+            var valueText = GetSimpleIdentifierFromAssignmentTarget(assignment.Value.Target);
+            if (valueText is null)
+                continue;
+
+            // Find the parameter index.
+            var paramIndex = paramNames.IndexOf(valueText);
+            if (paramIndex < 0 || paramIndex >= baseArgExprs.Length)
+                continue;
+
+            // Emit the inlined assignment using the derived constructor's argument.
+            var emittedArg = EmitExpression(baseArgExprs[paramIndex]);
+            assignments.Add($"this.{targetText} = {emittedArg};");
+        }
+
+        return assignments;
+    }
+
+    /// <summary>
+    /// Finds the enclosing <see cref="StructType"/> for a constructor symbol by walking
+    /// up the scope chain.
+    /// </summary>
+    private static StructType? FindEnclosingStructType(ISymbol ctorSymbol)
+    {
+        var typeScope = ctorSymbol.ContainingScope;
+        var parentScope = typeScope?.Parent;
+        if (parentScope is null)
+            return null;
+
+        foreach (var member in parentScope.Members)
+        {
+            if (member.Kind == SymbolKind.Struct && member.DeclaredType is StructType st
+                && ReferenceEquals(st.MemberScope, typeScope))
+            {
+                return st;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Counts the number of parameters in a parameter list node.
+    /// </summary>
+    private static int CountParameters(ParameterListNode? paramList)
+    {
+        if (paramList is null)
+            return 0;
+        return 1 + paramList.Parameters.Length;
+    }
+
+    /// <summary>
+    /// Collects parameter names from a parameter list node in order.
+    /// </summary>
+    private static List<string> CollectParameterNames(ParameterListNode? paramList)
+    {
+        var names = new List<string>();
+        if (paramList is null)
+            return names;
+
+        names.Add(paramList.Parameter.Name.Lexeme);
+        foreach (var param in paramList.Parameters)
+        {
+            names.Add(param.Name.Lexeme);
+        }
+        return names;
+    }
+
+    /// <summary>
+    /// Attempts to extract a simple identifier name from an assignment target (LogicalOrNode).
+    /// Returns the identifier text if the target is a simple name reference, or null otherwise.
+    /// </summary>
+    private static string? GetSimpleIdentifierFromAssignmentTarget(LogicalOrNode target)
+    {
+        // Walk down: LogicalOr → LogicalAnd → Equality → Relational → Additive →
+        // Multiplicative → Unary → Postfix → Primary
+        if (target.Right is not null && !ReferenceEquals(target.Right, target.Left))
+            return null;
+
+        var logicalAnd = target.Left;
+        if (logicalAnd.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+            return null;
+
+        var equality = logicalAnd.Left;
+        if (equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+            return null;
+
+        var relational = equality.Left;
+        if (relational is not RelationalComparisonRelationalNode cmp)
+            return null;
+        if (cmp.Right is not null && !ReferenceEquals(cmp.Right, cmp.Left))
+            return null;
+
+        var additive = cmp.Left;
+        if (additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+            return null;
+
+        var multiplicative = additive.Left;
+        if (multiplicative.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+            return null;
+
+        var unary = multiplicative.Left;
+        if (unary is not PostfixExpressionUnaryNode postfixUnary)
+            return null;
+
+        var postfix = postfixUnary.Primary;
+        if (postfix.Suffix.Length > 0)
+            return null;
+
+        var primary = postfix.Target;
+        if (primary is not IdentifierExpressionPrimaryNode idPrimary)
+            return null;
+
+        return idPrimary.Name.Lexeme;
     }
 
     private void EmitMethodDeclaration(MethodDeclarationNode methodDecl)
@@ -9013,6 +9388,20 @@ internal sealed class CSharpSourceWriter
     {
         var parts = new List<string>();
         parts.Add(EmitBaseTypeRef(baseList.First));
+        foreach (var rest in baseList.BaseTypeRefs)
+        {
+            parts.Add(EmitBaseTypeRef(rest));
+        }
+        return string.Join(", ", parts);
+    }
+
+    /// <summary>
+    /// Emits a base list skipping the first entry (which was consumed as the base struct type).
+    /// Returns an empty string if no remaining entries exist.
+    /// </summary>
+    private string EmitBaseListSkippingFirst(BaseListNode baseList)
+    {
+        var parts = new List<string>();
         foreach (var rest in baseList.BaseTypeRefs)
         {
             parts.Add(EmitBaseTypeRef(rest));

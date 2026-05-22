@@ -125,3 +125,6 @@ path = "../ReadonlyLocals"
 
 [[references]]
 path = "../StructuredConcurrency"
+
+[[references]]
+path = "../StructInheritance"

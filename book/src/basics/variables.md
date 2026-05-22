@@ -67,4 +67,11 @@ Variables declared with an explicit type or `var` are mutable by default. You ca
 {{#endtab }}
 {{#endtabs }}
 
-There is no separate `let` or `const` keyword for local immutability — all local variables are reassignable. For immutability at the type level, Mist provides ownership modifiers and readonly contexts, covered in the [Advanced Features](../advanced/ownership.md) chapters.
+To prevent reassignment, prefix the declaration with `readonly`:
+
+```mist
+readonly var name = "Alice";
+// name = "Bob";  // ERROR: Cannot reassign readonly local variable 'name'
+```
+
+For more on readonly locals and the broader readonly system, see the [Readonly](../object-model/readonly.md) chapter.

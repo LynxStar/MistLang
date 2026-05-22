@@ -1,10 +1,10 @@
 # Methods
 
-Methods in Mist let you encapsulate reusable logic. They are declared inside a class body and can be either static (called on the class itself) or instance methods (called on an object). The syntax closely mirrors C# — you specify a return type, a name, parameters in parentheses, and a body in braces.
+In Mist, functions are called **methods**, just like in C#. They are declared inside a class body and can be either static (called on the class itself) or instance methods (called on an object). The syntax closely mirrors C# — you specify a return type, a name, parameters in parentheses, and a body in braces.
 
 ## Method Declarations
 
-A function declaration specifies the return type, name, and parameters. Parameters are typed and comma-separated. The function body contains the logic and uses `return` to produce a value.
+A method declaration specifies the return type, name, and parameters. Parameters are typed and comma-separated. The method body contains the logic and uses `return` to produce a value.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -19,7 +19,7 @@ A function declaration specifies the return type, name, and parameters. Paramete
 {{#endtab }}
 {{#endtabs }}
 
-Each function declares its return type before the name (`int`, `string`), and parameters are declared with their type followed by the parameter name. The compiler emits identical C# method signatures.
+Each method declares its return type before the name (`int`, `string`), and parameters are declared with their type followed by the parameter name. The compiler emits identical C# method signatures.
 
 ## Static Methods
 
@@ -99,7 +99,7 @@ Void methods are called as standalone statements. They emit as standard C# `void
 
 ## Recursion
 
-A function can call itself to solve problems that decompose into smaller subproblems. Here's the classic factorial example — `Factorial` calls itself with a decreasing argument until it reaches the base case.
+A method can call itself to solve problems that decompose into smaller subproblems. Here's the classic factorial example — `Factorial` calls itself with a decreasing argument until it reaches the base case.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -114,4 +114,4 @@ A function can call itself to solve problems that decompose into smaller subprob
 {{#endtab }}
 {{#endtabs }}
 
-Mist doesn't impose any special syntax for recursion — a function simply references its own name in the body. The compiler emits a standard recursive C# method call.
+Mist doesn't impose any special syntax for recursion — a method simply references its own name in the body. The compiler emits a standard recursive C# method call.

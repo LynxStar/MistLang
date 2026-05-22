@@ -91,6 +91,12 @@ While the syntax is the same, the runtime behavior differs:
 - **Class inheritance** preserves a runtime subtype relationship. A `Dog` reference stored in an `Animal` variable still points to the original `Dog` object on the heap. No data is lost.
 - **Struct inheritance** is a compile-time composition mechanism. Assigning a `Point3D` to a `Point` variable copies only the base fields (`X`, `Y`) into a new independent value. The `Z` field is not carried along — this is safe narrowing, not slicing a reference.
 
+### No Object Slicing
+
+In C++, assigning a derived value to a base-typed variable silently truncates the object — the derived fields are lost, but the program continues as if nothing happened. This is the classic "object slicing" footgun: you pass a `Point3D` by value where a `Point` is expected, the `Z` field vanishes, and you get subtle bugs with no compiler warning.
+
+Mist avoids this problem entirely because struct inheritance has no virtual dispatch and no identity. When you assign a `Point3D` to a `Point`, you get a new, independent `Point` value — not a corrupted `Point3D` pretending to be a `Point`. There is no object to slice because there was never a shared identity. The conversion is explicit in its semantics: you asked for a `Point`, you got a `Point`, and the `Point3D` you started with is unchanged.
+
 ## Widening and Narrowing
 
 ### Derived to Base (Widening)

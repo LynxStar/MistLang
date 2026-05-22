@@ -252,6 +252,29 @@
           }
         },
         {
+          "comment": "Associated type slot declaration: type Name<T> : Constraints; (in interface/trait body)",
+          "match": "\\b(type)\\s+([A-Z]\\w*)\\s*(?:<[^>]*>)?\\s*(:)\\s*([^;]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.mist" },
+            "2": { "name": "entity.name.type.alias.mist" },
+            "3": { "name": "punctuation.separator.mist" },
+            "4": {
+              "patterns": [
+                {
+                  "comment": "Constraint keywords: struct, class",
+                  "name": "storage.modifier.mist",
+                  "match": "\\b(struct|class)\\b"
+                },
+                {
+                  "comment": "Interface/type references in constraint list",
+                  "name": "entity.name.type.mist",
+                  "match": "\\b[A-Z]\\w*\\b"
+                }
+              ]
+            }
+          }
+        },
+        {
           "comment": "Newtype declaration: type Foo = new SourceType",
           "match": "\\b(type)\\s+([a-zA-Z_]\\w*)\\s*(=)\\s*(new)\\b",
           "captures": {

@@ -155,4 +155,24 @@ public readonly record struct DiagnosticId(string Value)
 
     /// <summary><c>entry_point</c> specifies a class that doesn't exist or lacks a <c>static void Main</c>.</summary>
     public static readonly DiagnosticId EntryPointClassNotFound = new("MIST_EP_0007");
+
+    // ── Associated type diagnostics ──────────────────────────────────────
+
+    /// <summary>An interface or trait declares two or more associated type slots with the same name.</summary>
+    public static readonly DiagnosticId DuplicateAssociatedTypeSlot = new("MIST_AT_0001");
+
+    /// <summary>Implementor does not provide a concrete type for an associated type slot.</summary>
+    public static readonly DiagnosticId MissingAssociatedTypeMember = new("MIST_AT_0002");
+
+    /// <summary>Concrete type member does not satisfy a constraint of the associated type slot.</summary>
+    public static readonly DiagnosticId UnsatisfiedAssociatedTypeConstraint = new("MIST_AT_0003");
+
+    /// <summary>Type parameter does not have an associated type with the given name.</summary>
+    public static readonly DiagnosticId UnresolvedAssociatedTypeReference = new("MIST_AT_0004");
+
+    /// <summary>Modifiers are not permitted on associated type slot declarations.</summary>
+    public static readonly DiagnosticId ModifiersOnAssociatedTypeSlot = new("MIST_AT_0005");
+
+    /// <summary>Abstract type slots are only permitted in interfaces and traits.</summary>
+    public static readonly DiagnosticId AssociatedTypeSlotInWrongContext = new("MIST_AT_0006");
 }

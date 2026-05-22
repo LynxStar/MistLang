@@ -332,6 +332,13 @@ internal sealed class CSharpSourceWriter
     /// because the functor explicitly captures the <c>Task&lt;T&gt;</c>.
     /// </summary>
     private bool _insideAsyncFunctor;
+    /// <summary>
+    /// Active associated type slot substitutions for the current method being emitted.
+    /// Maps dotted names like "T.Enumerator" to synthesized type parameter names like "TEnumerator".
+    /// Set during <see cref="EmitMethodDeclaration"/> when the method has type parameters
+    /// constrained by interfaces or traits with associated type slots.
+    /// </summary>
+    private Dictionary<string, string>? _currentMethodSlotSubstitutions;
     private const string IndentUnit = "    ";
 
     /// <summary>
@@ -2536,7 +2543,15 @@ internal sealed class CSharpSourceWriter
         var baseClause = "";
         if (classDecl.BaseList is not null)
         {
-            var baseParts = EmitBaseListWithTypeArgs(classDecl.BaseList);
+            var implementorScope = (symbol?.DeclaredType as ClassType)?.MemberScope;
+            var baseParts = implementorScope is not null
+                ? EmitBaseListWithAssociatedTypeArgs(
+                    classDecl.BaseList,
+                    implementorScope,
+                    symbol?.DeclaredType as ClassType,
+                    name,
+                    typeParams)
+                : EmitBaseListWithTypeArgs(classDecl.BaseList);
 
             // Append trait interfaces for this class
             var traitNames = new List<string>();
@@ -2562,10 +2577,10 @@ internal sealed class CSharpSourceWriter
                 parts.Add(CSharpTypeMap.GetTypeName(classType.BaseType));
             }
 
-            // Interfaces
+            // Interfaces — append associated type slot concrete types as additional type arguments.
             foreach (var iface in classType.Interfaces)
             {
-                parts.Add(CSharpTypeMap.GetTypeName(iface));
+                parts.Add(EmitInterfaceWithAssociatedTypeArgs(iface, classType.MemberScope, classType, name, typeParams));
             }
 
             // Trait interfaces
@@ -2726,8 +2741,25 @@ internal sealed class CSharpSourceWriter
         {
             interfaceList = $" : {EmitBaseListWithTypeArgs(interfaceDecl.Interfaces)}";
         }
-        // Emit [DependentType(...)] attributes for each dependent type parameter.
+
+        // ── Associated type generic lifting ──────────────────────────────
+        // Collect associated type slots from the interface's member scope.
+        // Each slot becomes a synthesized type parameter (T + slot name) on
+        // the emitted C# interface, since C# cannot declare abstract nested types.
         var interfaceSymbol = _model.GetDeclaredSymbol(interfaceDecl);
+        var associatedTypeSlots = CollectAssociatedTypeSlots(interfaceSymbol);
+        var slotSubstitutions = BuildAssociatedTypeSubstitutions(associatedTypeSlots);
+
+        // Append synthesized type parameters for associated type slots.
+        if (associatedTypeSlots.Count > 0)
+        {
+            var synthesizedParams = string.Join(", ", associatedTypeSlots.Select(s => $"T{s.DisplayName}"));
+            typeParams = typeParams.Length > 0
+                ? $"{typeParams[..^1]}, {synthesizedParams}>"
+                : $"<{synthesizedParams}>";
+        }
+
+        // Emit [DependentType(...)] attributes for each dependent type parameter.
         if (interfaceSymbol?.DeclaredType is InterfaceType interfaceTypeForAttrs)
         {
             EmitDependentTypeAttributes(interfaceTypeForAttrs.TypeParameters);
@@ -2738,6 +2770,9 @@ internal sealed class CSharpSourceWriter
         {
             EmitConstraintClauses(interfaceTypeForConstraints.TypeParameters);
         }
+        // Emit where constraints for synthesized associated type parameters.
+        EmitAssociatedTypeSlotConstraints(associatedTypeSlots);
+
         AppendLine("{");
         _indentLevel++;
 
@@ -2746,10 +2781,14 @@ internal sealed class CSharpSourceWriter
             switch (member)
             {
                 case InterfaceMethodMemberInterfaceMemberDeclarationNode methodMember:
-                    EmitInterfaceMethodDeclaration(methodMember.Method);
+                    EmitInterfaceMethodDeclaration(methodMember.Method, slotSubstitutions);
                     break;
                 case InterfacePropertyMemberInterfaceMemberDeclarationNode propertyMember:
-                    EmitInterfacePropertyDeclaration(propertyMember.Property);
+                    EmitInterfacePropertyDeclaration(propertyMember.Property, slotSubstitutions);
+                    break;
+                // Skip associated type slot declarations — they are lifted to type parameters.
+                case InterfaceAssociatedTypeMemberInterfaceMemberDeclarationNode:
+                case InterfaceUnconstrainedAssociatedTypeMemberInterfaceMemberDeclarationNode:
                     break;
             }
         }
@@ -2758,12 +2797,16 @@ internal sealed class CSharpSourceWriter
         AppendLine("}");
     }
 
-    private void EmitInterfaceMethodDeclaration(InterfaceMethodDeclarationNode methodDecl)
+    private void EmitInterfaceMethodDeclaration(InterfaceMethodDeclarationNode methodDecl, Dictionary<string, string>? slotSubstitutions = null)
     {
-        var returnType = EmitTypeReference(methodDecl.ReturnType);
+        var returnType = slotSubstitutions is not null
+            ? EmitTypeReferenceWithSubstitution(methodDecl.ReturnType, slotSubstitutions)
+            : EmitTypeReference(methodDecl.ReturnType);
         var name = methodDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
-        var parameters = EmitParameterList(methodDecl.Parameters);
+        var parameters = slotSubstitutions is not null
+            ? EmitParameterListWithSubstitution(methodDecl.Parameters, slotSubstitutions)
+            : EmitParameterList(methodDecl.Parameters);
 
         // For generic interface methods with parameterized constructor constraints,
         // append factory delegate parameters.
@@ -2807,9 +2850,11 @@ internal sealed class CSharpSourceWriter
         }
     }
 
-    private void EmitInterfacePropertyDeclaration(InterfacePropertyDeclarationNode propertyDecl)
+    private void EmitInterfacePropertyDeclaration(InterfacePropertyDeclarationNode propertyDecl, Dictionary<string, string>? slotSubstitutions = null)
     {
-        var type = EmitTypeReference(propertyDecl.Type);
+        var type = slotSubstitutions is not null
+            ? EmitTypeReferenceWithSubstitution(propertyDecl.Type, slotSubstitutions)
+            : EmitTypeReference(propertyDecl.Type);
         var name = propertyDecl.Name.Lexeme;
 
         var accessors = new List<string>();
@@ -2840,14 +2885,31 @@ internal sealed class CSharpSourceWriter
         {
             inheritanceClause = $" : {EmitBaseListWithTypeArgs(traitDecl.Parents)}";
         }
+
+        // ── Associated type generic lifting ──────────────────────────────
+        // Collect associated type slots from the trait's member scope.
+        var traitSymbol = _model.AllSymbols.FirstOrDefault(s => s.Name == name && s.DeclaredType is TraitType);
+        var associatedTypeSlots = CollectAssociatedTypeSlotsFromType(traitSymbol?.DeclaredType);
+        var slotSubstitutions = BuildAssociatedTypeSubstitutions(associatedTypeSlots);
+
+        // Append synthesized type parameters for associated type slots.
+        if (associatedTypeSlots.Count > 0)
+        {
+            var synthesizedParams = string.Join(", ", associatedTypeSlots.Select(s => $"T{s.DisplayName}"));
+            typeParams = typeParams.Length > 0
+                ? $"{typeParams[..^1]}, {synthesizedParams}>"
+                : $"<{synthesizedParams}>";
+        }
+
         AppendLine($"interface {name}{typeParams}{inheritanceClause}");
 
         // Emit constraint clauses for the trait's type parameters.
-        var traitSymbol = _model.AllSymbols.FirstOrDefault(s => s.Name == name && s.DeclaredType is TraitType);
         if (traitSymbol?.DeclaredType is TraitType traitTypeForConstraints)
         {
             EmitConstraintClauses(traitTypeForConstraints.TypeParameters);
         }
+        // Emit where constraints for synthesized associated type parameters.
+        EmitAssociatedTypeSlotConstraints(associatedTypeSlots);
 
         AppendLine("{");
         _indentLevel++;
@@ -2860,10 +2922,14 @@ internal sealed class CSharpSourceWriter
                     EmitTraitFieldAsProperty(fieldMember.Field);
                     break;
                 case TraitMethodMemberTraitMemberDeclarationNode methodMember:
-                    EmitTraitMethodDeclaration(methodMember.Method);
+                    EmitTraitMethodDeclaration(methodMember.Method, slotSubstitutions);
                     break;
                 case TraitPropertyMemberTraitMemberDeclarationNode propertyMember:
-                    EmitTraitPropertyDeclaration(propertyMember.Property);
+                    EmitTraitPropertyDeclaration(propertyMember.Property, slotSubstitutions);
+                    break;
+                // Skip associated type slot declarations — they are lifted to type parameters.
+                case TraitAssociatedTypeMemberTraitMemberDeclarationNode:
+                case TraitUnconstrainedAssociatedTypeMemberTraitMemberDeclarationNode:
                     break;
             }
         }
@@ -2879,11 +2945,15 @@ internal sealed class CSharpSourceWriter
         AppendLine($"{type} {name} {{ get; }}");
     }
 
-    private void EmitTraitMethodDeclaration(TraitMethodDeclarationNode methodDecl)
+    private void EmitTraitMethodDeclaration(TraitMethodDeclarationNode methodDecl, Dictionary<string, string>? slotSubstitutions = null)
     {
-        var returnType = EmitTypeReference(methodDecl.ReturnType);
+        var returnType = slotSubstitutions is not null
+            ? EmitTypeReferenceWithSubstitution(methodDecl.ReturnType, slotSubstitutions)
+            : EmitTypeReference(methodDecl.ReturnType);
         var name = methodDecl.Name.Lexeme;
-        var parameters = EmitParameterList(methodDecl.Parameters);
+        var parameters = slotSubstitutions is not null
+            ? EmitParameterListWithSubstitution(methodDecl.Parameters, slotSubstitutions)
+            : EmitParameterList(methodDecl.Parameters);
 
         // Emit ref / ref readonly prefix for ref-returning methods.
         var methodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
@@ -2897,9 +2967,11 @@ internal sealed class CSharpSourceWriter
         AppendLine($"{refReturnPrefix}{returnType} {name}({parameters});");
     }
 
-    private void EmitTraitPropertyDeclaration(TraitPropertyDeclarationNode propertyDecl)
+    private void EmitTraitPropertyDeclaration(TraitPropertyDeclarationNode propertyDecl, Dictionary<string, string>? slotSubstitutions = null)
     {
-        var type = EmitTypeReference(propertyDecl.Type);
+        var type = slotSubstitutions is not null
+            ? EmitTypeReferenceWithSubstitution(propertyDecl.Type, slotSubstitutions)
+            : EmitTypeReference(propertyDecl.Type);
         var name = propertyDecl.Name.Lexeme;
 
         var accessors = new List<string>();
@@ -3294,7 +3366,15 @@ internal sealed class CSharpSourceWriter
         var interfaceList = "";
         if (structDecl.Interfaces is not null)
         {
-            var baseParts = EmitBaseListWithTypeArgs(structDecl.Interfaces);
+            var implementorScope = (symbol?.DeclaredType as StructType)?.MemberScope;
+            var baseParts = implementorScope is not null
+                ? EmitBaseListWithAssociatedTypeArgs(
+                    structDecl.Interfaces,
+                    implementorScope,
+                    null,
+                    name,
+                    typeParams)
+                : EmitBaseListWithTypeArgs(structDecl.Interfaces);
 
             // Append trait interfaces for this struct
             var traitNames = new List<string>();
@@ -3314,10 +3394,10 @@ internal sealed class CSharpSourceWriter
         {
             var parts = new List<string>();
 
-            // Interfaces
+            // Interfaces — append associated type slot concrete types as additional type arguments.
             foreach (var iface in structType.Interfaces)
             {
-                parts.Add(CSharpTypeMap.GetTypeName(iface));
+                parts.Add(EmitInterfaceWithAssociatedTypeArgs(iface, structType.MemberScope, null, name, typeParams));
             }
 
             // Trait interfaces
@@ -3920,10 +4000,8 @@ internal sealed class CSharpSourceWriter
     private void EmitMethodDeclaration(MethodDeclarationNode methodDecl)
     {
         var modifiers = EmitModifiers(methodDecl.Modifiers);
-        var returnType = EmitTypeReference(methodDecl.ReturnType);
         var name = methodDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
-        var parameters = EmitParameterList(methodDecl.Parameters);
 
         // Task 12.4 — Emit C# `readonly` modifier on struct methods with ReadonlyStatus != Mutable.
         // C# has no `readonly` method concept for classes, so only emit for structs.
@@ -3942,6 +4020,39 @@ internal sealed class CSharpSourceWriter
             RefKind.RefReadonly => "ref readonly ",
             _ => ""
         };
+
+        // ── Associated type generic lifting for generic functions (Task 7.3) ──
+        // When a method's type parameters are constrained by interfaces/traits with
+        // associated type slots, synthesize additional type parameters for each slot
+        // and set up substitutions so T.SlotName references resolve to the synthesized name.
+        // This must be set up BEFORE emitting return type and parameters so that
+        // T.SlotName references in those positions are correctly substituted.
+        var methodTypeParams = methodSymbol?.TypeParameters ?? (IReadOnlyList<IType>)Array.Empty<IType>();
+        var methodAssociatedSlots = CollectAssociatedTypeSlotsFromMethodTypeParams(methodTypeParams);
+        var previousSlotSubstitutions = _currentMethodSlotSubstitutions;
+        if (methodAssociatedSlots.Count > 0)
+        {
+            var synthesizedParams = string.Join(", ", methodAssociatedSlots.Select(s => $"T{s.Slot.DisplayName}"));
+            typeParams = typeParams.Length > 0
+                ? $"{typeParams[..^1]}, {synthesizedParams}>"
+                : $"<{synthesizedParams}>";
+
+            // Build substitutions for T.SlotName → TSlotName in type references.
+            var slotSubs = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var entry in methodAssociatedSlots)
+            {
+                // Map "T.SlotName" → "TSlotName" for each type parameter and its slots.
+                slotSubs[$"{entry.TypeParamName}.{entry.Slot.DisplayName}"] = $"T{entry.Slot.DisplayName}";
+                // Also map bare slot name for substitution in type references.
+                slotSubs[entry.Slot.DisplayName] = $"T{entry.Slot.DisplayName}";
+            }
+            _currentMethodSlotSubstitutions = slotSubs;
+        }
+
+        // Emit return type and parameters AFTER setting up slot substitutions
+        // so that T.SlotName references are correctly resolved.
+        var returnType = EmitTypeReference(methodDecl.ReturnType);
+        var parameters = EmitParameterList(methodDecl.Parameters);
 
         // ── Async method signature emission (Task 12.1) ──
         // When NeedsCSharpAsync is true, emit the `async` keyword and adjust
@@ -3986,7 +4097,6 @@ internal sealed class CSharpSourceWriter
 
         // For generic methods with parameterized constructor constraints,
         // append factory delegate parameters to the method signature.
-        var methodTypeParams = methodSymbol?.TypeParameters ?? (IReadOnlyList<IType>)Array.Empty<IType>();
         var factoryParams = GetFactoryDelegateMethodParams(methodTypeParams);
         if (factoryParams.Length > 0)
         {
@@ -3997,7 +4107,18 @@ internal sealed class CSharpSourceWriter
 
         AppendLine($"{modifiers}{asyncPrefix}{readonlyPrefix}{refReturnPrefix}{returnType} {name}{typeParams}({parameters})");
         // Emit constraint clauses for the method's type parameters.
-        EmitConstraintClauses(methodTypeParams);
+        // When associated type slots are present, interface constraints need to include
+        // the synthesized type parameters as additional type arguments.
+        if (methodAssociatedSlots.Count > 0)
+        {
+            EmitConstraintClausesWithAssociatedTypes(methodTypeParams, methodAssociatedSlots);
+            var slotsOnly = methodAssociatedSlots.Select(s => s.Slot).ToList();
+            EmitAssociatedTypeSlotConstraints(slotsOnly);
+        }
+        else
+        {
+            EmitConstraintClauses(methodTypeParams);
+        }
 
         // Set the flag so EmitReturnStatement knows to emit `return MistVoid.Instance;`
         var previousFlag = _inValueReturningVoidMethod;
@@ -4033,6 +4154,7 @@ internal sealed class CSharpSourceWriter
         _currentMethodReturnType = previousReturnType;
         _currentMethodFactoryTypeParams = previousFactoryTypeParams;
         _currentMethodSymbol = previousMethodSymbol;
+        _currentMethodSlotSubstitutions = previousSlotSubstitutions;
     }
 
     /// <summary>
@@ -5342,6 +5464,21 @@ internal sealed class CSharpSourceWriter
                 // during transpilation — no alias name should appear in C# output.
                 // Check the expression type map first, then fall back to symbol lookup.
                 var resolvedType = _model.GetTypeOf(namedRef);
+                // ── Associated type slot reference: T.SlotName → TSlotName (Task 7.3) ──
+                // When a type reference resolves to an AssociatedTypeSlotType (e.g., T.Enumerator
+                // in a generic context), emit the synthesized type parameter name.
+                if (resolvedType is AssociatedTypeSlotType resolvedSlot)
+                {
+                    // Use the active method-level substitution if available.
+                    if (_currentMethodSlotSubstitutions is not null
+                        && _currentMethodSlotSubstitutions.TryGetValue(name, out var synthesizedName))
+                    {
+                        return namedRef.ArrayRank is not null ? $"{synthesizedName}[]" : synthesizedName;
+                    }
+                    // Fallback: use T + slot display name.
+                    var fallbackName = $"T{resolvedSlot.DisplayName}";
+                    return namedRef.ArrayRank is not null ? $"{fallbackName}[]" : fallbackName;
+                }
                 if (resolvedType is TypeAliasType aliasFromExprMap)
                 {
                     var emittedType = ResolveAliasForEmission(aliasFromExprMap, namedRef, isValueContext);
@@ -9111,6 +9248,141 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
+    /// Emits constraint clauses for method type parameters, appending synthesized associated
+    /// type parameters as additional type arguments to interface/trait constraints that declare
+    /// associated type slots. For example, <c>where T : Iterable&lt;int&gt;</c> becomes
+    /// <c>where T : IIterable&lt;int, TEnumerator&gt;</c> when Iterable has an Enumerator slot.
+    /// </summary>
+    private void EmitConstraintClausesWithAssociatedTypes(
+        IReadOnlyList<IType> typeParameters,
+        List<(string TypeParamName, AssociatedTypeSlotType Slot)> associatedSlots)
+    {
+        foreach (var typeParam in typeParameters)
+        {
+            // Emit carrier interface constraint for dependent type parameters.
+            if (typeParam is DependentTypeParameterType depParam)
+            {
+                var keyword = CSharpTypeMap.GetKeyword(depParam.ValueType);
+                var capitalized = keyword switch
+                {
+                    "int" => "Int",
+                    "uint" => "Uint",
+                    "long" => "Long",
+                    "ulong" => "Ulong",
+                    "short" => "Short",
+                    "ushort" => "Ushort",
+                    "byte" => "Byte",
+                    "sbyte" => "Sbyte",
+                    "bool" => "Bool",
+                    "char" => "Char",
+                    _ => keyword,
+                };
+                AppendLine($"    where T{depParam.Name} : IConst{capitalized}");
+                continue;
+            }
+
+            if (typeParam is not TypeParameterType tpt) continue;
+            var constraints = tpt.Constraints;
+            if (constraints is null) continue;
+
+            var parts = new List<string>();
+
+            // 1. class/struct first
+            if (constraints.HasClassConstraint)
+                parts.Add("class");
+            else if (constraints.HasStructConstraint)
+                parts.Add("struct");
+
+            // 2. Base class
+            if (constraints.BaseClassConstraint is not null)
+                parts.Add(CSharpTypeMap.GetTypeName(constraints.BaseClassConstraint));
+
+            // 3. Interfaces — append synthesized type parameters for interfaces with associated type slots.
+            foreach (var iface in constraints.InterfaceConstraints)
+            {
+                var ifaceTypeName = CSharpTypeMap.GetTypeName(iface);
+
+                // Check if this interface has associated type slots that were lifted.
+                var ifaceType = iface is ConstructedType ct
+                    ? ct.GenericDefinition as InterfaceType
+                    : iface as InterfaceType;
+
+                if (ifaceType is not null)
+                {
+                    // Collect slots from this interface that are in our associated slots list.
+                    var slotsForThisInterface = associatedSlots
+                        .Where(s => s.TypeParamName == tpt.Name
+                            && s.Slot.DeclaringType == ifaceType)
+                        .Select(s => $"T{s.Slot.DisplayName}")
+                        .ToList();
+
+                    if (slotsForThisInterface.Count > 0)
+                    {
+                        var synthesizedArgs = string.Join(", ", slotsForThisInterface);
+                        // Append synthesized type parameters to the interface type arguments.
+                        if (ifaceTypeName.EndsWith(">"))
+                        {
+                            // Already has type args: insert before closing >.
+                            ifaceTypeName = $"{ifaceTypeName[..^1]}, {synthesizedArgs}>";
+                        }
+                        else
+                        {
+                            // No type args: add them.
+                            ifaceTypeName = $"{ifaceTypeName}<{synthesizedArgs}>";
+                        }
+                    }
+                }
+
+                parts.Add(ifaceTypeName);
+            }
+
+            // Traits — same logic as interfaces.
+            foreach (var trait in constraints.TraitConstraints)
+            {
+                var traitTypeName = CSharpTypeMap.GetTypeName(trait);
+
+                var traitType = trait as TraitType;
+                if (trait is ConstructedTraitType ctt)
+                    traitType = ctt.GenericTraitDefinition;
+
+                if (traitType is not null)
+                {
+                    var slotsForThisTrait = associatedSlots
+                        .Where(s => s.TypeParamName == tpt.Name
+                            && s.Slot.DeclaringType == traitType)
+                        .Select(s => $"T{s.Slot.DisplayName}")
+                        .ToList();
+
+                    if (slotsForThisTrait.Count > 0)
+                    {
+                        var synthesizedArgs = string.Join(", ", slotsForThisTrait);
+                        if (traitTypeName.EndsWith(">"))
+                        {
+                            traitTypeName = $"{traitTypeName[..^1]}, {synthesizedArgs}>";
+                        }
+                        else
+                        {
+                            traitTypeName = $"{traitTypeName}<{synthesizedArgs}>";
+                        }
+                    }
+                }
+
+                parts.Add(traitTypeName);
+            }
+
+            // 4. new() last (only parameterless constructor constraint)
+            var hasParameterlessNew = constraints.ConstructorConstraints
+                .Any(c => c.Count == 0);
+            if (hasParameterlessNew)
+                parts.Add("new()");
+
+            if (parts.Count > 0)
+            {
+                AppendLine($"    where {tpt.Name} : {string.Join(", ", parts)}");
+            }
+        }
+    }
+    /// <summary>
     /// Gets the parameterized (non-parameterless) constructor constraints for a type parameter.
     /// These are the constraints that require factory delegate lowering.
     /// </summary>
@@ -9354,6 +9626,439 @@ internal sealed class CSharpSourceWriter
         }
 
         return string.Join(", ", lambdas);
+    }
+
+    // ─── Associated Type Slot Helpers ───────────────────────────────────
+
+    /// <summary>
+    /// Collects all <see cref="AssociatedTypeSlotType"/> members from the given symbol's declared type.
+    /// </summary>
+    private static List<AssociatedTypeSlotType> CollectAssociatedTypeSlots(ISymbol? symbol)
+    {
+        var type = symbol?.DeclaredType;
+        return CollectAssociatedTypeSlotsFromType(type);
+    }
+
+    /// <summary>
+    /// Collects all <see cref="AssociatedTypeSlotType"/> members from the given type's member scope.
+    /// </summary>
+    private static List<AssociatedTypeSlotType> CollectAssociatedTypeSlotsFromType(IType? type)
+    {
+        if (type is null) return new List<AssociatedTypeSlotType>();
+
+        var scope = type switch
+        {
+            InterfaceType it => it.MemberScope,
+            TraitType tt => tt.MemberScope,
+            _ => null
+        };
+
+        if (scope is null) return new List<AssociatedTypeSlotType>();
+
+        var slots = new List<AssociatedTypeSlotType>();
+        foreach (var member in scope.Members)
+        {
+            if (member.DeclaredType is AssociatedTypeSlotType slotType)
+            {
+                slots.Add(slotType);
+            }
+        }
+        return slots;
+    }
+
+    /// <summary>
+    /// Builds a substitution dictionary mapping associated type slot names to their
+    /// synthesized type parameter names (T + slot name).
+    /// </summary>
+    private static Dictionary<string, string> BuildAssociatedTypeSubstitutions(List<AssociatedTypeSlotType> slots)
+    {
+        var substitutions = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var slot in slots)
+        {
+            substitutions[slot.DisplayName] = $"T{slot.DisplayName}";
+        }
+        return substitutions;
+    }
+
+    /// <summary>
+    /// Collects associated type slots from a method's type parameters' constraints.
+    /// For each type parameter constrained by an interface or trait with associated type slots,
+    /// returns the slots paired with the constraining type parameter name.
+    /// Used by <see cref="EmitMethodDeclaration"/> to synthesize additional type parameters
+    /// for generic functions constrained by interfaces with associated types.
+    /// </summary>
+    private static List<(string TypeParamName, AssociatedTypeSlotType Slot)> CollectAssociatedTypeSlotsFromMethodTypeParams(
+        IReadOnlyList<IType> typeParameters)
+    {
+        var result = new List<(string TypeParamName, AssociatedTypeSlotType Slot)>();
+        var seenSlotNames = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var typeParam in typeParameters)
+        {
+            if (typeParam is not TypeParameterType tpt) continue;
+            if (tpt.Constraints is null) continue;
+
+            // Check interface constraints for associated type slots.
+            foreach (var ifaceConstraint in tpt.Constraints.InterfaceConstraints)
+            {
+                var ifaceType = ifaceConstraint is ConstructedType ct
+                    ? ct.GenericDefinition as InterfaceType
+                    : ifaceConstraint as InterfaceType;
+
+                if (ifaceType is null) continue;
+
+                foreach (var member in ifaceType.MemberScope.Members)
+                {
+                    if (member.DeclaredType is AssociatedTypeSlotType slotType
+                        && seenSlotNames.Add(slotType.DisplayName))
+                    {
+                        result.Add((tpt.Name, slotType));
+                    }
+                }
+            }
+
+            // Check trait constraints for associated type slots.
+            foreach (var traitConstraint in tpt.Constraints.TraitConstraints)
+            {
+                var traitType = traitConstraint as TraitType;
+                if (traitConstraint is ConstructedTraitType ctt)
+                    traitType = ctt.GenericTraitDefinition;
+
+                if (traitType is null) continue;
+
+                foreach (var member in traitType.MemberScope.Members)
+                {
+                    if (member.DeclaredType is AssociatedTypeSlotType slotType
+                        && seenSlotNames.Add(slotType.DisplayName))
+                    {
+                        result.Add((tpt.Name, slotType));
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Emits <c>where</c> constraint clauses for synthesized associated type slot parameters.
+    /// </summary>
+    private void EmitAssociatedTypeSlotConstraints(List<AssociatedTypeSlotType> slots)
+    {
+        foreach (var slot in slots)
+        {
+            var constraints = slot.Constraints;
+            if (constraints is null) continue;
+
+            var parts = new List<string>();
+
+            // 1. struct/class first (C# requires these to be first in where clause)
+            if (constraints.HasStructConstraint)
+                parts.Add("struct");
+            else if (constraints.HasClassConstraint)
+                parts.Add("class");
+
+            // 2. Base class
+            if (constraints.BaseClassConstraint is not null)
+                parts.Add(CSharpTypeMap.GetTypeName(constraints.BaseClassConstraint));
+
+            // 3. Interfaces and traits
+            foreach (var iface in constraints.InterfaceConstraints)
+                parts.Add(CSharpTypeMap.GetTypeName(iface));
+            foreach (var trait in constraints.TraitConstraints)
+                parts.Add(CSharpTypeMap.GetTypeName(trait));
+
+            // 4. new() last
+            var hasParameterlessNew = constraints.ConstructorConstraints
+                .Any(c => c.Count == 0);
+            if (hasParameterlessNew)
+                parts.Add("new()");
+
+            if (parts.Count > 0)
+            {
+                AppendLine($"    where T{slot.DisplayName} : {string.Join(", ", parts)}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Emits a parameter list with associated type slot name substitution applied.
+    /// </summary>
+    private string EmitParameterListWithSubstitution(ParameterListNode? paramList, Dictionary<string, string> substitutions)
+    {
+        if (paramList is null) return "";
+
+        var parts = new List<string>();
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode param)
+            {
+                var type = EmitTypeReferenceWithSubstitution(param.Type, substitutions);
+                var paramName = param.Name.Lexeme;
+                parts.Add($"{type} {paramName}");
+            }
+        }
+        return string.Join(", ", parts);
+    }
+
+    /// <summary>
+    /// Emits a base type reference with additional type arguments for associated type slots.
+    /// When the base type is an interface or trait with associated type slots, the concrete
+    /// type members from the implementor are appended as additional type arguments.
+    /// For example, <c>Iterable&lt;T&gt;</c> becomes <c>IIterable&lt;T, MyList&lt;T&gt;.MyEnumerator&gt;</c>.
+    /// </summary>
+    private string EmitBaseTypeRefWithAssociatedTypes(
+        BaseTypeRefNode baseTypeRef,
+        IScope implementorScope,
+        ClassType? implementorClassType,
+        string implementorName,
+        string implementorTypeParams)
+    {
+        var baseName = baseTypeRef.Name.Lexeme;
+
+        // Resolve the base type reference to its semantic interface/trait type.
+        var resolvedType = ResolveBaseTypeToInterfaceOrTrait(baseName);
+        if (resolvedType is null)
+            return baseName + EmitTypeArgumentList(baseTypeRef.TypeArgs);
+
+        // Collect associated type slots from the resolved interface/trait.
+        var slots = CollectAssociatedTypeSlotsFromType(resolvedType);
+        if (slots.Count == 0)
+            return baseName + EmitTypeArgumentList(baseTypeRef.TypeArgs);
+
+        // For each slot, find the concrete type member in the implementor's scope.
+        var concreteTypeArgs = new List<string>();
+        foreach (var slot in slots)
+        {
+            var concreteType = FindConcreteTypeMemberInScope(slot.DisplayName, slot.TypeParameters.Count, implementorScope, implementorClassType);
+            if (concreteType is not null)
+            {
+                concreteTypeArgs.Add(GetConcreteTypeNameForBaseList(concreteType, implementorName, implementorTypeParams));
+            }
+        }
+
+        if (concreteTypeArgs.Count == 0)
+            return baseName + EmitTypeArgumentList(baseTypeRef.TypeArgs);
+
+        // Build the combined type argument list: existing args + concrete type args.
+        var existingArgs = new List<string>();
+        if (baseTypeRef.TypeArgs is not null)
+        {
+            var allArgNodes = new List<TypeArgumentNode> { baseTypeRef.TypeArgs.TypeArgument };
+            foreach (var arg in baseTypeRef.TypeArgs.TypeArguments)
+                allArgNodes.Add(arg);
+            foreach (var argNode in allArgNodes)
+                existingArgs.Add(EmitSingleTypeArgument(argNode));
+        }
+        existingArgs.AddRange(concreteTypeArgs);
+
+        return $"{baseName}<{string.Join(", ", existingArgs)}>";
+    }
+
+    /// <summary>
+    /// Emits a base list with associated type arguments appended for interfaces/traits
+    /// that have associated type slots.
+    /// </summary>
+    private string EmitBaseListWithAssociatedTypeArgs(
+        BaseListNode baseList,
+        IScope implementorScope,
+        ClassType? implementorClassType,
+        string implementorName,
+        string implementorTypeParams)
+    {
+        var parts = new List<string>();
+        parts.Add(EmitBaseTypeRefWithAssociatedTypes(baseList.First, implementorScope, implementorClassType, implementorName, implementorTypeParams));
+        foreach (var rest in baseList.BaseTypeRefs)
+        {
+            parts.Add(EmitBaseTypeRefWithAssociatedTypes(rest, implementorScope, implementorClassType, implementorName, implementorTypeParams));
+        }
+        return string.Join(", ", parts);
+    }
+
+    /// <summary>
+    /// Resolves a base type reference name to its underlying InterfaceType or TraitType.
+    /// Prefers a match in the current namespace to avoid cross-namespace collisions.
+    /// Returns null if the name does not correspond to an interface or trait.
+    /// </summary>
+    private IType? ResolveBaseTypeToInterfaceOrTrait(string name)
+    {
+        IType? fallback = null;
+        foreach (var symbol in _model.AllSymbols)
+        {
+            if (symbol.Name == name && symbol.DeclaredType is InterfaceType or TraitType)
+            {
+                var containingNs = symbol.DeclaredType switch
+                {
+                    InterfaceType it => it.ContainingNamespace,
+                    TraitType tt => tt.ContainingNamespace,
+                    _ => null
+                };
+
+                // Prefer the match in the current namespace.
+                if (containingNs == _currentNamespace)
+                    return symbol.DeclaredType;
+
+                // Keep the first match as a fallback.
+                fallback ??= symbol.DeclaredType;
+            }
+        }
+        return fallback;
+    }
+
+    /// <summary>
+    /// Emits an interface type name with associated type slot concrete types appended as
+    /// additional type arguments. Used when the interface is obtained from the semantic model's
+    /// <c>Interfaces</c> list (not from the AST base list).
+    /// </summary>
+    private static string EmitInterfaceWithAssociatedTypeArgs(
+        IType iface,
+        IScope implementorScope,
+        ClassType? implementorClassType,
+        string implementorName,
+        string implementorTypeParams)
+    {
+        // Get the underlying interface/trait definition (unwrap ConstructedType if generic).
+        var definition = iface is ConstructedType ct ? ct.GenericDefinition : iface;
+
+        // Collect associated type slots from the definition.
+        var slots = CollectAssociatedTypeSlotsFromType(definition);
+        if (slots.Count == 0)
+            return CSharpTypeMap.GetTypeName(iface);
+
+        // For each slot, find the concrete type member in the implementor's scope.
+        var concreteTypeArgs = new List<string>();
+        foreach (var slot in slots)
+        {
+            var concreteType = FindConcreteTypeMemberInScope(slot.DisplayName, slot.TypeParameters.Count, implementorScope, implementorClassType);
+            if (concreteType is not null)
+            {
+                concreteTypeArgs.Add(GetConcreteTypeNameForBaseList(concreteType, implementorName, implementorTypeParams));
+            }
+        }
+
+        if (concreteTypeArgs.Count == 0)
+            return CSharpTypeMap.GetTypeName(iface);
+
+        // Build the type name with additional type arguments.
+        var baseName = definition.DisplayName;
+        var existingArgs = new List<string>();
+        if (iface is ConstructedType constructed)
+        {
+            foreach (var arg in constructed.TypeArguments)
+                existingArgs.Add(CSharpTypeMap.GetTypeName(arg));
+        }
+        existingArgs.AddRange(concreteTypeArgs);
+
+        return $"{baseName}<{string.Join(", ", existingArgs)}>";
+    }
+
+    /// <summary>
+    /// Searches the implementor's member scope (and base type chain for classes)
+    /// for a concrete type member matching the given slot name and arity.
+    /// Returns the resolved concrete type, or null if not found.
+    /// </summary>
+    private static IType? FindConcreteTypeMemberInScope(
+        string slotName,
+        int requiredArity,
+        IScope memberScope,
+        ClassType? classType)
+    {
+        // Search the direct member scope.
+        var result = SearchScopeForConcreteType(slotName, requiredArity, memberScope);
+        if (result is not null)
+            return result;
+
+        // For classes, walk the base type chain.
+        if (classType is not null)
+        {
+            var ancestor = classType.BaseType as ClassType;
+            while (ancestor is not null)
+            {
+                result = SearchScopeForConcreteType(slotName, requiredArity, ancestor.MemberScope);
+                if (result is not null)
+                    return result;
+                ancestor = ancestor.BaseType as ClassType;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Searches a single scope for a concrete type member with the given name and arity.
+    /// Returns the resolved concrete type, or null if not found.
+    /// </summary>
+    private static IType? SearchScopeForConcreteType(string slotName, int requiredArity, IScope scope)
+    {
+        foreach (var member in scope.Members)
+        {
+            if (member.Name != slotName)
+                continue;
+
+            // Accept type aliases that are NOT associated type slots (i.e., concrete type aliases).
+            if (member.Kind == SymbolKind.TypeAlias && member.DeclaredType is not AssociatedTypeSlotType)
+            {
+                var memberArity = member is Symbol sym ? sym.TypeParameters.Count : 0;
+                if (memberArity == requiredArity)
+                {
+                    // Unwrap type alias to get the underlying type.
+                    return member.DeclaredType is TypeAliasType alias ? alias.UnderlyingType : member.DeclaredType;
+                }
+            }
+
+            // Also accept nested type declarations (class/struct) with matching name and arity.
+            if (member.Kind is SymbolKind.Class or SymbolKind.Struct)
+            {
+                var memberArity = member.DeclaredType switch
+                {
+                    ClassType ct => ct.TypeParameters.Count,
+                    StructType st => st.TypeParameters.Count,
+                    _ => 0
+                };
+                if (memberArity == requiredArity)
+                    return member.DeclaredType;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the C# type name for a concrete type member to use in the base list.
+    /// For nested types (class/struct declared inside the implementor), emits the
+    /// fully-qualified nested type name (e.g., <c>MyList&lt;T&gt;.MyEnumerator</c>).
+    /// For type aliases pointing to external types, emits the type name directly.
+    /// </summary>
+    private static string GetConcreteTypeNameForBaseList(
+        IType concreteType,
+        string implementorName,
+        string implementorTypeParams)
+    {
+        // If the concrete type is a nested type (its DisplayName matches a nested class/struct),
+        // qualify it with the implementor name and type parameters.
+        if (concreteType is ClassType nestedClass && nestedClass.ContainingNamespace is null)
+        {
+            // Nested class — qualify with implementor: ImplementorName<TypeParams>.NestedName
+            var nestedName = nestedClass.DisplayName;
+            var qualifier = implementorTypeParams.Length > 0
+                ? $"{implementorName}{implementorTypeParams}"
+                : implementorName;
+            return $"{qualifier}.{nestedName}";
+        }
+
+        if (concreteType is StructType nestedStruct && nestedStruct.ContainingNamespace is null)
+        {
+            // Nested struct — qualify with implementor: ImplementorName<TypeParams>.NestedName
+            var nestedName = nestedStruct.DisplayName;
+            var qualifier = implementorTypeParams.Length > 0
+                ? $"{implementorName}{implementorTypeParams}"
+                : implementorName;
+            return $"{qualifier}.{nestedName}";
+        }
+
+        // For non-nested types (e.g., type alias pointing to an external type),
+        // just use the standard type name.
+        return CSharpTypeMap.GetTypeName(concreteType);
     }
 
     private void AppendLine(string text = "")

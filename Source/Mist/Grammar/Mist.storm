@@ -207,8 +207,11 @@ rule InterfaceDeclaration = modifiers:Modifier* INTERFACE name:IDENTIFIER
     LEFT_BRACE members:InterfaceMemberDeclaration* RIGHT_BRACE;
 
 rule InterfaceMemberDeclaration
-    = method:InterfaceMethodDeclaration     as InterfaceMethodMember
-    | property:InterfacePropertyDeclaration as InterfacePropertyMember
+    = method:InterfaceMethodDeclaration           as InterfaceMethodMember
+    | property:InterfacePropertyDeclaration       as InterfacePropertyMember
+    | associatedType:AssociatedTypeSlotDeclaration as InterfaceAssociatedTypeMember
+    | unconstrainedAssociatedType:UnconstrainedAssociatedTypeSlotDeclaration as InterfaceUnconstrainedAssociatedTypeMember
+    | modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as InterfaceModifiedAssociatedTypeMember
     ;
 
 rule InterfaceMethodDeclaration = returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
@@ -228,6 +231,23 @@ rule InterfaceAccessorDeclaration
     | SET SEMICOLON   as InterfaceSetAccessor
     ;
 
+// ─── Parser Rules — Associated Type Slot Declarations ────────────────────────
+
+rule AssociatedTypeSlotDeclaration = TYPE name:IDENTIFIER
+    typeParams:TypeParameterList?
+    COLON constraints:ConstraintList
+    slotWhereConstraints:WhereClause*
+    SEMICOLON;
+
+rule UnconstrainedAssociatedTypeSlotDeclaration = TYPE name:IDENTIFIER
+    typeParams:TypeParameterList?
+    SEMICOLON;
+
+rule ModifiedAssociatedTypeSlotDeclaration = modifiers:Modifier+ TYPE name:IDENTIFIER
+    typeParams:TypeParameterList?
+    constraintClause:(COLON constraints:ConstraintList slotWhereConstraints:WhereClause*)?
+    SEMICOLON;
+
 // ─── Parser Rules — Trait Declarations ───────────────────────────────────────
 
 rule TraitDeclaration = modifiers:Modifier* TRAIT name:IDENTIFIER
@@ -237,9 +257,12 @@ rule TraitDeclaration = modifiers:Modifier* TRAIT name:IDENTIFIER
     LEFT_BRACE members:TraitMemberDeclaration* RIGHT_BRACE;
 
 rule TraitMemberDeclaration
-    = field:TraitFieldDeclaration       as TraitFieldMember
-    | method:TraitMethodDeclaration     as TraitMethodMember
-    | property:TraitPropertyDeclaration as TraitPropertyMember
+    = field:TraitFieldDeclaration                 as TraitFieldMember
+    | method:TraitMethodDeclaration               as TraitMethodMember
+    | property:TraitPropertyDeclaration           as TraitPropertyMember
+    | associatedType:AssociatedTypeSlotDeclaration as TraitAssociatedTypeMember
+    | unconstrainedAssociatedType:UnconstrainedAssociatedTypeSlotDeclaration as TraitUnconstrainedAssociatedTypeMember
+    | modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as TraitModifiedAssociatedTypeMember
     ;
 
 rule TraitFieldDeclaration = type:TypeReference name:IDENTIFIER SEMICOLON;
@@ -312,6 +335,9 @@ rule MemberDeclaration
     | defaultBlock:DefaultBlockDeclaration as DefaultBlockMember
     | field:FieldDeclaration             as FieldMember
     | nestedType:TypeDeclaration         as NestedTypeMember
+    | modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as ModifiedAssociatedTypeMember
+    | associatedType:AssociatedTypeSlotDeclaration as AssociatedTypeMember
+    | unconstrainedAssociatedType:UnconstrainedAssociatedTypeSlotDeclaration as UnconstrainedAssociatedTypeMember
     ;
 
 // ─── Parser Rules — Default Block ───────────────────────────────────────────

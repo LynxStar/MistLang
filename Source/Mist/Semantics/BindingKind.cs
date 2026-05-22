@@ -11,4 +11,7 @@ public enum BindingKind
 
     /// <summary>Variable without ownership annotation.</summary>
     Unrestricted,
+
+    /// <summary>An associated type slot registered in an interface or trait scope.</summary>
+    AssociatedTypeSlot,
 }

@@ -358,6 +358,15 @@ public sealed class MistPrettyPrinter
             case NestedTypeMemberMemberDeclarationNode nestedTypeMember:
                 EmitTypeDeclaration(nestedTypeMember.NestedType);
                 break;
+            case AssociatedTypeMemberMemberDeclarationNode associatedTypeMember:
+                EmitAssociatedTypeSlotDeclaration(associatedTypeMember.AssociatedType);
+                break;
+            case UnconstrainedAssociatedTypeMemberMemberDeclarationNode unconstrainedMember:
+                EmitUnconstrainedAssociatedTypeSlotDeclaration(unconstrainedMember.UnconstrainedAssociatedType);
+                break;
+            case ModifiedAssociatedTypeMemberMemberDeclarationNode modifiedMember:
+                EmitModifiedAssociatedTypeSlotDeclaration(modifiedMember.ModifiedAssociatedType);
+                break;
         }
     }
 
@@ -806,6 +815,15 @@ public sealed class MistPrettyPrinter
             case InterfacePropertyMemberInterfaceMemberDeclarationNode propertyMember:
                 EmitInterfacePropertyDeclaration(propertyMember.Property);
                 break;
+            case InterfaceAssociatedTypeMemberInterfaceMemberDeclarationNode associatedTypeMember:
+                EmitAssociatedTypeSlotDeclaration(associatedTypeMember.AssociatedType);
+                break;
+            case InterfaceUnconstrainedAssociatedTypeMemberInterfaceMemberDeclarationNode unconstrainedMember:
+                EmitUnconstrainedAssociatedTypeSlotDeclaration(unconstrainedMember.UnconstrainedAssociatedType);
+                break;
+            case InterfaceModifiedAssociatedTypeMemberInterfaceMemberDeclarationNode modifiedMember:
+                EmitModifiedAssociatedTypeSlotDeclaration(modifiedMember.ModifiedAssociatedType);
+                break;
         }
     }
 
@@ -829,6 +847,41 @@ public sealed class MistPrettyPrinter
         }
 
         AppendLine($"{type} {name} {{ {string.Join(" ", accessors)} }}");
+    }
+
+    // ─── Associated Type Slot Declarations ──────────────────────────────
+
+    private void EmitAssociatedTypeSlotDeclaration(AssociatedTypeSlotDeclarationNode slotDecl)
+    {
+        var name = slotDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(slotDecl.TypeParams);
+        var constraints = EmitConstraintList(slotDecl.Constraints);
+        var whereClauses = EmitConstraintClauses(slotDecl.SlotWhereConstraints);
+        AppendLine($"type {name}{typeParams} : {constraints}{whereClauses};");
+    }
+
+    private void EmitUnconstrainedAssociatedTypeSlotDeclaration(UnconstrainedAssociatedTypeSlotDeclarationNode slotDecl)
+    {
+        var name = slotDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(slotDecl.TypeParams);
+        AppendLine($"type {name}{typeParams};");
+    }
+
+    private void EmitModifiedAssociatedTypeSlotDeclaration(ModifiedAssociatedTypeSlotDeclarationNode slotDecl)
+    {
+        var modifiers = EmitModifiers(slotDecl.Modifiers);
+        var name = slotDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(slotDecl.TypeParams);
+        if (slotDecl.Constraints is not null)
+        {
+            var constraints = EmitConstraintList(slotDecl.Constraints);
+            var whereClauses = EmitConstraintClauses(slotDecl.SlotWhereConstraints);
+            AppendLine($"{modifiers}type {name}{typeParams} : {constraints}{whereClauses};");
+        }
+        else
+        {
+            AppendLine($"{modifiers}type {name}{typeParams};");
+        }
     }
 
     // ─── Trait Declarations ─────────────────────────────────────────────
@@ -867,6 +920,15 @@ public sealed class MistPrettyPrinter
                 break;
             case TraitPropertyMemberTraitMemberDeclarationNode propertyMember:
                 EmitTraitPropertyDeclaration(propertyMember.Property);
+                break;
+            case TraitAssociatedTypeMemberTraitMemberDeclarationNode associatedTypeMember:
+                EmitAssociatedTypeSlotDeclaration(associatedTypeMember.AssociatedType);
+                break;
+            case TraitUnconstrainedAssociatedTypeMemberTraitMemberDeclarationNode unconstrainedMember:
+                EmitUnconstrainedAssociatedTypeSlotDeclaration(unconstrainedMember.UnconstrainedAssociatedType);
+                break;
+            case TraitModifiedAssociatedTypeMemberTraitMemberDeclarationNode modifiedMember:
+                EmitModifiedAssociatedTypeSlotDeclaration(modifiedMember.ModifiedAssociatedType);
                 break;
         }
     }

@@ -1133,30 +1133,34 @@ sum=400
 === Structured Concurrency Done ===
 --- Associated Types ---
 --- Single Interface Constraint ---
-value=hello from producer
+Output(hello)
+Output(world)
 --- Trait Slot ---
-label=StringConsumer
+Input(data-payload)
+Input(second-payload)
 --- Struct Constraint ---
-first=10
-second=20
+cursor.Position=42
+cursor2.Position=99
 --- Class Constraint ---
-factory=WidgetFactory
-products=3
+product.Name=Gear
+product.Weight=5
 --- Multiple Constraints ---
-name=CounterProducer
-version=1
+State(count=7)
+count=7
 --- Enclosing Type Parameter ---
-mapper=IntMapper
+Mapped(123)
+Mapped(456)
 --- Unconstrained Slot ---
-size=1
-kind=IntContainer
+elem.Value=55
+elem2.Value=77
 --- Class Plus Interface ---
-desc=PointProducer
+(3,4)
+(10,20)
 --- Multiple Slots ---
-store=StringStore
-capacity=100
+key.Id=1
+val.Data=hello-store
 --- Multiple Interfaces ---
-read=sequential
-write=buffered
+reader.Offset=0
+writer.BufferSize=4096
 --- Associated Types Done ---
 === Done! ===

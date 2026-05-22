@@ -6,8 +6,9 @@
 //
 // PROOF OF CORRECTNESS: This program would NOT compile if the associated type feature
 // were removed — the `type Name : Constraint;` declarations would fail to parse, and
-// the constraint validation (struct/class/interface) would not occur. Each section
-// below exercises a different constraint kind, proving the compiler validates it.
+// the constraint validation (struct/class/interface) would not occur. Each pattern
+// constructs the nested type, uses it as a return type, and calls constraint-required
+// methods on it — proving the feature works end-to-end.
 
 using Standard;
 
@@ -47,6 +48,10 @@ class MessageProducer : IProducer {
     public string ProduceValue() {
         return "hello from producer";
     }
+    // Returns the nested type — proves it works as a return type
+    public Output CreateOutput(string msg) {
+        return new Output(msg);
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -68,6 +73,10 @@ class StringConsumer {
     }
     public string GetLabel() {
         return "StringConsumer";
+    }
+    // Returns the nested type — proves trait slot works as return type
+    public Input CreateInput(string data) {
+        return new Input(data);
     }
 }
 
@@ -94,6 +103,10 @@ class RangeIterator : IIterator {
     public int GetSecond() {
         return 20;
     }
+    // Returns the nested struct — proves struct constraint works as return type
+    public Cursor CreateCursor(int pos) {
+        return new Cursor(pos);
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -111,13 +124,18 @@ interface IFactory {
 class WidgetFactory : IFactory {
     public class Product {
         public string Name;
-        public Product(string name) { Name = name; }
+        public int Weight;
+        public Product(string name, int weight) { Name = name; Weight = weight; }
     }
     public string GetFactoryName() {
         return "WidgetFactory";
     }
     public int GetProductCount() {
         return 3;
+    }
+    // Returns the nested class — proves class constraint works as return type
+    public Product CreateProduct(string name, int weight) {
+        return new Product(name, weight);
     }
 }
 
@@ -136,7 +154,7 @@ interface IStatefulProducer {
 class CounterProducer : IStatefulProducer {
     public class State : IStringable, IResettable {
         public int Count;
-        public State() { Count = 0; }
+        public State(int count) { Count = count; }
         public string Stringify() { return $"State(count={Count})"; }
         public string GetState() { return $"count={Count}"; }
     }
@@ -145,6 +163,10 @@ class CounterProducer : IStatefulProducer {
     }
     public int GetStateVersion() {
         return 1;
+    }
+    // Returns the nested type — proves multiple constraints work as return type
+    public State CreateState(int initial) {
+        return new State(initial);
     }
 }
 
@@ -168,6 +190,10 @@ class IntMapper : IMapper<int> {
     }
     public string GetMapperName() {
         return "IntMapper";
+    }
+    // Returns the nested type — proves slot with enclosing type param works
+    public Mapped MapValue(int v) {
+        return new Mapped(v);
     }
 }
 
@@ -195,6 +221,10 @@ class IntContainer : IContainer {
     public string GetContainerKind() {
         return "IntContainer";
     }
+    // Returns the nested struct — proves unconstrained slot works as return type
+    public Element CreateElement(int v) {
+        return new Element(v);
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -216,6 +246,10 @@ class PointProducer : IValueProducer {
     }
     public string GetDescription() {
         return "PointProducer";
+    }
+    // Returns the nested class — proves class+interface constraint works
+    public Value CreatePoint(int x, int y) {
+        return new Value(x, y);
     }
 }
 
@@ -246,6 +280,14 @@ class StringStore : IKeyValueStore {
     }
     public int GetCapacity() {
         return 100;
+    }
+    // Returns the nested struct Key — proves first slot works as return type
+    public Key CreateKey(int id) {
+        return new Key(id);
+    }
+    // Returns the nested class Value — proves second slot works as return type
+    public Value CreateValue(string data) {
+        return new Value(data);
     }
 }
 
@@ -280,6 +322,14 @@ class FileStream : IReadable, IWritable {
     public string GetWriteMode() {
         return "buffered";
     }
+    // Returns the nested struct Reader — proves first interface slot works
+    public Reader CreateReader(int offset) {
+        return new Reader(offset);
+    }
+    // Returns the nested class Writer — proves second interface slot works
+    public Writer CreateWriter(int size) {
+        return new Writer(size);
+    }
 }
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
@@ -291,82 +341,80 @@ public class Program {
         // 1. Single interface constraint
         Console.WriteLine("--- Single Interface Constraint ---");
         var producer = new MessageProducer();
-        Console.WriteLine($"value={producer.ProduceValue()}");
+        var output1 = producer.CreateOutput("hello");
+        Console.WriteLine(output1.Stringify());
+        var output2 = producer.CreateOutput("world");
+        Console.WriteLine(output2.Stringify());
 
         // 2. Trait slot
         Console.WriteLine("--- Trait Slot ---");
         var consumer = new StringConsumer();
-        Console.WriteLine($"label={consumer.GetLabel()}");
+        var input1 = consumer.CreateInput("data-payload");
+        Console.WriteLine(input1.Stringify());
+        var input2 = consumer.CreateInput("second-payload");
+        Console.WriteLine(input2.Stringify());
 
         // 3. Struct kind constraint
         Console.WriteLine("--- Struct Constraint ---");
         var rangeIter = new RangeIterator();
-        Console.WriteLine($"first={rangeIter.GetFirst()}");
-        Console.WriteLine($"second={rangeIter.GetSecond()}");
+        var cursor = rangeIter.CreateCursor(42);
+        Console.WriteLine($"cursor.Position={cursor.Position}");
+        var cursor2 = rangeIter.CreateCursor(99);
+        Console.WriteLine($"cursor2.Position={cursor2.Position}");
 
         // 4. Class kind constraint
         Console.WriteLine("--- Class Constraint ---");
         var factory = new WidgetFactory();
-        Console.WriteLine($"factory={factory.GetFactoryName()}");
-        Console.WriteLine($"products={factory.GetProductCount()}");
+        var product = factory.CreateProduct("Gear", 5);
+        Console.WriteLine($"product.Name={product.Name}");
+        Console.WriteLine($"product.Weight={product.Weight}");
 
         // 5. Multiple constraints
         Console.WriteLine("--- Multiple Constraints ---");
         var stateful = new CounterProducer();
-        Console.WriteLine($"name={stateful.GetProducerName()}");
-        Console.WriteLine($"version={stateful.GetStateVersion()}");
+        var state = stateful.CreateState(7);
+        Console.WriteLine(state.Stringify());
+        Console.WriteLine(state.GetState());
 
         // 6. Constraint referencing enclosing type parameter
         Console.WriteLine("--- Enclosing Type Parameter ---");
         var mapper = new IntMapper();
-        Console.WriteLine($"mapper={mapper.GetMapperName()}");
+        var mapped = mapper.MapValue(123);
+        Console.WriteLine(mapped.Stringify());
+        var mapped2 = mapper.MapValue(456);
+        Console.WriteLine(mapped2.Stringify());
 
         // 7. Unconstrained slot
         Console.WriteLine("--- Unconstrained Slot ---");
         var container = new IntContainer();
-        Console.WriteLine($"size={container.GetSize()}");
-        Console.WriteLine($"kind={container.GetContainerKind()}");
+        var elem = container.CreateElement(55);
+        Console.WriteLine($"elem.Value={elem.Value}");
+        var elem2 = container.CreateElement(77);
+        Console.WriteLine($"elem2.Value={elem2.Value}");
 
         // 8. Class + interface constraint combined
         Console.WriteLine("--- Class Plus Interface ---");
         var pointProducer = new PointProducer();
-        Console.WriteLine($"desc={pointProducer.GetDescription()}");
+        var point = pointProducer.CreatePoint(3, 4);
+        Console.WriteLine(point.Stringify());
+        var point2 = pointProducer.CreatePoint(10, 20);
+        Console.WriteLine(point2.Stringify());
 
         // 9. Multiple slots in one interface
         Console.WriteLine("--- Multiple Slots ---");
         var store = new StringStore();
-        Console.WriteLine($"store={store.GetStoreName()}");
-        Console.WriteLine($"capacity={store.GetCapacity()}");
+        var key = store.CreateKey(1);
+        Console.WriteLine($"key.Id={key.Id}");
+        var val = store.CreateValue("hello-store");
+        Console.WriteLine($"val.Data={val.Data}");
 
         // 10. Multiple interfaces with slots on same implementor
         Console.WriteLine("--- Multiple Interfaces ---");
         var stream = new FileStream();
-        Console.WriteLine($"read={stream.GetReadMode()}");
-        Console.WriteLine($"write={stream.GetWriteMode()}");
-
-        // ─── Compiler limitation notes ───────────────────────────────────────
-        // The following patterns are type-checked correctly but cannot yet be
-        // demonstrated end-to-end due to emitter limitations:
-        //
-        // - Slot name as return/parameter type in interface method signatures
-        //   (e.g., `Output Produce();` or `void Accept(Input i);`)
-        //   The semantic model resolves slot references in signatures, but the
-        //   emitter cannot yet resolve them to concrete types in the output.
-        //
-        // - T.SlotName in generic contexts (e.g., `T.Output result = ...;`)
-        //   The type checker resolves T.SlotName through constraints, but the
-        //   emitter's generic lifting strategy doesn't yet propagate the extra
-        //   type parameters when the interface is used as a generic constraint.
-        //
-        // - Generic type parameters on slots (e.g., `type Result<T> : ...;`)
-        //   Parsed and type-checked correctly, but the emitter produces circular
-        //   base type dependencies in the emitted C#.
-        //
-        // - Nested type access from outside (e.g., `Producer.Output o = ...;`)
-        //   The compiler doesn't yet support qualified nested type references.
-        //
-        // These features pass type-checking (verified by property tests 1-11)
-        // and will be demonstrable once the emitter is extended.
+        var reader = stream.CreateReader(0);
+        Console.WriteLine($"reader.Offset={reader.Offset}");
+        var writer = stream.CreateWriter(4096);
+        Console.WriteLine($"writer.BufferSize={writer.BufferSize}");
 
         Console.WriteLine("--- Associated Types Done ---");
     }

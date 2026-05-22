@@ -1128,4 +1128,32 @@ sum=400
 [entry-point-async]
   entry point called async method, result=fetched
 === Structured Concurrency Done ===
+--- Associated Types ---
+--- Single Interface Constraint ---
+value=hello from producer
+--- Trait Slot ---
+label=StringConsumer
+--- Struct Constraint ---
+first=10
+second=20
+--- Class Constraint ---
+factory=WidgetFactory
+products=3
+--- Multiple Constraints ---
+name=CounterProducer
+version=1
+--- Enclosing Type Parameter ---
+mapper=IntMapper
+--- Unconstrained Slot ---
+size=1
+kind=IntContainer
+--- Class Plus Interface ---
+desc=PointProducer
+--- Multiple Slots ---
+store=StringStore
+capacity=100
+--- Multiple Interfaces ---
+read=sequential
+write=buffered
+--- Associated Types Done ---
 === Done! ===

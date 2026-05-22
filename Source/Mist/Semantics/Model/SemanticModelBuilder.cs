@@ -16987,22 +16987,39 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static Scope CreateTypeParameterScope(Scope typeScope, Scope fileScope)
     {
         var hasTypeParams = false;
+        var hasNestedTypes = false;
+        var hasAssociatedTypeSlots = false;
         foreach (var member in typeScope.Members)
         {
             if (member.DeclaredType is TypeParameterType or DependentTypeParameterType)
             {
                 hasTypeParams = true;
-                break;
+            }
+            else if (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Enum)
+            {
+                hasNestedTypes = true;
+            }
+            else if (member.DeclaredType is AssociatedTypeSlotType)
+            {
+                hasAssociatedTypeSlots = true;
             }
         }
 
-        if (!hasTypeParams)
+        if (!hasTypeParams && !hasNestedTypes && !hasAssociatedTypeSlots)
             return fileScope;
 
         var scope = new Scope(parent: fileScope);
         foreach (var member in typeScope.Members)
         {
             if (member.DeclaredType is TypeParameterType or DependentTypeParameterType)
+            {
+                scope.AddMember(member);
+            }
+            else if (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Enum)
+            {
+                scope.AddMember(member);
+            }
+            else if (member.DeclaredType is AssociatedTypeSlotType)
             {
                 scope.AddMember(member);
             }

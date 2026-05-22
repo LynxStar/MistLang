@@ -9658,7 +9658,7 @@ internal sealed class CSharpSourceWriter
         var slots = new List<AssociatedTypeSlotType>();
         foreach (var member in scope.Members)
         {
-            if (member.DeclaredType is AssociatedTypeSlotType slotType)
+            if (member.Kind == SymbolKind.TypeAlias && member.DeclaredType is AssociatedTypeSlotType slotType)
             {
                 slots.Add(slotType);
             }

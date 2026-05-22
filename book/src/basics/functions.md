@@ -80,7 +80,9 @@ Here `ApplyFee` is `private` — it's a helper that only `Deposit` uses internal
 
 ## Void Return Type
 
-Methods that perform an action without producing a value use `void` as their return type. A void method doesn't need a `return` statement (though `return;` is valid for early exit).
+Remember that `void` is a real type in Mist — it has a single value (`Void.Void`). A method with a `void` return type can use any of these forms: no return statement at all, `return;`, or `return Void.Void;`. Omitting the return statement is syntactic sugar; the compiler inserts the implicit return for you.
+
+See [Void Type](./void-type.md) for the full details on using `void` as a first-class value.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -95,7 +97,7 @@ Methods that perform an action without producing a value use `void` as their ret
 {{#endtab }}
 {{#endtabs }}
 
-Void methods are called as standalone statements. They emit as standard C# `void` methods.
+Void methods are called as standalone statements. The compiler emits standard C# `void` methods regardless of which return form you use.
 
 ## Recursion
 

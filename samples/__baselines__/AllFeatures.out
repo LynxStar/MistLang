@@ -997,6 +997,9 @@ Done!
   Entry.Kind(), Metadata.Kind(), Category.System called from Registry.DemoSiblings()
   Level4.Depth() called from Level3.UseLevel4()
   All verified: Outer.Inner (class in class)
+--- 16. Nested types in type positions ---
+  class: Widget x5, Gadget x3
+  struct: Bolt:100
 === Nested Scoping Done ===
 === Refinement Comparison Engine Sample ===
 --- [eq-implies-relational] ---

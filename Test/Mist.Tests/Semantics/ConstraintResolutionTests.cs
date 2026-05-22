@@ -305,9 +305,41 @@ class Hybrid<T> where T : Animal, Vehicle { }
     [Fact]
     public void StructAsBaseClass_EmitsMIST_CONSTRAINT_0005()
     {
+        // A struct used as a constraint WITHOUT a `struct` constraint should still emit the error.
         var source = @"
 struct Point { }
 class Container<T> where T : Point { }
+";
+        var (_, diagnostics) = BuildModel(source);
+
+        var diags = WithId(diagnostics, "MIST_CONSTRAINT_0005");
+        Assert.Single(diags);
+        Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
+        Assert.Contains("Struct", diags[0].Message);
+        Assert.Contains("Point", diags[0].Message);
+    }
+
+    [Fact]
+    public void StructAsBaseClass_WithStructConstraint_IsAccepted()
+    {
+        // A struct used as a constraint WITH a `struct` constraint is valid (base-struct constraint).
+        var source = @"
+struct Point { }
+class Container<T> where T : struct, Point { }
+";
+        var (_, diagnostics) = BuildModel(source);
+
+        var diags = WithId(diagnostics, "MIST_CONSTRAINT_0005");
+        Assert.Empty(diags);
+    }
+
+    [Fact]
+    public void StructAsBaseClass_WithClassConstraint_EmitsMIST_CONSTRAINT_0005()
+    {
+        // A struct used as a constraint WITH a `class` constraint should still emit the error.
+        var source = @"
+struct Point { }
+class Container<T> where T : class, Point { }
 ";
         var (_, diagnostics) = BuildModel(source);
 

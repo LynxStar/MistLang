@@ -12,6 +12,13 @@ public sealed class StructType : IType
     public TypeKind Kind => TypeKind.Struct;
     public IScope MemberScope { get; }
     public string? ContainingNamespace { get; }
+
+    /// <summary>
+    /// The base struct type, if this struct extends another struct.
+    /// Null for structs with no base struct.
+    /// </summary>
+    public IType? BaseType { get; internal set; }
+
     public IReadOnlyList<IType> Interfaces { get; internal set; } = Array.Empty<IType>();
     public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
 
@@ -57,6 +64,21 @@ public sealed class StructType : IType
     /// fields must themselves be owned.
     /// </summary>
     public bool IsOwnedType { get; internal set; }
+
+    /// <summary>
+    /// Returns all ancestor struct types in order from immediate parent to root.
+    /// </summary>
+    public IReadOnlyList<StructType> GetAncestorChain()
+    {
+        var ancestors = new List<StructType>();
+        var current = BaseType as StructType;
+        while (current is not null)
+        {
+            ancestors.Add(current);
+            current = current.BaseType as StructType;
+        }
+        return ancestors;
+    }
 
     public StructType(
         string displayName,

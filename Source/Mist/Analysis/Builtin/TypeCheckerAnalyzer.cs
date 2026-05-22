@@ -1841,6 +1841,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
         }
 
+        // ConstructedType (struct) to plain StructType assignability.
+        if (source is ConstructedType sourceStructConst
+            && sourceStructConst.GenericDefinition is StructType
+            && target is StructType)
+        {
+            var baseType = GetSubstitutedBaseType(sourceStructConst);
+            if (baseType is not null && IsDirectlyAssignable(baseType, target, model))
+                return true;
+        }
+
         // ConstructedType to constructed interface assignability.
         if (target is ConstructedType targetConst && targetConst.GenericDefinition is InterfaceType)
         {
@@ -1870,6 +1880,36 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 if (ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
                     return true;
                 current = current.BaseType as ClassType;
+            }
+        }
+
+        // Struct subtype assignability — walk the inheritance chain.
+        if (source is StructType sourceStruct && target is StructType)
+        {
+            var current = sourceStruct.BaseType as StructType;
+            while (current is not null)
+            {
+                if (ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
+                    return true;
+                current = current.BaseType as StructType;
+            }
+        }
+
+        // Plain StructType to ConstructedType (struct) assignability.
+        if (source is StructType sourceStructForCt && target is ConstructedType targetStructCt
+            && targetStructCt.GenericDefinition is StructType)
+        {
+            var currentBase = sourceStructForCt.BaseType;
+            while (currentBase is not null)
+            {
+                if (IsDirectlyAssignable(currentBase, target, model))
+                    return true;
+                currentBase = currentBase switch
+                {
+                    StructType st => st.BaseType,
+                    ConstructedType ct when ct.GenericDefinition is StructType ctStructDef => ctStructDef.BaseType,
+                    _ => null
+                };
             }
         }
 
@@ -10495,11 +10535,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             targetType = ct.BaseType;
         }
+        else if (chain is BaseChainConstructorChainNode && enclosingType is StructType st && st.BaseType is not null)
+        {
+            targetType = st.BaseType;
+        }
 
         IScope? memberScope = targetType switch
         {
             ClassType classType => classType.MemberScope,
-            StructType st => st.MemberScope,
+            StructType st2 => st2.MemberScope,
+            ConstructedType cst => cst.MemberScope,
             _ => null,
         };
 
@@ -10519,9 +10564,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // No constructors available — only an error if arguments were provided.
             if (argTypes.Count > 0)
             {
+                var diagnosticId = chain is BaseChainConstructorChainNode && enclosingType is StructType
+                    ? "MIST_STRUCT_BASE_CTOR_MISMATCH"
+                    : "MIST_TC_0013";
+                var message = chain is BaseChainConstructorChainNode && enclosingType is StructType
+                    ? $"No constructor on struct '{targetType.DisplayName}' accepts the provided arguments."
+                    : $"No constructor on '{targetType.DisplayName}' matches the chained arguments";
                 diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0013",
-                    $"No constructor on '{targetType.DisplayName}' matches the chained arguments",
+                    diagnosticId,
+                    message,
                     chain,
                     model));
             }
@@ -10539,11 +10590,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 case OverloadResolutionStatus.NoApplicableCandidate:
                     var argTypeNames = string.Join(", ", argTypes.Select(t => t.DisplayName));
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0031",
-                        $"No overload for '{typeName}' constructor matches argument types ({argTypeNames})",
-                        chain,
-                        model));
+                    if (chain is BaseChainConstructorChainNode && enclosingType is StructType)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_STRUCT_BASE_CTOR_MISMATCH",
+                            $"No constructor on struct '{typeName}' accepts the provided arguments.",
+                            chain,
+                            model));
+                    }
+                    else
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0031",
+                            $"No overload for '{typeName}' constructor matches argument types ({argTypeNames})",
+                            chain,
+                            model));
+                    }
                     return;
 
                 case OverloadResolutionStatus.AmbiguousCall:
@@ -10568,11 +10630,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var hasMatch = ConstructorMatches(candidateConstructors[0], argTypes, targetType, model);
             if (!hasMatch)
             {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0013",
-                    $"No constructor on '{targetType.DisplayName}' matches the chained arguments",
-                    chain,
-                    model));
+                if (chain is BaseChainConstructorChainNode && enclosingType is StructType)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_STRUCT_BASE_CTOR_MISMATCH",
+                        $"No constructor on struct '{targetType.DisplayName}' accepts the provided arguments.",
+                        chain,
+                        model));
+                }
+                else
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0013",
+                        $"No constructor on '{targetType.DisplayName}' matches the chained arguments",
+                        chain,
+                        model));
+                }
             }
             else
             {
@@ -12608,6 +12681,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
         }
 
+        // ConstructedType (struct) to plain StructType assignability:
+        // When source is a ConstructedType wrapping a StructType (e.g., Point3D<int>),
+        // walk the definition's ancestor chain to check if any ancestor matches the target.
+        if (source is ConstructedType sourceStructConst
+            && sourceStructConst.GenericDefinition is StructType
+            && target is StructType)
+        {
+            var baseType = GetSubstitutedBaseType(sourceStructConst);
+            if (baseType is not null && IsAssignable(baseType, target))
+                return true;
+        }
+
         // ConstructedType to constructed interface assignability.
         if (target is ConstructedType targetConst && targetConst.GenericDefinition is InterfaceType)
         {
@@ -12638,6 +12723,40 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 if (ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
                     return true;
                 current = current.BaseType as ClassType;
+            }
+        }
+
+        // Struct subtype assignability — walk the inheritance chain.
+        // A derived struct is assignable to any of its ancestor structs.
+        if (source is StructType sourceStruct && target is StructType)
+        {
+            var current = sourceStruct.BaseType as StructType;
+            while (current is not null)
+            {
+                if (ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
+                    return true;
+                current = current.BaseType as StructType;
+            }
+        }
+
+        // Plain StructType to ConstructedType (struct) assignability:
+        // When source is a plain StructType whose ancestor chain contains a
+        // ConstructedType (e.g., Derived : Base<int>), check if any ancestor
+        // matches the target ConstructedType.
+        if (source is StructType sourceStructForCt && target is ConstructedType targetStructCt
+            && targetStructCt.GenericDefinition is StructType)
+        {
+            var currentBase = sourceStructForCt.BaseType;
+            while (currentBase is not null)
+            {
+                if (IsAssignable(currentBase, target))
+                    return true;
+                currentBase = currentBase switch
+                {
+                    StructType st => st.BaseType,
+                    ConstructedType ct when ct.GenericDefinition is StructType ctStructDef => ctStructDef.BaseType,
+                    _ => null
+                };
             }
         }
 
@@ -13254,17 +13373,31 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static IType? GetSubstitutedBaseType(ConstructedType constructedType)
     {
-        if (constructedType.GenericDefinition is not ClassType classDef)
-            return null;
+        if (constructedType.GenericDefinition is ClassType classDef)
+        {
+            var baseType = classDef.BaseType;
+            if (baseType is null)
+                return null;
 
-        var baseType = classDef.BaseType;
-        if (baseType is null)
-            return null;
+            var typeParams = classDef.TypeParameters;
+            var typeArgs = constructedType.TypeArguments;
 
-        var typeParams = classDef.TypeParameters;
-        var typeArgs = constructedType.TypeArguments;
+            return SubstituteType(baseType, typeParams, typeArgs);
+        }
 
-        return SubstituteType(baseType, typeParams, typeArgs);
+        if (constructedType.GenericDefinition is StructType structDef)
+        {
+            var baseType = structDef.BaseType;
+            if (baseType is null)
+                return null;
+
+            var typeParams = structDef.TypeParameters;
+            var typeArgs = constructedType.TypeArguments;
+
+            return SubstituteType(baseType, typeParams, typeArgs);
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -13297,6 +13430,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         interfaces = structDef.Interfaces;
                         typeParams = structDef.TypeParameters;
                         typeArgs = sourceCt.TypeArguments;
+                        // Also check struct base type chain.
+                        var structBaseType = GetSubstitutedBaseType(sourceCt);
+                        if (structBaseType is not null && ImplementsConstructedInterface(structBaseType, targetConstructedInterface))
+                            return true;
                         break;
                     case InterfaceType ifaceDef:
                         // Check if the source interface itself matches the target.
@@ -13333,6 +13470,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 break;
             case StructType structType:
                 interfaces = structType.Interfaces;
+                // Also check struct base type chain.
+                var currentStructBase = structType.BaseType;
+                while (currentStructBase is not null)
+                {
+                    if (currentStructBase is StructType baseStruct)
+                    {
+                        foreach (var iface in baseStruct.Interfaces)
+                        {
+                            if (iface is ConstructedType ifaceCt && IsAssignable(ifaceCt, targetConstructedInterface))
+                                return true;
+                        }
+                        currentStructBase = baseStruct.BaseType;
+                    }
+                    else
+                        break;
+                }
                 break;
             case InterfaceType ifaceType:
                 interfaces = ifaceType.Interfaces;
@@ -13421,7 +13574,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             case StructType structType:
                 // Check the struct's interfaces (recursively through interface inheritance).
-                return InterfaceListContains(structType.Interfaces, targetInterface);
+                if (InterfaceListContains(structType.Interfaces, targetInterface))
+                    return true;
+                // Walk the struct base type chain and check each ancestor's interfaces.
+                var currentStruct = structType.BaseType as StructType;
+                while (currentStruct is not null)
+                {
+                    if (InterfaceListContains(currentStruct.Interfaces, targetInterface))
+                        return true;
+                    currentStruct = currentStruct.BaseType as StructType;
+                }
+                return false;
 
             case InterfaceType sourceInterface:
                 // An interface is assignable to itself or any interface it inherits from.

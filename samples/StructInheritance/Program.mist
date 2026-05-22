@@ -1,0 +1,211 @@
+// StructInheritance — Demonstrates struct inheritance (value-type composition).
+//
+// This sample exercises:
+//   1. Single-level inheritance (Point3D : Point) — field flattening
+//   2. Multi-level inheritance (ColorPoint3D : Point3D : Point) — all ancestor fields
+//   3. Base constructor chaining (: base(x, y)) — inlined field assignments
+//   4. Derived-to-base implicit conversion (assignment, parameter passing, return)
+//   5. Field access on derived instances (inherited + own)
+//   6. Own method access on each struct level
+//   7. Generic struct inheritance (ExtendedContainer<T> : Container<T>)
+//
+// NOTE: The emitter currently flattens fields and generates implicit conversion
+// operators, but does NOT flatten inherited methods into derived structs. Methods
+// defined on a base struct are only callable on that base type directly. This is
+// a known emitter limitation — the semantic model correctly resolves inherited
+// members, but the C# emitter does not yet copy method bodies into derived structs.
+// Similarly, generic struct inheritance does not yet emit flattened fields or
+// implicit conversion operators.
+
+using Standard;
+
+namespace StructInheritance;
+
+// --- Base struct: 2D point ---
+public struct Point {
+    public int X;
+    public int Y;
+
+    public Point(int x, int y)
+    {
+        X = x;
+        Y = y;
+    }
+
+    public string Describe()
+    {
+        return $"Point({X}, {Y})";
+    }
+}
+
+// --- Single-level inheritance: 3D point extends 2D point ---
+public struct Point3D : Point {
+    public int Z;
+
+    public Point3D(int x, int y, int z) : base(x, y)
+    {
+        Z = z;
+    }
+
+    public string Describe3D()
+    {
+        return $"Point3D({X}, {Y}, {Z})";
+    }
+}
+
+// --- Multi-level inheritance: colored 3D point extends 3D point ---
+// NOTE: Multi-level base constructor chaining (ColorPoint3D : base(x,y,z) where
+// Point3D : base(x,y)) does not yet recursively inline grandparent assignments.
+// The fields ARE flattened and the implicit conversion operators work correctly,
+// but the constructor only inlines the immediate parent's own assignments.
+// Workaround: re-assign grandparent fields in the constructor body.
+public struct ColorPoint3D : Point3D {
+    public int Color;
+
+    public ColorPoint3D(int x, int y, int z, int color) : base(x, y, z)
+    {
+        X = x;
+        Y = y;
+        Color = color;
+    }
+
+    public string DescribeColored()
+    {
+        return $"ColorPoint3D({X}, {Y}, {Z}, color={Color})";
+    }
+}
+
+// --- Generic struct inheritance ---
+public struct Container<T> {
+    public T Value;
+
+    public Container(T value)
+    {
+        Value = value;
+    }
+
+    public string DescribeContainer()
+    {
+        return $"Container({Value})";
+    }
+}
+
+public struct ExtendedContainer<T> : Container<T> {
+    public int Extra;
+
+    public ExtendedContainer(T value, int extra) : base(value)
+    {
+        Extra = extra;
+    }
+
+    public string DescribeExtended()
+    {
+        return $"ExtendedContainer(extra={Extra})";
+    }
+}
+
+public class Program
+{
+    // --- Function accepting base type Point (proves derived-to-base conversion) ---
+    private static string AcceptPoint(Point p)
+    {
+        return $"AcceptPoint received: ({p.X}, {p.Y})";
+    }
+
+    // --- Function accepting Point3D (proves multi-level derived-to-base) ---
+    private static string AcceptPoint3D(Point3D p)
+    {
+        return $"AcceptPoint3D received: ({p.X}, {p.Y}, {p.Z})";
+    }
+
+    // --- Function returning base type from derived value ---
+    private static Point MakePointFromDerived()
+    {
+        var p3d = new Point3D(100, 200, 300);
+        return p3d;
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Struct Inheritance ===");
+
+        // --- 1. Single-level inheritance: field access ---
+        // Point3D inherits X, Y from Point and adds Z.
+        // If struct inheritance were broken, X and Y would not exist on Point3D.
+        Console.WriteLine("--- Single-level inheritance ---");
+        var p3d = new Point3D(1, 2, 3);
+        Console.WriteLine($"  p3d.X = {p3d.X}");
+        Console.WriteLine($"  p3d.Y = {p3d.Y}");
+        Console.WriteLine($"  p3d.Z = {p3d.Z}");
+        Console.WriteLine($"  p3d.Describe3D() = {p3d.Describe3D()}");
+
+        // --- 2. Multi-level inheritance: field access ---
+        // ColorPoint3D inherits X, Y from Point (through Point3D), Z from Point3D, adds Color.
+        Console.WriteLine("--- Multi-level inheritance ---");
+        var cp = new ColorPoint3D(4, 5, 6, 255);
+        Console.WriteLine($"  cp.X = {cp.X}");
+        Console.WriteLine($"  cp.Y = {cp.Y}");
+        Console.WriteLine($"  cp.Z = {cp.Z}");
+        Console.WriteLine($"  cp.Color = {cp.Color}");
+        Console.WriteLine($"  cp.DescribeColored() = {cp.DescribeColored()}");
+
+        // --- 3. Base constructor chaining ---
+        // The constructor Point3D(x, y, z) : base(x, y) inlines Point's field assignments.
+        // If base chaining were broken, X and Y would be 0.
+        Console.WriteLine("--- Base constructor chaining ---");
+        var chained = new Point3D(10, 20, 30);
+        Console.WriteLine($"  chained.X = {chained.X}");
+        Console.WriteLine($"  chained.Y = {chained.Y}");
+        Console.WriteLine($"  chained.Z = {chained.Z}");
+
+        // --- 4. Derived-to-base implicit conversion: assignment ---
+        // Point3D is implicitly convertible to Point (copies X, Y fields).
+        // If the implicit operator were missing, this would not compile.
+        Console.WriteLine("--- Implicit conversion: assignment ---");
+        Point basePoint = p3d;
+        Console.WriteLine($"  basePoint.X = {basePoint.X}");
+        Console.WriteLine($"  basePoint.Y = {basePoint.Y}");
+
+        // --- 5. Derived-to-base implicit conversion: parameter passing ---
+        // Passing Point3D where Point is expected uses the implicit operator.
+        Console.WriteLine("--- Implicit conversion: parameter passing ---");
+        Console.WriteLine($"  {AcceptPoint(p3d)}");
+
+        // Multi-level: ColorPoint3D → Point (skips intermediate Point3D)
+        Console.WriteLine($"  {AcceptPoint(cp)}");
+
+        // Multi-level: ColorPoint3D → Point3D
+        Console.WriteLine($"  {AcceptPoint3D(cp)}");
+
+        // --- 6. Derived-to-base implicit conversion: return ---
+        // A function returning Point can return a Point3D value.
+        Console.WriteLine("--- Implicit conversion: return ---");
+        Point returned = Program.MakePointFromDerived();
+        Console.WriteLine($"  returned.X = {returned.X}");
+        Console.WriteLine($"  returned.Y = {returned.Y}");
+
+        // --- 7. Generic struct inheritance ---
+        // ExtendedContainer<T> : Container<T> adds Extra field.
+        // NOTE: Generic struct field flattening and implicit conversion are not yet
+        // emitted by the C# backend. The struct declaration and own fields work.
+        Console.WriteLine("--- Generic struct inheritance ---");
+        var ext = new ExtendedContainer<int>(42, 7);
+        Console.WriteLine($"  ext.Extra = {ext.Extra}");
+        Console.WriteLine($"  ext.DescribeExtended() = {ext.DescribeExtended()}");
+
+        // --- 8. Verify field values are preserved through conversion ---
+        // This proves the implicit operator copies the correct values.
+        Console.WriteLine("--- Value preservation through conversion ---");
+        var origin = new Point3D(77, 88, 99);
+        Point converted = origin;
+        Console.WriteLine($"  origin.X={origin.X}, converted.X={converted.X}");
+        Console.WriteLine($"  origin.Y={origin.Y}, converted.Y={converted.Y}");
+
+        Console.WriteLine("Done!");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

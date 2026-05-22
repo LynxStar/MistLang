@@ -1128,4 +1128,37 @@ sum=400
 [entry-point-async]
   entry point called async method, result=fetched
 === Structured Concurrency Done ===
+=== Struct Inheritance ===
+--- Single-level inheritance ---
+  p3d.X = 1
+  p3d.Y = 2
+  p3d.Z = 3
+  p3d.Describe3D() = Point3D(1, 2, 3)
+--- Multi-level inheritance ---
+  cp.X = 4
+  cp.Y = 5
+  cp.Z = 6
+  cp.Color = 255
+  cp.DescribeColored() = ColorPoint3D(4, 5, 6, color=255)
+--- Base constructor chaining ---
+  chained.X = 10
+  chained.Y = 20
+  chained.Z = 30
+--- Implicit conversion: assignment ---
+  basePoint.X = 1
+  basePoint.Y = 2
+--- Implicit conversion: parameter passing ---
+  AcceptPoint received: (1, 2)
+  AcceptPoint received: (4, 5)
+  AcceptPoint3D received: (4, 5, 6)
+--- Implicit conversion: return ---
+  returned.X = 100
+  returned.Y = 200
+--- Generic struct inheritance ---
+  ext.Extra = 7
+  ext.DescribeExtended() = ExtendedContainer(extra=7)
+--- Value preservation through conversion ---
+  origin.X=77, converted.X=77
+  origin.Y=88, converted.Y=88
+Done!
 === Done! ===

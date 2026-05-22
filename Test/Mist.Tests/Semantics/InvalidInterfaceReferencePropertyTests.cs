@@ -431,7 +431,7 @@ public class InvalidInterfaceReferencePropertyTests
     }
 
     [Fact]
-    public void StructReferencingStructName_EmitsNotAnInterfaceDiagnostic()
+    public void StructReferencingStructName_SetsBaseType()
     {
         var otherStruct = MakeStructDecl("OtherStruct");
         var structDecl = MakeStructDecl("MyStruct", "OtherStruct");
@@ -439,13 +439,14 @@ public class InvalidInterfaceReferencePropertyTests
         var ast = MakeCompilationUnit(WrapStruct(otherStruct), WrapStruct(structDecl));
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        var diag = Assert.Single(diagnostics, d => d.Id.Value == "MIST_NOT_AN_INTERFACE");
-        Assert.Contains("OtherStruct", diag.Message);
-        Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
+        // With struct inheritance, the first struct in the base list is now
+        // consumed as the base type — no diagnostic should be emitted.
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_NOT_AN_INTERFACE");
 
         var structSymbol = model.AllSymbols.First(s => s.Name == "MyStruct" && s.Kind == SymbolKind.Struct);
         var structType = Assert.IsType<StructType>(structSymbol.DeclaredType);
-        Assert.Empty(structType.Interfaces);
+        Assert.NotNull(structType.BaseType);
+        Assert.Equal("OtherStruct", structType.BaseType!.DisplayName);
     }
 
     [Fact]

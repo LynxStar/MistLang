@@ -63,7 +63,7 @@ Each level in the hierarchy defines its own describe method that calls inherited
 
 ## Static Dispatch Only
 
-Both class and struct inheritance use static dispatch — there are no virtual methods on either concrete type. A derived class or struct can define new methods that call inherited ones, but cannot override them.
+Both class and struct inheritance use static dispatch — there are no virtual methods on either concrete type. A derived class or struct can define new methods that call inherited ones, but cannot override them. Mist does not support method shadowing either — a derived class cannot in any capacity replace or hide an inherited method.
 
 ## Struct Inheritance
 

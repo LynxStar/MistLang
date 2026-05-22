@@ -16,6 +16,7 @@
 //  13. Repeated block namespaces with same name (see BlockNamespaces.mist)
 //  14. File-scoped namespace with nested types inside type declarations
 //  15. Referencing nested types by qualified name from outside the parent
+//  16. Nested types used in type positions (return type, parameter type, new)
 
 using Standard;
 using NestedScoping.Networking.Protocol;
@@ -173,6 +174,39 @@ public class Registry
     }
 }
 
+// ─── 16. Nested types used in type positions ─────────────────────────────────
+// Nested types used as return types, parameter types, local variable types,
+// and in new expressions. This proves nested types work as full type references,
+// not just as targets for static method calls.
+
+public class Factory
+{
+    public class Product
+    {
+        public string Name;
+        public int Quantity;
+        public Product(string name, int quantity) { Name = name; Quantity = quantity; }
+    }
+
+    public Product Create(string name, int qty)
+    {
+        return new Product(name, qty);
+    }
+
+    public string Describe(Product p)
+    {
+        return $"{p.Name} x{p.Quantity}";
+    }
+
+    public static string Demo()
+    {
+        var f = new Factory();
+        Product item = f.Create("Widget", 5);
+        var desc = f.Describe(item);
+        return desc;
+    }
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 public class Program
@@ -246,6 +280,10 @@ public class Program
         Console.WriteLine("  Entry.Kind(), Metadata.Kind(), Category.System called from Registry.DemoSiblings()");
         Console.WriteLine("  Level4.Depth() called from Level3.UseLevel4()");
         Console.WriteLine($"  All verified: {Outer.DemoClassInClass()}");
+
+        // 16. Nested types in type positions (return type, parameter type, local variable type, new)
+        Console.WriteLine("--- 16. Nested types in type positions ---");
+        Console.WriteLine($"  {Factory.Demo()}");
 
         Console.WriteLine("=== Nested Scoping Done ===");
     }

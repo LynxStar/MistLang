@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace SwitchDemo;
@@ -14,7 +15,7 @@ public class Program
             3 => "odd",
             var _ => "unknown",
         };
-        Console.WriteLine($"num={num} parity={parity}");
+        System.Console.WriteLine($"num={num} parity={parity}");
     }
 
     public static Program __CreateDefault()

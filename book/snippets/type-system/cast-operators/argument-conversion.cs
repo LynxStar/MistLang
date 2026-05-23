@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace CastOperators;
@@ -6,7 +7,7 @@ public class Program
 {
     private static void PrintTemperature(Fahrenheit f)
     {
-        Console.WriteLine($"Temperature: {f.Describe()}");
+        System.Console.WriteLine($"Temperature: {f.Describe()}");
     }
 
     public static void Main(string[] args)

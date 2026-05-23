@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace ContextDemo;
@@ -44,7 +45,7 @@ public class Program
         try
         {
             var result = Consumers.GetConfig();
-            Console.WriteLine(result);
+            System.Console.WriteLine(result);
         }
         finally
         {

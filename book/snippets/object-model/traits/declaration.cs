@@ -1,3 +1,5 @@
+using System;
+
 namespace Traits;
 
 interface Printable

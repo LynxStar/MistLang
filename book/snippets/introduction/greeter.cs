@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace Introduction;
@@ -19,12 +20,12 @@ public class Scorer
         if (result.IsString)
         {
             string letter = result.AsString;
-            Console.WriteLine($"Grade: {letter}");
+            System.Console.WriteLine($"Grade: {letter}");
         }
         if (result.IsInt32)
         {
             int numeric = result.AsInt32;
-            Console.WriteLine($"Score: {numeric}");
+            System.Console.WriteLine($"Score: {numeric}");
         }
     }
 

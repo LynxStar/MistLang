@@ -1,3 +1,5 @@
+using System;
+
 namespace CastOperators;
 
 public class Measurement

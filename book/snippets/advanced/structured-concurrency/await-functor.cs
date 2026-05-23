@@ -1,17 +1,26 @@
 using System;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
-async Task<int> ComputeValue()
+namespace Standard;
+
+public class Optional<T>
 {
-    return 42;
-}
+    private T value;
 
-async Task Main()
-{
-    var task = ComputeValue();
+    private bool hasValue;
 
-    // Suspend until the task completes, unwrap to int
-    var result = await task;
+    public Optional()
+    {
+        hasValue = false;
+    }
 
-    Console.WriteLine(result);  // 42
+    public Optional(T value)
+    {
+        this.value = value;
+        this.hasValue = true;
+    }
+
+    public bool HasValue => hasValue;
+
+    public T Value => value;
 }

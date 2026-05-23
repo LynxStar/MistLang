@@ -1,3 +1,5 @@
+using System;
+
 namespace Newtypes;
 
 public readonly struct UserId

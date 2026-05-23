@@ -1,3 +1,5 @@
+using System;
+
 int million = 1_000_000;
 long cardNumber = 1234_5678_9012_3456L;
 int hexColor = 0xFF_A5_00;

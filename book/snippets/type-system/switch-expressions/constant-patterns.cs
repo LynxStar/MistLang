@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace SwitchDemo;
@@ -16,7 +17,7 @@ public class Program
             5 => "Friday",
             var _ => "Weekend",
         };
-        Console.WriteLine($"Day {day} is {dayName}");
+        System.Console.WriteLine($"Day {day} is {dayName}");
         string command = "quit";
         var response = command switch
         {
@@ -25,14 +26,14 @@ public class Program
             "quit" => "Goodbye!",
             var _ => "Unknown command",
         };
-        Console.WriteLine($"Command '{command}' => {response}");
+        System.Console.WriteLine($"Command '{command}' => {response}");
         bool isActive = true;
         var status = isActive switch
         {
             true => "Active",
             false => "Inactive",
         };
-        Console.WriteLine($"isActive={isActive} => {status}");
+        System.Console.WriteLine($"isActive={isActive} => {status}");
     }
 
     public static Program __CreateDefault()

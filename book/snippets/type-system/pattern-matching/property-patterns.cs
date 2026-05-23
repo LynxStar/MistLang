@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace PatternDemo;
@@ -29,7 +30,7 @@ public class Program
         var bigCircle = new Circle(10);
         if (bigCircle is { Radius: > 5 })
         {
-            Console.WriteLine("Found a circle with radius > 5");
+            System.Console.WriteLine("Found a circle with radius > 5");
         }
     }
 

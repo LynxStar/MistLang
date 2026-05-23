@@ -1,3 +1,5 @@
+using System;
+
 namespace TypeAliases;
 
 public class Program

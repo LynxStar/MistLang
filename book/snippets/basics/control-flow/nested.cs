@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace Demo;
@@ -20,7 +21,7 @@ public class Program
                 sum = sum + v;
             }
         }
-        Console.WriteLine($"Sum of values > 5: {sum}");
+        System.Console.WriteLine($"Sum of values > 5: {sum}");
     }
 
     public static Program __CreateDefault()

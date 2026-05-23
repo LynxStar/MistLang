@@ -1,21 +1,26 @@
 using System;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
-async Task<int> SlowCompute()
+namespace Standard;
+
+public class Optional<T>
 {
-    await Task.Yield();  // explicit yield point
-    return 42;
-}
+    private T value;
 
-async Task Main()
-{
-    // Each async call is a yield point — the scheduler may
-    // run other tasks before resuming here
-    var task = SlowCompute();
+    private bool hasValue;
 
-    // Explicit yield: give other tasks a chance to run
-    await Task.Yield();
+    public Optional()
+    {
+        hasValue = false;
+    }
 
-    var result = await task;
-    Console.WriteLine(result);
+    public Optional(T value)
+    {
+        this.value = value;
+        this.hasValue = true;
+    }
+
+    public bool HasValue => hasValue;
+
+    public T Value => value;
 }

@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace OwnershipSystem;
@@ -7,7 +8,7 @@ public class FrozenDemo
     public static void FreezeAndRead(Pair p)
     {
         var sum = p.X + p.Y;
-        Console.WriteLine($"frozen sum={sum}");
+        System.Console.WriteLine($"frozen sum={sum}");
     }
 
     public static void Run()
@@ -15,7 +16,7 @@ public class FrozenDemo
         Pair p = new Pair(5, 10);
         FreezeAndRead(p);
         p.SetX(50);
-        Console.WriteLine($"after thaw={p.Describe()}");
+        System.Console.WriteLine($"after thaw={p.Describe()}");
     }
 
     public static FrozenDemo __CreateDefault()

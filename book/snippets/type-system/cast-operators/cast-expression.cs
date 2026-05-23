@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace CastOperators;
@@ -8,7 +9,7 @@ public class Program
     {
         var body = new Celsius(37.0);
         var bodyK = ((Kelvin)body);
-        Console.WriteLine(bodyK.Describe());
+        System.Console.WriteLine(bodyK.Describe());
     }
 
     public static Program __CreateDefault()

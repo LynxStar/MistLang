@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace PatternDemo;
@@ -13,7 +14,7 @@ public class Program
     {
         if (Program.ComputeScore() is var score and > 0)
         {
-            Console.WriteLine($"Positive score: {score}");
+            System.Console.WriteLine($"Positive score: {score}");
         }
     }
 

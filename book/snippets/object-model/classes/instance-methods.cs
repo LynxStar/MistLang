@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace Demo;
@@ -16,13 +17,13 @@ public class Point
 
     public int DistanceFromOrigin()
     {
-        return Math.Abs(this.x) + Math.Abs(this.y);
+        return System.Math.Abs(this.x) + System.Math.Abs(this.y);
     }
 
     public static void Main(string[] args)
     {
         var p = new Point(3, 4);
-        Console.WriteLine($"Distance: {p.DistanceFromOrigin()}");
+        System.Console.WriteLine($"Distance: {p.DistanceFromOrigin()}");
     }
 
     protected Point()

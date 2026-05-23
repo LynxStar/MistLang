@@ -1,26 +1,26 @@
 using System;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
-int ComputeSync()
+namespace Standard;
+
+public class Optional<T>
 {
-    return 2 + 2;
-}
+    private T value;
 
-async Task<int> ComputeAsync()
-{
-    return 3 + 3;
-}
+    private bool hasValue;
 
-async Task Main()
-{
-    // Sync method lifted into a task via Task.Run
-    var task1 = Task.Run(() => ComputeSync());
+    public Optional()
+    {
+        hasValue = false;
+    }
 
-    // Async method captured as task (no auto-await)
-    var task2 = ComputeAsync();
+    public Optional(T value)
+    {
+        this.value = value;
+        this.hasValue = true;
+    }
 
-    // Auto-unwrap: compiler inserts await
-    var value = await ComputeAsync();
+    public bool HasValue => hasValue;
 
-    await Task.WhenAll(task1, task2);
+    public T Value => value;
 }

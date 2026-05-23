@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace RefParameters;
@@ -41,14 +42,14 @@ public class Program
     public static void MutateBorrowed(Pair p)
     {
         p.SetX(999);
-        Console.WriteLine($"mutated={p.Describe()}");
+        System.Console.WriteLine($"mutated={p.Describe()}");
     }
 
     public static void Main()
     {
         Pair p = new Pair(1, 2);
         MutateBorrowed(p);
-        Console.WriteLine($"owner after={p.Describe()}");
+        System.Console.WriteLine($"owner after={p.Describe()}");
     }
 
     public static Program __CreateDefault()

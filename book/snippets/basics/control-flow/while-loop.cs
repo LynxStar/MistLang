@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace Demo;
@@ -9,7 +10,7 @@ public class Program
         int count = 0;
         while (count < 3)
         {
-            Console.WriteLine($"Count: {count}");
+            System.Console.WriteLine($"Count: {count}");
             count = count + 1;
         }
     }

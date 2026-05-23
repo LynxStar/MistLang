@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace PatternDemo;
@@ -49,7 +50,7 @@ public class Program
         Shape shape = new Circle(5);
         if (shape is Circle c)
         {
-            Console.WriteLine($"Circle with radius {c.Radius}");
+            System.Console.WriteLine($"Circle with radius {c.Radius}");
         }
     }
 

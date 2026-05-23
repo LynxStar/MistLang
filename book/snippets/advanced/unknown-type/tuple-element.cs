@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace UnknownDemo;
@@ -32,10 +33,10 @@ public class Program
     public static void Main(string[] args)
     {
         (int tag, object payload) envelope = (tag: 1, payload: new Greeter("Mist"));
-        Console.WriteLine($"tag={envelope.tag}");
+        System.Console.WriteLine($"tag={envelope.tag}");
         if (envelope.payload is Greeter g)
         {
-            Console.WriteLine($"payload: {g.Greet()}");
+            System.Console.WriteLine($"payload: {g.Greet()}");
         }
     }
 

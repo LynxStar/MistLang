@@ -1,3 +1,5 @@
+using System;
+
 namespace GenericTraits;
 
 interface Readable

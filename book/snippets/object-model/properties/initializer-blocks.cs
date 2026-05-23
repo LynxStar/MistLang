@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace Demo;
@@ -31,7 +32,7 @@ public class Program
     public static void Main(string[] args)
     {
         var cfg = new Config() { Timeout = 60, Verbose = true, Name = "production" };
-        Console.WriteLine($"Timeout={cfg.Timeout}, Name={cfg.Name}");
+        System.Console.WriteLine($"Timeout={cfg.Timeout}, Name={cfg.Name}");
     }
 
     public static Program __CreateDefault()

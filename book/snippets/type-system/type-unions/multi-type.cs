@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace UnionDemo;
@@ -9,17 +10,17 @@ public class Program
         if (value.IsInt32)
         {
             int n = value.AsInt32;
-            Console.WriteLine($"  int: {n}");
+            System.Console.WriteLine($"  int: {n}");
         }
         if (value.IsString)
         {
             string s = value.AsString;
-            Console.WriteLine($"  string: {s}");
+            System.Console.WriteLine($"  string: {s}");
         }
         if (value.IsBoolean)
         {
             bool b = value.AsBoolean;
-            Console.WriteLine($"  bool: {b}");
+            System.Console.WriteLine($"  bool: {b}");
         }
     }
 

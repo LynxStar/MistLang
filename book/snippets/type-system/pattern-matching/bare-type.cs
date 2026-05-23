@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace PatternDemo;
@@ -49,7 +50,7 @@ public class Program
         Shape shape = new Circle(5);
         if (shape is Circle)
         {
-            Console.WriteLine("It's a circle");
+            System.Console.WriteLine("It's a circle");
         }
     }
 

@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace Demo;
@@ -20,7 +21,7 @@ public class Counter
     {
         var c1 = new Counter();
         var c2 = new Counter();
-        Console.WriteLine($"Total: {Counter.GetTotalCreated()}");
+        System.Console.WriteLine($"Total: {Counter.GetTotalCreated()}");
     }
 
     public static Counter __CreateDefault()

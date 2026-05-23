@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace Traits;
@@ -6,7 +7,7 @@ public class Program
 {
     private static void PrintItem(Printable item)
     {
-        Console.WriteLine($"Name: {item.Name}, Id: {item.Id}");
+        System.Console.WriteLine($"Name: {item.Name}, Id: {item.Id}");
     }
 
     public static void Main(string[] args)

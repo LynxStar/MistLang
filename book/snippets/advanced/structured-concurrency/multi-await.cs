@@ -1,19 +1,26 @@
 using System;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
-async Task<int> ExpensiveComputation()
+namespace Standard;
+
+public class Optional<T>
 {
-    Console.WriteLine("Computing...");
-    return 42;
-}
+    private T value;
 
-async Task Main()
-{
-    var task = ExpensiveComputation();
+    private bool hasValue;
 
-    // Await the same task multiple times
-    var first = await task;   // suspends until complete, returns 42
-    var second = await task;  // already complete, returns 42 immediately
+    public Optional()
+    {
+        hasValue = false;
+    }
 
-    Console.WriteLine(first == second);  // true
+    public Optional(T value)
+    {
+        this.value = value;
+        this.hasValue = true;
+    }
+
+    public bool HasValue => hasValue;
+
+    public T Value => value;
 }

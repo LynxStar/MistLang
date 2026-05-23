@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace Demo;
@@ -12,7 +13,7 @@ public class Program
             {
                 break;
             }
-            Console.WriteLine($"i = {i}");
+            System.Console.WriteLine($"i = {i}");
         }
     }
 

@@ -1,3 +1,5 @@
+using System;
+
 namespace Snippet;
 
 public readonly struct Vector2

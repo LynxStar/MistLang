@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace ContextDemo;
@@ -24,9 +25,9 @@ public class Program
         MistContext.Push<string>(greeting);
         try
         {
-            Console.WriteLine(greeting);
+            System.Console.WriteLine(greeting);
             var result = Greeter.GetGreeting();
-            Console.WriteLine(result);
+            System.Console.WriteLine(result);
         }
         finally
         {

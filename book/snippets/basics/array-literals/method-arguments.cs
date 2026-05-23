@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace Demo;
@@ -8,7 +9,7 @@ public class Program
     {
         foreach (int item in items)
         {
-            Console.WriteLine(item);
+            System.Console.WriteLine(item);
         }
     }
 

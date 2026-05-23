@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace DefaultDemo;
@@ -9,7 +10,7 @@ public class Program
         int i = default(int);
         bool b = default(bool);
         string s = "";
-        Console.WriteLine($"int={i} bool={b} string={s}");
+        System.Console.WriteLine($"int={i} bool={b} string={s}");
     }
 
     public static Program __CreateDefault()

@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace DefaultDemo;
@@ -33,8 +34,8 @@ public class Program
     {
         var c1 = new Container();
         Container c2 = Container.__CreateDefault();
-        Console.WriteLine($"new Container() = Code={c1.Code}, Label={c1.Label}");
-        Console.WriteLine($"default(Container) = Code={c2.Code}, Label={c2.Label}");
+        System.Console.WriteLine($"new Container() = Code={c1.Code}, Label={c1.Label}");
+        System.Console.WriteLine($"default(Container) = Code={c2.Code}, Label={c2.Label}");
     }
 
     public static Program __CreateDefault()

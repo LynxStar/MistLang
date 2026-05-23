@@ -1,3 +1,5 @@
+using System;
+
 var message = "Hello from Mist!";
 var total = 0;
 var origin = new Point(0, 0);

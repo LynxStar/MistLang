@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace ContextDemo;
@@ -24,17 +25,17 @@ public class Program
         MistContext.Push<int>(count);
         try
         {
-            Console.WriteLine(Consumers.GetInt());
+            System.Console.WriteLine(Consumers.GetInt());
             MistContext.Push<int>(99);
             try
             {
-                Console.WriteLine(Consumers.GetInt());
+                System.Console.WriteLine(Consumers.GetInt());
             }
             finally
             {
                 MistContext.Pop<int>();
             }
-            Console.WriteLine(Consumers.GetInt());
+            System.Console.WriteLine(Consumers.GetInt());
         }
         finally
         {

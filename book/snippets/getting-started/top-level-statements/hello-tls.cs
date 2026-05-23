@@ -1,5 +1,6 @@
+using Standard;
 using System;
 
-Console.WriteLine("Hello from top-level statements!");
+System.Console.WriteLine("Hello from top-level statements!");
 var name = "Mist";
-Console.WriteLine($"Welcome to {name}.");
+System.Console.WriteLine($"Welcome to {name}.");

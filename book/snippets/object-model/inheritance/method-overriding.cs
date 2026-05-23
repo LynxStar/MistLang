@@ -1,3 +1,5 @@
+using System;
+
 namespace Snippet;
 
 public class Dog : Animal

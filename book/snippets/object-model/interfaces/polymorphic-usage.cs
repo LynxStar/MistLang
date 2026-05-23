@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace Interfaces;
@@ -6,7 +7,7 @@ public class Program
 {
     private static void PrintDescription(IDescribable item)
     {
-        Console.WriteLine(item.Describe());
+        System.Console.WriteLine(item.Describe());
     }
 
     public static void Main(string[] args)

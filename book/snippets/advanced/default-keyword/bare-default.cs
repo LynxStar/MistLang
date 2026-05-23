@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace DefaultDemo;
@@ -28,7 +29,7 @@ public class Program
     public static void Main(string[] args)
     {
         Config inferred = Config.__CreateDefault();
-        Console.WriteLine($"MaxRetries={inferred.MaxRetries} Verbose={inferred.Verbose} Label={inferred.Label}");
+        System.Console.WriteLine($"MaxRetries={inferred.MaxRetries} Verbose={inferred.Verbose} Label={inferred.Label}");
     }
 
     public static Program __CreateDefault()

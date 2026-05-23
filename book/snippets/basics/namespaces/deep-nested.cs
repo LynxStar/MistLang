@@ -1,6 +1,7 @@
+using Standard;
 using System;
 
-namespace Namespaces.Models.Game;
+namespace Snippet;
 
 public class GameState
 {

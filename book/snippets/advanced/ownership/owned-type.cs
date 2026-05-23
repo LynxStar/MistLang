@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace OwnershipSystem;
@@ -47,7 +48,7 @@ public class OwnedTypeDemo
     {
         UniqueHandle h = new UniqueHandle(42);
         h.Touch();
-        Console.WriteLine($"handle={h.Describe()}");
+        System.Console.WriteLine($"handle={h.Describe()}");
     }
 
     public static OwnedTypeDemo __CreateDefault()

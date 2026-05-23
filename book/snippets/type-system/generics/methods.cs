@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace GenericTypes;
@@ -11,7 +12,7 @@ public class Utilities
 
     public static void PrintItem<T>(T item)
     {
-        Console.WriteLine($"Item: {item}");
+        System.Console.WriteLine($"Item: {item}");
     }
 
     public static Utilities __CreateDefault()

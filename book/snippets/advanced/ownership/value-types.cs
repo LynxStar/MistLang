@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace OwnershipSystem;
@@ -31,22 +32,22 @@ public class ValueTypeDemo
 {
     public static void AcceptReadonly(ref readonly Vec2 v)
     {
-        Console.WriteLine($"readonly ref vec={v.Describe()}");
+        System.Console.WriteLine($"readonly ref vec={v.Describe()}");
     }
 
     public static void AcceptFrozen(Vec2 v)
     {
-        Console.WriteLine($"frozen vec={v.Describe()}");
+        System.Console.WriteLine($"frozen vec={v.Describe()}");
     }
 
     public static void AcceptBorrowed(Vec2 v)
     {
-        Console.WriteLine($"borrowed vec={v.Describe()}");
+        System.Console.WriteLine($"borrowed vec={v.Describe()}");
     }
 
     public static void AcceptOwned(Vec2 v)
     {
-        Console.WriteLine($"owned vec={v.Describe()}");
+        System.Console.WriteLine($"owned vec={v.Describe()}");
     }
 
     public static void Run()
@@ -56,7 +57,7 @@ public class ValueTypeDemo
         AcceptFrozen(v);
         AcceptBorrowed(v);
         AcceptOwned(v);
-        Console.WriteLine($"original after all passes={v.Describe()}");
+        System.Console.WriteLine($"original after all passes={v.Describe()}");
     }
 
     public static ValueTypeDemo __CreateDefault()

@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace ContextDemo;
@@ -38,7 +39,7 @@ public class Program
         try
         {
             var result = Intermediary.Forward();
-            Console.WriteLine(result);
+            System.Console.WriteLine(result);
         }
         finally
         {

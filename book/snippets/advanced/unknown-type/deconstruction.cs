@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace UnknownDemo;
@@ -8,10 +9,10 @@ public class Program
     {
         (int, object) source = (7, "seven");
         var (num, data) = source;
-        Console.WriteLine($"num={num}");
+        System.Console.WriteLine($"num={num}");
         if (data is string ds)
         {
-            Console.WriteLine($"data narrowed to string: {ds}");
+            System.Console.WriteLine($"data narrowed to string: {ds}");
         }
     }
 

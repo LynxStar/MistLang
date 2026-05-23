@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace ContextDemo;
@@ -44,9 +45,9 @@ public class Program
         MistContext.Push<Config>(cfg);
         try
         {
-            Console.WriteLine(cfg.Value);
+            System.Console.WriteLine(cfg.Value);
             var result = Consumers.GetConfig();
-            Console.WriteLine(result);
+            System.Console.WriteLine(result);
         }
         finally
         {

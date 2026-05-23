@@ -1,24 +1,26 @@
 using System;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
-async Task<string> FetchData()
+namespace Standard;
+
+public class Optional<T>
 {
-    return "data";
-}
+    private T value;
 
-async Task SendNotification()
-{
-    Console.WriteLine("Notification sent");
-}
+    private bool hasValue;
 
-// Discarded tasks are awaited at scope exit
-async Task ProcessAll()
-{
-    var __task_0 = FetchData();        // discarded — not awaited
-    var __task_1 = SendNotification(); // discarded — not awaited
+    public Optional()
+    {
+        hasValue = false;
+    }
 
-    Console.WriteLine("Processing...");
+    public Optional(T value)
+    {
+        this.value = value;
+        this.hasValue = true;
+    }
 
-    // Compiler inserts this at scope exit:
-    await Task.WhenAll(__task_0, __task_1);
+    public bool HasValue => hasValue;
+
+    public T Value => value;
 }

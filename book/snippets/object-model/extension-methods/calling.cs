@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace ExtensionMethods;
@@ -10,8 +11,8 @@ public class Program
         var wc = greeting.WordCount();
         var upper = greeting.Uppercase();
         var repeated = greeting.Repeat(2);
-        Console.WriteLine(wc);
-        Console.WriteLine(upper);
+        System.Console.WriteLine(wc);
+        System.Console.WriteLine(upper);
     }
 
     public static Program __CreateDefault()

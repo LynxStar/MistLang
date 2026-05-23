@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace OwnershipSystem;
@@ -39,7 +40,7 @@ public class UnrestrictedDemo
         var c1 = new Counter(10);
         var c2 = c1;
         c2.Increment();
-        Console.WriteLine($"c1={c1.Describe()}, c2={c2.Describe()}");
+        System.Console.WriteLine($"c1={c1.Describe()}, c2={c2.Describe()}");
     }
 
     public static UnrestrictedDemo __CreateDefault()

@@ -1,22 +1,28 @@
+using Standard;
 using System;
-using System.Threading.Tasks;
+
+namespace Snippet;
 
 public class DataService
 {
-    // int becomes Task<int> in C#
-    async Task<int> FetchCount()
+    async System.Threading.Tasks.Task<int> FetchCount()
     {
         return 42;
     }
 
-    // void becomes Task in C#
-    async Task LogMessage(string message)
+    async System.Threading.Tasks.Task LogMessage(string message)
     {
-        Console.WriteLine(message);
+        System.Console.WriteLine(message);
     }
 
-    public static async Task<string> GetName()
+    public static async System.Threading.Tasks.Task<string> GetName()
     {
         return "Mist";
+    }
+
+    public static DataService __CreateDefault()
+    {
+        var inst = new DataService();
+        return inst;
     }
 }

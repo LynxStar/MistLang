@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace DefaultDemo;
@@ -29,7 +30,7 @@ public class Program
     public static void Main(string[] args)
     {
         AppState state = AppState.__CreateDefault();
-        Console.WriteLine($"ErrorCount={state.ErrorCount} Ready={state.Ready} Status={state.Status}");
+        System.Console.WriteLine($"ErrorCount={state.ErrorCount} Ready={state.Ready} Status={state.Status}");
     }
 
     public static Program __CreateDefault()

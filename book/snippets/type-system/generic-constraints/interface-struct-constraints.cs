@@ -1,3 +1,5 @@
+using System;
+
 namespace Snippet;
 
 interface IRepository<T>

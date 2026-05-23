@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace ScopingDemo;
@@ -28,8 +29,8 @@ public class Outer
 
     public static void Demo()
     {
-        Console.WriteLine(Inner.Hello());
-        Console.WriteLine($"Status.Active = {Status.Active}");
+        System.Console.WriteLine(Inner.Hello());
+        System.Console.WriteLine($"Status.Active = {Status.Active}");
     }
 
     public static Outer __CreateDefault()
@@ -42,7 +43,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        Console.WriteLine(Outer.Inner.Hello());
+        System.Console.WriteLine(Outer.Inner.Hello());
         Outer.Demo();
     }
 

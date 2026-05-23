@@ -1,22 +1,26 @@
 using System;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
-async Task<int> FetchData()
+namespace Standard;
+
+public class Optional<T>
 {
-    return 100;
-}
+    private T value;
 
-async Task<string> FormatData(int value)
-{
-    return $"Value: {value}";
-}
+    private bool hasValue;
 
-// Sync method in Mist becomes async in C# due to auto-unwrap
-async Task Main()
-{
-    // Compiler inserts await for each async call
-    var result = await FetchData();           // result: int
-    var formatted = await FormatData(result); // formatted: string
+    public Optional()
+    {
+        hasValue = false;
+    }
 
-    Console.WriteLine(formatted);  // "Value: 100"
+    public Optional(T value)
+    {
+        this.value = value;
+        this.hasValue = true;
+    }
+
+    public bool HasValue => hasValue;
+
+    public T Value => value;
 }

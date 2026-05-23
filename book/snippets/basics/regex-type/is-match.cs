@@ -1,3 +1,4 @@
+using System;
 using System.Text.RegularExpressions;
 
 var wordPattern = new System.Text.RegularExpressions.Regex("\\bcat\\b", System.Text.RegularExpressions.RegexOptions.Compiled);

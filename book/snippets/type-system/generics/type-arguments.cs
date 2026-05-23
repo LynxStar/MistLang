@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace GenericTypes;
@@ -7,11 +8,11 @@ public class Program
     public static void Main(string[] args)
     {
         var box = new GenericBox<int>(42);
-        Console.WriteLine(box.GetItem());
+        System.Console.WriteLine(box.GetItem());
         var result = Utilities.Identity<string>("hello");
-        Console.WriteLine(result);
+        System.Console.WriteLine(result);
         IGenericContainer<int> container = new GenericBox<int>(99);
-        Console.WriteLine(container.GetItem());
+        System.Console.WriteLine(container.GetItem());
     }
 
     public static Program __CreateDefault()

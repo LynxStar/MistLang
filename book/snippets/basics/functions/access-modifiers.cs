@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace Demo;
@@ -30,7 +31,7 @@ public class Account
     {
         var acct = new Account(100);
         acct.Deposit(50);
-        Console.WriteLine($"Balance: {acct.GetBalance()}");
+        System.Console.WriteLine($"Balance: {acct.GetBalance()}");
     }
 
     protected Account()

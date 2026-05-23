@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace Demo;
@@ -12,7 +13,7 @@ public class Program
     public static void Main(string[] args)
     {
         int[] values = GetDefaults();
-        Console.WriteLine($"Count: {values.Length}");
+        System.Console.WriteLine($"Count: {values.Length}");
     }
 
     public static Program __CreateDefault()

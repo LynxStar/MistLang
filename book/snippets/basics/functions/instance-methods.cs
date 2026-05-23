@@ -1,3 +1,4 @@
+using Standard;
 using System;
 
 namespace Demo;
@@ -27,9 +28,9 @@ public class Point
     public static void Main(string[] args)
     {
         var p = new Point(3, 4);
-        Console.WriteLine(p.Describe());
+        System.Console.WriteLine(p.Describe());
         var moved = p.Translate(10, 20);
-        Console.WriteLine(moved.Describe());
+        System.Console.WriteLine(moved.Describe());
     }
 
     protected Point()

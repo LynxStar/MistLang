@@ -1,6 +1,6 @@
 # Enums
 
-Enums in Mist define named constant sets with an underlying type. Unlike C# enums which are limited to integral types, Mist enums can have any readonly type as their underlying type — including strings, structs, classes, and even type unions. The compiler emits each enum as a `record class` with `public static readonly` fields for each member and an implicit conversion operator to the underlying type.
+Enums in Mist define named constant sets with an underlying type. Unlike C# enums which are limited to integral types, Mist enums can have any readonly type as their underlying type — including strings, structs, classes, and even type unions.
 
 ## Typed Enums
 
@@ -19,7 +19,7 @@ An enum with an explicit underlying type annotation declares the type after a co
 {{#endtab }}
 {{#endtabs }}
 
-The enum emits as a `record class` with a single `Value` property of the underlying type. Each member becomes a `public static readonly` field initialized with the specified value. The implicit operator allows assigning an enum value directly to a variable of the underlying type.
+Each member holds a value of the underlying type. An enum value implicitly converts to its underlying type, so you can assign an enum member directly to a variable of that type.
 
 ## Name-Only Enums
 
@@ -38,7 +38,7 @@ When no underlying type is specified and members have no explicit values, the en
 {{#endtab }}
 {{#endtabs }}
 
-Name-only enums are the simplest form — you list the member names and the compiler handles the rest. The auto-assigned values are sequential bytes starting at zero.
+Name-only enums are the simplest form — you list the member names and the compiler handles the rest.
 
 ## Mixed Explicit and Implicit Values
 
@@ -76,7 +76,7 @@ The underlying type can be a type union, allowing members to hold values of diff
 {{#endtab }}
 {{#endtabs }}
 
-When the underlying type is a union like `int | string`, the emitted `Value` property uses the compiler's discriminated union struct (`Union_Int32_String`). Each member's value is implicitly converted into the union type. We'll cover type unions in detail in the [Type Unions](../type-system/type-unions.md) chapter.
+Each member's value is implicitly converted into the union type. We'll cover type unions in detail in the [Type Unions](../type-system/type-unions.md) chapter.
 
 ## User-Defined Underlying Types
 
@@ -131,11 +131,11 @@ Enum values implicitly convert to their underlying type. You can assign an enum 
 {{#endtab }}
 {{#endtabs }}
 
-The implicit conversion operator emitted on the record class (`public static implicit operator T(EnumName e) => e.Value;`) makes this seamless. The enum value's `Value` property is extracted automatically wherever the underlying type is expected.
+The enum value's underlying value is extracted automatically wherever the underlying type is expected.
 
 ## Pattern Matching
 
-Enum values support pattern matching with the `is` keyword. The compiler emits an equality comparison against the enum member.
+Enum values support pattern matching with the `is` keyword.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -150,4 +150,4 @@ Enum values support pattern matching with the `is` keyword. The compiler emits a
 {{#endtab }}
 {{#endtabs }}
 
-In Mist, you write `d is Direction.North` to test if an enum variable matches a specific member. The compiler emits this as a value equality check (`d == Direction.North`) rather than C#'s `is` pattern, since enums are record classes with built-in equality semantics.
+You write `d is Direction.North` to test if an enum variable matches a specific member. This is an equality check — the enum's built-in equality semantics handle the comparison.

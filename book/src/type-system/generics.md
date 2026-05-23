@@ -74,6 +74,25 @@ A class implements a generic interface by specifying the concrete type argument 
 
 Because `GenericBox<T>` implements `IGenericContainer<T>`, you can assign a `GenericBox<int>` to a variable typed `IGenericContainer<int>` and call `GetItem()` through the interface.
 
+## Generic Traits
+
+Traits can declare type parameters with the same syntax. A type satisfies a generic trait when its members match the trait's signatures with the type parameter substituted.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/generics/traits.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/generics/traits.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+A class with `int CompareTo(int other)` structurally satisfies `Comparable<int>`. Multiple type parameters work the same as with classes and interfaces — `Converter<TIn, TOut>` requires both to be supplied at the satisfaction site.
+
 ## Generic Methods
 
 Methods can declare their own type parameters independently of the enclosing class. This is useful for utility methods that operate on arbitrary types without requiring the entire class to be generic.

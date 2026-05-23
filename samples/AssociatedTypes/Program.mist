@@ -335,6 +335,38 @@ class StringBoxFactory : IBoxFactory<string> {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pattern 12: Parameterized (higher-kinded) associated type slot
+// The slot `type Mapped<TOut> : ITransform<TIn, TOut>` is itself generic.
+// The implementor provides a generic nested type, and callers choose the type
+// argument at each usage site. The emitter erases the slot to its constraint
+// interface in the C# output since C# lacks higher-kinded types.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface ITransform<TIn, TOut> {
+    TOut Transform(TIn input);
+}
+
+interface IConverter<TIn> {
+    type Converted<TOut> : ITransform<TIn, TOut>;
+    Converted<string> ConvertToString(TIn input);
+    Converted<int> ConvertToInt(TIn input);
+}
+
+class IntConverter : IConverter<int> {
+    public class Converted<TOut> : ITransform<int, TOut> {
+        public TOut Value;
+        public Converted(TOut v) { Value = v; }
+        public TOut Transform(int input) { return Value; }
+    }
+    public Converted<string> ConvertToString(int input) {
+        return new Converted<string>($"converted-{input}");
+    }
+    public Converted<int> ConvertToInt(int input) {
+        return new Converted<int>(input * 10);
+    }
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 public class Program {
@@ -430,6 +462,14 @@ public class Program {
         var strFactory = new StringBoxFactory();
         var strBox = strFactory.Wrap("boxed");
         Console.WriteLine($"strBox.Unwrap()={strBox.Unwrap()}");
+
+        // 12. Parameterized (higher-kinded) slot — slot is itself generic
+        Console.WriteLine("--- Parameterized Slot ---");
+        var converter = new IntConverter();
+        var strResult = converter.ConvertToString(42);
+        Console.WriteLine($"strResult.Transform(0)={strResult.Transform(0)}");
+        var intResult = converter.ConvertToInt(7);
+        Console.WriteLine($"intResult.Transform(0)={intResult.Transform(0)}");
 
         Console.WriteLine("--- Associated Types Done ---");
     }

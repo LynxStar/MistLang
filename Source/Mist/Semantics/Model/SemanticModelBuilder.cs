@@ -5031,6 +5031,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             InterfaceType it => it.TypeParameters,
             TraitType tt => tt.TypeParameters,
             TypeAliasType at => at.TypeParameters,
+            AssociatedTypeSlotType slot => slot.TypeParameters,
             _ => Array.Empty<IType>(),
         };
     }
@@ -5048,6 +5049,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             InterfaceType it => it.MemberScope,
             TraitType tt => tt.MemberScope,
             NewtypeType nt => nt.MemberScope,
+            AssociatedTypeSlotType slot => slot.MemberScope,
             _ => null,
         };
     }
@@ -6544,11 +6546,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (namedRef.TypeArgs is not null && resolvedType is ClassType or InterfaceType or StructType)
                 {
                     // When resolving type arguments for a constraint on an associated type slot,
-                    // use the enclosing interface/trait as the declaring type so that its type
-                    // parameters (e.g., T in IProducer<T>) are visible during resolution.
-                    var effectiveDeclaringType = declaringSymbol.DeclaredType is AssociatedTypeSlotType slotWithParent
-                        ? slotWithParent.DeclaringType
-                        : declaringSymbol.DeclaredType ?? ErrorType.Instance;
+                    // use the slot type itself as the declaring type. The slot's member scope
+                    // contains its own type parameters (e.g., TOut in type Mapped<TOut>), and
+                    // its parent scope is the enclosing interface/trait's member scope which
+                    // contains the interface's type parameters (e.g., TIn in IMapper<TIn>).
+                    // Scope.Lookup walks parent scopes, so both are found.
+                    var effectiveDeclaringType = declaringSymbol.DeclaredType ?? ErrorType.Instance;
 
                     resolvedType = ResolveGenericTypeReference(
                         resolvedType, namedRef.TypeArgs, typeName,

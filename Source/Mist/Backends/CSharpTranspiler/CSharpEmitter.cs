@@ -339,6 +339,21 @@ internal sealed class CSharpSourceWriter
     /// constrained by interfaces or traits with associated type slots.
     /// </summary>
     private Dictionary<string, string>? _currentMethodSlotSubstitutions;
+
+    /// <summary>
+    /// Parameterized associated type slots for the current interface being emitted.
+    /// These slots have their own type parameters and cannot be lifted to C# type parameters.
+    /// Instead, references to them are erased to their constraint interface.
+    /// </summary>
+    private List<AssociatedTypeSlotType>? _currentParameterizedSlots;
+
+    /// <summary>
+    /// Maps interface type parameter names to their concrete type arguments for the
+    /// current implementor class. Used during parameterized slot erasure to substitute
+    /// e.g., TIn → int when emitting ITransform&lt;int, string&gt; instead of ITransform&lt;TIn, string&gt;.
+    /// </summary>
+    private Dictionary<string, string>? _currentInterfaceTypeParamSubs;
+
     private const string IndentUnit = "    ";
 
     /// <summary>
@@ -2641,6 +2656,77 @@ internal sealed class CSharpSourceWriter
             }
         }
 
+        // Collect parameterized associated type slots from implemented interfaces.
+        // These are needed so that method return types referencing the slot's nested type
+        // are erased to the constraint interface (matching the interface declaration).
+        var previousParameterizedSlotsForClass = _currentParameterizedSlots;
+        Dictionary<string, string>? interfaceTypeParamSubstitutions = null;
+        var previousInterfaceTypeParamSubs = _currentInterfaceTypeParamSubs;
+        if (symbol?.DeclaredType is ClassType classTypeForSlots)
+        {
+            var pSlots = new List<AssociatedTypeSlotType>();
+            var subs = new Dictionary<string, string>(StringComparer.Ordinal);
+
+            // Collect from semantic model interfaces.
+            foreach (var iface in classTypeForSlots.Interfaces)
+            {
+                var def = iface is ConstructedType ctIface ? ctIface.GenericDefinition : iface;
+                pSlots.AddRange(CollectAssociatedTypeSlotsFromType(def).Where(s => s.TypeParameters.Count > 0));
+
+                // Build substitutions from interface type params to concrete type args.
+                if (iface is ConstructedType constructed)
+                {
+                    var defType = constructed.GenericDefinition;
+                    var defTypeParams = GetTypeParametersFromType(defType);
+                    for (var i = 0; i < defTypeParams.Count && i < constructed.TypeArguments.Count; i++)
+                    {
+                        if (defTypeParams[i] is TypeParameterType tpt)
+                        {
+                            subs[tpt.Name] = CSharpTypeMap.GetTypeName(constructed.TypeArguments[i]);
+                        }
+                    }
+                }
+            }
+
+            // Also check the AST base list for interfaces not yet in the semantic model.
+            if (pSlots.Count == 0 && classDecl.BaseList is not null)
+            {
+                // Try to find parameterized slots by looking up interface symbols by name.
+                var allEntries = new List<BaseTypeRefNode> { classDecl.BaseList.First };
+                allEntries.AddRange(classDecl.BaseList.BaseTypeRefs);
+                foreach (var entry in allEntries)
+                {
+                    var ifaceName = entry.Name.Lexeme;
+                    var ifaceSymbol = _model.AllSymbols
+                        .FirstOrDefault(s => s.Name == ifaceName && s.DeclaredType is InterfaceType);
+                    if (ifaceSymbol?.DeclaredType is InterfaceType ifaceType)
+                    {
+                        var slots = CollectAssociatedTypeSlotsFromType(ifaceType);
+                        pSlots.AddRange(slots.Where(s => s.TypeParameters.Count > 0));
+
+                        // Build type param substitutions from the AST type arguments.
+                        if (entry.TypeArgs is not null)
+                        {
+                            var ifaceTypeParams = ifaceType.TypeParameters;
+                            var argNodes = new List<TypeArgumentNode> { entry.TypeArgs.TypeArgument };
+                            argNodes.AddRange(entry.TypeArgs.TypeArguments);
+                            for (var i = 0; i < ifaceTypeParams.Count && i < argNodes.Count; i++)
+                            {
+                                if (ifaceTypeParams[i] is TypeParameterType tpt)
+                                {
+                                    subs[tpt.Name] = EmitSingleTypeArgument(argNodes[i]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            _currentParameterizedSlots = pSlots.Count > 0 ? pSlots : null;
+            interfaceTypeParamSubstitutions = subs.Count > 0 ? subs : null;
+        }
+        _currentInterfaceTypeParamSubs = interfaceTypeParamSubstitutions;
+
         // Emit every member in declaration order. No name-based grouping or
         // deduplication is performed, so overloaded methods and constructors
         // are each emitted as separate C# declarations.
@@ -2655,6 +2741,8 @@ internal sealed class CSharpSourceWriter
 
         // Clear class-level factory tracking after emitting all members.
         _currentClassFactoryTypeParams = null;
+        _currentParameterizedSlots = previousParameterizedSlotsForClass;
+        _currentInterfaceTypeParamSubs = previousInterfaceTypeParamSubs;
 
         // Emit explicit interface implementations for with-mapped trait members.
         if (symbol?.DeclaredType is ClassType classTypeForTraits)
@@ -2746,11 +2834,16 @@ internal sealed class CSharpSourceWriter
         // Collect associated type slots from the interface's member scope.
         // Each slot becomes a synthesized type parameter (T + slot name) on
         // the emitted C# interface, since C# cannot declare abstract nested types.
+        // Parameterized slots (those with their own type parameters) cannot be lifted
+        // to type parameters because C# doesn't support higher-kinded types. Instead,
+        // they are erased to their constraint interface in method signatures.
         var interfaceSymbol = _model.GetDeclaredSymbol(interfaceDecl);
-        var associatedTypeSlots = CollectAssociatedTypeSlots(interfaceSymbol);
+        var allAssociatedTypeSlots = CollectAssociatedTypeSlots(interfaceSymbol);
+        var associatedTypeSlots = allAssociatedTypeSlots.Where(s => s.TypeParameters.Count == 0).ToList();
+        var parameterizedSlots = allAssociatedTypeSlots.Where(s => s.TypeParameters.Count > 0).ToList();
         var slotSubstitutions = BuildAssociatedTypeSubstitutions(associatedTypeSlots);
 
-        // Append synthesized type parameters for associated type slots.
+        // Append synthesized type parameters for non-parameterized associated type slots.
         if (associatedTypeSlots.Count > 0)
         {
             var synthesizedParams = string.Join(", ", associatedTypeSlots.Select(s => $"T{s.DisplayName}"));
@@ -2764,6 +2857,10 @@ internal sealed class CSharpSourceWriter
         {
             EmitDependentTypeAttributes(interfaceTypeForAttrs.TypeParameters);
         }
+        // Set parameterized slots for the duration of interface emission so that
+        // EmitTypeReferenceWithSubstitution can erase them to constraint interfaces.
+        var previousParameterizedSlots = _currentParameterizedSlots;
+        _currentParameterizedSlots = parameterizedSlots.Count > 0 ? parameterizedSlots : null;
         AppendLine($"interface {name}{typeParams}{interfaceList}");
         // Emit constraint clauses (where T : ...) for constrained type parameters.
         if (interfaceSymbol?.DeclaredType is InterfaceType interfaceTypeForConstraints)
@@ -2795,6 +2892,7 @@ internal sealed class CSharpSourceWriter
 
         _indentLevel--;
         AppendLine("}");
+        _currentParameterizedSlots = previousParameterizedSlots;
     }
 
     private void EmitInterfaceMethodDeclaration(InterfaceMethodDeclarationNode methodDecl, Dictionary<string, string>? slotSubstitutions = null)
@@ -3182,6 +3280,20 @@ internal sealed class CSharpSourceWriter
             {
                 // Type parameter substituted with concrete type.
                 return namedRef.ArrayRank is not null ? $"{substituted}[]" : substituted;
+            }
+
+            // Check if this is a parameterized associated type slot that should be
+            // erased to its constraint interface. For example, `Mapped<string>` where
+            // `type Mapped<TOut> : ITransform<TIn, TOut>` becomes `ITransform<TIn, string>`.
+            if (_currentParameterizedSlots is not null && namedRef.TypeArgs is not null)
+            {
+                var matchingSlot = _currentParameterizedSlots.FirstOrDefault(s => s.DisplayName == name);
+                if (matchingSlot is not null)
+                {
+                    var erasedType = EraseParameterizedSlotToConstraint(matchingSlot, namedRef.TypeArgs, substitutions);
+                    if (erasedType is not null)
+                        return namedRef.ArrayRank is not null ? $"{erasedType}[]" : erasedType;
+                }
             }
 
             // The name extraction may have failed because the node is from a
@@ -5851,6 +5963,13 @@ internal sealed class CSharpSourceWriter
                 // in a generic context), emit the synthesized type parameter name.
                 if (resolvedType is AssociatedTypeSlotType resolvedSlot)
                 {
+                    // Check if this is a parameterized slot — erase to constraint interface.
+                    if (resolvedSlot.TypeParameters.Count > 0 && namedRef.TypeArgs is not null)
+                    {
+                        var erasedType = EraseParameterizedSlotToConstraint(resolvedSlot, namedRef.TypeArgs, _currentInterfaceTypeParamSubs);
+                        if (erasedType is not null)
+                            return namedRef.ArrayRank is not null ? $"{erasedType}[]" : erasedType;
+                    }
                     // Use the active method-level substitution if available.
                     if (_currentMethodSlotSubstitutions is not null
                         && _currentMethodSlotSubstitutions.TryGetValue(name, out var synthesizedName))
@@ -5860,6 +5979,20 @@ internal sealed class CSharpSourceWriter
                     // Fallback: use T + slot display name.
                     var fallbackName = $"T{resolvedSlot.DisplayName}";
                     return namedRef.ArrayRank is not null ? $"{fallbackName}[]" : fallbackName;
+                }
+                // ── Parameterized slot erasure for implementor methods ──
+                // When inside a class implementing an interface with parameterized slots,
+                // a return type like Mapped<string> (the concrete nested class) must be
+                // erased to the constraint interface to match the interface declaration.
+                if (_currentParameterizedSlots is not null && namedRef.TypeArgs is not null)
+                {
+                    var matchingSlot = _currentParameterizedSlots.FirstOrDefault(s => s.DisplayName == name);
+                    if (matchingSlot is not null)
+                    {
+                        var erasedType = EraseParameterizedSlotToConstraint(matchingSlot, namedRef.TypeArgs, _currentInterfaceTypeParamSubs);
+                        if (erasedType is not null)
+                            return namedRef.ArrayRank is not null ? $"{erasedType}[]" : erasedType;
+                    }
                 }
                 if (resolvedType is TypeAliasType aliasFromExprMap)
                 {
@@ -10198,6 +10331,101 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
+    /// Erases a parameterized associated type slot reference to its first interface constraint.
+    /// For example, <c>Mapped&lt;string&gt;</c> where <c>type Mapped&lt;TOut&gt; : ITransform&lt;TIn, TOut&gt;</c>
+    /// becomes <c>ITransform&lt;TIn, string&gt;</c>. The slot's own type parameters are substituted
+    /// with the provided type arguments from the usage site.
+    /// </summary>
+    private string? EraseParameterizedSlotToConstraint(
+        AssociatedTypeSlotType slot,
+        TypeArgumentListNode usageTypeArgs,
+        Dictionary<string, string>? substitutions)
+    {
+        var constraints = slot.Constraints;
+        if (constraints is null) return null;
+
+        // Use the first interface constraint as the erasure target.
+        IType? constraintType = constraints.InterfaceConstraints.Count > 0
+            ? constraints.InterfaceConstraints[0]
+            : constraints.TraitConstraints.Count > 0
+                ? constraints.TraitConstraints[0]
+                : null;
+
+        if (constraintType is null) return null;
+
+        // Build the erased type by substituting type parameters in the constraint.
+        // The constraint may be a ConstructedType like ITransform<TIn, TOut>.
+        // We need to replace:
+        //   - The slot's own type params (TOut) with the usage-site type args (string)
+        //   - The interface's type params (TIn) with their concrete values (int)
+
+        // Collect slot type param names → usage args mapping.
+        var slotTypeParams = slot.TypeParameters;
+        var usageArgs = new List<string>();
+        usageArgs.Add(EmitSingleTypeArgument(usageTypeArgs.TypeArgument));
+        foreach (var arg in usageTypeArgs.TypeArguments)
+            usageArgs.Add(EmitSingleTypeArgument(arg));
+
+        // Apply substitutions to the usage args (in case they reference interface type params).
+        if (substitutions is not null)
+        {
+            for (var i = 0; i < usageArgs.Count; i++)
+            {
+                if (substitutions.TryGetValue(usageArgs[i], out var sub))
+                    usageArgs[i] = sub;
+            }
+        }
+
+        // Build slot param name → usage arg mapping.
+        var slotParamMap = new Dictionary<string, string>(StringComparer.Ordinal);
+        for (var i = 0; i < slotTypeParams.Count && i < usageArgs.Count; i++)
+        {
+            var paramName = slotTypeParams[i] is TypeParameterType tpt ? tpt.Name : slotTypeParams[i].DisplayName;
+            slotParamMap[paramName] = usageArgs[i];
+        }
+
+        // Now build the erased type name by resolving the constraint type's structure.
+        return BuildErasedConstraintTypeName(constraintType, slotParamMap, substitutions);
+    }
+
+    /// <summary>
+    /// Builds the C# type name for a constraint type, substituting type parameters
+    /// with their concrete values from the slot and interface mappings.
+    /// </summary>
+    private string BuildErasedConstraintTypeName(
+        IType constraintType,
+        Dictionary<string, string> slotParamMap,
+        Dictionary<string, string>? interfaceParamMap)
+    {
+        if (constraintType is ConstructedType ct)
+        {
+            var baseName = ct.GenericDefinition.DisplayName;
+            var args = new List<string>();
+            foreach (var arg in ct.TypeArguments)
+            {
+                if (arg is TypeParameterType tpt)
+                {
+                    // Check slot params first, then interface params.
+                    if (slotParamMap.TryGetValue(tpt.Name, out var slotSub))
+                        args.Add(slotSub);
+                    else if (interfaceParamMap is not null && interfaceParamMap.TryGetValue(tpt.Name, out var ifaceSub))
+                        args.Add(ifaceSub);
+                    else
+                        args.Add(tpt.Name); // Keep as-is (for interface context)
+                }
+                else
+                {
+                    args.Add(CSharpTypeMap.GetTypeName(arg));
+                }
+            }
+            return $"{baseName}<{string.Join(", ", args)}>";
+        }
+
+        // Non-generic constraint type — just use its name.
+        return CSharpTypeMap.GetTypeName(constraintType);
+    }
+
+    /// <summary>
     /// Emits a parameter list with associated type slot name substitution applied.
     /// </summary>
     private string EmitParameterListWithSubstitution(ParameterListNode? paramList, Dictionary<string, string> substitutions)
@@ -10239,6 +10467,9 @@ internal sealed class CSharpSourceWriter
 
         // Collect associated type slots from the resolved interface/trait.
         var slots = CollectAssociatedTypeSlotsFromType(resolvedType);
+        // Only non-parameterized slots are lifted to type parameters on the interface.
+        // Parameterized slots are erased to their constraint interface and not appended.
+        slots = slots.Where(s => s.TypeParameters.Count == 0).ToList();
         if (slots.Count == 0)
             return baseName + EmitTypeArgumentList(baseTypeRef.TypeArgs);
 
@@ -10337,7 +10568,9 @@ internal sealed class CSharpSourceWriter
         var definition = iface is ConstructedType ct ? ct.GenericDefinition : iface;
 
         // Collect associated type slots from the definition.
-        var slots = CollectAssociatedTypeSlotsFromType(definition);
+        // Only non-parameterized slots are lifted to type parameters.
+        var slots = CollectAssociatedTypeSlotsFromType(definition)
+            .Where(s => s.TypeParameters.Count == 0).ToList();
         if (slots.Count == 0)
             return CSharpTypeMap.GetTypeName(iface);
 

@@ -1200,5 +1200,8 @@ writer.BufferSize=4096
 --- Type Param In Slot Constraint ---
 intBox.Unwrap()=42
 strBox.Unwrap()=boxed
+--- Parameterized Slot ---
+strResult.Transform(0)=converted-42
+intResult.Transform(0)=70
 --- Associated Types Done ---
 === Done! ===

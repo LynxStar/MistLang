@@ -135,6 +135,74 @@ A static field is shared across all instances of a class. It's declared with the
 
 Here `totalCreated` is a static field incremented by each constructor call. Both `a` and `b` share the same `totalCreated` — after creating two instances, `GetTotalCreated()` returns `2`.
 
+## Method Overloading
+
+Method overloading lets you define multiple methods with the same name in a single class, as long as their parameter lists differ. The compiler distinguishes overloads by the number of parameters (arity) or by their types.
+
+### Overloading by Parameter Count
+
+Two or more methods can share a name if they accept different numbers of parameters:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/object-model/method-overloading/by-count.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/object-model/method-overloading/by-count.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Constructor overloading works the same way:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/object-model/method-overloading/constructor-overloading.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/object-model/method-overloading/constructor-overloading.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+### Overloading by Parameter Type
+
+Methods can share a name and the same number of parameters if the parameter types differ:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/object-model/method-overloading/by-type.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/object-model/method-overloading/by-type.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Both methods are named `Add` and both take two parameters, but one accepts `int` and the other `double`. The compiler resolves the call based on the argument types.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/object-model/method-overloading/instance-type-overloads.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/object-model/method-overloading/instance-type-overloads.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
 ## Access Modifiers
 
 Mist supports `public` and `private` access modifiers on class members. A `public` member is accessible from any code that has a reference to the object. A `private` member is only accessible within the declaring class.

@@ -30,7 +30,6 @@
 - [Interfaces](object-model/interfaces.md)
 - [Traits](object-model/traits.md)
 - [Enums](object-model/enums.md)
-- [Method Overloading](object-model/method-overloading.md)
 - [Extension Methods](object-model/extension-methods.md)
 
 # Type System

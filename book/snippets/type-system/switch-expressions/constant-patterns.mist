@@ -3,7 +3,8 @@ public class Program
     public static void Main(string[] args)
     {
         int day = 3;
-        var dayName = day switch {
+        var dayName = day switch
+        {
             1 => "Monday",
             2 => "Tuesday",
             3 => "Wednesday",
@@ -14,7 +15,8 @@ public class Program
         Console.WriteLine($"Day {day} is {dayName}");
 
         string command = "quit";
-        var response = command switch {
+        var response = command switch
+        {
             "start" => "Starting...",
             "stop" => "Stopping...",
             "quit" => "Goodbye!",
@@ -23,7 +25,8 @@ public class Program
         Console.WriteLine($"Command '{command}' => {response}");
 
         bool isActive = true;
-        var status = isActive switch {
+        var status = isActive switch
+        {
             true => "Active",
             false => "Inactive",
         };

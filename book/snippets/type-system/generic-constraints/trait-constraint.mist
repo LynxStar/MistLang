@@ -1,13 +1,17 @@
-trait Describable {
+trait Describable
+{
     string Describe();
 }
 
-class Describer<T> where T : Describable {
+class Describer<T> where T : Describable
+{
     public T Item;
-    public Describer(T item) {
+    public Describer(T item)
+    {
         Item = item;
     }
-    public string GetDescription() {
+    public string GetDescription()
+    {
         return Item.Describe();
     }
 }

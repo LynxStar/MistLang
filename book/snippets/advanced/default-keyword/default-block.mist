@@ -4,7 +4,8 @@ public class AppState
     public bool Ready;
     public string Status;
 
-    default {
+    default
+    {
         ErrorCount = 5
         Ready = true
         Status = "initialized"

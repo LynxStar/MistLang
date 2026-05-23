@@ -9,7 +9,8 @@ public readonly struct Container
         this.Label = "constructed";
     }
 
-    default {
+    default
+    {
         Code = 42
         Label = "defaulted"
     }

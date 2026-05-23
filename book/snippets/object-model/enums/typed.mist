@@ -1,4 +1,5 @@
-public enum Direction : string {
+public enum Direction : string
+{
     North: "N",
     South: "S",
     East: "E",

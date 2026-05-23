@@ -1,25 +1,32 @@
-interface IIterator {
+interface IIterator
+{
     type Cursor : struct;
 
     Cursor CreateCursor(int pos);
 }
 
-class RangeIterator : IIterator {
-    public struct Cursor {
+class RangeIterator : IIterator
+{
+    public struct Cursor
+    {
         public int Position;
 
-        public Cursor(int pos) {
+        public Cursor(int pos)
+        {
             Position = pos;
         }
     }
 
-    public Cursor CreateCursor(int pos) {
+    public Cursor CreateCursor(int pos)
+    {
         return new Cursor(pos);
     }
 }
 
-public class Program {
-    public static void Main(string[] args) {
+public class Program
+{
+    public static void Main(string[] args)
+    {
         var iter = new RangeIterator();
         var cursor = iter.CreateCursor(42);
         Console.WriteLine($"cursor.Position={cursor.Position}");

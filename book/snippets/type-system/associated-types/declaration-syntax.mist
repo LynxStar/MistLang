@@ -1,8 +1,10 @@
-interface IStringable {
+interface IStringable
+{
     string Stringify();
 }
 
-interface IProducer {
+interface IProducer
+{
     type Output : IStringable;
 
     Output CreateOutput(string msg);

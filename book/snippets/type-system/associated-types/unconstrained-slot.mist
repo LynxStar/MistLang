@@ -1,4 +1,5 @@
-interface Container {
+interface Container
+{
     type Element;
 
     Element Get(int index);

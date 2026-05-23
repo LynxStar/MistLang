@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace ReadonlyContexts;
+namespace Snippet;
 
 public class ReadonlyBlockDemo
 {

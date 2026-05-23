@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace EnumDemo;
+namespace Snippet;
 
 public class Program
 {
@@ -10,13 +9,13 @@ public class Program
         Direction d = Direction.North;
         bool isNorth = d is Direction.North;
         bool isSouth = d is Direction.South;
-        System.Console.WriteLine($"d is Direction.North = {isNorth}");
-        System.Console.WriteLine($"d is Direction.South = {isSouth}");
+        Console.WriteLine($"d is Direction.North = {isNorth}");
+        Console.WriteLine($"d is Direction.South = {isSouth}");
         Color c = Color.Green;
         bool isGreen = c is Color.Green;
         bool isRed = c is Color.Red;
-        System.Console.WriteLine($"c is Color.Green = {isGreen}");
-        System.Console.WriteLine($"c is Color.Red = {isRed}");
+        Console.WriteLine($"c is Color.Green = {isGreen}");
+        Console.WriteLine($"c is Color.Red = {isRed}");
     }
 
     public static Program __CreateDefault()

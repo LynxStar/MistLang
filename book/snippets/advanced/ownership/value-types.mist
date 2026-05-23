@@ -1,7 +1,3 @@
-using Standard;
-
-namespace OwnershipSystem;
-
 public struct Vec2
 {
     public int X;

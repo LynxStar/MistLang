@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace DependentTypes;
+namespace Snippet;
 
 interface ISized<TN>
     where TN : IConstInt

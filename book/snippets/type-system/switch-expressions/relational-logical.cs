@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace SwitchDemo;
+namespace Snippet;
 
 public class Program
 {
@@ -15,7 +14,7 @@ public class Program
             <= 80 => "Comfortable",
             var _ => "Hot",
         };
-        System.Console.WriteLine($"Temperature {temp} => {comfort}");
+        Console.WriteLine($"Temperature {temp} => {comfort}");
         int score = 85;
         var grade = score switch
         {
@@ -25,7 +24,7 @@ public class Program
             >= 60 and < 70 => "D",
             var _ => "F",
         };
-        System.Console.WriteLine($"Score {score} => Grade {grade}");
+        Console.WriteLine($"Score {score} => Grade {grade}");
     }
 
     public static Program __CreateDefault()

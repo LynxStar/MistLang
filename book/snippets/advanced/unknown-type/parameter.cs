@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace UnknownDemo;
+namespace Snippet;
 
 public class Program
 {
@@ -9,11 +8,11 @@ public class Program
     {
         if (value is int i)
         {
-            System.Console.WriteLine($"int: {i}");
+            Console.WriteLine($"int: {i}");
         }
         if (value is string s)
         {
-            System.Console.WriteLine($"string: {s}");
+            Console.WriteLine($"string: {s}");
         }
     }
 

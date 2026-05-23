@@ -1,7 +1,3 @@
-using Standard;
-
-namespace UnknownDemo;
-
 public class Greeter
 {
     public string Name;

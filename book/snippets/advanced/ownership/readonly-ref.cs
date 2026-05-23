@@ -1,14 +1,13 @@
-using Standard;
 using System;
 
-namespace OwnershipSystem;
+namespace Snippet;
 
 public class ReadonlyRefDemo
 {
     public static void ReadPair(ref readonly Pair p)
     {
         var sum = p.X + p.Y;
-        System.Console.WriteLine($"readonly ref sum={sum}");
+        Console.WriteLine($"readonly ref sum={sum}");
     }
 
     public static void Run()
@@ -16,7 +15,7 @@ public class ReadonlyRefDemo
         Pair p = new Pair(3, 7);
         ReadPair(p);
         p.SetX(100);
-        System.Console.WriteLine($"after readonly ref={p.Describe()}");
+        Console.WriteLine($"after readonly ref={p.Describe()}");
     }
 
     public static ReadonlyRefDemo __CreateDefault()

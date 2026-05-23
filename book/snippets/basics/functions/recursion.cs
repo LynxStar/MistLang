@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace Demo;
+namespace Snippet;
 
 public class Program
 {
@@ -16,8 +15,8 @@ public class Program
 
     public static void Main(string[] args)
     {
-        System.Console.WriteLine($"5! = {Factorial(5)}");
-        System.Console.WriteLine($"10! = {Factorial(10)}");
+        Console.WriteLine($"5! = {Factorial(5)}");
+        Console.WriteLine($"10! = {Factorial(10)}");
     }
 
     public static Program __CreateDefault()

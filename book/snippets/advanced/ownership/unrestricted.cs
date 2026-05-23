@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace OwnershipSystem;
+namespace Snippet;
 
 public class Counter
 {
@@ -40,7 +39,7 @@ public class UnrestrictedDemo
         var c1 = new Counter(10);
         var c2 = c1;
         c2.Increment();
-        System.Console.WriteLine($"c1={c1.Describe()}, c2={c2.Describe()}");
+        Console.WriteLine($"c1={c1.Describe()}, c2={c2.Describe()}");
     }
 
     public static UnrestrictedDemo __CreateDefault()

@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace RefParameters;
+namespace Snippet;
 
 public class Container
 {
@@ -38,9 +37,9 @@ public class Program
     public static void Main()
     {
         Container box = new Container(42);
-        System.Console.WriteLine($"before: {box.Describe()}");
+        Console.WriteLine($"before: {box.Describe()}");
         ReplaceContainer(ref box);
-        System.Console.WriteLine($"after: {box.Describe()}");
+        Console.WriteLine($"after: {box.Describe()}");
     }
 
     public static Program __CreateDefault()

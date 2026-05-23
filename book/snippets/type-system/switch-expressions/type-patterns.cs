@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace SwitchDemo;
+namespace Snippet;
 
 public class Program
 {
@@ -13,14 +12,14 @@ public class Program
             { IsInt32: true, AsInt32: var n } => $"integer: {n}",
             { IsString: true, AsString: var s } => $"string: {s}",
         };
-        System.Console.WriteLine(result);
+        Console.WriteLine(result);
         Union_Int32_String mixed2 = "hello";
         var result2 = mixed2 switch
         {
             { IsInt32: true, AsInt32: var n } => $"integer: {n}",
             { IsString: true, AsString: var s } => $"string: {s}",
         };
-        System.Console.WriteLine(result2);
+        Console.WriteLine(result2);
     }
 
     public static Program __CreateDefault()

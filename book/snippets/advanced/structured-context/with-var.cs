@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace ContextDemo;
+namespace Snippet;
 
 public class Greeter
 {
@@ -25,9 +24,9 @@ public class Program
         MistContext.Push<string>(greeting);
         try
         {
-            System.Console.WriteLine(greeting);
+            Console.WriteLine(greeting);
             var result = Greeter.GetGreeting();
-            System.Console.WriteLine(result);
+            Console.WriteLine(result);
         }
         finally
         {

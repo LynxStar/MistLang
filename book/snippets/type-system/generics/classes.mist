@@ -1,7 +1,3 @@
-using Standard;
-
-namespace GenericTypes;
-
 public class GenericBox<T>
 {
     private T item;

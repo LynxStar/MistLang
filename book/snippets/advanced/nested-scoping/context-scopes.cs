@@ -1,14 +1,13 @@
-using Standard;
 using System;
 
-namespace ScopingDemo;
+namespace Snippet;
 
 public class Logger
 {
     public static void Log(string msg)
     {
         var prefix = (string)MistContext.Peek<string>();
-        System.Console.WriteLine($"[{prefix}] {msg}");
+        Console.WriteLine($"[{prefix}] {msg}");
     }
 
     public static Logger __CreateDefault()

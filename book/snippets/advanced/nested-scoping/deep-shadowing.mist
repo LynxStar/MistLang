@@ -1,7 +1,3 @@
-using Standard;
-
-namespace ScopingDemo;
-
 public class DeepShadowing
 {
     public static void Main(string[] args)

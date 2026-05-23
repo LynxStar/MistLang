@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace AssociatedTypesDemo;
+namespace Snippet;
 
 interface IStringable
 {
@@ -57,7 +56,7 @@ public class Program
     {
         var producer = new MessageProducer();
         var output = producer.CreateOutput("hello");
-        System.Console.WriteLine(output.Stringify());
+        Console.WriteLine(output.Stringify());
     }
 
     public static Program __CreateDefault()

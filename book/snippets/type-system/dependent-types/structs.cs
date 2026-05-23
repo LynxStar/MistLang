@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace DependentTypes;
+namespace Snippet;
 
 [DependentType("Length", typeof(int))]
 public struct FixedSpan<TLength>

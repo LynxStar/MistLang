@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace DefaultDemo;
+namespace Snippet;
 
 public class Config
 {
@@ -29,7 +28,7 @@ public class Program
     public static void Main(string[] args)
     {
         Config cfg = Config.__CreateDefault();
-        System.Console.WriteLine($"MaxRetries={cfg.MaxRetries} Verbose={cfg.Verbose} Label={cfg.Label}");
+        Console.WriteLine($"MaxRetries={cfg.MaxRetries} Verbose={cfg.Verbose} Label={cfg.Label}");
     }
 
     public static Program __CreateDefault()

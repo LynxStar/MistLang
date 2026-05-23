@@ -1,7 +1,3 @@
-using Standard;
-
-namespace DependentTypes;
-
 public struct FixedSpan<Length:int>
 {
     public int GetLength() { return Length; }

@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace ScopingDemo;
+namespace Snippet;
 
 public class Outer
 {
@@ -29,8 +28,8 @@ public class Outer
 
     public static void Demo()
     {
-        System.Console.WriteLine(Inner.Hello());
-        System.Console.WriteLine($"Status.Active = {Status.Active}");
+        Console.WriteLine(Inner.Hello());
+        Console.WriteLine($"Status.Active = {Status.Active}");
     }
 
     public static Outer __CreateDefault()
@@ -43,7 +42,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.WriteLine(Outer.Inner.Hello());
+        Console.WriteLine(Outer.Inner.Hello());
         Outer.Demo();
     }
 

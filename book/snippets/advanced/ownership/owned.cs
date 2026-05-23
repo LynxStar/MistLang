@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace OwnershipSystem;
+namespace Snippet;
 
 public class Pair
 {
@@ -43,7 +42,7 @@ public class OwnedDemo
     {
         Pair p = new Pair(3, 7);
         p.SetX(100);
-        System.Console.WriteLine($"owned pair={p.Describe()}");
+        Console.WriteLine($"owned pair={p.Describe()}");
     }
 
     public static OwnedDemo __CreateDefault()

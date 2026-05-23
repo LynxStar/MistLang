@@ -1,14 +1,13 @@
-using Standard;
 using System;
 
-namespace DependentTypes;
+namespace Snippet;
 
 public class DependentMethods
 {
     public static void Repeat<TN>(string text)
         where TN : IConstInt
     {
-        System.Console.WriteLine($"  Repeat<{TN.Value}>: {text}");
+        Console.WriteLine($"  Repeat<{TN.Value}>: {text}");
     }
 
     public static string Process<TN>(FixedBuffer<N> buf)

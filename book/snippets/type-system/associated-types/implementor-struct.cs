@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace AssociatedTypesDemo;
+namespace Snippet;
 
 interface IIterator<TCursor>
     where TCursor : struct
@@ -44,7 +43,7 @@ public class Program
     {
         var iter = new RangeIterator();
         var cursor = iter.CreateCursor(42);
-        System.Console.WriteLine($"cursor.Position={cursor.Position}");
+        Console.WriteLine($"cursor.Position={cursor.Position}");
     }
 
     public static Program __CreateDefault()

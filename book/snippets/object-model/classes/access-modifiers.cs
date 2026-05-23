@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace Demo;
+namespace Snippet;
 
 public class Counter
 {
@@ -33,7 +32,7 @@ public class Counter
         var c = new Counter("Alpha");
         c.Increment();
         c.Increment();
-        System.Console.WriteLine(c.Describe());
+        Console.WriteLine(c.Describe());
     }
 
     protected Counter()

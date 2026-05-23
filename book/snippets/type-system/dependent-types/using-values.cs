@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace DependentTypes;
+namespace Snippet;
 
 [DependentType("Rows", typeof(int))]
 [DependentType("Cols", typeof(int))]

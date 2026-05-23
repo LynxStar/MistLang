@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace Demo;
+namespace Snippet;
 
 public class Program
 {
@@ -10,15 +9,15 @@ public class Program
         int score = 85;
         if (score >= 90)
         {
-            System.Console.WriteLine("Grade: A");
+            Console.WriteLine("Grade: A");
         }
         else if (score >= 80)
         {
-            System.Console.WriteLine("Grade: B");
+            Console.WriteLine("Grade: B");
         }
         else
         {
-            System.Console.WriteLine("Grade: C or below");
+            Console.WriteLine("Grade: C or below");
         }
     }
 

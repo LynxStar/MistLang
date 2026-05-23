@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace UnionDemo;
+namespace Snippet;
 
 public class Program
 {
@@ -11,12 +10,12 @@ public class Program
         if (value.IsInt32)
         {
             int n = value.AsInt32;
-            System.Console.WriteLine($"It's an int: {n}");
+            Console.WriteLine($"It's an int: {n}");
         }
         if (value.IsString)
         {
             string s = value.AsString;
-            System.Console.WriteLine($"It's a string: {s}");
+            Console.WriteLine($"It's a string: {s}");
         }
     }
 

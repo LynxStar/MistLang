@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace ExtensionMethods;
+namespace Snippet;
 
 public class Greeting
 {
@@ -23,7 +22,7 @@ public class Greeting
         return inst;
     }
 }
-public static class GreetingExtensions_declaring_L15
+public static class GreetingExtensions_declaring_L11
 {
     public static int WordCount(this Greeting self)
     {

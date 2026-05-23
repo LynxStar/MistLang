@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace RefParameters;
+namespace Snippet;
 
 public struct Point
 {
@@ -15,7 +14,7 @@ public struct Point
         this.Y = y;
     }
 
-    public readonly string Describe()
+    public string Describe()
     {
         return $"Point({X}, {Y})";
     }
@@ -39,9 +38,9 @@ public class Program
     public static void Main()
     {
         Point pt = new Point(1, 2);
-        System.Console.WriteLine($"before: {pt.Describe()}");
+        Console.WriteLine($"before: {pt.Describe()}");
         MutatePoint(ref pt);
-        System.Console.WriteLine($"after: {pt.Describe()}");
+        Console.WriteLine($"after: {pt.Describe()}");
     }
 
     public static Program __CreateDefault()

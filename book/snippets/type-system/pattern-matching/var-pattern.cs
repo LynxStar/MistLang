@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace PatternDemo;
+namespace Snippet;
 
 public class Program
 {
@@ -14,7 +13,7 @@ public class Program
     {
         if (Program.ComputeScore() is var score and > 0)
         {
-            System.Console.WriteLine($"Positive score: {score}");
+            Console.WriteLine($"Positive score: {score}");
         }
     }
 

@@ -1,7 +1,3 @@
-using Standard;
-
-namespace OwnershipSystem;
-
 public class MoveDemo
 {
     public static void ConsumeHandle(owned UniqueHandle h)

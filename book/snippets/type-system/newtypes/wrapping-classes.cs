@@ -1,6 +1,6 @@
 using System;
 
-namespace Newtypes;
+namespace Snippet;
 
 public class Entity
 {

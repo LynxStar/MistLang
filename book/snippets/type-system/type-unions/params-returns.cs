@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace UnionDemo;
+namespace Snippet;
 
 public class Program
 {
@@ -10,12 +9,12 @@ public class Program
         if (value.IsInt32)
         {
             int n = value.AsInt32;
-            System.Console.WriteLine($"  int: {n}");
+            Console.WriteLine($"  int: {n}");
         }
         if (value.IsString)
         {
             string s = value.AsString;
-            System.Console.WriteLine($"  string: {s}");
+            Console.WriteLine($"  string: {s}");
         }
     }
 
@@ -33,7 +32,7 @@ public class Program
         Program.Describe(7);
         Program.Describe("Mist");
         Union_Int32_String result = Program.GetValue(true);
-        System.Console.WriteLine($"GetValue(true) returned a value");
+        Console.WriteLine($"GetValue(true) returned a value");
     }
 
     public static Program __CreateDefault()

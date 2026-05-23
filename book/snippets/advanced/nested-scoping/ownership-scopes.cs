@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace ScopingDemo;
+namespace Snippet;
 
 public class Resource
 {

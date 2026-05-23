@@ -1,7 +1,3 @@
-using Standard;
-
-namespace RefParameters;
-
 public struct Point
 {
     public int X;

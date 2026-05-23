@@ -1,7 +1,3 @@
-using Standard;
-
-namespace Demo;
-
 public class Person
 {
     // Read-write auto-property

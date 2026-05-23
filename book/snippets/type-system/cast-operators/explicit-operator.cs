@@ -1,6 +1,6 @@
 using System;
 
-namespace CastOperators;
+namespace Snippet;
 
 public class Celsius
 {

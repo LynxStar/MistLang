@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace UnionDemo;
+namespace Snippet;
 
 public class Program
 {
@@ -10,17 +9,17 @@ public class Program
         if (value.IsInt32)
         {
             int n = value.AsInt32;
-            System.Console.WriteLine($"  int: {n}");
+            Console.WriteLine($"  int: {n}");
         }
         if (value.IsString)
         {
             string s = value.AsString;
-            System.Console.WriteLine($"  string: {s}");
+            Console.WriteLine($"  string: {s}");
         }
         if (value.IsBoolean)
         {
             bool b = value.AsBoolean;
-            System.Console.WriteLine($"  bool: {b}");
+            Console.WriteLine($"  bool: {b}");
         }
     }
 

@@ -1,7 +1,3 @@
-using Standard;
-
-namespace StringUtils;
-
 extension(string self)
 {
     public bool IsNullOrEmpty()

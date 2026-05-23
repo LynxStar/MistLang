@@ -1,7 +1,3 @@
-using Standard;
-
-namespace ContextDemo;
-
 public struct Locale
 {
     public string Language;

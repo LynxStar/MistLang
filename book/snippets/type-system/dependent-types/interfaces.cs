@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace DependentTypes;
+namespace Snippet;
 
 [DependentType("Size", typeof(int))]
 interface IFixedCollection<TSize>

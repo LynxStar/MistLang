@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace PatternDemo;
+namespace Snippet;
 
 public class Program
 {
@@ -12,7 +11,7 @@ public class Program
         pair[1] = 2;
         if (pair is [> 0, > 0])
         {
-            System.Console.WriteLine("Array has two positive elements");
+            Console.WriteLine("Array has two positive elements");
         }
         int[] triple = new int[3];
         triple[0] = 10;
@@ -20,7 +19,7 @@ public class Program
         triple[2] = 30;
         if (triple is [> 0, ..])
         {
-            System.Console.WriteLine("Array starts with a positive number");
+            Console.WriteLine("Array starts with a positive number");
         }
     }
 

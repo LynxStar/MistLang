@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace DependentTypes;
+namespace Snippet;
 
 [DependentType("V", typeof(int))]
 public class IntParam<TV>

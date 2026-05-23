@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace Demo;
+namespace Snippet;
 
 public class MathUtils
 {
@@ -18,8 +17,8 @@ public class MathUtils
     public static void Main(string[] args)
     {
         int result = Add(3, 4);
-        System.Console.WriteLine($"Add(3, 4) = {result}");
-        System.Console.WriteLine(Greet("Mist"));
+        Console.WriteLine($"Add(3, 4) = {result}");
+        Console.WriteLine(Greet("Mist"));
     }
 
     public static MathUtils __CreateDefault()

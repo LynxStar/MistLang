@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace Demo;
+namespace Snippet;
 
 public class Program
 {
@@ -9,7 +8,7 @@ public class Program
     {
         for (int i = 0; i < 5; i = i + 1)
         {
-            System.Console.WriteLine($"i = {i}");
+            Console.WriteLine($"i = {i}");
         }
     }
 

@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace DefaultDemo;
+namespace Snippet;
 
 public class Program
 {
@@ -10,7 +9,7 @@ public class Program
         int i = default(int);
         bool b = default(bool);
         string s = "";
-        System.Console.WriteLine($"int={i} bool={b} string={s}");
+        Console.WriteLine($"int={i} bool={b} string={s}");
     }
 
     public static Program __CreateDefault()

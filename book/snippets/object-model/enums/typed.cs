@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace EnumDemo;
+namespace Snippet;
 
 public record class Direction(string Value)
 {

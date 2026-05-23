@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace ContextDemo;
+namespace Snippet;
 
 public class Consumer
 {
@@ -39,7 +38,7 @@ public class Program
         try
         {
             var result = Intermediary.Forward();
-            System.Console.WriteLine(result);
+            Console.WriteLine(result);
         }
         finally
         {

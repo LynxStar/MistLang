@@ -1,9 +1,6 @@
-using Standard;
 using System;
 
-namespace ExtensionMethods;
-
-public static class GreetingExtensions_with_params_L5
+public static class GreetingExtensions_with_params_L1
 {
     public static Greeting Repeat(this Greeting self, int times)
     {

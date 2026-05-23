@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace ReadonlyContexts;
+namespace Snippet;
 
 public class Pair
 {
@@ -47,7 +46,7 @@ public class FrozenDemo
     public static void FreezeAndRead(Pair p)
     {
         var sum = p.Sum();
-        System.Console.WriteLine($"frozen sum={sum}");
+        Console.WriteLine($"frozen sum={sum}");
     }
 
     public static void Main(string[] args)
@@ -55,7 +54,7 @@ public class FrozenDemo
         Pair p = new Pair(5, 10);
         FreezeAndRead(p);
         p.SetX(50);
-        System.Console.WriteLine($"after thaw={p.Describe()}");
+        Console.WriteLine($"after thaw={p.Describe()}");
     }
 
     public static FrozenDemo __CreateDefault()

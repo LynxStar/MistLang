@@ -1,7 +1,3 @@
-using Standard;
-
-namespace Overloading;
-
 public class Printer
 {
     private string _prefix;

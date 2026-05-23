@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace SwitchDemo;
+namespace Snippet;
 
 public class Program
 {
@@ -14,7 +13,7 @@ public class Program
             int n when n < 0 => "negative",
             var _ => "zero",
         };
-        System.Console.WriteLine($"Number {number} => {sign}");
+        Console.WriteLine($"Number {number} => {sign}");
         int amount = 150;
         var tier = amount switch
         {
@@ -22,7 +21,7 @@ public class Program
             int n when n >= 50 => $"standard (value={n})",
             var _ => "basic",
         };
-        System.Console.WriteLine($"Amount {amount} => {tier}");
+        Console.WriteLine($"Amount {amount} => {tier}");
     }
 
     public static Program __CreateDefault()

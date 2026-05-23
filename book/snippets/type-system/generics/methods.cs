@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace GenericTypes;
+namespace Snippet;
 
 public class Utilities
 {
@@ -12,7 +11,7 @@ public class Utilities
 
     public static void PrintItem<T>(T item)
     {
-        System.Console.WriteLine($"Item: {item}");
+        Console.WriteLine($"Item: {item}");
     }
 
     public static Utilities __CreateDefault()

@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace PatternDemo;
+namespace Snippet;
 
 public class Program
 {
@@ -10,12 +9,12 @@ public class Program
         int temperature = 72;
         if (temperature is >= 60 and <= 80)
         {
-            System.Console.WriteLine($"Temperature {temperature} is comfortable");
+            Console.WriteLine($"Temperature {temperature} is comfortable");
         }
         int value = 15;
         if (value is < 0 or > 10)
         {
-            System.Console.WriteLine($"Value {value} is outside 0-10 range");
+            Console.WriteLine($"Value {value} is outside 0-10 range");
         }
     }
 

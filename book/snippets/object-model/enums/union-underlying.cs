@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace EnumDemo;
+namespace Snippet;
 
 public record class MixedResult(Union_Int32_String Value)
 {

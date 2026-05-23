@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace GenericTypes;
+namespace Snippet;
 
 public struct Pair<A, B>
 {

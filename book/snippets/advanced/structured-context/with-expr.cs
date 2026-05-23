@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace ContextDemo;
+namespace Snippet;
 
 public struct Locale
 {
@@ -41,7 +40,7 @@ public class Program
         try
         {
             var result = Consumers.GetLocale();
-            System.Console.WriteLine(result);
+            Console.WriteLine(result);
         }
         finally
         {

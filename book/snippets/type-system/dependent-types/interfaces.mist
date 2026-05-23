@@ -1,7 +1,3 @@
-using Standard;
-
-namespace DependentTypes;
-
 interface IFixedCollection<Size:int>
 {
     int GetSize();

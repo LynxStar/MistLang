@@ -1,7 +1,3 @@
-using Standard;
-
-namespace ScopingDemo;
-
 public class Resource
 {
     public int Id;

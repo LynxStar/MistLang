@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace EnumDemo;
+namespace Snippet;
 
 public class Label
 {

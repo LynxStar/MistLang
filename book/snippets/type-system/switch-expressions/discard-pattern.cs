@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace SwitchDemo;
+namespace Snippet;
 
 public class Program
 {
@@ -14,7 +13,7 @@ public class Program
             1 => "One",
             var _ => "Other",
         };
-        System.Console.WriteLine($"Code {code} => {meaning}");
+        Console.WriteLine($"Code {code} => {meaning}");
         int code2 = 50;
         var meaning2 = code2 switch
         {
@@ -22,7 +21,7 @@ public class Program
             1 => "One",
             var _ => "Other",
         };
-        System.Console.WriteLine($"Code {code2} => {meaning2}");
+        Console.WriteLine($"Code {code2} => {meaning2}");
     }
 
     public static Program __CreateDefault()

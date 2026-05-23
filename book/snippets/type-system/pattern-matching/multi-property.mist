@@ -1,7 +1,3 @@
-using Standard;
-
-namespace PatternDemo;
-
 public class Rectangle
 {
     public int Width { get; }

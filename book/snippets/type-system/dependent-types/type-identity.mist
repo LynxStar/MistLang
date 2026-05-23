@@ -1,7 +1,3 @@
-using Standard;
-
-namespace DependentTypes;
-
 public class TypeIdentity
 {
     public static string AcceptFive(FixedBuffer<5> buf)

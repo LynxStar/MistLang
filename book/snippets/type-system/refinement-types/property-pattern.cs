@@ -1,6 +1,6 @@
 using System;
 
-namespace RefinementTypes;
+namespace Snippet;
 
 public class Range
 {

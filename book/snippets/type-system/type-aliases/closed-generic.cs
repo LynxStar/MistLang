@@ -1,6 +1,6 @@
 using System;
 
-namespace TypeAliases;
+namespace Snippet;
 
 public class GenericBox<T>
 {

@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace ReadonlyContexts;
+namespace Snippet;
 
 public class Sensor
 {
@@ -46,7 +45,7 @@ public class LentFrozenDemo
 {
     public static void WithFrozenRef(Sensor s)
     {
-        System.Console.WriteLine($"frozen view={s.GetReading()}");
+        Console.WriteLine($"frozen view={s.GetReading()}");
     }
 
     public static void Main(string[] args)
@@ -54,7 +53,7 @@ public class LentFrozenDemo
         Sensor s = new Sensor(1, 100);
         WithFrozenRef(s);
         s.SetReading(200);
-        System.Console.WriteLine($"after thaw={s.Describe()}");
+        Console.WriteLine($"after thaw={s.Describe()}");
     }
 
     public static LentFrozenDemo __CreateDefault()

@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace PatternDemo;
+namespace Snippet;
 
 public class Shape
 {
@@ -50,7 +49,7 @@ public class Program
         Shape shape = new Circle(5);
         if (shape is Circle c)
         {
-            System.Console.WriteLine($"Circle with radius {c.Radius}");
+            Console.WriteLine($"Circle with radius {c.Radius}");
         }
     }
 

@@ -1,7 +1,3 @@
-using Standard;
-
-namespace Demo;
-
 public class Config
 {
     public int Timeout { get; set; } = 30;

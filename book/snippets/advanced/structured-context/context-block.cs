@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace ContextDemo;
+namespace Snippet;
 
 public class Consumers
 {
@@ -25,17 +24,17 @@ public class Program
         MistContext.Push<int>(count);
         try
         {
-            System.Console.WriteLine(Consumers.GetInt());
+            Console.WriteLine(Consumers.GetInt());
             MistContext.Push<int>(99);
             try
             {
-                System.Console.WriteLine(Consumers.GetInt());
+                Console.WriteLine(Consumers.GetInt());
             }
             finally
             {
                 MistContext.Pop<int>();
             }
-            System.Console.WriteLine(Consumers.GetInt());
+            Console.WriteLine(Consumers.GetInt());
         }
         finally
         {

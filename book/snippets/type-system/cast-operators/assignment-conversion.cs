@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace CastOperators;
+namespace Snippet;
 
 public class Program
 {
@@ -9,7 +8,7 @@ public class Program
     {
         var boiling = new Celsius(100.0);
         Fahrenheit boilingF = boiling;
-        System.Console.WriteLine(boilingF.Describe());
+        Console.WriteLine(boilingF.Describe());
     }
 
     public static Program __CreateDefault()

@@ -1,13 +1,12 @@
-using Standard;
 using System;
 
-namespace Demo;
+namespace Snippet;
 
 public class Logger
 {
     public static void Log(string message)
     {
-        System.Console.WriteLine($"[LOG] {message}");
+        Console.WriteLine($"[LOG] {message}");
     }
 
     public static void Main(string[] args)

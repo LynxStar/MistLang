@@ -1,6 +1,6 @@
 using System;
 
-namespace Newtypes;
+namespace Standard.Bootstrap;
 
 public readonly struct UserId
 {

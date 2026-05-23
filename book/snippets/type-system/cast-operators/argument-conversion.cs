@@ -1,13 +1,12 @@
-using Standard;
 using System;
 
-namespace CastOperators;
+namespace Snippet;
 
 public class Program
 {
     private static void PrintTemperature(Fahrenheit f)
     {
-        System.Console.WriteLine($"Temperature: {f.Describe()}");
+        Console.WriteLine($"Temperature: {f.Describe()}");
     }
 
     public static void Main(string[] args)

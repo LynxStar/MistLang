@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace Demo;
+namespace Snippet;
 
 public class Program
 {
@@ -13,7 +12,7 @@ public class Program
         numbers[2] = 30;
         foreach (int n in numbers)
         {
-            System.Console.WriteLine($"Element: {n}");
+            Console.WriteLine($"Element: {n}");
         }
     }
 

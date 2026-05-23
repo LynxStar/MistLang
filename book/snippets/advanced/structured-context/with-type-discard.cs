@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace ContextDemo;
+namespace Snippet;
 
 public class Config
 {
@@ -45,7 +44,7 @@ public class Program
         try
         {
             var result = Consumers.GetConfig();
-            System.Console.WriteLine(result);
+            Console.WriteLine(result);
         }
         finally
         {

@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace DefaultDemo;
+namespace Snippet;
 
 public class AppState
 {
@@ -30,7 +29,7 @@ public class Program
     public static void Main(string[] args)
     {
         AppState state = AppState.__CreateDefault();
-        System.Console.WriteLine($"ErrorCount={state.ErrorCount} Ready={state.Ready} Status={state.Status}");
+        Console.WriteLine($"ErrorCount={state.ErrorCount} Ready={state.Ready} Status={state.Status}");
     }
 
     public static Program __CreateDefault()

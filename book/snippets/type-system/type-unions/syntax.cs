@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace UnionDemo;
+namespace Snippet;
 
 public class Program
 {
@@ -9,8 +8,8 @@ public class Program
     {
         Union_Int32_String x = 42;
         Union_Int32_String y = "hello";
-        System.Console.WriteLine($"x holds an int");
-        System.Console.WriteLine($"y holds a string");
+        Console.WriteLine($"x holds an int");
+        Console.WriteLine($"y holds a string");
     }
 
     public static Program __CreateDefault()

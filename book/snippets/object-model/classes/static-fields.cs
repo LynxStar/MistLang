@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace Demo;
+namespace Snippet;
 
 public class Counter
 {
@@ -24,7 +23,7 @@ public class Counter
     {
         var a = new Counter("Alpha");
         var b = new Counter("Beta");
-        System.Console.WriteLine($"Total created: {Counter.GetTotalCreated()}");
+        Console.WriteLine($"Total created: {Counter.GetTotalCreated()}");
     }
 
     protected Counter()

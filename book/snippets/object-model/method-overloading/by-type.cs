@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace Overloading;
+namespace Snippet;
 
 public class MathHelper
 {

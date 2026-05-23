@@ -1,7 +1,3 @@
-using Standard;
-
-namespace ContextDemo;
-
 public class Service
 {
     public static string Describe() with string name with int count

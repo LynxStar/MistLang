@@ -1,19 +1,18 @@
-using Standard;
 using System;
 
-namespace UnionDemo;
+namespace Snippet;
 
 public class Program
 {
     public static void Main(string[] args)
     {
         Union_Int32_String value = 1;
-        System.Console.WriteLine($"before: assigned int");
+        Console.WriteLine($"before: assigned int");
         value = "switched";
         if (value.IsString)
         {
             string s = value.AsString;
-            System.Console.WriteLine($"after: {s}");
+            Console.WriteLine($"after: {s}");
         }
     }
 

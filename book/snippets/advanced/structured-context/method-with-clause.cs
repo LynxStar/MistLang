@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace ContextDemo;
+namespace Snippet;
 
 public class Service
 {
@@ -31,7 +30,7 @@ public class Program
             try
             {
                 var result = Service.Describe();
-                System.Console.WriteLine(result);
+                Console.WriteLine(result);
             }
             finally
             {

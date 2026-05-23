@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace Demo;
+namespace Snippet;
 
 public class Program
 {
@@ -10,7 +9,7 @@ public class Program
         int count = 0;
         while (count < 3)
         {
-            System.Console.WriteLine($"Count: {count}");
+            Console.WriteLine($"Count: {count}");
             count = count + 1;
         }
     }

@@ -40,7 +40,11 @@ A type satisfying `ReadWriteStream` must provide `Read()`, `Write(string)`, and 
 
 ## Structural Satisfaction
 
-A type satisfies a trait when its public members match the trait's declared signatures by name and type. No explicit `: TraitName` clause is needed — the compiler verifies structural compatibility automatically.
+A type satisfies a trait when its public members match the trait's declared signatures by name and type. No explicit `: TraitName` clause is needed — the compiler verifies structural compatibility at compile time. There are two forms of satisfaction: direct binding and late binding.
+
+### Direct Binding
+
+Direct binding occurs when a type's members match the trait's signatures exactly — same names, same types. The compiler detects this automatically with no additional declarations:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -55,13 +59,13 @@ A type satisfies a trait when its public members match the trait's declared sign
 {{#endtab }}
 {{#endtabs }}
 
-The `User` class never mentions `Printable` in its declaration, yet the compiler determines it satisfies the trait and emits `: Printable` in the C# output. The class's `Name` and `Id` properties match the trait's field signatures, so the structural contract is fulfilled.
+The `User` class never mentions `Printable` in its declaration, yet the compiler determines it satisfies the trait. The class's `Name` and `Id` properties match the trait's field signatures, so the structural contract is fulfilled.
 
-If a type is missing a required member, the compiler reports an error at the point where the type is used as the trait type — you'll see a diagnostic like `Type 'X' does not satisfy trait 'Y'. Missing members: Z.`
+If a type is missing a required member, the compiler reports an error at the point where the type is used as the trait type.
 
-## The `with` Block
+### Late Binding
 
-When a type has the right member types but different names, a `with` block provides explicit member mapping. This is a top-level declaration separate from the class body.
+Late binding allows a type to satisfy a trait even when its members have different names. A `with` block provides explicit member mapping after the fact — the type doesn't need to be modified. This is still a compile-time guarantee; the compiler verifies the mapped members have compatible types.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -76,9 +80,9 @@ When a type has the right member types but different names, a `with` block provi
 {{#endtab }}
 {{#endtabs }}
 
-The `with` block syntax is `with TypeName : TraitName { sourceMember as traitMember; }`. Each mapping line declares that the type's `sourceMember` fulfills the trait's `traitMember`. In the emitted C#, these become explicit interface implementations that delegate to the actual members on the class.
+The `with` block syntax is `with TypeName : TraitName { sourceMember as traitMember; }`. Each mapping declares that the type's `sourceMember` fulfills the trait's `traitMember`.
 
-The `with` block also works for method mappings:
+Late binding also works for method mappings:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -93,7 +97,7 @@ The `with` block also works for method mappings:
 {{#endtab }}
 {{#endtabs }}
 
-Here `Logger.Log` is mapped to `Writable.Write`. The emitted C# generates an explicit interface implementation that forwards the call to the actual `Log` method.
+Here `Logger.Log` is mapped to `Writable.Write`. The key property of late binding is retroactive conformance — you can adapt existing types to new traits without touching the original type's source code.
 
 ## Polymorphic Usage
 

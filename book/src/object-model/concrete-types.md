@@ -99,7 +99,7 @@ Instance methods operate on a specific object. They can read and write the objec
 
 ## Static Methods
 
-A static method belongs to the class itself, not to any instance. It cannot access instance fields or use `this`. Declare it with the `static` modifier and call it using the class name.
+A static method belongs to the type itself, not to any instance. It cannot access instance fields or use `this`. Declare it with the `static` modifier and call it using the type name.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -118,7 +118,7 @@ A static method belongs to the class itself, not to any instance. It cannot acce
 
 ## Static Fields
 
-A static field is shared across all instances of a class. It's declared with the `static` modifier and exists once per class rather than once per object. Static fields are useful for tracking class-wide state like counters or configuration.
+A static field is shared across all instances of a type. It's declared with the `static` modifier and exists once per type rather than once per object. Static fields are useful for tracking type-wide state like counters or configuration.
 
 {{#tabs }}
 {{#tab name="Mist" }}

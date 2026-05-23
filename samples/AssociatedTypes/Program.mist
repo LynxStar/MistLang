@@ -467,9 +467,10 @@ public class Program {
         Console.WriteLine("--- Parameterized Slot ---");
         var converter = new IntConverter();
         var strResult = converter.ConvertToString(42);
+        Console.WriteLine($"strResult.Value={strResult.Value}");
         Console.WriteLine($"strResult.Transform(0)={strResult.Transform(0)}");
         var intResult = converter.ConvertToInt(7);
-        Console.WriteLine($"intResult.Transform(0)={intResult.Transform(0)}");
+        Console.WriteLine($"intResult.Value={intResult.Value}");
 
         Console.WriteLine("--- Associated Types Done ---");
     }

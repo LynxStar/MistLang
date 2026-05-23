@@ -2750,6 +2750,19 @@ internal sealed class CSharpSourceWriter
             EmitExplicitTraitImplementations(classTypeForTraits, classDecl.Members.Length > 0);
         }
 
+        // Emit explicit interface implementations for methods that use parameterized
+        // associated type slots. The public method returns the concrete nested type,
+        // and the explicit impl bridges to it with the erased constraint interface type.
+        if (interfaceTypeParamSubstitutions is not null && _currentParameterizedSlots is null)
+        {
+            // _currentParameterizedSlots was already restored to previous, use the local pSlots.
+        }
+        if (symbol?.DeclaredType is ClassType classTypeForParamSlots && interfaceTypeParamSubstitutions is not null)
+        {
+            EmitExplicitInterfaceImplsForParameterizedSlots(
+                classTypeForParamSlots, classDecl, interfaceTypeParamSubstitutions);
+        }
+
         // Emit protected parameterless constructor for defaultable classes if one doesn't already exist.
         // This is needed so __CreateDefault() can instantiate the class via `new ClassName()`.
         // The constructor sets the class's own default field values (not inherited ones).
@@ -3222,6 +3235,76 @@ internal sealed class CSharpSourceWriter
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Emits explicit interface implementations for methods whose return type uses a
+    /// parameterized associated type slot. The public method returns the concrete nested
+    /// type (preserving full type info), and this explicit impl bridges to it with the
+    /// erased constraint interface type to satisfy the C# interface contract.
+    /// </summary>
+    private void EmitExplicitInterfaceImplsForParameterizedSlots(
+        ClassType classType,
+        ClassDeclarationNode classDecl,
+        Dictionary<string, string> interfaceParamSubs)
+    {
+        // Collect parameterized slots from implemented interfaces.
+        var paramSlots = new List<(InterfaceType Interface, AssociatedTypeSlotType Slot, IType ConstructedIface)>();
+        foreach (var iface in classType.Interfaces)
+        {
+            var def = iface is ConstructedType ctIface ? ctIface.GenericDefinition as InterfaceType : iface as InterfaceType;
+            if (def is null) continue;
+            foreach (var slot in CollectAssociatedTypeSlotsFromType(def))
+            {
+                if (slot.TypeParameters.Count > 0)
+                    paramSlots.Add((def, slot, iface));
+            }
+        }
+        if (paramSlots.Count == 0) return;
+
+        // For each method in the class, check if its return type matches a parameterized slot.
+        foreach (var member in classDecl.Members)
+        {
+            if (member is not MethodMemberMemberDeclarationNode methodMember) continue;
+            var methodDecl = methodMember.Method;
+            var returnTypeRef = methodDecl.ReturnType;
+            if (returnTypeRef is not NamedTypeRefTypeReferenceNode namedReturn) continue;
+            if (namedReturn.TypeArgs is null) continue;
+
+            var returnName = ExtractQualifiedName(namedReturn.Name);
+            var matchingSlot = paramSlots.FirstOrDefault(ps => ps.Slot.DisplayName == returnName);
+            if (matchingSlot.Slot is null) continue;
+
+            // This method uses a parameterized slot as its return type.
+            // Emit: ErasedType InterfaceName.MethodName(params) => MethodName(params);
+            var erasedReturnType = EraseParameterizedSlotToConstraint(matchingSlot.Slot, namedReturn.TypeArgs, interfaceParamSubs);
+            if (erasedReturnType is null) continue;
+
+            var methodName = methodDecl.Name.Lexeme;
+            var ifaceName = CSharpTypeMap.GetTypeName(matchingSlot.ConstructedIface);
+            // Remove the lifted non-parameterized slot type args from the interface name
+            // (they were added by the lifting process for non-parameterized slots).
+            var parameters = EmitParameterList(methodDecl.Parameters);
+            var argList = EmitParameterNamesOnly(methodDecl.Parameters);
+
+            AppendLine();
+            AppendLine($"{erasedReturnType} {ifaceName}.{methodName}({parameters}) => {methodName}({argList});");
+        }
+    }
+
+    /// <summary>
+    /// Emits just the parameter names (without types) for forwarding calls.
+    /// </summary>
+    private static string EmitParameterNamesOnly(ParameterListNode? paramList)
+    {
+        if (paramList is null) return "";
+        var names = new List<string>();
+        foreach (var child in paramList.Children())
+        {
+            if (child is ParameterNode param)
+                names.Add(param.Name.Lexeme);
+        }
+        return string.Join(", ", names);
     }
 
     /// <summary>
@@ -5981,19 +6064,10 @@ internal sealed class CSharpSourceWriter
                     return namedRef.ArrayRank is not null ? $"{fallbackName}[]" : fallbackName;
                 }
                 // ── Parameterized slot erasure for implementor methods ──
-                // When inside a class implementing an interface with parameterized slots,
-                // a return type like Mapped<string> (the concrete nested class) must be
-                // erased to the constraint interface to match the interface declaration.
-                if (_currentParameterizedSlots is not null && namedRef.TypeArgs is not null)
-                {
-                    var matchingSlot = _currentParameterizedSlots.FirstOrDefault(s => s.DisplayName == name);
-                    if (matchingSlot is not null)
-                    {
-                        var erasedType = EraseParameterizedSlotToConstraint(matchingSlot, namedRef.TypeArgs, _currentInterfaceTypeParamSubs);
-                        if (erasedType is not null)
-                            return namedRef.ArrayRank is not null ? $"{erasedType}[]" : erasedType;
-                    }
-                }
+                // Parameterized slots are NOT erased in the implementor — the method
+                // returns the concrete nested type so callers can access its members.
+                // An explicit interface implementation is emitted separately to satisfy
+                // the interface contract (which uses the erased constraint type).
                 if (resolvedType is TypeAliasType aliasFromExprMap)
                 {
                     var emittedType = ResolveAliasForEmission(aliasFromExprMap, namedRef, isValueContext);

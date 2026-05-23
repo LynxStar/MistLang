@@ -1,0 +1,15 @@
+interface IStringable {
+    string Stringify();
+}
+
+interface IProducer {
+    type Output : IStringable;
+    Output CreateOutput(string msg);
+}
+
+class Helpers {
+    public static string Describe<T>(T producer) where T : IProducer {
+        T.Output output = producer.CreateOutput("test");
+        return output.Stringify();
+    }
+}

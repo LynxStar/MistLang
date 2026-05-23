@@ -145,29 +145,24 @@ For each associated type slot in an implemented interface, the type checker veri
 
 ## Generic Context Resolution
 
-> **Not yet implemented end-to-end.** The type checker accepts `T.SlotName` references in generic contexts, but the emitter does not yet produce runnable code for this pattern. This section describes the intended design.
-
 The real power of associated types emerges in generic code. When a type parameter is constrained by an interface with associated type slots, you can reference the associated type through dot notation on the type parameter:
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-class Helpers {
-    public static string Describe<T>(T producer) where T : IProducer {
-        T.Output output = producer.CreateOutput("test");
-        return output.Stringify();
-    }
-}
+{{#include ../../snippets/type-system/associated-types/generic-context.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/associated-types/generic-context.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 Inside this method, `T.Output` resolves to whatever concrete output type the caller's `T` provides. The compiler knows that `T.Output` satisfies `IStringable`, so it permits calling `Stringify()` without any casts.
 
-When `Describe` is called with a concrete type:
-
-```mist
-var producer = new MessageProducer();
-var result = Helpers.Describe<MessageProducer>(producer);
-```
-
-The compiler resolves `T.Output` to `MessageProducer.Output` — a concrete class. Method calls are statically dispatched and the compiler can inline through the abstraction.
+In the emitted C#, notice how `T.Output` becomes a synthesized type parameter `TOutput` on the method, with the constraint propagated. At call sites the compiler substitutes the concrete type.
 
 ### What You Can Do with Associated Type References
 
@@ -181,8 +176,6 @@ Within a generic context, `T.SlotName` behaves like a type that satisfies the sl
 If you reference a name that isn't an associated type slot of any constraining interface (e.g., `T.NonExistent`), the compiler emits an error indicating that the type parameter doesn't have an associated type with that name.
 
 ## Design Rationale: Zero-Allocation Iteration
-
-> **Planned feature.** The full iteration pattern described below requires constraints that reference the enclosing interface's type parameter (e.g., `type Enumerator : IEnumerator<TValue>, struct;`). This is not yet implemented. The current compiler supports constraints that don't reference enclosing type parameters.
 
 Traditional iteration patterns in managed languages use interface dispatch:
 

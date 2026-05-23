@@ -1,7 +1,3 @@
-using Standard;
-
-namespace AssociatedTypesDemo;
-
 interface Container {
     type Element;
 

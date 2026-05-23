@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace AssociatedTypesDemo;
+namespace Snippet;
 
 interface IIterator<TCursor>
     where TCursor : struct

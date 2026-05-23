@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace AssociatedTypesDemo;
+namespace Snippet;
 
 interface Container<TElement>
 {

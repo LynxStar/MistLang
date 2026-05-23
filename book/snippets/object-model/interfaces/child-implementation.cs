@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace Interfaces;
+namespace Snippet;
 
 public class Robot : IFullyDescribable
 {

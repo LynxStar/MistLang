@@ -1,13 +1,12 @@
-using Standard;
 using System;
 
-namespace Interfaces;
+namespace Snippet;
 
 public class Program
 {
     private static void PrintDescription(IDescribable item)
     {
-        System.Console.WriteLine(item.Describe());
+        Console.WriteLine(item.Describe());
     }
 
     public static void Main(string[] args)

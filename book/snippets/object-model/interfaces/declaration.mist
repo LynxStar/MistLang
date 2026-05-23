@@ -1,7 +1,3 @@
-using Standard;
-
-namespace Shapes;
-
 interface IShape
 {
     string Name { get; }

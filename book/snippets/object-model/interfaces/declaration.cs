@@ -1,7 +1,6 @@
-using Standard;
 using System;
 
-namespace Shapes;
+namespace Snippet;
 
 interface IShape
 {

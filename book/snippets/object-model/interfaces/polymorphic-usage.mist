@@ -1,7 +1,3 @@
-using Standard;
-
-namespace Interfaces;
-
 public class Program
 {
     private static void PrintDescription(IDescribable item)

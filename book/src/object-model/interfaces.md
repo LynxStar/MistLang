@@ -19,7 +19,7 @@ An interface is declared with the `interface` keyword followed by a name and a b
 {{#endtab }}
 {{#endtabs }}
 
-An interface can contain method signatures (like `Describe()` and `Area()`) and property signatures (like `Name { get; }`). The compiler emits a C# interface with the same structure — Mist interfaces map directly to their C# equivalents.
+An interface can contain method signatures (like `Describe()` and `Area()`) and property signatures (like `Name { get; }`).
 
 Interfaces can also extend other interfaces using the colon syntax, inheriting all members from the parent interface:
 
@@ -55,7 +55,7 @@ A class implements an interface by listing the interface name after a colon in t
 {{#endtab }}
 {{#endtabs }}
 
-The `Person` class declares `: IDescribable` in its header and provides a `Describe()` method that satisfies the interface contract. The emitted C# is structurally identical — the class implements the interface through the same nominal mechanism as standard C#.
+The `Person` class declares `: IDescribable` in its header and provides a `Describe()` method that satisfies the interface contract.
 
 When a class implements a child interface, it must satisfy all members from the entire interface hierarchy:
 

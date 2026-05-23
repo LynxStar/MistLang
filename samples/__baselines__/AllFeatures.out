@@ -1172,8 +1172,8 @@ Output(world)
 Input(data-payload)
 Input(second-payload)
 --- Struct Constraint ---
-cursor.Position=42
-cursor2.Position=99
+start=0
+advanced=1
 --- Class Constraint ---
 product.Name=Gear
 product.Weight=5
@@ -1181,13 +1181,13 @@ product.Weight=5
 State(count=7)
 count=7
 --- Generic Interface With Slot ---
-Mapped(123)
+Mapped(246)
 intMapper.GetDefault()=0
 Mapped(hello)
 strMapper.GetDefault()=
 --- Unconstrained Slot ---
-elem.Value=55
-elem2.Value=77
+elem.Value=50
+elem2.Value=70
 --- Class Plus Interface ---
 (3,4)
 (10,20)

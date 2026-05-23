@@ -129,7 +129,7 @@ When constructing a generic type or calling a generic method, you supply type ar
 {{#endtab }}
 {{#endtabs }}
 
-Type arguments appear inside `<` and `>` after the type or method name. For generic methods, the compiler can often infer the type argument from the passed value — `Utilities.Identity("hello")` would also work without the explicit `<string>`. Explicit type arguments are required when the compiler cannot infer the type (for example, when the return type is the only place the type parameter appears).
+Type arguments appear inside `<` and `>` after the type or method name. All type arguments must currently be specified explicitly — Mist does not yet support type argument inference. This is a planned feature; until then, every generic call site requires the full type argument list.
 
 ## Multiple Type Parameters
 

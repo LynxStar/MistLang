@@ -82,19 +82,22 @@ The emitted C# is identical in shape — traits emit as interfaces, and the asso
 
 ### Generic Type Parameters on Slots
 
-> **Not yet implemented.** The compiler does not currently support type parameters on associated type slots. This section describes the planned design.
+Associated type slots can declare their own type parameters and where clauses:
 
-Associated type slots will be able to declare their own type parameters and where clauses:
-
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-interface Transformable<TValue> {
-    type Mapper<TResult> : IMapper<TValue, TResult> where TResult : struct;
-
-    Mapper<TResult> GetMapper<TResult>() where TResult : struct;
-}
+{{#include ../../snippets/type-system/associated-types/generic-slot.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/associated-types/generic-slot.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
-The slot's type parameters are independent of the enclosing interface's type parameters, though the constraint list can reference both.
+The slot's type parameters are independent of the enclosing interface's type parameters, though the constraint list can reference both. Here `Mapped<TOut>` is a higher-kinded slot — the implementor provides a generic type, and callers choose the type argument at each call site.
 
 ## Implementor Satisfaction
 

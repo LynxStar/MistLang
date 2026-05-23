@@ -177,76 +177,26 @@ This is the same approach Rust uses with `IntoIterator` / `Iterator` — the con
 
 Putting it all together, here's a complete example showing the full pattern from interface declaration through generic usage:
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-// The enumerator contract
-interface IEnumerator<TValue> {
-    bool MoveNext();
-    TValue Current { get; }
-}
-
-// The iterable contract with an associated enumerator type
-interface Iterable<TValue> {
-    type Enumerator : IEnumerator<TValue>, struct;
-    Enumerator GetEnumerator();
-}
-
-// A concrete collection with a nested struct enumerator
-class IntRange : Iterable<int> {
-    public struct RangeEnumerator : IEnumerator<int> {
-        int _current;
-        int _end;
-
-        public RangeEnumerator(int start, int end) {
-            _current = start - 1;
-            _end = end;
-        }
-
-        public bool MoveNext() {
-            _current = _current + 1;
-            return _current < _end;
-        }
-
-        public int Current { get => _current; }
-    }
-
-    public type Enumerator = RangeEnumerator;
-
-    int _start;
-    int _end;
-
-    public IntRange(int start, int end) {
-        _start = start;
-        _end = end;
-    }
-
-    public RangeEnumerator GetEnumerator() {
-        return new RangeEnumerator(_start, _end);
-    }
-}
-
-// Generic iteration — statically dispatched, zero allocation
-fun Sum<TIter>(iter: TIter) : int where TIter : Iterable<int> {
-    var enumerator: TIter.Enumerator = iter.GetEnumerator();
-    var total: int = 0;
-    while (enumerator.MoveNext()) {
-        total = total + enumerator.Current;
-    }
-    return total;
-}
-
-// Usage
-var range = new IntRange(1, 6);
-var result = Sum<IntRange>(range);
-Console.WriteLine(result);  // 15
+{{#include ../../snippets/type-system/associated-types/worked-example.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/associated-types/worked-example.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 In this example:
-- `Iterable<TValue>` declares the contract with an associated `Enumerator` slot
-- `IEnumerator<TValue>` defines what any enumerator must support
-- `IntRange` satisfies the contract with `RangeEnumerator` — a nested struct
-- `Sum` iterates generically, but the compiler resolves `TIter.Enumerator` to `RangeEnumerator` at the call site, enabling full static dispatch and stack allocation
+- `IProducer` declares an associated type slot `Output` constrained to `IStringable`
+- `IIterator` declares an associated type slot `Cursor` constrained to `struct`
+- `MessageProducer` satisfies `IProducer` with a nested class `Output` that implements `IStringable`
+- `RangeIterator` satisfies `IIterator` with a nested struct `Cursor`
 
-The result is iteration that's as fast as a hand-written `while` loop over the struct's fields, with the abstraction of a generic interface.
+In the emitted C#, notice how the associated type slots become generic type parameters on the interfaces: `IProducer<TOutput> where TOutput : IStringable` and `IIterator<TCursor> where TCursor : struct`. At the implementation site, the concrete nested type is substituted as the type argument: `MessageProducer : IProducer<MessageProducer.Output>` and `RangeIterator : IIterator<RangeIterator.Cursor>`. This generic lifting strategy gives the .NET JIT full visibility into the concrete types, enabling static dispatch and stack allocation for struct slots.
 
 ## See Also
 

@@ -1,0 +1,60 @@
+using Standard;
+
+namespace AssociatedTypesSnippet;
+
+interface IStringable {
+    string Stringify();
+}
+
+// Interface with an associated type slot constrained to IStringable
+interface IProducer {
+    type Output : IStringable;
+    string ProduceValue();
+}
+
+// Struct kind constraint — the concrete type must be a value type
+interface IIterator {
+    type Cursor : struct;
+    int GetFirst();
+    int GetSecond();
+}
+
+// Satisfies IProducer: nested class Output implements IStringable
+class MessageProducer : IProducer {
+    public class Output : IStringable {
+        public string Value;
+        public Output(string value) { Value = value; }
+        public string Stringify() { return $"Output({Value})"; }
+    }
+    public string ProduceValue() {
+        return "hello from producer";
+    }
+    public Output CreateOutput(string msg) {
+        return new Output(msg);
+    }
+}
+
+// Satisfies IIterator: nested struct Cursor is a value type
+class RangeIterator : IIterator {
+    public struct Cursor {
+        public int Position;
+        public Cursor(int pos) { Position = pos; }
+    }
+    public int GetFirst() { return 10; }
+    public int GetSecond() { return 20; }
+    public Cursor CreateCursor(int pos) {
+        return new Cursor(pos);
+    }
+}
+
+public class Program {
+    public static void Main(string[] args) {
+        var producer = new MessageProducer();
+        var output = producer.CreateOutput("hello");
+        Console.WriteLine(output.Stringify());
+
+        var iter = new RangeIterator();
+        var cursor = iter.CreateCursor(42);
+        Console.WriteLine($"cursor.Position={cursor.Position}");
+    }
+}

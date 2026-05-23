@@ -1180,9 +1180,11 @@ product.Weight=5
 --- Multiple Constraints ---
 State(count=7)
 count=7
---- Enclosing Type Parameter ---
+--- Generic Interface With Slot ---
 Mapped(123)
-Mapped(456)
+intMapper.GetDefault()=0
+Mapped(hello)
+strMapper.GetDefault()=
 --- Unconstrained Slot ---
 elem.Value=55
 elem2.Value=77

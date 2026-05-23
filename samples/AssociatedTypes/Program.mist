@@ -171,14 +171,16 @@ class CounterProducer : IStatefulProducer {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Pattern 6: Slot with constraint referencing enclosing type parameter
-// The interface has a type parameter, and the slot's constraint references it
-// indirectly through another interface. This tests constraint resolution across
-// type parameter scopes.
+// Pattern 6: Associated type slot on a generic interface
+// The interface has a type parameter used in its methods, AND an associated type
+// slot with its own constraint. This proves the compiler correctly handles both
+// generic type parameters and associated type slots on the same interface without
+// confusing them. The slot is NOT parameterized by TIn — that is not yet supported.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 interface IMapper<TIn> {
     type Mapped : IStringable;
+    TIn GetDefault();
     string GetMapperName();
 }
 
@@ -188,11 +190,31 @@ class IntMapper : IMapper<int> {
         public Mapped(int v) { Value = v; }
         public string Stringify() { return $"Mapped({Value})"; }
     }
+    public int GetDefault() {
+        return 0;
+    }
     public string GetMapperName() {
         return "IntMapper";
     }
-    // Returns the nested type — proves slot with enclosing type param works
+    // Returns the nested type — proves slot on generic interface works
     public Mapped MapValue(int v) {
+        return new Mapped(v);
+    }
+}
+
+class StringMapper : IMapper<string> {
+    public class Mapped : IStringable {
+        public string Value;
+        public Mapped(string v) { Value = v; }
+        public string Stringify() { return $"Mapped({Value})"; }
+    }
+    public string GetDefault() {
+        return "";
+    }
+    public string GetMapperName() {
+        return "StringMapper";
+    }
+    public Mapped MapValue(string v) {
         return new Mapped(v);
     }
 }
@@ -376,13 +398,16 @@ public class Program {
         Console.WriteLine(state.Stringify());
         Console.WriteLine(state.GetState());
 
-        // 6. Constraint referencing enclosing type parameter
-        Console.WriteLine("--- Enclosing Type Parameter ---");
-        var mapper = new IntMapper();
-        var mapped = mapper.MapValue(123);
-        Console.WriteLine(mapped.Stringify());
-        var mapped2 = mapper.MapValue(456);
+        // 6. Associated type slot on a generic interface
+        Console.WriteLine("--- Generic Interface With Slot ---");
+        var intMapper = new IntMapper();
+        var mapped1 = intMapper.MapValue(123);
+        Console.WriteLine(mapped1.Stringify());
+        Console.WriteLine($"intMapper.GetDefault()={intMapper.GetDefault()}");
+        var strMapper = new StringMapper();
+        var mapped2 = strMapper.MapValue("hello");
         Console.WriteLine(mapped2.Stringify());
+        Console.WriteLine($"strMapper.GetDefault()={strMapper.GetDefault()}");
 
         // 7. Unconstrained slot
         Console.WriteLine("--- Unconstrained Slot ---");

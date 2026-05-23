@@ -65,7 +65,7 @@ If a type is missing a required member, the compiler reports an error at the poi
 
 ### Late Binding
 
-Late binding allows a type to satisfy a trait even when its members have different names. A `with` block provides explicit member mapping after the fact — the type doesn't need to be modified. This is still a compile-time guarantee; the compiler verifies the mapped members have compatible types.
+Late binding allows a type to satisfy a trait when it has members with compatible types but different names. A `with` block provides explicit member mapping — telling the compiler which member on the type corresponds to which member on the trait. The type doesn't need to be modified, and this is still a compile-time guarantee.
 
 {{#tabs }}
 {{#tab name="Mist" }}

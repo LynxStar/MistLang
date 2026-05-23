@@ -2,6 +2,8 @@
 
 Interfaces define contracts that classes must fulfill. An interface declares method signatures and property signatures without providing implementations — any class that lists the interface in its base clause must supply concrete implementations for every member. Interfaces enable polymorphism: code can accept any type that implements a given interface without knowing the concrete class at compile time.
 
+An interface is its own type. When a class declares that it implements an interface, it establishes a nominal relationship — the class *is-a* instance of that interface type. This isn't structural: two classes with identical methods are not interchangeable unless they both explicitly declare the same interface. The relationship is opt-in and checked at compile time. A value of a class type can be assigned to a variable of an interface type it implements, passed to a function expecting that interface, or stored in a collection typed by the interface — all because the class named the interface in its declaration.
+
 ## Interface Declaration
 
 An interface is declared with the `interface` keyword followed by a name and a body containing method and property signatures. Members have no access modifiers (they are implicitly public) and no method bodies.

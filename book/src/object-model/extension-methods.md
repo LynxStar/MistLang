@@ -1,6 +1,6 @@
-# Extension Methods
+# Extensions
 
-Extension methods let you add new methods to existing types without modifying their source code. In Mist, you declare extension methods inside an `extension(ReceiverType)` block. The compiler emits them as static methods in a generated static class, with a `this`-annotated first parameter that enables dot-notation calls on instances of the receiver type.
+Extensions let you add new methods and properties to existing types without modifying their source code. In Mist, you declare extensions inside an `extension(ReceiverType)` block.
 
 ## Declaring Extension Methods
 
@@ -19,7 +19,7 @@ An extension block is declared with the `extension` keyword followed by the rece
 {{#endtab }}
 {{#endtabs }}
 
-The `extension(Greeting self)` block declares methods that operate on `Greeting` instances. The parameter name `self` is how you reference the receiver inside the method body. The compiler emits a static class with each method receiving `this Greeting self` as its first parameter — this is the standard C# extension method pattern.
+The `extension(Greeting self)` block declares members that operate on `Greeting` instances. The parameter name `self` is how you reference the receiver inside the block.
 
 Extension methods can also accept additional parameters beyond the implicit receiver:
 
@@ -36,11 +36,23 @@ Extension methods can also accept additional parameters beyond the implicit rece
 {{#endtab }}
 {{#endtabs }}
 
-The `Repeat` method takes an `int times` parameter in addition to the implicit `self` receiver. In the emitted C#, this becomes the second parameter after `this Greeting self`.
+## Extension Properties
 
-## Calling Extension Methods
+Extension blocks can also declare read-only properties. These are accessed with dot-notation just like regular properties.
 
-Extension methods are called using dot-notation on an instance of the receiver type, exactly like regular instance methods. The compiler resolves the call to the corresponding static method.
+```mist
+extension(Greeting self)
+{
+    public bool IsEmpty => self.Message.Length == 0;
+    public int CharCount => self.Message.Length;
+}
+```
+
+Extension properties cannot have `set` or `init` accessors — they are always read-only. This ensures extensions cannot mutate the receiver's state through a property assignment.
+
+## Calling Extensions
+
+Extensions are called using dot-notation on an instance of the receiver type, exactly like regular instance members.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -55,9 +67,11 @@ Extension methods are called using dot-notation on an instance of the receiver t
 {{#endtab }}
 {{#endtabs }}
 
-From the caller's perspective, `greeting.WordCount()` looks like a regular method call. The compiler rewrites it to `GreetingExtensions_..._L14.WordCount(greeting)`, passing the instance as the first argument to the static method. This means extension methods integrate seamlessly with existing types — callers don't need to know whether a method is defined on the type itself or in an extension block.
+From the caller's perspective, `greeting.WordCount()` looks like a regular method call. Extension methods and properties integrate seamlessly — callers don't need to know whether a member is defined on the type itself or in an extension block.
 
-Extension methods on primitive types work the same way. Here, `string` is extended with utility methods that become available on any string value:
+## Extending Primitive Types
+
+Extension blocks work on primitive types too. Here, `string` is extended with utility methods that become available on any string value:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -72,4 +86,18 @@ Extension methods on primitive types work the same way. Here, `string` is extend
 {{#endtab }}
 {{#endtabs }}
 
-Extension methods declared in a different namespace require a `using` directive at the call site to become visible. For example, calling `text.IsNullOrEmpty()` requires `using StringUtils;` at the top of the file.
+## Static Extension Members
+
+Extension blocks can declare `static` methods. These belong to the type itself and are called via the type name, not on an instance. They cannot access the receiver parameter.
+
+```mist
+extension(Greeting self)
+{
+    public static Greeting Create()
+    {
+        return new Greeting("Hello, World!");
+    }
+}
+```
+
+Call it as `Greeting.Create()` — no instance needed.

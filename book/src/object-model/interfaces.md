@@ -4,7 +4,7 @@ Interfaces define contracts that concrete types must fulfill. An interface decla
 
 An interface is its own type. When a concrete type declares that it implements an interface, it establishes a nominal relationship — the type *is-a* instance of that interface type. This isn't structural: two types with identical methods are not interchangeable unless they both explicitly declare the same interface. The relationship is opt-in and checked at compile time. A value of a concrete type can be assigned to a variable of an interface type it implements, passed to a function expecting that interface, or stored in a collection typed by the interface — all because the type named the interface in its declaration.
 
-Classes, structs, and enums can all implement interfaces.
+Classes and structs can both implement interfaces.
 
 ## Interface Declaration
 

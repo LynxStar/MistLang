@@ -9,18 +9,28 @@ The primary motivating use case is zero-allocation iteration: an `Iterable<TValu
 An associated type slot is declared inside an interface or trait body using the `type Name : ConstraintList;` syntax. The colon and constraint list specify what the concrete type must satisfy, using the same constraint syntax as generic `where` clauses (see [Generic Constraints](./generic-constraints.md)).
 
 ```mist
-interface Iterable<TValue> {
-    type Enumerator : IEnumerator<TValue>, struct;
+interface IProducer {
+    type Output : IStringable;
 
-    Enumerator GetEnumerator();
+    Output CreateOutput(string msg);
 }
 ```
 
-Here, `Enumerator` is an associated type slot. Any type implementing `Iterable<TValue>` must provide a concrete type named `Enumerator` that:
-1. Implements `IEnumerator<TValue>`
-2. Is a value type (`struct`)
+Here, `Output` is an associated type slot. Any type implementing `IProducer` must provide a concrete type named `Output` that implements `IStringable`.
 
 The constraint list supports the same forms as generic constraints: `struct`, `class`, interface references, trait references, base class references, `new()`, and combinations thereof. Multiple constraints are separated by commas.
+
+A slot can also combine a kind constraint with an interface constraint:
+
+```mist
+interface IIterator {
+    type Cursor : struct;
+
+    Cursor CreateCursor(int pos);
+}
+```
+
+Here, `Cursor` must be a value type (`struct`). The implementor can provide any struct as the concrete type.
 
 ### Unconstrained Slots
 
@@ -38,7 +48,9 @@ An unconstrained slot places no restrictions on the concrete type — the implem
 
 ### Generic Type Parameters on Slots
 
-Associated type slots can declare their own type parameters and where clauses:
+> **Not yet implemented.** The compiler does not currently support type parameters on associated type slots. This section describes the planned design.
+
+Associated type slots will be able to declare their own type parameters and where clauses:
 
 ```mist
 interface Transformable<TValue> {
@@ -52,59 +64,68 @@ The slot's type parameters are independent of the enclosing interface's type par
 
 ## Implementor Satisfaction
 
-A class or struct satisfies an associated type slot by providing a concrete type alias that names the slot and assigns a concrete type using `=`:
+A class or struct satisfies an associated type slot by providing a concrete nested type that matches the slot's name and satisfies its constraints:
 
 ```mist
-interface IEnumerator<TValue> {
-    bool MoveNext();
-    TValue Current { get; }
+interface IStringable {
+    string Stringify();
 }
 
-interface Iterable<TValue> {
-    type Enumerator : IEnumerator<TValue>, struct;
+interface IProducer {
+    type Output : IStringable;
 
-    Enumerator GetEnumerator();
+    Output CreateOutput(string msg);
 }
 
-class IntRange : Iterable<int> {
-    public struct RangeEnumerator : IEnumerator<int> {
-        int _current;
-        int _end;
+class MessageProducer : IProducer {
+    public class Output : IStringable {
+        public string Value;
 
-        public RangeEnumerator(int start, int end) {
-            _current = start - 1;
-            _end = end;
+        public Output(string value) {
+            Value = value;
         }
 
-        public bool MoveNext() {
-            _current = _current + 1;
-            return _current < _end;
+        public string Stringify() {
+            return $"Output({Value})";
         }
-
-        public int Current { get => _current; }
     }
 
-    public type Enumerator = RangeEnumerator;
-
-    int _start;
-    int _end;
-
-    public IntRange(int start, int end) {
-        _start = start;
-        _end = end;
-    }
-
-    public RangeEnumerator GetEnumerator() {
-        return new RangeEnumerator(_start, _end);
+    public Output CreateOutput(string msg) {
+        return new Output(msg);
     }
 }
 ```
 
-The compiler verifies that `RangeEnumerator` satisfies both constraints declared on the `Enumerator` slot:
-- It implements `IEnumerator<int>` ✓
-- It is declared as a `struct` ✓
+The compiler verifies that `MessageProducer.Output` satisfies the constraint declared on the `Output` slot:
+- It implements `IStringable` ✓
 
-If either constraint is violated, the compiler emits an error naming the unsatisfied constraint, the concrete type, and the interface requiring it.
+If the constraint is violated, the compiler emits an error naming the unsatisfied constraint, the concrete type, and the interface requiring it.
+
+A struct kind constraint works the same way:
+
+```mist
+interface IIterator {
+    type Cursor : struct;
+
+    Cursor CreateCursor(int pos);
+}
+
+class RangeIterator : IIterator {
+    public struct Cursor {
+        public int Position;
+
+        public Cursor(int pos) {
+            Position = pos;
+        }
+    }
+
+    public Cursor CreateCursor(int pos) {
+        return new Cursor(pos);
+    }
+}
+```
+
+Here the compiler verifies that `RangeIterator.Cursor` is declared as a `struct` ✓. Using a class would trigger a constraint violation error.
 
 ### What the Compiler Checks
 
@@ -116,29 +137,29 @@ For each associated type slot in an implemented interface, the type checker veri
 
 ## Generic Context Resolution
 
+> **Not yet implemented end-to-end.** The type checker accepts `T.SlotName` references in generic contexts, but the emitter does not yet produce runnable code for this pattern. This section describes the intended design.
+
 The real power of associated types emerges in generic code. When a type parameter is constrained by an interface with associated type slots, you can reference the associated type through dot notation on the type parameter:
 
 ```mist
-fun Sum<TIter>(iter: TIter) : int where TIter : Iterable<int> {
-    var enumerator: TIter.Enumerator = iter.GetEnumerator();
-    var total: int = 0;
-    while (enumerator.MoveNext()) {
-        total = total + enumerator.Current;
+class Helpers {
+    public static string Describe<T>(T producer) where T : IProducer {
+        T.Output output = producer.CreateOutput("test");
+        return output.Stringify();
     }
-    return total;
 }
 ```
 
-Inside this function, `TIter.Enumerator` resolves to whatever concrete enumerator type the caller's `TIter` provides. The compiler knows that `TIter.Enumerator` satisfies `IEnumerator<int>` and is a `struct`, so it permits calling `MoveNext()` and accessing `Current` without any casts or boxing.
+Inside this method, `T.Output` resolves to whatever concrete output type the caller's `T` provides. The compiler knows that `T.Output` satisfies `IStringable`, so it permits calling `Stringify()` without any casts.
 
-When `Sum` is called with a concrete type:
+When `Describe` is called with a concrete type:
 
 ```mist
-var range = new IntRange(0, 10);
-var result = Sum<IntRange>(range);
+var producer = new MessageProducer();
+var result = Helpers.Describe<MessageProducer>(producer);
 ```
 
-The compiler resolves `TIter.Enumerator` to `IntRange.RangeEnumerator` — a concrete struct. The enumerator lives on the stack, method calls are statically dispatched, and the optimizer can inline the entire iteration loop.
+The compiler resolves `T.Output` to `MessageProducer.Output` — a concrete class. Method calls are statically dispatched and the compiler can inline through the abstraction.
 
 ### What You Can Do with Associated Type References
 
@@ -152,6 +173,8 @@ Within a generic context, `T.SlotName` behaves like a type that satisfies the sl
 If you reference a name that isn't an associated type slot of any constraining interface (e.g., `T.NonExistent`), the compiler emits an error indicating that the type parameter doesn't have an associated type with that name.
 
 ## Design Rationale: Zero-Allocation Iteration
+
+> **Planned feature.** The full iteration pattern described below requires constraints that reference the enclosing interface's type parameter (e.g., `type Enumerator : IEnumerator<TValue>, struct;`). This is not yet implemented. The current compiler supports constraints that don't reference enclosing type parameters.
 
 Traditional iteration patterns in managed languages use interface dispatch:
 

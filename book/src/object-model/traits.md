@@ -40,9 +40,9 @@ A type satisfying `ReadWriteStream` must provide `Read()`, `Write(string)`, and 
 
 ## Structural Satisfaction
 
-A type satisfies a trait when its public members match the trait's declared signatures by name and type. No explicit `: TraitName` clause is needed — the compiler verifies structural compatibility at compile time. There are two forms of satisfaction: direct binding and late binding.
+A type satisfies a trait when its public members match the trait's declared signatures by name and type. No explicit `: TraitName` clause is needed — the compiler verifies structural compatibility at compile time. There are two forms of satisfaction: structural binding and late binding.
 
-### Direct Binding
+### Structural Binding
 
 Direct binding occurs when a type's members match the trait's signatures exactly — same names, same types. The compiler detects this automatically with no additional declarations:
 

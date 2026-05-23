@@ -1197,5 +1197,8 @@ val.Data=hello-store
 --- Multiple Interfaces ---
 reader.Offset=0
 writer.BufferSize=4096
+--- Type Param In Slot Constraint ---
+intBox.Unwrap()=42
+strBox.Unwrap()=boxed
 --- Associated Types Done ---
 === Done! ===

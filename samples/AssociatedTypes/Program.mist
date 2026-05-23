@@ -295,6 +295,46 @@ class FileStream : IReadable, IWritable {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pattern 11: Type parameter participating in associated type constraint
+// The interface's type parameter T is used in the slot's constraint:
+// `type Output : IWrapper<T>`. This requires the concrete Output type to
+// implement IWrapper parameterized by the same T that the interface was
+// instantiated with. Proves the compiler resolves enclosing type parameters
+// inside slot constraint type arguments.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface IWrapper<T> {
+    T Unwrap();
+}
+
+interface IBoxFactory<T> {
+    type Boxed : IWrapper<T>;
+    Boxed Wrap(T value);
+}
+
+class IntBoxFactory : IBoxFactory<int> {
+    public class Boxed : IWrapper<int> {
+        public int Inner;
+        public Boxed(int v) { Inner = v; }
+        public int Unwrap() { return Inner; }
+    }
+    public Boxed Wrap(int value) {
+        return new Boxed(value);
+    }
+}
+
+class StringBoxFactory : IBoxFactory<string> {
+    public class Boxed : IWrapper<string> {
+        public string Inner;
+        public Boxed(string v) { Inner = v; }
+        public string Unwrap() { return Inner; }
+    }
+    public Boxed Wrap(string value) {
+        return new Boxed(value);
+    }
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 public class Program {
@@ -381,6 +421,15 @@ public class Program {
         Console.WriteLine($"reader.Offset={reader.Offset}");
         var writer = stream.OpenWriter(4096);
         Console.WriteLine($"writer.BufferSize={writer.BufferSize}");
+
+        // 11. Type parameter in slot constraint — T flows into IWrapper<T>
+        Console.WriteLine("--- Type Param In Slot Constraint ---");
+        var intFactory = new IntBoxFactory();
+        var intBox = intFactory.Wrap(42);
+        Console.WriteLine($"intBox.Unwrap()={intBox.Unwrap()}");
+        var strFactory = new StringBoxFactory();
+        var strBox = strFactory.Wrap("boxed");
+        Console.WriteLine($"strBox.Unwrap()={strBox.Unwrap()}");
 
         Console.WriteLine("--- Associated Types Done ---");
     }

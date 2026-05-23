@@ -6543,9 +6543,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Handle generic type arguments if present.
                 if (namedRef.TypeArgs is not null && resolvedType is ClassType or InterfaceType or StructType)
                 {
+                    // When resolving type arguments for a constraint on an associated type slot,
+                    // use the enclosing interface/trait as the declaring type so that its type
+                    // parameters (e.g., T in IProducer<T>) are visible during resolution.
+                    var effectiveDeclaringType = declaringSymbol.DeclaredType is AssociatedTypeSlotType slotWithParent
+                        ? slotWithParent.DeclaringType
+                        : declaringSymbol.DeclaredType ?? ErrorType.Instance;
+
                     resolvedType = ResolveGenericTypeReference(
                         resolvedType, namedRef.TypeArgs, typeName,
-                        declaringSymbol.DeclaredType ?? ErrorType.Instance,
+                        effectiveDeclaringType,
                         declaringNode, asts, compilation, diagnostics);
                 }
 

@@ -99,6 +99,24 @@ Late binding also works for method mappings:
 
 Here `Logger.Log` is mapped to `Writable.Write`. The key property of late binding is retroactive conformance — you can adapt existing types to new traits without touching the original type's source code.
 
+### Explicit Declaration
+
+You can also explicitly list a trait in a type's base clause, just like an interface. When you do this, the compiler enforces that the type satisfies the trait — it must have all the required members with matching names and types. This turns the structural check into a hard requirement at the declaration site rather than deferring it to the point of use.
+
+```mist
+trait Transformable<T> {
+    T Transform(T input);
+}
+
+class Doubler : Transformable<int> {
+    public int Transform(int input) {
+        return input * 2;
+    }
+}
+```
+
+This is useful when you want the compiler to catch missing members immediately rather than waiting until the type is passed somewhere expecting the trait. The type still satisfies the trait structurally — the explicit declaration just makes the intent visible and the error location predictable.
+
 ## Polymorphic Usage
 
 Trait types can be used as variable types and parameter types, accepting any value whose type satisfies the trait — whether through structural matching or a `with` block.

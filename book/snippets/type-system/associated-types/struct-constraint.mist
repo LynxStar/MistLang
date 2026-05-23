@@ -7,9 +7,3 @@ interface IIterator {
 
     Cursor CreateCursor(int pos);
 }
-
-public class Program {
-    public static void Main(string[] args) {
-        Console.WriteLine("IIterator declares Cursor : struct");
-    }
-}

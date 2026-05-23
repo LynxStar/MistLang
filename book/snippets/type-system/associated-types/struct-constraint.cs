@@ -8,16 +8,3 @@ interface IIterator<TCursor>
 {
     TCursor CreateCursor(int pos);
 }
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        System.Console.WriteLine("IIterator declares Cursor : struct");
-    }
-
-    public static Program __CreateDefault()
-    {
-        var inst = new Program();
-        return inst;
-    }
-}

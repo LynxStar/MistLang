@@ -11,9 +11,3 @@ interface IProducer {
 
     Output CreateOutput(string msg);
 }
-
-public class Program {
-    public static void Main(string[] args) {
-        Console.WriteLine("IProducer declares Output : IStringable");
-    }
-}

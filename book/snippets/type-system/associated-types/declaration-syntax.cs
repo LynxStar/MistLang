@@ -12,16 +12,3 @@ interface IProducer<TOutput>
 {
     TOutput CreateOutput(string msg);
 }
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        System.Console.WriteLine("IProducer declares Output : IStringable");
-    }
-
-    public static Program __CreateDefault()
-    {
-        var inst = new Program();
-        return inst;
-    }
-}

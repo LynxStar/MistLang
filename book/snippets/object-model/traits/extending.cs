@@ -1,6 +1,6 @@
 using System;
 
-namespace GenericTraits;
+namespace Snippet;
 
 interface Readable
 {

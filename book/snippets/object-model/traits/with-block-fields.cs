@@ -1,7 +1,7 @@
 using System;
 using System.Text.RegularExpressions;
 
-namespace Traits;
+namespace Snippet;
 
 interface Printable
 {

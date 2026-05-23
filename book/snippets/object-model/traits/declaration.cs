@@ -1,6 +1,6 @@
 using System;
 
-namespace Traits;
+namespace Snippet;
 
 interface Printable
 {

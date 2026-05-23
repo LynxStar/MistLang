@@ -1,7 +1,3 @@
-using Standard;
-
-namespace Traits;
-
 public class Program
 {
     private static void PrintItem(Printable item)

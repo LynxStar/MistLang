@@ -1,0 +1,19 @@
+using Standard;
+
+namespace AssociatedTypesDemo;
+
+interface IStringable {
+    string Stringify();
+}
+
+interface IProducer {
+    type Output : IStringable;
+
+    Output CreateOutput(string msg);
+}
+
+public class Program {
+    public static void Main(string[] args) {
+        Console.WriteLine("IProducer declares Output : IStringable");
+    }
+}

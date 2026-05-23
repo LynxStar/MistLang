@@ -1,0 +1,39 @@
+using Standard;
+
+namespace AssociatedTypesDemo;
+
+interface IStringable {
+    string Stringify();
+}
+
+interface IProducer {
+    type Output : IStringable;
+
+    Output CreateOutput(string msg);
+}
+
+class MessageProducer : IProducer {
+    public class Output : IStringable {
+        public string Value;
+
+        public Output(string value) {
+            Value = value;
+        }
+
+        public string Stringify() {
+            return $"Output({Value})";
+        }
+    }
+
+    public Output CreateOutput(string msg) {
+        return new Output(msg);
+    }
+}
+
+public class Program {
+    public static void Main(string[] args) {
+        var producer = new MessageProducer();
+        var output = producer.CreateOutput("hello");
+        Console.WriteLine(output.Stringify());
+    }
+}

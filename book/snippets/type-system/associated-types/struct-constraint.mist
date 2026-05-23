@@ -1,0 +1,15 @@
+using Standard;
+
+namespace AssociatedTypesDemo;
+
+interface IIterator {
+    type Cursor : struct;
+
+    Cursor CreateCursor(int pos);
+}
+
+public class Program {
+    public static void Main(string[] args) {
+        Console.WriteLine("IIterator declares Cursor : struct");
+    }
+}

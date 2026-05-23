@@ -8,27 +8,37 @@ The primary motivating use case is zero-allocation iteration: an `Iterable<TValu
 
 An associated type slot is declared inside an interface or trait body using the `type Name : ConstraintList;` syntax. The colon and constraint list specify what the concrete type must satisfy, using the same constraint syntax as generic `where` clauses (see [Generic Constraints](./generic-constraints.md)).
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-interface IProducer {
-    type Output : IStringable;
-
-    Output CreateOutput(string msg);
-}
+{{#include ../../snippets/type-system/associated-types/declaration-syntax.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/associated-types/declaration-syntax.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 Here, `Output` is an associated type slot. Any type implementing `IProducer` must provide a concrete type named `Output` that implements `IStringable`.
 
 The constraint list supports the same forms as generic constraints: `struct`, `class`, interface references, trait references, base class references, `new()`, and combinations thereof. Multiple constraints are separated by commas.
 
-A slot can also combine a kind constraint with an interface constraint:
+A slot can also use a kind constraint:
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-interface IIterator {
-    type Cursor : struct;
-
-    Cursor CreateCursor(int pos);
-}
+{{#include ../../snippets/type-system/associated-types/struct-constraint.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/associated-types/struct-constraint.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 Here, `Cursor` must be a value type (`struct`). The implementor can provide any struct as the concrete type.
 
@@ -36,13 +46,18 @@ Here, `Cursor` must be a value type (`struct`). The implementor can provide any 
 
 If no constraints are needed, omit the colon entirely:
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-interface Container {
-    type Element;
-
-    Element Get(int index);
-}
+{{#include ../../snippets/type-system/associated-types/unconstrained-slot.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/associated-types/unconstrained-slot.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 An unconstrained slot places no restrictions on the concrete type — the implementor can provide any type.
 
@@ -66,35 +81,18 @@ The slot's type parameters are independent of the enclosing interface's type par
 
 A class or struct satisfies an associated type slot by providing a concrete nested type that matches the slot's name and satisfies its constraints:
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-interface IStringable {
-    string Stringify();
-}
-
-interface IProducer {
-    type Output : IStringable;
-
-    Output CreateOutput(string msg);
-}
-
-class MessageProducer : IProducer {
-    public class Output : IStringable {
-        public string Value;
-
-        public Output(string value) {
-            Value = value;
-        }
-
-        public string Stringify() {
-            return $"Output({Value})";
-        }
-    }
-
-    public Output CreateOutput(string msg) {
-        return new Output(msg);
-    }
-}
+{{#include ../../snippets/type-system/associated-types/implementor-interface.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/associated-types/implementor-interface.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 The compiler verifies that `MessageProducer.Output` satisfies the constraint declared on the `Output` slot:
 - It implements `IStringable` ✓
@@ -103,27 +101,18 @@ If the constraint is violated, the compiler emits an error naming the unsatisfie
 
 A struct kind constraint works the same way:
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-interface IIterator {
-    type Cursor : struct;
-
-    Cursor CreateCursor(int pos);
-}
-
-class RangeIterator : IIterator {
-    public struct Cursor {
-        public int Position;
-
-        public Cursor(int pos) {
-            Position = pos;
-        }
-    }
-
-    public Cursor CreateCursor(int pos) {
-        return new Cursor(pos);
-    }
-}
+{{#include ../../snippets/type-system/associated-types/implementor-struct.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/associated-types/implementor-struct.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 Here the compiler verifies that `RangeIterator.Cursor` is declared as a `struct` ✓. Using a class would trigger a constraint violation error.
 

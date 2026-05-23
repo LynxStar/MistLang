@@ -1,0 +1,15 @@
+using Standard;
+
+namespace AssociatedTypesDemo;
+
+interface Container {
+    type Element;
+
+    Element Get(int index);
+}
+
+public class Program {
+    public static void Main(string[] args) {
+        Console.WriteLine("Container declares unconstrained Element");
+    }
+}

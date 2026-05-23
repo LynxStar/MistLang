@@ -1,0 +1,9 @@
+interface IStringable {
+    string Stringify();
+}
+
+trait Consumable {
+    type Input : IStringable;
+
+    string GetLabel();
+}

@@ -1,5 +1,0 @@
-interface IIterator {
-    type Cursor : struct;
-
-    Cursor CreateCursor(int pos);
-}

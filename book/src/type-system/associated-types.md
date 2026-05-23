@@ -21,26 +21,7 @@ An associated type slot is declared inside an interface or trait body using the 
 {{#endtab }}
 {{#endtabs }}
 
-Here, `Output` is an associated type slot. Any type implementing `IProducer` must provide a concrete type named `Output` that implements `IStringable`.
-
-The constraint list supports the same forms as generic constraints: `struct`, `class`, interface references, trait references, base class references, `new()`, and combinations thereof. Multiple constraints are separated by commas.
-
-A slot can also use a kind constraint:
-
-{{#tabs }}
-{{#tab name="Mist" }}
-```mist
-{{#include ../../snippets/type-system/associated-types/struct-constraint.mist}}
-```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-{{#include ../../snippets/type-system/associated-types/struct-constraint.cs}}
-```
-{{#endtab }}
-{{#endtabs }}
-
-Here, `Cursor` must be a value type (`struct`). The implementor can provide any struct as the concrete type.
+Here, `Output` is an associated type slot. Any type implementing `IProducer` must provide a concrete type named `Output` that implements `IStringable`. In the emitted C#, the slot becomes a synthesized type parameter with the constraint preserved as a `where` clause.
 
 ### Unconstrained Slots
 
@@ -60,6 +41,44 @@ If no constraints are needed, omit the colon entirely:
 {{#endtabs }}
 
 An unconstrained slot places no restrictions on the concrete type — the implementor can provide any type.
+
+### Multiple Constraints
+
+A slot can require multiple constraints separated by commas. The concrete type must satisfy all of them:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/associated-types/multiple-constraints.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/associated-types/multiple-constraints.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The constraint list supports the same forms as generic constraints: `struct`, `class`, interface references, trait references, base class references, `new()`, and combinations thereof.
+
+### Trait Slots
+
+Traits can also declare associated type slots with the same syntax. A type structurally conforming to the trait must provide the required nested type:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/associated-types/trait-slot.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/associated-types/trait-slot.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The emitted C# is identical in shape — traits emit as interfaces, and the associated type slot becomes a type parameter with the same constraint propagation.
 
 ### Generic Type Parameters on Slots
 

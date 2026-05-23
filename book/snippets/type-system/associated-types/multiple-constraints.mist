@@ -1,0 +1,13 @@
+interface IStringable {
+    string Stringify();
+}
+
+interface IResettable {
+    string GetState();
+}
+
+interface IStatefulProducer {
+    type State : IStringable, IResettable;
+
+    string GetProducerName();
+}

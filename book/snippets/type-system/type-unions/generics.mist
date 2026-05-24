@@ -1,0 +1,35 @@
+// A type argument can be a union
+class Box<T>
+{
+    public T Value;
+
+    public Box(T value)
+    {
+        this.Value = value;
+    }
+}
+
+// A union can contain a type parameter
+type Result<TError> = int | TError;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Passing a union as a type argument
+        var box = new Box<int | string>(42);
+
+        // Using a type parameter in a union
+        Result<string> ok = 100;
+        Result<string> err = "not found";
+
+        if (ok is int n)
+        {
+            Console.WriteLine($"ok: {n}");
+        }
+        if (err is string s)
+        {
+            Console.WriteLine($"err: {s}");
+        }
+    }
+}

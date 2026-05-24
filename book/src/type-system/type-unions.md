@@ -133,6 +133,25 @@ A union can be assigned to a wider union — one that contains all of its consti
 
 The assignment is safe because every possible value in `Narrow` (`int` or `string`) is also a valid value in `Wide` (`int`, `string`, or `bool`). The reverse — assigning a wider union to a narrower one — is not allowed, since the wider union might hold a type the narrower one can't represent.
 
+## Unions and Generics
+
+A union type can be passed as a type argument to a generic type, and type parameters can be used as constituents in a union:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/type-unions/generics.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/type-unions/generics.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`Box<int | string>` uses a union as a type argument — the box holds a union value. `Result<TError>` uses a type parameter as a union constituent — each instantiation produces a different union type. `Result<string>` is `int | string`, `Result<bool>` would be `int | bool`, and so on.
+
 ## Reassignment
 
 A union-typed variable can be reassigned from one constituent type to another freely.

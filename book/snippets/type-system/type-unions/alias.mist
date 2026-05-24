@@ -1,0 +1,20 @@
+type Result = int | string;
+
+public class Program
+{
+    public static Result Parse(string input)
+    {
+        if (input is "42")
+        {
+            return 42;
+        }
+        return input;
+    }
+
+    public static void Main(string[] args)
+    {
+        Result a = 100;
+        Result b = "hello";
+        var c = Parse("42");
+    }
+}

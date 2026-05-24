@@ -40,6 +40,25 @@ Union types work as parameter types and return types, allowing functions to acce
 
 Parameters and return types both emit as the union helper struct. Callers can pass any constituent type directly thanks to the implicit conversion operators on the struct.
 
+## Union Type Aliases
+
+A union type is a type expression, so you can bind it to a name with a type alias. This avoids repeating the full union everywhere you use it:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/type-unions/alias.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/type-unions/alias.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`Result` is just a name for `int | string` — the alias is erased at compile time and every usage becomes the same union struct. This is especially useful when the same union appears in multiple method signatures or across files. See [Type Aliases](./type-aliases.md) for more on how aliases work.
+
 ## Narrowing via Pattern Matching
 
 To access the underlying value of a union-typed variable, use `is` pattern matching. This narrows the type and binds the value to a new variable.

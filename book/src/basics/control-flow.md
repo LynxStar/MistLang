@@ -76,7 +76,30 @@ The `foreach` loop iterates over each element in a collection. You declare the e
 
 The loop variable is scoped to the `foreach` block and takes on the value of each element in sequence.
 
-You can also iterate over any user-defined type that implements `IEnumerable<TElement>`:
+### User-Defined Enumerables
+
+You can iterate over any user-defined type that implements `IEnumerable<TElement>` from the standard library. This requires two interfaces:
+
+```mist
+// From the standard library
+interface IEnumerator<TElement>
+{
+    bool MoveNext();
+    TElement Current { get; }
+}
+
+interface IEnumerable<TElement>
+{
+    type Enumerator : IEnumerator<TElement>;
+    Enumerator GetEnumerator();
+}
+```
+
+`IEnumerator<TElement>` defines the iteration protocol — `MoveNext()` advances to the next element (returning `false` when exhausted) and `Current` yields the current value. `IEnumerable<TElement>` declares an [associated type](../type-system/associated-types.md) slot `Enumerator` that must implement `IEnumerator<TElement>`, and a `GetEnumerator()` method that returns it.
+
+When you write `foreach (int n in collection)`, the compiler calls `GetEnumerator()` on the collection, then repeatedly calls `MoveNext()` and reads `Current` until the enumerator is exhausted.
+
+Here's a complete example — a `Countdown` type that counts down from a starting value:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -90,6 +113,8 @@ You can also iterate over any user-defined type that implements `IEnumerable<TEl
 ```
 {{#endtab }}
 {{#endtabs }}
+
+`Countdown` implements `IEnumerable<int>` with a nested struct `Enumerator` that satisfies the associated type slot. The `foreach` loop desugars into a `GetEnumerator()` call followed by a `while (enumerator.MoveNext())` loop reading `enumerator.Current`.
 
 ## Break
 

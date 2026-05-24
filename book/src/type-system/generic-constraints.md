@@ -149,6 +149,25 @@ The compiler emits parameterized constructor constraints as factory delegates (`
 
 Notice that the emitted C# uses a `Func<int, T>` delegate rather than a native `new()` constraint — C# doesn't support parameterized constructor constraints natively, so Mist lowers them to factory functions. At the call site, the compiler automatically generates the lambda: `new IntFactory<Widget>((arg0) => new Widget(arg0))`.
 
+### Multiple Constructor Constraints
+
+You can require multiple constructors on the same type parameter. This guarantees the type has several construction paths available in the generic body:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/generic-constraints/multiple-constructors.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/generic-constraints/multiple-constructors.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Here `T` must have a parameterless constructor, a constructor taking `int`, and a constructor taking `bool`. The generic body can use all three forms of `new T(...)`.
+
 ## Multiple Constraints on a Single Type Parameter
 
 You can combine multiple constraints on the same type parameter by separating them with commas. The type argument must satisfy all listed constraints simultaneously.
@@ -236,5 +255,6 @@ The same `where` clause syntax works uniformly across classes, structs, interfac
 | `BaseClassName` | Must extend the base class |
 | `new()` | Must have a parameterless constructor |
 | `new(Type)` | Must have a constructor accepting that parameter type |
+| `new(), new(Type)` | Multiple constructor constraints can be combined |
 
 Constraints compose freely — combine `class`, interface, trait, base class, and constructor constraints on the same type parameter to express precise requirements. Use multiple `where` clauses when constraining different type parameters independently.

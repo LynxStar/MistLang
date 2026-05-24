@@ -1,0 +1,17 @@
+class MultiFactory<T> where T : new(), new(int), new(bool)
+{
+    public T CreateDefault()
+    {
+        return new T();
+    }
+
+    public T CreateFromInt(int value)
+    {
+        return new T(value);
+    }
+
+    public T CreateFromBool(bool flag)
+    {
+        return new T(flag);
+    }
+}

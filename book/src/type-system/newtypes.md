@@ -1,6 +1,6 @@
 # Newtypes
 
-A newtype creates a distinct type that wraps an existing type. Unlike type aliases, which are transparent and interchangeable with their source type, a newtype is a separate type at compile time — you cannot accidentally pass a `UserId` where a plain `int` is expected, or vice versa. This gives you type safety for domain concepts without runtime overhead.
+A newtype creates a distinct type from an existing type. The compiler creates a new type of the same kind (struct for struct, class for class) and clones all of the source's public members into it. Unlike type aliases, which are transparent and interchangeable with their source type, a newtype is a separate type at compile time — you cannot accidentally pass a `UserId` where a plain `int` is expected, or vice versa. This gives you type safety for domain concepts without runtime overhead.
 
 ## Newtype Declaration
 
@@ -19,11 +19,11 @@ A newtype is declared with the `type` keyword, a name, and `= new SourceType;`. 
 {{#endtab }}
 {{#endtabs }}
 
-Each newtype wrapping a primitive emits as a `readonly struct` with a `Value` field holding the wrapped value. The compiler generates explicit cast operators in both directions — from the source type to the newtype and back — so conversions are always intentional.
+Each newtype from a primitive emits as a `readonly struct` with a `Value` field. The compiler generates explicit cast operators in both directions so conversions are always intentional.
 
-## Wrapping Structs
+## Newtypes from Structs
 
-When a newtype wraps a struct, the emitted type reproduces the struct's constructor and public members directly. This means you construct the newtype the same way you'd construct the underlying struct.
+When a newtype is created from a struct, the emitted type reproduces the struct's constructor and public members directly. You construct the newtype the same way you'd construct the source struct.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -40,9 +40,9 @@ When a newtype wraps a struct, the emitted type reproduces the struct's construc
 
 The `Position` newtype gets its own struct with the same fields and methods as `Point`. Even though they have identical shapes, `Position` and `Point` are distinct types — you cannot assign one to the other without an explicit cast.
 
-## Wrapping Classes
+## Newtypes from Classes
 
-Newtypes can also wrap classes. The emitted type is a class that mirrors the wrapped class's constructor and public members.
+Newtypes can also be created from classes. The emitted type is a class that reproduces the source class's constructor and public members.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -76,7 +76,7 @@ Use type aliases when you want a shorter or more descriptive name. Use newtypes 
 
 ## Member Access
 
-Newtype instances expose the wrapped type's public members directly. For primitive newtypes, the wrapped value is accessible via the `.Value` property. For struct and class newtypes, the source type's fields and methods are available directly on the newtype instance.
+Newtype instances expose the source type's public members directly. For primitive newtypes, the underlying value is accessible via the `.Value` property. For struct and class newtypes, the source type's fields and methods are available directly on the newtype instance — they're cloned into the new type.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -110,4 +110,4 @@ Converting between a newtype and its source type requires an explicit cast. This
 {{#endtab }}
 {{#endtabs }}
 
-The cast syntax is `(NewType)value` to wrap and `(SourceType)newtypeValue` to unwrap. In the emitted C#, these use the explicit cast operators that the compiler generates on the newtype struct. Without the cast, the compiler reports a type error — there is no implicit conversion between a newtype and its source type.
+The cast syntax is `(NewType)value` to create the newtype and `(SourceType)newtypeValue` to extract the source value. Without the cast, the compiler reports a type error — there is no implicit conversion between a newtype and its source type.

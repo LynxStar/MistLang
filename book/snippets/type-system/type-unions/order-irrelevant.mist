@@ -1,0 +1,12 @@
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        int | string a = 42;
+        string | int b = "hello";
+
+        // These are the same type — assignment works in both directions
+        a = b;
+        b = a;
+    }
+}

@@ -4,7 +4,7 @@ Type unions allow a variable, parameter, or return type to hold a value of one o
 
 ## Union Type Syntax
 
-A union type is written as two or more types separated by `|`. The resulting type can hold a value of any of the listed types. The order of constituent types does not matter — `string | int` and `int | string` are the same type.
+A union type is written as two or more types separated by `|`. The resulting type can hold a value of any of the listed types.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -18,6 +18,25 @@ A union type is written as two or more types separated by `|`. The resulting typ
 ```
 {{#endtab }}
 {{#endtabs }}
+
+## Order Is Irrelevant
+
+The order of constituent types does not matter. `string | int` and `int | string` are the same type — you can assign between them freely:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/type-unions/order-irrelevant.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/type-unions/order-irrelevant.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The compiler normalizes the constituent types internally, so regardless of the order you write them, the result is the same type.
 
 ## Union-Typed Parameters and Return Types
 

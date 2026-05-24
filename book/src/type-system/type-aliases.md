@@ -21,25 +21,6 @@ A simple type alias gives a new name to an existing type using the `type Name = 
 
 Notice that the `type` declarations themselves produce no C# output — they are erased entirely. Every usage of `UserId` becomes `int`, `UserName` becomes `string`, and so on.
 
-## Union Aliases
-
-A type alias can name a union type, giving a concise label to a multi-type union that you use in several places.
-
-{{#tabs }}
-{{#tab name="Mist" }}
-```mist
-{{#include ../../snippets/type-system/type-aliases/union-aliases.mist}}
-```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-{{#include ../../snippets/type-system/type-aliases/union-aliases.cs}}
-```
-{{#endtab }}
-{{#endtabs }}
-
-The alias `StringOrInt` resolves to the union `int | string`, which emits as the generated helper struct `Union_Int32_String`. Similarly, `Outcome` resolves to `int | string | bool` and emits as `Union_Boolean_Int32_String`. The constituent type names are sorted alphabetically in the generated struct name.
-
 ## Closed Generic Aliases
 
 An alias can name a specific instantiation of a generic type. This is useful when you frequently use a generic type with the same type argument and want a shorter name.
@@ -95,6 +76,6 @@ Type aliases are fully transparent. A value declared with an alias type can be a
 {{#endtab }}
 {{#endtabs }}
 
-Because aliases are erased, there is no distinction between `UserId` and `int` at runtime. The parameter type `UserId` becomes `int` in the emitted method signature, so passing a plain `int` works without any conversion. This transparency applies to all alias forms — simple, union, closed generic, and generic aliases are all interchangeable with their underlying types.
+Because aliases are erased, there is no distinction between `UserId` and `int` at runtime. The parameter type `UserId` becomes `int` in the emitted method signature, so passing a plain `int` works without any conversion. This transparency applies to all alias forms — simple, closed generic, and generic aliases are all interchangeable with their underlying types.
 
 If you need a type that is *not* interchangeable with its underlying type — one that creates a distinct type identity — use a [newtype](./newtypes.md) instead.

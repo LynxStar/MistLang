@@ -42,6 +42,8 @@ internal static class CSharpTypeMap
         ["Standard.Math"] = "System.Math",
         ["Standard.Convert"] = "System.Convert",
         ["Standard.Task"] = "System.Threading.Tasks.Task",
+        ["Standard.IEnumerator"] = "System.Collections.Generic.IEnumerator",
+        ["Standard.IEnumerable"] = "System.Collections.Generic.IEnumerable",
 
         // ── Legacy Mist-primitive keyword lexemes (test compat) ──────────
         // Kept so that tests that build a semantic model without loading
@@ -223,6 +225,7 @@ internal static class CSharpTypeMap
         NewtypeType nt => nt.Name,
         ClassType c => c.DisplayName,
         StructType s => GetKeywordOrDisplayName(s),
+        InterfaceType i when i.ContainingNamespace == "Standard" && TryGetMappedName($"Standard.{i.DisplayName}") is { } mapped => mapped,
         InterfaceType i => i.DisplayName,
         ConstructedTraitType ctt => $"{ctt.GenericTraitDefinition.DisplayName}<{string.Join(", ", ctt.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
         TraitType t => t.DisplayName,

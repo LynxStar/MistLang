@@ -59,7 +59,7 @@ The initializer declares a loop variable scoped to the `for` block. The conditio
 
 ## Foreach Loops
 
-The `foreach` loop iterates over each element in a collection. You declare the element type and name, followed by `in` and the collection expression.
+The `foreach` loop iterates over each element in a collection. You declare the element type and name, followed by `in` and the collection expression. The collection expression must implement `IEnumerable<TElement>` from the Standard namespace — the compiler verifies this at compile time and infers the iteration variable's type from the resolved `TElement`.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -76,9 +76,20 @@ The `foreach` loop iterates over each element in a collection. You declare the e
 
 The loop variable is scoped to the `foreach` block and takes on the value of each element in sequence.
 
-> **Note:** The Mist compiler does not currently verify that the collection expression is actually enumerable. The `foreach` statement is emitted directly to the backend, which performs its own enumeration resolution. With the C# backend, this means the collection must satisfy C#'s foreach requirements (implement `IEnumerable<T>`, or have a duck-typed `GetEnumerator()` method). If the expression is not enumerable, you will get a backend compilation error rather than a Mist compiler error.
+You can also iterate over any user-defined type that implements `IEnumerable<TElement>`:
 
-> **Design intent:** The intended design is to back `foreach` using `Iterable<TValue>` and `IEnumerator<TValue>` interfaces with associated types, similar to Rust's `IntoIterator` / `Iterator` pattern. The `Iterable<TValue>` interface will declare an associated type slot for the enumerator (e.g., `type Enumerator : IEnumerator<TValue>, struct;`), allowing the compiler to resolve the concrete enumerator type statically and enabling zero-allocation iteration without boxing. See the [Associated Types](../type-system/associated-types.md) chapter for details.
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/basics/control-flow/foreach-enumerable.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/basics/control-flow/foreach-enumerable.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 ## Break
 

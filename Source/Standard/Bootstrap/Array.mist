@@ -2,13 +2,18 @@ namespace Standard;
 
 type ZeroOrPositiveInt = int >= 0;
 
-intrinsic public class Array<TValue, Length:ZeroOrPositiveInt>
+intrinsic public class Array<TValue, Length:ZeroOrPositiveInt> : IEnumerable<TValue>
 {
-
     public type ArrayBounds = ZeroOrPositiveInt and < Length;
 
     intrinsic public Int32 Length { get; }
 
     intrinsic public TValue this[ArrayBounds index];
 
+    intrinsic public struct Enumerator : IEnumerator<TValue> {
+        intrinsic public bool MoveNext();
+        intrinsic public TValue Current { get; }
+    }
+
+    intrinsic public Enumerator GetEnumerator();
 }

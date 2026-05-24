@@ -2750,6 +2750,15 @@ internal sealed class CSharpSourceWriter
             EmitExplicitTraitImplementations(classTypeForTraits, classDecl.Members.Length > 0);
         }
 
+        // Emit CLR boilerplate for IEnumerator<T> and IEnumerable<T> implementations.
+        // C#'s System.Collections.Generic.IEnumerator<T> requires IDisposable.Dispose(),
+        // IEnumerator.Reset(), and non-generic IEnumerator.Current. IEnumerable<T> requires
+        // IEnumerator<T> GetEnumerator() and non-generic IEnumerable.GetEnumerator().
+        if (symbol?.DeclaredType is ClassType classTypeForIterator)
+        {
+            EmitIteratorInterfaceBoilerplate(classTypeForIterator);
+        }
+
         // Emit explicit interface implementations for methods that use parameterized
         // associated type slots. The public method returns the concrete nested type,
         // and the explicit impl bridges to it with the erased constraint interface type.
@@ -2835,6 +2844,16 @@ internal sealed class CSharpSourceWriter
 
     private void EmitInterfaceDeclaration(InterfaceDeclarationNode interfaceDecl)
     {
+        // Skip interfaces that map to CLR counterparts (e.g., IEnumerable → System.Collections.Generic.IEnumerable).
+        // These are not emitted — the C# runtime provides them.
+        var interfaceSymbol2 = _model.GetDeclaredSymbol(interfaceDecl);
+        if (interfaceSymbol2?.DeclaredType is InterfaceType ifaceType
+            && ifaceType.ContainingNamespace == "Standard"
+            && CSharpTypeMap.TryGetMappedName($"Standard.{ifaceType.DisplayName}") is not null)
+        {
+            return;
+        }
+
         var name = interfaceDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(interfaceDecl.TypeParams);
         var interfaceList = "";
@@ -3233,6 +3252,56 @@ internal sealed class CSharpSourceWriter
                         break;
                     }
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Emits CLR boilerplate members required by System.Collections.Generic.IEnumerator&lt;T&gt;
+    /// and System.Collections.Generic.IEnumerable&lt;T&gt;. These interfaces inherit from
+    /// non-generic IEnumerator/IEnumerable and IDisposable, requiring additional members
+    /// that Mist does not model explicitly.
+    /// </summary>
+    private void EmitIteratorInterfaceBoilerplate(IType type)
+    {
+        var interfaces = type switch
+        {
+            ClassType ct => ct.Interfaces,
+            StructType st => st.Interfaces,
+            _ => null
+        };
+        if (interfaces is null) return;
+
+        foreach (var iface in interfaces)
+        {
+            var definition = iface is ConstructedType ct2 ? ct2.GenericDefinition : iface;
+            if (definition is not InterfaceType ifaceType || ifaceType.ContainingNamespace != "Standard")
+                continue;
+
+            if (ifaceType.DisplayName == "IEnumerator")
+            {
+                // Extract TElement from IEnumerator<TElement>
+                var elementType = iface is ConstructedType ctEnum
+                    ? CSharpTypeMap.GetTypeName(ctEnum.TypeArguments[0])
+                    : "object";
+
+                AppendLine();
+                AppendLine("// CLR IEnumerator<T> boilerplate");
+                AppendLine($"object System.Collections.IEnumerator.Current => Current;");
+                AppendLine($"public void Reset() {{ throw new System.NotSupportedException(); }}");
+                AppendLine($"public void Dispose() {{ }}");
+            }
+            else if (ifaceType.DisplayName == "IEnumerable")
+            {
+                // Extract TElement from IEnumerable<TElement>
+                var elementType = iface is ConstructedType ctEnum
+                    ? CSharpTypeMap.GetTypeName(ctEnum.TypeArguments[0])
+                    : "object";
+
+                AppendLine();
+                AppendLine("// CLR IEnumerable<T> boilerplate");
+                AppendLine($"System.Collections.Generic.IEnumerator<{elementType}> System.Collections.Generic.IEnumerable<{elementType}>.GetEnumerator() => GetEnumerator();");
+                AppendLine($"System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();");
             }
         }
     }
@@ -3732,6 +3801,12 @@ internal sealed class CSharpSourceWriter
         if (symbol?.DeclaredType is StructType structTypeForTraits)
         {
             EmitExplicitTraitImplementations(structTypeForTraits, structDecl.Members.Length > 0);
+        }
+
+        // Emit CLR boilerplate for IEnumerator<T> and IEnumerable<T> implementations.
+        if (symbol?.DeclaredType is StructType structTypeForIterator)
+        {
+            EmitIteratorInterfaceBoilerplate(structTypeForIterator);
         }
 
         // Emit __CreateDefault factory method for defaultable structs.
@@ -10539,6 +10614,21 @@ internal sealed class CSharpSourceWriter
         if (resolvedType is null)
             return baseName + EmitTypeArgumentList(baseTypeRef.TypeArgs);
 
+        // Special case: IEnumerable and IEnumerator map directly to their CLR counterparts
+        // (System.Collections.Generic.IEnumerable<T> / IEnumerator<T>) which do NOT have
+        // the associated type slot lifted as an extra type parameter. Skip slot-lifting
+        // and emit the mapped CLR name.
+        if (resolvedType is InterfaceType clrIface
+            && clrIface.ContainingNamespace == "Standard"
+            && clrIface.DisplayName is "IEnumerable" or "IEnumerator")
+        {
+            var mappedName = CSharpTypeMap.TryGetMappedName($"Standard.{clrIface.DisplayName}");
+            if (mappedName is not null)
+            {
+                return mappedName + EmitTypeArgumentList(baseTypeRef.TypeArgs);
+            }
+        }
+
         // Collect associated type slots from the resolved interface/trait.
         var slots = CollectAssociatedTypeSlotsFromType(resolvedType);
         // Only non-parameterized slots are lifted to type parameters on the interface.
@@ -10640,6 +10730,17 @@ internal sealed class CSharpSourceWriter
     {
         // Get the underlying interface/trait definition (unwrap ConstructedType if generic).
         var definition = iface is ConstructedType ct ? ct.GenericDefinition : iface;
+
+        // Special case: IEnumerable and IEnumerator map directly to their CLR counterparts
+        // (System.Collections.Generic.IEnumerable<T> / IEnumerator<T>) which do NOT have
+        // the associated type slot lifted as an extra type parameter. Skip slot-lifting
+        // for these two interfaces.
+        if (definition is InterfaceType clrIface
+            && clrIface.ContainingNamespace == "Standard"
+            && clrIface.DisplayName is "IEnumerable" or "IEnumerator")
+        {
+            return CSharpTypeMap.GetTypeName(iface);
+        }
 
         // Collect associated type slots from the definition.
         // Only non-parameterized slots are lifted to type parameters.

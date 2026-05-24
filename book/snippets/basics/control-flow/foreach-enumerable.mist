@@ -1,0 +1,47 @@
+using Standard;
+
+class Countdown : IEnumerable<int>
+{
+    public struct Enumerator : IEnumerator<int>
+    {
+        private int current;
+
+        public Enumerator(int start)
+        {
+            current = start + 1;
+        }
+
+        public bool MoveNext()
+        {
+            current = current - 1;
+            return current >= 0;
+        }
+
+        public int Current => current;
+    }
+
+    private int start;
+
+    public Countdown(int start)
+    {
+        this.start = start;
+    }
+
+    public Enumerator GetEnumerator()
+    {
+        return new Enumerator(start);
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var countdown = new Countdown(3);
+        foreach (int n in countdown)
+        {
+            Console.WriteLine($"T-{n}");
+        }
+        Console.WriteLine("Liftoff!");
+    }
+}

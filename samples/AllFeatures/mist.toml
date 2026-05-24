@@ -131,3 +131,6 @@ path = "../StructInheritance"
 
 [[references]]
 path = "../AssociatedTypes"
+
+[[references]]
+path = "../TypeArgumentInference"

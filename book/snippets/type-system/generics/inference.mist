@@ -1,0 +1,40 @@
+public class Container<T>
+{
+    private T value;
+
+    public Container(T value)
+    {
+        this.value = value;
+    }
+
+    public T GetValue()
+    {
+        return value;
+    }
+}
+
+public class InferenceDemo
+{
+    public static T Identity<T>(T value)
+    {
+        return value;
+    }
+
+    public static T Unwrap<T>(Container<T> container)
+    {
+        return container.GetValue();
+    }
+
+    public static void Run()
+    {
+        // Type argument inferred from the argument type
+        var x = Identity(42);
+
+        // Same call with explicit type argument — equivalent
+        var y = Identity<int>(42);
+
+        // Type argument inferred from a constructed type argument
+        var box = new Container<string>("hello");
+        var s = Unwrap(box);
+    }
+}

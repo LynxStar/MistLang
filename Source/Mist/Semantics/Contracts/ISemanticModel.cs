@@ -102,4 +102,16 @@ public interface ISemanticModel
     /// The emitter uses this to generate scope-exit await code.
     /// </summary>
     IReadOnlyList<LiveTaskInfo> GetLiveTasks(Storm.Runtime.SyntaxNode blockScopeNode);
+
+    /// <summary>
+    /// Records the inferred type arguments for a method call node where type
+    /// arguments were omitted in source but successfully inferred.
+    /// </summary>
+    void RecordInferredTypeArguments(Storm.Runtime.SyntaxNode callSiteNode, IReadOnlyList<IType> inferredTypeArgs);
+
+    /// <summary>
+    /// Returns the inferred type arguments for a method call node, or <c>null</c> if
+    /// type arguments were not inferred (either explicit or inference not attempted).
+    /// </summary>
+    IReadOnlyList<IType>? GetInferredTypeArguments(Storm.Runtime.SyntaxNode callSiteNode);
 }

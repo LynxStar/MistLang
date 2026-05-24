@@ -57,6 +57,15 @@ public static class OverloadResolver
     /// candidates whose parameter RefKind values do not match the argument
     /// RefKind values are filtered out during applicability checking (Requirement 7.4).
     /// </param>
+    /// <param name="inferenceResults">
+    /// Optional inference results parallel to <paramref name="candidates"/>.
+    /// When provided, candidates at index <c>i</c> where <c>inferenceResults[i]</c>
+    /// is non-null and <c>Success == false</c> are excluded from the applicable set.
+    /// This enables inference-aware overload resolution: when type arguments are
+    /// omitted, the caller attempts inference for each generic candidate and passes
+    /// the results here so that candidates with failed inference are filtered out
+    /// before specificity ranking (Requirements 5.1, 5.2, 5.3, 5.4, 5.5, 5.6).
+    /// </param>
     /// <returns>A resolution result indicating success, no match, or ambiguity.</returns>
     public static OverloadResolutionResult Resolve(
         IReadOnlyList<ISymbol> candidates,
@@ -64,7 +73,8 @@ public static class OverloadResolver
         ISemanticModel model,
         IReadOnlyList<int>? candidateOrigin = null,
         (IReadOnlyList<IType> TypeParams, IReadOnlyList<IType> TypeArgs)? typeSubstitution = null,
-        IReadOnlyList<RefKind>? argumentRefKinds = null)
+        IReadOnlyList<RefKind>? argumentRefKinds = null,
+        IReadOnlyList<InferenceResult?>? inferenceResults = null)
     {
         // Validate origin vector length — callers must supply one entry per
         // candidate when they opt into the tiebreaker. Mismatched lengths are
@@ -72,6 +82,10 @@ public static class OverloadResolver
         // predictable.
         if (candidateOrigin is not null && candidateOrigin.Count != candidates.Count)
             candidateOrigin = null;
+
+        // Validate inference results vector length — must match candidates count.
+        if (inferenceResults is not null && inferenceResults.Count != candidates.Count)
+            inferenceResults = null;
 
         // Step 1: Filter to applicable candidates — parameter count must match
         // and each argument type must be assignable to the corresponding parameter type.
@@ -82,6 +96,13 @@ public static class OverloadResolver
         for (var c = 0; c < candidates.Count; c++)
         {
             var candidate = candidates[c];
+
+            // Inference-aware filtering: when inference results are provided,
+            // exclude candidates where inference was attempted but failed.
+            // A null entry means the candidate is non-generic (no inference needed)
+            // and passes through unchanged.
+            if (inferenceResults is not null && inferenceResults[c] is { } ir && !ir.Success)
+                continue;
             var paramTypes = ParameterSignature.Extract(candidate, model);
 
             if (paramTypes.Count != argumentTypes.Count)
@@ -98,6 +119,20 @@ public static class OverloadResolver
                 for (var i = 0; i < paramTypes.Count; i++)
                     substituted[i] = TypeCheckerAnalyzer.SubstituteType(
                         paramTypes[i], typeParams, typeArgs);
+                paramTypes = substituted;
+            }
+
+            // When inference succeeded for this candidate, substitute the inferred
+            // type arguments into the parameter types before the assignability check.
+            // This maps T → Int32 so that Process<T>(T value) becomes Process(Int32 value)
+            // when inference determined T = Int32.
+            if (inferenceResults is not null && inferenceResults[c] is { Success: true } successfulInference
+                && candidate is Symbol candidateSymForSubst && candidateSymForSubst.TypeParameters.Count > 0)
+            {
+                var substituted = new IType[paramTypes.Count];
+                for (var i = 0; i < paramTypes.Count; i++)
+                    substituted[i] = TypeCheckerAnalyzer.SubstituteType(
+                        paramTypes[i], candidateSymForSubst.TypeParameters, successfulInference.InferredTypeArguments!);
                 paramTypes = substituted;
             }
 

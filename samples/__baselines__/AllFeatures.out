@@ -1205,4 +1205,10 @@ strResult.Value=converted-42
 strResult.Transform(0)=converted-42
 intResult.Value=70
 --- Associated Types Done ---
+identity_int=42
+identity_string=hello
+pair=(1, two)
+first_of_list=10
+instance_echo=99
+explicit=explicit
 === Done! ===

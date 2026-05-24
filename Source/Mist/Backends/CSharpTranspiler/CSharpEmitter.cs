@@ -8680,7 +8680,9 @@ internal sealed class CSharpSourceWriter
             case MethodCallSuffixPostfixSuffixNode methodCall:
             {
                 var name = methodCall.Name.Lexeme;
-                var typeArgs = EmitTypeArgumentList(methodCall.TypeArgs);
+                var typeArgs = methodCall.TypeArgs is not null
+                    ? EmitTypeArgumentList(methodCall.TypeArgs)
+                    : EmitInferredTypeArguments(methodCall);
 
                 // In Mist, property-like members (e.g., string.Length) use method call
                 // syntax: input.Length(). In C#, these are properties and must be emitted
@@ -9477,6 +9479,27 @@ internal sealed class CSharpSourceWriter
                 catch { /* ignore if type can't be mapped */ }
             }
             parts.Add(EmitSingleTypeArgument(allArgs[i], expectedKeyword));
+        }
+        return $"<{string.Join(", ", parts)}>";
+    }
+
+    /// <summary>
+    /// Emits inferred type arguments for a method call node where type arguments were
+    /// omitted in source but successfully inferred during type checking. Queries the
+    /// semantic model for recorded inferred type arguments and formats them as a C#
+    /// type argument list string (e.g., <c>&lt;int, string&gt;</c>).
+    /// Returns an empty string if no inferred type arguments are recorded.
+    /// </summary>
+    private string EmitInferredTypeArguments(MethodCallSuffixPostfixSuffixNode methodCall)
+    {
+        var inferredTypes = _model.GetInferredTypeArguments(methodCall);
+        if (inferredTypes is null || inferredTypes.Count == 0)
+            return "";
+
+        var parts = new List<string>(inferredTypes.Count);
+        foreach (var type in inferredTypes)
+        {
+            parts.Add(CSharpTypeMap.GetTypeName(type));
         }
         return $"<{string.Join(", ", parts)}>";
     }

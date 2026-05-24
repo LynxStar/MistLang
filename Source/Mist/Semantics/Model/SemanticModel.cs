@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Driver.Contracts;
+using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model.Types;
 
@@ -17,6 +18,7 @@ public sealed class SemanticModel : ISemanticModel
     private Dictionary<ISymbol, RefinementPredicate> _parameterRefinements;
     private HashSet<ISymbol> _guardNeededParameters;
     private Dictionary<Storm.Runtime.SyntaxNode, List<LiveTaskInfo>> _liveTasksByScope;
+    private readonly Dictionary<Storm.Runtime.SyntaxNode, IReadOnlyList<IType>> _inferredTypeArguments = new();
 
     internal SemanticModel(
         MistCompilation compilation,
@@ -84,12 +86,145 @@ public sealed class SemanticModel : ISemanticModel
         // First check the expression type map (populated by Pass 2).
         if (_expressionTypes.TryGetValue(node, out var type))
         {
+            // When the cached expression type is a TypeParameterType, the type checker
+            // may have refined the variable's DeclaredType through type argument inference.
+            // Check if this node references a local variable whose DeclaredType has been
+            // updated to a concrete type, and prefer that over the stale cached type.
+            if (type is TypeParameterType)
+            {
+                var refinedType = TryGetRefinedTypeForLocalVariable(node);
+                if (refinedType is not null)
+                    return refinedType;
+            }
+
             return type;
         }
 
         // Fallback: return the declared type of the symbol at this node, if any.
+        var fallbackSymbol = GetDeclaredSymbol(node);
+        return fallbackSymbol?.DeclaredType;
+    }
+
+    /// <summary>
+    /// When a cached expression type is a TypeParameterType, checks if the node
+    /// (or its underlying identifier) references a local variable whose DeclaredType
+    /// has been refined by type argument inference to a concrete type.
+    /// </summary>
+    private IType? TryGetRefinedTypeForLocalVariable(Storm.Runtime.SyntaxNode node)
+    {
+        // Direct case: the node itself has a registered symbol (identifier node).
         var symbol = GetDeclaredSymbol(node);
-        return symbol?.DeclaredType;
+        if (symbol is not null
+            && symbol.Kind == SymbolKind.LocalVariable
+            && symbol.DeclaredType is not null
+            && symbol.DeclaredType is not TypeParameterType)
+        {
+            return symbol.DeclaredType;
+        }
+
+        // PostfixNode case: check if the target identifier references a refined local.
+        if (node is PostfixNode postfixNode && postfixNode.Suffix.Length == 0)
+        {
+            var targetSymbol = GetDeclaredSymbol(postfixNode.Target);
+            if (targetSymbol is not null
+                && targetSymbol.Kind == SymbolKind.LocalVariable
+                && targetSymbol.DeclaredType is not null
+                && targetSymbol.DeclaredType is not TypeParameterType)
+            {
+                return targetSymbol.DeclaredType;
+            }
+        }
+
+        // PostfixExpressionUnaryNode case: delegate to the PostfixNode.
+        if (node is PostfixExpressionUnaryNode postfixExprNode)
+        {
+            var postfix = postfixExprNode.Primary;
+            if (postfix.Suffix.Length == 0)
+            {
+                var targetSymbol = GetDeclaredSymbol(postfix.Target);
+                if (targetSymbol is not null
+                    && targetSymbol.Kind == SymbolKind.LocalVariable
+                    && targetSymbol.DeclaredType is not null
+                    && targetSymbol.DeclaredType is not TypeParameterType)
+                {
+                    return targetSymbol.DeclaredType;
+                }
+            }
+            else
+            {
+                // For postfix expressions with suffixes, check if the PostfixNode's
+                // type was updated by the type checker.
+                if (_expressionTypes.TryGetValue(postfix, out var postfixType)
+                    && postfixType is not TypeParameterType)
+                {
+                    return postfixType;
+                }
+            }
+        }
+
+        // Wrapper case: walk down expression wrappers to find the underlying identifier.
+        // This handles ExpressionNode → AssignmentNode → ... → PostfixExpressionUnaryNode
+        // → PostfixNode (target = identifier, no suffixes).
+        if (node is ExpressionNode expr)
+        {
+            var assignment = expr.Assignment;
+            if (assignment.Value is not null) return null;
+
+            return TryGetRefinedTypeFromLogicalOr(assignment.Target);
+        }
+
+        return null;
+    }
+
+    private IType? TryGetRefinedTypeFromLogicalOr(LogicalOrNode logicalOr)
+    {
+        if (logicalOr.Right is not null) return null;
+
+        var logicalAnd = logicalOr.Left;
+        if (logicalAnd.Right is not null) return null;
+
+        var equality = logicalAnd.Left;
+        if (equality.Right is not null) return null;
+
+        var relational = equality.Left;
+        if (relational is not RelationalComparisonRelationalNode cmp) return null;
+        if (cmp.Right is not null) return null;
+
+        var additive = cmp.Left;
+        if (additive.Right is not null) return null;
+
+        var multiplicative = additive.Left;
+        if (multiplicative.Right is not null) return null;
+
+        var unary = multiplicative.Left;
+        if (unary is not PostfixExpressionUnaryNode postfixExpr) return null;
+
+        var postfix = postfixExpr.Primary;
+
+        // For a simple identifier with no suffixes, check the target's symbol.
+        if (postfix.Suffix.Length == 0)
+        {
+            var targetSymbol = GetDeclaredSymbol(postfix.Target);
+            if (targetSymbol is not null
+                && targetSymbol.Kind == SymbolKind.LocalVariable
+                && targetSymbol.DeclaredType is not null
+                && targetSymbol.DeclaredType is not TypeParameterType)
+            {
+                return targetSymbol.DeclaredType;
+            }
+        }
+        else
+        {
+            // For postfix expressions with suffixes (e.g., method calls),
+            // check if the PostfixNode's type was updated by the type checker.
+            if (_expressionTypes.TryGetValue(postfix, out var postfixType)
+                && postfixType is not TypeParameterType)
+            {
+                return postfixType;
+            }
+        }
+
+        return null;
     }
 
     public void SetTypeOf(Storm.Runtime.SyntaxNode node, IType type)
@@ -142,4 +277,16 @@ public sealed class SemanticModel : ISemanticModel
     /// Returns all block scope nodes that have live tasks recorded.
     /// </summary>
     internal IReadOnlyDictionary<Storm.Runtime.SyntaxNode, List<LiveTaskInfo>> LiveTasksByScope => _liveTasksByScope;
+
+    /// <inheritdoc />
+    public void RecordInferredTypeArguments(Storm.Runtime.SyntaxNode callSiteNode, IReadOnlyList<IType> inferredTypeArgs)
+    {
+        _inferredTypeArguments[callSiteNode] = inferredTypeArgs;
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<IType>? GetInferredTypeArguments(Storm.Runtime.SyntaxNode callSiteNode)
+    {
+        return _inferredTypeArguments.TryGetValue(callSiteNode, out var args) ? args : null;
+    }
 }

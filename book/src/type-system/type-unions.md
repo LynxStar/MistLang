@@ -114,6 +114,25 @@ Unions are not limited to two types. You can combine three or more constituent t
 
 Pattern matching works identically regardless of how many types are in the union.
 
+## Union Widening
+
+A union can be assigned to a wider union — one that contains all of its constituent types plus additional ones. This is implicit and requires no cast:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/type-unions/widening.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/type-unions/widening.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The assignment is safe because every possible value in `Narrow` (`int` or `string`) is also a valid value in `Wide` (`int`, `string`, or `bool`). The reverse — assigning a wider union to a narrower one — is not allowed, since the wider union might hold a type the narrower one can't represent.
+
 ## Reassignment
 
 A union-typed variable can be reassigned from one constituent type to another freely.

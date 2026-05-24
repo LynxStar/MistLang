@@ -1,0 +1,18 @@
+type Narrow = int | string;
+type Wide = int | string | bool;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Narrow value = 42;
+
+        // Widening: every type in Narrow is also in Wide
+        Wide widened = value;
+
+        if (widened is int n)
+        {
+            Console.WriteLine($"widened int: {n}");
+        }
+    }
+}

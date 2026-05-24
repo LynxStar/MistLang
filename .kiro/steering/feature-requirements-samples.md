@@ -41,6 +41,32 @@ When writing the sample-app requirement, follow this structure:
 5. The sample SHALL compile and run without errors using the Mist compiler.
 ```
 
+## Coding Style
+
+All new sample apps MUST use **C#-style (Allman) braces** — opening brace on its own line. Do NOT use Java-style (K&R) braces where the opening brace is on the same line as the declaration.
+
+**Correct (Allman):**
+```mist
+class Range : IEnumerable<int>
+{
+    public Enumerator GetEnumerator()
+    {
+        return new Enumerator(count);
+    }
+}
+```
+
+**Incorrect (K&R / Java-style):**
+```mist
+class Range : IEnumerable<int> {
+    public Enumerator GetEnumerator() {
+        return new Enumerator(count);
+    }
+}
+```
+
+This applies to all new samples going forward. Do NOT modify pre-existing samples to change their brace style — that is a separate cleanup task.
+
 ## Applies To
 
 - All `requirements.md` files inside `.kiro/specs/*/`

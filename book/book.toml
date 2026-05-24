@@ -9,7 +9,7 @@ build-dir = "output"
 
 [output.html]
 theme = "theme"
-additional-css = ["theme/tabs.css"]
+additional-css = ["theme/tabs.css", "theme/mist-syntax.css"]
 additional-js = ["theme/tabs.js"]
 
 [preprocessor.tabs]

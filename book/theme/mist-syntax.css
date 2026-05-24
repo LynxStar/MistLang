@@ -1,0 +1,34 @@
+/* Mist syntax highlighting — color overrides for hljs 11.x on Tomorrow Night */
+
+/* Modifiers (public, private, static, etc.) — orange */
+.language-mist .hljs-variable.language_ {
+    color: #de935f;
+}
+
+/* Reserved type aliases (int, string, bool, var, etc.) — blue */
+.language-mist .hljs-type {
+    color: #81a2be;
+}
+
+/* Operators — yellow */
+.language-mist .hljs-operator {
+    color: #f0c674;
+}
+
+/* Numbers — red */
+.language-mist .hljs-number {
+    color: #cc6666;
+}
+
+/* Type/class names — aqua */
+.language-mist .hljs-title {
+    color: #8abeb7;
+}
+
+.language-mist .hljs-title.class_ {
+    color: #8abeb7;
+}
+
+.language-mist .hljs-title.function_ {
+    color: #8abeb7;
+}

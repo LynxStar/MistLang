@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-MDBOOK_VERSION="0.4.45"
+MDBOOK_VERSION="0.5.2"
 TABS_VERSION="0.3.4"
 
 mkdir -p ./bin

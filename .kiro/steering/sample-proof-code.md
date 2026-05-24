@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/.kiro/specs/**/requirements.md"
+---
+
 # Sample Proof Code Policy
 
 ## Rule

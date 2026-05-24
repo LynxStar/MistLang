@@ -6,7 +6,7 @@ A type alias binds a name to a type expression using the `type Name = TypeExpres
 
 The right-hand side of a type alias is a **type expression**. The simplest type expression is a type literal — just the name of an existing type. But type expressions can be more complex: generic instantiations (`List<int>`), union types (`int | string`), and refinement types (`int where > 0`) are all valid type expressions. Newtypes use a related but distinct syntax (`type Name = new SourceType;`).
 
-These more complex forms are covered in subsequent chapters — [Generics](./generics.md), [Type Unions](./type-unions.md), [Refinement Types](./refinement-types.md), and [Newtypes](./newtypes.md). The rest of this chapter focuses on aliases themselves: what they mean, how they compose, and how they differ from newtypes.
+These more complex forms are covered in subsequent sections and chapters — generic aliases are covered [below](#closed-generic-aliases), while [Type Unions](./type-unions.md), [Refinement Types](./refinement-types.md), and [Newtypes](./newtypes.md) have their own chapters. The rest of this page focuses on aliases themselves: what they mean, how they compose, and how they differ from newtypes.
 
 ## Simple Aliases
 

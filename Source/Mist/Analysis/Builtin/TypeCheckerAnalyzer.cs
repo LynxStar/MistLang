@@ -818,13 +818,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     //    Reassignment within the branch invalidates the narrowing entry.
     private readonly Dictionary<string, List<ConditionConstraint>> _narrowingContext = new(StringComparer.Ordinal);
 
-    // ── Counter for unprovable symbolic IDs ──────────────────────────────────
-    //    Used by ValidateArrayIndexRefinement for truly-unknown arrays. Each gets a
-    //    unique negative ID that no narrowing context can match — ensuring the access
-    //    is correctly rejected. Negative to avoid colliding with positive IDs from
-    //    SemanticModelBuilder.
-    private int _nextUnprovableSymbolicId = -1;
-
     // ── Set of variable names captured by closures in the current method body ──
     //    Populated at the start of each method body check. Variables in this set
     //    are ineligible for flow narrowing (Requirement 7.7).
@@ -5001,7 +4994,114 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private void CheckForeachStatement(ForeachStatementNode foreachStmt, IType returnType, ISemanticModel model, DiagnosticBag diagnostics)
     {
         CheckExpression(foreachStmt.Collection, model, diagnostics);
+
+        // Resolve the collection expression's type and validate it implements IEnumerable<TElement>.
+        var collectionType = model.GetTypeOf(foreachStmt.Collection);
+        if (collectionType is not null && !IsErrorType(collectionType))
+        {
+            var elementType = FindIEnumerableImplementation(collectionType);
+            if (elementType is null)
+            {
+                // Emit diagnostic: type does not implement IEnumerable<TElement>.
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_FOREACH_NOT_ENUMERABLE",
+                    $"Type '{collectionType.DisplayName}' does not implement 'IEnumerable<TElement>' and cannot be used in a foreach statement",
+                    foreachStmt.Collection,
+                    model));
+
+                // Bind iteration variable to ErrorType for error recovery.
+                if (model.GetDeclaredSymbol(foreachStmt) is Symbol iterVarSymbol)
+                    iterVarSymbol.DeclaredType = ErrorType.Instance;
+            }
+            else
+            {
+                // Validate explicit type annotation against the resolved TElement.
+                var declaredType = ResolveTypeReferenceToType(foreachStmt.Type, model);
+                if (declaredType is not null && !IsErrorType(declaredType))
+                {
+                    if (!IsAssignable(elementType, declaredType, model))
+                    {
+                        // Emit diagnostic: TElement is not assignable to the declared type.
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_FOREACH_TYPE_MISMATCH",
+                            $"Cannot convert element type '{elementType.DisplayName}' to declared type '{declaredType.DisplayName}' in foreach statement",
+                            foreachStmt.Type,
+                            model));
+                    }
+
+                    // Bind the iteration variable to the declared type (user's intent).
+                    if (model.GetDeclaredSymbol(foreachStmt) is Symbol iterVarSymbol)
+                        iterVarSymbol.DeclaredType = declaredType;
+                }
+                else
+                {
+                    // Declared type could not be resolved; fall back to TElement.
+                    if (model.GetDeclaredSymbol(foreachStmt) is Symbol iterVarSymbol)
+                        iterVarSymbol.DeclaredType = elementType;
+                }
+            }
+        }
+
         CheckBlock(foreachStmt.Body, returnType, model, diagnostics);
+    }
+
+    /// <summary>
+    /// Searches a type's interface list for <c>IEnumerable&lt;TElement&gt;</c> and returns
+    /// the resolved <c>TElement</c>, or <c>null</c> if the type does not implement
+    /// <c>IEnumerable&lt;TElement&gt;</c>.
+    /// </summary>
+    private static IType? FindIEnumerableImplementation(IType type)
+    {
+        // Arrays always implement IEnumerable<ElementType>.
+        if (type is ArrayType arrayType)
+            return arrayType.ElementType;
+
+        var interfaces = GetInterfaceList(type);
+
+        // If the source is a ConstructedType, we need to substitute type parameters
+        // in the interface list with the concrete type arguments.
+        IReadOnlyList<IType>? typeParams = null;
+        IReadOnlyList<IType>? typeArgs = null;
+        if (type is ConstructedType sourceCt)
+        {
+            switch (sourceCt.GenericDefinition)
+            {
+                case ClassType classDef:
+                    interfaces = classDef.Interfaces;
+                    typeParams = classDef.TypeParameters;
+                    typeArgs = sourceCt.TypeArguments;
+                    break;
+                case StructType structDef:
+                    interfaces = structDef.Interfaces;
+                    typeParams = structDef.TypeParameters;
+                    typeArgs = sourceCt.TypeArguments;
+                    break;
+                case InterfaceType ifaceDef:
+                    interfaces = ifaceDef.Interfaces;
+                    typeParams = ifaceDef.TypeParameters;
+                    typeArgs = sourceCt.TypeArguments;
+                    break;
+            }
+        }
+
+        foreach (var iface in interfaces)
+        {
+            // Substitute type parameters if we have a mapping.
+            var substitutedIface = (typeParams is not null && typeArgs is not null)
+                ? SubstituteType(iface, typeParams, typeArgs)
+                : iface;
+
+            if (substitutedIface is ConstructedType constructedIface &&
+                constructedIface.GenericDefinition is InterfaceType ifaceDefinition &&
+                ifaceDefinition.DisplayName == "IEnumerable" &&
+                ifaceDefinition.ContainingNamespace == "Standard" &&
+                constructedIface.TypeArguments.Count > 0)
+            {
+                return constructedIface.TypeArguments[0];
+            }
+        }
+
+        return null;
     }
 
     private static void CheckConditionIsBool(ExpressionNode condition, ISemanticModel model, DiagnosticBag diagnostics)
@@ -9729,10 +9829,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Per Requirement 2.1: no bypass — validation always runs for ArrayType.
         // - Concrete length: full bounds check (>= 0 and < KnownLength)
         // - Symbolic length: full bounds check (>= 0 and < symbolic ID)
-        // - Unknown length: full bounds check with unprovable symbolic ID — the access
-        //   will be correctly rejected. The ONLY way to index an unknown-length array
-        //   is through the for-loop symbolic tautology (i < arr.Length where arr has a
-        //   SymbolicLengthId from being a parameter).
+        // - Unknown length (no KnownLength, no SymbolicLengthId): only enforce >= 0.
+        //   This occurs for local variables with explicit array type annotations
+        //   (e.g., `int[] numbers = new int[3]`). The upper bound cannot be proven
+        //   statically, so it is deferred to runtime — matching C# semantics.
         var targetConstraints = new List<ConditionConstraint>();
         targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Gte, 0));
 
@@ -9740,8 +9840,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Lt, arrayType.KnownLength.Value));
         else if (arrayType.SymbolicLengthId.HasValue)
             targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Lt, 0, arrayType.SymbolicLengthId.Value));
-        else
-            targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Lt, 0, _nextUnprovableSymbolicId--));
 
         // Case 1 (literal): Evaluate predicate directly.
         var constantValue = TryExtractLiteralConstantValue(indexSuffix.Index);
@@ -9874,6 +9972,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Case 4: Emit diagnostic — cannot prove bounds.
+        // For unknown-length arrays (no KnownLength, no SymbolicLengthId), accept
+        // non-constant indices — the upper bound is deferred to runtime.
+        if (!arrayType.KnownLength.HasValue && !arrayType.SymbolicLengthId.HasValue)
+            return;
+
         var boundsDescription = arrayType.KnownLength.HasValue
             ? $">= 0 and < {arrayType.KnownLength.Value}"
             : $">= 0 and < {arrayType.DisplayName}.Length";

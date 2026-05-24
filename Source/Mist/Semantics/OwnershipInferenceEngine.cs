@@ -63,6 +63,24 @@ public static class OwnershipInferenceEngine
             return true;
         }
 
+        // Skip backend-backed (intrinsic) structs — their semantics are defined
+        // by the backend, not by Mist field analysis. They should not be inferred
+        // as owned types (e.g., Array.Enumerator implements IEnumerator<T>).
+        if (structType.IsBackendBacked)
+        {
+            stateMap[structType] = InferenceState.Resolved;
+            return false;
+        }
+
+        // Skip structs that implement interfaces — owned types cannot implement
+        // interfaces (MIST_OWN_INTERFACE_FORBIDDEN), so inferring them as owned
+        // would immediately produce a diagnostic.
+        if (structType.Interfaces.Count > 0)
+        {
+            stateMap[structType] = InferenceState.Resolved;
+            return false;
+        }
+
         // Check current state for cycle detection.
         if (stateMap.TryGetValue(structType, out var state))
         {

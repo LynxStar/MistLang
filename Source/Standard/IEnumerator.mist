@@ -1,0 +1,7 @@
+namespace Standard;
+
+interface IEnumerator<TElement>
+{
+    bool MoveNext();
+    TElement Current { get; }
+}

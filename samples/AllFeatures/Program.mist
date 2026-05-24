@@ -55,6 +55,7 @@ public class Program
         StructuredConcurrency.Program.RunDemo();
         StructInheritance.Program.RunDemo();
         AssociatedTypes.Program.RunDemo();
+        Iterators.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

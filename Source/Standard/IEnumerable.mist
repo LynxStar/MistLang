@@ -1,0 +1,7 @@
+namespace Standard;
+
+interface IEnumerable<TElement>
+{
+    type Enumerator : IEnumerator<TElement>;
+    Enumerator GetEnumerator();
+}

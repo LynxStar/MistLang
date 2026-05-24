@@ -1,0 +1,103 @@
+using Standard;
+
+namespace Iterators;
+
+// ─── Supporting types ────────────────────────────────────────────────────────
+
+// PROOF: User-defined struct enumerator implementing IEnumerator<TElement>
+// PROOF: MoveNext() and Current satisfy the interface contract
+class Range : IEnumerable<int>
+{
+    public struct Enumerator : IEnumerator<int>
+    {
+        private int current;
+        private int end;
+        public Enumerator(int end) { current = -1; this.end = end; }
+        public bool MoveNext() { current = current + 1; return current < end; }
+        public int Current => current;
+    }
+
+    private int count;
+
+    public Range(int count) { this.count = count; }
+
+    public Enumerator GetEnumerator() { return new Enumerator(count); }
+}
+
+// PROOF: User-defined class enumerator implementing IEnumerator<TElement>
+// PROOF: Associated type slot satisfied by a class (not just structs)
+class Words : IEnumerable<string>
+{
+    public class Enumerator : IEnumerator<string>
+    {
+        private string[] items;
+        private int index;
+        public Enumerator(string[] items) { this.items = items; index = -1; }
+        public bool MoveNext() { index = index + 1; return index < items.Length; }
+        public string Current => items[index];
+    }
+
+    private string[] data;
+
+    public Words(string[] data) { this.data = data; }
+
+    public Enumerator GetEnumerator() { return new Enumerator(data); }
+}
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("--- Iterators ---");
+
+        // PROOF: foreach over intrinsic array resolves TElement from IEnumerable<TValue>
+        // PROOF: Array's intrinsic GetEnumerator/MoveNext/Current drive iteration
+        Console.WriteLine("--- Array Foreach ---");
+        int[] numbers = new int[3];
+        numbers[0] = 10;
+        numbers[1] = 20;
+        numbers[2] = 30;
+        foreach (int n in numbers)
+        {
+            Console.WriteLine($"n={n}");
+        }
+
+        // PROOF: foreach over user-defined IEnumerable<int> with struct Enumerator
+        // PROOF: GetEnumerator() returns concrete struct type (not boxed)
+        // PROOF: Type checker resolved TElement=int from IEnumerable<int>
+        Console.WriteLine("--- Struct Enumerator ---");
+        var range = new Range(4);
+        foreach (int x in range)
+        {
+            Console.WriteLine($"x={x}");
+        }
+
+        // PROOF: foreach over user-defined IEnumerable<string> with class Enumerator
+        // PROOF: Associated type slot works with class enumerators
+        Console.WriteLine("--- Class Enumerator ---");
+        string[] wordData = new string[3];
+        wordData[0] = "hello";
+        wordData[1] = "world";
+        wordData[2] = "mist";
+        var words = new Words(wordData);
+        foreach (string w in words)
+        {
+            Console.WriteLine($"w={w}");
+        }
+
+        // PROOF: Explicit element type annotation validated by type checker
+        // PROOF: foreach infers element type and checks compatibility
+        Console.WriteLine("--- Explicit Type Annotation ---");
+        foreach (int n in numbers)
+        {
+            Console.WriteLine($"typed={n}");
+        }
+
+        Console.WriteLine("--- Iterators Done ---");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

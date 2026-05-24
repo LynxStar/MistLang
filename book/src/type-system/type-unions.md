@@ -4,7 +4,7 @@ Type unions allow a variable, parameter, or return type to hold a value of one o
 
 ## Union Type Syntax
 
-A union type is written as two or more types separated by `|`. The resulting type can hold a value of any of the listed types.
+A union type is written as two or more types separated by `|`. The resulting type can hold a value of any of the listed types. The order of constituent types does not matter — `string | int` and `int | string` are the same type.
 
 {{#tabs }}
 {{#tab name="Mist" }}

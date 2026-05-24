@@ -1,10 +1,16 @@
 # Type Aliases
 
-Type aliases let you create readable, meaningful names for existing types. An alias introduces no new type — it's simply an alternative name that the compiler erases during transpilation. Everywhere you use the alias, the compiler substitutes the underlying type in the emitted C#. This makes aliases ideal for improving readability without introducing runtime overhead or type incompatibility.
+A type alias binds a name to a type expression using the `type Name = TypeExpression;` syntax. The alias introduces no new type — it's simply an alternative name that the compiler erases during transpilation. Everywhere you use the alias, the compiler substitutes the result of the type expression.
+
+## Type Expressions
+
+The right-hand side of a type alias is a **type expression**. The simplest type expression is a type literal — just the name of an existing type. But type expressions can be more complex: generic instantiations (`List<int>`), union types (`int | string`), and refinement types (`int where > 0`) are all valid type expressions. Newtypes use a related but distinct syntax (`type Name = new SourceType;`).
+
+These more complex forms are covered in subsequent chapters — [Generics](./generics.md), [Type Unions](./type-unions.md), [Refinement Types](./refinement-types.md), and [Newtypes](./newtypes.md). The rest of this chapter focuses on aliases themselves: what they mean, how they compose, and how they differ from newtypes.
 
 ## Simple Aliases
 
-A simple type alias gives a new name to an existing type using the `type Name = ExistingType;` syntax. The alias is fully transparent — values of the alias type and the underlying type are interchangeable without casts.
+The most basic type expression is a single type literal. This gives a readable name to an existing type:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -19,7 +25,7 @@ A simple type alias gives a new name to an existing type using the `type Name = 
 {{#endtab }}
 {{#endtabs }}
 
-Notice that the `type` declarations themselves produce no C# output — they are erased entirely. Every usage of `UserId` becomes `int`, `UserName` becomes `string`, and so on.
+The `type` declarations produce no C# output — they are erased entirely. Every usage of `UserId` becomes `int`, `UserName` becomes `string`, and so on. The alias is fully transparent — values of the alias type and the underlying type are interchangeable without casts.
 
 ## Closed Generic Aliases
 

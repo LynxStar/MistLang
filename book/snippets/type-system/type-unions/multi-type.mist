@@ -1,6 +1,8 @@
+type Tristate = int | string | bool;
+
 public class Program
 {
-    private static void DescribeTriple(int | string | bool value)
+    private static void DescribeTriple(Tristate value)
     {
         if (value is int n)
         {
@@ -18,9 +20,9 @@ public class Program
 
     public static void Main(string[] args)
     {
-        int | string | bool tri1 = 99;
-        int | string | bool tri2 = "triple";
-        int | string | bool tri3 = true;
+        Tristate tri1 = 99;
+        Tristate tri2 = "triple";
+        Tristate tri3 = true;
 
         Program.DescribeTriple(tri1);
         Program.DescribeTriple(tri2);

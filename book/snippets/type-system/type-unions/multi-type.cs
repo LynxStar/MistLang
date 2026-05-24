@@ -6,19 +6,16 @@ public class Program
 {
     private static void DescribeTriple(Union_Boolean_Int32_String value)
     {
-        if (value.IsInt32)
+        if (value is int n)
         {
-            int n = value.AsInt32;
             Console.WriteLine($"  int: {n}");
         }
-        if (value.IsString)
+        if (value is string s)
         {
-            string s = value.AsString;
             Console.WriteLine($"  string: {s}");
         }
-        if (value.IsBoolean)
+        if (value is bool b)
         {
-            bool b = value.AsBoolean;
             Console.WriteLine($"  bool: {b}");
         }
     }

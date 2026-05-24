@@ -66,4 +66,3 @@
 - [CLI Usage](tooling/cli-usage.md)
 - [Editor Support](tooling/editor-support.md)
 - [Project Configuration](tooling/project-configuration.md)
-- [Syntax Highlighting Test](tooling/syntax-test.md)

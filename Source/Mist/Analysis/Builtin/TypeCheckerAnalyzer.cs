@@ -3470,6 +3470,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // var with initializer — check the initializer expression.
                 CheckExpression(inferred.Initializer, model, diagnostics);
 
+                // After type checking the initializer, the expression type may have been
+                // refined (e.g., type argument inference resolved T → bool). Update the
+                // local variable's DeclaredType so downstream usage sees the concrete type.
+                var varSymbol = model.GetDeclaredSymbol(inferred) as Symbol;
+                if (varSymbol is not null && varSymbol.DeclaredType is TypeParameterType)
+                {
+                    var refinedType = GetRefinedInitializerType(inferred.Initializer, model);
+                    if (refinedType is not null && refinedType is not TypeParameterType)
+                    {
+                        varSymbol.DeclaredType = refinedType;
+                    }
+                }
+
                 // MIST_TC_0009: var without initializer.
                 // The grammar requires an initializer for var declarations,
                 // but if the initializer expression type is null, the var
@@ -6916,6 +6929,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
             case PostfixExpressionUnaryNode postfix:
                 CheckPostfixNode(postfix.Primary, model, diagnostics);
+                // Propagate refined type from the PostfixNode up to the
+                // PostfixExpressionUnaryNode so that var declarations and
+                // other upstream consumers see the correct type after
+                // type argument inference.
+                var postfixType = model.GetTypeOf(postfix.Primary);
+                if (postfixType is not null && postfixType != model.GetTypeOf(postfix))
+                {
+                    model.SetTypeOf(postfix, postfixType);
+                }
                 break;
             case CastExpressionUnaryNode castExpr:
                 CheckUnaryNode(castExpr.Operand, model, diagnostics);
@@ -7344,6 +7366,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     break;
             }
         }
+
+        // After processing all suffixes, if the final type differs from what the
+        // semantic model recorded (e.g., due to type argument inference refining
+        // a TypeParameterType to a concrete type), update the PostfixNode's
+        // expression type so that upstream consumers (var declarations, argument
+        // type resolution) see the refined type.
+        if (currentType is not null && node.Suffix.Length > 0)
+        {
+            var existingNodeType = model.GetTypeOf(node);
+            if (existingNodeType is not null && currentType != existingNodeType)
+            {
+                model.SetTypeOf(node, currentType);
+            }
+        }
     }
 
     /// <summary>
@@ -7652,21 +7688,34 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Substitutes method-level type parameters in the return type of a generic method invocation.
     /// For example, if the method is <c>T Identity&lt;T&gt;(T value)</c> and invoked as <c>Identity&lt;int&gt;(42)</c>,
     /// the return type <c>T</c> becomes <c>int</c>.
+    /// Also handles inferred type arguments when explicit type arguments are omitted.
     /// </summary>
     private static IType? SubstituteMethodReturnType(IType? returnType, MethodCallSuffixPostfixSuffixNode methodCall, ISemanticModel model)
     {
-        if (returnType is null || methodCall.TypeArgs is null)
+        if (returnType is null)
             return returnType;
 
         var methodSymbol = model.GetDeclaredSymbol(methodCall);
         if (methodSymbol is not Symbol sym || sym.TypeParameters.Count == 0)
             return returnType;
 
-        var methodTypeArgs = ResolveTypeArgumentsFromAst(methodCall.TypeArgs, model);
-        if (methodTypeArgs.Count != sym.TypeParameters.Count)
-            return returnType;
+        // Try explicit type args first (existing behavior)
+        if (methodCall.TypeArgs is not null)
+        {
+            var methodTypeArgs = ResolveTypeArgumentsFromAst(methodCall.TypeArgs, model);
+            if (methodTypeArgs.Count != sym.TypeParameters.Count)
+                return returnType;
+            return SubstituteType(returnType, sym.TypeParameters, methodTypeArgs);
+        }
 
-        return SubstituteType(returnType, sym.TypeParameters, methodTypeArgs);
+        // Try inferred type args
+        var inferredArgs = model.GetInferredTypeArguments(methodCall);
+        if (inferredArgs is not null && inferredArgs.Count == sym.TypeParameters.Count)
+        {
+            return SubstituteType(returnType, sym.TypeParameters, inferredArgs);
+        }
+
+        return returnType;
     }
 
     /// <summary>
@@ -8037,6 +8086,56 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
+    /// Walks down the expression tree to retrieve the refined type after type checking.
+    /// When type argument inference resolves a TypeParameterType to a concrete type,
+    /// the method call suffix's expression type is updated via SetTypeOf, but the
+    /// wrapper nodes (ExpressionNode, AssignmentNode, etc.) retain the stale type.
+    /// This helper walks down to the PostfixNode to get the actual type.
+    /// </summary>
+    private static IType? GetRefinedInitializerType(ExpressionNode expr, ISemanticModel model)
+    {
+        // Expression → Assignment → LogicalOr → LogicalAnd → Equality →
+        // Relational → Additive → Multiplicative → Unary → Postfix
+        var assignment = expr.Assignment;
+        if (assignment.Value is not null)
+            return null;
+
+        var logicalOr = assignment.Target;
+        if (logicalOr.Right is not null)
+            return null;
+
+        var logicalAnd = logicalOr.Left;
+        if (logicalAnd.Right is not null)
+            return null;
+
+        var equality = logicalAnd.Left;
+        if (equality.Right is not null)
+            return null;
+
+        var relational = equality.Left;
+        if (relational is not RelationalComparisonRelationalNode cmp)
+            return null;
+        if (cmp.Right is not null)
+            return null;
+
+        var additive = cmp.Left;
+        if (additive.Right is not null)
+            return null;
+
+        var multiplicative = additive.Left;
+        if (multiplicative.Right is not null)
+            return null;
+
+        var unary = multiplicative.Left;
+        if (unary is not PostfixExpressionUnaryNode postfixExpr)
+            return null;
+
+        // The PostfixNode's type is updated by CheckPostfixNode when inference
+        // refines the return type. Use it directly.
+        return model.GetTypeOf(postfixExpr.Primary);
+    }
+
+    /// <summary>
     /// Attempts to extract a <see cref="DefaultLiteralExpressionPrimaryNode"/> from
     /// an expression node by walking down the expression chain. Returns the node if
     /// the expression is a simple bare <c>default</c> with no operators or suffixes.
@@ -8306,6 +8405,36 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         CheckConstraintSatisfaction(methodTypeArgs[i], methodTP, (SyntaxNode)methodCall, sym.Name, model, diagnostics);
                 }
             }
+            else if (methodCall.TypeArgs is null && methodSymbol is Symbol inferSym && inferSym.TypeParameters.Count > 0)
+            {
+                // Type argument inference: deduce type arguments from argument types.
+                var paramTypes = ParameterSignature.Extract(methodSymbol, model);
+                var argTypes = CollectArgumentTypes(methodCall.Arguments, model);
+
+                var inferenceResult = TypeArgumentInferenceEngine.TryInfer(
+                    inferSym.TypeParameters, paramTypes, argTypes);
+
+                if (inferenceResult.Success)
+                {
+                    methodTypeParams = inferSym.TypeParameters;
+                    methodTypeArgs = inferenceResult.InferredTypeArguments!;
+
+                    // Record inferred type arguments for the emitter.
+                    model.RecordInferredTypeArguments((SyntaxNode)methodCall, methodTypeArgs);
+
+                    // Check constraints (same path as explicit type args).
+                    for (var i = 0; i < methodTypeParams.Count && i < methodTypeArgs.Count; i++)
+                    {
+                        if (methodTypeParams[i] is TypeParameterType methodTP)
+                            CheckConstraintSatisfaction(methodTypeArgs[i], methodTP, (SyntaxNode)methodCall, inferSym.Name, model, diagnostics);
+                    }
+                }
+                else
+                {
+                    // Emit inference failure diagnostic.
+                    EmitInferenceFailureDiagnostic(inferenceResult, inferSym.Name, methodCall, model, diagnostics);
+                }
+            }
 
             CheckArgumentTypesWithSubstitution(methodCall.Arguments, methodSymbol, model, diagnostics, methodCall,
                 enclosingTypeParams, enclosingTypeArgs, methodTypeParams, methodTypeArgs);
@@ -8321,7 +8450,28 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             var argTypes = CollectArgumentTypes(methodCall.Arguments, model);
             var argRefKinds = CollectArgumentRefKinds(methodCall.Arguments);
-            var result = OverloadResolver.Resolve(candidates, argTypes, model, argumentRefKinds: argRefKinds);
+
+            // Inference-aware overload resolution: when type arguments are omitted,
+            // attempt inference for each generic candidate and exclude those where
+            // inference fails (Requirements 5.1, 5.2, 5.3, 5.4, 5.5, 5.6).
+            InferenceResult?[]? inferenceResults = null;
+            if (methodCall.TypeArgs is null)
+            {
+                inferenceResults = new InferenceResult?[candidates.Count];
+                for (var i = 0; i < candidates.Count; i++)
+                {
+                    if (candidates[i] is Symbol candidateSym && candidateSym.TypeParameters.Count > 0)
+                    {
+                        var candidateParamTypes = ParameterSignature.Extract(candidates[i], model);
+                        inferenceResults[i] = TypeArgumentInferenceEngine.TryInfer(
+                            candidateSym.TypeParameters, candidateParamTypes, argTypes);
+                    }
+                    // null entry means non-generic candidate — passes through unchanged.
+                }
+            }
+
+            var result = OverloadResolver.Resolve(candidates, argTypes, model,
+                argumentRefKinds: argRefKinds, inferenceResults: inferenceResults);
 
             switch (result.Status)
             {
@@ -8345,15 +8495,160 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return;
 
                 case OverloadResolutionStatus.Success:
+                    // Record inferred type arguments for the winning candidate if inference was used.
+                    IReadOnlyList<IType>? winnerMethodTypeParams = null;
+                    IReadOnlyList<IType>? winnerMethodTypeArgs = null;
+                    if (inferenceResults is not null && result.BestCandidate is Symbol winnerSym && winnerSym.TypeParameters.Count > 0)
+                    {
+                        var winnerIndex = -1;
+                        for (var i = 0; i < candidates.Count; i++)
+                        {
+                            if (ReferenceEquals(candidates[i], result.BestCandidate))
+                            {
+                                winnerIndex = i;
+                                break;
+                            }
+                        }
+
+                        if (winnerIndex >= 0 && inferenceResults[winnerIndex] is { Success: true } winnerInference)
+                        {
+                            model.RecordInferredTypeArguments((SyntaxNode)methodCall, winnerInference.InferredTypeArguments!);
+                            winnerMethodTypeParams = winnerSym.TypeParameters;
+                            winnerMethodTypeArgs = winnerInference.InferredTypeArguments!;
+
+                            // Substitute inferred type arguments into the return type so that
+                            // downstream type checking sees the concrete return type.
+                            var currentReturnType = model.GetTypeOf((SyntaxNode)methodCall);
+                            if (currentReturnType is not null)
+                            {
+                                var substitutedReturnType = SubstituteType(currentReturnType, winnerSym.TypeParameters, winnerInference.InferredTypeArguments!);
+                                model.SetTypeOf((SyntaxNode)methodCall, substitutedReturnType);
+                            }
+
+                            // Check constraints for the inferred type arguments.
+                            for (var i = 0; i < winnerSym.TypeParameters.Count && i < winnerInference.InferredTypeArguments!.Count; i++)
+                            {
+                                if (winnerSym.TypeParameters[i] is TypeParameterType methodTP)
+                                    CheckConstraintSatisfaction(winnerInference.InferredTypeArguments[i], methodTP,
+                                        (SyntaxNode)methodCall, winnerSym.Name, model, diagnostics);
+                            }
+                        }
+                    }
+
                     // Resolved successfully — proceed with the resolved symbol for further type checking.
-                    CheckArgumentTypes(methodCall.Arguments, result.BestCandidate!, model, diagnostics, methodCall);
+                    // Use substitution-aware checking when inference provided type arguments.
+                    if (winnerMethodTypeArgs is not null)
+                    {
+                        IReadOnlyList<IType>? winnerEnclosingTypeParams = null;
+                        IReadOnlyList<IType>? winnerEnclosingTypeArgs = null;
+                        if (targetType is ConstructedType winnerTargetCt)
+                        {
+                            winnerEnclosingTypeParams = GetTypeParameters(winnerTargetCt.GenericDefinition);
+                            winnerEnclosingTypeArgs = winnerTargetCt.TypeArguments;
+                        }
+                        CheckArgumentTypesWithSubstitution(methodCall.Arguments, result.BestCandidate!, model, diagnostics, methodCall,
+                            winnerEnclosingTypeParams, winnerEnclosingTypeArgs,
+                            winnerMethodTypeParams, winnerMethodTypeArgs);
+                    }
+                    else
+                    {
+                        CheckArgumentTypes(methodCall.Arguments, result.BestCandidate!, model, diagnostics, methodCall);
+                    }
                     return;
             }
         }
         else if (candidates.Count == 1)
         {
-            // Single candidate — preserve existing single-method diagnostics (MIST_TC_0002).
-            CheckArgumentTypes(methodCall.Arguments, candidates[0], model, diagnostics, methodCall);
+            // Single candidate — attempt inference if generic and type args omitted,
+            // or use explicit type args if provided.
+            var singleCandidate = candidates[0];
+            if (singleCandidate is Symbol singleSym && singleSym.TypeParameters.Count > 0)
+            {
+                if (methodCall.TypeArgs is not null && HasOnlyTypeReferenceArgs(methodCall.TypeArgs))
+                {
+                    // Explicit type arguments provided (all are type references) — resolve and use them.
+                    var explicitMethodTypeArgs = ResolveTypeArgumentsFromAst(methodCall.TypeArgs, model);
+
+                    // Check constraints for the explicit type arguments.
+                    for (var i = 0; i < singleSym.TypeParameters.Count && i < explicitMethodTypeArgs.Count; i++)
+                    {
+                        if (singleSym.TypeParameters[i] is TypeParameterType methodTP)
+                            CheckConstraintSatisfaction(explicitMethodTypeArgs[i], methodTP,
+                                (SyntaxNode)methodCall, singleSym.Name, model, diagnostics);
+                    }
+
+                    // Check argument types with explicit substitution.
+                    IReadOnlyList<IType>? singleEnclosingTypeParams = null;
+                    IReadOnlyList<IType>? singleEnclosingTypeArgs = null;
+                    if (targetType is ConstructedType singleTargetCtExplicit)
+                    {
+                        singleEnclosingTypeParams = GetTypeParameters(singleTargetCtExplicit.GenericDefinition);
+                        singleEnclosingTypeArgs = singleTargetCtExplicit.TypeArguments;
+                    }
+                    CheckArgumentTypesWithSubstitution(methodCall.Arguments, singleCandidate, model, diagnostics, methodCall,
+                        singleEnclosingTypeParams, singleEnclosingTypeArgs,
+                        singleSym.TypeParameters, explicitMethodTypeArgs);
+                }
+                else if (methodCall.TypeArgs is null)
+                {
+                    // No type arguments — attempt inference.
+                    var argTypes = CollectArgumentTypes(methodCall.Arguments, model);
+                    var paramTypes = ParameterSignature.Extract(singleCandidate, model);
+
+                    var inferenceResult = TypeArgumentInferenceEngine.TryInfer(
+                        singleSym.TypeParameters, paramTypes, argTypes);
+
+                    if (inferenceResult.Success)
+                    {
+                        // Record inferred type arguments for the emitter.
+                        model.RecordInferredTypeArguments((SyntaxNode)methodCall, inferenceResult.InferredTypeArguments!);
+
+                        // Substitute inferred type arguments into the return type so that
+                        // downstream type checking sees the concrete return type.
+                        var currentReturnType = model.GetTypeOf((SyntaxNode)methodCall);
+                        if (currentReturnType is not null)
+                        {
+                            var substitutedReturnType = SubstituteType(currentReturnType, singleSym.TypeParameters, inferenceResult.InferredTypeArguments!);
+                            model.SetTypeOf((SyntaxNode)methodCall, substitutedReturnType);
+                        }
+
+                        // Check constraints for the inferred type arguments.
+                        for (var i = 0; i < singleSym.TypeParameters.Count && i < inferenceResult.InferredTypeArguments!.Count; i++)
+                        {
+                            if (singleSym.TypeParameters[i] is TypeParameterType methodTP)
+                                CheckConstraintSatisfaction(inferenceResult.InferredTypeArguments[i], methodTP,
+                                    (SyntaxNode)methodCall, singleSym.Name, model, diagnostics);
+                        }
+
+                        // Check argument types with inferred substitution.
+                        IReadOnlyList<IType>? singleEnclosingTypeParams = null;
+                        IReadOnlyList<IType>? singleEnclosingTypeArgs = null;
+                        if (targetType is ConstructedType singleTargetCt)
+                        {
+                            singleEnclosingTypeParams = GetTypeParameters(singleTargetCt.GenericDefinition);
+                            singleEnclosingTypeArgs = singleTargetCt.TypeArguments;
+                        }
+                        CheckArgumentTypesWithSubstitution(methodCall.Arguments, singleCandidate, model, diagnostics, methodCall,
+                            singleEnclosingTypeParams, singleEnclosingTypeArgs,
+                            singleSym.TypeParameters, inferenceResult.InferredTypeArguments!);
+                    }
+                    else
+                    {
+                        // Emit inference failure diagnostic.
+                        EmitInferenceFailureDiagnostic(inferenceResult, singleSym.Name, methodCall, model, diagnostics);
+                    }
+                }
+                else
+                {
+                    // Type arguments contain dependent type literals — fall through to basic checking.
+                    CheckArgumentTypes(methodCall.Arguments, singleCandidate, model, diagnostics, methodCall);
+                }
+            }
+            else
+            {
+                // Non-generic single candidate — preserve existing single-method diagnostics (MIST_TC_0002).
+                CheckArgumentTypes(methodCall.Arguments, singleCandidate, model, diagnostics, methodCall);
+            }
         }
         else if (methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method)
         {
@@ -9417,6 +9712,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         return $"param{index}";
     }
 
+
+    /// <summary>
+    /// Returns true if all type arguments in the list are type reference nodes
+    /// (not literal type arguments like integer literals for dependent types).
+    /// </summary>
+    private static bool HasOnlyTypeReferenceArgs(TypeArgumentListNode typeArgList)
+    {
+        if (typeArgList.TypeArgument is not TypeReferenceTypeArgumentTypeArgumentNode)
+            return false;
+
+        foreach (var arg in typeArgList.TypeArguments)
+        {
+            if (arg is not TypeReferenceTypeArgumentTypeArgumentNode)
+                return false;
+        }
+
+        return true;
+    }
 
     /// <summary>
     /// Resolves type arguments from a <see cref="TypeArgumentListNode"/> AST node
@@ -15241,6 +15554,42 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
         }
         return false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Type argument inference failure diagnostics (Task 4.1/4.2)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Emits a diagnostic when type argument inference fails for a generic method call.
+    /// Emits MIST_TC_0080 for uninferrable type parameters or MIST_TC_0081 for conflicting
+    /// inferred types. Exactly one diagnostic is emitted per call site.
+    /// </summary>
+    private static void EmitInferenceFailureDiagnostic(
+        InferenceResult inferenceResult,
+        string methodName,
+        MethodCallSuffixPostfixSuffixNode methodCall,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        if (inferenceResult.Conflicts is { Count: > 0 })
+        {
+            var conflict = inferenceResult.Conflicts[0];
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0081",
+                $"Type parameter '{conflict.TypeParameter}' of method '{methodName}' has conflicting inferred types: '{conflict.First.DisplayName}' and '{conflict.Second.DisplayName}'. Provide explicit type arguments.",
+                (SyntaxNode)methodCall,
+                model));
+        }
+        else if (inferenceResult.UninferrableTypeParameters is { Count: > 0 })
+        {
+            var names = string.Join(", ", inferenceResult.UninferrableTypeParameters.Select(n => $"'{n}'"));
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0080",
+                $"Type parameter {names} of method '{methodName}' cannot be inferred from the arguments. Provide explicit type arguments.",
+                (SyntaxNode)methodCall,
+                model));
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════

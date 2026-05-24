@@ -56,6 +56,7 @@ public class Program
         StructInheritance.Program.RunDemo();
         AssociatedTypes.Program.RunDemo();
         Iterators.Program.RunDemo();
+        TypeArgumentInference.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

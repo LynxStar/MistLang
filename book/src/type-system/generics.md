@@ -129,7 +129,7 @@ When constructing a generic type or calling a generic method, you supply type ar
 {{#endtab }}
 {{#endtabs }}
 
-Type arguments appear inside `<` and `>` after the type or method name. All type arguments must currently be specified explicitly — Mist does not yet support type argument inference. This is a planned feature; until then, every generic call site requires the full type argument list.
+Type arguments appear inside `<` and `>` after the type or method name. For generic type construction (e.g., `new GenericBox<int>(42)`), you must always supply type arguments explicitly. For generic method calls, the compiler can often infer type arguments from the arguments you pass — see [Type Argument Inference](#type-argument-inference) below.
 
 ## Multiple Type Parameters
 
@@ -164,5 +164,37 @@ At the call site, you supply each type argument in order:
 {{#endtabs }}
 
 Multiple type parameters are common for collection-like types (dictionaries, result types) and mapping functions. The type parameters are positional — `KeyValueStore<string, int>` means `K` is `string` and `V` is `int`.
+
+## Type Argument Inference
+
+When you call a generic method, the compiler can often deduce the type arguments from the types of the arguments you pass. This means you can omit the angle brackets entirely and let the compiler figure out the concrete types.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/generics/inference.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/generics/inference.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+In the example above, `Identity(42)` infers `T = int` from the argument, and `Unwrap(box)` infers `T = string` by examining the constructed type `Container<string>` passed as the argument.
+
+### When inference applies
+
+Type argument inference applies only to **method calls** — both instance methods and static methods. It does not apply to generic type construction. You must always write `new Container<int>(42)` with explicit type arguments; the compiler will not infer them from constructor arguments.
+
+### When explicit type arguments are required
+
+You still need to supply explicit type arguments when:
+
+- **Inference fails** — the compiler cannot determine a unique type for every type parameter from the arguments alone. This happens when a type parameter appears only in the return type and not in any parameter position.
+- **Conflicting arguments** — two arguments imply different concrete types for the same type parameter. The compiler reports an error rather than guessing.
+
+When inference fails, the compiler emits a diagnostic telling you which type parameters could not be inferred, so you know exactly which type arguments to add.
 
 Generic constraints (restricting what types can be used as type arguments) are covered in the [Generic Constraints](generic-constraints.md) chapter.

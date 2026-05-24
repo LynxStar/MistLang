@@ -1,0 +1,90 @@
+// TypeArgumentInference — Demonstrates type argument inference for generic method calls.
+// Each permutation prints labeled output to stdout for correctness verification.
+
+using Standard;
+
+namespace TypeArgumentInference;
+
+// ─── Supporting types ────────────────────────────────────────────────────
+
+// Minimal List<T> to support the proof code (Mist stdlib does not include List<T>).
+public class List<T> {
+    public T item0;
+    public int count;
+
+    public List() {
+        count = 0;
+    }
+
+    public void Add(T item) {
+        if (count == 0) {
+            item0 = item;
+        }
+        count = count + 1;
+    }
+
+    public T this[int index] {
+        get {
+            return item0;
+        }
+    }
+}
+
+// PROOF: Inference on instance method
+class Wrapper {
+    public T Echo<T>(T value) {
+        return value;
+    }
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────
+
+public class Program {
+    // PROOF: Single type parameter inferred from argument type (int)
+    // PROOF: Return type correctly substituted to int
+    public static T Identity<T>(T value) {
+        return value;
+    }
+
+    // PROOF: Multiple type parameters inferred from different arguments
+    public static string Pair<A, B>(A first, B second) {
+        return $"({first}, {second})";
+    }
+
+    // PROOF: Type parameter inferred from constructed type argument (List<T>)
+    public static T FirstOf<T>(List<T> items) {
+        return items[0];
+    }
+
+    public static void RunDemo() {
+        var x = Identity(42);
+        Console.WriteLine($"identity_int={x}");
+
+        // PROOF: Single type parameter inferred from argument type (string)
+        var s = Identity("hello");
+        Console.WriteLine($"identity_string={s}");
+
+        // PROOF: Multiple type parameters inferred from different arguments
+        var p = Pair(1, "two");
+        Console.WriteLine($"pair={p}");
+
+        // PROOF: Type parameter inferred from constructed type argument (List<T>)
+        var nums = new List<int>();
+        nums.Add(10);
+        var first = FirstOf(nums);
+        Console.WriteLine($"first_of_list={first}");
+
+        // PROOF: Inference on instance method
+        var w = new Wrapper();
+        var echoed = w.Echo(99);
+        Console.WriteLine($"instance_echo={echoed}");
+
+        // PROOF: Explicit type arguments still work (no inference attempted)
+        var explicit_result = Program.Identity<string>("explicit");
+        Console.WriteLine($"explicit={explicit_result}");
+    }
+
+    public static void Main(string[] args) {
+        RunDemo();
+    }
+}

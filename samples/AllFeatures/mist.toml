@@ -134,3 +134,6 @@ path = "../AssociatedTypes"
 
 [[references]]
 path = "../Iterators"
+
+[[references]]
+path = "../TypeArgumentInference"

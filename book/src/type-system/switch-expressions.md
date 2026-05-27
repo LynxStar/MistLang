@@ -1,5 +1,7 @@
 # Switch Expressions
 
+> **⚠️ Unvetted Content:** From this chapter onward, the book content is auto-generated from spec documents and sample code using Opus and has not been manually reviewed for accuracy. Descriptions may be incorrect or misleading. All code snippets are at least valid compilable Mist, and the `samples/` directory in the repository contains working programs that fully demonstrate each feature end-to-end — trust the code over the prose when in doubt.
+
 Switch expressions provide a concise way to produce a value from multi-branch logic. Unlike traditional switch statements, a switch expression is an expression — it evaluates to a value and can be used anywhere an expression is expected, such as variable assignments or method arguments. The syntax uses a postfix `switch` keyword followed by a set of pattern arms.
 
 ## Postfix Switch Syntax

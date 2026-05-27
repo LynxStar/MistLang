@@ -8,8 +8,8 @@ public class Program
 
         // Struct newtype: access fields and methods directly
         var pos = new Position(10, 20);
-        int x = pos.X;
-        int y = pos.Y;
+        var x = pos.X;
+        var y = pos.Y;
         Console.WriteLine(pos.Describe());
 
         // Class newtype: access methods directly

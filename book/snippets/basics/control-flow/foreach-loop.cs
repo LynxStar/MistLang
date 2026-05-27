@@ -6,7 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        int[] numbers = new int[3];
+        var numbers = new int[3];
         numbers[0] = 10;
         numbers[1] = 20;
         numbers[2] = 30;

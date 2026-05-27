@@ -6,7 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        int score = 85;
+        var score = 85;
         if (score >= 90)
         {
             Console.WriteLine("Grade: A");

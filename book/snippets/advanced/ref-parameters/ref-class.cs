@@ -36,7 +36,7 @@ public class Program
 
     public static void Main()
     {
-        Container box = new Container(42);
+        var box = new Container(42);
         Console.WriteLine($"before: {box.Describe()}");
         ReplaceContainer(ref box);
         Console.WriteLine($"after: {box.Describe()}");

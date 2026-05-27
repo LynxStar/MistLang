@@ -9,7 +9,7 @@ public class Program
         object maybeInt = 17;
         if (maybeInt is int narrowed)
         {
-            int doubled = narrowed + narrowed;
+            var doubled = narrowed + narrowed;
             Console.WriteLine($"narrowed int doubled: {doubled}");
         }
     }

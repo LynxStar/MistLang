@@ -6,7 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        int count = 0;
+        var count = 0;
         while (count < 3)
         {
             Console.WriteLine($"Count: {count}");

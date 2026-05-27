@@ -19,7 +19,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        Box<int> boxInt = new Box<int>(7);
-        Box<string> boxStr = new Box<string>("world");
+        var boxInt = new Box<int>(7);
+        var boxStr = new Box<string>("world");
     }
 }

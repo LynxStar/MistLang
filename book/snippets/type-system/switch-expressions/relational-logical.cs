@@ -6,7 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        int temp = 75;
+        var temp = 75;
         var comfort = temp switch
         {
             < 32 => "Freezing",
@@ -15,7 +15,7 @@ public class Program
             var _ => "Hot",
         };
         Console.WriteLine($"Temperature {temp} => {comfort}");
-        int score = 85;
+        var score = 85;
         var grade = score switch
         {
             >= 90 and <= 100 => "A",

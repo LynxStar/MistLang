@@ -9,8 +9,8 @@ public class Program
         var uid = ((UserId)42);
         Console.WriteLine(uid.Value);
         var pos = new Position(10, 20);
-        int x = pos.X;
-        int y = pos.Y;
+        var x = pos.X;
+        var y = pos.Y;
         Console.WriteLine(pos.Describe());
         var actor = new Actor("Hero", 1);
         Console.WriteLine(actor.GetName());

@@ -6,7 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        int num = 2;
+        var num = 2;
         var parity = num switch
         {
             1 => "odd",

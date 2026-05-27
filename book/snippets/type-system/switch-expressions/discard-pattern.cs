@@ -6,7 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        int code = 99;
+        var code = 99;
         var meaning = code switch
         {
             0 => "Zero",
@@ -14,7 +14,7 @@ public class Program
             var _ => "Other",
         };
         Console.WriteLine($"Code {code} => {meaning}");
-        int code2 = 50;
+        var code2 = 50;
         var meaning2 = code2 switch
         {
             0 => "Zero",

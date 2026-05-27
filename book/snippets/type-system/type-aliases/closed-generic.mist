@@ -20,7 +20,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        IntBox intBox = new IntBox(42);
-        StringBox strBox = new StringBox("Mist");
+        var intBox = new IntBox(42);
+        var strBox = new StringBox("Mist");
     }
 }

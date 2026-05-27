@@ -37,7 +37,7 @@ public class Program
 
     public static void Main()
     {
-        Point pt = new Point(1, 2);
+        var pt = new Point(1, 2);
         Console.WriteLine($"before: {pt.Describe()}");
         MutatePoint(ref pt);
         Console.WriteLine($"after: {pt.Describe()}");

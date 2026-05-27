@@ -20,8 +20,8 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        GenericBox<int> intBox = new GenericBox<int>(42);
-        GenericBox<string> strBox = new GenericBox<string>("Mist");
+        var intBox = new GenericBox<int>(42);
+        var strBox = new GenericBox<string>("Mist");
     }
 
     public static Program __CreateDefault()

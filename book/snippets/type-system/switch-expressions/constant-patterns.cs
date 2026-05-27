@@ -6,7 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        int day = 3;
+        var day = 3;
         var dayName = day switch
         {
             1 => "Monday",
@@ -17,7 +17,7 @@ public class Program
             var _ => "Weekend",
         };
         Console.WriteLine($"Day {day} is {dayName}");
-        string command = "quit";
+        var command = "quit";
         var response = command switch
         {
             "start" => "Starting...",
@@ -26,7 +26,7 @@ public class Program
             var _ => "Unknown command",
         };
         Console.WriteLine($"Command '{command}' => {response}");
-        bool isActive = true;
+        var isActive = true;
         var status = isActive switch
         {
             true => "Active",

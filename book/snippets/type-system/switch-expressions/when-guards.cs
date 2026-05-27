@@ -6,7 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        int number = -5;
+        var number = -5;
         var sign = number switch
         {
             int n when n > 0 => "positive",
@@ -14,7 +14,7 @@ public class Program
             var _ => "zero",
         };
         Console.WriteLine($"Number {number} => {sign}");
-        int amount = 150;
+        var amount = 150;
         var tier = amount switch
         {
             int n when n >= 100 => $"premium (value={n})",

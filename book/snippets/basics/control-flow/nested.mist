@@ -2,7 +2,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        int[] values = new int[5];
+        var values = new int[5];
         values[0] = 3;
         values[1] = 7;
         values[2] = 2;

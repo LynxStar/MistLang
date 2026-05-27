@@ -1,5 +1,7 @@
 # Cast Operators
 
+> **⚠️ Unvetted Content:** From this chapter onward, the book content is auto-generated from spec documents and sample code using Opus and has not been manually reviewed for accuracy. Descriptions may be incorrect or misleading. All code snippets are at least valid compilable Mist, and the `samples/` directory in the repository contains working programs that fully demonstrate each feature end-to-end — trust the code over the prose when in doubt.
+
 Cast operators let you define custom conversions between types. Mist supports two kinds: **implicit** operators that the compiler applies automatically, and **explicit** operators that require the programmer to write a cast expression. Both are declared as static methods on the source type and emit directly to C#'s `implicit operator` and `explicit operator` syntax.
 
 ## Implicit Operator

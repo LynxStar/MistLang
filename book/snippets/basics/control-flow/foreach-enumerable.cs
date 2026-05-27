@@ -22,6 +22,11 @@ class Countdown : System.Collections.Generic.IEnumerable<int>
 
         public int Current => current;
 
+        // CLR IEnumerator<T> boilerplate
+        object System.Collections.IEnumerator.Current => Current;
+        public void Reset() { throw new System.NotSupportedException(); }
+        public void Dispose() { }
+
         public static Enumerator __CreateDefault()
         {
             var inst = new Enumerator();
@@ -41,6 +46,10 @@ class Countdown : System.Collections.Generic.IEnumerable<int>
     {
         return new Enumerator(start);
     }
+
+    // CLR IEnumerable<T> boilerplate
+    System.Collections.Generic.IEnumerator<int> System.Collections.Generic.IEnumerable<int>.GetEnumerator() => GetEnumerator();
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 
     protected Countdown()
     {

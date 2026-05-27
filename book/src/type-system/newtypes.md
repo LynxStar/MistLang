@@ -105,3 +105,22 @@ Converting between a newtype and its source type requires an explicit cast. This
 {{#endtabs }}
 
 The cast syntax is `(NewType)value` to create the newtype and `(SourceType)newtypeValue` to extract the source value. Without the cast, the compiler reports a type error — there is no implicit conversion between a newtype and its source type.
+
+## Type Identity and Pattern Matching
+
+Because a newtype is a nominally distinct type, it does not match its source type in pattern matching. A `UserId` is not an `int` — even though it wraps one. This means `is int` will fail on a `UserId` value, and `is UserId` will fail on a plain `int`.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/newtypes/type-identity.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/newtypes/type-identity.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Passing a `UserId` to an `unknown` parameter and checking `is int` produces no match — the runtime type is `UserId`, not `int`. Only `is UserId` succeeds. This is the core guarantee of newtypes: they are separate types at every level, including runtime type identity.

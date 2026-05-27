@@ -69,23 +69,6 @@ Extensions are called using dot-notation on an instance of the receiver type, ex
 
 From the caller's perspective, `greeting.WordCount()` looks like a regular method call. Extension methods and properties integrate seamlessly — callers don't need to know whether a member is defined on the type itself or in an extension block.
 
-## Extending Built-in Types
-
-Extension blocks work on built-in types too. Here, `string` is extended with utility methods that become available on any string value:
-
-{{#tabs }}
-{{#tab name="Mist" }}
-```mist
-{{#include ../../snippets/object-model/extension-methods/builtin-extensions.mist}}
-```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-{{#include ../../snippets/object-model/extension-methods/builtin-extensions.cs}}
-```
-{{#endtab }}
-{{#endtabs }}
-
 ## Static Extension Members
 
 Extension blocks can declare `static` methods. These belong to the type itself and are called via the type name, not on an instance. They cannot access the receiver parameter.

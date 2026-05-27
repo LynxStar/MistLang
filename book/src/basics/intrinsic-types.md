@@ -1,10 +1,10 @@
-# Primitive Types
+# Intrinsic Types
 
-Mist provides a full set of primitive types for working with numbers, text, and boolean logic.
+Mist provides a set of built-in types for working with numbers, text, and boolean logic. These are called intrinsic types because the compiler supplies them — but they are ordinary structs and classes, not a special category of type. They follow the same rules as user-defined types.
 
 ## Type Keywords and Standard Library Types
 
-The primitive type keywords in Mist are reserved aliases that always resolve to types in the Standard Library, regardless of what other types might exist with the same name in user-defined namespaces. Even if you declare your own `Standard.Int32`, the keyword `int` still refers to the compiler's built-in Standard Library type.
+The type keywords in Mist are reserved aliases that always resolve to types in the Standard Library, regardless of what other types might exist with the same name in user-defined namespaces. Even if you declare your own `Standard.Int32`, the keyword `int` still refers to the compiler's built-in Standard Library type.
 
 | Keyword | Standard Library Type |
 |---------|----------------------|
@@ -45,12 +45,12 @@ Mist supports signed and unsigned integer types at various bit widths. Each type
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/basics/primitive-types/integer-types.mist}}
+{{#include ../../snippets/basics/intrinsic-types/integer-types.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/basics/primitive-types/integer-types.cs}}
+{{#include ../../snippets/basics/intrinsic-types/integer-types.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -62,12 +62,12 @@ For fractional numbers, Mist provides `float` (32-bit), `double` (64-bit), and `
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/basics/primitive-types/floating-point.mist}}
+{{#include ../../snippets/basics/intrinsic-types/floating-point.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/basics/primitive-types/floating-point.cs}}
+{{#include ../../snippets/basics/intrinsic-types/floating-point.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -95,12 +95,12 @@ Integer values can be written in hexadecimal using the `0x` prefix:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/basics/primitive-types/hex-literals.mist}}
+{{#include ../../snippets/basics/intrinsic-types/hex-literals.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/basics/primitive-types/hex-literals.cs}}
+{{#include ../../snippets/basics/intrinsic-types/hex-literals.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -114,12 +114,12 @@ Integer values can also be written in binary using the `0b` prefix:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/basics/primitive-types/binary-literals.mist}}
+{{#include ../../snippets/basics/intrinsic-types/binary-literals.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/basics/primitive-types/binary-literals.cs}}
+{{#include ../../snippets/basics/intrinsic-types/binary-literals.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -133,12 +133,12 @@ Numeric literals can include underscores (`_`) as visual separators to improve r
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/basics/primitive-types/digit-separators.mist}}
+{{#include ../../snippets/basics/intrinsic-types/digit-separators.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/basics/primitive-types/digit-separators.cs}}
+{{#include ../../snippets/basics/intrinsic-types/digit-separators.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -152,12 +152,12 @@ The `bool` type represents a truth value — either `true` or `false`.
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/basics/primitive-types/bool.mist}}
+{{#include ../../snippets/basics/intrinsic-types/bool.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/basics/primitive-types/bool.cs}}
+{{#include ../../snippets/basics/intrinsic-types/bool.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -169,12 +169,12 @@ The `char` type holds a single Unicode character, written with single quotes:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/basics/primitive-types/char.mist}}
+{{#include ../../snippets/basics/intrinsic-types/char.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/basics/primitive-types/char.cs}}
+{{#include ../../snippets/basics/intrinsic-types/char.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -186,12 +186,12 @@ The `string` type holds a sequence of characters, written with double quotes:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/basics/primitive-types/string.mist}}
+{{#include ../../snippets/basics/intrinsic-types/string.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/basics/primitive-types/string.cs}}
+{{#include ../../snippets/basics/intrinsic-types/string.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -210,12 +210,12 @@ Strings support standard escape sequences for special characters:
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/basics/primitive-types/escape-sequences.mist}}
+{{#include ../../snippets/basics/intrinsic-types/escape-sequences.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/basics/primitive-types/escape-sequences.cs}}
+{{#include ../../snippets/basics/intrinsic-types/escape-sequences.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -227,12 +227,12 @@ Prefixing a string with `$` enables interpolation. Expressions inside `{` and `}
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/basics/primitive-types/string-interpolation.mist}}
+{{#include ../../snippets/basics/intrinsic-types/string-interpolation.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/basics/primitive-types/string-interpolation.cs}}
+{{#include ../../snippets/basics/intrinsic-types/string-interpolation.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}

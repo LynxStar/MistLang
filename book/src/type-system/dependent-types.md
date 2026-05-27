@@ -6,7 +6,7 @@ Mist dependent types are related to but distinct from refinement types. Refineme
 
 ## Dependent Parameter Syntax
 
-A dependent type parameter uses the `Name:PrimitiveType` syntax inside the type parameter list. The colon separates the parameter name from its value type — this distinguishes it from a regular generic type parameter.
+A dependent type parameter uses the `Name:ValueType` syntax inside the type parameter list. The colon separates the parameter name from its value type — this distinguishes it from a regular generic type parameter.
 
 {{#tabs }}
 {{#tab name="Mist" }}

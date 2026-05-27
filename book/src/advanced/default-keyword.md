@@ -34,7 +34,7 @@ The explicit form `default(T)` produces the default value for the named type. Us
 {{#endtab }}
 {{#endtabs }}
 
-For primitive types, the emitted C# uses the native `default(T)` expression. For `string`, Mist emits `""` rather than `null` — Mist treats string defaults as empty strings to avoid null-reference issues.
+For numeric and boolean types, the emitted C# uses the native `default(T)` expression. For `string`, Mist emits `""` rather than `null` — Mist treats string defaults as empty strings to avoid null-reference issues.
 
 ### `default(T)` with Classes
 

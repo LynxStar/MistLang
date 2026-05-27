@@ -11,7 +11,7 @@
 
 # Basics
 
-- [Primitive Types](basics/primitive-types.md)
+- [Intrinsic Types](basics/intrinsic-types.md)
 - [Void and Unit Type](basics/void-type.md)
 - [Variables](basics/variables.md)
 - [Namespaces](basics/namespaces.md)

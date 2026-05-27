@@ -4,7 +4,7 @@ A newtype creates a distinct type from an existing type. The compiler creates a 
 
 ## Newtype Declaration
 
-A newtype is declared with the `type` keyword, a name, and `= new SourceType;`. The source type can be any primitive, struct, or class.
+A newtype is declared with the `type` keyword, a name, and `= new SourceType;`. The source type can be any struct or class.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -19,7 +19,7 @@ A newtype is declared with the `type` keyword, a name, and `= new SourceType;`. 
 {{#endtab }}
 {{#endtabs }}
 
-Each newtype from a primitive emits as a `readonly struct` with a `Value` field. The compiler generates explicit cast operators in both directions so conversions are always intentional.
+Each newtype from a built-in value type emits as a `readonly struct` with a `Value` field. The compiler generates explicit cast operators in both directions so conversions are always intentional.
 
 ## Newtypes from Structs
 
@@ -76,7 +76,7 @@ Use type aliases when you want a shorter or more descriptive name. Use newtypes 
 
 ## Member Access
 
-Newtype instances expose the source type's public members directly. For primitive newtypes, the underlying value is accessible via the `.Value` property. For struct and class newtypes, the source type's fields and methods are available directly on the newtype instance — they're cloned into the new type.
+Newtype instances expose the source type's public members directly. For newtypes wrapping built-in value types, the underlying value is accessible via the `.Value` property. For struct and class newtypes, the source type's fields and methods are available directly on the newtype instance — they're cloned into the new type.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -91,7 +91,7 @@ Newtype instances expose the source type's public members directly. For primitiv
 {{#endtab }}
 {{#endtabs }}
 
-For primitive newtypes (`UserId`, `Label`, `Flag`), the underlying value lives in the `Value` field on the emitted struct. For struct and class newtypes (`Position`, `Actor`), the members are reproduced directly on the newtype, so you access them the same way you would on the original type.
+For built-in value type newtypes (`UserId`, `Label`, `Flag`), the underlying value lives in the `Value` field on the emitted struct. For struct and class newtypes (`Position`, `Actor`), the members are reproduced directly on the newtype, so you access them the same way you would on the original type.
 
 ## Explicit Casting
 

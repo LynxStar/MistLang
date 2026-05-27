@@ -4,7 +4,7 @@ The Mist standard library provides foundational types and functions that are ava
 
 The standard library serves two purposes:
 
-1. **Primitive type definitions** — Declares the built-in numeric types, strings, booleans, and other fundamental types with their operators and conversions.
+1. **Intrinsic type definitions** — Declares the built-in numeric types, strings, booleans, and other fundamental types with their operators and conversions.
 2. **Core abstractions** — Provides utility types like `Optional<T>`, the `Void` value type, universal methods available on all values, and runtime reflection via `Type`.
 
 ## Namespace
@@ -17,12 +17,12 @@ The standard library is organized into two logical groups:
 
 | Module | Purpose |
 |--------|---------|
-| **Bootstrap** | Intrinsic primitive types that map directly to .NET CLR types, providing operators and implicit conversions. |
-| **Core** | Higher-level types and extensions written in Mist itself (or declared as intrinsic entry points) that build on the bootstrap primitives. |
+| **Bootstrap** | Intrinsic types that map directly to .NET CLR types, providing operators and implicit conversions. |
+| **Core** | Higher-level types and extensions written in Mist itself (or declared as intrinsic entry points) that build on the bootstrap types. |
 
 ## Bootstrap Types
 
-The bootstrap module defines the primitive types that form the foundation of the Mist type system. Each type is declared as an `intrinsic` struct or class, meaning the compiler maps it directly to the corresponding .NET type at emit time.
+The bootstrap module defines the intrinsic types that form the foundation of the Mist type system. Each type is declared as an `intrinsic` struct or class, meaning the compiler maps it directly to the corresponding .NET type at emit time.
 
 ### Numeric Types
 
@@ -70,7 +70,7 @@ All numeric types support the standard arithmetic operators (`+`, `-`, `*`, `/`,
 
 ## Core Types
 
-The core module provides higher-level abstractions built on top of the bootstrap primitives.
+The core module provides higher-level abstractions built on top of the bootstrap types.
 
 ### Void
 

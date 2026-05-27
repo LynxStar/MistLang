@@ -154,4 +154,4 @@ declarations in the same file. Use a file-scoped namespace (namespace X;) instea
 
 ## What's Next
 
-You now know how to write simple programs without boilerplate. The next chapters cover the building blocks you'll use in both top-level statements and traditional programs: [primitive types](../basics/primitive-types.md), [variables](../basics/variables.md), and [control flow](../basics/control-flow.md).
+You now know how to write simple programs without boilerplate. The next chapters cover the building blocks you'll use in both top-level statements and traditional programs: [intrinsic types](../basics/intrinsic-types.md), [variables](../basics/variables.md), and [control flow](../basics/control-flow.md).

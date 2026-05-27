@@ -35,7 +35,7 @@ The extension provides a TextMate grammar (`syntaxes/mist.tmLanguage.json`) that
 | Keywords | `if`, `else`, `while`, `for`, `return`, `switch` | `keyword.control.mist` |
 | Declarations | `class`, `struct`, `interface`, `trait`, `enum`, `type` | `keyword.declaration.mist` |
 | Modifiers | `public`, `private`, `static`, `readonly`, `owned`, `frozen` | `storage.modifier.mist` |
-| Primitive types | `int`, `string`, `bool`, `float`, `double` | `storage.type.primitive.mist` |
+| Built-in types | `int`, `string`, `bool`, `float`, `double` | `storage.type.primitive.mist` |
 | Strings | `"hello"`, `$"interpolated {x}"` | `string.quoted.double.mist`, `string.interpolated.mist` |
 | Regex literals | `` `\d+` `` | `string.regexp.mist` |
 | Numeric literals | `42`, `0xFF`, `3.14f` | `constant.numeric.*` |

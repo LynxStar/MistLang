@@ -4,9 +4,11 @@
 
 Switch expressions provide a concise way to produce a value from multi-branch logic. Unlike traditional switch statements, a switch expression is an expression — it evaluates to a value and can be used anywhere an expression is expected, such as variable assignments or method arguments. The syntax uses a postfix `switch` keyword followed by a set of pattern arms.
 
+Switch expressions in Mist must be exhaustive — the compiler requires that every possible value of the scrutinee is handled by at least one arm. If the arms don't cover all cases, the compiler reports an error. The `_` discard pattern serves as a catch-all to satisfy exhaustiveness when you can't (or don't want to) enumerate every possibility.
+
 ## Postfix Switch Syntax
 
-A switch expression is written as `value switch { arms }`, where each arm maps a pattern to a result expression separated by `=>`. Arms are separated by commas.
+A switch expression is written as `value switch { arms }`, where each arm maps a pattern to a result expression separated by `=>`. Arms are separated by commas. The `_` at the end is the catch-all arm — it matches anything not handled by the preceding arms, ensuring the switch is exhaustive.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -40,7 +42,7 @@ Constant patterns match a specific literal value — integers, strings, or boole
 {{#endtab }}
 {{#endtabs }}
 
-Integer and string constants require a catch-all arm (like `var _`) to ensure exhaustiveness. Boolean switches with both `true` and `false` arms are exhaustive without a catch-all.
+Integer and string constants require a `_` catch-all arm to ensure exhaustiveness — the compiler can't prove that a finite set of constants covers all possible values. Boolean switches with both `true` and `false` arms are exhaustive without a catch-all.
 
 ## Type Pattern Arms
 
@@ -59,11 +61,11 @@ When the scrutinee is a type union, you can use type patterns to narrow the valu
 {{#endtab }}
 {{#endtabs }}
 
-In Mist, `int n` in a switch arm reads naturally — "if the value is an int, bind it to n." When all constituent types are covered, the switch is exhaustive without a catch-all.
+In Mist, `int n` in a switch arm reads naturally — "if the value is an int, bind it to n." When all constituent types of the union are covered, the switch is exhaustive without a catch-all.
 
 ## Discard Pattern
 
-The discard pattern serves as a catch-all arm that matches any value not handled by preceding arms. Mist supports two forms: `var _` (var-discard) and bare `_` (underscore-discard).
+The discard pattern `_` serves as a catch-all arm that matches any value not handled by preceding arms. Mist also supports `var _` as an alternative spelling with identical behavior.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -78,7 +80,7 @@ The discard pattern serves as a catch-all arm that matches any value not handled
 {{#endtab }}
 {{#endtabs }}
 
-Both `var _` and `_` match any value without binding it. Use the `var` form when you want to capture the value (e.g., `var x` binds the matched value to `x`), or either discard form when you only need the catch-all behavior.
+Both `_` and `var _` match any value without binding it. The `var` form becomes useful when you want to capture the value — `var x` binds the matched value to `x` for use in the result expression.
 
 ## When Guards
 

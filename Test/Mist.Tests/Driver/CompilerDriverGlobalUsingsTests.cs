@@ -109,10 +109,18 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
 
         if (referencePaths is not null)
         {
-            foreach (var refPath in referencePaths)
+            toml += "\n[references]\n";
+            for (var i = 0; i < referencePaths.Length; i++)
             {
-                var escapedPath = refPath.Replace("\\", "/");
-                toml += $"\n[[references]]\npath = \"{escapedPath}\"\n";
+                var escapedPath = referencePaths[i].Replace("\\", "/");
+                // Derive a reference name from the directory name
+                // If the path ends with mist.toml, use the parent directory name
+                var trimmedPath = referencePaths[i].TrimEnd('/', '\\');
+                var fileName = Path.GetFileName(trimmedPath);
+                var refName = string.Equals(fileName, "mist.toml", StringComparison.OrdinalIgnoreCase)
+                    ? Path.GetFileName(Path.GetDirectoryName(trimmedPath)!)
+                    : fileName;
+                toml += $"{refName} = {{ path = \"{escapedPath}\" }}\n";
             }
         }
 

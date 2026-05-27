@@ -80,11 +80,11 @@ public sealed class ProjectFileParserPropertyTests
             var projectDir = CreateTempProjectDir();
             try
             {
-                // Build mist.toml content with [[references]] entries
-                var toml = "name = \"TestProject\"\n";
-                foreach (var p in paths)
+                // Build mist.toml content with [references] named table entries
+                var toml = "name = \"TestProject\"\n\n[references]\n";
+                for (var i = 0; i < paths.Count; i++)
                 {
-                    toml += $"\n[[references]]\npath = \"{p}\"\n";
+                    toml += $"Ref{i} = {{ path = \"{paths[i]}\" }}\n";
                 }
 
                 File.WriteAllText(Path.Combine(projectDir, "mist.toml"), toml);
@@ -130,7 +130,7 @@ public sealed class ProjectFileParserPropertyTests
             var projectDir = CreateTempProjectDir();
             try
             {
-                var toml = $"name = \"TestProject\"\n\n[[references]]\npath = \"{wsPath}\"\n";
+                var toml = $"name = \"TestProject\"\n\n[references]\nBadRef = {{ path = \"{wsPath}\" }}\n";
                 File.WriteAllText(Path.Combine(projectDir, "mist.toml"), toml);
 
                 var diagnostics = new DiagnosticBag();
@@ -169,8 +169,8 @@ public sealed class ProjectFileParserPropertyTests
             var projectDir = CreateTempProjectDir();
             try
             {
-                // Build mist.toml with unknown fields in the [[references]] entry
-                var toml = "name = \"TestProject\"\n\n[[references]]\n";
+                // Build mist.toml with unknown fields in the [references.MyRef] entry
+                var toml = "name = \"TestProject\"\n\n[references.MyRef]\n";
                 toml += $"path = \"{path}\"\n";
                 var seenKeys = new HashSet<string>();
                 foreach (var (key, value) in fields)

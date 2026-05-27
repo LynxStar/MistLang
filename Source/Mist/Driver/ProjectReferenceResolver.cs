@@ -54,13 +54,14 @@ public static class ProjectReferenceResolver
 
         foreach (var reference in references)
         {
-            Dfs(reference.Path, chain, visited, inProgress, result, diagnostics);
+            Dfs(reference.Name, reference.Path, chain, visited, inProgress, result, diagnostics);
         }
 
         return result.ToImmutableArray();
     }
 
     private static void Dfs(
+        string referenceName,
         string canonicalTomlPath,
         List<string> chain,
         HashSet<string> visited,
@@ -166,10 +167,27 @@ public static class ProjectReferenceResolver
             return;
         }
 
+        // Name-mismatch validation (Requirement 4)
+        if (config.Name != referenceName)
+        {
+            diagnostics.Add(new Diagnostic(
+                DiagnosticId.ProjectReferenceNameMismatch,
+                DiagnosticSeverity.Error,
+                PipelineStage.Driver,
+                $"Reference key '{referenceName}' does not match the target project's name '{config.Name}' in '{canonicalTomlPath}'.",
+                Location: default,
+                CompilationUnitPath: canonicalTomlPath,
+                AnalyzerName: null));
+
+            inProgress.Remove(canonicalTomlPath);
+            chain.RemoveAt(chain.Count - 1);
+            return;
+        }
+
         // Recurse into transitive references (post-order DFS).
         foreach (var transRef in config.References)
         {
-            Dfs(transRef.Path, chain, visited, inProgress, result, diagnostics);
+            Dfs(transRef.Name, transRef.Path, chain, visited, inProgress, result, diagnostics);
         }
 
         // Post-order: add after all dependencies have been processed.

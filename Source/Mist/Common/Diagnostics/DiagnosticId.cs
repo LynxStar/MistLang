@@ -80,6 +80,18 @@ public readonly record struct DiagnosticId(string Value)
     public static readonly DiagnosticId ProjectCircularReference =
         new("MIST_PROJECT_CIRCULAR_REFERENCE");
 
+    /// <summary>A reference entry or the references field itself is not a valid TOML table.</summary>
+    public static readonly DiagnosticId ProjectReferenceInvalidFormat =
+        new("MIST_PROJECT_REFERENCE_INVALID_FORMAT");
+
+    /// <summary>A reference key is empty, contains invalid characters, or exceeds 128 characters.</summary>
+    public static readonly DiagnosticId ProjectReferenceInvalidName =
+        new("MIST_PROJECT_REFERENCE_INVALID_NAME");
+
+    /// <summary>The reference key does not match the target project's declared name.</summary>
+    public static readonly DiagnosticId ProjectReferenceNameMismatch =
+        new("MIST_PROJECT_REFERENCE_NAME_MISMATCH");
+
     /// <summary>The entry_point field is present but empty or whitespace.</summary>
     public static readonly DiagnosticId ProjectEmptyEntryPoint =
         new("MIST_PROJECT_EMPTY_ENTRY_POINT");

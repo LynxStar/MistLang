@@ -1,10 +1,9 @@
-// Feature: global-usings, Property 1: ProjectConfiguration round-trip
-// **Validates: Requirements 1.1, 1.2, 1.3, 1.6, 3.1, 7.1, 7.2, 7.4**
+// Feature: named-references, Property 1: Round-trip with named references
+// **Validates: Requirements 1.1, 1.2, 1.3, 5.1, 5.2, 7.1, 7.2, 7.3, 7.4**
 //
-// For any valid ProjectConfiguration (with valid name, namespace root, references,
-// and global usings list), serializing it to TOML and parsing the result back SHALL
-// produce a ProjectConfiguration where Name, NamespaceRoot, References, and GlobalUsings
-// are structurally equal to the original (order-sensitive for GlobalUsings).
+// For any valid ProjectConfiguration with distinct reference names, serializing to TOML
+// and parsing back produces a ProjectConfiguration where each reference has equal Name
+// and Path fields.
 
 using System.Collections.Immutable;
 using System.Text;
@@ -82,19 +81,25 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
 
     /// <summary>
     /// Generates a valid <see cref="ProjectConfiguration"/> with random name,
-    /// namespace root, references, and global usings.
+    /// namespace root, references (with distinct names), and global usings.
     /// </summary>
     private static Gen<ProjectConfiguration> GenProjectConfiguration()
     {
         return GenProjectName().SelectMany(name =>
             GenProjectName().SelectMany(nsRoot =>
-                Gen.Choose(0, 3).SelectMany(refCount =>
-                    Gen.ArrayOf(GenProjectName(), refCount).SelectMany(refNames =>
+                Gen.Choose(0, 10).SelectMany(refCount =>
+                    Gen.ArrayOf(GenProjectName(), refCount + 10).SelectMany(refNames =>
                         GenGlobalUsings().Select(globalUsings =>
                         {
+                            // Deduplicate reference names while preserving order, then take up to refCount
+                            var distinctNames = refNames
+                                .Distinct(StringComparer.Ordinal)
+                                .Take(refCount)
+                                .ToArray();
+
                             // Build references with synthetic absolute paths
-                            var refs = refNames
-                                .Select(r => new ProjectReference($"/refs/{r}/mist.toml"))
+                            var refs = distinctNames
+                                .Select(r => new ProjectReference(r, $"/refs/{r}/mist.toml"))
                                 .ToImmutableArray();
 
                             return new ProjectConfiguration(name, nsRoot, refs, GlobalUsings: globalUsings);
@@ -106,7 +111,8 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Serializes a <see cref="ProjectConfiguration"/> to TOML format.
+    /// Serializes a <see cref="ProjectConfiguration"/> to TOML format using the
+    /// <c>[references]</c> named table syntax.
     /// </summary>
     private static string SerializeToToml(ProjectConfiguration config)
     {
@@ -122,11 +128,15 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
             sb.AppendLine($"namespaces = [{nsEntries}]");
         }
 
-        foreach (var reference in config.References)
+        if (!config.References.IsDefaultOrEmpty)
         {
             sb.AppendLine();
-            sb.AppendLine("[[references]]");
-            sb.AppendLine($"path = \"{EscapeTomlString(reference.Path)}\"");
+            sb.AppendLine("[references]");
+            foreach (var reference in config.References)
+            {
+                // Quote the reference name to handle dots (which TOML interprets as nested keys)
+                sb.AppendLine($"\"{EscapeTomlString(reference.Name)}\" = {{ path = \"{EscapeTomlString(reference.Path)}\" }}");
+            }
         }
 
         return sb.ToString();
@@ -151,9 +161,10 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Property 1: ProjectConfiguration round-trip.
-    /// For any valid ProjectConfiguration, serializing to TOML and parsing back
-    /// produces a structurally equal ProjectConfiguration.
+    /// Property 1: Round-trip with named references.
+    /// For any valid ProjectConfiguration with distinct reference names, serializing
+    /// to TOML and parsing back produces a ProjectConfiguration where each reference
+    /// has equal Name and Path fields.
     /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(ProjectConfigurationRoundTripPropertyTests) })]
     public bool RoundTrip_SerializeAndParse_ProducesEqualConfiguration(ProjectConfiguration original)
@@ -186,12 +197,16 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
             if (parsed.NamespaceRoot != original.NamespaceRoot)
                 return false;
 
-            // References: compare paths (parser normalizes paths, so compare by count and filename)
+            // References: compare Name and Path
             if (parsed.References.Length != original.References.Length)
                 return false;
 
             for (var i = 0; i < original.References.Length; i++)
             {
+                // Compare Name field (should round-trip exactly)
+                if (parsed.References[i].Name != original.References[i].Name)
+                    return false;
+
                 // The parser normalizes relative paths to absolute using the project folder.
                 // Since we write absolute paths in serialization, they should round-trip.
                 var parsedPath = parsed.References[i].Path;

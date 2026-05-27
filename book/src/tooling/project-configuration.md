@@ -11,7 +11,7 @@ The table below summarizes all available fields:
 | `name` | Yes | String | The project name. Used as the default namespace root and output assembly name. |
 | `namespace_root` | No | String | Overrides the root segment for inferred namespaces. Defaults to `name` when omitted. |
 | `entry_point` | No | String | Disambiguates the program entry point when multiple candidates exist. |
-| `[[references]]` | No | Array of tables | Declares dependencies on other Mist projects. Each entry requires a `path` field. |
+| `[references]` | No | Table | Declares dependencies on other Mist projects. Each key is a project name mapping to a table with a `path` field. |
 | `[global_usings]` | No | Table | Declares namespaces implicitly imported into every source file in the project. |
 
 ## The `name` Field
@@ -86,20 +86,55 @@ If the specified entry point cannot be found, the compiler reports an error:
 
 For full details on top-level statements and entry point rules, see [Top-Level Statements](../getting-started/top-level-statements.md).
 
-## The `[[references]]` Array
+## The `[references]` Table
 
-The `[[references]]` array declares dependencies on other Mist projects. Each entry is a TOML table with a single required field:
+The `[references]` table declares dependencies on other Mist projects. Each entry is a key-value pair where the key is the referenced project's name and the value is a table containing a `path` field:
 
 | Field | Required | Type | Description |
 |-------|----------|------|-------------|
 | `path` | Yes | String | Path to the referenced project's directory or `mist.toml` file. |
 
+There are two equivalent ways to declare references:
+
+**Inline table form:**
+
 ```toml
-[[references]]
-path = "../SharedLib"
+[references]
+SharedLib = { path = "../SharedLib" }
+DataModels = { path = "../DataModels" }
 ```
 
-When the compiler processes references, it parses each referenced project's `mist.toml` and includes that project's source files in the compilation. Referenced projects can themselves declare references, forming a dependency graph.
+**Expanded sub-table form:**
+
+```toml
+[references.SharedLib]
+path = "../SharedLib"
+
+[references.DataModels]
+path = "../DataModels"
+```
+
+Both forms produce identical results. The inline form is more compact for simple references; the expanded form may be preferred when additional fields are added in the future.
+
+### Reference Key Naming
+
+The reference key (e.g., `SharedLib` in the examples above) **must match the `name` field of the referenced project's `mist.toml` exactly** (case-sensitive). This ensures that dependency declarations are unambiguous and that typos or stale renames are caught at build time.
+
+For example, if `../SharedLib/mist.toml` contains `name = "SharedLib"`, then the reference key must be `SharedLib` — not `sharedlib`, `Shared-Lib`, or any other variation.
+
+The reference key follows the same naming constraints as the `name` field:
+
+- Must not be empty or whitespace-only
+- Maximum length: 128 characters
+- Allowed characters: letters (`a-z`, `A-Z`), digits (`0-9`), hyphens (`-`), underscores (`_`), and periods (`.`)
+
+If the reference key does not match the target project's `name` field, the compiler reports a `ProjectReferenceNameMismatch` error:
+
+```
+Reference key 'WrongName' does not match the target project's name 'SharedLib' in '/path/to/SharedLib/mist.toml'.
+```
+
+When a name mismatch is detected, the mismatched reference is excluded from the build and its transitive dependencies are not traversed. The compiler continues resolving the remaining sibling references.
 
 ### Path Resolution
 
@@ -189,11 +224,9 @@ A project that depends on a shared library and specifies a custom namespace root
 name = "my-web-app"
 namespace_root = "WebApp"
 
-[[references]]
-path = "../SharedLib"
-
-[[references]]
-path = "../DataModels"
+[references]
+SharedLib = { path = "../SharedLib" }
+DataModels = { path = "../DataModels" }
 ```
 
 The corresponding directory layout:
@@ -222,19 +255,15 @@ In this setup:
 
 ### Large Project with Many References
 
-For projects with many dependencies, each reference gets its own `[[references]]` entry:
+For projects with many dependencies, each reference is a named key in the `[references]` table:
 
 ```toml
 name = "AllFeatures"
 
-[[references]]
-path = "../Primitives"
-
-[[references]]
-path = "../Classes"
-
-[[references]]
-path = "../Traits"
+[references]
+Primitives = { path = "../Primitives" }
+Classes = { path = "../Classes" }
+Traits = { path = "../Traits" }
 ```
 
 ### Project with Global Usings
@@ -248,8 +277,8 @@ namespace_root = "MyApp"
 [global_usings]
 namespaces = ["Standard", "MyApp.Models", "MyApp.Services"]
 
-[[references]]
-path = "../SharedLib"
+[references]
+SharedLib = { path = "../SharedLib" }
 ```
 
 With this configuration, every `.mist` file in the project can reference types from `Standard`, `MyApp.Models`, and `MyApp.Services` without explicit `using` declarations. The referenced `SharedLib` project does not inherit these global usings.
@@ -258,27 +287,30 @@ With this configuration, every `.mist` file in the project can reference types f
 
 The compiler validates `mist.toml` strictly and halts compilation on any error:
 
-| Condition | Error |
-|-----------|-------|
-| `mist.toml` not found | `Project file 'path/mist.toml' not found.` |
-| Invalid TOML syntax | `Failed to parse project file: {details}` |
-| Missing `name` field | `Project file is missing the required 'name' field.` |
-| Empty or whitespace `name` | `Project name must not be empty or whitespace.` |
-| Invalid characters in `name` | Lists the invalid characters found |
-| `name` exceeds 128 characters | `Project name exceeds the maximum length of 128 characters.` |
-| Empty `namespace_root` | `Namespace root must not be empty or whitespace when specified.` |
-| Invalid characters in `namespace_root` | Lists the invalid characters found |
-| Empty `entry_point` | `entry_point must not be empty or whitespace when specified.` |
-| `entry_point = "top-level"` but no TLS file | `entry_point = "top-level" specified in mist.toml but no file contains top-level statements.` |
-| `entry_point` specifies unknown class | `entry_point specifies '{class}' but no class with that name contains a static void Main method.` |
-| `entry_point` specifies class but TLS exists | `Cannot specify entry_point = "{class}" when a top-level statement file exists.` |
-| `references` is not an array of tables | `The 'references' field must be an array of tables ([[references]]).` |
-| Reference entry missing `path` | `Reference entry is missing the required 'path' field.` |
-| Reference entry with empty `path` | `Reference entry has an empty or whitespace 'path' field.` |
-| Referenced project not found | Reports the missing path |
-| Circular reference | Reports the full cycle chain |
-| `[global_usings]` missing `namespaces` field | `MIST_GLOBAL_USING_MISSING_NAMESPACES` |
-| Empty or whitespace namespace entry | `MIST_GLOBAL_USING_EMPTY_NAMESPACE` |
-| Invalid characters in namespace entry | `MIST_GLOBAL_USING_INVALID_NAMESPACE` |
-| `namespaces` is not an array or contains non-strings | `MIST_GLOBAL_USING_INVALID_FORMAT` |
-| Duplicate namespace entry | `MIST_GLOBAL_USING_DUPLICATE_NAMESPACE` (warning, parsing continues) |
+| Condition | Diagnostic | Severity |
+|-----------|-----------|----------|
+| `mist.toml` not found | `Project file 'path/mist.toml' not found.` | Error |
+| Invalid TOML syntax | `Failed to parse project file: {details}` | Error |
+| Missing `name` field | `Project file is missing the required 'name' field.` | Error |
+| Empty or whitespace `name` | `Project name must not be empty or whitespace.` | Error |
+| Invalid characters in `name` | Lists the invalid characters found | Error |
+| `name` exceeds 128 characters | `Project name exceeds the maximum length of 128 characters.` | Error |
+| Empty `namespace_root` | `Namespace root must not be empty or whitespace when specified.` | Error |
+| Invalid characters in `namespace_root` | Lists the invalid characters found | Error |
+| Empty `entry_point` | `entry_point must not be empty or whitespace when specified.` | Error |
+| `entry_point = "top-level"` but no TLS file | `entry_point = "top-level" specified in mist.toml but no file contains top-level statements.` | Error |
+| `entry_point` specifies unknown class | `entry_point specifies '{class}' but no class with that name contains a static void Main method.` | Error |
+| `entry_point` specifies class but TLS exists | `Cannot specify entry_point = "{class}" when a top-level statement file exists.` | Error |
+| `references` is not a table | `MIST_PROJECT_REFERENCE_INVALID_FORMAT` | Error |
+| Reference value is not a table | `MIST_PROJECT_REFERENCE_INVALID_FORMAT` | Error |
+| Reference key is empty, has invalid characters, or exceeds 128 chars | `MIST_PROJECT_REFERENCE_INVALID_NAME` | Error |
+| Reference key does not match target project's `name` | `MIST_PROJECT_REFERENCE_NAME_MISMATCH` | Error |
+| Reference entry missing `path` | `Reference entry is missing the required 'path' field.` | Error |
+| Reference entry with empty `path` | `Reference entry has an empty or whitespace 'path' field.` | Error |
+| Referenced project not found | Reports the missing path | Error |
+| Circular reference | Reports the full cycle chain | Error |
+| `[global_usings]` missing `namespaces` field | `MIST_GLOBAL_USING_MISSING_NAMESPACES` | Error |
+| Empty or whitespace namespace entry | `MIST_GLOBAL_USING_EMPTY_NAMESPACE` | Error |
+| Invalid characters in namespace entry | `MIST_GLOBAL_USING_INVALID_NAMESPACE` | Error |
+| `namespaces` is not an array or contains non-strings | `MIST_GLOBAL_USING_INVALID_FORMAT` | Error |
+| Duplicate namespace entry | `MIST_GLOBAL_USING_DUPLICATE_NAMESPACE` | Warning |

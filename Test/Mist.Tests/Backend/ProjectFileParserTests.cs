@@ -149,8 +149,8 @@ public sealed class ProjectFileParserTests
             WriteToml(projectDir, """
                 name = "MyApp"
 
-                [[references]]
-                description = "no path here"
+                [references]
+                BadRef = { description = "no path here" }
                 """);
 
             var diagnostics = new DiagnosticBag();
@@ -178,8 +178,8 @@ public sealed class ProjectFileParserTests
             WriteToml(projectDir, """
                 name = "MyApp"
 
-                [[references]]
-                path = ""
+                [references]
+                BadRef = { path = "" }
                 """);
 
             var diagnostics = new DiagnosticBag();
@@ -232,8 +232,8 @@ public sealed class ProjectFileParserTests
             WriteToml(projectDir, """
                 name = "MyApp"
 
-                [[references]]
-                path = "libs/SharedLib/mist.toml"
+                [references]
+                SharedLib = { path = "libs/SharedLib/mist.toml" }
                 """);
 
             var diagnostics = new DiagnosticBag();
@@ -261,8 +261,8 @@ public sealed class ProjectFileParserTests
             WriteToml(projectDir, """
                 name = "MyApp"
 
-                [[references]]
-                path = "libs/SharedLib"
+                [references]
+                SharedLib = { path = "libs/SharedLib" }
                 """);
 
             var diagnostics = new DiagnosticBag();
@@ -293,11 +293,11 @@ public sealed class ProjectFileParserTests
             // Escape backslashes for TOML string on Windows
             var tomlPath = absolutePath.Replace("\\", "/");
 
-            WriteToml(projectDir, $"""
+            WriteToml(projectDir, $$"""
                 name = "MyApp"
 
-                [[references]]
-                path = "{tomlPath}"
+                [references]
+                TargetLib = { path = "{{tomlPath}}" }
                 """);
 
             var diagnostics = new DiagnosticBag();
@@ -326,8 +326,8 @@ public sealed class ProjectFileParserTests
             WriteToml(projectDir, """
                 name = "MyApp"
 
-                [[references]]
-                path = "../sibling/sub/../SharedLib"
+                [references]
+                SharedLib = { path = "../sibling/sub/../SharedLib" }
                 """);
 
             var diagnostics = new DiagnosticBag();

@@ -33,10 +33,10 @@ public sealed class ProjectReferencePropertyTests
         File.WriteAllText(Path.Combine(projectDir, ProjectFileParser.FileName), tomlContent);
     }
 
-    private static ProjectReference RefTo(string projectDir)
+    private static ProjectReference RefTo(string name, string projectDir)
     {
-        return new ProjectReference(
-            Path.GetFullPath(Path.Combine(projectDir, ProjectFileParser.FileName)));
+        var path = Path.GetFullPath(Path.Combine(projectDir, ProjectFileParser.FileName));
+        return new ProjectReference(name, path);
     }
 
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
@@ -72,21 +72,22 @@ public sealed class ProjectReferencePropertyTests
                 // Each directory references the next; the last references the first
                 for (var i = 0; i < cycleLength; i++)
                 {
-                    var nextDir = dirs[(i + 1) % cycleLength];
+                    var nextIdx = (i + 1) % cycleLength;
+                    var nextDir = dirs[nextIdx];
                     var nextTomlPath = Path.GetFullPath(
                         Path.Combine(nextDir, "mist.toml")).Replace("\\", "/");
 
-                    WriteToml(dirs[i], $"""
-                        name = "Project{i}"
+                    WriteToml(dirs[i], $$"""
+                        name = "Project{{i}}"
 
-                        [[references]]
-                        path = "{nextTomlPath}"
+                        [references]
+                        Project{{nextIdx}} = { path = "{{nextTomlPath}}" }
                         """);
                 }
 
                 WriteToml(rootDir, """name = "Root" """);
 
-                var references = ImmutableArray.Create(RefTo(dirs[0]));
+                var references = ImmutableArray.Create(RefTo("Project0", dirs[0]));
 
                 var diagnostics = new DiagnosticBag();
                 ProjectReferenceResolver.Resolve(rootDir, references, diagnostics);
@@ -144,27 +145,27 @@ public sealed class ProjectReferencePropertyTests
 
                 // Left references all shared
                 var leftRefs = string.Join("\n",
-                    sharedDirs.Select(d =>
+                    sharedDirs.Select((d, i) =>
                     {
                         var p = Path.GetFullPath(
                             Path.Combine(d, "mist.toml")).Replace("\\", "/");
-                        return $"[[references]]\npath = \"{p}\"";
+                        return $"Shared{i} = {{ path = \"{p}\" }}";
                     }));
-                WriteToml(leftDir, $"name = \"Left\"\n\n{leftRefs}");
+                WriteToml(leftDir, $"name = \"Left\"\n\n[references]\n{leftRefs}");
 
                 // Right references all shared
                 var rightRefs = string.Join("\n",
-                    sharedDirs.Select(d =>
+                    sharedDirs.Select((d, i) =>
                     {
                         var p = Path.GetFullPath(
                             Path.Combine(d, "mist.toml")).Replace("\\", "/");
-                        return $"[[references]]\npath = \"{p}\"";
+                        return $"Shared{i} = {{ path = \"{p}\" }}";
                     }));
-                WriteToml(rightDir, $"name = \"Right\"\n\n{rightRefs}");
+                WriteToml(rightDir, $"name = \"Right\"\n\n[references]\n{rightRefs}");
 
                 WriteToml(rootDir, """name = "Root" """);
 
-                var references = ImmutableArray.Create(RefTo(leftDir), RefTo(rightDir));
+                var references = ImmutableArray.Create(RefTo("Left", leftDir), RefTo("Right", rightDir));
 
                 var diagnostics = new DiagnosticBag();
                 var result = ProjectReferenceResolver.Resolve(rootDir, references, diagnostics);
@@ -217,7 +218,7 @@ public sealed class ProjectReferencePropertyTests
                         Path.GetTempPath(),
                         $"mist_bogus_{Guid.NewGuid():N}",
                         "mist.toml");
-                    refs.Add(new ProjectReference(bogusPath));
+                    refs.Add(new ProjectReference($"Bogus{i}", bogusPath));
                 }
 
                 var diagnostics = new DiagnosticBag();
@@ -317,7 +318,7 @@ public sealed class ProjectReferencePropertyTests
                 // Create root project referencing it
                 var refTomlPath = Path.GetFullPath(
                     Path.Combine(refDir, "mist.toml")).Replace("\\", "/");
-                WriteToml(rootDir, $"name = \"Root\"\nnamespace_root = \"Root\"\n\n[[references]]\npath = \"{refTomlPath}\"");
+                WriteToml(rootDir, $"name = \"Root\"\nnamespace_root = \"Root\"\n\n[references]\n{refName} = {{ path = \"{refTomlPath}\" }}");
                 File.WriteAllText(
                     Path.Combine(rootDir, "main.mist"), "// root source");
 
@@ -394,7 +395,7 @@ public sealed class ProjectReferencePropertyTests
                 {
                     var prevToml = Path.GetFullPath(
                         Path.Combine(chainDirs[i - 1], "mist.toml")).Replace("\\", "/");
-                    WriteToml(chainDirs[i], $"name = \"Depth{i}\"\nnamespace_root = \"Depth{i}\"\n\n[[references]]\npath = \"{prevToml}\"");
+                    WriteToml(chainDirs[i], $"name = \"Depth{i}\"\nnamespace_root = \"Depth{i}\"\n\n[references]\nDepth{i - 1} = {{ path = \"{prevToml}\" }}");
                     File.WriteAllText(
                         Path.Combine(chainDirs[i], $"d{i}.mist"), $"// depth {i}");
                 }
@@ -402,7 +403,7 @@ public sealed class ProjectReferencePropertyTests
                 // Root references the shallowest in the chain
                 var shallowToml = Path.GetFullPath(
                     Path.Combine(chainDirs[depth - 1], "mist.toml")).Replace("\\", "/");
-                WriteToml(rootDir, $"name = \"Root\"\nnamespace_root = \"Root\"\n\n[[references]]\npath = \"{shallowToml}\"");
+                WriteToml(rootDir, $"name = \"Root\"\nnamespace_root = \"Root\"\n\n[references]\nDepth{depth - 1} = {{ path = \"{shallowToml}\" }}");
                 File.WriteAllText(
                     Path.Combine(rootDir, "main.mist"), "// root source");
 
@@ -464,6 +465,80 @@ public sealed class ProjectReferencePropertyTests
         });
     }
 
+    // ── Property 2 (named-references): Name-mismatch detection ─────────
+    // Feature: named-references, Property 2: Name-mismatch detection
+    // **Validates: Requirements 4.1, 4.2, 4.3, 4.4**
+
+    [Fact]
+    public void P2_NameMismatch_ReportsExactlyOneDiagnosticAndExcludesFromResult()
+    {
+        // Generator: two distinct valid project names (3–10 lowercase letters)
+        var gen = GenProjectName().SelectMany(actualName =>
+            GenProjectName()
+                .Where(refKey => refKey != actualName)
+                .Select(refKey => (actualName, refKey)));
+
+        RunProperty(gen, input =>
+        {
+            var (actualName, refKey) = input;
+            var rootDir = CreateTempDir();
+            var targetDir = CreateTempDir();
+            try
+            {
+                // Create target project with its actual name
+                WriteToml(targetDir, $"""
+                    name = "{actualName}"
+                    namespace_root = "{actualName}"
+                    """);
+                File.WriteAllText(
+                    Path.Combine(targetDir, "lib.mist"), $"// {actualName} source");
+
+                // Create root project with a reference using the WRONG key
+                var targetTomlPath = Path.GetFullPath(
+                    Path.Combine(targetDir, "mist.toml")).Replace("\\", "/");
+                WriteToml(rootDir, $$"""
+                    name = "Root"
+
+                    [references]
+                    {{refKey}} = { path = "{{targetTomlPath}}" }
+                    """);
+
+                var references = ImmutableArray.Create(
+                    new ProjectReference(refKey, Path.GetFullPath(
+                        Path.Combine(targetDir, ProjectFileParser.FileName))));
+
+                var diagnostics = new DiagnosticBag();
+                var result = ProjectReferenceResolver.Resolve(rootDir, references, diagnostics);
+
+                // Assert exactly one ProjectReferenceNameMismatch diagnostic
+                Assert.True(diagnostics.HasErrors,
+                    $"Expected name-mismatch error for refKey='{refKey}' vs actualName='{actualName}'");
+
+                var diags = diagnostics.ToImmutableArray();
+                var mismatchDiags = diags.Where(d =>
+                    d.Id.Value == "MIST_PROJECT_REFERENCE_NAME_MISMATCH").ToList();
+
+                Assert.Single(mismatchDiags);
+                Assert.Equal(DiagnosticSeverity.Error, mismatchDiags[0].Severity);
+
+                // Diagnostic message should contain both the declared key and actual name
+                Assert.Contains(refKey, mismatchDiags[0].Message);
+                Assert.Contains(actualName, mismatchDiags[0].Message);
+
+                // The mismatched reference should NOT be in the resolved output
+                var targetCanonical = Path.GetFullPath(
+                    Path.Combine(targetDir, "mist.toml"));
+                Assert.DoesNotContain(result,
+                    r => r.CanonicalTomlPath == targetCanonical);
+            }
+            finally
+            {
+                try { Directory.Delete(rootDir, recursive: true); } catch { }
+                try { Directory.Delete(targetDir, recursive: true); } catch { }
+            }
+        });
+    }
+
     // ── Property 8: Transitive types are not directly visible ─────────
     // Feature: project-references, Property 8: Transitive types are not directly visible
 
@@ -509,7 +584,7 @@ public sealed class ProjectReferencePropertyTests
                 // Project B: references C
                 var cToml = Path.GetFullPath(
                     Path.Combine(dirC, "mist.toml")).Replace("\\", "/");
-                WriteToml(dirB, $"name = \"BLib\"\nnamespace_root = \"BLib\"\n\n[[references]]\npath = \"{cToml}\"");
+                WriteToml(dirB, $"name = \"BLib\"\nnamespace_root = \"BLib\"\n\n[references]\nCLib = {{ path = \"{cToml}\" }}");
                 File.WriteAllText(
                     Path.Combine(dirB, "bridge.mist"),
                     "namespace BLib;\n\npublic class Bridge\n{\n    public static int Get()\n    {\n        return 0;\n    }\n}");
@@ -517,7 +592,7 @@ public sealed class ProjectReferencePropertyTests
                 // Root: references only B, tries to use C's type
                 var bToml = Path.GetFullPath(
                     Path.Combine(dirB, "mist.toml")).Replace("\\", "/");
-                WriteToml(rootDir, $"name = \"Root\"\nnamespace_root = \"Root\"\n\n[[references]]\npath = \"{bToml}\"");
+                WriteToml(rootDir, $"name = \"Root\"\nnamespace_root = \"Root\"\n\n[references]\nBLib = {{ path = \"{bToml}\" }}");
                 File.WriteAllText(
                     Path.Combine(rootDir, "main.mist"),
                     $"namespace Root;\n\npublic class Program\n{{\n    public static void Main()\n    {{\n        var x = CLib.{typeName}.Value();\n    }}\n}}");

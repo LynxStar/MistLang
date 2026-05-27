@@ -212,55 +212,108 @@ public static partial class ProjectFileParser
             entryPoint = epStr;
         }
 
-        // 9. Read [[references]] array (optional)
+        // 9. Read [references] table (optional)
         var references = ImmutableArray.CreateBuilder<ProjectReference>();
 
         if (model.TryGetValue("references", out var refsObj))
         {
-            if (refsObj is not TomlTableArray refsArray)
+            if (refsObj is not TomlTable refsTable)
             {
                 diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_PROJECT_TOML_ERROR"),
+                    DiagnosticId.ProjectReferenceInvalidFormat,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
-                    $"The 'references' field in '{filePath}' must be an array of tables ([[references]]).",
+                    $"The 'references' field in '{filePath}' must be a table ([references]).",
                     Location: default,
                     CompilationUnitPath: filePath,
                     AnalyzerName: null));
                 return null;
             }
 
-            foreach (var entry in refsArray)
+            foreach (var (refName, refValue) in refsTable)
             {
-                // 9c.i/ii: path key must be present and a string
-                if (!entry.TryGetValue("path", out var pathObj) || pathObj is not string rawPath)
+                // 9a. Validate reference key name (empty → pattern → length)
+                if (string.IsNullOrWhiteSpace(refName))
                 {
                     diagnostics.Add(new Diagnostic(
-                        DiagnosticId.ProjectReferenceMissingPath,
+                        DiagnosticId.ProjectReferenceInvalidName,
                         DiagnosticSeverity.Error,
                         PipelineStage.Driver,
-                        $"Reference entry in '{filePath}' is missing the required 'path' field.",
+                        $"Reference key '{refName}' in '{filePath}' must not be empty or whitespace.",
                         Location: default,
                         CompilationUnitPath: filePath,
                         AnalyzerName: null));
                     return null;
                 }
 
-                // 9c.iii: path must not be empty or whitespace
+                if (!ValidNamePattern().IsMatch(refName))
+                {
+                    diagnostics.Add(new Diagnostic(
+                        DiagnosticId.ProjectReferenceInvalidName,
+                        DiagnosticSeverity.Error,
+                        PipelineStage.Driver,
+                        $"Reference key '{refName}' in '{filePath}' contains invalid characters. Only alphanumeric characters, hyphens, underscores, and periods are allowed.",
+                        Location: default,
+                        CompilationUnitPath: filePath,
+                        AnalyzerName: null));
+                    return null;
+                }
+
+                if (refName.Length > MaxNameLength)
+                {
+                    diagnostics.Add(new Diagnostic(
+                        DiagnosticId.ProjectReferenceInvalidName,
+                        DiagnosticSeverity.Error,
+                        PipelineStage.Driver,
+                        $"Reference key '{refName}' in '{filePath}' exceeds the maximum length of {MaxNameLength} characters (got {refName.Length}).",
+                        Location: default,
+                        CompilationUnitPath: filePath,
+                        AnalyzerName: null));
+                    return null;
+                }
+
+                // 9b. Validate reference value is a table
+                if (refValue is not TomlTable refEntry)
+                {
+                    diagnostics.Add(new Diagnostic(
+                        DiagnosticId.ProjectReferenceInvalidFormat,
+                        DiagnosticSeverity.Error,
+                        PipelineStage.Driver,
+                        $"Reference '{refName}' in '{filePath}' must be a table (e.g., {refName} = {{ path = \"...\" }}).",
+                        Location: default,
+                        CompilationUnitPath: filePath,
+                        AnalyzerName: null));
+                    return null;
+                }
+
+                // 9c. Extract and validate 'path' field
+                if (!refEntry.TryGetValue("path", out var pathObj) || pathObj is not string rawPath)
+                {
+                    diagnostics.Add(new Diagnostic(
+                        DiagnosticId.ProjectReferenceMissingPath,
+                        DiagnosticSeverity.Error,
+                        PipelineStage.Driver,
+                        $"Reference '{refName}' in '{filePath}' is missing the required 'path' field.",
+                        Location: default,
+                        CompilationUnitPath: filePath,
+                        AnalyzerName: null));
+                    return null;
+                }
+
                 if (string.IsNullOrWhiteSpace(rawPath))
                 {
                     diagnostics.Add(new Diagnostic(
                         DiagnosticId.ProjectReferenceEmptyPath,
                         DiagnosticSeverity.Error,
                         PipelineStage.Driver,
-                        $"Reference entry in '{filePath}' has an empty or whitespace 'path' field.",
+                        $"Reference '{refName}' in '{filePath}' has an empty or whitespace 'path' field.",
                         Location: default,
                         CompilationUnitPath: filePath,
                         AnalyzerName: null));
                     return null;
                 }
 
-                // 9c.iv: Normalize path
+                // 9d. Normalize path (unchanged logic)
                 string normalizedPath;
                 if (Path.IsPathRooted(rawPath))
                 {
@@ -280,7 +333,7 @@ public static partial class ProjectFileParser
                     normalizedPath = Path.Combine(normalizedPath, FileName);
                 }
 
-                references.Add(new ProjectReference(normalizedPath));
+                references.Add(new ProjectReference(refName, normalizedPath));
             }
         }
 

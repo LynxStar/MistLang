@@ -1,12 +1,17 @@
 namespace Mist.Driver.Contracts;
 
 /// <summary>
-/// A single entry from the <c>[[references]]</c> array in <c>mist.toml</c>.
-/// Carries the raw path string as written by the user; resolution to a
-/// canonical file-system path is performed by <c>ProjectReferenceResolver</c>.
+/// A single entry from the <c>[references]</c> table in <c>mist.toml</c>.
+/// Carries the declared reference name (the TOML key) and the resolved path.
 /// </summary>
+/// <param name="Name">
+/// The declared reference name (TOML key). Must match the pattern
+/// <c>^[a-zA-Z0-9\-_\.]+$</c> and not exceed 128 characters.
+/// Validated by <see cref="ProjectFileParser"/>; compared against the target
+/// project's name by <see cref="ProjectReferenceResolver"/>.
+/// </param>
 /// <param name="Path">
 /// Normalized absolute path to the referenced project's <c>mist.toml</c> file,
 /// as computed by <see cref="ProjectFileParser"/>.
 /// </param>
-public sealed record ProjectReference(string Path);
+public sealed record ProjectReference(string Name, string Path);

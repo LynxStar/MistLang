@@ -28,11 +28,12 @@ public sealed class ProjectReferenceResolverTests
 
     /// <summary>
     /// Builds a <see cref="ProjectReference"/> pointing at the given directory's mist.toml.
+    /// The <paramref name="name"/> should match the target project's <c>name</c> field in its TOML.
     /// </summary>
-    private static ProjectReference RefTo(string projectDir)
+    private static ProjectReference RefTo(string name, string projectDir)
     {
-        return new ProjectReference(
-            Path.GetFullPath(Path.Combine(projectDir, ProjectFileParser.FileName)));
+        var path = Path.GetFullPath(Path.Combine(projectDir, ProjectFileParser.FileName));
+        return new ProjectReference(name, path);
     }
 
     // ─── Error path tests ────────────────────────────────────────────────
@@ -46,7 +47,7 @@ public sealed class ProjectReferenceResolverTests
             WriteToml(rootDir, """name = "Root" """);
 
             var bogusPath = Path.Combine(Path.GetTempPath(), $"mist_no_exist_{Guid.NewGuid():N}", "mist.toml");
-            var references = ImmutableArray.Create(new ProjectReference(bogusPath));
+            var references = ImmutableArray.Create(new ProjectReference("Bogus", bogusPath));
 
             var diagnostics = new DiagnosticBag();
             var result = ProjectReferenceResolver.Resolve(rootDir, references, diagnostics);
@@ -73,7 +74,7 @@ public sealed class ProjectReferenceResolverTests
         {
             WriteToml(rootDir, """name = "Root" """);
 
-            var references = ImmutableArray.Create(RefTo(emptyDir));
+            var references = ImmutableArray.Create(RefTo("EmptyProject", emptyDir));
 
             var diagnostics = new DiagnosticBag();
             var result = ProjectReferenceResolver.Resolve(rootDir, references, diagnostics);
@@ -105,7 +106,7 @@ public sealed class ProjectReferenceResolverTests
             var wrongFile = Path.Combine(otherDir, "project.toml");
             File.WriteAllText(wrongFile, """name = "Other" """);
 
-            var references = ImmutableArray.Create(new ProjectReference(wrongFile));
+            var references = ImmutableArray.Create(new ProjectReference("Other", wrongFile));
 
             var diagnostics = new DiagnosticBag();
             var result = ProjectReferenceResolver.Resolve(rootDir, references, diagnostics);
@@ -135,7 +136,7 @@ public sealed class ProjectReferenceResolverTests
             // Write an invalid mist.toml (missing required 'name' field)
             WriteToml(badDir, """version = "1.0.0" """);
 
-            var references = ImmutableArray.Create(RefTo(badDir));
+            var references = ImmutableArray.Create(RefTo("BadProject", badDir));
 
             var diagnostics = new DiagnosticBag();
             var result = ProjectReferenceResolver.Resolve(rootDir, references, diagnostics);
@@ -172,27 +173,27 @@ public sealed class ProjectReferenceResolverTests
 
             // B references D
             var dTomlPath = Path.GetFullPath(Path.Combine(dirD, "mist.toml")).Replace("\\", "/");
-            WriteToml(dirB, $"""
+            WriteToml(dirB, $$"""
                 name = "B"
 
-                [[references]]
-                path = "{dTomlPath}"
+                [references]
+                D = { path = "{{dTomlPath}}" }
                 """);
             File.WriteAllText(Path.Combine(dirB, "b.mist"), "// B source");
 
             // C references D
-            WriteToml(dirC, $"""
+            WriteToml(dirC, $$"""
                 name = "C"
 
-                [[references]]
-                path = "{dTomlPath}"
+                [references]
+                D = { path = "{{dTomlPath}}" }
                 """);
             File.WriteAllText(Path.Combine(dirC, "c.mist"), "// C source");
 
             // Root references B and C
             WriteToml(rootDir, """name = "Root" """);
 
-            var references = ImmutableArray.Create(RefTo(dirB), RefTo(dirC));
+            var references = ImmutableArray.Create(RefTo("B", dirB), RefTo("C", dirC));
 
             var diagnostics = new DiagnosticBag();
             var result = ProjectReferenceResolver.Resolve(rootDir, references, diagnostics);
@@ -239,7 +240,7 @@ public sealed class ProjectReferenceResolverTests
             WriteToml(rootDir, """name = "Root" """);
 
             // Root references itself
-            var references = ImmutableArray.Create(RefTo(rootDir));
+            var references = ImmutableArray.Create(RefTo("Root", rootDir));
 
             var diagnostics = new DiagnosticBag();
             var result = ProjectReferenceResolver.Resolve(rootDir, references, diagnostics);
@@ -267,25 +268,25 @@ public sealed class ProjectReferenceResolverTests
         {
             // A references B
             var bTomlPath = Path.GetFullPath(Path.Combine(dirB, "mist.toml")).Replace("\\", "/");
-            WriteToml(dirA, $"""
+            WriteToml(dirA, $$"""
                 name = "A"
 
-                [[references]]
-                path = "{bTomlPath}"
+                [references]
+                B = { path = "{{bTomlPath}}" }
                 """);
 
             // B references A (creating the cycle)
             var aTomlPath = Path.GetFullPath(Path.Combine(dirA, "mist.toml")).Replace("\\", "/");
-            WriteToml(dirB, $"""
+            WriteToml(dirB, $$"""
                 name = "B"
 
-                [[references]]
-                path = "{aTomlPath}"
+                [references]
+                A = { path = "{{aTomlPath}}" }
                 """);
 
             WriteToml(rootDir, """name = "Root" """);
 
-            var references = ImmutableArray.Create(RefTo(dirA));
+            var references = ImmutableArray.Create(RefTo("A", dirA));
 
             var diagnostics = new DiagnosticBag();
             var result = ProjectReferenceResolver.Resolve(rootDir, references, diagnostics);
@@ -310,6 +311,97 @@ public sealed class ProjectReferenceResolverTests
         }
     }
 
+    // ─── Name-mismatch tests ────────────────────────────────────────────
+
+    [Fact]
+    public void NameMismatch_ReportsProjectReferenceNameMismatch()
+    {
+        var rootDir = CreateTempDir();
+        var targetDir = CreateTempDir();
+        try
+        {
+            WriteToml(rootDir, """name = "Root" """);
+            WriteToml(targetDir, """name = "CorrectName" """);
+            File.WriteAllText(Path.Combine(targetDir, "lib.mist"), "// source");
+
+            // Reference key is "WrongName" but target project's name is "CorrectName"
+            var targetTomlPath = Path.GetFullPath(Path.Combine(targetDir, "mist.toml"));
+            var references = ImmutableArray.Create(new ProjectReference("WrongName", targetTomlPath));
+
+            var diagnostics = new DiagnosticBag();
+            var result = ProjectReferenceResolver.Resolve(rootDir, references, diagnostics);
+
+            Assert.True(diagnostics.HasErrors);
+            var diags = diagnostics.ToImmutableArray();
+            Assert.Single(diags);
+            Assert.Equal("MIST_PROJECT_REFERENCE_NAME_MISMATCH", diags[0].Id.Value);
+            Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
+            Assert.Contains("WrongName", diags[0].Message);
+            Assert.Contains("CorrectName", diags[0].Message);
+
+            // The mismatched reference should NOT appear in the resolved output
+            Assert.Empty(result);
+        }
+        finally
+        {
+            Directory.Delete(rootDir, recursive: true);
+            Directory.Delete(targetDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void NameMismatch_TransitiveDepsAreNotTraversed()
+    {
+        // Graph: Root → "WrongName" (actual name "CorrectName") → "Transitive"
+        // Because "WrongName" mismatches, "Transitive" should NOT be resolved.
+        var rootDir = CreateTempDir();
+        var mismatchedDir = CreateTempDir();
+        var transitiveDir = CreateTempDir();
+        try
+        {
+            WriteToml(transitiveDir, """name = "Transitive" """);
+            File.WriteAllText(Path.Combine(transitiveDir, "trans.mist"), "// transitive source");
+
+            // The mismatched project references "Transitive" using the new format
+            var transitiveTomlPath = Path.GetFullPath(Path.Combine(transitiveDir, "mist.toml"))
+                .Replace("\\", "/");
+            WriteToml(mismatchedDir, $$"""
+                name = "CorrectName"
+
+                [references]
+                Transitive = { path = "{{transitiveTomlPath}}" }
+                """);
+            File.WriteAllText(Path.Combine(mismatchedDir, "lib.mist"), "// mismatched source");
+
+            WriteToml(rootDir, """name = "Root" """);
+
+            // Root references the mismatched project with key "WrongName"
+            var mismatchedTomlPath = Path.GetFullPath(Path.Combine(mismatchedDir, "mist.toml"));
+            var references = ImmutableArray.Create(new ProjectReference("WrongName", mismatchedTomlPath));
+
+            var diagnostics = new DiagnosticBag();
+            var result = ProjectReferenceResolver.Resolve(rootDir, references, diagnostics);
+
+            Assert.True(diagnostics.HasErrors);
+            var diags = diagnostics.ToImmutableArray();
+            Assert.Single(diags);
+            Assert.Equal("MIST_PROJECT_REFERENCE_NAME_MISMATCH", diags[0].Id.Value);
+
+            // Neither the mismatched project nor its transitive dep should be in the result
+            Assert.Empty(result);
+            var resolvedPaths = result.Select(r => r.CanonicalTomlPath).ToList();
+            Assert.DoesNotContain(
+                Path.GetFullPath(Path.Combine(transitiveDir, "mist.toml")),
+                resolvedPaths);
+        }
+        finally
+        {
+            Directory.Delete(rootDir, recursive: true);
+            Directory.Delete(mismatchedDir, recursive: true);
+            Directory.Delete(transitiveDir, recursive: true);
+        }
+    }
+
     // ─── Multiple independent errors test ────────────────────────────────
 
     [Fact]
@@ -326,9 +418,9 @@ public sealed class ProjectReferenceResolverTests
             var bogus3 = Path.Combine(Path.GetTempPath(), $"mist_bogus3_{Guid.NewGuid():N}", "mist.toml");
 
             var references = ImmutableArray.Create(
-                new ProjectReference(bogus1),
-                new ProjectReference(bogus2),
-                new ProjectReference(bogus3));
+                new ProjectReference("Bogus1", bogus1),
+                new ProjectReference("Bogus2", bogus2),
+                new ProjectReference("Bogus3", bogus3));
 
             var diagnostics = new DiagnosticBag();
             var result = ProjectReferenceResolver.Resolve(rootDir, references, diagnostics);

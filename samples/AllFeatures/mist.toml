@@ -1,139 +1,49 @@
 name = "AllFeatures"
 
-[[references]]
-path = "../Primitives"
-
-[[references]]
-path = "../Classes"
-
-[[references]]
-path = "../ShapeInterfaces"
-
-[[references]]
-path = "../GenericTypes"
-
-[[references]]
-path = "../Overloading"
-
-[[references]]
-path = "../VoidType"
-
-[[references]]
-path = "../CastOperators"
-
-[[references]]
-path = "../PatternMatching"
-
-[[references]]
-path = "../DefaultKeyword"
-
-[[references]]
-path = "../Tuples"
-
-[[references]]
-path = "../TypeUnions"
-
-[[references]]
-path = "../ExtensionMethods"
-
-[[references]]
-path = "../TypeAliases"
-
-[[references]]
-path = "../Traits"
-
-[[references]]
-path = "../Enums"
-
-[[references]]
-path = "../Inheritance"
-
-[[references]]
-path = "../Properties"
-
-[[references]]
-path = "../Namespaces"
-
-[[references]]
-path = "../GenericTraits"
-
-[[references]]
-path = "../GenericConstraints"
-
-[[references]]
-path = "../DependentTypes"
-
-[[references]]
-path = "../ReadonlyContexts"
-
-[[references]]
-path = "../SwitchExpressions"
-
-[[references]]
-path = "../PropertyInitializers"
-
-[[references]]
-path = "../ArrayLiterals"
-
-[[references]]
-path = "../RefinementTypes"
-
-[[references]]
-path = "../UnknownReadonlySemantics"
-
-[[references]]
-path = "../Newtypes"
-
-[[references]]
-path = "../EnumReadonlyRestriction"
-
-[[references]]
-path = "../RegexLiterals"
-
-[[references]]
-path = "../StructuredContext"
-
-[[references]]
-path = "../AdhocRefinementConstraints"
-
-[[references]]
-path = "../OwnershipSystem"
-
-[[references]]
-path = "../DeepOwnershipTypes"
-
-[[references]]
-path = "../RefParameters"
-
-[[references]]
-path = "../NestedScoping"
-
-[[references]]
-path = "../RefinementComparison"
-
-[[references]]
-path = "../ArrayBoundsFlowAnalysis"
-
-[[references]]
-path = "../TopLevelStatements"
-
-[[references]]
-path = "../GlobalUsings"
-
-[[references]]
-path = "../ReadonlyLocals"
-
-[[references]]
-path = "../StructuredConcurrency"
-
-[[references]]
-path = "../StructInheritance"
-
-[[references]]
-path = "../AssociatedTypes"
-
-[[references]]
-path = "../Iterators"
-
-[[references]]
-path = "../TypeArgumentInference"
+[references]
+Primitives = { path = "../Primitives" }
+Classes = { path = "../Classes" }
+ShapeInterfaces = { path = "../ShapeInterfaces" }
+GenericTypes = { path = "../GenericTypes" }
+Overloading = { path = "../Overloading" }
+VoidType = { path = "../VoidType" }
+CastOperators = { path = "../CastOperators" }
+PatternMatching = { path = "../PatternMatching" }
+DefaultKeyword = { path = "../DefaultKeyword" }
+Tuples = { path = "../Tuples" }
+TypeUnions = { path = "../TypeUnions" }
+ExtensionMethods = { path = "../ExtensionMethods" }
+TypeAliases = { path = "../TypeAliases" }
+Traits = { path = "../Traits" }
+Enums = { path = "../Enums" }
+Inheritance = { path = "../Inheritance" }
+Properties = { path = "../Properties" }
+Namespaces = { path = "../Namespaces" }
+GenericTraits = { path = "../GenericTraits" }
+GenericConstraints = { path = "../GenericConstraints" }
+DependentTypes = { path = "../DependentTypes" }
+ReadonlyContexts = { path = "../ReadonlyContexts" }
+SwitchExpressions = { path = "../SwitchExpressions" }
+PropertyInitializers = { path = "../PropertyInitializers" }
+ArrayLiterals = { path = "../ArrayLiterals" }
+RefinementTypes = { path = "../RefinementTypes" }
+UnknownReadonlySemantics = { path = "../UnknownReadonlySemantics" }
+Newtypes = { path = "../Newtypes" }
+EnumReadonlyRestriction = { path = "../EnumReadonlyRestriction" }
+RegexLiterals = { path = "../RegexLiterals" }
+StructuredContext = { path = "../StructuredContext" }
+AdhocRefinementConstraints = { path = "../AdhocRefinementConstraints" }
+OwnershipSystem = { path = "../OwnershipSystem" }
+DeepOwnershipTypes = { path = "../DeepOwnershipTypes" }
+RefParameters = { path = "../RefParameters" }
+NestedScoping = { path = "../NestedScoping" }
+RefinementComparison = { path = "../RefinementComparison" }
+ArrayBoundsFlowAnalysis = { path = "../ArrayBoundsFlowAnalysis" }
+TopLevelStatements = { path = "../TopLevelStatements" }
+GlobalUsings = { path = "../GlobalUsings" }
+ReadonlyLocals = { path = "../ReadonlyLocals" }
+StructuredConcurrency = { path = "../StructuredConcurrency" }
+StructInheritance = { path = "../StructInheritance" }
+AssociatedTypes = { path = "../AssociatedTypes" }
+Iterators = { path = "../Iterators" }
+TypeArgumentInference = { path = "../TypeArgumentInference" }

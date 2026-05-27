@@ -21,9 +21,9 @@ A newtype is declared with the `type` keyword, a name, and `= new SourceType;`. 
 
 The compiler clones all public members from the source type into the newtype and generates explicit cast operators in both directions so conversions are always intentional.
 
-## Newtypes from Structs
+## Newtypes from User-Defined Types
 
-When a newtype is created from a struct, the emitted type is a new struct that reproduces the source's constructor and public members. You construct the newtype the same way you'd construct the source struct.
+Newtypes work the same way regardless of whether the source is a struct or a class. The compiler produces a new type of the same kind with the source's constructor and public members cloned in.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -38,12 +38,6 @@ When a newtype is created from a struct, the emitted type is a new struct that r
 {{#endtab }}
 {{#endtabs }}
 
-The `Position` newtype gets its own struct with the same fields and methods as `Point`. Even though they have identical shapes, `Position` and `Point` are distinct types — you cannot assign one to the other without an explicit cast.
-
-## Newtypes from Classes
-
-Newtypes can also be created from classes. The emitted type is a new class that reproduces the source class's constructor and public members.
-
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
@@ -57,7 +51,7 @@ Newtypes can also be created from classes. The emitted type is a new class that 
 {{#endtab }}
 {{#endtabs }}
 
-The `Actor` newtype is a completely separate class from `Entity`. It has the same constructor signature and public methods, but the type system treats them as unrelated types.
+Even though `Position` has the same shape as `Point` and `Actor` has the same shape as `Entity`, they are distinct types — you cannot assign one to the other without an explicit cast.
 
 ## Newtypes vs Type Aliases
 

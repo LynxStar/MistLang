@@ -110,7 +110,7 @@ Enums can use user-defined structs or classes as their underlying type, provided
 {{#endtab }}
 {{#endtabs }}
 
-The underlying type must be `readonly` — this ensures enum values are immutable after construction. Built-in types (`int`, `string`, `byte`, etc.) are inherently readonly and always accepted. User-defined types must be explicitly marked `readonly`.
+The underlying type must be `readonly` — this ensures enum values are immutable after construction. All types used as enum underlying types must be explicitly marked `readonly`.
 
 ## Implicit Conversion
 

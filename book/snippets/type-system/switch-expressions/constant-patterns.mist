@@ -10,7 +10,7 @@ public class Program
             3 => "Wednesday",
             4 => "Thursday",
             5 => "Friday",
-            var _ => "Weekend",
+            _ => "Weekend",
         };
         Console.WriteLine($"Day {day} is {dayName}");
 
@@ -20,7 +20,7 @@ public class Program
             "start" => "Starting...",
             "stop" => "Stopping...",
             "quit" => "Goodbye!",
-            var _ => "Unknown command",
+            _ => "Unknown command",
         };
         Console.WriteLine($"Command '{command}' => {response}");
 

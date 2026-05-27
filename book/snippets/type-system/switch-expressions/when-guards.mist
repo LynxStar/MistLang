@@ -7,7 +7,7 @@ public class Program
         {
             int n when n > 0 => "positive",
             int n when n < 0 => "negative",
-            var _ => "zero",
+            _ => "zero",
         };
         Console.WriteLine($"Number {number} => {sign}");
 
@@ -16,7 +16,7 @@ public class Program
         {
             int n when n >= 100 => $"premium (value={n})",
             int n when n >= 50 => $"standard (value={n})",
-            var _ => "basic",
+            _ => "basic",
         };
         Console.WriteLine($"Amount {amount} => {tier}");
     }

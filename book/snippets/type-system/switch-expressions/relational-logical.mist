@@ -8,7 +8,7 @@ public class Program
             < 32 => "Freezing",
             < 60 => "Cold",
             <= 80 => "Comfortable",
-            var _ => "Hot",
+            _ => "Hot",
         };
         Console.WriteLine($"Temperature {temp} => {comfort}");
 
@@ -19,7 +19,7 @@ public class Program
             >= 80 and < 90 => "B",
             >= 70 and < 80 => "C",
             >= 60 and < 70 => "D",
-            var _ => "F",
+            _ => "F",
         };
         Console.WriteLine($"Score {score} => Grade {grade}");
     }

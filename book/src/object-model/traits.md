@@ -1,5 +1,7 @@
 # Traits
 
+> **Design Note:** Traits are an area of active design exploration. The core capabilities — structural typing and late binding via `with` — are desired, but the boundary between traits and interfaces is not yet fully resolved. It's unclear when a developer should reach for a trait vs. an interface, and whether both need to coexist as separate concepts or could be unified into a single mechanism with optional structural matching. This chapter documents the current design, which may change.
+
 Traits define structural typing contracts. Unlike interfaces, which require a class to explicitly declare conformance, a trait is satisfied by any type whose public members match the trait's declared signatures. This gives you the flexibility of duck typing with the safety of compile-time verification — if a type has the right shape, it fits the trait automatically.
 
 ## Trait Declaration

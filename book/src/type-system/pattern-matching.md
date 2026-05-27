@@ -61,7 +61,7 @@ Use `and` to require multiple conditions simultaneously (range checks), `or` to 
 
 ## Type Patterns with Binding
 
-The real power of pattern matching is the ability to narrow a type and bind the result to a new variable in one step. The syntax is `value is Type name` — if the check succeeds, `name` is available inside the `if` block with the narrowed type. You can access type-specific members on the bound variable without any cast.
+Everything shown so far could be achieved with normal boolean logic — comparisons, range checks, and `typeof` tests are just conditions. The real power of pattern matching is the ability to narrow a type and bind the result to a new variable in one step. The syntax is `value is Type name` — if the check succeeds, `name` is available inside the `if` block with the narrowed type. You can access type-specific members on the bound variable without any cast.
 
 {{#tabs }}
 {{#tab name="Mist" }}

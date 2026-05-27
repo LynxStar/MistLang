@@ -1,0 +1,15 @@
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var input = "hello";
+        var category = input switch
+        {
+            `^\d+$` => "number",
+            `^[a-z]+$` => "lowercase",
+            `^[A-Z]+$` => "uppercase",
+            _ => "other",
+        };
+        Console.WriteLine($"'{input}' is {category}");
+    }
+}

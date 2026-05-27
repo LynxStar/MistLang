@@ -44,6 +44,25 @@ Constant patterns match a specific literal value — integers, strings, or boole
 
 Integer and string constants require a `_` catch-all arm to ensure exhaustiveness — the compiler can't prove that a finite set of constants covers all possible values. Boolean switches with both `true` and `false` arms are exhaustive without a catch-all.
 
+## Regex Pattern Arms
+
+Regex literals can be used directly as switch arms when the scrutinee is a `string`. Each arm tests whether the string matches the pattern. Since regex patterns can never prove they cover all possible strings, a `_` catch-all is always required.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/switch-expressions/regex-patterns.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/switch-expressions/regex-patterns.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Arms are evaluated top-to-bottom — the first regex that matches wins. This makes ordering significant when patterns overlap.
+
 ## Type Pattern Arms
 
 When the scrutinee is a type union, you can use type patterns to narrow the value and bind it to a variable. Each arm matches one constituent type of the union.

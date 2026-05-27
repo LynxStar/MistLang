@@ -21,7 +21,7 @@ A switch expression is written as `value switch { arms }`, where each arm maps a
 {{#endtab }}
 {{#endtabs }}
 
-The switch expression evaluates `num` against each arm in order. The first arm whose pattern matches determines the result. The emitted C# uses the same switch expression syntax since C# natively supports this feature.
+The switch expression evaluates `num` against each arm in order. The first arm whose pattern matches determines the result.
 
 ## Constant Pattern Arms
 
@@ -59,7 +59,7 @@ When the scrutinee is a type union, you can use type patterns to narrow the valu
 {{#endtab }}
 {{#endtabs }}
 
-In Mist, `int n` in a switch arm reads naturally — "if the value is an int, bind it to n." The compiler emits property patterns that check the union's discriminator (`IsInt32`) and extract the value (`AsInt32`). When all constituent types are covered, the switch is exhaustive without a catch-all.
+In Mist, `int n` in a switch arm reads naturally — "if the value is an int, bind it to n." When all constituent types are covered, the switch is exhaustive without a catch-all.
 
 ## Discard Pattern
 

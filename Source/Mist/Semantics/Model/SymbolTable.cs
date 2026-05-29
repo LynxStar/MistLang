@@ -111,6 +111,13 @@ public sealed class Symbol : ISymbol
     public RefKind RefKind { get; internal set; } = RefKind.None;
 
     /// <summary>
+    /// The original CLR calling convention for this parameter, when it was projected
+    /// from a CLR assembly. Only meaningful for parameters with <see cref="Model.RefKind.Ref"/>
+    /// that originated from the backend. Null for Mist-native parameters.
+    /// </summary>
+    public ClrCallingConvention? ClrCallingConvention { get; internal set; }
+
+    /// <summary>
     /// The ref kind of this method's return type. Applies only to method symbols.
     /// A value of <see cref="Model.RefKind.Ref"/> means the method returns a mutable
     /// reference; <see cref="Model.RefKind.RefReadonly"/> means it returns a readonly

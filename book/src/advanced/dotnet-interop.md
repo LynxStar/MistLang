@@ -132,8 +132,7 @@ Not all CLR members are visible in Mist. The Assembly Type Provider hides member
 | CLR Feature | Why It's Hidden |
 |-------------|-----------------|
 | `out` parameters | Mist has no `out` parameter semantics; methods like `TryGetValue` are excluded |
-| `ref` parameters (excluding `in`) | Mist's `ref` is a separate feature with different semantics; CLR `ref` params are excluded |
-| `ref` return types | Mist does not support returning references to storage locations |
+| `ref readonly` return types | Mist cannot express `ref readonly` locals for CLR-originated references; the emitted C# would require `ref readonly` binding |
 | Pointer types (`int*`, `void*`) | Mist does not expose unsafe pointer operations |
 | `ref struct` types (`Span<T>`, `ReadOnlySpan<T>`) | Ref structs have stack-only lifetime constraints that Mist's type system does not model |
 | Members referencing excluded types | If a method's signature uses an excluded type in any position, the entire method is hidden |
@@ -144,9 +143,41 @@ Not all CLR members are visible in Mist. The Assembly Type Provider hides member
 
 The alternative would be to emit a compile error whenever you try to use a type that has unsupported members. But most types have a mix of supported and unsupported members — `Dictionary<TKey, TValue>` has `TryGetValue` (hidden due to `out` param) alongside `Add`, `ContainsKey`, and the indexer (all visible). Hiding unsupported members lets you use the rest of the API without friction.
 
-### `in` Parameters Are Not Hidden
+### CLR Ref Parameters
 
-The `in` keyword in C# marks a parameter as ref-readonly — the callee receives a reference but cannot mutate it. Mist treats `in` parameters as regular pass-by-value parameters (the reference semantics are a C# optimization detail). Methods with `in` parameters remain visible.
+CLR `ref` parameters map directly to Mist `ref` parameters. When a .NET method declares a `ref` parameter, it appears in Mist as a `ref` parameter — you must pass the argument with the `ref` keyword at the call site, just like Mist-defined methods:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/dotnet-interop/ref-interop.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/dotnet-interop/ref-interop.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Intrinsic type substitution applies through the ref unwrapping — `ref System.Int32` in CLR becomes `ref Standard.Int32` in Mist.
+
+### CLR `in` Parameters
+
+CLR `in` parameters are projected as Mist `ref` parameters. The `in` keyword in C# marks a parameter as ref-readonly, but from Mist's perspective it behaves like a `ref` parameter — you pass the argument with `ref` at the call site. The compiler handles emitting the correct `in` keyword in the generated C# automatically.
+
+### CLR Ref Returns
+
+CLR methods with mutable `ref` returns are supported. The method appears with a `ref` return type in Mist, and you can bind the result to a `ref` local:
+
+```mist
+ref int slot = ref CollectionsMarshal.GetValueRefOrNullRef(dict, key);
+slot = 99; // mutates the value in the dictionary
+```
+
+### CLR `ref readonly` Returns
+
+CLR methods with `ref readonly` returns remain hidden. The emitted C# would require binding the result to a `ref readonly` local, which Mist cannot currently express for CLR-originated references. These methods are excluded by the visibility filter.
 
 ### Working Around Hidden Members
 

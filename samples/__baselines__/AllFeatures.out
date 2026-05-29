@@ -1255,4 +1255,9 @@ Length=12
 Upper=HELLO, WORLD
 Abs=5
 ArrLen=3
+--- CLR Ref Interop ---
+[ref-param] old=42, new=100
+[ref-param-array] length=4
+[in-param] doubled=14, x=7
+--- CLR Ref Interop Done ---
 === Done! ===

@@ -5922,7 +5922,7 @@ internal sealed class CSharpSourceWriter
         return $"{type} {name}";
     }
 
-    private string EmitArgumentList(ArgumentListNode? argList)
+    private string EmitArgumentList(ArgumentListNode? argList, Symbol? calledMethod = null)
     {
         if (argList is null) return "";
 
@@ -5976,7 +5976,18 @@ internal sealed class CSharpSourceWriter
                 emittedArg = WrapWithImplicitCastIfNeeded(argExprs[i], emittedArg);
                 if (argNodes[i] is RefArgumentArgumentNode)
                 {
-                    emittedArg = $"ref {emittedArg}";
+                    // Check if the corresponding parameter has ClrCallingConvention.In —
+                    // if so, emit 'in' instead of 'ref' at the call site (Requirement 3.4).
+                    var refKeyword = "ref";
+                    if (calledMethod?.Parameters is { Count: > 0 } parameters && i < parameters.Count)
+                    {
+                        if (parameters[i] is Symbol paramSymbol &&
+                            paramSymbol.ClrCallingConvention == ClrCallingConvention.In)
+                        {
+                            refKeyword = "in";
+                        }
+                    }
+                    emittedArg = $"{refKeyword} {emittedArg}";
                 }
                 emitted.Add(emittedArg);
             }
@@ -8560,6 +8571,44 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
+    /// Resolves a method symbol from a type by name and argument count.
+    /// Used as a fallback when <see cref="ISemanticModel.GetDeclaredSymbol"/> returns null
+    /// for CLR backend method calls (which have no AST declaring node).
+    /// Returns the unique matching method, or null if zero or multiple matches exist.
+    /// </summary>
+    private static Symbol? ResolveMethodFromType(IType type, string methodName, int argCount)
+    {
+        var scope = GetMemberScopeForType(type);
+        if (scope is not null)
+        {
+            // Use LookupAll to find all overloads with the given name, then filter by arg count.
+            var allMatches = scope.LookupAll(methodName);
+            Symbol? match = null;
+            var matchCount = 0;
+            foreach (var member in allMatches)
+            {
+                if (member is Symbol { Kind: SymbolKind.Method } memberSym
+                    && memberSym.Parameters.Count == argCount)
+                {
+                    match = memberSym;
+                    matchCount++;
+                    if (matchCount > 1)
+                        return null; // Ambiguous — multiple matches, can't determine which one.
+                }
+            }
+
+            if (matchCount == 1)
+                return match;
+        }
+
+        // Check base type for classes.
+        if (type is ClassType classType && classType.BaseType is not null)
+            return ResolveMethodFromType(classType.BaseType, methodName, argCount);
+
+        return null;
+    }
+
+    /// <summary>
     /// Gets the member scope for a type, handling constructed types by
     /// looking at their generic definition.
     /// </summary>
@@ -9075,7 +9124,19 @@ internal sealed class CSharpSourceWriter
                     }
                 }
 
-                var args = EmitArgumentList(methodCall.Arguments);
+                var calledMethodSymbol = _model.GetDeclaredSymbol(suffix) as Symbol;
+
+                // Fallback: for CLR backend methods, GetDeclaredSymbol may return null
+                // if the semantic model didn't register the resolved symbol. Resolve from
+                // the receiver type by matching method name and argument count so the emitter
+                // can check ClrCallingConvention for in/ref keyword selection (Requirement 3.4).
+                if (calledMethodSymbol is null && receiverType is not null)
+                {
+                    var argCount = methodCall.Arguments?.GetAllExpressions().Length ?? 0;
+                    calledMethodSymbol = ResolveMethodFromType(receiverType, name, argCount);
+                }
+
+                var args = EmitArgumentList(methodCall.Arguments, calledMethodSymbol);
 
                 // Check if this is an intrinsic static method call (e.g., Type.Of(x) → x.GetType()).
                 // The target is a type name; check if it maps to a stdlib type with an intrinsic.
@@ -9113,7 +9174,6 @@ internal sealed class CSharpSourceWriter
 
                 // Call-site transformation for generic methods with parameterized constructor constraints:
                 // append factory lambda arguments when calling a method that has factory delegate parameters.
-                var calledMethodSymbol = _model.GetDeclaredSymbol(suffix) as Symbol;
                 if (calledMethodSymbol is not null && calledMethodSymbol.Kind == SymbolKind.Method &&
                     calledMethodSymbol.TypeParameters.Count > 0 &&
                     HasParameterizedConstructorConstraints(calledMethodSymbol.TypeParameters))

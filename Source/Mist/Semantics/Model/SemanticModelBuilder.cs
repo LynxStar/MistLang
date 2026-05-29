@@ -19047,6 +19047,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         expressionTypes[suffix] = ErrorType.Instance;
                         return ErrorType.Instance;
                     }
+
+                    // Register the resolved method symbol on the call site node so the
+                    // emitter can look it up via GetDeclaredSymbol to check ClrCallingConvention
+                    // for in/ref keyword selection at call sites (Requirement 3.4).
+                    // Only register for Backend-origin symbols to avoid interfering with the
+                    // TypeChecker's GetDeclaredSymbol lookups (which expect null for user-code
+                    // method calls and would otherwise produce duplicate diagnostics or crash
+                    // on dependent type arguments).
+                    if (resolvedSymbol is not null && resolvedSymbol.Kind == SymbolKind.Method
+                        && resolvedSymbol.Origin == SymbolOrigin.Backend)
+                    {
+                        symbolTable.RegisterUsageSite(methodCall, resolvedSymbol);
+                    }
                 }
 
                 // Handle type arguments on method invocations (e.g., obj.Method<int>()).

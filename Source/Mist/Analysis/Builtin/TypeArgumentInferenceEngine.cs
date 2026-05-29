@@ -106,6 +106,28 @@ public static class TypeArgumentInferenceEngine
             return;
         }
 
-        // Case 3: No bindings produced from this pair — skip silently.
+        // Case 3: Both are ArrayTypes — recurse into element types.
+        // This handles patterns like T[] matched against string[] to infer T = string.
+        if (declaredParamType is ArrayType declaredArray && argumentType is ArrayType argumentArray)
+        {
+            Unify(declaredArray.ElementType, argumentArray.ElementType, context);
+            return;
+        }
+
+        // Case 4: Declared parameter type is a UnionType (e.g., T[] | void from nullable T[]?).
+        // Try to unify against each non-void constituent. This handles the common pattern
+        // where CLR nullable reference types are projected as T | void unions.
+        if (declaredParamType is UnionType declaredUnion)
+        {
+            foreach (var constituent in declaredUnion.Constituents)
+            {
+                if (constituent.IsVoid())
+                    continue;
+                Unify(constituent, argumentType, context);
+            }
+            return;
+        }
+
+        // Case 5: No bindings produced from this pair — skip silently.
     }
 }

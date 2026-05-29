@@ -97,20 +97,50 @@ public static class ParameterSignature
     /// Extracts the RefKind values for each parameter of a method or constructor.
     /// Returns a list parallel to the parameter list indicating the ref kind of each parameter.
     /// Uses the <see cref="ISemanticModel"/> to look up parameter symbols.
+    /// For CLR Backend symbols (which have no AST node), reads RefKind from
+    /// the <see cref="Symbol.Parameters"/> collection directly.
     /// </summary>
     public static IReadOnlyList<RefKind> ExtractRefKinds(ISymbol symbol, ISemanticModel model)
     {
-        Storm.Runtime.SyntaxNode declaringNode;
+        // CLR Backend symbols store parameters directly on the Symbol instance
+        // because they have no AST declaring node.
+        if (symbol is Symbol { Parameters.Count: > 0 } backendSym)
+        {
+            // Check if this is a backend symbol by attempting to get its declaring node.
+            // Backend symbols will throw or return a node that doesn't have a parameter list.
+            Storm.Runtime.SyntaxNode? declaringNode = null;
+            try
+            {
+                declaringNode = model.GetDeclaringNode(symbol);
+            }
+            catch
+            {
+                // No declaring node — this is a backend symbol.
+            }
+
+            if (declaringNode is null || GetParameterList(declaringNode) is null)
+            {
+                // Backend symbol: read RefKind directly from parameter symbols.
+                var backendRefKinds = new List<RefKind>(backendSym.Parameters.Count);
+                foreach (var param in backendSym.Parameters)
+                {
+                    backendRefKinds.Add(param is Symbol paramSym ? paramSym.RefKind : RefKind.None);
+                }
+                return backendRefKinds;
+            }
+        }
+
+        Storm.Runtime.SyntaxNode node;
         try
         {
-            declaringNode = model.GetDeclaringNode(symbol);
+            node = model.GetDeclaringNode(symbol);
         }
         catch
         {
             return Array.Empty<RefKind>();
         }
 
-        var paramList = GetParameterList(declaringNode);
+        var paramList = GetParameterList(node);
         if (paramList is null)
             return Array.Empty<RefKind>();
 

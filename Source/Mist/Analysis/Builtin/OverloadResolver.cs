@@ -1,3 +1,4 @@
+using System.Linq;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 
@@ -161,7 +162,22 @@ public static class OverloadResolver
             var allAssignable = true;
             for (var i = 0; i < argumentTypes.Count; i++)
             {
-                if (!TypeCheckerAnalyzer.IsAssignable(argumentTypes[i], paramTypes[i]))
+                // For ref parameters, require exact type match (no implicit conversions).
+                // C# §12.6.4.2: For ref/out arguments, the parameter type must match
+                // the argument type exactly (identity conversion only).
+                var isRefArg = argumentRefKinds is not null
+                    && i < argumentRefKinds.Count
+                    && argumentRefKinds[i] != RefKind.None;
+
+                if (isRefArg)
+                {
+                    if (!TypeCheckerAnalyzer.TypesEqual(argumentTypes[i], paramTypes[i]))
+                    {
+                        allAssignable = false;
+                        break;
+                    }
+                }
+                else if (!TypeCheckerAnalyzer.IsAssignable(argumentTypes[i], paramTypes[i]))
                 {
                     allAssignable = false;
                     break;
@@ -238,14 +254,16 @@ public static class OverloadResolver
     }
 
     /// <summary>
-    /// Applies the left-operand precedence tiebreaker (design § 5) to a set
-    /// of otherwise-ambiguous applicable candidates.
+    /// Applies tiebreakers to a set of otherwise-ambiguous applicable candidates.
     ///
-    /// When <paramref name="candidateOrigin"/> is <c>null</c>, the result is
-    /// unconditionally <see cref="OverloadResolutionStatus.AmbiguousCall"/> —
-    /// preserving the pre-tiebreaker behavior for method-call call sites.
+    /// Tiebreaker 1 (non-generic preference): If exactly one candidate is
+    /// non-generic while all others are generic, the non-generic candidate wins.
+    /// This mirrors C# §12.6.4.3 "better function member" — a non-generic method
+    /// is preferred over a generic method with identical parameter types after
+    /// type argument substitution.
     ///
-    /// When <paramref name="candidateOrigin"/> is provided, the applicable
+    /// Tiebreaker 2 (left-operand precedence, design § 5): When
+    /// <paramref name="candidateOrigin"/> is provided, the applicable
     /// candidates are partitioned by their origin value (looked up using the
     /// original candidate-list index preserved in
     /// <c>applicable[i].OriginalIndex</c>). If exactly one candidate has the
@@ -253,11 +271,28 @@ public static class OverloadResolver
     /// <see cref="OverloadResolutionStatus.Success"/>. If two or more
     /// candidates share the minimum origin, the tiebreaker cannot
     /// disambiguate and the call remains <see cref="OverloadResolutionStatus.AmbiguousCall"/>.
+    ///
+    /// When neither tiebreaker resolves the ambiguity, the result is
+    /// <see cref="OverloadResolutionStatus.AmbiguousCall"/>.
     /// </summary>
     private static OverloadResolutionResult MakeAmbiguousOrTiebreak(
         List<(ISymbol Symbol, IReadOnlyList<IType> ParamTypes, int OriginalIndex)> applicable,
         IReadOnlyList<int>? candidateOrigin)
     {
+        // Tiebreaker 1: Prefer non-generic over generic (C# §12.6.4.3).
+        // When exactly one applicable candidate is non-generic and the rest are
+        // generic, the non-generic candidate is the better function member.
+        var nonGenericCandidates = applicable
+            .Where(a => a.Symbol is Symbol s && s.TypeParameters.Count == 0)
+            .ToList();
+
+        if (nonGenericCandidates.Count == 1 && applicable.Count > 1)
+        {
+            return new OverloadResolutionResult(
+                OverloadResolutionStatus.Success,
+                BestCandidate: nonGenericCandidates[0].Symbol,
+                AmbiguousCandidates: null);
+        }
         if (candidateOrigin is null)
         {
             return new OverloadResolutionResult(

@@ -8834,7 +8834,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // If the symbol is registered on the call-site node, use it for substitution-aware checking.
-        if (methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method)
+        // However, when there are multiple overloads with the same name, skip this early path
+        // and fall through to the multi-candidate overload resolution below, which correctly
+        // handles ref-argument exact-match filtering and non-generic preference tiebreaking.
+        // Also skip Backend-origin symbols — the type checker was not designed to validate
+        // CLR method arguments (substitution may not match CLR type parameter ordinals).
+        // Backend symbols are registered for the emitter's ref/in keyword selection only.
+        var hasMultipleOverloads = false;
+        if (methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method
+            && methodSymbol.Origin != SymbolOrigin.Backend)
+        {
+            var methodName0 = methodCall.Name.Lexeme;
+            var candidates0 = CollectMethodOverloads(targetType, methodName0);
+            hasMultipleOverloads = candidates0.Count > 1;
+        }
+
+        if (methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method
+            && methodSymbol.Origin != SymbolOrigin.Backend && !hasMultipleOverloads)
         {
             // Determine type parameter substitution context.
             // 1. If the target is a ConstructedType, substitute the enclosing type's type params.
@@ -8858,7 +8874,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Resolve method-level type arguments if present.
             IReadOnlyList<IType>? methodTypeParams = null;
             IReadOnlyList<IType>? methodTypeArgs = null;
-            if (methodCall.TypeArgs is not null && methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
+            if (methodCall.TypeArgs is not null && HasOnlyTypeReferenceArgs(methodCall.TypeArgs)
+                && methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
             {
                 methodTypeParams = sym.TypeParameters;
                 methodTypeArgs = ResolveTypeArgumentsFromAst(methodCall.TypeArgs, model);
@@ -9116,7 +9133,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CheckArgumentTypes(methodCall.Arguments, singleCandidate, model, diagnostics, methodCall);
             }
         }
-        else if (methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method)
+        else if (methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method
+            && methodSymbol.Origin != SymbolOrigin.Backend)
         {
             // Fallback: use the symbol from the call-site node if no candidates found via target type.
             CheckArgumentTypes(methodCall.Arguments, methodSymbol, model, diagnostics, methodCall);
@@ -9681,7 +9699,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 if (i < argNodes.Count && argNodes[i] is RefArgumentArgumentNode refArgNode)
                 {
                     if (IsAssignableStorageLocation(refArgNode.Expression, model, out _)
-                        && !TypesEqual(argType, paramType))
+                        && !RefTypesCompatible(argType, paramType))
                     {
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_REF_0007",
@@ -9840,7 +9858,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 if (i < argNodes.Count && argNodes[i] is RefArgumentArgumentNode refArgNode)
                 {
                     if (IsAssignableStorageLocation(refArgNode.Expression, model, out _)
-                        && !TypesEqual(argType, paramType))
+                        && !RefTypesCompatible(argType, paramType))
                     {
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_REF_0007",
@@ -14126,7 +14144,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// and all type arguments are recursively equal.
     /// For other types, uses reference equality or display name comparison.
     /// </summary>
-    private static bool TypesEqual(IType a, IType b)
+    internal static bool TypesEqual(IType a, IType b)
     {
         if (ReferenceEquals(a, b))
             return true;
@@ -14161,6 +14179,33 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Migration-window shim: legacy `int` and stdlib `Int32` denote
         // the same Mist primitive.
         return ArePrimitiveEquivalent(a, b);
+    }
+
+    /// <summary>
+    /// Checks whether an argument type is compatible with a parameter type for ref arguments.
+    /// This is a relaxed version of <see cref="TypesEqual"/> that handles:
+    /// <list type="bullet">
+    /// <item>Nullable unions (T | void): strips the void constituent before comparing.</item>
+    /// <item>Array sizing: a sized array (e.g., string[2]) is compatible with an unsized
+    /// array (string[]) since CLR ref parameters use erased nullability and unsized arrays.</item>
+    /// </list>
+    /// </summary>
+    private static bool RefTypesCompatible(IType argType, IType paramType)
+    {
+        // Strip nullable union: if paramType is T | void, compare against T.
+        if (paramType is UnionType paramUnion && paramUnion.Constituents.Count == 2
+            && paramUnion.Constituents.Any(c => c.IsVoid()))
+        {
+            paramType = paramUnion.Constituents.First(c => !c.IsVoid());
+        }
+
+        // For arrays, use assignability (handles sized → unsized).
+        if (argType is ArrayType && paramType is ArrayType)
+        {
+            return IsAssignable(argType, paramType);
+        }
+
+        return TypesEqual(argType, paramType);
     }
 
     /// <summary>
@@ -14504,6 +14549,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     changed = true;
             }
             return changed ? new ConstructedType(ct.GenericDefinition, substitutedArgs) : ct;
+        }
+
+        // Substitute inside array element types (e.g., T[] → string[] when T = string).
+        if (type is ArrayType arrayType)
+        {
+            var substitutedElement = SubstituteType(arrayType.ElementType, typeParams, typeArgs);
+            if (!ReferenceEquals(substitutedElement, arrayType.ElementType))
+                return new ArrayType(substitutedElement);
+            return type;
+        }
+
+        // Substitute inside union type constituents (e.g., T | void → string | void when T = string).
+        if (type is UnionType unionType)
+        {
+            var substitutedConstituents = new IType[unionType.Constituents.Count];
+            var changed = false;
+            for (var i = 0; i < unionType.Constituents.Count; i++)
+            {
+                substitutedConstituents[i] = SubstituteType(unionType.Constituents[i], typeParams, typeArgs);
+                if (!ReferenceEquals(substitutedConstituents[i], unionType.Constituents[i]))
+                    changed = true;
+            }
+            return changed ? new UnionType(substitutedConstituents) : type;
         }
 
         return type;

@@ -4,7 +4,7 @@ namespace Mist.Backends.CSharpTranspiler;
 
 /// <summary>
 /// Determines which CLR types and members are visible to Mist.
-/// Members that use unsupported CLR features (out params, ref params, ref returns,
+/// Members that use unsupported CLR features (out params, ref readonly returns,
 /// pointer types, ref structs) are hidden rather than producing errors, so developers
 /// can still use the supported surface of a type.
 /// </summary>
@@ -15,14 +15,15 @@ namespace Mist.Backends.CSharpTranspiler;
 ///   <item>Events → exclude</item>
 ///   <item>Ref struct types → exclude entirely</item>
 ///   <item><c>out</c> parameters → exclude method/constructor</item>
-///   <item><c>ref</c> parameters (excluding <c>in</c>) → exclude method/constructor</item>
-///   <item><c>ref</c> return type → exclude method/property</item>
+///   <item><c>ref readonly</c> return type → exclude method/property</item>
 ///   <item>Pointer types in signature → exclude member</item>
 ///   <item>Signature references an excluded type → exclude member</item>
 /// </list>
 /// <para>
-/// <c>in</c> parameters are ref-readonly and are treated as regular pass-by-value
-/// parameters (NOT filtered). Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7.
+/// CLR <c>ref</c> parameters, <c>in</c> parameters, and mutable <c>ref</c> returns are
+/// now supported and pass through the filter. Only <c>out</c> parameters and
+/// <c>ref readonly</c> returns remain excluded.
+/// Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7.
 /// </para>
 /// </remarks>
 internal sealed class VisibilityFilter
@@ -51,7 +52,7 @@ internal sealed class VisibilityFilter
 
     /// <summary>
     /// Returns <c>true</c> if the member should be excluded from projection.
-    /// Evaluation order: accessibility → events → ref struct → out → ref → ref return → pointers → excluded type references.
+    /// Evaluation order: accessibility → events → ref struct → out → ref → ref readonly return → pointers → excluded type references.
     /// </summary>
     public bool IsMemberExcluded(MemberInfo member)
     {
@@ -71,11 +72,11 @@ internal sealed class VisibilityFilter
         if (HasOutParameters(member))
             return true;
 
-        // 5. ref parameters (excluding in) → exclude method/constructor (Requirement 6.2)
+        // 5. ref parameters — no longer excluded (CLR ref is now supported)
         if (HasRefParameters(member))
             return true;
 
-        // 6. ref return type → exclude method/property (Requirement 6.3)
+        // 6. ref readonly return type → exclude method/property (Requirement 6.3)
         if (HasRefReturn(member))
             return true;
 
@@ -159,36 +160,56 @@ internal sealed class VisibilityFilter
     }
 
     /// <summary>
-    /// Returns <c>true</c> if the member is a method or constructor with <c>ref</c> parameters
-    /// (excluding <c>in</c> parameters, which are ref-readonly and treated as pass-by-value).
+    /// Previously excluded methods with CLR <c>ref</c> parameters. CLR <c>ref</c> parameters
+    /// are now fully supported, so this method unconditionally returns <c>false</c>.
+    /// Only <c>out</c> parameters remain excluded (handled by <see cref="HasOutParameters"/>).
     /// </summary>
     private static bool HasRefParameters(MemberInfo member)
     {
-        var parameters = GetParameters(member);
-        if (parameters is null)
-            return false;
-
-        foreach (var param in parameters)
-        {
-            if (param.ParameterType.IsByRef && !param.IsOut && !param.IsIn)
-                return true;
-        }
-
+        // CLR ref parameters are now supported — only out params are excluded.
         return false;
     }
 
     /// <summary>
-    /// Returns <c>true</c> if the member has a <c>ref</c> return type.
-    /// Applies to methods and properties.
+    /// Returns <c>true</c> if the member has a <c>ref readonly</c> return type.
+    /// Mutable <c>ref</c> returns are now supported and pass through the filter.
+    /// Only <c>ref readonly</c> returns (marked with <c>IsReadOnlyAttribute</c>) remain excluded
+    /// because the emitted C# would require <c>ref readonly</c> binding which Mist cannot express.
     /// </summary>
     private static bool HasRefReturn(MemberInfo member)
     {
         return member switch
         {
-            MethodInfo method => method.ReturnType.IsByRef,
-            PropertyInfo property => property.GetGetMethod(nonPublic: true) is { } getter && getter.ReturnType.IsByRef,
+            MethodInfo method => method.ReturnType.IsByRef && IsRefReadonlyReturn(method),
+            PropertyInfo property => property.GetGetMethod(nonPublic: true) is { } getter
+                && getter.ReturnType.IsByRef && IsRefReadonlyReturn(getter),
             _ => false,
         };
+    }
+
+    /// <summary>
+    /// Determines whether a method has a <c>ref readonly</c> return by checking for
+    /// <c>System.Runtime.CompilerServices.IsReadOnlyAttribute</c> on the return parameter.
+    /// </summary>
+    /// <remarks>
+    /// If the attribute metadata cannot be loaded (e.g., older framework assemblies),
+    /// this defaults to <c>false</c> (treats the return as mutable <c>ref</c>), which is
+    /// the safe/permissive direction — the method becomes visible rather than hidden.
+    /// </remarks>
+    private static bool IsRefReadonlyReturn(MethodInfo method)
+    {
+        try
+        {
+            return method.ReturnParameter
+                .GetCustomAttributesData()
+                .Any(a => a.AttributeType.FullName ==
+                    "System.Runtime.CompilerServices.IsReadOnlyAttribute");
+        }
+        catch
+        {
+            // If metadata cannot be loaded, default to false (permissive — treat as mutable ref).
+            return false;
+        }
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Reflection;
 using FsCheck;
 using FsCheck.Fluent;
@@ -9,13 +10,14 @@ namespace Mist.Tests.Backend;
 /// <summary>
 /// Property-based tests for the Visibility Filter Completeness property.
 ///
-/// **Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7**
+/// **Validates: Requirements 1.1, 1.2, 3.1, 4.1, 4.2, 4.3, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7**
 ///
 /// Property 3: For any CLR member, the visibility filter SHALL exclude it if and only if
 /// at least one of the following holds: (a) it is not public, (b) it is an event,
-/// (c) it has out parameters, (d) it has ref parameters (excluding in), (e) it has a
-/// ref return type, (f) it has pointer types in its signature, (g) its declaring type
-/// is a ref struct, or (h) its signature references a type that is itself excluded.
+/// (c) it has out parameters, (d) it has a ref readonly return type,
+/// (e) it has pointer types in its signature, (f) its declaring type
+/// is a ref struct, or (g) its signature references a type that is itself excluded.
+/// Ref parameters (including in) and mutable ref returns now pass through.
 /// All other public members SHALL be projected.
 /// </summary>
 public sealed class VisibilityFilterCompletenessPropertyTests
@@ -95,12 +97,9 @@ public sealed class VisibilityFilterCompletenessPropertyTests
         if (HasOutParameters(member))
             return true;
 
-        // Rule (d): ref parameters (excluding in) → exclude (Requirement 6.2)
-        if (HasRefParameters(member))
-            return true;
-
-        // Rule (e): ref return type → exclude (Requirement 6.3)
-        if (HasRefReturn(member))
+        // Rule (e): ref readonly return type → exclude (Requirement 4.3, 6.3)
+        // Mutable ref returns now pass through (CLR Ref Interop feature)
+        if (HasRefReadonlyReturn(member))
             return true;
 
         // Rule (f): Pointer types in signature → exclude (Requirement 6.4)
@@ -164,29 +163,23 @@ public sealed class VisibilityFilterCompletenessPropertyTests
         return false;
     }
 
-    private static bool HasRefParameters(MemberInfo member)
-    {
-        var parameters = GetParameters(member);
-        if (parameters is null)
-            return false;
-
-        foreach (var param in parameters)
-        {
-            if (param.ParameterType.IsByRef && !param.IsOut && !param.IsIn)
-                return true;
-        }
-
-        return false;
-    }
-
-    private static bool HasRefReturn(MemberInfo member)
+    private static bool HasRefReadonlyReturn(MemberInfo member)
     {
         return member switch
         {
-            MethodInfo method => method.ReturnType.IsByRef,
-            PropertyInfo property => property.GetGetMethod(nonPublic: true) is { } getter && getter.ReturnType.IsByRef,
+            MethodInfo method => method.ReturnType.IsByRef && IsRefReadonlyReturn(method),
+            PropertyInfo property => property.GetGetMethod(nonPublic: true) is { } getter
+                && getter.ReturnType.IsByRef && IsRefReadonlyReturn(getter),
             _ => false,
         };
+    }
+
+    private static bool IsRefReadonlyReturn(MethodInfo method)
+    {
+        return method.ReturnParameter
+            .GetCustomAttributesData()
+            .Any(a => a.AttributeType.FullName ==
+                "System.Runtime.CompilerServices.IsReadOnlyAttribute");
     }
 
     private static bool HasPointerTypes(MemberInfo member)

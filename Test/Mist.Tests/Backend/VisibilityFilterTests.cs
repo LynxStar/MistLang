@@ -94,13 +94,13 @@ public class VisibilityFilterTests
         Assert.False(_filter.IsMemberExcluded(method));
     }
 
-    // --- Requirement 6.2: ref parameters (non-in) exclude method ---
+    // --- CLR ref parameters now pass through (CLR Ref Interop feature) ---
 
     [Fact]
-    public void IsMemberExcluded_RefParameter_ReturnsTrue()
+    public void IsMemberExcluded_RefParameter_ReturnsFalse()
     {
         var method = typeof(HasRefParam).GetMethod(nameof(HasRefParam.Swap))!;
-        Assert.True(_filter.IsMemberExcluded(method));
+        Assert.False(_filter.IsMemberExcluded(method));
     }
 
     [Fact]
@@ -110,13 +110,13 @@ public class VisibilityFilterTests
         Assert.False(_filter.IsMemberExcluded(method));
     }
 
-    // --- Requirement 6.3: ref return excludes method/property ---
+    // --- Mutable ref returns now pass through (CLR Ref Interop feature) ---
 
     [Fact]
-    public void IsMemberExcluded_RefReturnMethod_ReturnsTrue()
+    public void IsMemberExcluded_RefReturnMethod_ReturnsFalse()
     {
         var method = typeof(HasRefReturn).GetMethod(nameof(HasRefReturn.GetRef))!;
-        Assert.True(_filter.IsMemberExcluded(method));
+        Assert.False(_filter.IsMemberExcluded(method));
     }
 
     [Fact]
@@ -127,10 +127,10 @@ public class VisibilityFilterTests
     }
 
     [Fact]
-    public void IsMemberExcluded_RefReturnProperty_ReturnsTrue()
+    public void IsMemberExcluded_RefReturnProperty_ReturnsFalse()
     {
         var property = typeof(HasRefReturnProperty).GetProperty(nameof(HasRefReturnProperty.RefProp))!;
-        Assert.True(_filter.IsMemberExcluded(property));
+        Assert.False(_filter.IsMemberExcluded(property));
     }
 
     [Fact]

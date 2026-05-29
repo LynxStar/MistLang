@@ -1029,7 +1029,19 @@ internal sealed class TypeProjector
             if (_filter.IsMemberExcluded(method))
                 continue;
 
-            var returnType = ProjectMemberType(method.ReturnType, stdlib);
+            // Project return type — unwrap by-ref returns to get the element type.
+            IType returnType;
+            var isRefReturn = method.ReturnType.IsByRef;
+            if (isRefReturn)
+            {
+                var elementType = method.ReturnType.GetElementType()!;
+                returnType = ProjectMemberType(elementType, stdlib);
+            }
+            else
+            {
+                returnType = ProjectMemberType(method.ReturnType, stdlib);
+            }
+
             var methodScope = new Scope(memberScope);
 
             var methodSymbol = new Symbol(
@@ -1039,6 +1051,12 @@ internal sealed class TypeProjector
                 memberScope,
                 returnType,
                 null);
+
+            // Mark mutable ref returns (Requirements 5.1, 5.2).
+            if (isRefReturn)
+            {
+                methodSymbol.ReturnRefKind = RefKind.Ref;
+            }
 
             // Project generic method type parameters
             if (method.IsGenericMethodDefinition)
@@ -1261,8 +1279,14 @@ internal sealed class TypeProjector
         var result = new List<ISymbol>(parameters.Length);
         foreach (var param in parameters)
         {
+            // Detect CLR ref/in parameters (IsByRef && !IsOut) and unwrap the by-ref type.
+            var isRefOrIn = param.ParameterType.IsByRef && !param.IsOut;
+            var typeToProject = isRefOrIn
+                ? param.ParameterType.GetElementType()!
+                : param.ParameterType;
+
             // Use ProjectMemberType for the scope (type-checking uses these).
-            var scopeParamType = ProjectMemberType(param.ParameterType, stdlib);
+            var scopeParamType = ProjectMemberType(typeToProject, stdlib);
 
             var scopeParamSymbol = new Symbol(
                 param.Name ?? $"arg{param.Position}",
@@ -1271,6 +1295,15 @@ internal sealed class TypeProjector
                 targetScope,
                 scopeParamType,
                 null);
+
+            // Set RefKind and ClrCallingConvention for ref/in parameters.
+            if (isRefOrIn)
+            {
+                scopeParamSymbol.RefKind = RefKind.Ref;
+                scopeParamSymbol.ClrCallingConvention = param.IsIn
+                    ? ClrCallingConvention.In
+                    : ClrCallingConvention.Ref;
+            }
 
             // Mark optional parameters (those with default values)
             if (param.HasDefaultValue)
@@ -1281,7 +1314,7 @@ internal sealed class TypeProjector
             targetScope.AddMember(scopeParamSymbol);
 
             // Use ProjectNullableType for the emitter metadata (includes NullableProjectionInfo).
-            var emitterParamType = ProjectNullableType(param.ParameterType, stdlib);
+            var emitterParamType = ProjectNullableType(typeToProject, stdlib);
 
             var emitterParamSymbol = new Symbol(
                 param.Name ?? $"arg{param.Position}",
@@ -1290,6 +1323,15 @@ internal sealed class TypeProjector
                 targetScope,
                 emitterParamType,
                 null);
+
+            // Propagate RefKind and ClrCallingConvention to the emitter symbol as well.
+            if (isRefOrIn)
+            {
+                emitterParamSymbol.RefKind = RefKind.Ref;
+                emitterParamSymbol.ClrCallingConvention = param.IsIn
+                    ? ClrCallingConvention.In
+                    : ClrCallingConvention.Ref;
+            }
 
             result.Add(emitterParamSymbol);
         }

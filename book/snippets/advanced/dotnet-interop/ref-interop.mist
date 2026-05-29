@@ -1,0 +1,12 @@
+using Standard;
+using System.Threading;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        int value = 42;
+        int old = Interlocked.Exchange(ref value, 100);
+        Console.WriteLine($"old={old}, new={value}");
+    }
+}

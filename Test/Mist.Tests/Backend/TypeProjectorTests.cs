@@ -404,7 +404,7 @@ public class TypeProjectorTests
     }
 
     [Fact]
-    public void ProjectMembers_RefParamMethod_IsFiltered()
+    public void ProjectMembers_RefParamMethod_IsVisible()
     {
         var (type, _) = _projector.ProjectType(typeof(HasRefParam), _stdlib);
         var members = _projector.ProjectMembers(typeof(HasRefParam), type, _stdlib);
@@ -414,8 +414,8 @@ public class TypeProjectorTests
             .Select(m => m.Name)
             .ToList();
 
-        // Swap has ref params → filtered
-        Assert.DoesNotContain("Swap", methodNames);
+        // Swap has ref params → now visible (CLR Ref Interop feature)
+        Assert.Contains("Swap", methodNames);
         // Add has no ref params → visible
         Assert.Contains("Add", methodNames);
     }

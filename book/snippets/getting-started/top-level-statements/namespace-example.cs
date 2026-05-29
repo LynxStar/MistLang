@@ -1,5 +1,4 @@
 using MyApp;
-using Standard;
 using System;
 
 var helper = new Helper("world");

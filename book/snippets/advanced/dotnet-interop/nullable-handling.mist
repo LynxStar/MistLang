@@ -1,0 +1,21 @@
+using Standard;
+using System.Collections.Generic;
+
+namespace DotnetInteropSnippets;
+
+public class Program
+{
+    public static void Main()
+    {
+        var dict = new Dictionary<string, int>();
+        dict.Add("answer", 42);
+
+        // Reference type return is projected as T | void.
+        // Narrow before use with ContainsKey + indexer pattern.
+        if (dict.ContainsKey("answer"))
+        {
+            var value = dict["answer"];
+            Console.WriteLine($"Found={value}");
+        }
+    }
+}

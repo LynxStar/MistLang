@@ -16,15 +16,16 @@ public class Program
     public static void Main(string[] args)
     {
         var box = new Box<Union_Int32_String>(42);
-        Union_Int32_TError<string> ok = 100;
-        Union_Int32_TError<string> err = "not found";
+        Union_Int32_TError ok = 100;
+        Union_Int32_TError err = "not found";
         if (ok.IsInt32)
         {
             int n = ok.AsInt32;
             Console.WriteLine($"ok: {n}");
         }
-        if (err is string s)
+        if (err.IsString)
         {
+            string s = err.AsString;
             Console.WriteLine($"err: {s}");
         }
     }

@@ -1,0 +1,33 @@
+using Standard;
+using System.Collections.Generic;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var dict = new Dictionary<string, int>();
+        dict.Add("hello", 42);
+
+        if (dict.ContainsKey("hello"))
+        {
+            var value = dict["hello"];
+            Console.WriteLine($"Found={value}");
+        }
+
+        string? name = "Mist";
+        if (name is string s)
+        {
+            Console.WriteLine($"Name={s}");
+        }
+
+        string? empty = Void.Void;
+        if (empty is string e)
+        {
+            Console.WriteLine($"Unreachable={e}");
+        }
+        else
+        {
+            Console.WriteLine("Value=void");
+        }
+    }
+}

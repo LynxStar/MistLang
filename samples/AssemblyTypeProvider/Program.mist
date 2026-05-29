@@ -1,0 +1,59 @@
+using Standard;
+using System.Collections.Generic;
+
+namespace AssemblyTypeProvider;
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        // PROOF: SDK assembly types are available without explicit package reference
+        // PROOF: Generic CLR type (List<T>) resolves with Mist type argument
+        var list = new List<int>();
+
+        // PROOF: Instance method call on CLR type works
+        list.Add(10);
+        list.Add(20);
+        list.Add(30);
+
+        // PROOF: Property access on CLR type works
+        Console.WriteLine($"Count={list.Count}");
+
+        // PROOF: Indexer access on CLR type works
+        Console.WriteLine($"Item0={list[0]}");
+
+        // PROOF: CLR reference type return is T | void, requires narrowing
+        // PROOF: Static method on CLR type works
+        var dict = new Dictionary<string, int>();
+        dict.Add("hello", 42);
+
+        // PROOF: Nullable value handling — TryGetValue excluded (out param),
+        // so we use ContainsKey + indexer pattern
+        if (dict.ContainsKey("hello"))
+        {
+            var val = dict["hello"];
+            Console.WriteLine($"Found={val}");
+        }
+
+        // PROOF: String methods from System.String are available via Standard.String
+        var greeting = "Hello, World";
+        Console.WriteLine($"Length={greeting.Length}");
+        Console.WriteLine($"Upper={greeting.ToUpper()}");
+
+        // PROOF: System.Math static methods are callable
+        var abs = Math.Abs(-5);
+        Console.WriteLine($"Abs={abs}");
+
+        // PROOF: Array interop — Standard.Array<T, Length> passes to CLR methods
+        var arr = new int[3];
+        arr[0] = 100;
+        arr[1] = 200;
+        arr[2] = 300;
+        Console.WriteLine($"ArrLen={arr.Length}");
+    }
+
+    public static void Main()
+    {
+        RunDemo();
+    }
+}

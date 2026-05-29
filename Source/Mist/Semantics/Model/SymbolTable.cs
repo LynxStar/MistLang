@@ -73,6 +73,14 @@ public sealed class Symbol : ISymbol
     public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
 
     /// <summary>
+    /// Parameter symbols for method and constructor symbols projected from CLR assemblies.
+    /// Each entry is a <see cref="SymbolKind.Parameter"/> symbol whose <see cref="DeclaredType"/>
+    /// carries the parameter type. Empty for non-method symbols and Mist-declared methods
+    /// (which store parameters in scopes via AST nodes).
+    /// </summary>
+    public IReadOnlyList<ISymbol> Parameters { get; internal set; } = Array.Empty<ISymbol>();
+
+    /// <summary>
     /// Context with-clauses declared on this method symbol. Each entry records the
     /// resolved context type, the bound identifier, and the source span. Empty for
     /// non-method symbols and methods without with-clauses.

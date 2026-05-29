@@ -9618,29 +9618,37 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         SyntaxNode callSite)
     {
         // Get parameter symbols from the method's containing scope.
-        // The semantic model builder registers parameters in the method's scope.
-        SyntaxNode methodNode;
-        try { methodNode = model.GetDeclaringNode(methodSymbol); }
-        catch { return; }
-
+        // For CLR Backend symbols, parameters are stored directly on the Symbol instance.
         ImmutableArray<ISymbol> paramSymbols;
-        if (methodNode is MethodDeclarationNode methodDecl && methodDecl.Parameters is not null)
+
+        if (methodSymbol is Symbol { Parameters.Count: > 0 } backendSym)
         {
-            var paramList = new List<ISymbol>();
-            foreach (var child in methodDecl.Parameters.Children())
-            {
-                if (child is ParameterNode paramNode)
-                {
-                    var paramSym = model.GetDeclaredSymbol(paramNode);
-                    if (paramSym is not null)
-                        paramList.Add(paramSym);
-                }
-            }
-            paramSymbols = [.. paramList];
+            paramSymbols = [.. backendSym.Parameters];
         }
         else
         {
-            return; // No parameters to check.
+            SyntaxNode methodNode;
+            try { methodNode = model.GetDeclaringNode(methodSymbol); }
+            catch { return; }
+
+            if (methodNode is MethodDeclarationNode methodDecl && methodDecl.Parameters is not null)
+            {
+                var paramList = new List<ISymbol>();
+                foreach (var child in methodDecl.Parameters.Children())
+                {
+                    if (child is ParameterNode paramNode)
+                    {
+                        var paramSym = model.GetDeclaredSymbol(paramNode);
+                        if (paramSym is not null)
+                            paramList.Add(paramSym);
+                    }
+                }
+                paramSymbols = [.. paramList];
+            }
+            else
+            {
+                return; // No parameters to check.
+            }
         }
 
         // Collect argument expressions.
@@ -9761,28 +9769,37 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         IReadOnlyList<IType>? methodTypeArgs)
     {
         // Get parameter symbols from the method's containing scope.
-        SyntaxNode methodNode;
-        try { methodNode = model.GetDeclaringNode(methodSymbol); }
-        catch { return; }
-
+        // For CLR Backend symbols, parameters are stored directly on the Symbol instance.
         ImmutableArray<ISymbol> paramSymbols;
-        if (methodNode is MethodDeclarationNode methodDecl && methodDecl.Parameters is not null)
+
+        if (methodSymbol is Symbol { Parameters.Count: > 0 } backendSym)
         {
-            var paramList = new List<ISymbol>();
-            foreach (var child in methodDecl.Parameters.Children())
-            {
-                if (child is ParameterNode paramNode)
-                {
-                    var paramSym = model.GetDeclaredSymbol(paramNode);
-                    if (paramSym is not null)
-                        paramList.Add(paramSym);
-                }
-            }
-            paramSymbols = [.. paramList];
+            paramSymbols = [.. backendSym.Parameters];
         }
         else
         {
-            return; // No parameters to check.
+            SyntaxNode methodNode;
+            try { methodNode = model.GetDeclaringNode(methodSymbol); }
+            catch { return; }
+
+            if (methodNode is MethodDeclarationNode methodDecl && methodDecl.Parameters is not null)
+            {
+                var paramList = new List<ISymbol>();
+                foreach (var child in methodDecl.Parameters.Children())
+                {
+                    if (child is ParameterNode paramNode)
+                    {
+                        var paramSym = model.GetDeclaredSymbol(paramNode);
+                        if (paramSym is not null)
+                            paramList.Add(paramSym);
+                    }
+                }
+                paramSymbols = [.. paramList];
+            }
+            else
+            {
+                return; // No parameters to check.
+            }
         }
 
         // Collect argument expressions.
@@ -10565,7 +10582,67 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         CheckExpression(indexSuffix.Index, model, diagnostics);
 
         var indexType = model.GetTypeOf(indexSuffix.Index);
-        if (indexType is not null && !IsErrorType(indexType))
+        var hasCustomIndexer = false;
+
+        // If the target type has a custom indexer (e.g., Dictionary<TKey, TValue>),
+        // validate the index type against the indexer's parameter type instead of
+        // requiring int.
+        if (targetType is not null && targetType is not ArrayType)
+        {
+            var indexerLookupType = targetType is ConstructedType ict ? ict.GenericDefinition : targetType;
+            IScope? indexerScope = indexerLookupType switch
+            {
+                ClassType ct => ct.MemberScope,
+                StructType st => st.MemberScope,
+                InterfaceType it => it.MemberScope,
+                _ => null,
+            };
+
+            if (indexerScope is not null)
+            {
+                ISymbol? indexerSymbol = null;
+                foreach (var member in indexerScope.Members)
+                {
+                    if (member.Kind == SymbolKind.Indexer)
+                    {
+                        indexerSymbol = member;
+                        break;
+                    }
+                }
+
+                if (indexerSymbol is not null)
+                {
+                    hasCustomIndexer = true;
+                    // Custom indexer found — validate index type against indexer parameter type.
+                    // The indexer's parameter types are stored in Symbol.Parameters (CLR types).
+                    if (indexerSymbol is Symbol { Parameters.Count: > 0 } indexerSym && indexType is not null && !IsErrorType(indexType))
+                    {
+                        var expectedParamType = indexerSym.Parameters[0].DeclaredType;
+                        if (expectedParamType is not null)
+                        {
+                            // Apply type substitution for ConstructedType.
+                            if (targetType is ConstructedType ict2)
+                            {
+                                var typeParams = GetTypeParameters(ict2.GenericDefinition);
+                                if (typeParams is not null)
+                                    expectedParamType = SubstituteType(expectedParamType, typeParams, ict2.TypeArguments);
+                            }
+
+                            if (!IsAssignable(indexType, expectedParamType))
+                            {
+                                diagnostics.Add(MakeDiagnostic(
+                                    "MIST_TC_0010",
+                                    $"Indexer parameter must be of type '{expectedParamType.DisplayName}', but found '{indexType.DisplayName}'",
+                                    indexSuffix.Index,
+                                    model));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!hasCustomIndexer && indexType is not null && !IsErrorType(indexType))
         {
             if (!IsIntLike(indexType))
             {
@@ -14634,6 +14711,26 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             && st.DisplayName == "Int32")
         {
             return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Returns true if the given type has a custom indexer (a member with
+    /// <see cref="SymbolKind.Indexer"/>). Used to distinguish CLR types with
+    /// non-int indexers (e.g., <c>Dictionary&lt;string, int&gt;</c>) from
+    /// plain arrays that require int indices.
+    /// </summary>
+    private static bool HasCustomIndexer(IType type)
+    {
+        var memberScope = GetMemberScope(type);
+        if (memberScope is null)
+            return false;
+
+        foreach (var member in memberScope.Members)
+        {
+            if (member.Kind == SymbolKind.Indexer)
+                return true;
         }
         return false;
     }

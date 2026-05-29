@@ -59,6 +59,18 @@ public sealed class ClassType : IType
     /// </summary>
     public bool IsOwnedType { get; internal set; }
 
+    /// <summary>
+    /// Indicates whether this CLR class is abstract (cannot be instantiated directly).
+    /// Only set for types projected from CLR assemblies.
+    /// </summary>
+    public bool IsAbstract { get; internal set; }
+
+    /// <summary>
+    /// Indicates whether this CLR class is sealed (cannot be inherited from).
+    /// Only set for types projected from CLR assemblies.
+    /// </summary>
+    public bool IsSealed { get; internal set; }
+
     public ClassType(
         string displayName,
         IScope memberScope,

@@ -32,9 +32,9 @@ public class Program
     public static void Main(string[] args)
     {
         Item present = new Item(5);
-        Item absent = MistVoid.Instance;
-        int result1 = (present.IsVoid ? (Union_Int32_Void)MistVoid.Instance : (Union_Int32_Void)present.AsItem.GetValue());
-        int result2 = (absent.IsVoid ? (Union_Int32_Void)MistVoid.Instance : (Union_Int32_Void)absent.AsItem.GetValue());
+        Item absent = null;
+        int? result1 = present?.GetValue();
+        int? result2 = absent?.GetValue();
         Console.WriteLine($"present?.GetValue()={result1}");
         Console.WriteLine($"absent?.GetValue()={result2}");
     }

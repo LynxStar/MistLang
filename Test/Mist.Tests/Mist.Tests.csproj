@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Source\Mist\Mist.csproj" />
     <ProjectReference Include="..\..\Source\Storm.SourceGenerator\Storm.SourceGenerator.csproj" />
+    <ProjectReference Include="..\Mist.Tests.InteropFixtures\Mist.Tests.InteropFixtures.csproj" />
   </ItemGroup>
 
   <!--

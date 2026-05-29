@@ -1,4 +1,3 @@
-using Standard;
 using System;
 
 if (args.Length == 0)

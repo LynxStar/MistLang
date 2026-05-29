@@ -34,4 +34,5 @@ public sealed record ProjectConfiguration(
     string NamespaceRoot,
     ImmutableArray<ProjectReference> References,
     string? EntryPoint = null,
-    ImmutableArray<string> GlobalUsings = default);
+    ImmutableArray<string> GlobalUsings = default,
+    ImmutableArray<NuGetPackageReference> Packages = default);

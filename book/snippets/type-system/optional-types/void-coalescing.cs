@@ -6,10 +6,10 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        int hasValue = 10;
-        int noValue = MistVoid.Instance;
-        int result1 = (hasValue.IsVoid ? 0 : hasValue.AsInt32);
-        int result2 = (noValue.IsVoid ? 42 : noValue.AsInt32);
+        int? hasValue = 10;
+        int? noValue = null;
+        int result1 = hasValue ?? 0;
+        int result2 = noValue ?? 42;
         Console.WriteLine($"hasValue ?? 0={result1}");
         Console.WriteLine($"noValue ?? 42={result2}");
     }

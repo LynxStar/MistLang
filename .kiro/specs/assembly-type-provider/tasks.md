@@ -161,8 +161,8 @@ This plan replaces the manually coded `CSharpAmbientTypeResolver` with an automa
     - Add SDK cache regeneration step to `publish.sh`
     - _Requirements: 2.1, 2.3, 2.4, 15.4_
 
-- [ ] 7. SemanticModelBuilder integration
-  - [ ] 7.1 Update namespace resolution for CLR namespaces
+- [x] 7. SemanticModelBuilder integration
+  - [x] 7.1 Update namespace resolution for CLR namespaces
     - Update `SemanticModelBuilder` Pass 2 to query `IAmbientTypeResolver.HasNamespace()` for `using` directives
     - Make all public types from imported CLR namespaces available for unqualified name resolution
     - Resolve Mist-declared types first; fall through to CLR namespaces if no match
@@ -171,18 +171,18 @@ This plan replaces the manually coded `CSharpAmbientTypeResolver` with an automa
     - Emit `MIST_TYPE_AMBIGUOUS` when type name is ambiguous across multiple imported namespaces
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-  - [ ] 7.2 Add abstract/sealed type validation
+  - [x] 7.2 Add abstract/sealed type validation
     - Emit `MIST_ABSTRACT_INSTANTIATION` when `new` is used on an abstract CLR type
     - Emit `MIST_SEALED_INHERITANCE` when a Mist type inherits from a sealed CLR type
     - _Requirements: 13.4, 13.5_
 
-  - [ ] 7.3 Update overload resolution for projected methods
+  - [x] 7.3 Update overload resolution for projected methods
     - Ensure all visible overloads from CLR types are available for overload resolution
     - Verify filtering one overload does not affect projection of others
     - Ensure generic constraint violations produce error diagnostics
     - _Requirements: 11.1, 11.2, 11.3, 10.6_
 
-  - [ ] 7.4 Integrate `foreach` resolution for CLR IEnumerable types
+  - [x] 7.4 Integrate `foreach` resolution for CLR IEnumerable types
     - Resolve `IEnumerable<TElement>` implementation on CLR types during `foreach` type inference
     - Infer element type using same logic as Mist-native enumerables
     - Require explicit type annotation when multiple `IEnumerable<T>` implementations exist

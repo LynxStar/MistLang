@@ -15627,7 +15627,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         var elementType = ResolveTypeReference(foreachStmt.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-        ResolveExpression(foreachStmt.Collection, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        var collectionType = ResolveExpression(foreachStmt.Collection, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        // Resolve IEnumerable<TElement> implementation on the collection type to infer
+        // the element type. This handles both Mist-native and CLR IEnumerable types.
+        // (Requirements 18.4, 18.6)
+        var inferredElementType = TryInferForeachElementType(collectionType);
+        if (inferredElementType is not null)
+        {
+            // Use the inferred element type for the loop variable. The explicit type
+            // annotation is still used as the declared type (for type checking by the
+            // emitter), but the inferred type ensures the semantic model correctly
+            // understands the element type for downstream analysis.
+            elementType = inferredElementType;
+        }
 
         // Create a scope for the foreach body with the iteration variable.
         var foreachScope = new Scope(parent: blockScope);
@@ -15638,6 +15651,186 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         symbolTable.Register(varSymbol, foreachStmt);
 
         ResolveBlock(foreachStmt.Body, foreachScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    /// <summary>
+    /// Attempts to infer the element type from a collection type's <c>IEnumerable&lt;TElement&gt;</c>
+    /// implementation. Handles both Mist-native types (that directly implement
+    /// <c>Standard.IEnumerable&lt;TElement&gt;</c>) and CLR types projected by the TypeProjector.
+    ///
+    /// <para>For <see cref="ConstructedType"/> collections (e.g., <c>List&lt;int&gt;</c>),
+    /// substitutes the outer type arguments into the interface's type parameters to resolve
+    /// the concrete element type.</para>
+    ///
+    /// <para>When multiple <c>IEnumerable&lt;T&gt;</c> implementations exist, returns <c>null</c>
+    /// to require an explicit type annotation (Requirement 18.6).</para>
+    /// </summary>
+    /// <returns>The inferred element type, or <c>null</c> if inference is not possible.</returns>
+    private static IType? TryInferForeachElementType(IType collectionType)
+    {
+        // Get the interfaces and type parameters/arguments for substitution.
+        IReadOnlyList<IType> interfaces;
+        IReadOnlyList<IType>? typeParams = null;
+        IReadOnlyList<IType>? typeArgs = null;
+
+        switch (collectionType)
+        {
+            case ConstructedType ct:
+            {
+                // For constructed generic types (e.g., List<int>), get interfaces from
+                // the generic definition and prepare type parameter substitution.
+                var def = ct.GenericDefinition;
+                interfaces = def switch
+                {
+                    ClassType c => c.Interfaces,
+                    StructType s => s.Interfaces,
+                    InterfaceType i => i.Interfaces,
+                    _ => Array.Empty<IType>(),
+                };
+                typeParams = def switch
+                {
+                    ClassType c => c.TypeParameters,
+                    StructType s => s.TypeParameters,
+                    InterfaceType i => i.TypeParameters,
+                    _ => null,
+                };
+                typeArgs = ct.TypeArguments;
+                break;
+            }
+            case ClassType ct:
+                interfaces = ct.Interfaces;
+                break;
+            case StructType st:
+                interfaces = st.Interfaces;
+                break;
+            case ArrayType:
+                // Arrays implement IEnumerable<T> — the element type is the array's element type.
+                // This is already handled by the explicit type annotation, so skip inference.
+                return null;
+            default:
+                return null;
+        }
+
+        // Find all IEnumerable<TElement> implementations.
+        var enumerableElementTypes = new List<IType>();
+        foreach (var iface in interfaces)
+        {
+            var extractedElementType = TryExtractIEnumerableElementType(iface, typeParams, typeArgs);
+            if (extractedElementType is not null)
+            {
+                enumerableElementTypes.Add(extractedElementType);
+            }
+        }
+
+        // Also check base class interfaces for ClassType.
+        if (collectionType is ClassType classType)
+        {
+            var baseClass = classType.BaseType;
+            while (baseClass is not null)
+            {
+                var baseInterfaces = baseClass switch
+                {
+                    ClassType bc => bc.Interfaces,
+                    ConstructedType bct when bct.GenericDefinition is ClassType bcc => bcc.Interfaces,
+                    _ => Array.Empty<IType>() as IReadOnlyList<IType>,
+                };
+                foreach (var iface in baseInterfaces)
+                {
+                    var extractedElementType = TryExtractIEnumerableElementType(iface, null, null);
+                    if (extractedElementType is not null)
+                    {
+                        enumerableElementTypes.Add(extractedElementType);
+                    }
+                }
+                baseClass = baseClass switch
+                {
+                    ClassType bc => bc.BaseType,
+                    _ => null,
+                };
+            }
+        }
+        else if (collectionType is ConstructedType ctForBase && ctForBase.GenericDefinition is ClassType ctBaseDef)
+        {
+            var baseClass = ctBaseDef.BaseType;
+            while (baseClass is not null)
+            {
+                var baseInterfaces = baseClass switch
+                {
+                    ClassType bc => bc.Interfaces,
+                    ConstructedType bct when bct.GenericDefinition is ClassType bcc => bcc.Interfaces,
+                    _ => Array.Empty<IType>() as IReadOnlyList<IType>,
+                };
+                foreach (var iface in baseInterfaces)
+                {
+                    var extractedElementType = TryExtractIEnumerableElementType(iface, typeParams, typeArgs);
+                    if (extractedElementType is not null)
+                    {
+                        enumerableElementTypes.Add(extractedElementType);
+                    }
+                }
+                baseClass = baseClass switch
+                {
+                    ClassType bc => bc.BaseType,
+                    _ => null,
+                };
+            }
+        }
+
+        // Requirement 18.6: When multiple IEnumerable<T> implementations exist,
+        // return null to require explicit type annotation.
+        if (enumerableElementTypes.Count != 1)
+            return null;
+
+        return enumerableElementTypes[0];
+    }
+
+    /// <summary>
+    /// Attempts to extract the element type from an interface type that is
+    /// <c>Standard.IEnumerable&lt;TElement&gt;</c>. Returns the element type if the
+    /// interface matches, or <c>null</c> otherwise.
+    ///
+    /// <para>When <paramref name="typeParams"/> and <paramref name="typeArgs"/> are provided,
+    /// substitutes type parameters in the element type with the corresponding type arguments
+    /// (for constructed generic types like <c>List&lt;int&gt;</c>).</para>
+    /// </summary>
+    private static IType? TryExtractIEnumerableElementType(
+        IType ifaceType,
+        IReadOnlyList<IType>? typeParams,
+        IReadOnlyList<IType>? typeArgs)
+    {
+        // IEnumerable<TElement> is represented as a ConstructedType wrapping the
+        // Standard.IEnumerable InterfaceType with one type argument.
+        if (ifaceType is not ConstructedType { GenericDefinition: InterfaceType genericIface } constructed)
+            return null;
+
+        // Check if this is Standard.IEnumerable (the Mist stdlib interface).
+        if (genericIface.DisplayName != "IEnumerable" || genericIface.ContainingNamespace != "Standard")
+            return null;
+
+        if (constructed.TypeArguments.Count != 1)
+            return null;
+
+        var extractedType = constructed.TypeArguments[0];
+
+        // If the element type is a type parameter and we have substitution info,
+        // substitute it with the concrete type argument.
+        if (extractedType is TypeParameterType tpt && typeParams is not null && typeArgs is not null)
+        {
+            for (var i = 0; i < typeParams.Count && i < typeArgs.Count; i++)
+            {
+                if (typeParams[i] is TypeParameterType paramType && paramType.DisplayName == tpt.DisplayName)
+                {
+                    return typeArgs[i];
+                }
+            }
+        }
+
+        // If the element type is not a type parameter (already concrete), return it directly.
+        if (extractedType is not TypeParameterType)
+            return extractedType;
+
+        // Type parameter couldn't be resolved — return null.
+        return null;
     }
 
     // ─── Refinable Type Expression Resolution ─────────────────────────────
@@ -17246,16 +17439,47 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // 3b. Search ambient namespaces via ambient resolver.
         if (ambientTypeResolver is not null)
         {
+            IType? ambientResolvedType = null;
+            string? ambientResolvedNs = null;
+            string? ambientAmbiguousNs = null;
+
             foreach (var ns in importedNamespaces)
             {
                 // Try ambient resolver for each imported namespace.
                 var resolvedType = ambientTypeResolver.ResolveType(ns, typeName);
                 if (resolvedType is not null)
                 {
-                    // Register the resolved ambient type in the scope hierarchy.
-                    RegisterAmbientTypeInScope(resolvedType, typeName, ns, fileScope, ambientTypeResolver, symbolTable);
-                    return resolvedType;
+                    if (ambientResolvedType is not null)
+                    {
+                        // Ambiguity: same type name found in multiple imported ambient namespaces.
+                        ambientAmbiguousNs = ns;
+                    }
+                    else
+                    {
+                        ambientResolvedType = resolvedType;
+                        ambientResolvedNs = ns;
+                    }
                 }
+            }
+
+            if (ambientAmbiguousNs is not null && ambientResolvedNs is not null)
+            {
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_AMBIGUOUS_TYPE"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.SemanticModelConstruction,
+                    $"The type name '{typeName}' is ambiguous between namespaces '{ambientResolvedNs}' and '{ambientAmbiguousNs}'.",
+                    Location: default,
+                    CompilationUnitPath: sourceText?.Path ?? "<unknown>",
+                    AnalyzerName: null));
+                return ErrorType.Instance;
+            }
+
+            if (ambientResolvedType is not null)
+            {
+                // Register the resolved ambient type in the scope hierarchy.
+                RegisterAmbientTypeInScope(ambientResolvedType, typeName, ambientResolvedNs!, fileScope, ambientTypeResolver, symbolTable);
+                return ambientResolvedType;
             }
         }
 
@@ -18969,6 +19193,45 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     return arrayType.ElementType;
                 }
 
+                // Check for custom indexer on the target type (e.g., Dictionary<TKey, TValue>).
+                // Look up an indexer symbol ("this[]") in the target type's member scope.
+                var indexerLookupType = targetType is ConstructedType ict ? ict.GenericDefinition : targetType;
+                IScope? indexerMemberScope = indexerLookupType switch
+                {
+                    ClassType ct2 => ct2.MemberScope,
+                    StructType st2 => st2.MemberScope,
+                    InterfaceType it2 => it2.MemberScope,
+                    _ => null,
+                };
+
+                if (indexerMemberScope is not null)
+                {
+                    ISymbol? indexerSymbol = null;
+                    foreach (var member in indexerMemberScope.Members)
+                    {
+                        if (member.Kind == SymbolKind.Indexer)
+                        {
+                            indexerSymbol = member;
+                            break;
+                        }
+                    }
+
+                    if (indexerSymbol is not null && indexerSymbol.DeclaredType is { } indexerReturnType)
+                    {
+                        // Apply type substitution for ConstructedType (e.g., Dictionary<string, int>).
+                        if (targetType is ConstructedType ict2)
+                        {
+                            var typeParams = GetTypeParameters(ict2.GenericDefinition);
+                            if (typeParams is not null)
+                            {
+                                indexerReturnType = SubstituteTypeParameters(indexerReturnType, typeParams, ict2.TypeArguments);
+                            }
+                        }
+                        expressionTypes[suffix] = indexerReturnType;
+                        return indexerReturnType;
+                    }
+                }
+
                 expressionTypes[suffix] = ErrorType.Instance;
                 return ErrorType.Instance;
             }
@@ -19501,6 +19764,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var typeName = ExtractQualifiedName(objCreation.Type, sourceText);
                 var createdType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
 
+                // Check for abstract type instantiation.
+                if (createdType is ClassType { IsAbstract: true } abstractClass)
+                {
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_ABSTRACT_INSTANTIATION"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        $"Cannot create an instance of abstract type '{abstractClass.DisplayName}'.",
+                        Location: default,
+                        CompilationUnitPath: sourceText?.Path ?? "<unknown>",
+                        AnalyzerName: null));
+                }
+
                 // Handle type arguments on new expressions (e.g., new Box<int>()).
                 if (objCreation.TypeArgs is not null)
                 {
@@ -19531,6 +19807,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var typeName = ExtractQualifiedName(objCreationNoArgs.Type, sourceText);
                 var createdType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+                // Check for abstract type instantiation.
+                if (createdType is ClassType { IsAbstract: true } abstractClass)
+                {
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_ABSTRACT_INSTANTIATION"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        $"Cannot create an instance of abstract type '{abstractClass.DisplayName}'.",
+                        Location: default,
+                        CompilationUnitPath: sourceText?.Path ?? "<unknown>",
+                        AnalyzerName: null));
+                }
 
                 // Handle type arguments on new expressions (e.g., new Box<int> { ... }).
                 if (objCreationNoArgs.TypeArgs is not null)

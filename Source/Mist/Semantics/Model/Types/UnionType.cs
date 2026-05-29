@@ -53,4 +53,12 @@ public sealed class UnionType : IType, IEquatable<UnionType>
         }
         return hash.ToHashCode();
     }
+
+    /// <summary>
+    /// Nullable projection metadata for unions created by the Assembly Type Provider.
+    /// Non-null when this union represents a <c>T | void</c> projection from a CLR
+    /// <c>Nullable&lt;T&gt;</c> or reference type. Used by the CSharp emitter to
+    /// produce correct CLR-level signatures.
+    /// </summary>
+    public NullableProjectionInfo? NullableProjection { get; internal set; }
 }

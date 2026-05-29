@@ -1,5 +1,7 @@
+using System.Collections.Immutable;
 using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
+using Mist.Driver;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
@@ -15,7 +17,70 @@ public sealed class CSharpTranspilerBackend : IBackend
 {
     public BackendId Id => new("csharp");
 
-    public IAmbientTypeResolver? GetAmbientTypeResolver() => new CSharpAmbientTypeResolver();
+    /// <summary>
+    /// Cached <see cref="AssemblyTypeProvider"/> instance. Reused when the same SDK
+    /// assembly paths are used across multiple <c>Compile()</c> calls (the common case).
+    /// This avoids recreating the MetadataLoadContext and reloading ~167 DLLs per compilation.
+    /// </summary>
+    private static AssemblyTypeProvider? _cachedProvider;
+    private static ImmutableArray<string> _cachedPaths;
+    private static readonly object _providerCacheLock = new();
+
+    public IAmbientTypeResolver? GetAmbientTypeResolver()
+    {
+        var diagnostics = new DiagnosticBag();
+
+        // Discover SDK reference assembly path.
+        var sdkRefPath = SdkDiscovery.FindReferenceAssemblyPath("net10.0", diagnostics);
+        if (sdkRefPath is null)
+        {
+            // SDK not found — fall back to no assembly types.
+            // The diagnostics are lost here but the compilation will still proceed
+            // with only Mist-declared types and Standard Library types.
+            return null;
+        }
+
+        // Get all DLL paths from the SDK reference assembly directory.
+        var assemblyPaths = GetCachedSdkAssemblyPaths(sdkRefPath);
+
+        // Reuse cached provider if assembly paths are identical.
+        lock (_providerCacheLock)
+        {
+            if (_cachedProvider is not null && _cachedPaths.SequenceEqual(assemblyPaths))
+            {
+                return _cachedProvider;
+            }
+
+            // Create a new provider.
+            var provider = new AssemblyTypeProvider(assemblyPaths, diagnostics);
+            _cachedProvider = provider;
+            _cachedPaths = assemblyPaths;
+            return provider;
+        }
+    }
+
+    /// <summary>
+    /// Cached SDK assembly paths. The SDK assembly list doesn't change during a process lifetime.
+    /// </summary>
+    private static ImmutableArray<string>? _sdkAssemblyPathsCache;
+    private static string? _sdkAssemblyPathsCacheKey;
+    private static readonly object _sdkAssemblyPathsCacheLock = new();
+
+    private static ImmutableArray<string> GetCachedSdkAssemblyPaths(string sdkRefPath)
+    {
+        lock (_sdkAssemblyPathsCacheLock)
+        {
+            if (_sdkAssemblyPathsCache.HasValue && _sdkAssemblyPathsCacheKey == sdkRefPath)
+            {
+                return _sdkAssemblyPathsCache.Value;
+            }
+
+            var paths = Directory.GetFiles(sdkRefPath, "*.dll").ToImmutableArray();
+            _sdkAssemblyPathsCache = paths;
+            _sdkAssemblyPathsCacheKey = sdkRefPath;
+            return paths;
+        }
+    }
 
     public BackendResult Emit(ISemanticModel model, string outputDirectory, string binDirectory, string projectName, DiagnosticBag diagnostics)
     {

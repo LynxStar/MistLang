@@ -10886,7 +10886,7 @@ internal sealed class CSharpSourceWriter
     /// Builds the C# type name for a constraint type, substituting type parameters
     /// with their concrete values from the slot and interface mappings.
     /// </summary>
-    private string BuildErasedConstraintTypeName(
+    private static string BuildErasedConstraintTypeName(
         IType constraintType,
         Dictionary<string, string> slotParamMap,
         Dictionary<string, string>? interfaceParamMap)

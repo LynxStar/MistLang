@@ -18,7 +18,7 @@ internal static class CSharpTypeMap
     /// Mist-primitive keyword entries (e.g., <c>"int" → "int"</c>) are
     /// retained for backward compatibility with tests that don't load stdlib.
     /// </summary>
-    private static readonly Dictionary<string, string> BackingTypes = new(StringComparer.Ordinal)
+    internal static readonly Dictionary<string, string> BackingTypes = new(StringComparer.Ordinal)
     {
         // ── Fully-qualified stdlib type names (Backing_Type_Map form) ─────
         ["Standard.Int32"] = "int",

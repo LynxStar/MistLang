@@ -450,6 +450,95 @@ public static partial class ProjectFileParser
             globalUsings = builder.ToImmutable();
         }
 
-        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint, globalUsings);
+        // 11. Read [packages] table (optional)
+        var packages = ImmutableArray<NuGetPackageReference>.Empty;
+
+        if (model.TryGetValue("packages", out var pkgsObj))
+        {
+            if (pkgsObj is not TomlTable pkgsTable)
+            {
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_PKG_TABLE_EXPECTED"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Driver,
+                    $"The 'packages' field in '{filePath}' must be a table ([packages]).",
+                    Location: default,
+                    CompilationUnitPath: filePath,
+                    AnalyzerName: null));
+                return null;
+            }
+
+            var pkgBuilder = ImmutableArray.CreateBuilder<NuGetPackageReference>();
+
+            foreach (var (pkgName, pkgValue) in pkgsTable)
+            {
+                // 11a. Validate package name: pattern check
+                if (!ValidNamePattern().IsMatch(pkgName))
+                {
+                    var invalidChars = pkgName
+                        .Where(c => !char.IsLetterOrDigit(c) && c != '-' && c != '_' && c != '.')
+                        .Distinct()
+                        .OrderBy(c => c);
+                    var invalidList = string.Join(", ", invalidChars.Select(c => $"'{c}'"));
+
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_PKG_INVALID_NAME"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.Driver,
+                        $"Package name '{pkgName}' in '{filePath}' contains invalid characters: {invalidList}. Only alphanumeric characters, hyphens, underscores, and periods are allowed.",
+                        Location: default,
+                        CompilationUnitPath: filePath,
+                        AnalyzerName: null));
+                    continue;
+                }
+
+                // 11b. Validate package name: length check
+                if (pkgName.Length > MaxNameLength)
+                {
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_PKG_INVALID_NAME"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.Driver,
+                        $"Package name '{pkgName}' in '{filePath}' exceeds the maximum length of {MaxNameLength} characters (got {pkgName.Length}).",
+                        Location: default,
+                        CompilationUnitPath: filePath,
+                        AnalyzerName: null));
+                    continue;
+                }
+
+                // 11c. Validate version value: must be a non-empty string
+                if (pkgValue is not string versionStr)
+                {
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_PKG_INVALID_VERSION"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.Driver,
+                        $"Package '{pkgName}' in '{filePath}' must have a string version value.",
+                        Location: default,
+                        CompilationUnitPath: filePath,
+                        AnalyzerName: null));
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(versionStr))
+                {
+                    diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_PKG_INVALID_VERSION"),
+                        DiagnosticSeverity.Error,
+                        PipelineStage.Driver,
+                        $"Package '{pkgName}' in '{filePath}' has an empty or whitespace version string.",
+                        Location: default,
+                        CompilationUnitPath: filePath,
+                        AnalyzerName: null));
+                    continue;
+                }
+
+                pkgBuilder.Add(new NuGetPackageReference(pkgName, versionStr));
+            }
+
+            packages = pkgBuilder.ToImmutable();
+        }
+
+        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint, globalUsings, packages);
     }
 }

@@ -188,6 +188,10 @@ public sealed class StdlibResolutionTests : IDisposable
     [Fact]
     public void UsingSystem_ConsoleWriteLine_ProducesUndefinedDiagnostic()
     {
+        // With the AssemblyTypeProvider, `using System` is a valid CLR namespace.
+        // Console is provided by the Standard Library (Standard.Console), so
+        // `Console.WriteLine` resolves through the stdlib, not through the CLR namespace.
+        // This test verifies that `using System` does NOT produce an undefined namespace error.
         var source = """
             using System;
 
@@ -205,13 +209,13 @@ public sealed class StdlibResolutionTests : IDisposable
         var driver = CreateDriver();
         var result = driver.Compile(MakeOptions(filePath));
 
-        var errors = result.Diagnostics
+        var namespaceErrors = result.Diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)
-            .Where(d => d.Id.Value == "MIST_UNDEFINED_NAMESPACE"
-                     || d.Id.Value == "MIST_UNDEFINED_TYPE")
+            .Where(d => d.Id.Value == "MIST_UNDEFINED_NAMESPACE")
             .ToList();
 
-        Assert.NotEmpty(errors);
+        // System is a valid CLR namespace — no undefined namespace error.
+        Assert.Empty(namespaceErrors);
     }
 
     // --- Resolved symbols have SymbolOrigin.UserCode (not Backend) ---

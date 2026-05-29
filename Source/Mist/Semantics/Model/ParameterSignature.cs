@@ -12,10 +12,25 @@ public static class ParameterSignature
 {
     /// <summary>
     /// Extracts the parameter types from a method or constructor's declaring AST node.
+    /// For CLR Backend symbols (which have no AST node), reads parameter types from
+    /// the <see cref="Symbol.Parameters"/> collection instead.
     /// Returns an empty list for parameterless methods/constructors.
     /// </summary>
     public static IReadOnlyList<IType> Extract(ISymbol symbol, ISemanticModel model)
     {
+        // CLR Backend symbols store parameters directly on the Symbol instance
+        // because they have no AST declaring node.
+        if (symbol is Symbol { Parameters.Count: > 0 } backendSym)
+        {
+            var backendTypes = new List<IType>(backendSym.Parameters.Count);
+            foreach (var param in backendSym.Parameters)
+            {
+                if (param.DeclaredType is { } paramType)
+                    backendTypes.Add(paramType);
+            }
+            return backendTypes;
+        }
+
         Storm.Runtime.SyntaxNode declaringNode;
         try
         {

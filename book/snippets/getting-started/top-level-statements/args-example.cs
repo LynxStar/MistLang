@@ -1,4 +1,3 @@
-using Standard;
 using System;
 
 System.Console.WriteLine($"Received {args.Length} arguments");

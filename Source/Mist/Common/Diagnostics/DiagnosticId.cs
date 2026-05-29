@@ -187,4 +187,27 @@ public readonly record struct DiagnosticId(string Value)
 
     /// <summary>Abstract type slots are only permitted in interfaces and traits.</summary>
     public static readonly DiagnosticId AssociatedTypeSlotInWrongContext = new("MIST_AT_0006");
+
+    // ── Assembly Type Provider diagnostics ───────────────────────────────
+
+    /// <summary>The .NET SDK installation could not be located.</summary>
+    public static readonly DiagnosticId SdkNotFound = new("MIST_SDK_NOT_FOUND");
+
+    /// <summary>The target framework reference path does not exist in the SDK.</summary>
+    public static readonly DiagnosticId SdkNoFramework = new("MIST_SDK_NO_FRAMEWORK");
+
+    /// <summary>A referenced NuGet package could not be found on any configured feed.</summary>
+    public static readonly DiagnosticId PackageNotFound = new("MIST_PKG_NOT_FOUND");
+
+    /// <summary>A network error or timeout occurred during package download.</summary>
+    public static readonly DiagnosticId PackageNetworkError = new("MIST_PKG_NETWORK_ERROR");
+
+    /// <summary>A NuGet package has no compatible framework target.</summary>
+    public static readonly DiagnosticId PackageNoCompatibleTfm = new("MIST_PKG_NO_COMPATIBLE_TFM");
+
+    /// <summary>A <c>using</c> directive references a namespace that does not exist.</summary>
+    public static readonly DiagnosticId NamespaceNotFound = new("MIST_NS_NOT_FOUND");
+
+    /// <summary>A type name is ambiguous between multiple imported CLR namespaces.</summary>
+    public static readonly DiagnosticId TypeAmbiguous = new("MIST_TYPE_AMBIGUOUS");
 }

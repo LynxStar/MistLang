@@ -42,6 +42,8 @@ internal static class UnionHelperGenerator
     /// <summary>
     /// Generates the complete <c>UnionHelpers.cs</c> file content containing all
     /// helper structs for the given set of distinct union types.
+    /// Skips two-constituent void unions (<c>T | void</c>) which are emitted as
+    /// C# <c>Nullable&lt;T&gt;</c> or plain <c>T</c> instead.
     /// </summary>
     public static string GenerateUnionHelpersFile(IReadOnlyCollection<UnionType> unionTypes)
     {
@@ -54,6 +56,11 @@ internal static class UnionHelperGenerator
 
         foreach (var unionType in unionTypes)
         {
+            // Skip two-constituent void unions — these use Nullable<T> or null
+            // instead of a generated helper struct (Requirement 7.1, 7.8).
+            if (CSharpTypeMap.IsOptionalUnion(unionType))
+                continue;
+
             var helperName = GetHelperTypeName(unionType);
             if (emitted.ContainsKey(helperName))
                 continue;

@@ -113,13 +113,13 @@ public class TypeCheckerEdgeCaseTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
     private static UnaryNode ExtractUnary(ExpressionNode expr)
     {
-        var logOr = expr.Assignment.Target;
+        var logOr = expr.Assignment.Target.Left;
         var logAnd = logOr.Left;
         var equality = logAnd.Left;
         var relational = (RelationalComparisonRelationalNode)equality.Left;
@@ -150,7 +150,7 @@ public class TypeCheckerEdgeCaseTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -174,7 +174,7 @@ public class TypeCheckerEdgeCaseTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -204,7 +204,7 @@ public class TypeCheckerEdgeCaseTests
 
         var assign = new AssignmentNode
         {
-            Target = targetLogOr,
+            Target = new VoidCoalescingNode { Left = targetLogOr },
             Value = valueAssign,
         };
         return new ExpressionNode { Assignment = assign };
@@ -405,7 +405,7 @@ public class TypeCheckerEdgeCaseTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         var expr = new ExpressionNode { Assignment = assign };
 
         var ast = MakeProgram(ImmutableArray.Create(
@@ -446,7 +446,7 @@ public class TypeCheckerEdgeCaseTests
             Right = rightEq,
         };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assignNode = new AssignmentNode { Target = logOr };
+        var assignNode = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         var expr = new ExpressionNode { Assignment = assignNode };
 
         var ast = MakeProgram(ImmutableArray.Create(

@@ -47,3 +47,4 @@ StructInheritance = { path = "../StructInheritance" }
 AssociatedTypes = { path = "../AssociatedTypes" }
 Iterators = { path = "../Iterators" }
 TypeArgumentInference = { path = "../TypeArgumentInference" }
+OptionalTypes = { path = "../OptionalTypes" }

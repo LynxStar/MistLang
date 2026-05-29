@@ -38,14 +38,14 @@ public static class MistAstGenerator
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
     /// <summary>Extracts the UnaryNode from an ExpressionNode for reuse in compound expressions.</summary>
     public static UnaryNode ExtractUnary(ExpressionNode expr)
     {
-        var logOr = expr.Assignment.Target;
+        var logOr = expr.Assignment.Target.Left;
         var logAnd = logOr.Left;
         var equality = logAnd.Left;
         var relational = (RelationalComparisonRelationalNode)equality.Left;
@@ -117,7 +117,7 @@ public static class MistAstGenerator
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -132,7 +132,7 @@ public static class MistAstGenerator
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -149,7 +149,7 @@ public static class MistAstGenerator
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -168,7 +168,7 @@ public static class MistAstGenerator
         var rightEq = new EqualityNode { Left = rightRel };
         var logAnd = new LogicalAndNode { Left = leftEq, Right = rightEq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -188,7 +188,7 @@ public static class MistAstGenerator
         var leftLogAnd = new LogicalAndNode { Left = leftEq };
         var rightLogAnd = new LogicalAndNode { Left = rightEq };
         var logOr = new LogicalOrNode { Left = leftLogAnd, Right = rightLogAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -203,7 +203,7 @@ public static class MistAstGenerator
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -218,7 +218,7 @@ public static class MistAstGenerator
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 

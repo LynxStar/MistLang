@@ -150,7 +150,7 @@ public class ExtensionSetAccessorRejectionPropertyTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -186,13 +186,13 @@ public class ExtensionSetAccessorRejectionPropertyTests
         var valueEq = new EqualityNode { Left = valueRel };
         var valueLogAnd = new LogicalAndNode { Left = valueEq };
         var valueLogOr = new LogicalOrNode { Left = valueLogAnd };
-        var valueAssign = new AssignmentNode { Target = valueLogOr };
+        var valueAssign = new AssignmentNode { Target = new VoidCoalescingNode { Left = valueLogOr } };
 
         return new ExpressionNode
         {
             Assignment = new AssignmentNode
             {
-                Target = fieldLogOr,
+                Target = new VoidCoalescingNode { Left = fieldLogOr },
                 Value = valueAssign,
             },
         };

@@ -97,6 +97,16 @@ public sealed class SemanticModel : ISemanticModel
                     return refinedType;
             }
 
+            // When the cached expression type is a UnionType, the type checker may have
+            // narrowed the variable's DeclaredType through ??= flow narrowing. Check if
+            // the symbol's DeclaredType has been updated to a narrower type.
+            if (type is UnionType)
+            {
+                var refinedType = TryGetRefinedTypeForLocalVariable(node);
+                if (refinedType is not null)
+                    return refinedType;
+            }
+
             return type;
         }
 
@@ -170,7 +180,10 @@ public sealed class SemanticModel : ISemanticModel
             var assignment = expr.Assignment;
             if (assignment.Value is not null) return null;
 
-            return TryGetRefinedTypeFromLogicalOr(assignment.Target);
+            // Navigate through VoidCoalescing to the underlying LogicalOr.
+            var voidCoalescing = assignment.Target;
+            if (voidCoalescing.LogicalOrs.Length > 0) return null;
+            return TryGetRefinedTypeFromLogicalOr(voidCoalescing.Left);
         }
 
         return null;

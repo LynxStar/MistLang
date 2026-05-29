@@ -718,7 +718,7 @@ public sealed class RefinementPredicate
         var assignment = expr.Assignment;
         if (assignment?.Value is not null) return null;
 
-        var logicalOr = assignment?.Target;
+        var logicalOr = assignment?.Target?.Left;
         if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left)) return null;
 
         var logicalAnd = logicalOr?.Left;

@@ -1696,7 +1696,7 @@ public sealed class MistPrettyPrinter
 
     private string EmitAssignment(AssignmentNode assignment)
     {
-        var target = EmitLogicalOr(assignment.Target);
+        var target = EmitVoidCoalescing(assignment.Target);
 
         if (assignment.Value is not null && !ReferenceEquals(assignment.Value.Target, assignment.Target))
         {
@@ -1705,6 +1705,23 @@ public sealed class MistPrettyPrinter
         }
 
         return target;
+    }
+
+    private string EmitVoidCoalescing(VoidCoalescingNode voidCoalescing)
+    {
+        var left = EmitLogicalOr(voidCoalescing.Left);
+
+        if (voidCoalescing.LogicalOrs.Length > 0)
+        {
+            var parts = new List<string> { left };
+            foreach (var right in voidCoalescing.LogicalOrs)
+            {
+                parts.Add(EmitLogicalOr(right));
+            }
+            return string.Join(" ?? ", parts);
+        }
+
+        return left;
     }
 
     private string EmitLogicalOr(LogicalOrNode logicalOr)

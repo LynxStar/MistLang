@@ -120,7 +120,7 @@ public class ExtensionTypeCheckerPropertyTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -147,7 +147,7 @@ public class ExtensionTypeCheckerPropertyTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -174,7 +174,7 @@ public class ExtensionTypeCheckerPropertyTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -197,7 +197,7 @@ public class ExtensionTypeCheckerPropertyTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -248,7 +248,7 @@ public class ExtensionTypeCheckerPropertyTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -927,7 +927,7 @@ public class ExtensionTypeCheckerPropertyTests
         var receiverEq = new EqualityNode { Left = receiverRel };
         var receiverLogAnd = new LogicalAndNode { Left = receiverEq };
         var receiverLogOr = new LogicalOrNode { Left = receiverLogAnd };
-        var receiverAssign = new AssignmentNode { Target = receiverLogOr };
+        var receiverAssign = new AssignmentNode { Target = new VoidCoalescingNode { Left = receiverLogOr } };
         var receiverExpr = new ExpressionNode { Assignment = receiverAssign };
 
         var bodyStatements = ImmutableArray.Create(MakeExpressionStatement(receiverExpr));

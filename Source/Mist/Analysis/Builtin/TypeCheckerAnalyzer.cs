@@ -643,6 +643,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId TaskStorageRestriction = new("MIST_TC_0110");
 
+    // ── optional-types feature: operator diagnostics ─────────────────────
+
+    /// <summary>
+    /// Emitted when the optional chaining operator <c>?.</c> is applied to an
+    /// expression whose type does not contain <c>void</c> as a union constituent.
+    /// The operator requires a type of the form <c>T | void</c> so it can project
+    /// to <c>T</c> for member resolution (Requirements 3.1, 3.4).
+    /// </summary>
+    internal static readonly DiagnosticId OptionalChainingRequiresOptionalType = new("MIST_TC_0111");
+
     // ── enums feature: assignability diagnostic ──────────────────────────
 
     /// <summary>
@@ -809,6 +819,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     //    (e.g. TryResolvePropertyFromAssignmentTarget).
     private bool _analyzingAssignmentLhs;
 
+    // ── Tracks whether we're inside a sub-expression context (for ??= statement-only check) ──
+    private int _assignmentNestingDepth;
+
+    // ── Tracks whether the current expression is at statement level (for ??= statement-only check) ──
+    private bool _atStatementLevel;
+
     // ── Flow narrowing context for refinement types (Requirements 7.1–7.8) ──
     //    Maps local variable names to the condition constraints proven within
     //    the current then-branch scope. Entries are pushed when an if-condition
@@ -823,11 +839,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     //    are ineligible for flow narrowing (Requirement 7.7).
     private readonly HashSet<string> _closureCapturedVariables = new(StringComparer.Ordinal);
 
+    // ── Flow narrowing context for void-coalescing assignment (??=) ──
+    //    Maps local variable names to their narrowed types after ??= statements.
+    //    After `x ??= value` where x has type `T | void`, the variable is narrowed
+    //    to type T for all subsequent statements in the same scope and nested blocks.
+    //    Invalidated on reassignment.
+    private readonly Dictionary<string, IType> _voidCoalescingTypeNarrowings = new(StringComparer.Ordinal);
+
     public void Analyze(ISemanticModel model, DiagnosticBag diagnostics)
     {
         // Clear flow narrowing state from any previous compilation.
         _narrowingContext.Clear();
         _closureCapturedVariables.Clear();
+        _voidCoalescingTypeNarrowings.Clear();
 
         // Walk each method, constructor, property, and indexer body to check type rules.
         foreach (var symbol in model.AllSymbols)
@@ -3359,7 +3383,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CheckForeachStatement(foreachStmt.ForeachStatement, returnType, model, diagnostics);
                 break;
             case ExpressionStatementStatementNode exprStmt:
+                _atStatementLevel = true;
                 CheckExpression(exprStmt.ExpressionStatement.Expression, model, diagnostics);
+                _atStatementLevel = false;
                 break;
             case BreakStatementStatementNode:
                 // No type checking needed for break.
@@ -3402,6 +3428,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Verify RHS type is assignable to declared type (MIST_TC_0001).
                 var declaredType = model.GetTypeOf(typed.Type);
                 var initType = model.GetTypeOf(typed.Initializer);
+
+                // ── ??= flow narrowing: if the initializer is a simple identifier
+                // that has been narrowed by a preceding ??= statement, use the
+                // narrowed type instead of the stale cached union type.
+                if (initType is UnionType)
+                {
+                    var narrowedInitType = TryGetNarrowedTypeForExpression(typed.Initializer);
+                    if (narrowedInitType is not null)
+                        initType = narrowedInitType;
+                }
 
                 // When the TypeReference node isn't in the expression type map
                 // (source-parsed programs), fall back to the variable symbol's
@@ -4003,7 +4039,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var assignment = condition.Assignment;
         if (assignment?.Value is not null) return result; // Not a simple condition.
 
-        var logicalOr = assignment?.Target;
+        var voidCoalescing = assignment?.Target;
+        if (voidCoalescing is null) return result;
+        if (voidCoalescing.LogicalOrs.Length > 0) return result;
+
+        var logicalOr = voidCoalescing.Left;
         if (logicalOr is null) return result;
 
         // Only handle simple conditions (no || for now).
@@ -4352,7 +4392,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var assignment = expr.Assignment;
         if (assignment?.Value is not null) return null;
 
-        var logicalOr = assignment?.Target;
+        var logicalOr = assignment?.Target?.Left;
         if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return null;
 
@@ -4412,6 +4452,31 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
+    /// Checks if an expression is a simple identifier that has been narrowed by a
+    /// preceding <c>??=</c> statement. If so, returns the narrowed type; otherwise null.
+    /// </summary>
+    private IType? TryGetNarrowedTypeForExpression(ExpressionNode expr)
+    {
+        var varName = TryExtractIdentifierFromExpression(expr);
+        if (varName is not null && _voidCoalescingTypeNarrowings.TryGetValue(varName, out var narrowedType))
+            return narrowedType;
+        return null;
+    }
+
+    /// <summary>
+    /// Attempts to extract a simple identifier name from an expression node.
+    /// Returns null if the expression is not a simple identifier reference.
+    /// </summary>
+    private static string? TryExtractIdentifierFromExpression(ExpressionNode expr)
+    {
+        // Expression → Assignment → VoidCoalescing → LogicalOr → ... → Postfix → Identifier
+        var assignment = expr.Assignment;
+        if (assignment.Value is not null || assignment.Operator is not null)
+            return null;
+        return TryExtractIdentifierFromLogicalOr(assignment.Target.Left);
+    }
+
+    /// <summary>
     /// Returns the effective source type for an assignment RHS expression.
     /// With constraint-based narrowing, this always returns the original type —
     /// constraint checking happens at the assignment site in TryCheckRefinementAssignment.
@@ -4432,6 +4497,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (varName is not null)
         {
             _narrowingContext.Remove(varName);
+            _voidCoalescingTypeNarrowings.Remove(varName);
         }
     }
 
@@ -4636,7 +4702,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var assignment = expr.Assignment;
         if (assignment?.Value is not null) return null;
 
-        var logicalOr = assignment?.Target;
+        var logicalOr = assignment?.Target?.Left;
         if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return null;
 
@@ -4786,7 +4852,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var assignment = expr.Assignment;
         if (assignment?.Value is not null) return null;
 
-        var logicalOr = assignment?.Target;
+        var logicalOr = assignment?.Target?.Left;
         if (logicalOr is null) return null;
         if (logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return null;
@@ -4820,7 +4886,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var assignment = condition.Assignment;
         if (assignment?.Value is not null) return null;
 
-        var logicalOr = assignment?.Target;
+        var logicalOr = assignment?.Target?.Left;
         if (logicalOr is null) return null;
         if (logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return null;
@@ -4989,7 +5055,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Check if this node is an assignment expression targeting the variable.
         if (node is AssignmentNode assignment && assignment.Value is not null)
         {
-            var targetName = TryExtractIdentifierFromLogicalOr(assignment.Target);
+            var targetName = TryExtractIdentifierFromLogicalOr(assignment.Target.Left);
             if (targetName is not null && string.Equals(targetName, varName, StringComparison.Ordinal))
                 return true;
         }
@@ -5157,7 +5223,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         try
         {
-            CheckLogicalOrNode(assignment.Target, model, diagnostics);
+            CheckVoidCoalescingNode(assignment.Target, model, diagnostics);
         }
         finally
         {
@@ -5166,6 +5232,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if (assignment.Value is not null)
         {
+            // ── optional-types feature: void-coalescing assignment (??=) ──
+            // When the operator is ??=, apply special validation and flow narrowing.
+            if (assignment.Operator is { } op && op.Kind == (int)TokenKind.QUESTION_QUESTION_EQUAL)
+            {
+                CheckVoidCoalescingAssignment(assignment, model, diagnostics);
+                return;
+            }
+
             // ── readonly-locals feature: readonly local reassignment prohibition ──
             // MIST_READONLY_LOCAL_0001: Cannot reassign readonly local variable.
             CheckReadonlyLocalReassignment(assignment, model, diagnostics);
@@ -5184,7 +5258,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             TryInferDefaultLiteralTypeFromAssignment(assignment.Value, lhsTypeForDefault, model);
 
             // This is an assignment: target = value.
+            _assignmentNestingDepth++;
             CheckAssignmentNode(assignment.Value, model, diagnostics);
+            _assignmentNestingDepth--;
 
             var lhsType = model.GetTypeOf(assignment.Target);
             var rhsType = model.GetTypeOf(assignment.Value);
@@ -5209,10 +5285,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // ── flow narrowing: invalidate narrowing on reassignment (Requirement 7.4) ──
-            InvalidateNarrowingForAssignmentTarget(assignment.Target);
+            InvalidateNarrowingForAssignmentTarget(assignment.Target.Left);
 
             // Property-specific assignment checks (MIST_TC_0020, MIST_TC_0021, MIST_TC_0025).
-            var targetPropertySymbol = TryResolvePropertyFromAssignmentTarget(assignment.Target, model);
+            var targetPropertySymbol = TryResolvePropertyFromAssignmentTarget(assignment.Target.Left, model);
             if (targetPropertySymbol is not null)
             {
                 var propInfo = GetPropertyMetadata(targetPropertySymbol);
@@ -5300,7 +5376,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Extract the PostfixNode from the assignment target.
-        var postfix = TryExtractPostfixFromLogicalOr(assignment.Target);
+        var postfix = TryExtractPostfixFromLogicalOr(assignment.Target.Left);
         if (postfix is null)
             return;
 
@@ -5339,7 +5415,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Extract the PostfixNode from the assignment target.
-        var postfix = TryExtractPostfixFromLogicalOr(assignment.Target);
+        var postfix = TryExtractPostfixFromLogicalOr(assignment.Target.Left);
         if (postfix is null)
             return;
 
@@ -5436,7 +5512,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Step 1: Check if the assignment target is a field (member access suffix).
-        var targetPostfix = TryExtractPostfixFromLogicalOr(assignment.Target);
+        var targetPostfix = TryExtractPostfixFromLogicalOr(assignment.Target.Left);
         if (targetPostfix is null)
             return;
 
@@ -5456,7 +5532,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (rhsAssignment.Value is not null)
             return; // Chained assignment — not a simple ref identifier.
 
-        var rhsPostfix = TryExtractPostfixFromLogicalOr(rhsAssignment.Target);
+        var rhsPostfix = TryExtractPostfixFromLogicalOr(rhsAssignment.Target.Left);
         if (rhsPostfix is null)
             return;
 
@@ -5624,6 +5700,189 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Type-checks a <c>VoidCoalescing</c> node (<c>left ?? right1 ?? right2 ...</c>).
+    /// <para>
+    /// For each <c>??</c> operator in the chain:
+    /// <list type="number">
+    ///   <item>Verifies the left operand's type contains void; emits <c>MIST_TC_0041</c> if not.</item>
+    ///   <item>Computes T (the non-void portion of the left type).</item>
+    ///   <item>Type-checks the right operand.</item>
+    ///   <item>Verifies the right operand is assignable to T; emits <c>MIST_TC_0044</c> if not.</item>
+    ///   <item>The result type becomes T (for the next iteration if chained).</item>
+    /// </list>
+    /// </para>
+    /// </summary>
+    private void CheckVoidCoalescingNode(VoidCoalescingNode node, ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        // Always check the left operand.
+        CheckLogicalOrNode(node.Left, model, diagnostics);
+
+        if (node.LogicalOrs.Length == 0)
+            return; // No ?? operators — nothing more to check.
+
+        // Walk the chain of ?? operators.
+        var currentLeftType = model.GetTypeOf(node.Left);
+
+        foreach (var rightOperand in node.LogicalOrs)
+        {
+            // Check the right operand's sub-expressions.
+            CheckLogicalOrNode(rightOperand, model, diagnostics);
+
+            // Validate: left operand must be a union type containing void.
+            if (currentLeftType is not null)
+            {
+                var containsVoid = currentLeftType is UnionType leftUnion
+                    && leftUnion.Constituents.Any(c => c.IsVoid());
+
+                if (!containsVoid)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0041",
+                        $"Void-coalescing operator '??' requires the left operand to be of type 'T | void', but found '{currentLeftType.DisplayName}'",
+                        node,
+                        model));
+                    // Continue checking remaining operands with the right operand's type.
+                    currentLeftType = model.GetTypeOf(rightOperand);
+                    continue;
+                }
+
+                // Compute T (non-void portion).
+                var union = (UnionType)currentLeftType;
+                var nonVoidConstituents = union.Constituents
+                    .Where(c => !c.IsVoid())
+                    .ToList();
+                var nonVoidPortion = nonVoidConstituents.Count == 1
+                    ? nonVoidConstituents[0]
+                    : new UnionType(nonVoidConstituents.ToImmutableArray());
+
+                // Validate: right operand must be assignable to T.
+                var rightType = model.GetTypeOf(rightOperand);
+                if (rightType is not null && !IsAssignable(rightType, nonVoidPortion, model))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0044",
+                        $"Cannot assign '{rightType.DisplayName}' to the non-void portion '{nonVoidPortion.DisplayName}' of '{currentLeftType.DisplayName}'",
+                        rightOperand,
+                        model));
+                }
+
+                // Result type is T (non-void portion) for the next iteration.
+                currentLeftType = nonVoidPortion;
+            }
+            else
+            {
+                // If left type is null (unresolved), just move on.
+                currentLeftType = model.GetTypeOf(rightOperand);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates a void-coalescing assignment (<c>x ??= value</c>).
+    /// Checks that the left operand is a mutable variable whose type contains void,
+    /// that the right operand is assignable to the non-void portion, and applies
+    /// flow narrowing so subsequent statements see the narrowed type.
+    /// </summary>
+    private void CheckVoidCoalescingAssignment(AssignmentNode assignment, ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        // ── MIST_TC_0047: ??= is statement-only, cannot be used as a sub-expression ──
+        if (!_atStatementLevel || _assignmentNestingDepth > 0)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0047",
+                "The void-coalescing assignment '??=' is a statement and cannot be used as a sub-expression",
+                assignment,
+                model));
+            return;
+        }
+
+        // Check the RHS expression.
+        CheckAssignmentNode(assignment.Value, model, diagnostics);
+
+        // ── MIST_TC_0043: Left operand must be a mutable variable ──
+        var targetVarName = TryExtractIdentifierFromLogicalOr(assignment.Target.Left);
+        if (targetVarName is null)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0043",
+                "Void-coalescing assignment '??=' requires the left operand to be a mutable variable",
+                assignment,
+                model));
+            return;
+        }
+
+        // Check that the variable is not readonly.
+        var targetPostfix = TryExtractPostfixFromLogicalOr(assignment.Target.Left);
+        if (targetPostfix is not null)
+        {
+            var targetSymbol = model.GetDeclaredSymbol(targetPostfix.Target);
+            if (targetSymbol is Symbol concreteTargetSymbol
+                && concreteTargetSymbol.Kind == SymbolKind.LocalVariable
+                && concreteTargetSymbol.ReadonlyStatus == ReadonlyStatus.ExplicitReadonly)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0043",
+                    "Void-coalescing assignment '??=' requires the left operand to be a mutable variable",
+                    assignment,
+                    model));
+                return;
+            }
+        }
+
+        // ── MIST_TC_0042: Left operand type must contain void ──
+        var lhsType = model.GetTypeOf(assignment.Target);
+        if (lhsType is null)
+            return;
+
+        var containsVoid = lhsType is UnionType lhsUnion
+            && lhsUnion.Constituents.Any(c => c.IsVoid());
+
+        if (!containsVoid)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0042",
+                $"Void-coalescing assignment '??=' requires the left operand to be of type 'T | void', but found '{lhsType.DisplayName}'",
+                assignment,
+                model));
+            return;
+        }
+
+        // Compute T (non-void portion).
+        var union = (UnionType)lhsType;
+        var nonVoidConstituents = union.Constituents
+            .Where(c => !c.IsVoid())
+            .ToList();
+        var nonVoidPortion = nonVoidConstituents.Count == 1
+            ? nonVoidConstituents[0]
+            : new UnionType(nonVoidConstituents.ToImmutableArray());
+
+        // ── MIST_TC_0044: Right operand must be assignable to T ──
+        var rhsType = model.GetTypeOf(assignment.Value);
+        if (rhsType is not null && !IsAssignable(rhsType, nonVoidPortion, model))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0044",
+                $"Cannot assign '{rhsType.DisplayName}' to the non-void portion '{nonVoidPortion.DisplayName}' of '{lhsType.DisplayName}'",
+                assignment.Value,
+                model));
+        }
+
+        // ── Flow narrowing: after ??=, the variable's type is T (not T | void) ──
+        _voidCoalescingTypeNarrowings[targetVarName] = nonVoidPortion;
+
+        // Update the symbol's DeclaredType so that subsequent GetTypeOf calls
+        // for this variable return the narrowed type.
+        if (targetPostfix is not null)
+        {
+            var symbol = model.GetDeclaredSymbol(targetPostfix.Target);
+            if (symbol is Symbol concreteSymbol && concreteSymbol.Kind == SymbolKind.LocalVariable)
+            {
+                concreteSymbol.DeclaredType = nonVoidPortion;
+            }
+        }
     }
 
     private void CheckLogicalOrNode(LogicalOrNode node, ISemanticModel model, DiagnosticBag diagnostics)
@@ -7364,6 +7623,94 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // After accessing a field, subsequent accesses are on the field's value (an instance).
                     targetIsTypeName = false;
                     break;
+
+                case OptionalMemberAccessSuffixPostfixSuffixNode optionalMemberAccess:
+                {
+                    // Task 6.1: Optional chaining member access (Requirements 3.1, 3.2, 3.3, 3.4).
+                    // The receiver must be a UnionType containing void.
+                    var optMemberResult = CheckOptionalChainingReceiver(
+                        currentType, optionalMemberAccess, model, diagnostics);
+                    if (optMemberResult is null)
+                    {
+                        currentType = ErrorType.Instance;
+                        targetIsTypeName = false;
+                        break;
+                    }
+
+                    // Resolve the member on the projected type T (void removed).
+                    var projectedType = optMemberResult;
+                    var memberSymbol = FindMemberSymbol(projectedType, optionalMemberAccess.Name.Lexeme, model);
+                    if (memberSymbol is null)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_UNDEFINED_MEMBER",
+                            $"'{projectedType.DisplayName}' does not contain a definition for '{optionalMemberAccess.Name.Lexeme}'",
+                            optionalMemberAccess,
+                            model));
+                        currentType = ErrorType.Instance;
+                        targetIsTypeName = false;
+                        break;
+                    }
+
+                    // The result type is R | void (flattened if R already contains void).
+                    var memberType = SubstituteMemberType(memberSymbol.DeclaredType, projectedType);
+                    currentType = WrapWithVoid(memberType, currentType);
+                    model.SetTypeOf(suffix, currentType);
+                    targetIsTypeName = false;
+                    break;
+                }
+
+                case OptionalMethodCallSuffixPostfixSuffixNode optionalMethodCall:
+                {
+                    // Task 6.1: Optional chaining method call (Requirements 3.1, 3.2, 3.3, 3.4).
+                    // The receiver must be a UnionType containing void.
+                    var receiverTypeForVoidWrap = currentType;
+                    var optMethodResult = CheckOptionalChainingReceiver(
+                        currentType, optionalMethodCall, model, diagnostics);
+                    if (optMethodResult is null)
+                    {
+                        currentType = ErrorType.Instance;
+                        targetIsTypeName = false;
+                        break;
+                    }
+
+                    // Resolve the method on the projected type T (void removed).
+                    var projectedType = optMethodResult;
+                    var methodSymbol = FindMemberSymbol(projectedType, optionalMethodCall.Name.Lexeme, model);
+                    if (methodSymbol is null)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_UNDEFINED_MEMBER",
+                            $"'{projectedType.DisplayName}' does not contain a definition for '{optionalMethodCall.Name.Lexeme}'",
+                            optionalMethodCall,
+                            model));
+                        currentType = ErrorType.Instance;
+                        targetIsTypeName = false;
+                        break;
+                    }
+
+                    // Check argument expressions recursively.
+                    if (optionalMethodCall.Arguments is not null)
+                    {
+                        CheckArgumentListExpressions(optionalMethodCall.Arguments, model, diagnostics);
+                    }
+
+                    // The result type is R | void (flattened if R already contains void).
+                    var returnType = SubstituteMemberType(methodSymbol.DeclaredType, projectedType);
+                    // Also substitute method-level type arguments in the return type.
+                    if (optionalMethodCall.TypeArgs is not null && methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
+                    {
+                        var resolvedTypeArgs = ResolveTypeArgumentsFromAst(optionalMethodCall.TypeArgs, model);
+                        if (resolvedTypeArgs.Count == sym.TypeParameters.Count)
+                        {
+                            returnType = TypeCheckerAnalyzer.SubstituteType(returnType!, sym.TypeParameters, resolvedTypeArgs);
+                        }
+                    }
+                    currentType = WrapWithVoid(returnType, receiverTypeForVoidWrap);
+                    model.SetTypeOf(suffix, currentType);
+                    targetIsTypeName = false;
+                    break;
+                }
             }
         }
 
@@ -7380,6 +7727,125 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 model.SetTypeOf(node, currentType);
             }
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Optional chaining helpers (MIST_TC_0111)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates that the receiver type of an optional chaining operator (<c>?.</c>)
+    /// is a <see cref="UnionType"/> containing void. If valid, returns the projected
+    /// type T (the union with void removed). If invalid, emits
+    /// <see cref="OptionalChainingRequiresOptionalType"/> and returns <c>null</c>.
+    /// </summary>
+    private static IType? CheckOptionalChainingReceiver(
+        IType? currentType,
+        SyntaxNode node,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        if (currentType is null || currentType is ErrorType)
+            return null;
+
+        // Unwrap type aliases (e.g., Optional<T> → T | void).
+        var effectiveType = currentType;
+        if (effectiveType is TypeAliasType alias)
+            effectiveType = alias.UnderlyingType;
+
+        // The receiver must be a UnionType containing void.
+        if (effectiveType is UnionType union)
+        {
+            var hasVoid = false;
+            foreach (var constituent in union.Constituents)
+            {
+                if (constituent.IsVoid())
+                {
+                    hasVoid = true;
+                    break;
+                }
+            }
+
+            if (hasVoid)
+            {
+                // Compute projected type T by removing void from constituents.
+                var nonVoidConstituents = new List<IType>();
+                foreach (var constituent in union.Constituents)
+                {
+                    if (!constituent.IsVoid())
+                        nonVoidConstituents.Add(constituent);
+                }
+
+                if (nonVoidConstituents.Count == 0)
+                {
+                    // All constituents are void — degenerate case.
+                    diagnostics.Add(MakeDiagnostic(
+                        OptionalChainingRequiresOptionalType.Value,
+                        $"Optional chaining operator '?.' requires a type of the form 'T | void', but found '{currentType.DisplayName}'",
+                        node,
+                        model));
+                    return null;
+                }
+
+                if (nonVoidConstituents.Count == 1)
+                    return nonVoidConstituents[0];
+
+                return new UnionType(nonVoidConstituents);
+            }
+        }
+
+        // Not a union containing void — emit error.
+        diagnostics.Add(MakeDiagnostic(
+            OptionalChainingRequiresOptionalType.Value,
+            $"Optional chaining operator '?.' requires a type of the form 'T | void', but found '{currentType.DisplayName}'",
+            node,
+            model));
+        return null;
+    }
+
+    /// <summary>
+    /// Wraps a type with void to produce <c>R | void</c>. If the type already
+    /// contains void (is a union with void), returns it unchanged (flattening).
+    /// If the type is null or ErrorType, returns ErrorType.
+    /// Uses the void type from the receiver's union to ensure type identity consistency.
+    /// </summary>
+    private static IType WrapWithVoid(IType? type, IType? receiverType = null)
+    {
+        if (type is null || type is ErrorType)
+            return ErrorType.Instance;
+
+        // If R is already void, return void.
+        if (type.IsVoid())
+            return type;
+
+        // If R is already a union containing void, return it unchanged.
+        if (type is UnionType existingUnion)
+        {
+            foreach (var constituent in existingUnion.Constituents)
+            {
+                if (constituent.IsVoid())
+                    return type;
+            }
+        }
+
+        // Extract the void type from the receiver's union (if available) to ensure
+        // type identity consistency. This avoids mismatches between LegacyPrimitiveTypes.Void
+        // (DisplayName "void") and the stdlib Standard.Void (DisplayName "Void").
+        IType voidType = LegacyPrimitiveTypes.Void;
+        if (receiverType is UnionType receiverUnion)
+        {
+            foreach (var constituent in receiverUnion.Constituents)
+            {
+                if (constituent.IsVoid())
+                {
+                    voidType = constituent;
+                    break;
+                }
+            }
+        }
+
+        // Create R | void.
+        return new UnionType(new List<IType> { type, voidType });
     }
 
     /// <summary>
@@ -8100,7 +8566,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (assignment.Value is not null)
             return null;
 
-        var logicalOr = assignment.Target;
+        var logicalOr = assignment.Target.Left;
         if (logicalOr.Right is not null)
             return null;
 
@@ -8148,7 +8614,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (assignment.Value is not null)
             return null; // Has an assignment operator — not a simple expression.
 
-        var logicalOr = assignment.Target;
+        var logicalOr = assignment.Target.Left;
         if (logicalOr.Right is not null)
             return null;
 
@@ -8223,7 +8689,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (assignment.Value is not null)
             return;
 
-        var defaultLiteral = TryExtractDefaultLiteralFromLogicalOr(assignment.Target);
+        var defaultLiteral = TryExtractDefaultLiteralFromLogicalOr(assignment.Target.Left);
         if (defaultLiteral is null)
             return;
 
@@ -8965,7 +9431,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var assignment = expr.Assignment;
         if (assignment?.Value is not null) return null;
 
-        var logicalOr = assignment?.Target;
+        var logicalOr = assignment?.Target?.Left;
         if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return null;
 
@@ -11647,7 +12113,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // ── Flow narrowing: check if the variable has constraints that prove the target ──
             if (assignmentValue.Value is null)
             {
-                var varName = TryExtractIdentifierFromLogicalOr(assignmentValue.Target);
+                var varName = TryExtractIdentifierFromLogicalOr(assignmentValue.Target.Left);
                 if (varName is not null &&
                     _narrowingContext.TryGetValue(varName, out var constraints))
                 {
@@ -15289,6 +15755,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         foreach (var constituent in unionType.Constituents)
         {
+            // Skip void constituents — member access on T | void projects to T
+            // (same semantics as ?. but without explicit short-circuit syntax).
+            if (constituent.IsVoid())
+                continue;
+
             var memberSymbol = FindMemberSymbol(constituent, memberName, model);
             if (memberSymbol is null)
             {

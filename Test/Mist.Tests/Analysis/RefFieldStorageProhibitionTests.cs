@@ -83,7 +83,7 @@ public class RefFieldStorageProhibitionTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -123,7 +123,7 @@ public class RefFieldStorageProhibitionTests
         var rhsAssignment = rhsExpr.Assignment;
 
         // Build the full assignment expression: this.fieldName = rhs
-        var assignment = new AssignmentNode { Target = lhsLogOr, Value = rhsAssignment };
+        var assignment = new AssignmentNode { Target = new VoidCoalescingNode { Left = lhsLogOr }, Value = rhsAssignment };
         var expr = new ExpressionNode { Assignment = assignment };
 
         return new ExpressionStatementStatementNode

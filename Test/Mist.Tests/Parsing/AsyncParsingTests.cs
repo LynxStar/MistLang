@@ -325,7 +325,7 @@ public class AsyncParsingTests
 
     private static AdditiveNode? GetAdditiveFromAssignment(AssignmentNode assignment)
     {
-        var logicalOr = assignment.Target;
+        var logicalOr = assignment.Target.Left;
         var logicalAnd = logicalOr.Left;
         var equality = logicalAnd.Left;
 

@@ -7,6 +7,8 @@ public class Program
 {
     public static void RunDemo()
     {
+        Console.WriteLine("=== AssemblyTypeProvider Sample ===");
+
         // PROOF: SDK assembly types are available without explicit package reference
         // PROOF: Generic CLR type (List<T>) resolves with Mist type argument
         var list = new List<int>();

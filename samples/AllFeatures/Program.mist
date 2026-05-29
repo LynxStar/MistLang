@@ -58,6 +58,7 @@ public class Program
         Iterators.Program.RunDemo();
         TypeArgumentInference.Program.RunDemo();
         OptionalTypes.Program.RunDemo();
+        AssemblyTypeProvider.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

@@ -1247,4 +1247,12 @@ after x ??= 100: x=100
 after y ??= 200: y=50
 after z ??= 7: z=7
 Done!
+=== AssemblyTypeProvider Sample ===
+Count=3
+Item0=10
+Found=42
+Length=12
+Upper=HELLO, WORLD
+Abs=5
+ArrLen=3
 === Done! ===

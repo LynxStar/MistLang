@@ -48,3 +48,4 @@ AssociatedTypes = { path = "../AssociatedTypes" }
 Iterators = { path = "../Iterators" }
 TypeArgumentInference = { path = "../TypeArgumentInference" }
 OptionalTypes = { path = "../OptionalTypes" }
+AssemblyTypeProvider = { path = "../AssemblyTypeProvider" }

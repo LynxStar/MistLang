@@ -42,6 +42,9 @@ This plan replaces the manually coded `CSharpAmbientTypeResolver` with an automa
     - Parse output to find highest version supporting target framework
     - Construct reference assembly path: `{sdkRoot}/packs/Microsoft.NETCore.App.Ref/{version}/ref/{tfm}/`
     - Fall back to well-known paths (`/usr/share/dotnet`, `C:\Program Files\dotnet`, `~/.dotnet`)
+    - Implement disk cache at `~/.mist/sdk-ref-path.cache`: read cached path first, validate with `Directory.Exists`, fall through to full discovery on miss/stale
+    - Implement in-process static cache: avoid even the disk read on repeated calls within the same process
+    - Implement `RegenerateDiskCache()` for the publish script to call
     - Emit `MIST_SDK_NOT_FOUND` and `MIST_SDK_NO_FRAMEWORK` diagnostics on failure
     - _Requirements: 2.1, 2.2, 2.4, 2.5, 2.6_
 
@@ -149,10 +152,13 @@ This plan replaces the manually coded `CSharpAmbientTypeResolver` with an automa
 
   - [ ] 6.2 Wire `AssemblyTypeProvider` into `CSharpTranspilerBackend`
     - Modify `CSharpTranspilerBackend.GetAmbientTypeResolver()` to return `AssemblyTypeProvider` instead of `CSharpAmbientTypeResolver`
+    - Implement static provider instance caching in `CSharpTranspilerBackend`: reuse the same `AssemblyTypeProvider` when assembly paths are identical across `Compile()` calls (avoids recreating MetadataLoadContext + reloading 167 DLLs per compilation)
+    - Implement static SDK assembly path caching in `CompilerDriver`: cache `Directory.GetFiles(sdkRefPath, "*.dll")` result so it's computed once per process
     - Pass SDK assembly paths and NuGet package assembly paths to the provider
     - Integrate with `CompilerDriver` — call `SdkDiscovery` and `PackageResolver` during Stage 1 (Loading)
     - Pass `ProjectConfiguration.Packages` from `ProjectFileParser` to `PackageResolver`
     - Handle `MIST_SDK_NOT_FOUND` gracefully (fall back to no assembly types)
+    - Add SDK cache regeneration step to `publish.sh`
     - _Requirements: 2.1, 2.3, 2.4, 15.4_
 
 - [ ] 7. SemanticModelBuilder integration

@@ -1,0 +1,13 @@
+using Standard;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Optional<int> opt = 42;
+        int? shorthand = opt;
+
+        Console.WriteLine($"opt={opt}");
+        Console.WriteLine($"shorthand={shorthand}");
+    }
+}

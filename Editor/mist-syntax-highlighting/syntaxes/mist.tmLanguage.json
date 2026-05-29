@@ -454,6 +454,18 @@
     "operators": {
       "patterns": [
         {
+          "name": "keyword.operator.void-coalescing-assignment.mist",
+          "match": "\\?\\?="
+        },
+        {
+          "name": "keyword.operator.void-coalescing.mist",
+          "match": "\\?\\?"
+        },
+        {
+          "name": "keyword.operator.void-conditional.mist",
+          "match": "\\?\\."
+        },
+        {
           "name": "keyword.operator.comparison.mist",
           "match": "\\b(is)\\b|==|!=|<=|>=|<|>"
         },

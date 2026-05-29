@@ -376,6 +376,11 @@ public static class AstEmitter
         var tokensInsideRepetition = new HashSet<ExpressionIR>();
         CollectTokensInsideRepetition(alt.Expression, false, tokensInsideRepetition);
 
+        // Build a set of expressions that live inside an OptionalIR so we can
+        // make labeled token fields nullable (Token?) when they may not be set.
+        var exprsInsideOptional = new HashSet<ExpressionIR>();
+        CollectExpressionsInsideOptional(alt.Expression, false, exprsInsideOptional);
+
         // First, add properties from field labels
         foreach(var label in alt.FieldLabels)
         {
@@ -386,6 +391,16 @@ public static class AstEmitter
             {
                 // The labeled token is inside a * or + repetition — generate a list property
                 propInfo = new PropertyInfo(propName, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
+            }
+            else if (exprsInsideOptional.Contains(label.Expression))
+            {
+                // The labeled expression is inside an optional group — make it nullable
+                propInfo = GetPropertyInfo(label.Expression, propName) switch
+                {
+                    var p when p.TypeName == "Token" => new PropertyInfo(propName, "Token?", true, false, false, ""),
+                    var p when !p.IsNullable && p.IsNodeType => new PropertyInfo(propName, p.TypeName + "?", true, true, false, ""),
+                    var p => p,
+                };
             }
             else
             {
@@ -431,6 +446,42 @@ public static class AstEmitter
                 break;
             case OneOrMoreIR oom:
                 CollectTokensInsideRepetition(oom.Inner, true, result);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Recursively walks the expression tree and adds all sub-expressions that
+    /// are nested inside an <see cref="OptionalIR"/> to the <paramref name="result"/> set.
+    /// This allows labeled fields inside optional groups to be made nullable.
+    /// Only collects TokenRefIR and AlternationIR (token choices) — not rule refs
+    /// or sequences, which are already handled by other nullable logic.
+    /// </summary>
+    private static void CollectExpressionsInsideOptional(ExpressionIR expr, bool insideOpt, HashSet<ExpressionIR> result)
+    {
+        if (insideOpt && (expr is TokenRefIR || expr is AlternationIR))
+        {
+            result.Add(expr);
+        }
+
+        switch (expr)
+        {
+            case SequenceIR seq:
+                foreach (var elem in seq.Elements)
+                    CollectExpressionsInsideOptional(elem, insideOpt, result);
+                break;
+            case AlternationIR alt:
+                foreach (var a in alt.Alternatives)
+                    CollectExpressionsInsideOptional(a, insideOpt, result);
+                break;
+            case OptionalIR opt:
+                CollectExpressionsInsideOptional(opt.Inner, true, result);
+                break;
+            case ZeroOrMoreIR zom:
+                CollectExpressionsInsideOptional(zom.Inner, insideOpt, result);
+                break;
+            case OneOrMoreIR oom:
+                CollectExpressionsInsideOptional(oom.Inner, insideOpt, result);
                 break;
         }
     }

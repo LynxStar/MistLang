@@ -13317,7 +13317,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var assignment = expr.Assignment;
         if (assignment?.Value is not null) return null; // It's an assignment, not a simple literal.
 
-        var logicalOr = assignment?.Target;
+        var voidCoalescing = assignment?.Target;
+        if (voidCoalescing?.LogicalOrs.Length > 0) return null;
+        var logicalOr = voidCoalescing?.Left;
         if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left)) return null;
 
         var logicalAnd = logicalOr?.Left;
@@ -15100,7 +15102,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        CollectFromLogicalOr(node.Target, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+        CollectFromLogicalOr(node.Target.Left, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
     }
 
     private static void CollectFromLogicalOr(
@@ -16043,6 +16045,73 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
     }
 
+    /// <summary>
+    /// Applies the optional type suffix (<c>?</c>) to a resolved base type.
+    /// When the <c>optional</c> field is present on a type reference node:
+    /// <list type="bullet">
+    ///   <item>If T is void itself → emit warning MIST_TC_0046 (redundant), return T unchanged.</item>
+    ///   <item>If T is a UnionType that already contains void → emit error MIST_TC_0045 (double-optional), return T unchanged.</item>
+    ///   <item>Otherwise → create <c>UnionType([T, VoidType])</c> with canonical ordering.</item>
+    /// </list>
+    /// </summary>
+    private static IType ApplyOptionalSuffix(
+        IType resolvedType,
+        Storm.Runtime.Token optionalToken,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Unwrap type aliases to check the underlying type.
+        var effectiveType = resolvedType;
+        if (effectiveType is TypeAliasType alias)
+            effectiveType = alias.UnderlyingType;
+
+        // Case 1: T is void itself — redundant `void?`
+        if (effectiveType.IsVoid())
+        {
+            diagnostics.Add(MakeDiagnosticWithTokenLocation(
+                "MIST_TC_0046",
+                DiagnosticSeverity.Warning,
+                "Applying '?' to 'void' is redundant \u2014 the type is already 'void'.",
+                optionalToken,
+                sourceText));
+            return resolvedType;
+        }
+
+        // Case 2: T is a UnionType that already contains void — double-optional error
+        if (effectiveType is UnionType existingUnion)
+        {
+            foreach (var constituent in existingUnion.Constituents)
+            {
+                if (constituent.IsVoid())
+                {
+                    diagnostics.Add(MakeDiagnosticWithTokenLocation(
+                        "MIST_TC_0045",
+                        DiagnosticSeverity.Error,
+                        "The optional suffix '?' cannot be applied to a type that already contains 'void'.",
+                        optionalToken,
+                        sourceText));
+                    return resolvedType;
+                }
+            }
+        }
+
+        // Case 3: Normal case — wrap T in UnionType([T, VoidType])
+        IType voidType;
+        try
+        {
+            var globalScope = FindGlobalScope(fileScope) ?? fileScope;
+            voidType = ResolveVoidKeyword(globalScope, symbolTable);
+        }
+        catch (StdlibMissingException)
+        {
+            voidType = LegacyPrimitiveTypes.Void;
+        }
+
+        return new UnionType(new List<IType> { resolvedType, voidType });
+    }
+
     private static IType ResolveTypeReference(
         TypeReferenceNode typeRef,
         Scope fileScope,
@@ -16091,13 +16160,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (primitiveRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
                 {
                     var size = long.Parse(sizedRank.Size.Lexeme);
-                    return new ArrayType(primBase, size);
+                    primBase = new ArrayType(primBase, size);
                 }
                 else if (primitiveRef.ArrayRank is not null)
                 {
-                    return _allocatingParameterArrayType
+                    primBase = _allocatingParameterArrayType
                         ? new ArrayType(primBase, _nextSymbolicLengthId++)
                         : new ArrayType(primBase);
+                }
+                // Apply optional suffix: T? → UnionType([T, VoidType])
+                if (primitiveRef.Optional is { } primOptToken)
+                {
+                    return ApplyOptionalSuffix(primBase, primOptToken, fileScope, symbolTable, sourceText, diagnostics);
                 }
                 return primBase;
 
@@ -16139,6 +16213,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             namedRef,
                             sourceText));
                     }
+                    // Apply optional suffix if present
+                    if (namedRef.Optional is { } tptOptToken)
+                        return ApplyOptionalSuffix(tpt, tptOptToken, fileScope, symbolTable, sourceText, diagnostics);
                     return tpt;
                 }
 
@@ -16153,6 +16230,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             namedRef,
                             sourceText));
                     }
+                    // Apply optional suffix if present
+                    if (namedRef.Optional is { } dptOptToken)
+                        return ApplyOptionalSuffix(dpt, dptOptToken, fileScope, symbolTable, sourceText, diagnostics);
                     return dpt;
                 }
 
@@ -16172,7 +16252,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             var resolvedSlot = ResolveAssociatedTypeSlotFromConstraints(typeParamLeft, rightPart);
                             if (resolvedSlot is not null)
+                            {
+                                // Apply optional suffix if present
+                                if (namedRef.Optional is { } slotOptToken)
+                                    return ApplyOptionalSuffix(resolvedSlot, slotOptToken, fileScope, symbolTable, sourceText, diagnostics);
                                 return resolvedSlot;
+                            }
 
                             // The left part is a type parameter but the right part is not
                             // an associated type slot of any constraining interface/trait.
@@ -16208,13 +16293,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (namedRef.ArrayRank is SizedArrayRankArrayRankSuffixNode namedSizedRank)
                 {
                     var size = long.Parse(namedSizedRank.Size.Lexeme);
-                    return new ArrayType(baseType, size);
+                    baseType = new ArrayType(baseType, size);
                 }
                 else if (namedRef.ArrayRank is not null)
                 {
-                    return _allocatingParameterArrayType
+                    baseType = _allocatingParameterArrayType
                         ? new ArrayType(baseType, _nextSymbolicLengthId++)
                         : new ArrayType(baseType);
+                }
+                // Apply optional suffix: T? → UnionType([T, VoidType])
+                if (namedRef.Optional is { } namedOptToken)
+                {
+                    return ApplyOptionalSuffix(baseType, namedOptToken, fileScope, symbolTable, sourceText, diagnostics);
                 }
                 return baseType;
 
@@ -16430,13 +16520,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (primitiveRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
                 {
                     var size = long.Parse(sizedRank.Size.Lexeme);
-                    return new ArrayType(primBase, size);
+                    primBase = new ArrayType(primBase, size);
                 }
                 else if (primitiveRef.ArrayRank is not null)
                 {
-                    return _allocatingParameterArrayType
+                    primBase = _allocatingParameterArrayType
                         ? new ArrayType(primBase, _nextSymbolicLengthId++)
                         : new ArrayType(primBase);
+                }
+                // Apply optional suffix: T? → UnionType([T, VoidType])
+                if (primitiveRef.Optional is { } primOptToken)
+                {
+                    return ApplyOptionalSuffix(primBase, primOptToken, fileScope, symbolTable, sourceText, diagnostics);
                 }
                 return primBase;
             }
@@ -16474,6 +16569,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             namedRef,
                             sourceText));
                     }
+                    // Apply optional suffix if present
+                    if (namedRef.Optional is { } tptOptToken)
+                        return ApplyOptionalSuffix(tpt, tptOptToken, fileScope, symbolTable, sourceText, diagnostics);
                     return tpt;
                 }
 
@@ -16492,7 +16590,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         var resolvedSlot = ResolveAssociatedTypeSlotFromConstraints(typeParamLeft, rightPart);
                         if (resolvedSlot is not null)
+                        {
+                            // Apply optional suffix if present
+                            if (namedRef.Optional is { } slotOptToken)
+                                return ApplyOptionalSuffix(resolvedSlot, slotOptToken, fileScope, symbolTable, sourceText, diagnostics);
                             return resolvedSlot;
+                        }
 
                         // The left part is a type parameter but the right part is not
                         // an associated type slot of any constraining interface/trait.
@@ -16527,13 +16630,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (namedRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
                 {
                     var size = long.Parse(sizedRank.Size.Lexeme);
-                    return new ArrayType(baseType, size);
+                    baseType = new ArrayType(baseType, size);
                 }
                 else if (namedRef.ArrayRank is not null)
                 {
-                    return _allocatingParameterArrayType
+                    baseType = _allocatingParameterArrayType
                         ? new ArrayType(baseType, _nextSymbolicLengthId++)
                         : new ArrayType(baseType);
+                }
+                // Apply optional suffix: T? → UnionType([T, VoidType])
+                if (namedRef.Optional is { } namedOptToken)
+                {
+                    return ApplyOptionalSuffix(baseType, namedOptToken, fileScope, symbolTable, sourceText, diagnostics);
                 }
                 return baseType;
             }
@@ -16875,7 +16983,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (assignment.Value is not null)
             return false; // It's an assignment, not a discarded expression.
 
-        var logicalOr = assignment.Target;
+        var logicalOr = assignment.Target.Left;
         if (logicalOr.Right is not null)
             return false;
 
@@ -17002,7 +17110,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (assignment.Value is not null)
             return null;
 
-        var logicalOr = assignment.Target;
+        var logicalOr = assignment.Target.Left;
         if (logicalOr.Right is not null)
             return null;
 
@@ -17879,7 +17987,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var targetType = ResolveLogicalOr(assignment.Target, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        var targetType = ResolveVoidCoalescing(assignment.Target, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
         if (assignment.Value is not null)
         {
@@ -17891,6 +17999,51 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         expressionTypes[assignment] = targetType;
         return targetType;
+    }
+
+    private static IType ResolveVoidCoalescing(
+        VoidCoalescingNode node,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var leftType = ResolveLogicalOr(node.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        if (node.LogicalOrs.Length > 0)
+        {
+            // For `a ?? b ?? c`, resolve each right operand.
+            // The result type is the non-void portion of the left type.
+            // The type checker will validate the types; here we just compute the result.
+            var currentType = leftType;
+            foreach (var rightOperand in node.LogicalOrs)
+            {
+                ResolveLogicalOr(rightOperand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                // Compute the non-void portion of the current left type for the result.
+                if (currentType is UnionType union)
+                {
+                    var nonVoidConstituents = union.Constituents
+                        .Where(c => !c.IsVoid())
+                        .ToList();
+                    currentType = nonVoidConstituents.Count == 1
+                        ? nonVoidConstituents[0]
+                        : currentType; // Keep as-is if can't simplify; type checker will validate.
+                }
+                // If not a union containing void, keep the type as-is (type checker will emit error).
+            }
+
+            expressionTypes[node] = currentType;
+            return currentType;
+        }
+
+        expressionTypes[node] = leftType;
+        return leftType;
     }
 
     private static IType ResolveLogicalOr(
@@ -18854,9 +19007,195 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 expressionTypes[suffix] = resultType;
                 return resultType;
             }
+            case OptionalMemberAccessSuffixPostfixSuffixNode optionalMemberAccess:
+            {
+                // Task 6.1: Optional chaining member access.
+                // The receiver must be a UnionType containing void. Project to T
+                // (remove void), resolve the member on T, and wrap result as R | void.
+                // Type validation is deferred to the type checker; here we resolve
+                // the member type for downstream consumers.
+                var projectedType = ProjectOptionalType(targetType);
+                if (projectedType is null || projectedType is ErrorType)
+                {
+                    expressionTypes[suffix] = ErrorType.Instance;
+                    return ErrorType.Instance;
+                }
+
+                var memberType = LookupMemberType(projectedType, optionalMemberAccess.Name.Lexeme, ambientTypeResolver, fileScope, symbolTable, sourceText, diagnostics);
+                // Wrap result as R | void (flattened if R already contains void).
+                var wrappedType = WrapTypeWithVoid(memberType, fileScope, symbolTable);
+                expressionTypes[suffix] = wrappedType;
+                return wrappedType;
+            }
+            case OptionalMethodCallSuffixPostfixSuffixNode optionalMethodCall:
+            {
+                // Task 6.1: Optional chaining method call.
+                // The receiver must be a UnionType containing void. Project to T
+                // (remove void), resolve the method on T, and wrap result as R | void.
+                var projectedType = ProjectOptionalType(targetType);
+                if (projectedType is null || projectedType is ErrorType)
+                {
+                    // Still resolve arguments to avoid cascading errors.
+                    if (optionalMethodCall.Arguments is not null)
+                    {
+                        ResolveArgumentList(optionalMethodCall.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+                    expressionTypes[suffix] = ErrorType.Instance;
+                    return ErrorType.Instance;
+                }
+
+                var memberName = optionalMethodCall.Name.Lexeme;
+                var memberType = LookupMemberType(projectedType, memberName, ambientTypeResolver, fileScope, symbolTable, sourceText, diagnostics);
+
+                // Handle method-level type arguments.
+                if (optionalMethodCall.TypeArgs is not null)
+                {
+                    var methodSymbol = LookupMemberSymbol(projectedType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                    if (methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
+                    {
+                        var hasDependentParams = false;
+                        foreach (var tp in sym.TypeParameters)
+                        {
+                            if (tp is DependentTypeParameterType)
+                            {
+                                hasDependentParams = true;
+                                break;
+                            }
+                        }
+                        IReadOnlyList<IType> resolvedTypeArgs;
+                        if (hasDependentParams)
+                        {
+                            var (typeArgs, _) = ResolvePass2TypeArgumentListWithDependents(
+                                optionalMethodCall.TypeArgs, sym.TypeParameters, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                            resolvedTypeArgs = typeArgs;
+                        }
+                        else
+                        {
+                            resolvedTypeArgs = ResolvePass2TypeArgumentList(optionalMethodCall.TypeArgs, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                        }
+
+                        if (resolvedTypeArgs.Count == sym.TypeParameters.Count)
+                        {
+                            memberType = SubstituteTypeParameters(memberType, sym.TypeParameters, resolvedTypeArgs);
+                        }
+                    }
+                }
+
+                // Resolve arguments.
+                if (optionalMethodCall.Arguments is not null)
+                {
+                    ResolveArgumentList(optionalMethodCall.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                }
+
+                // Auto-unwrap: in a sync context, if the invoked method is async,
+                // unwrap Task<T> to T so the caller sees the inner type.
+                if (!_isInAsyncContext && memberType is not ErrorType)
+                {
+                    var methodSym = LookupMemberSymbol(projectedType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                    if (methodSym is Symbol { IsAsync: true } && IsStandardTaskType(memberType))
+                    {
+                        memberType = UnwrapTaskType(memberType);
+                    }
+                }
+
+                // Wrap result as R | void (flattened if R already contains void).
+                var wrappedType = WrapTypeWithVoid(memberType, fileScope, symbolTable);
+                expressionTypes[suffix] = wrappedType;
+                return wrappedType;
+            }
             default:
                 return targetType;
         }
+    }
+
+    // ─── Optional Chaining Helpers ───────────────────────────────────────
+
+    /// <summary>
+    /// Projects an optional type by removing void from a union type.
+    /// If the type is a UnionType containing void, returns the non-void portion.
+    /// If the type is not a union containing void, returns null (indicating an error).
+    /// </summary>
+    private static IType? ProjectOptionalType(IType targetType)
+    {
+        if (targetType is ErrorType)
+            return null;
+
+        // Unwrap type aliases to see the underlying union.
+        if (targetType is TypeAliasType alias)
+            targetType = alias.UnderlyingType;
+
+        if (targetType is UnionType union)
+        {
+            var hasVoid = false;
+            foreach (var constituent in union.Constituents)
+            {
+                if (constituent.IsVoid())
+                {
+                    hasVoid = true;
+                    break;
+                }
+            }
+
+            if (hasVoid)
+            {
+                var nonVoidConstituents = new List<IType>();
+                foreach (var constituent in union.Constituents)
+                {
+                    if (!constituent.IsVoid())
+                        nonVoidConstituents.Add(constituent);
+                }
+
+                if (nonVoidConstituents.Count == 0)
+                    return null;
+                if (nonVoidConstituents.Count == 1)
+                    return nonVoidConstituents[0];
+                return new UnionType(nonVoidConstituents);
+            }
+        }
+
+        // Not a union containing void — the type checker will emit the error.
+        // Return the type as-is so the semantic model can still resolve members
+        // (the type checker will catch the invalid usage).
+        return targetType;
+    }
+
+    /// <summary>
+    /// Wraps a type with void to produce R | void. If the type already contains
+    /// void (is a union with void), returns it unchanged (flattening).
+    /// </summary>
+    private static IType WrapTypeWithVoid(IType type, Scope fileScope, SymbolTable symbolTable)
+    {
+        if (type is ErrorType)
+            return ErrorType.Instance;
+
+        if (type.IsVoid())
+            return type;
+
+        // If R is already a union containing void, return it unchanged.
+        if (type is UnionType existingUnion)
+        {
+            foreach (var constituent in existingUnion.Constituents)
+            {
+                if (constituent.IsVoid())
+                    return type;
+            }
+        }
+
+        // Resolve the void type from stdlib if available, otherwise use legacy.
+        IType voidType;
+        try
+        {
+            var globalScope = FindGlobalScope(fileScope);
+            voidType = globalScope is not null
+                ? ResolveVoidKeyword(globalScope, symbolTable)
+                : LegacyPrimitiveTypes.Void;
+        }
+        catch (StdlibMissingException)
+        {
+            voidType = LegacyPrimitiveTypes.Void;
+        }
+
+        return new UnionType(new List<IType> { type, voidType });
     }
 
     // ─── Switch Arm Resolution ───────────────────────────────────────────
@@ -19519,6 +19858,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (targetType is TypeAliasType aliasTarget)
         {
             targetType = aliasTarget.UnderlyingType;
+        }
+
+        // ── Union type with void: project to non-void constituents ──
+        // When the receiver is a T | void union, skip void constituents and
+        // resolve the member on the non-void portion. This allows member access
+        // on optional types (T?) without requiring explicit ?. syntax.
+        if (targetType is UnionType unionTarget)
+        {
+            var nonVoidConstituents = unionTarget.Constituents
+                .Where(c => !c.IsVoid())
+                .ToList();
+
+            // If there's exactly one non-void constituent, resolve the member on it.
+            if (nonVoidConstituents.Count == 1 && unionTarget.Constituents.Any(c => c.IsVoid()))
+            {
+                return LookupMemberType(
+                    nonVoidConstituents[0], memberName, ambientTypeResolver,
+                    fileScope, symbolTable, sourceText, diagnostics);
+            }
         }
 
         // ── Constrained type parameter member access (Requirements 6.1–6.4, 6.7) ──
@@ -20485,6 +20843,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     changed = true;
             }
             return changed ? new ConstructedTraitType(ctt.GenericTraitDefinition, substitutedArgs) : ctt;
+        }
+
+        if (type is UnionType unionType)
+        {
+            var substitutedConstituents = new IType[unionType.Constituents.Count];
+            var changed = false;
+            for (var i = 0; i < unionType.Constituents.Count; i++)
+            {
+                substitutedConstituents[i] = SubstituteTypeInMember(unionType.Constituents[i], typeParams, typeArgs);
+                if (!ReferenceEquals(substitutedConstituents[i], unionType.Constituents[i]))
+                    changed = true;
+            }
+            return changed ? new UnionType(substitutedConstituents) : unionType;
         }
 
         return type;

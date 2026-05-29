@@ -86,7 +86,7 @@ public class ParserRuleTests
 
             var expr = varDecl!.Initializer;
             var assignment = expr.Assignment;
-            var logicalOr = assignment.Target;
+            var logicalOr = assignment.Target.Left;
             var logicalAnd = logicalOr.Left;
             var equality = logicalAnd.Left;
             var relational = (RelationalComparisonRelationalNode)equality.Left;
@@ -118,7 +118,7 @@ public class ParserRuleTests
 
             var expr = varDecl!.Initializer;
             var assignment = expr.Assignment;
-            var logicalOr = assignment.Target;
+            var logicalOr = assignment.Target.Left;
 
             // LogicalOr should have Right (b && c)
             Assert.NotNull(logicalOr.Right);
@@ -142,7 +142,7 @@ public class ParserRuleTests
 
             var expr = varDecl!.Initializer;
             var assignment = expr.Assignment;
-            var logicalOr = assignment.Target;
+            var logicalOr = assignment.Target.Left;
             var logicalAnd = logicalOr.Left;
 
             var equality = logicalAnd.Right;

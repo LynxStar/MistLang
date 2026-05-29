@@ -19,6 +19,10 @@ token NOT_EQUAL             = "!=";
 token LESS_THAN_OR_EQUAL    = "<=";
 token GREATER_THAN_OR_EQUAL = ">=";
 token SUCH_THAT             = "=>";
+token QUESTION_QUESTION_EQUAL = "??=";
+token QUESTION_QUESTION     = "??";
+token QUESTION_DOT          = "?.";
+token QUESTION              = "?";
 token PLUS                  = "+";
 token MINUS                 = "-";
 token STAR                  = "*";
@@ -471,20 +475,20 @@ rule ElementTypeRef
 
 rule TypeReference
     = unionType:UnionTypeRef                                                as UnionTypeRef
-    | primitiveType:PrimitiveType arrayRank:ArrayRankSuffix?  as PrimitiveTypeRef
+    | primitiveType:PrimitiveType arrayRank:ArrayRankSuffix? optional:QUESTION?  as PrimitiveTypeRef
     | VOID                                                                  as VoidTypeRef
     | UNKNOWN                                                               as UnknownTypeRef
-    | name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:ArrayRankSuffix?  as NamedTypeRef
+    | name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:ArrayRankSuffix? optional:QUESTION?  as NamedTypeRef
     | LEFT_PARENTHESIS first:TupleTypeElement COMMA rest:TupleTypeElement (COMMA additional:TupleTypeElement)* RIGHT_PARENTHESIS  as TupleTypeRef
     ;
 
 rule UnionTypeRef = first:SingleTypeRef (PIPE rest:SingleTypeRef)+;
 
 rule SingleTypeRef
-    = primitiveType:PrimitiveType arrayRank:ArrayRankSuffix?  as PrimitiveSingleTypeRef
+    = primitiveType:PrimitiveType arrayRank:ArrayRankSuffix? optional:QUESTION?  as PrimitiveSingleTypeRef
     | VOID as VoidSingleTypeRef
     | UNKNOWN as UnknownSingleTypeRef
-    | name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:ArrayRankSuffix? as NamedSingleTypeRef
+    | name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:ArrayRankSuffix? optional:QUESTION? as NamedSingleTypeRef
     | LEFT_PARENTHESIS inner:TypeReference RIGHT_PARENTHESIS arrayRank:ArrayRankSuffix? as ParenthesizedTypeRef
     | LEFT_PARENTHESIS first:TupleTypeElement COMMA rest:TupleTypeElement (COMMA additional:TupleTypeElement)* RIGHT_PARENTHESIS as TupleSingleTypeRef
     ;
@@ -576,12 +580,14 @@ rule WithClause = WITH type:TypeReference name:IDENTIFIER;
 // ─── Parser Rules — Expressions (Precedence Climbing) ───────────────────────
 // Operator precedence is encoded structurally via a chain of rules, from
 // lowest to highest binding:
-//   Assignment < LogicalOr < LogicalAnd < Equality < Relational
+//   Assignment < VoidCoalescing < LogicalOr < LogicalAnd < Equality < Relational
 //   < Additive < Multiplicative < Unary < Postfix < Primary
 
 rule Expression = Assignment;
 
-rule Assignment = target:LogicalOr (EQUAL value:Assignment)?;
+rule Assignment = target:VoidCoalescing (operator:(EQUAL | QUESTION_QUESTION_EQUAL) value:Assignment)?;
+
+rule VoidCoalescing = left:LogicalOr (QUESTION_QUESTION right:LogicalOr)*;
 
 rule LogicalOr  = left:LogicalAnd (LOGICAL_OR right:LogicalAnd)*;
 rule LogicalAnd = left:Equality   (LOGICAL_AND right:Equality)*;
@@ -606,7 +612,9 @@ rule Unary
 rule Postfix = target:Primary suffix:PostfixSuffix*;
 
 rule PostfixSuffix
-    = DOT name:IDENTIFIER typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as MethodCallSuffix
+    = QUESTION_DOT name:IDENTIFIER typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as OptionalMethodCallSuffix
+    | QUESTION_DOT name:IDENTIFIER                                                as OptionalMemberAccessSuffix
+    | DOT name:IDENTIFIER typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as MethodCallSuffix
     | DOT name:IDENTIFIER                                                         as MemberAccessSuffix
     | LEFT_BRACKET index:Expression RIGHT_BRACKET                                 as IndexSuffix
     | LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS                       as InvocationSuffix

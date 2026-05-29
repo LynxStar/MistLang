@@ -92,7 +92,7 @@ public class StringLengthPropertyTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -124,7 +124,7 @@ public class StringLengthPropertyTests
         var argEq = new EqualityNode { Left = argRel };
         var argLogAnd = new LogicalAndNode { Left = argEq };
         var argLogOr = new LogicalOrNode { Left = argLogAnd };
-        var argAssign = new AssignmentNode { Target = argLogOr };
+        var argAssign = new AssignmentNode { Target = new VoidCoalescingNode { Left = argLogOr } };
         var argExpr = new ExpressionNode { Assignment = argAssign };
 
         var argList = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = argExpr } };
@@ -146,7 +146,7 @@ public class StringLengthPropertyTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -177,7 +177,7 @@ public class StringLengthPropertyTests
         var argEq = new EqualityNode { Left = argRel };
         var argLogAnd = new LogicalAndNode { Left = argEq };
         var argLogOr = new LogicalOrNode { Left = argLogAnd };
-        var argAssign = new AssignmentNode { Target = argLogOr };
+        var argAssign = new AssignmentNode { Target = new VoidCoalescingNode { Left = argLogOr } };
         var argExpr = new ExpressionNode { Assignment = argAssign };
 
         var argList = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = argExpr } };
@@ -199,7 +199,7 @@ public class StringLengthPropertyTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 

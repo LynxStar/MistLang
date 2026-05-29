@@ -136,7 +136,7 @@ public class PatternUndefinedTypeDiagnosticPropertyTests
         var eq = new EqualityNode { Left = isNode };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         var isExpr = new ExpressionNode { Assignment = assign };
 
         var ifStatement = new IfStatementStatementNode

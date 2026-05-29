@@ -91,7 +91,7 @@ public class VoidInstanceExpressionPropertyTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         var expr = new ExpressionNode { Assignment = assign };
         return (expr, postfix, suffix);
     }
@@ -327,7 +327,7 @@ public class VoidInstanceExpressionPropertyTests
         var callEq = new EqualityNode { Left = callRel };
         var callLogAnd = new LogicalAndNode { Left = callEq };
         var callLogOr = new LogicalOrNode { Left = callLogAnd };
-        var callAssign = new AssignmentNode { Target = callLogOr };
+        var callAssign = new AssignmentNode { Target = new VoidCoalescingNode { Left = callLogOr } };
         var callExpr = new ExpressionNode { Assignment = callAssign };
 
         var callStmt = new ExpressionStatementStatementNode

@@ -1230,4 +1230,21 @@ pair=(1, two)
 first_of_list=10
 instance_echo=99
 explicit=explicit
+=== OptionalTypes Sample ===
+maybeInt=42
+maybeInner=10
+optInt=99 fromOpt=99
+present?.GetValue()=5
+absent?.GetValue()=
+outerPresent.GetChild()?.GetValue()=7
+outerAbsent.GetChild()?.GetValue()=
+hasValue ?? 0=10
+noValue ?? 42=42
+a ?? 99=99, b ?? 99=77
+forCombo?.GetValue() ?? -1=-1
+forCombo2?.GetValue() ?? -1=33
+after x ??= 100: x=100
+after y ??= 200: y=50
+after z ??= 7: z=7
+Done!
 === Done! ===

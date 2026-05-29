@@ -1,0 +1,128 @@
+using Standard;
+
+namespace OptionalTypes;
+
+public class Inner
+{
+    public int value;
+
+    public Inner(int v)
+    {
+        this.value = v;
+    }
+
+    public int GetValue()
+    {
+        return this.value;
+    }
+
+    public string Describe()
+    {
+        return $"Inner({this.value})";
+    }
+}
+
+public class Outer
+{
+    public Inner? child;
+
+    public Outer(Inner? c)
+    {
+        this.child = c;
+    }
+
+    public Inner? GetChild()
+    {
+        return this.child;
+    }
+}
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== OptionalTypes Sample ===");
+
+        // PROOF: T? syntax parses as T | void for primitive types
+        // PROOF: Assigning a concrete value to T? works
+        int? maybeInt = 42;
+        Console.WriteLine($"maybeInt={maybeInt}");
+
+        // PROOF: T? syntax works for named types
+        Inner? maybeInner = new Inner(10);
+        Console.WriteLine($"maybeInner={maybeInner.GetValue()}");
+
+        // PROOF: Optional<T> is equivalent to T? — cross-assignment works
+        Optional<int> optInt = 99;
+        int? fromOpt = optInt;
+        Console.WriteLine($"optInt={optInt} fromOpt={fromOpt}");
+
+        // PROOF: ?. operator invokes method when receiver is non-void
+        Inner? present = new Inner(5);
+        int? result1 = present?.GetValue();
+        Console.WriteLine($"present?.GetValue()={result1}");
+
+        // PROOF: ?. operator short-circuits to void when receiver is void
+        Inner? absent = Void.Void;
+        int? result2 = absent?.GetValue();
+        Console.WriteLine($"absent?.GetValue()={result2}");
+
+        // PROOF: ?. chaining works through multiple levels
+        Outer outerPresent = new Outer(new Inner(7));
+        int? chained1 = outerPresent.GetChild()?.GetValue();
+        Console.WriteLine($"outerPresent.GetChild()?.GetValue()={chained1}");
+
+        Inner? absentInner = Void.Void;
+        Outer outerAbsent = new Outer(absentInner);
+        int? chained2 = outerAbsent.GetChild()?.GetValue();
+        Console.WriteLine($"outerAbsent.GetChild()?.GetValue()={chained2}");
+
+        // PROOF: ?? operator returns left when non-void
+        int? hasValue = 10;
+        int coalesced1 = hasValue ?? 0;
+        Console.WriteLine($"hasValue ?? 0={coalesced1}");
+
+        // PROOF: ?? operator returns right when left is void
+        int? noValue = Void.Void;
+        int coalesced2 = noValue ?? 42;
+        Console.WriteLine($"noValue ?? 42={coalesced2}");
+
+        // PROOF: ?? with nested optional — demonstrates fallback chain
+        int? a = Void.Void;
+        int? b = 77;
+        int fromA = a ?? 99;
+        int fromB = b ?? 99;
+        Console.WriteLine($"a ?? 99={fromA}, b ?? 99={fromB}");
+
+        // PROOF: ?. combined with ?? in a single expression
+        Inner? forCombo = Void.Void;
+        int comboResult = forCombo?.GetValue() ?? -1;
+        Console.WriteLine($"forCombo?.GetValue() ?? -1={comboResult}");
+
+        Inner? forCombo2 = new Inner(33);
+        int comboResult2 = forCombo2?.GetValue() ?? -1;
+        Console.WriteLine($"forCombo2?.GetValue() ?? -1={comboResult2}");
+
+        // PROOF: ??= assigns when variable is void
+        int? x = Void.Void;
+        x ??= 100;
+        Console.WriteLine($"after x ??= 100: x={x}");
+
+        // PROOF: ??= does not assign when variable is non-void
+        int? y = 50;
+        y ??= 200;
+        Console.WriteLine($"after y ??= 200: y={y}");
+
+        // PROOF: ??= narrows type — z is now int (not int?) after ??=
+        int? z = Void.Void;
+        z ??= 7;
+        Console.WriteLine($"after z ??= 7: z={z}");
+
+        Console.WriteLine("Done!");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

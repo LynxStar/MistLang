@@ -1,0 +1,14 @@
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        int? x = Void.Void;
+        x ??= 100;
+
+        // After ??=, x is narrowed to int (not int?)
+        int narrowed = x;
+
+        Console.WriteLine($"x={x}");
+        Console.WriteLine($"narrowed={narrowed}");
+    }
+}

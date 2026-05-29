@@ -57,6 +57,7 @@ public class Program
         AssociatedTypes.Program.RunDemo();
         Iterators.Program.RunDemo();
         TypeArgumentInference.Program.RunDemo();
+        OptionalTypes.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

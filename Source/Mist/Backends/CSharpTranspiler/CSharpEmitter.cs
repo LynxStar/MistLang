@@ -261,6 +261,13 @@ internal sealed class CSharpSourceWriter
     private bool _needsMistVoidStruct;
     private bool _inValueReturningVoidMethod;
     /// <summary>
+    /// When <c>true</c>, <c>Void.Void</c> expressions emit <c>null</c> instead of
+    /// <c>MistVoid.Instance</c>. Set when the enclosing context targets a two-constituent
+    /// <c>T | void</c> union (the "optional" pattern) that maps to C# <c>T?</c> or <c>T</c>
+    /// (reference type) where absence is represented by <c>null</c>.
+    /// </summary>
+    private bool _emitVoidAsNull;
+    /// <summary>
     /// Return type of the enclosing method, used by <see cref="EmitReturnStatement"/>
     /// to detect covariant unknown widening at return sites (Task 31.1).
     /// <c>null</c> outside a method body or when the return type is
@@ -433,6 +440,11 @@ internal sealed class CSharpSourceWriter
         {
             usings.Add("System.Text.RegularExpressions");
         }
+
+        // Remove the Mist stdlib namespace — it has no C# equivalent.
+        // All Standard.* types are mapped to their CLR counterparts (System.Console, int, etc.)
+        // via the CSharpTypeMap, so the `using Standard;` directive is never needed in emitted C#.
+        usings.Remove("Standard");
 
         // Emit using directives.
         foreach (var ns in usings.OrderBy(n => n, StringComparer.Ordinal))
@@ -641,6 +653,9 @@ internal sealed class CSharpSourceWriter
             usings.Add(inferredNamespace);
         }
 
+        // Remove the Mist stdlib namespace — it has no C# equivalent.
+        usings.Remove("Standard");
+
         foreach (var ns in usings.OrderBy(n => n, StringComparer.Ordinal))
         {
             AppendLine($"using {ns};");
@@ -792,6 +807,9 @@ internal sealed class CSharpSourceWriter
         {
             usings.Add(ns);
         }
+
+        // Remove the Mist stdlib namespace — it has no C# equivalent.
+        usings.Remove("Standard");
 
         foreach (var ns in usings.OrderBy(n => n, StringComparer.Ordinal))
         {
@@ -1226,7 +1244,14 @@ internal sealed class CSharpSourceWriter
     {
         // The target of an assignment is not in a value context for the purpose of the call itself,
         // but if there's an assignment value, the RHS is in a value context.
-        ScanLogicalOrForValueReturningCalls(assignment.Target, voidMethodNames, isValueContext);
+        ScanLogicalOrForValueReturningCalls(assignment.Target.Left, voidMethodNames, isValueContext);
+
+        // Scan the right operands of ?? (VoidCoalescing) — they are in a value context
+        // when the overall expression is in a value context.
+        foreach (var rightOperand in assignment.Target.LogicalOrs)
+        {
+            ScanLogicalOrForValueReturningCalls(rightOperand, voidMethodNames, isValueContext);
+        }
 
         if (assignment.Value is not null)
         {
@@ -1351,6 +1376,15 @@ internal sealed class CSharpSourceWriter
                     if (invocation.Arguments is not null)
                     {
                         ScanArgumentListForValueReturningCalls(invocation.Arguments, voidMethodNames);
+                    }
+                    break;
+                }
+                case OptionalMethodCallSuffixPostfixSuffixNode optionalMethodCall:
+                {
+                    // Optional chaining method call: scan arguments for value-returning calls.
+                    if (optionalMethodCall.Arguments is not null)
+                    {
+                        ScanArgumentListForValueReturningCalls(optionalMethodCall.Arguments, voidMethodNames);
                     }
                     break;
                 }
@@ -4288,9 +4322,17 @@ internal sealed class CSharpSourceWriter
 
         if (fieldDecl.Initializer != null)
         {
+            // Task 14.2: When the field type is a two-constituent T | void union,
+            // emit Void.Void as null instead of MistVoid.Instance.
+            var previousVoidAsNull = _emitVoidAsNull;
+            if (IsOptionalUnionType(fieldSymbol?.DeclaredType))
+                _emitVoidAsNull = true;
+
             // The field has an initializer expression.
             // With the bugfix, the Initializer property is now ExpressionNode? directly.
-            AppendLine($"{modifiers}{readonlyPrefix}{type} {name} = {EmitExpression(fieldDecl.Initializer)};");
+            var fieldInit = EmitExpression(fieldDecl.Initializer);
+            _emitVoidAsNull = previousVoidAsNull;
+            AppendLine($"{modifiers}{readonlyPrefix}{type} {name} = {fieldInit};");
         }
         else
         {
@@ -4529,12 +4571,12 @@ internal sealed class CSharpSourceWriter
                 continue;
 
             // The target should be a simple identifier (field name).
-            var targetText = GetSimpleIdentifierFromAssignmentTarget(assignment.Target);
+            var targetText = GetSimpleIdentifierFromAssignmentTarget(assignment.Target.Left);
             if (targetText is null)
                 continue;
 
             // The value should be a simple identifier matching a parameter name.
-            var valueText = GetSimpleIdentifierFromAssignmentTarget(assignment.Value.Target);
+            var valueText = GetSimpleIdentifierFromAssignmentTarget(assignment.Value.Target.Left);
             if (valueText is null)
                 continue;
 
@@ -4840,7 +4882,11 @@ internal sealed class CSharpSourceWriter
 
         if (appendImplicitReturn && !BlockEndsWithReturn(block))
         {
-            AppendLine("return MistVoid.Instance;");
+            // Task 14.2: If the return type is an optional union, emit null instead.
+            if (IsOptionalUnionType(_currentMethodReturnType))
+                AppendLine("return null;");
+            else
+                AppendLine("return MistVoid.Instance;");
         }
 
         _indentLevel--;
@@ -4920,7 +4966,11 @@ internal sealed class CSharpSourceWriter
         // If the last statement is not a return, append `return MistVoid.Instance;`.
         if (appendImplicitReturn && !BlockEndsWithReturn(block))
         {
-            AppendLine("return MistVoid.Instance;");
+            // Task 14.2: If the return type is an optional union, emit null instead.
+            if (IsOptionalUnionType(_currentMethodReturnType))
+                AppendLine("return null;");
+            else
+                AppendLine("return MistVoid.Instance;");
         }
 
         _indentLevel--;
@@ -5226,7 +5276,15 @@ internal sealed class CSharpSourceWriter
             {
                 if (returnStmt.ReturnStatement.Value is not null)
                 {
+                    // Task 14.2: When the method return type is a two-constituent T | void union,
+                    // emit Void.Void as null instead of MistVoid.Instance.
+                    var previousVoidAsNull = _emitVoidAsNull;
+                    if (IsOptionalUnionType(_currentMethodReturnType))
+                        _emitVoidAsNull = true;
+
                     var value = EmitExpression(returnStmt.ReturnStatement.Value);
+                    _emitVoidAsNull = previousVoidAsNull;
+
                     value = WrapWithImplicitCastIfNeeded(returnStmt.ReturnStatement, value);
                     // Task 31.1 — covariant unknown widening at the return
                     // site against the enclosing method's return type.
@@ -5248,11 +5306,22 @@ internal sealed class CSharpSourceWriter
                     {
                         var type = EmitTypeReference(typed.Type, isValueContext: true);
                         var name = typed.Name.Lexeme;
+
+                        var declaredSymbol = _model.GetDeclaredSymbol(typed) as Symbol;
+                        var declaredType = declaredSymbol?.DeclaredType;
+
+                        // Task 14.2: When the declared type is a two-constituent T | void union,
+                        // emit Void.Void as null instead of MistVoid.Instance.
+                        var previousVoidAsNull = _emitVoidAsNull;
+                        if (IsOptionalUnionType(declaredType))
+                            _emitVoidAsNull = true;
+
                         var init = EmitExpression(typed.Initializer);
+                        _emitVoidAsNull = previousVoidAsNull;
+
                         init = WrapWithImplicitCastIfNeeded(typed.Initializer, init);
                         // Task 31.1 — covariant unknown widening at the
                         // typed local declaration's assignment site.
-                        var declaredType = _model.GetDeclaredSymbol(typed)?.DeclaredType;
                         var initType = _model.GetTypeOf(typed.Initializer);
                         var widened = TryEmitCovariantUnknownCast(initType, declaredType, init);
                         if (widened is not null)
@@ -5411,13 +5480,15 @@ internal sealed class CSharpSourceWriter
             if (firstType is not VoidTypeRefTypeReferenceNode
                 && firstType is not UnionTypeRefTypeReferenceNode
                 && !TypeReferenceContainsUnknown(firstType)
+                && !TypeReferenceHasOptionalSuffix(firstType)
                 && !ContainsVoidOrUnknownKeyword(sourceText)
                 && !ContainsPipeOperator(sourceText)
                 && !ParameterListContainsTypeAlias(paramList, sourceText)
                 && !TypeReferenceHasDependentTypeArguments(firstType)
                 && !SourceContainsDependentTypeArguments(sourceText)
                 && !ContainsReadonlyKeyword(sourceText)
-                && !ContainsOwnershipKeyword(sourceText))
+                && !ContainsOwnershipKeyword(sourceText)
+                && !ContainsOptionalSuffix(sourceText))
             {
                 return sourceText;
             }
@@ -5472,6 +5543,35 @@ internal sealed class CSharpSourceWriter
     private static bool ContainsOwnershipKeyword(string source)
     {
         return ContainsWord(source, "owned") || ContainsWord(source, "frozen") || ContainsWord(source, "borrowed") || ContainsWord(source, "ref");
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the given type reference node has the optional suffix
+    /// (<c>?</c>) set. Used in <see cref="EmitParameterList"/> to detect optional
+    /// type annotations that require emitter-side rewriting (reference types emit
+    /// as plain <c>T</c> instead of <c>T?</c>).
+    /// </summary>
+    private static bool TypeReferenceHasOptionalSuffix(TypeReferenceNode typeRef)
+    {
+        return typeRef switch
+        {
+            PrimitiveTypeRefTypeReferenceNode p => p.Optional is not null,
+            NamedTypeRefTypeReferenceNode n => n.Optional is not null,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if <paramref name="source"/> contains a <c>?</c> character
+    /// that could indicate an optional type suffix. Used as a lexical fallback in
+    /// <see cref="EmitParameterList"/> to detect optional type annotations in
+    /// subsequent parameters (beyond the first) that the Storm parser does not
+    /// expose structurally. The <c>?</c> in a parameter list is always the optional
+    /// type suffix (not the ternary operator, which cannot appear in type positions).
+    /// </summary>
+    private static bool ContainsOptionalSuffix(string source)
+    {
+        return source.Contains('?');
     }
 
     /// <summary>
@@ -5717,11 +5817,56 @@ internal sealed class CSharpSourceWriter
             return $"{defName}{typeArgs}";
         }
 
+        // Union type underlying (e.g., `Optional<T> = T | void`) — substitute type
+        // parameters into the union constituents and emit the resulting type.
+        // For the common case of `type Optional<T> = T | void`, emit as nullable.
+        if (underlying is UnionType underlyingUnion)
+        {
+            // Check if this is a two-constituent void union (the Optional<T> pattern).
+            var isOptionalPattern = underlyingUnion.Constituents.Count == 2
+                && underlyingUnion.Constituents.Any(c => c.IsVoid());
+
+            if (isOptionalPattern && namedRef.TypeArgs is not null)
+            {
+                // Emit the type argument using the standard type reference path.
+                var firstTypeRef = namedRef.TypeArgs.GetTypeReference();
+                var emittedArg = EmitTypeReference(firstTypeRef, isValueContext);
+
+                // Determine if the type argument is a value type.
+                // Check the semantic model for the resolved type of the type argument.
+                var argSymbol = _model.GetDeclaredSymbol(firstTypeRef);
+                var argType = argSymbol?.DeclaredType;
+
+                // If we can determine it's a value type, emit T?. Otherwise emit T (reference type).
+                if (argType is not null && CSharpTypeMap.IsValueType(argType))
+                    return $"{emittedArg}?";
+
+                // Fallback: check if the emitted name is a known C# value type keyword.
+                if (IsKnownValueTypeKeyword(emittedArg))
+                    return $"{emittedArg}?";
+
+                // Reference type — null represents void, so just emit the type name.
+                return emittedArg;
+            }
+
+            // Fallback: emit underlying directly.
+            return CSharpTypeMap.GetTypeName(underlying, isValueContext);
+        }
+
         // Fallback: emit the underlying type with the type arguments appended.
         var baseName = CSharpTypeMap.GetTypeName(underlying, isValueContext);
         var args = EmitTypeArgumentList(namedRef.TypeArgs);
         return $"{baseName}{args}";
     }
+
+    /// <summary>
+    /// Checks if a C# type name is a known value type keyword.
+    /// Used as a fallback when the semantic model can't determine the type kind.
+    /// </summary>
+    private static bool IsKnownValueTypeKeyword(string typeName) => typeName is
+        "int" or "bool" or "float" or "double" or "long" or "short" or "byte"
+        or "char" or "decimal" or "uint" or "ulong" or "ushort" or "sbyte"
+        or "nint" or "nuint";
 
     /// <summary>
     /// Returns <c>true</c> if the parameter list contains a type reference that
@@ -5855,6 +6000,11 @@ internal sealed class CSharpSourceWriter
                 var rawText = _sourceText.Contents.Substring(span.Start, span.Length);
                 if (rawText.Contains("Void.Void"))
                 {
+                    // Task 14.2: When in an optional type context, emit null instead of MistVoid.Instance.
+                    if (_emitVoidAsNull)
+                    {
+                        return rawText.Replace("Void.Void", "null");
+                    }
                     _needsMistVoidStruct = true;
                     return rawText.Replace("Void.Void", "MistVoid.Instance");
                 }
@@ -5981,7 +6131,7 @@ internal sealed class CSharpSourceWriter
 
     private static bool AssignmentContainsTypeLiteral(AssignmentNode assignment)
     {
-        if (LogicalOrContainsTypeLiteral(assignment.Target))
+        if (LogicalOrContainsTypeLiteral(assignment.Target.Left))
             return true;
         if (assignment.Value is not null)
             return AssignmentContainsTypeLiteral(assignment.Value);
@@ -6084,7 +6234,15 @@ internal sealed class CSharpSourceWriter
                 var keyword = EmitPrimitiveType(primitiveRef.PrimitiveType);
                 if (primitiveRef.ArrayRank is not null)
                 {
-                    return $"{keyword}[]";
+                    // Task 14.6: int[]? → int[]? (Nullable array), int?[] → int?[] (array of Nullable)
+                    var arrayType = $"{keyword}[]";
+                    return primitiveRef.Optional is not null ? $"{arrayType}?" : arrayType;
+                }
+                // Task 14.6: When the optional suffix is present (e.g., int?), emit as
+                // C# Nullable<T> (T?) since all primitive types are value types.
+                if (primitiveRef.Optional is not null)
+                {
+                    return $"{keyword}?";
                 }
                 return keyword;
             }
@@ -6157,12 +6315,14 @@ internal sealed class CSharpSourceWriter
                     var emittedType = CSharpTypeMap.GetTypeName(refinementFromExprMap.BaseType, isValueContext);
                     return namedRef.ArrayRank is not null ? $"{emittedType}[]" : emittedType;
                 }
-                // ── Union type alias: emit as the helper struct name ──
+                // ── Union type alias: emit as nullable or helper struct name ──
                 // When a type alias resolves to a UnionType (e.g., `type AgeRange = int >= 3 | byte >= 0`),
-                // emit the generated helper type name (e.g., `Union_Byte_Int32`).
+                // check if it's a two-constituent void union first (emit as Nullable<T> or T),
+                // otherwise emit the generated helper type name (e.g., `Union_Byte_Int32`).
                 if (resolvedType is UnionType unionFromExprMap)
                 {
-                    var emittedType = UnionHelperGenerator.GetHelperTypeName(unionFromExprMap);
+                    var emittedType = CSharpTypeMap.TryGetOptionalTypeName(unionFromExprMap)
+                        ?? UnionHelperGenerator.GetHelperTypeName(unionFromExprMap);
                     return namedRef.ArrayRank is not null ? $"{emittedType}[]" : emittedType;
                 }
                 // Fallback: search all symbols for a type alias with this name.
@@ -6213,7 +6373,7 @@ internal sealed class CSharpSourceWriter
                             return namedRef.ArrayRank is not null ? $"{emittedType}[]" : emittedType;
                         }
                     }
-                    // Union type alias fallback: emit as the helper struct name.
+                    // Union type alias fallback: emit as nullable or helper struct name.
                     if (aliasSymbol?.DeclaredType is UnionType unionFallback)
                     {
                         var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
@@ -6222,7 +6382,8 @@ internal sealed class CSharpSourceWriter
                                 && GetSymbolContainingNamespace(s) == _currentNamespace);
                         if (!hasConcreteTypeInCurrentNamespace)
                         {
-                            var emittedType = UnionHelperGenerator.GetHelperTypeName(unionFallback);
+                            var emittedType = CSharpTypeMap.TryGetOptionalTypeName(unionFallback)
+                                ?? UnionHelperGenerator.GetHelperTypeName(unionFallback);
                             return namedRef.ArrayRank is not null ? $"{emittedType}[]" : emittedType;
                         }
                     }
@@ -6283,7 +6444,24 @@ internal sealed class CSharpSourceWriter
                 var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs, GetTypeParamsForName(name));
                 if (namedRef.ArrayRank is not null)
                 {
-                    return $"{name}{typeArgs}[]";
+                    var arrayType = $"{name}{typeArgs}[]";
+                    // Task 14.6: NamedType[]? → emit with optional suffix for value types
+                    return namedRef.Optional is not null ? $"{arrayType}?" : arrayType;
+                }
+                // Task 14.6: When the optional suffix is present on a named type reference
+                // and the semantic model path didn't handle it (GetTypeOf returned null),
+                // look up the declared symbol to determine if it's a value type or reference type.
+                // Value types → T?, reference types → plain T (null represents void).
+                if (namedRef.Optional is not null)
+                {
+                    var baseName = $"{name}{typeArgs}";
+                    // Look up the type to determine if it's a value type.
+                    var declaredSymbol = _model.AllSymbols
+                        .FirstOrDefault(s => s.Name == name && s.Kind is SymbolKind.Struct or SymbolKind.Class or SymbolKind.Enum);
+                    if (declaredSymbol?.DeclaredType is not null && CSharpTypeMap.IsValueType(declaredSymbol.DeclaredType))
+                        return $"{baseName}?";
+                    // Reference types: emit plain T (null represents void).
+                    return baseName;
                 }
                 return $"{name}{typeArgs}";
             }
@@ -6309,7 +6487,15 @@ internal sealed class CSharpSourceWriter
             }
             case UnionTypeRefTypeReferenceNode unionRef:
             {
-                // Union type references emit as the generated helper type name.
+                // Check if this is a two-constituent void union (T | void) that should
+                // emit as Nullable<T> or plain T instead of a union helper struct.
+                var resolvedUnionType = _model.GetTypeOf(unionRef) as UnionType;
+                if (resolvedUnionType is not null && CSharpTypeMap.TryGetOptionalTypeName(resolvedUnionType) is { } optionalName)
+                {
+                    return optionalName;
+                }
+
+                // Multi-constituent unions or non-void unions emit as the generated helper type name.
                 // Collect constituent names matching UnionHelperGenerator.GetConstituentCSharpName,
                 // sort alphabetically, and join with "_" to form "Union_{Type1}_{Type2}".
                 var constituentNames = new List<string>();
@@ -6872,17 +7058,24 @@ internal sealed class CSharpSourceWriter
                 AppendLine("break;");
                 break;
             case ExpressionStatementStatementNode exprStmt:
+                // Task 14.5 — void-coalescing assignment (??=): emit as x ??= value;
+                if (TryEmitVoidCoalescingAssignment(exprStmt.ExpressionStatement.Expression))
+                {
+                    break;
+                }
                 // Scope-exit await: if this expression statement is a discarded task,
                 // emit it as a variable declaration (var __task_N = {call};) so it can
                 // be awaited at scope exit.
                 if (_currentBlockDiscardedTasks is not null
                     && _currentBlockDiscardedTasks.TryGetValue(exprStmt.ExpressionStatement.Expression, out var taskInfo))
                 {
-                    AppendLine($"var {taskInfo.GeneratedVariableName} = {EmitExpression(exprStmt.ExpressionStatement.Expression)};");
+                    var taskExpr = EmitExpression(exprStmt.ExpressionStatement.Expression);
+                    AppendLine($"var {taskInfo.GeneratedVariableName} = {taskExpr};");
                 }
                 else
                 {
-                    AppendLine($"{EmitExpression(exprStmt.ExpressionStatement.Expression)};");
+                    var exprResult = EmitExpression(exprStmt.ExpressionStatement.Expression);
+                    AppendLine($"{exprResult};");
                 }
                 break;
             // Task 12.5 — Readonly blocks emit as regular blocks (no C# equivalent).
@@ -6911,8 +7104,17 @@ internal sealed class CSharpSourceWriter
                 if (declaredType is ArrayType targetArrayType)
                     _arrayLiteralTargetElementType = targetArrayType.ElementType;
 
+                // Task 14.2: When the declared type is a two-constituent T | void union,
+                // emit Void.Void as null instead of MistVoid.Instance.
+                // Also check the emitted type string — if it ends with '?', the type
+                // reference resolved to a nullable type (even if ??= narrowed the symbol).
+                var previousVoidAsNull = _emitVoidAsNull;
+                if (IsOptionalUnionType(declaredType) || type.EndsWith("?"))
+                    _emitVoidAsNull = true;
+
                 var init = EmitExpression(typed.Initializer);
                 _arrayLiteralTargetElementType = null;
+                _emitVoidAsNull = previousVoidAsNull;
 
                 init = WrapWithImplicitCastIfNeeded(typed.Initializer, init);
                 // Task 31.1 — covariant unknown widening at the typed local
@@ -7005,7 +7207,15 @@ internal sealed class CSharpSourceWriter
     {
         if (returnStmt.Value is not null)
         {
+            // Task 14.2: When the method return type is a two-constituent T | void union,
+            // emit Void.Void as null instead of MistVoid.Instance.
+            var previousVoidAsNull = _emitVoidAsNull;
+            if (IsOptionalUnionType(_currentMethodReturnType))
+                _emitVoidAsNull = true;
+
             var value = EmitExpression(returnStmt.Value);
+            _emitVoidAsNull = previousVoidAsNull;
+
             value = WrapWithImplicitCastIfNeeded(returnStmt, value);
             // Task 31.1 — covariant unknown widening at the return site
             // against the enclosing method's return type.
@@ -7026,7 +7236,15 @@ internal sealed class CSharpSourceWriter
         else if (_inValueReturningVoidMethod)
         {
             // In value-returning void methods, `return;` becomes `return MistVoid.Instance;`
-            AppendLine("return MistVoid.Instance;");
+            // Task 14.2: If the return type is an optional union, emit null instead.
+            if (IsOptionalUnionType(_currentMethodReturnType))
+            {
+                AppendLine("return null;");
+            }
+            else
+            {
+                AppendLine("return MistVoid.Instance;");
+            }
         }
         else
         {
@@ -7130,11 +7348,20 @@ internal sealed class CSharpSourceWriter
 
     private string EmitAssignment(AssignmentNode assignment)
     {
-        var target = EmitLogicalOr(assignment.Target);
+        var target = EmitVoidCoalescing(assignment.Target);
 
         if (assignment.Value is not null)
         {
+            // Task 14.2: When the assignment target type is a two-constituent T | void union,
+            // emit Void.Void as null instead of MistVoid.Instance.
+            var previousVoidAsNull = _emitVoidAsNull;
+            var assignTargetType = _model.GetTypeOf(assignment.Target);
+            if (IsOptionalUnionType(assignTargetType))
+                _emitVoidAsNull = true;
+
             var value = EmitAssignment(assignment.Value);
+            _emitVoidAsNull = previousVoidAsNull;
+
             value = WrapWithImplicitCastIfNeeded(assignment, value);
             // Task 31.1 — covariant unknown widening at the assignment
             // site against the target's static type.
@@ -7147,6 +7374,64 @@ internal sealed class CSharpSourceWriter
         }
 
         return target;
+    }
+
+    /// <summary>
+    /// Task 14.5 — Attempts to emit a void-coalescing assignment (<c>x ??= value</c>)
+    /// using C#'s native null-coalescing assignment operator: <c>x ??= value;</c>.
+    /// Returns <c>true</c> if the expression was a <c>??=</c> assignment and was emitted;
+    /// <c>false</c> otherwise.
+    /// Requirements: 7.4, 5.2, 5.3
+    /// </summary>
+    private bool TryEmitVoidCoalescingAssignment(ExpressionNode expression)
+    {
+        var assignment = expression.Assignment;
+
+        // Check if this is a ??= assignment by inspecting the operator token.
+        if (assignment.Operator is not { } op || op.Kind != (int)TokenKind.QUESTION_QUESTION_EQUAL)
+            return false;
+
+        if (assignment.Value is null)
+            return false;
+
+        // Emit the target variable name.
+        var target = EmitLogicalOr(assignment.Target.Left);
+
+        // Emit the value expression.
+        var value = EmitAssignment(assignment.Value);
+        value = WrapWithImplicitCastIfNeeded(assignment, value);
+
+        // Generate: x ??= value;
+        AppendLine($"{target} ??= {value};");
+
+        return true;
+    }
+
+    /// <summary>
+    /// Emits a void-coalescing expression (<c>left ?? right</c>) using
+    /// C#'s native <c>??</c> operator. For chained <c>a ?? b ?? c</c>, emits
+    /// <c>a ?? b ?? c</c> directly (C# handles right-associativity natively).
+    /// Requirements: 7.3, 7.5
+    /// </summary>
+    private string EmitVoidCoalescing(VoidCoalescingNode node)
+    {
+        var left = EmitLogicalOr(node.Left);
+
+        if (node.LogicalOrs.Length == 0)
+            return left;
+
+        // Build the expression using C#'s native ?? operator.
+        // For `a ?? b ?? c`, emit `a ?? b ?? c` directly.
+        var sb = new StringBuilder();
+        sb.Append(left);
+
+        for (var i = 0; i < node.LogicalOrs.Length; i++)
+        {
+            sb.Append(" ?? ");
+            sb.Append(EmitLogicalOr(node.LogicalOrs[i]));
+        }
+
+        return sb.ToString();
     }
 
     private string EmitLogicalOr(LogicalOrNode logicalOr)
@@ -8846,9 +9131,13 @@ internal sealed class CSharpSourceWriter
             }
             case MemberAccessSuffixPostfixSuffixNode memberAccess:
             {
-                // Special case: Void.Void → MistVoid.Instance
+                // Special case: Void.Void → null (optional context) or MistVoid.Instance
                 if (target == "Void" && memberAccess.Name.Lexeme == "Void")
                 {
+                    if (_emitVoidAsNull)
+                    {
+                        return "null";
+                    }
                     _needsMistVoidStruct = true;
                     return "MistVoid.Instance";
                 }
@@ -8974,9 +9263,42 @@ internal sealed class CSharpSourceWriter
                 sb.Append('}');
                 return sb.ToString();
             }
+            case OptionalMemberAccessSuffixPostfixSuffixNode optionalMemberAccess:
+            {
+                // Task 14.3: Optional chaining member access using C#'s native ?. operator
+                // (Requirements 7.2, 7.6). Since T | void maps to T? (Nullable) or T (reference
+                // with null), C#'s ?. provides the exact semantics: short-circuit to null when
+                // receiver is null, no double-evaluation of complex receivers.
+                var memberName = optionalMemberAccess.Name.Lexeme;
+                return $"{target}?.{memberName}";
+            }
+            case OptionalMethodCallSuffixPostfixSuffixNode optionalMethodCall:
+            {
+                // Task 14.3: Optional chaining method call using C#'s native ?. operator
+                // (Requirements 7.2, 7.6). C#'s ?. handles short-circuiting and chaining natively.
+                var methodName = optionalMethodCall.Name.Lexeme;
+                var typeArgs = optionalMethodCall.TypeArgs is not null
+                    ? EmitTypeArgumentList(optionalMethodCall.TypeArgs)
+                    : "";
+                var args = EmitArgumentList(optionalMethodCall.Arguments);
+                return $"{target}?.{methodName}{typeArgs}({args})";
+            }
             default:
                 return target;
         }
+    }
+
+
+    /// <summary>
+    /// Returns <c>true</c> if the given type is a two-constituent union where one
+    /// constituent is <c>void</c> — the "optional" pattern (<c>T | void</c>).
+    /// These unions map to C# <c>T?</c> (value types) or plain <c>T</c> (reference types)
+    /// where absence is represented by <c>null</c>.
+    /// </summary>
+    private static bool IsOptionalUnionType(IType? type)
+    {
+        return type is UnionType { Constituents.Count: 2 } union
+            && union.Constituents.Any(c => c.IsVoid());
     }
 
     /// <summary>

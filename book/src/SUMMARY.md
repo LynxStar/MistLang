@@ -39,6 +39,7 @@
 - [Associated Types](type-system/associated-types.md)
 - [Type Aliases](type-system/type-aliases.md)
 - [Type Unions](type-system/type-unions.md)
+- [Optional Types](type-system/optional-types.md)
 - [Newtypes](type-system/newtypes.md)
 - [Pattern Matching](type-system/pattern-matching.md)
 - [Switch Expressions](type-system/switch-expressions.md)

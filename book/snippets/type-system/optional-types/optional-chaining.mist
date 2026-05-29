@@ -1,0 +1,29 @@
+public class Item
+{
+    public int value;
+
+    public Item(int v)
+    {
+        this.value = v;
+    }
+
+    public int GetValue()
+    {
+        return this.value;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Item? present = new Item(5);
+        Item? absent = Void.Void;
+
+        int? result1 = present?.GetValue();
+        int? result2 = absent?.GetValue();
+
+        Console.WriteLine($"present?.GetValue()={result1}");
+        Console.WriteLine($"absent?.GetValue()={result2}");
+    }
+}

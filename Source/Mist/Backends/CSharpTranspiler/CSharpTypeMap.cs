@@ -173,7 +173,11 @@ internal static class CSharpTypeMap
         // Enum types map to their record class name (the enum's DisplayName).
         EnumType et => et.DisplayName,
 
-        // Union types lower to the generated helper struct name.
+        // Two-constituent void unions (T | void) lower to C# Nullable<T> for value types
+        // or plain T for reference types (Requirement 7.1, 7.8).
+        UnionType ut when TryGetOptionalTypeName(ut, isValueContext) is { } optName => optName,
+
+        // Multi-constituent unions (or non-void unions) lower to the generated helper struct name.
         UnionType ut => UnionHelperGenerator.GetHelperTypeName(ut),
 
         // User-facing UnknownType (Requirement 15.1): every direct reference to
@@ -369,4 +373,60 @@ internal static class CSharpTypeMap
         }
         return $"({string.Join(", ", parts)})";
     }
+
+    /// <summary>
+    /// Determines whether a <see cref="UnionType"/> is a two-constituent union where
+    /// one constituent is void (i.e., the <c>T | void</c> / <c>T?</c> pattern).
+    /// These unions are emitted as C# <c>Nullable&lt;T&gt;</c> for value types or
+    /// plain <c>T</c> for reference types, rather than generating a union helper struct.
+    /// </summary>
+    public static bool IsOptionalUnion(UnionType unionType)
+    {
+        return unionType.Constituents.Count == 2
+            && unionType.Constituents.Any(c => c.IsVoid());
+    }
+
+    /// <summary>
+    /// For a two-constituent void union (<c>T | void</c>), returns the non-void
+    /// constituent type. Returns <c>null</c> if the union is not an optional union.
+    /// </summary>
+    public static IType? GetOptionalInnerType(UnionType unionType)
+    {
+        if (!IsOptionalUnion(unionType))
+            return null;
+        return unionType.Constituents.First(c => !c.IsVoid());
+    }
+
+    /// <summary>
+    /// Attempts to emit a C# type name for a two-constituent void union (<c>T | void</c>).
+    /// Returns <c>null</c> if the union is not an optional union (i.e., has more than two
+    /// constituents or does not contain void), in which case the caller should fall through
+    /// to the standard union helper struct emission.
+    /// <para>
+    /// For value types (struct, enum): emits <c>T?</c> (C# <c>Nullable&lt;T&gt;</c>).
+    /// For reference types (class): emits plain <c>T</c> (C# null represents absence).
+    /// </para>
+    /// </summary>
+    public static string? TryGetOptionalTypeName(UnionType unionType, bool isValueContext = false)
+    {
+        if (!IsOptionalUnion(unionType))
+            return null;
+
+        var innerType = GetOptionalInnerType(unionType)!;
+        var innerTypeName = GetTypeName(innerType, isValueContext);
+
+        // Value types (struct, enum) → Nullable<T> (emitted as T?)
+        if (IsValueType(innerType))
+            return $"{innerTypeName}?";
+
+        // Reference types (class) → plain T (null represents void)
+        return innerTypeName;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the given type is a C# value type (struct or enum).
+    /// Value types use <c>Nullable&lt;T&gt;</c> for optional representation;
+    /// reference types use <c>null</c> directly.
+    /// </summary>
+    public static bool IsValueType(IType type) => type.Kind is TypeKind.Struct or TypeKind.Enum;
 }

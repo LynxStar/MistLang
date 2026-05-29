@@ -107,7 +107,7 @@ public class TraitAssignabilityPropertyTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new ExpressionNode { Assignment = assign };
     }
 
@@ -621,7 +621,7 @@ public class TraitAssignabilityPropertyTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         var callStatement = new ExpressionStatementStatementNode
         {
             ExpressionStatement = new ExpressionStatementNode
@@ -708,7 +708,7 @@ public class TraitAssignabilityPropertyTests
         var createEq = new EqualityNode { Left = createRel };
         var createLogAnd = new LogicalAndNode { Left = createEq };
         var createLogOr = new LogicalOrNode { Left = createLogAnd };
-        var createAssign = new AssignmentNode { Target = createLogOr };
+        var createAssign = new AssignmentNode { Target = new VoidCoalescingNode { Left = createLogOr } };
         var createExpr = new ExpressionNode { Assignment = createAssign };
 
         var mainVarDecl = new VariableDeclarationStatementStatementNode

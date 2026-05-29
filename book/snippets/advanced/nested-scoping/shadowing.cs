@@ -1,26 +1,19 @@
 using System;
-using System.Text.RegularExpressions;
 
-namespace Standard;
-
-public class Optional<T>
+public static class UnknownExtensions_Unknown_L11
 {
-    private T value;
-
-    private bool hasValue;
-
-    public Optional()
+    public static string ToString(this object self)
     {
-        hasValue = false;
+        return "";
     }
 
-    public Optional(T value)
+    public static int GetHashCode(this object self)
     {
-        this.value = value;
-        this.hasValue = true;
+        return 0;
     }
 
-    public bool HasValue => hasValue;
-
-    public T Value => value;
+    public static System.Type GetType(this object self)
+    {
+        return self.GetType();
+    }
 }

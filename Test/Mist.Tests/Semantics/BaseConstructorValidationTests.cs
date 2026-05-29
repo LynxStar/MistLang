@@ -162,7 +162,7 @@ public class BaseConstructorValidationTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = logOr };
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         var expr = new ExpressionNode { Assignment = assign };
 
         return new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = expr } };

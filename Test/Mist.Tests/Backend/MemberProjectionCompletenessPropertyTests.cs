@@ -25,7 +25,6 @@ public sealed class MemberProjectionCompletenessPropertyTests
 
     /// <summary>
     /// All fixture types that contain projectable public members.
-    /// Excludes ref structs and types that are entirely filtered.
     /// </summary>
     private static readonly Type[] FixtureTypes =
     [

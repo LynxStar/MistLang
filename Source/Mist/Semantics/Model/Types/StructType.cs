@@ -66,6 +66,13 @@ public sealed class StructType : IType
     public bool IsOwnedType { get; internal set; }
 
     /// <summary>
+    /// Indicates whether this type is a ref struct (stack-only, cannot be boxed).
+    /// When true, the type cannot be used as a field in non-ref-struct types,
+    /// as a generic type argument, in union types, or as an optional type.
+    /// </summary>
+    public bool IsRefStruct { get; internal set; }
+
+    /// <summary>
     /// Returns all ancestor struct types in order from immediate parent to root.
     /// </summary>
     public IReadOnlyList<StructType> GetAncestorChain()

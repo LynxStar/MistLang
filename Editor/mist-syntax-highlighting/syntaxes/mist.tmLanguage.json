@@ -294,6 +294,25 @@
           }
         },
         {
+          "comment": "Generic ref struct declaration: ref struct Name<T>",
+          "match": "\\b(ref)\\s+(struct)\\s+([a-zA-Z_]\\w*)\\s*(<)",
+          "captures": {
+            "1": { "name": "storage.modifier.mist" },
+            "2": { "name": "keyword.declaration.mist" },
+            "3": { "name": "entity.name.type.mist" },
+            "4": { "name": "punctuation.definition.typeparameters.begin.mist" }
+          }
+        },
+        {
+          "comment": "ref struct declaration: ref struct Name",
+          "match": "\\b(ref)\\s+(struct)\\s+([a-zA-Z_]\\w*)",
+          "captures": {
+            "1": { "name": "storage.modifier.mist" },
+            "2": { "name": "keyword.declaration.mist" },
+            "3": { "name": "entity.name.type.struct.mist" }
+          }
+        },
+        {
           "comment": "Generic class/struct/interface/trait declaration with type parameter list: class Box<T>, class Array<Size:int>",
           "match": "\\b(class|struct|interface|trait)\\s+([a-zA-Z_]\\w*)\\s*(<)",
           "captures": {

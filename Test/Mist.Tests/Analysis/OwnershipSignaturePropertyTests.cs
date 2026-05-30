@@ -163,11 +163,13 @@ public class OwnershipSignaturePropertyTests
 
     /// <summary>
     /// Non-owned specifiers that are invalid on return types.
+    /// Note: "readonly ref" is excluded because the grammar change (ref-structs feature)
+    /// now parses "readonly ref" in method position as modifiers (readonly + ref),
+    /// making it a ref-return annotation rather than an ownership specifier.
     /// </summary>
     private static readonly (string Specifier, string Label)[] InvalidReturnSpecs =
     [
         ("borrowed ", "borrowed"),
-        ("readonly ref ", "readonly ref"),
         ("frozen ", "frozen"),
     ];
 

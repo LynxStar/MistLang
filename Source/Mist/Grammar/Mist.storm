@@ -317,6 +317,7 @@ rule Modifier
     | READONLY  as ReadonlyModifier
     | OWNED     as OwnedModifier
     | ASYNC     as AsyncModifier
+    | REF       as RefModifier
     ;
 
 // ─── Parser Rules — Ownership Specifiers ─────────────────────────────────────

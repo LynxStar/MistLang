@@ -172,6 +172,9 @@ internal sealed class TypeProjector
         var memberScope = new Scope(null);
         var structType = new StructType(displayName, memberScope, containingNamespace);
 
+        if (clrType.IsByRefLike)
+            structType.IsRefStruct = true;
+
         // Project type parameters for generic structs
         if (clrType.IsGenericTypeDefinition)
         {
@@ -180,6 +183,10 @@ internal sealed class TypeProjector
 
         // Project implemented interfaces
         structType.Interfaces = ProjectInterfaces(clrType, stdlib);
+
+        // Synthesize IEnumerable<T> for types that duck-type to the enumerable pattern
+        // but don't explicitly implement IEnumerable<T> (e.g., Span<T>)
+        SynthesizeDuckTypedIEnumerable(clrType, structType, stdlib);
 
         // Synthesize Enumerator associated type slots for IEnumerable<T> implementations
         SynthesizeEnumeratorSlots(clrType, structType, stdlib);
@@ -217,6 +224,10 @@ internal sealed class TypeProjector
 
         // Project implemented interfaces
         classType.Interfaces = ProjectInterfaces(clrType, stdlib);
+
+        // Synthesize IEnumerable<T> for types that duck-type to the enumerable pattern
+        // but don't explicitly implement IEnumerable<T>
+        SynthesizeDuckTypedIEnumerable(clrType, classType, stdlib);
 
         // Synthesize Enumerator associated type slots for IEnumerable<T> implementations
         SynthesizeEnumeratorSlots(clrType, classType, stdlib);
@@ -476,6 +487,181 @@ internal sealed class TypeProjector
 
             memberScope.AddMember(slotSymbol);
         }
+    }
+
+    /// <summary>
+    /// For ambient types that do NOT already implement <c>IEnumerable&lt;T&gt;</c>,
+    /// checks whether the type duck-types to the enumerable pattern:
+    /// <list type="bullet">
+    ///   <item>Has a public parameterless <c>GetEnumerator()</c> method</item>
+    ///   <item>The return type of <c>GetEnumerator()</c> has a public <c>bool MoveNext()</c> method</item>
+    ///   <item>The return type of <c>GetEnumerator()</c> has a public <c>Current</c> property</item>
+    /// </list>
+    ///
+    /// <para>
+    /// When all conditions are met, synthesizes <c>IEnumerable&lt;TElement&gt;</c> in the
+    /// type's interface list (where <c>TElement</c> is resolved from <c>Current</c>'s return type)
+    /// and synthesizes the <c>Enumerator</c> associated type slot.
+    /// </para>
+    ///
+    /// <para>Requirements: 10.1, 10.2, 10.3, 10.6.</para>
+    /// </summary>
+    /// <param name="clrType">The CLR type to inspect for duck-typed enumerable pattern.</param>
+    /// <param name="projectedType">The already-projected Mist type whose interface list and member scope may be updated.</param>
+    /// <param name="stdlib">The stdlib type provider for resolving Standard Library types.</param>
+    internal void SynthesizeDuckTypedIEnumerable(
+        Type clrType,
+        IType projectedType,
+        IStdlibTypeProvider stdlib)
+    {
+        // Only applies if the type does NOT already implement IEnumerable<T>
+        var enumerableImpls = GetGenericIEnumerableImplementations(clrType);
+        if (enumerableImpls.Count > 0)
+            return;
+
+        // Guard against double-synthesis: if the Mist type already has IEnumerable
+        // in its interface list (from a previous call), skip.
+        var existingInterfaces = projectedType switch
+        {
+            StructType st => st.Interfaces,
+            ClassType ct => ct.Interfaces,
+            _ => (IReadOnlyList<IType>)Array.Empty<IType>(),
+        };
+        if (existingInterfaces.Any(i => i is ConstructedType ci
+            && ci.GenericDefinition is InterfaceType iface
+            && iface.DisplayName == "IEnumerable"))
+            return;
+
+        // Look for a public parameterless GetEnumerator() method
+        var getEnumeratorMethod = clrType.GetMethod(
+            "GetEnumerator",
+            BindingFlags.Public | BindingFlags.Instance,
+            null,
+            Type.EmptyTypes,
+            null);
+
+        if (getEnumeratorMethod is null)
+            return;
+
+        var enumeratorClrType = getEnumeratorMethod.ReturnType;
+
+        // Verify the enumerator type has a public bool MoveNext() method
+        var moveNextMethod = enumeratorClrType.GetMethod(
+            "MoveNext",
+            BindingFlags.Public | BindingFlags.Instance,
+            null,
+            Type.EmptyTypes,
+            null);
+
+        if (moveNextMethod is null || moveNextMethod.ReturnType.FullName != "System.Boolean")
+            return;
+
+        // Verify the enumerator type has a public Current property
+        var currentProperty = enumeratorClrType.GetProperty(
+            "Current",
+            BindingFlags.Public | BindingFlags.Instance);
+
+        if (currentProperty is null)
+            return;
+
+        // Resolve TElement from Current's return type
+        // Unwrap by-ref wrapper (e.g., Span<T>.Enumerator.Current returns T&)
+        var elementClrType = currentProperty.PropertyType;
+        if (elementClrType.IsByRef)
+            elementClrType = elementClrType.GetElementType()!;
+        var projectedElementType = ProjectTypeReference(elementClrType, stdlib);
+        projectedElementType = _intrinsicMap.SubstituteIntrinsics(projectedElementType, stdlib);
+
+        // Look up Standard.IEnumerable to synthesize IEnumerable<TElement>
+        IType iEnumerableStdlib;
+        try
+        {
+            iEnumerableStdlib = stdlib.LookupStandardType("IEnumerable");
+        }
+        catch (InvalidOperationException)
+        {
+            // Stdlib not loaded yet — skip synthesis.
+            return;
+        }
+
+        var synthesizedIEnumerable = new ConstructedType(iEnumerableStdlib, new[] { projectedElementType });
+
+        // Add the synthesized IEnumerable<TElement> to the type's interface list
+        switch (projectedType)
+        {
+            case StructType st:
+                var stInterfaces = new List<IType>(st.Interfaces) { synthesizedIEnumerable };
+                st.Interfaces = stInterfaces;
+                break;
+            case ClassType ct:
+                var ctInterfaces = new List<IType>(ct.Interfaces) { synthesizedIEnumerable };
+                ct.Interfaces = ctInterfaces;
+                break;
+            default:
+                return;
+        }
+
+        // Synthesize the Enumerator associated type slot (same logic as SynthesizeEnumeratorSlots)
+        var (memberScope, containingNamespace) = projectedType switch
+        {
+            ClassType ct => (ct.MemberScope as Scope, ct.ContainingNamespace),
+            StructType st => (st.MemberScope as Scope, st.ContainingNamespace),
+            _ => (null, (string?)null),
+        };
+
+        if (memberScope is null)
+            return;
+
+        // Resolve the enumerator type for the slot
+        var projectedEnumeratorType = ProjectTypeReference(enumeratorClrType, stdlib);
+
+        // Build the constraint: Enumerator must implement IEnumerator<TElement>
+        IType iEnumeratorStdlib;
+        try
+        {
+            iEnumeratorStdlib = stdlib.LookupStandardType("IEnumerator");
+        }
+        catch (InvalidOperationException)
+        {
+            return;
+        }
+
+        var constraint = new TypeParameterConstraints
+        {
+            InterfaceConstraints = new List<IType>
+            {
+                new ConstructedType(iEnumeratorStdlib, new[] { projectedElementType }),
+            },
+        };
+
+        var slotType = new AssociatedTypeSlotType(
+            "Enumerator",
+            new Scope(null),
+            containingNamespace,
+            projectedType,
+            constraint,
+            Array.Empty<IType>());
+
+        var slotSymbol = new Symbol(
+            "Enumerator",
+            SymbolKind.TypeAlias,
+            SymbolOrigin.Backend,
+            memberScope,
+            slotType,
+            null);
+        slotSymbol.TypeParameters = Array.Empty<IType>();
+
+        // Store the resolved concrete enumerator type as metadata on the slot
+        slotType.Constraints = new TypeParameterConstraints
+        {
+            InterfaceConstraints = new List<IType>
+            {
+                new ConstructedType(iEnumeratorStdlib, new[] { projectedElementType }),
+            },
+            BaseClassConstraint = projectedEnumeratorType,
+        };
+
+        memberScope.AddMember(slotSymbol);
     }
 
     /// <summary>

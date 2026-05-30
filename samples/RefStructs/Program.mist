@@ -1,0 +1,159 @@
+using Standard;
+using System;
+
+namespace RefStructs;
+
+// PROOF: ref struct declaration syntax is parsed and compiled
+// PROOF: ref struct can have fields, constructors, methods, and properties
+public ref struct IntPair
+{
+    public int first;
+    public int second;
+
+    public IntPair(int a, int b)
+    {
+        this.first = a;
+        this.second = b;
+    }
+
+    public int Sum()
+    {
+        return this.first + this.second;
+    }
+
+    public int Max
+    {
+        get
+        {
+            if (this.first > this.second)
+            {
+                return this.first;
+            }
+            return this.second;
+        }
+    }
+}
+
+// PROOF: ref struct can contain fields of other ref struct types
+public ref struct NestedRefStruct
+{
+    public IntPair pair;
+    public int extra;
+
+    public NestedRefStruct(int a, int b, int c)
+    {
+        this.pair = new IntPair(a, b);
+        this.extra = c;
+    }
+
+    public int Total()
+    {
+        return this.pair.Sum() + this.extra;
+    }
+}
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== RefStructs Sample ===");
+
+        // PROOF: Mist-declared ref struct usable as local variable
+        // PROOF: Constructor, field access, method call, property access all work
+        Console.WriteLine("--- Mist Declared Ref Struct ---");
+        var pair = new IntPair(3, 7);
+        Console.WriteLine($"pair.first={pair.first}");
+        Console.WriteLine($"pair.second={pair.second}");
+        Console.WriteLine($"pair.Sum()={pair.Sum()}");
+        Console.WriteLine($"pair.Max={pair.Max}");
+
+        // PROOF: Ref struct containing another ref struct field
+        Console.WriteLine("--- Nested Ref Struct ---");
+        var nested = new NestedRefStruct(10, 20, 5);
+        Console.WriteLine($"nested.pair.first={nested.pair.first}");
+        Console.WriteLine($"nested.pair.second={nested.pair.second}");
+        Console.WriteLine($"nested.extra={nested.extra}");
+        Console.WriteLine($"nested.Total()={nested.Total()}");
+
+        // PROOF: Ref struct as method parameter and return type
+        Console.WriteLine("--- Ref Struct Parameters ---");
+        var p = new IntPair(100, 200);
+        int sum = AddPair(p);
+        Console.WriteLine($"AddPair={sum}");
+        var doubled = DoublePair(p);
+        Console.WriteLine($"doubled.first={doubled.first}");
+        Console.WriteLine($"doubled.second={doubled.second}");
+
+        // PROOF: Span<int> projected from ambient assembly, usable as local variable
+        // PROOF: Array.AsSpan() extension method is no longer filtered
+        Console.WriteLine("--- Span from Array ---");
+        int[] numbers = new int[5];
+        numbers[0] = 10;
+        numbers[1] = 20;
+        numbers[2] = 30;
+        numbers[3] = 40;
+        numbers[4] = 50;
+        Span<int> span = new Span<int>(numbers);
+        Console.WriteLine($"span.Length={span.Length}");
+        Console.WriteLine($"span[0]={span[0]}");
+        Console.WriteLine($"span[4]={span[4]}");
+
+        // PROOF: ReadOnlySpan<T> projected and usable as local variable
+        // PROOF: ReadOnlySpan<T> constructor from char array works
+        Console.WriteLine("--- ReadOnlySpan from String ---");
+        string greeting = "Hello, Mist!";
+        char[] greetingChars = greeting.ToCharArray();
+        ReadOnlySpan<char> chars = new ReadOnlySpan<char>(greetingChars);
+        Console.WriteLine($"chars.Length={chars.Length}");
+        Console.WriteLine($"chars[0]={chars[0]}");
+        Console.WriteLine($"chars[6]={chars[6]}");
+
+        // PROOF: Span<T> indexer write works
+        // PROOF: Writes through span mutate the underlying array
+        Console.WriteLine("--- Span Indexer Write ---");
+        Span<int> writeSpan = new Span<int>(numbers);
+        writeSpan[0] = 99;
+        Console.WriteLine($"writeSpan[0]={writeSpan[0]}");
+        Console.WriteLine($"numbers[0]={numbers[0]}");
+
+        // PROOF: Span<T>.Slice() returns another Span<T> — ref struct return type works
+        // PROOF: Chained member access on ref struct return values
+        Console.WriteLine("--- Span Slice ---");
+        Span<int> sliced = writeSpan.Slice(1, 3);
+        Console.WriteLine($"sliced.Length={sliced.Length}");
+        Console.WriteLine($"sliced[0]={sliced[0]}");
+        Console.WriteLine($"sliced[2]={sliced[2]}");
+
+        // PROOF: Span<T> is foreachable via synthesized IEnumerable<T>
+        // PROOF: foreach lowering calls GetEnumerator() on concrete Span<T> type
+        Console.WriteLine("--- Span Foreach ---");
+        int[] foreachNums = new int[3];
+        foreachNums[0] = 100;
+        foreachNums[1] = 200;
+        foreachNums[2] = 300;
+        Span<int> foreachSpan = new Span<int>(foreachNums);
+        foreach (int val in foreachSpan)
+        {
+            Console.WriteLine($"val={val}");
+        }
+
+        Console.WriteLine("=== RefStructs Done ===");
+    }
+
+    // PROOF: Ref struct usable as parameter type in user-defined method
+    public static int AddPair(IntPair p)
+    {
+        return p.first + p.second;
+    }
+
+    // PROOF: Ref struct usable as return type in user-defined method
+    public static IntPair DoublePair(IntPair p)
+    {
+        return new IntPair(p.first * 2, p.second * 2);
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

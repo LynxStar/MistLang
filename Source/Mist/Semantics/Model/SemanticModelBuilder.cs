@@ -647,6 +647,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId StructBaseCtorMismatch = new("MIST_STRUCT_BASE_CTOR_MISMATCH");
 
+    // ── Ref struct diagnostic IDs (ref-structs spec, Requirement 1.5) ──
+
+    /// <summary>
+    /// The <c>ref</c> modifier was used on a non-struct type declaration
+    /// (class, interface, trait, or enum). The <c>ref</c> modifier is only
+    /// valid on struct declarations (Requirement 1.5).
+    /// </summary>
+    internal static readonly DiagnosticId RefModifierOnlyValidOnStruct = new("MIST2001");
+
+    /// <summary>
+    /// A ref struct type was used with the optional suffix (<c>?</c>).
+    /// Ref structs cannot be optional because optional maps to <c>Nullable&lt;T&gt;</c>
+    /// which requires boxing (Requirement 3.9).
+    /// </summary>
+    internal static readonly DiagnosticId RefStructCannotBeOptional = new("MIST2006");
+
     /// <summary>
     /// The set of primitive type keywords allowed as dependent type parameter annotations.
     /// </summary>
@@ -875,6 +891,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (ambientTypeResolver is Backends.CSharpTranspiler.CSharpAmbientTypeResolver csharpResolver)
         {
             csharpResolver.UpdateStdlibProvider(
+                new ScopeBasedStdlibTypeProvider(globalScope, symbolTable));
+        }
+        if (ambientTypeResolver is Backends.CSharpTranspiler.AssemblyTypeProvider assemblyProvider)
+        {
+            assemblyProvider.UpdateStdlibProvider(
                 new ScopeBasedStdlibTypeProvider(globalScope, symbolTable));
         }
 
@@ -1457,6 +1478,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
+        // MIST2001: The 'ref' modifier is only valid on struct declarations.
+        if (HasRefModifier(classDecl.Modifiers))
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                RefModifierOnlyValidOnStruct.Value,
+                DiagnosticSeverity.Error,
+                "The 'ref' modifier is only valid on struct declarations.",
+                classDecl,
+                sourceText));
+        }
+
         var className = classDecl.Name.Lexeme;
         var typeScope = new Scope(parent: parentScope);
         var isBackendBacked = HasIntrinsicModifier(classDecl.Modifiers);
@@ -1504,6 +1536,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var isReadonly = HasReadonlyModifier(structDecl.Modifiers);
         structType.IsReadonly = isReadonly;
 
+        structType.IsRefStruct = HasRefModifier(structDecl.Modifiers);
+
         structType.IsOwnedType = HasOwnedModifier(structDecl.Modifiers);
 
         var structSpan = ToMistSourceSpan(structDecl.Name.Span);
@@ -1535,6 +1569,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
+        // MIST2001: The 'ref' modifier is only valid on struct declarations.
+        if (HasRefModifier(interfaceDecl.Modifiers))
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                RefModifierOnlyValidOnStruct.Value,
+                DiagnosticSeverity.Error,
+                "The 'ref' modifier is only valid on struct declarations.",
+                interfaceDecl,
+                sourceText));
+        }
+
         var interfaceName = interfaceDecl.Name.Lexeme;
         var typeScope = new Scope(parent: parentScope);
         var interfaceType = new InterfaceType(interfaceName, typeScope, namespaceName);
@@ -1591,6 +1636,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
+        // MIST2001: The 'ref' modifier is only valid on struct declarations.
+        if (HasRefModifier(traitDecl.Modifiers))
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                RefModifierOnlyValidOnStruct.Value,
+                DiagnosticSeverity.Error,
+                "The 'ref' modifier is only valid on struct declarations.",
+                traitDecl,
+                sourceText));
+        }
+
         var traitName = traitDecl.Name.Lexeme;
         var typeScope = new Scope(parent: parentScope);
         var traitType = new TraitType(traitName, typeScope, namespaceName);
@@ -1671,6 +1727,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
+        // MIST2001: The 'ref' modifier is only valid on struct declarations.
+        if (HasRefModifier(enumDecl.Modifiers))
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                RefModifierOnlyValidOnStruct.Value,
+                DiagnosticSeverity.Error,
+                "The 'ref' modifier is only valid on struct declarations.",
+                enumDecl,
+                sourceText));
+        }
+
         var enumName = enumDecl.Name.Lexeme;
         var typeScope = new Scope(parent: parentScope);
         var enumType = new EnumType(enumName, typeScope, namespaceName);
@@ -2841,6 +2908,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 fieldSymbol.OwnershipTier = MapOwnershipSpecifier(fieldDecl.OwnershipSpecifier);
             }
         }
+        else if (HasRefModifier(fieldDecl.Modifiers))
+        {
+            // The parser consumed 'ref' as a RefModifier (since REF is in the Modifier rule).
+            // On a field declaration, 'ref' means ref-field ownership, not ref-struct modifier.
+            // "readonly ref" → ReadonlyRef; bare "ref" → Borrowed (same as RefSpecifier).
+            fieldSymbol.OwnershipTier = HasReadonlyModifier(fieldDecl.Modifiers)
+                ? OwnershipTier.ReadonlyRef
+                : OwnershipTier.Borrowed;
+        }
         else if (fieldDecl.Modifiers.Any(m => m is OwnedModifierModifierNode))
         {
             fieldSymbol.OwnershipTier = OwnershipTier.Owned;
@@ -3046,6 +3122,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach (var modifier in modifiers)
         {
             if (modifier is OwnedModifierModifierNode)
+                return true;
+        }
+        return false;
+    }
+
+    private static bool HasRefModifier(ImmutableArray<ModifierNode> modifiers)
+    {
+        foreach (var modifier in modifiers)
+        {
+            if (modifier is RefModifierModifierNode)
                 return true;
         }
         return false;
@@ -14065,6 +14151,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
                 }
             }
+            else if (HasRefModifier(methodDecl.Modifiers))
+            {
+                // The parser consumed 'ref' as a RefModifier (since REF is in the Modifier rule).
+                // On a method declaration, 'ref' means ref return, not ref-struct modifier.
+                // "readonly ref" → RefReadonly; bare "ref" → Ref.
+                if (HasReadonlyModifier(methodDecl.Modifiers))
+                {
+                    methodSymbol.ReturnRefKind = RefKind.RefReadonly;
+                    methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+                }
+                else
+                {
+                    methodSymbol.ReturnRefKind = RefKind.Ref;
+                    methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+                }
+            }
             else if (methodDecl.Modifiers.Any(m => m is OwnedModifierModifierNode))
             {
                 methodSymbol.OwnershipTier = OwnershipTier.Owned;
@@ -16290,6 +16392,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
+        // Case 2b: T is a ref struct — ref structs cannot be optional (Requirement 3.9).
+        var isRefStruct = effectiveType is StructType { IsRefStruct: true }
+            || (effectiveType is ConstructedType ct && ct.GenericDefinition is StructType { IsRefStruct: true });
+        if (isRefStruct)
+        {
+            var typeName = effectiveType.DisplayName;
+            diagnostics.Add(MakeDiagnosticWithTokenLocation(
+                RefStructCannotBeOptional.Value,
+                DiagnosticSeverity.Error,
+                $"Ref struct type '{typeName}' cannot be optional",
+                optionalToken,
+                sourceText));
+            return resolvedType;
+        }
+
         // Case 3: Normal case — wrap T in UnionType([T, VoidType])
         IType voidType;
         try
@@ -16574,6 +16691,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach (var singleRef in singleTypeRefs)
         {
             var resolved = ResolveSingleTypeRef(singleRef, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+            // ── MIST2005: Ref struct union type restriction (Requirement 3.8) ──
+            // A ref struct type cannot participate in union types, since union types
+            // may require boxing the value to store it in a discriminated container.
+            if (resolved is StructType { IsRefStruct: true } refStructConstituent)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    "MIST2005",
+                    DiagnosticSeverity.Error,
+                    $"Ref struct type '{refStructConstituent.DisplayName}' cannot participate in union types",
+                    singleRef,
+                    sourceText));
+            }
 
             // Flatten: if the resolved type is itself a UnionType, inline its constituents.
             if (resolved is UnionType nestedUnion)

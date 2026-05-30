@@ -84,3 +84,34 @@ extension(Greeting self)
 ```
 
 Call it as `Greeting.Create()` — no instance needed.
+
+## Ambient Extension Methods
+
+Mist also supports extension methods defined in .NET assemblies. When you import a namespace with a `using` directive, any C# extension methods declared in that namespace become available as instance methods on their target types — just like Mist-native extensions.
+
+This is how LINQ works in Mist. The `System.Linq` namespace contains extension methods like `Count()`, `First()`, and `Skip()` that target `IEnumerable<T>`. Once you add `using System.Linq;`, those methods appear on arrays and other collections:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/object-model/extension-methods/ambient-extensions.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/object-model/extension-methods/ambient-extensions.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+From the caller's perspective, `numbers.Count()` looks like a regular method call. Under the hood, the compiler emits it as a static method invocation on the original .NET class — `System.Linq.Enumerable.Count(numbers)` — passing the receiver as the first argument.
+
+### Visibility Rules
+
+Ambient extension methods follow the same visibility rules as Mist-native extensions: they are only available when their containing namespace is imported. If you remove `using System.Linq;`, the LINQ methods disappear from the available members.
+
+This gives you explicit control over which extensions are in scope. A method like `Count()` won't silently appear on your collections unless you've opted into the namespace that provides it.
+
+### Ambiguity with Mist-Native Extensions
+
+If a Mist-native extension block and an ambient extension method both provide a member with the same name for the same receiver type, the compiler reports an ambiguity error. You'll need to resolve the conflict — typically by removing one of the `using` directives or renaming the Mist-native extension member.

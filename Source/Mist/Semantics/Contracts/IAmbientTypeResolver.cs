@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Mist.Backends.CSharpTranspiler;
 
 namespace Mist.Semantics.Contracts;
 
@@ -30,4 +31,10 @@ public interface IAmbientTypeResolver
     /// when searching imported namespaces for an unqualified type name.
     /// </summary>
     ImmutableArray<string> GetTypeNamesInNamespace(string namespaceName);
+
+    /// <summary>
+    /// Returns all C# extension methods declared in the given namespace.
+    /// Returns an empty list if the namespace has no extension methods.
+    /// </summary>
+    IReadOnlyList<AmbientExtensionMethodInfo> GetExtensionMethodsInNamespace(string namespaceName);
 }

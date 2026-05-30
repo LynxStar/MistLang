@@ -104,6 +104,10 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
         return [];
     }
 
+    /// <inheritdoc />
+    public IReadOnlyList<AmbientExtensionMethodInfo> GetExtensionMethodsInNamespace(string namespaceName)
+        => Array.Empty<AmbientExtensionMethodInfo>();
+
     private void RegisterType(string ns, string name, Func<(IType, ImmutableArray<ISymbol>)> factory)
     {
         if (!_namespaceTypes.ContainsKey(ns))

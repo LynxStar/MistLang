@@ -1,0 +1,65 @@
+using Standard;
+using System.Linq;
+
+namespace ExtensionMethodBinding;
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("--- Extension Method Binding ---");
+
+        // PROOF: LINQ Count<T>() extension method resolves on int[] (IEnumerable<int>)
+        // PROOF: Type inference deduces T=int from the receiver type
+        // PROOF: Parameterless extension method works (only receiver param in CLR terms)
+        int[] numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        int count = numbers.Count();
+        Console.WriteLine($"Count: {count}");
+
+        // PROOF: LINQ First<T>() extension method (parameterless overload)
+        // PROOF: Return type int is correctly inferred from IEnumerable<int>
+        int first = numbers.First();
+        Console.WriteLine($"First: {first}");
+
+        // PROOF: LINQ Last<T>() extension method (parameterless overload)
+        int last = numbers.Last();
+        Console.WriteLine($"Last: {last}");
+
+        // PROOF: LINQ Any<T>() extension method (parameterless overload)
+        // PROOF: Returns bool — proves return type projection works
+        bool hasAny = numbers.Any();
+        Console.WriteLine($"Any: {hasAny}");
+
+        // PROOF: LINQ extension methods resolve on empty array
+        // PROOF: Count returns 0 for empty collection
+        int[] empty = [];
+        int emptyCount = empty.Count();
+        Console.WriteLine($"Empty count: {emptyCount}");
+
+        // PROOF: LINQ Any() returns false on empty collection
+        bool emptyAny = empty.Any();
+        Console.WriteLine($"Empty any: {emptyAny}");
+
+        // PROOF: Chained extension method calls resolve correctly
+        // PROOF: Each intermediate result type feeds into the next extension lookup
+        // PROOF: Skip<T>(int) returns IEnumerable<int>, then First<T>() resolves on that
+        int chainResult = numbers.Skip(5).First();
+        Console.WriteLine($"Skip then First: {chainResult}");
+
+        // PROOF: LINQ extension methods work on string[] (IEnumerable<string>)
+        // PROOF: Generic type inference works for T=string
+        string[] words = ["hello", "world", "mist"];
+        int wordCount = words.Count();
+        Console.WriteLine($"Word count: {wordCount}");
+
+        string firstWord = words.First();
+        Console.WriteLine($"First word: {firstWord}");
+
+        Console.WriteLine("--- Extension Method Binding Done ---");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

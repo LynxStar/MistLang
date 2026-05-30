@@ -30,6 +30,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     private readonly IntrinsicTypeMap _intrinsicMap;
     private readonly VisibilityFilter _filter;
     private readonly TypeProjector _projector;
+    private readonly AmbientExtensionScanner _extensionScanner;
 
     /// <summary>
     /// Cache: (namespace, typeName) → (IType, ImmutableArray&lt;ISymbol&gt;).
@@ -79,6 +80,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         // Load assemblies and build namespace index.
         _loadedAssemblies = LoadAssemblies(assemblyPaths, diagnostics);
         BuildNamespaceIndex();
+
+        // Create the extension scanner for lazy discovery of ambient extension methods.
+        _extensionScanner = new AmbientExtensionScanner(_loadedAssemblies);
     }
 
     /// <summary>
@@ -91,6 +95,16 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     {
         _stdlib = provider;
     }
+
+    /// <summary>
+    /// Exposes the type projector for ambient extension registration.
+    /// </summary>
+    internal TypeProjector Projector => _projector;
+
+    /// <summary>
+    /// Exposes the current stdlib type provider for ambient extension registration.
+    /// </summary>
+    internal IStdlibTypeProvider Stdlib => _stdlib;
 
     /// <inheritdoc />
     public bool HasNamespace(string namespaceName)
@@ -166,6 +180,12 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             return ImmutableArray<string>.Empty;
 
         return typeNames.ToImmutableArray();
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<AmbientExtensionMethodInfo> GetExtensionMethodsInNamespace(string namespaceName)
+    {
+        return _extensionScanner.GetExtensionsForNamespace(namespaceName);
     }
 
     /// <summary>

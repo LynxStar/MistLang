@@ -1477,7 +1477,7 @@ internal sealed class TypeProjector
     /// which includes <see cref="NullableProjectionInfo"/> metadata for the emitter.
     /// </para>
     /// </summary>
-    private IReadOnlyList<ISymbol> ProjectParametersWithResult(
+    internal IReadOnlyList<ISymbol> ProjectParametersWithResult(
         ParameterInfo[] parameters,
         Scope targetScope,
         IStdlibTypeProvider stdlib)
@@ -1549,7 +1549,7 @@ internal sealed class TypeProjector
     /// property type, field type) with intrinsic substitution applied.
     /// This is the entry point for all member signature type projection.
     /// </summary>
-    private IType ProjectMemberType(Type clrType, IStdlibTypeProvider stdlib)
+    internal IType ProjectMemberType(Type clrType, IStdlibTypeProvider stdlib)
     {
         var projected = ProjectTypeReference(clrType, stdlib);
         return _intrinsicMap.SubstituteIntrinsics(projected, stdlib);
@@ -1559,7 +1559,7 @@ internal sealed class TypeProjector
     /// Projects the generic type parameters of a CLR generic method definition
     /// into Mist <see cref="TypeParameterType"/> instances with constraints.
     /// </summary>
-    private IReadOnlyList<IType> ProjectMethodTypeParameters(MethodInfo method, IStdlibTypeProvider stdlib)
+    internal IReadOnlyList<IType> ProjectMethodTypeParameters(MethodInfo method, IStdlibTypeProvider stdlib)
     {
         var genericArgs = method.GetGenericArguments();
         var typeParams = new IType[genericArgs.Length];

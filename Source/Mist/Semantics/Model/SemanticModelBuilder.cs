@@ -908,6 +908,39 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var extensionRegistry = new ExtensionRegistry();
         Pass2_RegisterExtensionMembers(extensionBlockScopes, globalScope, symbolTable, ambientTypeResolver, extensionRegistry, asts, compilation, diagnostics);
 
+        // Pass 2e (Phase A, cont.): Register ambient extension methods from .NET assemblies.
+        // Collect all imported namespaces from using directives and global usings,
+        // then scan those namespaces for C# extension methods and register them
+        // in the ExtensionRegistry alongside Mist-native extensions.
+        if (ambientTypeResolver is Backends.CSharpTranspiler.AssemblyTypeProvider ambientAssemblyProvider)
+        {
+            var allImportedNamespaces = new HashSet<string>();
+            for (var i = 0; i < asts.Length; i++)
+            {
+                if (asts[i] is CompilationUnitNode cu)
+                {
+                    var sourceText = i < compilation.Units.Length ? compilation.Units[i].Source : null;
+                    foreach (var usingDecl in cu.Usings)
+                    {
+                        var usingName = ExtractQualifiedName(usingDecl.Name, sourceText);
+                        if (!string.IsNullOrEmpty(usingName))
+                            allImportedNamespaces.Add(usingName);
+                    }
+                }
+
+                if (i < compilation.Units.Length)
+                {
+                    foreach (var globalNs in compilation.Units[i].GlobalUsings)
+                    {
+                        if (!string.IsNullOrEmpty(globalNs))
+                            allImportedNamespaces.Add(globalNs);
+                    }
+                }
+            }
+
+            RegisterAmbientExtensions(ambientAssemblyProvider, extensionRegistry, allImportedNamespaces.ToList());
+        }
+
         // Pass 2: Resolve types and build expression types.
         // Set the extension registry context so LookupMemberType can perform
         // extension member fallback without threading the registry through
@@ -2168,6 +2201,147 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // Pass 2e (Phase A, cont.) — Register ambient extension methods
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Queries the ambient type resolver for extension methods in each imported namespace,
+    /// groups them by receiver type, projects receiver/params/return types via TypeProjector,
+    /// creates ExtensionBlockInfo entries with ContainingNamespace and AmbientStaticClassName,
+    /// and registers them in the ExtensionRegistry.
+    /// </summary>
+    private static void RegisterAmbientExtensions(
+        Backends.CSharpTranspiler.AssemblyTypeProvider assemblyProvider,
+        ExtensionRegistry extensionRegistry,
+        IReadOnlyList<string> importedNamespaces)
+    {
+        var projector = assemblyProvider.Projector;
+        var stdlib = assemblyProvider.Stdlib;
+
+        foreach (var ns in importedNamespaces)
+        {
+            var ambientExtensions = assemblyProvider.GetExtensionMethodsInNamespace(ns);
+            if (ambientExtensions.Count == 0) continue;
+
+            // Group by (receiver CLR type, containing class) so that each ExtensionBlockInfo
+            // has the correct AmbientStaticClassName for emission. Different static classes
+            // (e.g., Enumerable vs AsyncEnumerable) may define extension methods for the same
+            // receiver type, but the emitter needs to know which class to call.
+            var byReceiverAndClass = new Dictionary<(string ReceiverKey, string ClassName), List<Backends.CSharpTranspiler.AmbientExtensionMethodInfo>>();
+            foreach (var ext in ambientExtensions)
+            {
+                var receiverKey = ext.ReceiverClrType.FullName ?? ext.ReceiverClrType.Name;
+                var classKey = ext.ContainingClassName;
+                var key = (receiverKey, classKey);
+                if (!byReceiverAndClass.TryGetValue(key, out var list))
+                {
+                    list = new List<Backends.CSharpTranspiler.AmbientExtensionMethodInfo>();
+                    byReceiverAndClass[key] = list;
+                }
+                list.Add(ext);
+            }
+
+            foreach (var (groupKey, group) in byReceiverAndClass)
+            {
+                // Project the receiver type from the first entry in the group.
+                var receiverType = projector.ProjectTypeReference(group[0].ReceiverClrType, stdlib);
+
+                // Skip if receiver type projection fails (returns ErrorType or UnknownType).
+                if (receiverType is ErrorType or UnknownType)
+                    continue;
+
+                var memberScope = new Scope(parent: null);
+
+                foreach (var ext in group)
+                {
+                    // Project the return type.
+                    var returnType = projector.ProjectMemberType(ext.ReturnClrType, stdlib);
+
+                    // Skip if return type projection fails.
+                    if (returnType is ErrorType)
+                        continue;
+
+                    var methodSymbol = new Symbol(
+                        ext.MethodName,
+                        SymbolKind.Method,
+                        SymbolOrigin.Backend,
+                        memberScope,
+                        returnType,
+                        null);
+
+                    // Project remaining parameters (excluding receiver).
+                    var paramScope = new Scope(parent: memberScope);
+                    var paramSymbols = projector.ProjectParametersWithResult(
+                        ext.RemainingParameters.ToArray(), paramScope, stdlib);
+                    methodSymbol.Parameters = paramSymbols;
+
+                    // Project method-level type parameters for generic methods.
+                    if (ext.IsGenericMethod)
+                    {
+                        methodSymbol.TypeParameters = projector.ProjectMethodTypeParameters(
+                            ext.MethodInfo, stdlib);
+                    }
+
+                    memberScope.AddMember(methodSymbol);
+                }
+
+                // Only register if at least one method was successfully projected.
+                if (memberScope.Members.Count == 0)
+                    continue;
+
+                // Collect type parameters referenced in the receiver type.
+                // For generic ambient extension methods (e.g., Count<TSource>(this IEnumerable<TSource>)),
+                // the receiver type contains TypeParameterType instances that must be registered
+                // on the ExtensionBlockInfo so the type checker's unification logic can filter
+                // non-matching candidates (e.g., exclude IQueryable<T> extensions for int[]).
+                var blockTypeParams = CollectTypeParametersFromType(receiverType);
+
+                var blockInfo = new ExtensionBlockInfo
+                {
+                    ReceiverType = receiverType,
+                    ReceiverParameterName = "self",
+                    MemberScope = memberScope,
+                    TypeParameters = blockTypeParams,
+                    ContainingNamespace = ns,
+                    DeclaringNode = null,
+                    AmbientStaticClassName = groupKey.ClassName,
+                };
+
+                extensionRegistry.Register(blockInfo);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Collects all <see cref="TypeParameterType"/> instances referenced within a type.
+    /// Used to extract type parameters from ambient extension receiver types so that
+    /// the type checker's unification logic can filter non-matching candidates.
+    /// </summary>
+    private static TypeParameterType[] CollectTypeParametersFromType(IType type)
+    {
+        var result = new List<TypeParameterType>();
+        CollectTypeParametersRecursive(type, result);
+        return result.Count > 0 ? result.ToArray() : Array.Empty<TypeParameterType>();
+    }
+
+    private static void CollectTypeParametersRecursive(IType type, List<TypeParameterType> result)
+    {
+        if (type is TypeParameterType tp)
+        {
+            // Avoid duplicates (same type parameter referenced multiple times).
+            if (!result.Any(existing => existing.Name == tp.Name && existing.Ordinal == tp.Ordinal))
+                result.Add(tp);
+        }
+        else if (type is ConstructedType ct)
+        {
+            foreach (var arg in ct.TypeArguments)
+            {
+                CollectTypeParametersRecursive(arg, result);
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // Pass 2e (Phase B) — Resolve extension block method/property bodies
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -2354,8 +2528,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         if (reported.Contains(j))
                             continue;
 
-                        var (symbolA, _) = groupList[i];
+                        var (symbolA, blockA) = groupList[i];
                         var (symbolB, blockB) = groupList[j];
+
+                        // Skip duplicate checking between two ambient extension methods.
+                        // .NET assemblies are already compiled and their overloads are valid
+                        // by definition. The type projector may map different generic type
+                        // parameters to the same display name, causing false positives.
+                        if (blockA.IsAmbient && blockB.IsAmbient)
+                            continue;
 
                         // For properties, same name is sufficient for a duplicate.
                         if (symbolA.Kind == SymbolKind.Property && symbolB.Kind == SymbolKind.Property)
@@ -2406,7 +2587,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var declaringNode = symbolTable.GetDeclaringNode(duplicateSymbol);
         if (declaringNode is not null)
         {
-            var sourceText = GetSourceTextFromOrigin(containingBlock.DeclaringNode);
+            var sourceText = containingBlock.DeclaringNode is not null
+                ? GetSourceTextFromOrigin(containingBlock.DeclaringNode)
+                : null;
             diagnostics.Add(MakeDiagnosticWithLocation(
                 ExtensionDuplicateMember.Value,
                 DiagnosticSeverity.Error,
@@ -20583,31 +20766,37 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         foreach (var m in stdlibArrayClass.MemberScope.Members)
                         {
                             if (m.Name == memberName)
+                            {
                                 return m.DeclaredType ?? ErrorType.Instance;
+                            }
                         }
+
+                        // Standard.Array is loaded but doesn't have this member.
+                        // Do NOT fall through to System.Array ambient resolver — that
+                        // would expose static methods (like Array.Reverse) as instance
+                        // members. Let extension method lookup handle it instead.
                     }
                 }
                 catch (StdlibMissingException)
                 {
                     // Stdlib not loaded — fall through to ambient resolver fallback below.
-                }
-            }
-
-            // Legacy fallback: try the ambient resolver (for backward compat
-            // with tests that don't load stdlib).
-            if (ambientTypeResolver is not null)
-            {
-                var arrayBaseType = ambientTypeResolver.ResolveType("System", "Array");
-                if (arrayBaseType is not null)
-                {
-                    var members = ambientTypeResolver.GetMembers(arrayBaseType);
-                    foreach (var member in members)
+                    if (ambientTypeResolver is not null)
                     {
-                        if (member.Name == memberName)
-                            return member.DeclaredType ?? ErrorType.Instance;
+                        var arrayBaseType = ambientTypeResolver.ResolveType("System", "Array");
+                        if (arrayBaseType is not null)
+                        {
+                            var members = ambientTypeResolver.GetMembers(arrayBaseType);
+                            foreach (var member in members)
+                            {
+                                if (member.Name == memberName)
+                                    return member.DeclaredType ?? ErrorType.Instance;
+                            }
+                        }
                     }
                 }
             }
+            // If globalScope is null, skip the System.Array fallback entirely.
+            // Extension method lookup will handle any methods not in Standard.Array.
         }
 
         // Tuple element access: resolve ItemN positional access and named access.
@@ -20706,10 +20895,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Task 7.6: Do NOT fall back to extension lookup when the receiver type
         // is a trait or interface. Extensions are orthogonal to traits/interfaces
         // and should not be discoverable on trait-typed or interface-typed variables.
+        // Exception: ConstructedType whose generic definition is an interface
+        // (e.g., IEnumerable<int>) SHOULD allow extension lookup, because the
+        // user has a concrete parameterized interface type (like a LINQ result).
         // Task 7.2: Collect ALL candidates and apply specificity ordering.
+        var isUnwrappedFromConstructed = constructedTypeParams is not null && constructedTypeArgs is not null;
         if (_extensionRegistryContext is not null
             && targetType is not TraitType
-            && targetType is not InterfaceType)
+            && (targetType is not InterfaceType || isUnwrappedFromConstructed))
         {
             // Use the original target type (before ConstructedType unwrapping)
             // for the extension registry query. If the original was a
@@ -21166,6 +21359,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
             }
 
+            // Special case: ArrayType implements IEnumerable<T>, ICollection<T>, IList<T>,
+            // IReadOnlyCollection<T>, IReadOnlyList<T>. When the pattern is one of these
+            // interfaces with a single type argument, unify that argument with the array's
+            // element type.
+            if (actual is ArrayType actualArray &&
+                patternConstructed.GenericDefinition is InterfaceType patternIface &&
+                patternConstructed.TypeArguments.Count == 1 &&
+                IsArrayCompatibleInterface(patternIface))
+            {
+                return UnifyTypes(patternConstructed.TypeArguments[0], actualArray.ElementType, typeParameters, bindings);
+            }
+
             // The actual is not a ConstructedType — unification fails.
             return false;
         }
@@ -21220,6 +21425,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Case 4: Non-generic, non-type-parameter types — must match by reference.
         return ReferenceEquals(pattern, actual);
+    }
+
+    /// <summary>
+    /// Returns true if the given interface type is one that .NET arrays implement:
+    /// IEnumerable, ICollection, IList, IReadOnlyCollection, IReadOnlyList.
+    /// These all have a single type parameter corresponding to the array's element type.
+    /// </summary>
+    private static bool IsArrayCompatibleInterface(InterfaceType iface)
+    {
+        // Arrays implement these generic interfaces from System.Collections.Generic:
+        // IEnumerable<T>, ICollection<T>, IList<T>, IReadOnlyCollection<T>, IReadOnlyList<T>
+        var name = iface.DisplayName;
+        return name is "IEnumerable" or "ICollection" or "IList"
+            or "IReadOnlyCollection" or "IReadOnlyList";
     }
 
     /// <summary>

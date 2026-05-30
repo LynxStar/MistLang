@@ -24,9 +24,22 @@ public sealed class ExtensionBlockInfo
     /// <summary>The containing namespace (null for top-level extensions).</summary>
     public required string? ContainingNamespace { get; init; }
 
-    /// <summary>The AST node for diagnostic reporting.</summary>
-    public required Storm.Runtime.SyntaxNode DeclaringNode { get; init; }
+    /// <summary>The AST node for diagnostic reporting (null for ambient extensions).</summary>
+    public required Storm.Runtime.SyntaxNode? DeclaringNode { get; init; }
 
     /// <summary>Whether this is a universal extension (receiver type is unknown).</summary>
     public bool IsUniversal => ReceiverType is UnknownType;
+
+    /// <summary>
+    /// Whether this extension block originated from a .NET assembly (ambient)
+    /// rather than Mist source code.
+    /// </summary>
+    public bool IsAmbient => DeclaringNode is null;
+
+    /// <summary>
+    /// The fully-qualified name of the containing static class (for ambient extensions).
+    /// Used by the emitter to generate static method calls.
+    /// Null for Mist-native extensions.
+    /// </summary>
+    public string? AmbientStaticClassName { get; init; }
 }

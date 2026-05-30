@@ -61,6 +61,7 @@ public class Program
         AssemblyTypeProvider.Program.RunDemo();
         ClrRefInterop.Program.RunDemo();
         RefStructs.Program.RunDemo();
+        ExtensionMethodBinding.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

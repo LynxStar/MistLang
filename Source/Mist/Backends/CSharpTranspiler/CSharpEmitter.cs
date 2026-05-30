@@ -2489,7 +2489,13 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string ComputeExtensionClassName(ExtensionBlockInfo extBlock)
     {
-        var declaringNode = extBlock.DeclaringNode;
+        // Ambient extensions use their static class name directly.
+        if (extBlock.IsAmbient)
+        {
+            return extBlock.AmbientStaticClassName ?? "AmbientExtensions";
+        }
+
+        var declaringNode = extBlock.DeclaringNode!;
         var receiverTypeName = GetReceiverTypeNameFromIType(extBlock.ReceiverType);
 
         // Find the source file containing this extension block.
@@ -9202,6 +9208,31 @@ internal sealed class CSharpSourceWriter
                         args = args.Length > 0
                             ? $"{args}, {factoryLambdas}"
                             : factoryLambdas;
+                    }
+                }
+
+                // Check if this method call resolves to an ambient extension method —
+                // if so, rewrite to StaticClassName.MethodName(receiver, args).
+                // Ambient extensions come from .NET assemblies and must be emitted as
+                // static method invocations on the original extension static class.
+                // Only rewrite if the receiver type does NOT have the method as its own member
+                // (own members take priority over extensions per Requirement 4.3).
+                if (receiverType is not null)
+                {
+                    var ownScope = GetMemberScopeForType(receiverType);
+                    var isOwnMember = ownScope?.Lookup(name) is not null;
+
+                    if (!isOwnMember)
+                    {
+                        var ambientExtBlock = _model.ExtensionRegistry.FindAmbientExtensionMethodBlock(receiverType, name);
+                        if (ambientExtBlock is not null)
+                        {
+                            var staticClassName = ambientExtBlock.AmbientStaticClassName ?? "AmbientExtensions";
+                            var staticArgs = args.Length > 0
+                                ? $"{target}, {args}"
+                                : target;
+                            return $"{staticClassName}.{name}{typeArgs}({staticArgs})";
+                        }
                     }
                 }
 

@@ -69,6 +69,20 @@ public static class ParameterSignature
     /// </summary>
     public static IReadOnlyList<IType> Extract(ISymbol symbol, SymbolTable symbolTable)
     {
+        // CLR Backend symbols (including ambient extensions) store parameters
+        // directly on the Symbol instance because they have no AST declaring node.
+        if (symbol is Symbol { Parameters.Count: > 0 } backendSym
+            && symbolTable.GetDeclaringNode(symbol) is null)
+        {
+            var backendTypes = new List<IType>(backendSym.Parameters.Count);
+            foreach (var param in backendSym.Parameters)
+            {
+                if (param.DeclaredType is { } paramType)
+                    backendTypes.Add(paramType);
+            }
+            return backendTypes;
+        }
+
         var declaringNode = symbolTable.GetDeclaringNode(symbol);
         if (declaringNode is null)
             return Array.Empty<IType>();
@@ -171,6 +185,19 @@ public static class ParameterSignature
     /// </summary>
     public static IReadOnlyList<RefKind> ExtractRefKinds(ISymbol symbol, SymbolTable symbolTable)
     {
+        // CLR Backend symbols (including ambient extensions) store parameters
+        // directly on the Symbol instance because they have no AST declaring node.
+        if (symbol is Symbol { Parameters.Count: > 0 } backendSym
+            && symbolTable.GetDeclaringNode(symbol) is null)
+        {
+            var backendRefKinds = new List<RefKind>(backendSym.Parameters.Count);
+            foreach (var param in backendSym.Parameters)
+            {
+                backendRefKinds.Add(param is Symbol paramSym ? paramSym.RefKind : RefKind.None);
+            }
+            return backendRefKinds;
+        }
+
         var declaringNode = symbolTable.GetDeclaringNode(symbol);
         if (declaringNode is null)
             return Array.Empty<RefKind>();

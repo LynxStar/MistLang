@@ -146,6 +146,9 @@ public sealed class ErrorDiagnosticsTests
                 return types.ToImmutableArray();
             return ImmutableArray<string>.Empty;
         }
+
+        public IReadOnlyList<AmbientExtensionMethodInfo> GetExtensionMethodsInNamespace(string namespaceName)
+            => Array.Empty<AmbientExtensionMethodInfo>();
     }
 
     // ═══════════════════════════════════════════════════════════════════════

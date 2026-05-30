@@ -168,6 +168,29 @@ public sealed class ExtensionRegistry
     }
 
     /// <summary>
+    /// Finds the ambient extension block info that provides a method member with the given name
+    /// for the given receiver type. Returns null if no ambient extension method matches.
+    /// Used by the C# emitter for call-site rewriting of ambient extension method calls
+    /// as static method invocations.
+    /// </summary>
+    public ExtensionBlockInfo? FindAmbientExtensionMethodBlock(IType receiverType, string methodName)
+    {
+        var applicable = GetApplicableExtensions(receiverType);
+        foreach (var ext in applicable)
+        {
+            if (!ext.IsAmbient)
+                continue;
+
+            var member = ext.MemberScope.Lookup(methodName);
+            if (member is not null && member.Kind == SymbolKind.Method)
+            {
+                return ext;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
     /// Determines whether an extension with the given receiver type is applicable
     /// to a value of the given type.
     /// </summary>
@@ -179,8 +202,35 @@ public sealed class ExtensionRegistry
 
         // If the extension receiver is a generic type definition (has type parameters),
         // include it as a potential match — actual type inference happens in the type checker.
-        if (HasTypeParameters(extensionReceiverType))
+        if (extensionReceiverType is ClassType c && c.TypeParameters.Count > 0)
             return true;
+        if (extensionReceiverType is StructType s && s.TypeParameters.Count > 0)
+            return true;
+        if (extensionReceiverType is InterfaceType i && i.TypeParameters.Count > 0)
+            return true;
+
+        // If the extension receiver is a ConstructedType containing type parameters
+        // (e.g., IEnumerable<T> from a generic extension method), check if the value
+        // type could potentially satisfy the pattern.
+        if (extensionReceiverType is ConstructedType ctReceiver && ContainsTypeParameter(ctReceiver))
+        {
+            // For ArrayType values, only interfaces that arrays implement are applicable.
+            if (valueType is ArrayType)
+            {
+                return ctReceiver.GenericDefinition is InterfaceType ifaceGenDef
+                    && ctReceiver.TypeArguments.Count == 1
+                    && IsArrayCompatibleInterface(ifaceGenDef);
+            }
+
+            // For ConstructedType values, check if the generic definitions match.
+            if (valueType is ConstructedType ctValue)
+            {
+                return ReferenceEquals(ctReceiver.GenericDefinition, ctValue.GenericDefinition);
+            }
+
+            // For other types, include as potential match (type inference will filter).
+            return true;
+        }
 
         // If the value type is a constructed type, check if the extension receiver
         // matches the generic definition.
@@ -209,16 +259,30 @@ public sealed class ExtensionRegistry
     }
 
     /// <summary>
-    /// Returns true if the type has type parameters (is a generic type definition).
+    /// Returns true if a constructed type contains any <see cref="TypeParameterType"/>
+    /// in its type arguments. This indicates the type is a generic pattern (e.g.,
+    /// IEnumerable&lt;T&gt;) that should be considered potentially applicable to any value type.
     /// </summary>
-    private static bool HasTypeParameters(IType type)
+    private static bool ContainsTypeParameter(ConstructedType constructedType)
     {
-        return type switch
+        foreach (var arg in constructedType.TypeArguments)
         {
-            ClassType c => c.TypeParameters.Count > 0,
-            StructType s => s.TypeParameters.Count > 0,
-            InterfaceType i => i.TypeParameters.Count > 0,
-            _ => false
-        };
+            if (arg is TypeParameterType)
+                return true;
+            if (arg is ConstructedType nested && ContainsTypeParameter(nested))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Returns true if the given interface type is one that .NET arrays implement:
+    /// IEnumerable, ICollection, IList, IReadOnlyCollection, IReadOnlyList.
+    /// </summary>
+    private static bool IsArrayCompatibleInterface(InterfaceType iface)
+    {
+        var name = iface.DisplayName;
+        return name is "IEnumerable" or "ICollection" or "IList"
+            or "IReadOnlyCollection" or "IReadOnlyList";
     }
 }

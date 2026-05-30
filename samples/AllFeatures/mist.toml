@@ -51,3 +51,4 @@ OptionalTypes = { path = "../OptionalTypes" }
 AssemblyTypeProvider = { path = "../AssemblyTypeProvider" }
 ClrRefInterop = { path = "../ClrRefInterop" }
 RefStructs = { path = "../RefStructs" }
+ExtensionMethodBinding = { path = "../ExtensionMethodBinding" }

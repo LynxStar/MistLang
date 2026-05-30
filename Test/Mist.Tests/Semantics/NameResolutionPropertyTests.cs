@@ -5,6 +5,7 @@ using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;
@@ -784,5 +785,8 @@ public class NameResolutionPropertyTests
 
         public ImmutableArray<string> GetTypeNamesInNamespace(string namespaceName)
             => ImmutableArray<string>.Empty;
+
+        public IReadOnlyList<AmbientExtensionMethodInfo> GetExtensionMethodsInNamespace(string namespaceName)
+            => Array.Empty<AmbientExtensionMethodInfo>();
     }
 }

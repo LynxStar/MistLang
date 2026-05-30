@@ -4,7 +4,7 @@ namespace Mist.Backends.CSharpTranspiler;
 
 /// <summary>
 /// Determines which CLR types and members are visible to Mist.
-/// Members that use unsupported CLR features (out params, ref readonly returns,
+/// Members that use unsupported CLR features (ref readonly returns,
 /// pointer types) are hidden rather than producing errors, so developers
 /// can still use the supported surface of a type.
 /// </summary>
@@ -13,15 +13,15 @@ namespace Mist.Backends.CSharpTranspiler;
 /// <list type="number">
 ///   <item>Non-public accessibility → exclude</item>
 ///   <item>Events → exclude</item>
-///   <item><c>out</c> parameters → exclude method/constructor</item>
 ///   <item><c>ref readonly</c> return type → exclude method/property</item>
 ///   <item>Pointer types in signature → exclude member</item>
 ///   <item>Signature references an excluded type → exclude member</item>
 /// </list>
 /// <para>
-/// CLR <c>ref</c> parameters, <c>in</c> parameters, and mutable <c>ref</c> returns are
-/// now supported and pass through the filter. Only <c>out</c> parameters and
-/// <c>ref readonly</c> returns remain excluded.
+/// CLR <c>ref</c> parameters, <c>in</c> parameters, <c>out</c> parameters, and mutable
+/// <c>ref</c> returns are now supported and pass through the filter. <c>out</c> parameters
+/// are projected as <c>ref</c> with <see cref="Mist.Semantics.Model.ClrCallingConvention.Out"/>.
+/// Only <c>ref readonly</c> returns remain excluded.
 /// Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7.
 /// </para>
 /// </remarks>
@@ -47,7 +47,7 @@ internal sealed class VisibilityFilter
 
     /// <summary>
     /// Returns <c>true</c> if the member should be excluded from projection.
-    /// Evaluation order: accessibility → events → out → ref → ref readonly return → pointers → excluded type references.
+    /// Evaluation order: accessibility → events → ref readonly return → pointers → excluded type references.
     /// </summary>
     public bool IsMemberExcluded(MemberInfo member)
     {
@@ -59,7 +59,7 @@ internal sealed class VisibilityFilter
         if (member is EventInfo)
             return true;
 
-        // 3. out parameters → exclude method/constructor (Requirement 6.1)
+        // 3. out parameters — no longer excluded (projected as ref with ClrCallingConvention.Out)
         if (HasOutParameters(member))
             return true;
 
@@ -122,20 +122,13 @@ internal sealed class VisibilityFilter
     }
 
     /// <summary>
-    /// Returns <c>true</c> if the member is a method or constructor with <c>out</c> parameters.
+    /// Previously excluded methods with CLR <c>out</c> parameters. CLR <c>out</c> parameters
+    /// are now projected as <c>ref</c> with <see cref="Mist.Semantics.Model.ClrCallingConvention.Out"/>,
+    /// so this method unconditionally returns <c>false</c>.
     /// </summary>
     private static bool HasOutParameters(MemberInfo member)
     {
-        var parameters = GetParameters(member);
-        if (parameters is null)
-            return false;
-
-        foreach (var param in parameters)
-        {
-            if (param.IsOut)
-                return true;
-        }
-
+        // CLR out parameters are now supported — projected as ref with ClrCallingConvention.Out.
         return false;
     }
 

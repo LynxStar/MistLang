@@ -78,13 +78,13 @@ public class VisibilityFilterTests
         Assert.False(_filter.IsMemberExcluded(method));
     }
 
-    // --- Requirement 6.1: out parameters exclude method ---
+    // --- Requirement 6.1: out parameters now pass through (projected as ref with ClrCallingConvention.Out) ---
 
     [Fact]
-    public void IsMemberExcluded_OutParameter_ReturnsTrue()
+    public void IsMemberExcluded_OutParameter_ReturnsFalse()
     {
         var method = typeof(HasOutParam).GetMethod(nameof(HasOutParam.TryParse))!;
-        Assert.True(_filter.IsMemberExcluded(method));
+        Assert.False(_filter.IsMemberExcluded(method));
     }
 
     [Fact]

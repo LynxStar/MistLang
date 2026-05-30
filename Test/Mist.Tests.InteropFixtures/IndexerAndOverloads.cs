@@ -39,7 +39,7 @@ public class HasOverloads
     public string Process(string value) => value.ToUpper();
 
     /// <summary>
-    /// This overload has an out param and should be filtered, but others should remain.
+    /// This overload has an out param — projected as ref with ClrCallingConvention.Out.
     /// </summary>
     public bool Process(string input, out int result) => int.TryParse(input, out result);
 }

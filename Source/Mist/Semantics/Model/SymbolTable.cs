@@ -134,6 +134,14 @@ public sealed class Symbol : ISymbol
     public bool IsAsync { get; internal set; }
 
     /// <summary>
+    /// Indicates whether this symbol was declared as <c>static</c>. For method symbols
+    /// projected from CLR assemblies, this distinguishes static methods (reachable only
+    /// via the type name) from instance methods (reachable via an instance). Defaults
+    /// to <c>false</c>.
+    /// </summary>
+    public bool IsStatic { get; internal set; }
+
+    /// <summary>
     /// Indicates whether this async method should emit <c>ValueTask&lt;T&gt;</c>
     /// instead of <c>Task&lt;T&gt;</c> in the generated C#. This is computed by
     /// <c>ValueTaskUsageAnalysisPass</c> in the C# transpiler backend.

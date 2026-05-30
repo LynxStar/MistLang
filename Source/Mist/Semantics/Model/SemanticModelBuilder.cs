@@ -20779,20 +20779,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
                 catch (StdlibMissingException)
                 {
-                    // Stdlib not loaded — fall through to ambient resolver fallback below.
-                    if (ambientTypeResolver is not null)
-                    {
-                        var arrayBaseType = ambientTypeResolver.ResolveType("System", "Array");
-                        if (arrayBaseType is not null)
-                        {
-                            var members = ambientTypeResolver.GetMembers(arrayBaseType);
-                            foreach (var member in members)
-                            {
-                                if (member.Name == memberName)
-                                    return member.DeclaredType ?? ErrorType.Instance;
-                            }
-                        }
-                    }
+                    // Stdlib not loaded — skip. Extension method lookup will handle
+                    // any methods not in Standard.Array. Do NOT fall through to
+                    // System.Array ambient resolver — that would expose static methods
+                    // (like Array.Reverse) as instance members.
                 }
             }
             // If globalScope is null, skip the System.Array fallback entirely.
@@ -20860,6 +20850,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         if (m.Name == memberName)
                         {
+                            // Skip static methods during instance member lookup —
+                            // static methods are only reachable via the type name,
+                            // not via an instance. This prevents e.g. Array.Reverse
+                            // from shadowing Enumerable.Reverse<T> extension method.
+                            if (m is Symbol { IsStatic: true, Kind: SymbolKind.Method })
+                                continue;
+
                             var memberType = m.DeclaredType ?? ErrorType.Instance;
                             return SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
                         }

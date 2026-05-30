@@ -9227,11 +9227,28 @@ internal sealed class CSharpSourceWriter
                         var ambientExtBlock = _model.ExtensionRegistry.FindAmbientExtensionMethodBlock(receiverType, name);
                         if (ambientExtBlock is not null)
                         {
-                            var staticClassName = ambientExtBlock.AmbientStaticClassName ?? "AmbientExtensions";
-                            var staticArgs = args.Length > 0
-                                ? $"{target}, {args}"
-                                : target;
-                            return $"{staticClassName}.{name}{typeArgs}({staticArgs})";
+                            // Check if a Mist-native extension also provides this member —
+                            // if so, the native extension takes priority (Requirement 4.4).
+                            var hasNativeExtension = false;
+                            var applicable = _model.ExtensionRegistry.GetApplicableExtensions(receiverType);
+                            foreach (var ext in applicable)
+                            {
+                                if (ext.IsAmbient) continue;
+                                if (ext.MemberScope.Lookup(name) is not null)
+                                {
+                                    hasNativeExtension = true;
+                                    break;
+                                }
+                            }
+
+                            if (!hasNativeExtension)
+                            {
+                                var staticClassName = ambientExtBlock.AmbientStaticClassName ?? "AmbientExtensions";
+                                var staticArgs = args.Length > 0
+                                    ? $"{target}, {args}"
+                                    : target;
+                                return $"{staticClassName}.{name}{typeArgs}({staticArgs})";
+                            }
                         }
                     }
                 }

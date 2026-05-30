@@ -1238,6 +1238,10 @@ internal sealed class TypeProjector
                 returnType,
                 null);
 
+            // Track whether this is a static method so instance member lookup
+            // can skip it (static methods are only reachable via the type name).
+            methodSymbol.IsStatic = method.IsStatic;
+
             // Mark mutable ref returns (Requirements 5.1, 5.2).
             if (isRefReturn)
             {

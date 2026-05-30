@@ -1,0 +1,185 @@
+// ArityOverloads — Demonstrates type arity overloading: multiple types with the
+// same name but different numbers of type parameters coexist and are resolved
+// correctly based on the number of type arguments provided at the use site.
+//
+// This sample exercises:
+//   1. Mist-defined types with arity overloads (Wrapper, Wrapper<T>, Wrapper<T1,T2>, Wrapper<T1,T2,T3>)
+//   2. CLR interop with different-arity generic types (List<T> vs Dictionary<K,V>)
+//   3. Type alias coexistence with generic type (type Result = Result<string>)
+//   4. Arity overloads as field types
+//   5. Arity overloads as method parameter types
+
+using Standard;
+using System.Collections.Generic;
+
+namespace ArityOverloads;
+
+// ─── Mist-defined arity overloads ────────────────────────────────────────────
+
+// Non-generic Wrapper: wraps a fixed string label.
+class Wrapper {
+    public string Label;
+
+    public Wrapper(string label) {
+        this.Label = label;
+    }
+
+    public string Describe() {
+        return $"Wrapper({Label})";
+    }
+}
+
+// Single type parameter: wraps one value.
+class Wrapper<T> {
+    public T Value;
+
+    public Wrapper(T value) {
+        this.Value = value;
+    }
+
+    public string Describe() {
+        return $"Wrapper<T>({Value})";
+    }
+}
+
+// Two type parameters: wraps a pair of values.
+class Wrapper<T1, T2> {
+    public T1 First;
+    public T2 Second;
+
+    public Wrapper(T1 first, T2 second) {
+        this.First = first;
+        this.Second = second;
+    }
+
+    public string Describe() {
+        return $"Wrapper<T1,T2>({First}, {Second})";
+    }
+}
+
+// Three type parameters: wraps a triple.
+class Wrapper<T1, T2, T3> {
+    public T1 First;
+    public T2 Second;
+    public T3 Third;
+
+    public Wrapper(T1 first, T2 second, T3 third) {
+        this.First = first;
+        this.Second = second;
+        this.Third = third;
+    }
+
+    public string Describe() {
+        return $"Wrapper<T1,T2,T3>({First}, {Second}, {Third})";
+    }
+}
+
+// ─── Type alias coexistence with generic type ────────────────────────────────
+
+class Result<T> {
+    public T Value;
+    public bool Success;
+
+    public Result(T value, bool success) {
+        this.Value = value;
+        this.Success = success;
+    }
+
+    public string Describe() {
+        if (this.Success) {
+            return $"Ok({Value})";
+        }
+        return "Err";
+    }
+}
+
+// Non-generic alias coexists with generic Result<T>
+type Result = Result<string>;
+
+// ─── Container using different arities as field types ────────────────────────
+
+class ArityContainer {
+    public Wrapper Plain;
+    public Wrapper<int> Single;
+    public Wrapper<string, bool> Pair;
+    public Wrapper<int, string, bool> Triple;
+
+    public ArityContainer() {
+        this.Plain = new Wrapper("fixed");
+        this.Single = new Wrapper<int>(100);
+        this.Pair = new Wrapper<string, bool>("flag", true);
+        this.Triple = new Wrapper<int, string, bool>(7, "seven", true);
+    }
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
+
+public class Program {
+    public static void Main(string[] args) {
+        RunDemo();
+    }
+
+    // Methods accepting different arity overloads as parameters
+    private static string DescribePlain(Wrapper w) {
+        return $"plain: {w.Describe()}";
+    }
+
+    private static string DescribeSingle(Wrapper<int> w) {
+        return $"single: {w.Describe()}";
+    }
+
+    private static string DescribePair(Wrapper<string, bool> w) {
+        return $"pair: {w.Describe()}";
+    }
+
+    public static void RunDemo() {
+        Console.WriteLine("=== Arity Overloads Sample ===");
+
+        // 1. Mist-defined arity overloads — each resolves to the correct type by arity
+        Console.WriteLine("--- Mist arity overloads ---");
+        var w0 = new Wrapper("hello");
+        var w1 = new Wrapper<int>(42);
+        var w2 = new Wrapper<string, bool>("active", true);
+        var w3 = new Wrapper<int, string, double>(1, "two", 3.0);
+        Console.WriteLine(w0.Describe());
+        Console.WriteLine(w1.Describe());
+        Console.WriteLine(w2.Describe());
+        Console.WriteLine(w3.Describe());
+
+        // 2. CLR generic types with different arities (List<T>=1, Dictionary<K,V>=2)
+        Console.WriteLine("--- CLR generic arity ---");
+        var list = new List<int>();
+        list.Add(10);
+        list.Add(20);
+        list.Add(30);
+        Console.WriteLine($"List<int>.Count: {list.Count}");
+
+        var dict = new Dictionary<string, int>();
+        dict.Add("alpha", 1);
+        dict.Add("beta", 2);
+        Console.WriteLine($"Dictionary<string,int>.Count: {dict.Count}");
+
+        // 3. Type alias coexistence — Result (alias for Result<string>) vs Result<T> (generic)
+        Console.WriteLine("--- Type alias coexistence ---");
+        var ok = new Result<int>(42, true);
+        Console.WriteLine($"Result<int>: {ok.Describe()}");
+        var fail = new Result<string>("", false);
+        Console.WriteLine($"Result<string>: {fail.Describe()}");
+
+        // 4. Arity overloads as field types
+        Console.WriteLine("--- Field types ---");
+        var container = new ArityContainer();
+        Console.WriteLine(container.Plain.Describe());
+        Console.WriteLine(container.Single.Describe());
+        Console.WriteLine(container.Pair.Describe());
+        Console.WriteLine(container.Triple.Describe());
+
+        // 5. Arity overloads as method parameter types
+        Console.WriteLine("--- Method parameters ---");
+        Console.WriteLine(Program.DescribePlain(w0));
+        Console.WriteLine(Program.DescribeSingle(w1));
+        Console.WriteLine(Program.DescribePair(w2));
+
+        Console.WriteLine("Done!");
+    }
+}

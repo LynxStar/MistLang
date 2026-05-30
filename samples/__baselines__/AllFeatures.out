@@ -1330,4 +1330,26 @@ nested: both positive with label
 --- 3-element tuple ---
 red-ish color with no blue
 Done!
+=== Arity Overloads Sample ===
+--- Mist arity overloads ---
+Wrapper(hello)
+Wrapper<T>(42)
+Wrapper<T1,T2>(active, True)
+Wrapper<T1,T2,T3>(1, two, 3)
+--- CLR generic arity ---
+List<int>.Count: 3
+Dictionary<string,int>.Count: 2
+--- Type alias coexistence ---
+Result<int>: Ok(42)
+Result<string>: Err
+--- Field types ---
+Wrapper(fixed)
+Wrapper<T>(100)
+Wrapper<T1,T2>(flag, True)
+Wrapper<T1,T2,T3>(7, seven, True)
+--- Method parameters ---
+plain: Wrapper(hello)
+single: Wrapper<T>(42)
+pair: Wrapper<T1,T2>(active, True)
+Done!
 === Done! ===

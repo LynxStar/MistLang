@@ -17,6 +17,11 @@ internal class Program
 {
     private static int Main(string[] args)
     {
+        // Ensure consistent UTF-8 output across all platforms. Without this,
+        // Windows defaults to the system codepage (e.g., 1252) which mangles
+        // Unicode characters in sample output and breaks cross-platform baselines.
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
+
         // Parse CLI arguments
         var parseResult = CliArgumentParser.Parse(args);
 

@@ -211,10 +211,13 @@ public sealed class ErrorDiagnosticsTests
 
             var diags = diagnostics.ToImmutableArray();
 
-            // Should have exactly one error for the corrupted file.
+            // Should have at least one error for the corrupted file.
+            // Note: The runtime directory may contain native DLLs (e.g., clrjit.dll,
+            // coreclr.dll on Windows) that also fail to load as managed assemblies.
+            // We verify our corrupted file is among the failures, not that it's the only one.
             var asmErrors = diags.Where(d => d.Id.Value == "MIST_ASM_LOAD_FAILED").ToList();
-            Assert.Single(asmErrors);
-            Assert.Contains(tempFile, asmErrors[0].Message);
+            Assert.NotEmpty(asmErrors);
+            Assert.Contains(asmErrors, e => e.Message.Contains(tempFile));
 
             // The valid assembly's types should still be available.
             Assert.True(provider.HasNamespace("Mist.Tests.InteropFixtures"));

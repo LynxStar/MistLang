@@ -115,12 +115,35 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// <inheritdoc />
     public IType? ResolveType(string namespaceName, string typeName)
     {
-        // Check cache first — ensures reference equality (Requirement 3.4).
-        if (_cache.TryGetValue((namespaceName, typeName), out var cached))
+        return ResolveTypeCore(namespaceName, typeName, typeArgumentCount: -1);
+    }
+
+    /// <inheritdoc />
+    public IType? ResolveType(string namespaceName, string typeName, int typeArgumentCount)
+    {
+        return ResolveTypeCore(namespaceName, typeName, typeArgumentCount);
+    }
+
+    /// <summary>
+    /// Core resolution logic shared by both <see cref="ResolveType(string, string)"/> and
+    /// <see cref="ResolveType(string, string, int)"/>. When <paramref name="typeArgumentCount"/>
+    /// is &gt;= 0, the CLR type with exactly that many generic parameters is selected
+    /// (e.g., <c>Func`2</c> for arity 2). When -1, falls back to first-match behavior.
+    /// </summary>
+    private IType? ResolveTypeCore(string namespaceName, string typeName, int typeArgumentCount)
+    {
+        // Build the cache key: include arity to distinguish Foo from Foo`1 from Foo`2.
+        var cacheKey = typeArgumentCount >= 0
+            ? (namespaceName, $"{typeName}`{typeArgumentCount}")
+            : (namespaceName, typeName);
+
+        if (_cache.TryGetValue(cacheKey, out var cached))
             return cached.Type;
 
         // Find the CLR type in loaded assemblies.
-        var clrType = FindClrType(namespaceName, typeName);
+        var clrType = typeArgumentCount >= 0
+            ? FindClrTypeByArity(namespaceName, typeName, typeArgumentCount)
+            : FindClrType(namespaceName, typeName);
         if (clrType is null)
             return null;
 
@@ -155,7 +178,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             : projectedMembers;
 
         // Cache the result for reference equality on subsequent resolutions.
-        _cache[(namespaceName, typeName)] = (projectedType, allMembers);
+        _cache[cacheKey] = (projectedType, allMembers);
 
         return projectedType;
     }
@@ -295,6 +318,60 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
                 if (strippedName == typeName && candidateName != typeName)
                 {
                     var fullName = $"{namespaceName}.{candidateName}";
+                    try
+                    {
+                        var type = assemblyInfo.MetadataAssembly.GetType(fullName);
+                        if (type is not null && !_filter.IsTypeExcluded(type))
+                            return type;
+                    }
+                    catch
+                    {
+                        // Skip types that fail to load.
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Finds a CLR <see cref="Type"/> by namespace, type name, and exact generic arity.
+    /// For arity 0, matches only non-generic types (no backtick suffix).
+    /// For arity N &gt; 0, matches only types with exactly <c>`N</c> suffix.
+    /// </summary>
+    private Type? FindClrTypeByArity(string namespaceName, string typeName, int typeArgumentCount)
+    {
+        foreach (var assemblyInfo in _loadedAssemblies)
+        {
+            if (!assemblyInfo.NamespaceIndex.TryGetValue(namespaceName, out var typeNames))
+                continue;
+
+            if (typeArgumentCount == 0)
+            {
+                // Non-generic: match the exact name without any arity suffix.
+                if (typeNames.Contains(typeName))
+                {
+                    var fullName = $"{namespaceName}.{typeName}";
+                    try
+                    {
+                        var type = assemblyInfo.MetadataAssembly.GetType(fullName);
+                        if (type is not null && !_filter.IsTypeExcluded(type) && !type.IsGenericTypeDefinition)
+                            return type;
+                    }
+                    catch
+                    {
+                        // Skip types that fail to load.
+                    }
+                }
+            }
+            else
+            {
+                // Generic: match "TypeName`N" exactly.
+                var arityName = $"{typeName}`{typeArgumentCount}";
+                if (typeNames.Contains(arityName))
+                {
+                    var fullName = $"{namespaceName}.{arityName}";
                     try
                     {
                         var type = assemblyInfo.MetadataAssembly.GetType(fullName);

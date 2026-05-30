@@ -16839,7 +16839,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                 }
 
-                baseType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                baseType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics,
+                    typeArgumentCount: namedRef.TypeArgs is not null ? CountTypeArgs(namedRef.TypeArgs) : 0);
 
                 // Handle type arguments if present.
                 if (namedRef.TypeArgs is not null)
@@ -17189,7 +17190,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                 }
 
-                var baseType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                var baseType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics,
+                    typeArgumentCount: namedRef.TypeArgs is not null ? CountTypeArgs(namedRef.TypeArgs) : 0);
 
                 // Handle type arguments if present.
                 if (namedRef.TypeArgs is not null)
@@ -17722,6 +17724,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Resolves a named type by searching the scope chain and imported namespaces.
+    /// When <paramref name="typeArgumentCount"/> is &gt;= 0, the resolver disambiguates
+    /// between types with the same name but different generic arities (e.g., <c>Foo</c>
+    /// vs <c>Foo&lt;T&gt;</c> vs <c>Foo&lt;T1, T2&gt;</c>).
     /// </summary>
     private static IType ResolveNamedType(
         string typeName,
@@ -17729,14 +17734,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IAmbientTypeResolver? ambientTypeResolver,
         SymbolTable symbolTable,
         SourceText? sourceText,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        int typeArgumentCount = -1)
     {
         // 1. Check well-known primitive types by name.
         var wellKnown = TryResolveWellKnownType(typeName);
         if (wellKnown is not null) return wellKnown;
 
         // 2. Search current scope → parent scopes (local → file → namespace → global).
-        var symbol = fileScope.Lookup(typeName);
+        //    When typeArgumentCount >= 0, use arity-aware lookup to disambiguate overloads.
+        var symbol = LookupTypeByArity(fileScope, typeName, typeArgumentCount);
         if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.TypeAlias || symbol.Kind == SymbolKind.Enum || symbol.Kind == SymbolKind.Newtype))
         {
             // For type aliases that haven't been resolved yet, trigger
@@ -17784,22 +17791,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             if (nsScope is not null)
             {
-                foreach (var member in nsScope.Members)
+                var nsMember = LookupTypeMemberByArity(nsScope, typeName, typeArgumentCount);
+                if (nsMember is not null)
                 {
-                    if (member.Name == typeName &&
-                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias || member.Kind == SymbolKind.Enum || member.Kind == SymbolKind.Newtype))
+                    if (userResolvedType is not null)
                     {
-                        if (userResolvedType is not null)
-                        {
-                            // Ambiguity: same type name found in multiple imported namespaces.
-                            ambiguousNs = ns;
-                        }
-                        else
-                        {
-                            userResolvedType = member.DeclaredType ?? ErrorType.Instance;
-                            userResolvedNs = ns;
-                        }
-                        break;
+                        // Ambiguity: same type name found in multiple imported namespaces.
+                        ambiguousNs = ns;
+                    }
+                    else
+                    {
+                        userResolvedType = nsMember.DeclaredType ?? ErrorType.Instance;
+                        userResolvedNs = ns;
                     }
                 }
             }
@@ -17832,8 +17835,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             foreach (var ns in importedNamespaces)
             {
-                // Try ambient resolver for each imported namespace.
-                var resolvedType = ambientTypeResolver.ResolveType(ns, typeName);
+                // Try ambient resolver for each imported namespace, with arity when available.
+                var resolvedType = typeArgumentCount >= 0
+                    ? ambientTypeResolver.ResolveType(ns, typeName, typeArgumentCount)
+                    : ambientTypeResolver.ResolveType(ns, typeName);
                 if (resolvedType is not null)
                 {
                     if (ambientResolvedType is not null)
@@ -17881,6 +17886,98 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             AnalyzerName: null));
 
         return ErrorType.Instance;
+    }
+
+    /// <summary>
+    /// Looks up a type symbol by name in the scope chain, disambiguating by arity when
+    /// <paramref name="typeArgumentCount"/> is &gt;= 0. When arity is -1, falls back to
+    /// the original first-match behavior for backward compatibility.
+    /// </summary>
+    private static ISymbol? LookupTypeByArity(Scope scope, string typeName, int typeArgumentCount)
+    {
+        if (typeArgumentCount < 0)
+        {
+            // Legacy behavior: return first match.
+            return scope.Lookup(typeName);
+        }
+
+        // Arity-aware: collect all candidates and pick the one with matching arity.
+        var candidates = scope.LookupAll(typeName);
+        ISymbol? fallback = null;
+
+        foreach (var candidate in candidates)
+        {
+            if (candidate.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum or SymbolKind.Newtype))
+                continue;
+
+            var candidateArity = GetSymbolTypeParameterCount(candidate);
+            if (candidateArity == typeArgumentCount)
+                return candidate;
+
+            // Keep the first type-kind match as fallback in case no arity match is found.
+            fallback ??= candidate;
+        }
+
+        // If no exact arity match, return the first type-kind match (preserves existing
+        // diagnostic behavior — ResolvePass2TypeArguments will emit MIST_ARITY_MISMATCH).
+        return fallback;
+    }
+
+    /// <summary>
+    /// Looks up a type member by name within a single scope (not walking parents),
+    /// disambiguating by arity when <paramref name="typeArgumentCount"/> is &gt;= 0.
+    /// Used for searching imported namespace scopes.
+    /// </summary>
+    private static ISymbol? LookupTypeMemberByArity(Scope scope, string typeName, int typeArgumentCount)
+    {
+        ISymbol? fallback = null;
+
+        foreach (var member in scope.Members)
+        {
+            if (member.Name != typeName)
+                continue;
+            if (member.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum or SymbolKind.Newtype))
+                continue;
+
+            if (typeArgumentCount < 0)
+                return member; // Legacy: first match.
+
+            var candidateArity = GetSymbolTypeParameterCount(member);
+            if (candidateArity == typeArgumentCount)
+                return member;
+
+            fallback ??= member;
+        }
+
+        return typeArgumentCount >= 0 ? fallback : null;
+    }
+
+    /// <summary>
+    /// Gets the number of type parameters declared on a type symbol.
+    /// Works by inspecting the symbol's <see cref="ISymbol.DeclaredType"/>.
+    /// </summary>
+    private static int GetSymbolTypeParameterCount(ISymbol symbol)
+    {
+        var type = symbol.DeclaredType;
+        if (type is null)
+        {
+            // Type not yet resolved (forward reference). Check the Symbol's TypeParameters list.
+            if (symbol is Symbol s)
+                return s.TypeParameters.Count;
+            return 0;
+        }
+
+        return type switch
+        {
+            ClassType ct => ct.TypeParameters.Count,
+            StructType st => st.TypeParameters.Count,
+            InterfaceType it => it.TypeParameters.Count,
+            TraitType tt => tt.TypeParameters.Count,
+            TypeAliasType at => at.TypeParameters.Count,
+            _ => 0,
+        };
     }
 
     /// <summary>
@@ -20195,7 +20292,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case ObjectCreationExpressionPrimaryNode objCreation:
             {
                 var typeName = ExtractQualifiedName(objCreation.Type, sourceText);
-                var createdType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                var createdType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics,
+                    typeArgumentCount: objCreation.TypeArgs is not null ? CountTypeArgs(objCreation.TypeArgs) : 0);
 
                 // Check for abstract type instantiation.
                 if (createdType is ClassType { IsAbstract: true } abstractClass)
@@ -20239,7 +20337,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case ObjectCreationExpressionNoArgsPrimaryNode objCreationNoArgs:
             {
                 var typeName = ExtractQualifiedName(objCreationNoArgs.Type, sourceText);
-                var createdType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                var createdType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics,
+                    typeArgumentCount: objCreationNoArgs.TypeArgs is not null ? CountTypeArgs(objCreationNoArgs.TypeArgs) : 0);
 
                 // Check for abstract type instantiation.
                 if (createdType is ClassType { IsAbstract: true } abstractClass)

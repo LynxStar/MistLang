@@ -181,7 +181,12 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         var diagnostics = new DiagnosticBag();
         CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
 
-        var csFile = Directory.GetFiles(_outputDir, "*.cs").FirstOrDefault();
+        // When stdlib is loaded, multiple .cs files are emitted (MistVoid.g.cs,
+        // UnionHelpers.cs, etc.). The user's code is in test.cs. Fall back to
+        // the first .cs file for tests that don't load stdlib.
+        var csFiles = Directory.GetFiles(_outputDir, "*.cs");
+        var testFile = csFiles.FirstOrDefault(f => Path.GetFileName(f) == "test.cs");
+        var csFile = testFile ?? csFiles.FirstOrDefault();
         return csFile is not null ? File.ReadAllText(csFile) : "";
     }
 

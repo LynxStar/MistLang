@@ -21,6 +21,14 @@ public interface IAmbientTypeResolver
     IType? ResolveType(string namespaceName, string typeName);
 
     /// <summary>
+    /// Resolve a type by namespace, simple name, and generic arity. Returns null if not found.
+    /// When <paramref name="typeArgumentCount"/> is specified (>= 0), the resolver picks the
+    /// overload with exactly that many type parameters (e.g., <c>Func`2</c> for arity 2).
+    /// Falls back to <see cref="ResolveType(string, string)"/> when arity is not relevant.
+    /// </summary>
+    IType? ResolveType(string namespaceName, string typeName, int typeArgumentCount) => ResolveType(namespaceName, typeName);
+
+    /// <summary>
     /// Get the members (methods, fields, constructors) of a previously resolved type.
     /// All returned symbols have SymbolOrigin.Backend.
     /// </summary>

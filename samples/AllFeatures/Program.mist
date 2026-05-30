@@ -63,6 +63,7 @@ public class Program
         RefStructs.Program.RunDemo();
         ExtensionMethodBinding.Program.RunDemo();
         TuplePatternMatching.Program.RunDemo();
+        ArityOverloads.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

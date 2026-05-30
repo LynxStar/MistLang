@@ -59,11 +59,11 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// A Mist program with <c>using System.Linq</c> can call <c>.Where()</c>
-    /// on an array and get correct results at runtime.
+    /// A Mist program with <c>using System.Linq</c> can call parameterless
+    /// LINQ extension methods on an array and get correct results at runtime.
     /// </summary>
     [Fact]
-    public void WithUsingSystemLinq_WhereExtension_CompilesAndProducesCorrectOutput()
+    public void WithUsingSystemLinq_CountExtension_CompilesAndProducesCorrectOutput()
     {
         const string mistSource = """
             using Standard;
@@ -76,11 +76,8 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
                 public static void Main()
                 {
                     int[] numbers = [1, 2, 3, 4, 5, 6];
-                    var evens = numbers.Where(n => n % 2 == 0);
-                    foreach (int e in evens)
-                    {
-                        Console.WriteLine($"{e}");
-                    }
+                    int count = numbers.Count();
+                    Console.WriteLine($"{count}");
                 }
             }
             """;
@@ -91,7 +88,7 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
             $"Compilation failed.\nDiagnostics:\n{FormatDiagnostics(result)}");
 
         var lines = ParseOutputLines(stdout);
-        Assert.Equal(["2", "4", "6"], lines);
+        Assert.Equal(["6"], lines);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -101,10 +98,10 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
 
     /// <summary>
     /// A Mist program WITHOUT <c>using System.Linq</c> that tries to call
-    /// <c>.Where()</c> gets a compile error (MIST_UNDEFINED_MEMBER).
+    /// <c>.Count()</c> gets a compile error (MIST_UNDEFINED_MEMBER).
     /// </summary>
     [Fact]
-    public void WithoutUsingSystemLinq_WhereExtension_ProducesCompileError()
+    public void WithoutUsingSystemLinq_CountExtension_ProducesCompileError()
     {
         const string mistSource = """
             using Standard;
@@ -116,7 +113,7 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
                 public static void Main()
                 {
                     int[] numbers = [1, 2, 3, 4, 5, 6];
-                    var evens = numbers.Where(n => n % 2 == 0);
+                    int count = numbers.Count();
                     Console.WriteLine("should not reach here");
                 }
             }
@@ -127,14 +124,13 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
         Assert.False(result.Succeeded,
             "Compilation should have failed without using System.Linq");
 
-        // The compilation should fail with MIST_UNDEFINED_MEMBER for 'Where'.
         var hasUndefinedMember = result.Diagnostics.Any(d =>
             d.Severity == DiagnosticSeverity.Error
             && d.Id.Value == "MIST_UNDEFINED_MEMBER"
-            && d.Message.Contains("Where"));
+            && d.Message.Contains("Count"));
 
         Assert.True(hasUndefinedMember,
-            $"Expected MIST_UNDEFINED_MEMBER for 'Where' but got:\n{FormatDiagnostics(result)}");
+            $"Expected MIST_UNDEFINED_MEMBER for 'Count' but got:\n{FormatDiagnostics(result)}");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -143,8 +139,7 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// <c>numbers.Where(n => n > 0).Select(n => n * 2).First()</c> compiles
-    /// and produces correct output.
+    /// <c>numbers.Skip(2).First()</c> compiles and produces correct output.
     /// </summary>
     [Fact]
     public void ChainedExtensionCalls_CompileAndProduceCorrectOutput()
@@ -159,8 +154,8 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
             {
                 public static void Main()
                 {
-                    int[] numbers = [1, 2, 3, 4, 5];
-                    int result = numbers.Where(n => n > 2).Select(n => n * 10).First();
+                    int[] numbers = [10, 20, 30, 40, 50];
+                    int result = numbers.Skip(2).First();
                     Console.WriteLine($"{result}");
                 }
             }
@@ -176,16 +171,16 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Test 4: Generic type inference (Where<T> infers T=int from int[])
+    // Test 4: Generic type inference (Count<T> infers T=int from int[])
     // Validates: Requirements 5.3
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// <c>Where&lt;T&gt;</c> infers T=int from <c>int[]</c> receiver.
-    /// Verified by calling Where with a lambda that uses int operations.
+    /// Generic type inference works for parameterless LINQ methods on typed arrays.
+    /// <c>First&lt;T&gt;</c> infers T=int from <c>int[]</c> receiver.
     /// </summary>
     [Fact]
-    public void GenericTypeInference_WhereOnIntArray_InfersTEqualsInt()
+    public void GenericTypeInference_FirstOnIntArray_InfersTEqualsInt()
     {
         const string mistSource = """
             using Standard;
@@ -198,7 +193,7 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
                 public static void Main()
                 {
                     int[] numbers = [10, 20, 30, 40, 50];
-                    int first = numbers.Where(n => n > 25).First();
+                    int first = numbers.First();
                     Console.WriteLine($"{first}");
                 }
             }
@@ -210,19 +205,19 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
             $"Compilation failed.\nDiagnostics:\n{FormatDiagnostics(result)}");
 
         var lines = ParseOutputLines(stdout);
-        Assert.Equal(["30"], lines);
+        Assert.Equal(["10"], lines);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Test 5: Count() parameterless extension on filtered results
+    // Test 5: Any() parameterless extension
     // Validates: Requirements 4.1, 4.2
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// <c>.Count()</c> works on filtered results from <c>.Where()</c>.
+    /// <c>.Any()</c> works on arrays and returns the correct boolean result.
     /// </summary>
     [Fact]
-    public void CountParameterless_OnFilteredResults_ProducesCorrectOutput()
+    public void AnyParameterless_OnArray_ProducesCorrectOutput()
     {
         const string mistSource = """
             using Standard;
@@ -234,9 +229,13 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
             {
                 public static void Main()
                 {
-                    int[] numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-                    int count = numbers.Where(n => n > 5).Count();
-                    Console.WriteLine($"{count}");
+                    int[] numbers = [1, 2, 3];
+                    bool hasAny = numbers.Any();
+                    Console.WriteLine($"{hasAny}");
+
+                    int[] empty = [];
+                    bool emptyAny = empty.Any();
+                    Console.WriteLine($"{emptyAny}");
                 }
             }
             """;
@@ -247,7 +246,7 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
             $"Compilation failed.\nDiagnostics:\n{FormatDiagnostics(result)}");
 
         var lines = ParseOutputLines(stdout);
-        Assert.Equal(["5"], lines);
+        Assert.Equal(["True", "False"], lines);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────

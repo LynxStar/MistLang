@@ -8390,6 +8390,23 @@ internal sealed class CSharpSourceWriter
 
                 return $"[{EmitListPatternElementList(listPattern.Elements)}]";
             }
+            case TuplePositionalPatternPrimaryPatternNode tuplePattern:
+            {
+                var elements = new List<string>();
+                var tupleType = scrutineeType as TupleType;
+
+                elements.Add(EmitPattern(tuplePattern.First, tupleType is not null && tupleType.ElementTypes.Count > 0 ? tupleType.ElementTypes[0] : null));
+                elements.Add(EmitPattern(tuplePattern.Rest, tupleType is not null && tupleType.ElementTypes.Count > 1 ? tupleType.ElementTypes[1] : null));
+
+                var idx = 2;
+                foreach (var additional in tuplePattern.Patterns)
+                {
+                    elements.Add(EmitPattern(additional, tupleType is not null && idx < tupleType.ElementTypes.Count ? tupleType.ElementTypes[idx] : null));
+                    idx++;
+                }
+
+                return $"({string.Join(", ", elements)})";
+            }
             case ParenthesizedPatternPrimaryPatternNode parenPattern:
                 return $"({EmitPattern(parenPattern.Inner, scrutineeType)})";
             default:

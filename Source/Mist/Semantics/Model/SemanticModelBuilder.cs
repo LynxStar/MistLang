@@ -15584,6 +15584,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     bindingType = new TupleType(tupleTypeForBinding.ElementTypes, elementNames: null);
                 }
 
+                CheckDuplicateLocal(name, thenScope, sourceText, diagnostics);
+
                 var varSpan = ToMistSourceSpan(typePattern.Name.Span);
                 var varSymbol = new Symbol(name, SymbolKind.LocalVariable, SymbolOrigin.UserCode, thenScope, bindingType, varSpan);
                 thenScope.AddMember(varSymbol);
@@ -15629,6 +15631,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         var elementAst = astElements[i];
                         if (!elementAst.Name.HasValue) continue;
 
+                        CheckDuplicateLocal(elementName, thenScope, sourceText, diagnostics);
+
                         var elementSpan = ToMistSourceSpan(elementAst.Name.Value.Span);
                         var elementSymbol = new Symbol(
                             elementName,
@@ -15645,10 +15649,48 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             }
 
-            case BareTypePatternPrimaryPatternNode:
+            case BareTypePatternPrimaryPatternNode bareTypePattern:
             {
                 // Bare type pattern: `Type` (no binding name) — pure type test.
-                // No variable to register.
+                // No whole-tuple variable to register.
+                //
+                // However, if the type is a named tuple type (e.g., `(int i, string str)`),
+                // the named elements introduce local bindings in the then-scope,
+                // matching C# semantics where `is (int i, string str)` introduces
+                // `i` and `str` as deconstructed element variables.
+                var barePatternType = ResolveTypeReference(bareTypePattern.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+                if (bareTypePattern.Type is TupleTypeRefTypeReferenceNode bareTupleRef
+                    && barePatternType is TupleType bareTupleType
+                    && bareTupleType.ElementNames is not null)
+                {
+                    var bareAstElements = new List<TupleTypeElementNode> { bareTupleRef.First, bareTupleRef.Rest };
+                    bareAstElements.AddRange(bareTupleRef.TupleTypeElements);
+
+                    for (var i = 0; i < bareTupleType.ElementNames.Count; i++)
+                    {
+                        var elementName = bareTupleType.ElementNames[i];
+                        if (elementName is null || elementName == "_") continue;
+                        if (i >= bareAstElements.Count) continue;
+
+                        var elementAst = bareAstElements[i];
+                        if (!elementAst.Name.HasValue) continue;
+
+                        CheckDuplicateLocal(elementName, thenScope, sourceText, diagnostics);
+
+                        var elementSpan = ToMistSourceSpan(elementAst.Name.Value.Span);
+                        var elementSymbol = new Symbol(
+                            elementName,
+                            SymbolKind.LocalVariable,
+                            SymbolOrigin.UserCode,
+                            thenScope,
+                            bareTupleType.ElementTypes[i],
+                            elementSpan);
+                        thenScope.AddMember(elementSymbol);
+                        symbolTable.Register(elementSymbol, elementAst);
+                    }
+                }
+
                 break;
             }
 
@@ -15661,6 +15703,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Discard `_` does not introduce a variable.
                 if (name == "_")
                     break;
+
+                CheckDuplicateLocal(name, thenScope, sourceText, diagnostics);
 
                 var varSpan = ToMistSourceSpan(varPattern.Name.Span);
                 var varSymbol = new Symbol(name, SymbolKind.LocalVariable, SymbolOrigin.UserCode, thenScope, scrutineeType, varSpan);
@@ -15716,6 +15760,36 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (listPattern.Elements is not null)
                 {
                     CollectFromListPatternElementList(listPattern.Elements, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+                }
+                break;
+            }
+
+            case TuplePositionalPatternPrimaryPatternNode tuplePositionalPattern:
+            {
+                // Determine element types from the scrutinee type.
+                // If the scrutinee is a TupleType, pass each element's type
+                // to the corresponding subpattern. Otherwise, use ErrorType
+                // to still collect variables even when types are wrong.
+                var elementPatterns = new List<PatternNode> { tuplePositionalPattern.First, tuplePositionalPattern.Rest };
+                elementPatterns.AddRange(tuplePositionalPattern.Patterns);
+
+                if (scrutineeType is TupleType tupleType)
+                {
+                    for (var i = 0; i < elementPatterns.Count; i++)
+                    {
+                        var elementType = i < tupleType.ElementTypes.Count
+                            ? tupleType.ElementTypes[i]
+                            : ErrorType.Instance;
+                        CollectFromPattern(elementPatterns[i], elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+                    }
+                }
+                else
+                {
+                    // Not a tuple type or ErrorType — still recurse to collect variables.
+                    foreach (var elementPattern in elementPatterns)
+                    {
+                        CollectFromPattern(elementPattern, ErrorType.Instance, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+                    }
                 }
                 break;
             }
@@ -18937,6 +19011,34 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (listPattern.Elements is not null)
                 {
                     ResolveListPatternElementList(listPattern.Elements, elementType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                }
+                break;
+            }
+
+            case TuplePositionalPatternPrimaryPatternNode tuplePositionalPattern:
+            {
+                // Determine element types from the scrutinee type and recursively
+                // resolve each element subpattern with the corresponding type.
+                var elementPatterns = new List<PatternNode> { tuplePositionalPattern.First, tuplePositionalPattern.Rest };
+                elementPatterns.AddRange(tuplePositionalPattern.Patterns);
+
+                if (scrutineeType is TupleType tupleType)
+                {
+                    for (var i = 0; i < elementPatterns.Count; i++)
+                    {
+                        var elementType = i < tupleType.ElementTypes.Count
+                            ? tupleType.ElementTypes[i]
+                            : ErrorType.Instance;
+                        ResolvePattern(elementPatterns[i], elementType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+                }
+                else
+                {
+                    // Not a tuple type — still resolve subpatterns with ErrorType.
+                    foreach (var elementPattern in elementPatterns)
+                    {
+                        ResolvePattern(elementPattern, ErrorType.Instance, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
                 }
                 break;
             }

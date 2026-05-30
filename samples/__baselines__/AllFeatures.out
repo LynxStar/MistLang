@@ -1306,4 +1306,28 @@ Skip then First: 6
 Word count: 3
 First word: hello
 --- Extension Method Binding Done ---
+=== Tuple Pattern Matching Sample ===
+--- Constant subpatterns ---
+origin is (0, 0)
+point1 is (3, 4)
+--- Relational subpatterns ---
+point2 is in quadrant I
+point3 is in quadrant II
+--- Logical subpatterns ---
+both scores are in [80, 100]
+--- Var subpatterns ---
+n=42 s=hello
+--- Discard subpatterns ---
+second element > 15
+--- Type subpatterns ---
+i=123 str=world
+--- Nested tuple patterns ---
+nested: both positive with label
+--- Switch expression ---
+(0,5) => on y-axis
+--- When guard ---
+(100,200) => large
+--- 3-element tuple ---
+red-ish color with no blue
+Done!
 === Done! ===

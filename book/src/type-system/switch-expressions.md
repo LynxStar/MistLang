@@ -136,3 +136,22 @@ Relational patterns (`<`, `<=`, `>`, `>=`) compare the scrutinee against a const
 {{#endtabs }}
 
 Relational patterns eliminate the need for `when` guards in many numeric scenarios. The `and` combinator creates range checks — `>= 80 and < 90` matches values in the half-open interval [80, 90). Arms are evaluated top-to-bottom, so order matters when ranges overlap.
+
+## Tuple Positional Pattern Arms
+
+Tuple positional patterns match tuple elements by position using parenthesized syntax. Each element in the pattern corresponds to the element at the same position in the tuple, and can use any subpattern — constants, relational, logical, discard, or var patterns. This provides a concise way to branch on multiple tuple elements simultaneously without referencing `Item1`, `Item2`, etc.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/switch-expressions/tuple-positional.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/switch-expressions/tuple-positional.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Each arm's pattern is a tuple positional pattern that tests both elements of `coord`. The switch evaluates arms top-to-bottom — the first matching pattern determines the result. A catch-all arm using `(var _, var _)` ensures exhaustiveness when earlier arms don't cover all possible values.

@@ -62,6 +62,7 @@ public class Program
         ClrRefInterop.Program.RunDemo();
         RefStructs.Program.RunDemo();
         ExtensionMethodBinding.Program.RunDemo();
+        TuplePatternMatching.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

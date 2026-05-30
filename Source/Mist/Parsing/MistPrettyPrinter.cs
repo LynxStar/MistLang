@@ -1906,6 +1906,17 @@ public sealed class MistPrettyPrinter
 
                 return $"[{EmitListPatternElementList(listPattern.Elements)}]";
             }
+            case TuplePositionalPatternPrimaryPatternNode tuplePattern:
+            {
+                var elements = new List<string>();
+                elements.Add(EmitPattern(tuplePattern.First));
+                elements.Add(EmitPattern(tuplePattern.Rest));
+                foreach (var additional in tuplePattern.Patterns)
+                {
+                    elements.Add(EmitPattern(additional));
+                }
+                return $"({string.Join(", ", elements)})";
+            }
             case ParenthesizedPatternPrimaryPatternNode parenPattern:
                 return $"({EmitPattern(parenPattern.Inner)})";
             default:

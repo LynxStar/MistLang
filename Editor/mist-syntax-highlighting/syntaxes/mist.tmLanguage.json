@@ -121,6 +121,11 @@
           "match": "\\b(new|var|this|get|set|init|field|operator|with|as|default|where)\\b"
         },
         {
+          "comment": "Discard pattern: standalone _ in pattern contexts",
+          "name": "variable.language.mist",
+          "match": "(?<![\\w])_(?![\\w])"
+        },
+        {
           "comment": "Adhoc refinement constraint: where Name >= / <= / > / < ... and ...",
           "match": "\\b(where)\\s+([a-zA-Z_]\\w*)\\s+(>=|<=|>|<)",
           "captures": {

@@ -699,6 +699,7 @@ rule PrimaryPattern
     | GREATER_THAN_OR_EQUAL constant:Expression                             as GreaterThanOrEqualRelationalPattern
     | typeName:QualifiedIdentifier? LEFT_BRACE subpatterns:PropertySubpatternList? RIGHT_BRACE name:(IDENTIFIER | DISCARD)?  as PropertyPattern
     | LEFT_BRACKET elements:ListPatternElementList? RIGHT_BRACKET           as ListPattern
+    | LEFT_PARENTHESIS first:Pattern COMMA rest:Pattern (COMMA additional:Pattern)* RIGHT_PARENTHESIS  as TuplePositionalPattern
     | LEFT_PARENTHESIS inner:Pattern RIGHT_PARENTHESIS                      as ParenthesizedPattern
     | literal:ConstantLiteral                                               as ConstantPattern
     ;

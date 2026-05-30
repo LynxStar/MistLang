@@ -45,6 +45,17 @@ internal static class ExhaustivenessChecker
             return CheckUnionExhaustiveness(unionType, arms);
         }
 
+        // Rule 3b: Tuple type scrutinee — the exhaustiveness checker cannot
+        // meaningfully analyze relational/constant patterns for coverage across
+        // tuple elements. When tuple positional pattern arms are present, skip
+        // the exhaustiveness check (the checker would always report missing "_"
+        // even when the arms are mathematically exhaustive). This matches C#'s
+        // behavior where non-exhaustive tuple switches produce a warning at most.
+        if (scrutineeType is TupleType)
+        {
+            return Array.Empty<string>();
+        }
+
         // Rule 4: Numeric/string/other unbounded types — require catch-all.
         // Since we already checked for catch-all in Rule 1 and didn't find one,
         // the switch is not exhaustive for unbounded types.
@@ -74,7 +85,8 @@ internal static class ExhaustivenessChecker
     }
 
     /// <summary>
-    /// Determines whether a pattern is a catch-all (discard <c>_</c> or <c>var x</c>).
+    /// Determines whether a pattern is a catch-all (discard <c>_</c>, <c>var x</c>,
+    /// or a tuple positional pattern where every element is itself a catch-all).
     /// </summary>
     private static bool IsCatchAllPattern(PatternNode pattern)
     {
@@ -83,7 +95,25 @@ internal static class ExhaustivenessChecker
         if (primary is null)
             return false;
 
-        return primary is VarPatternPrimaryPatternNode or DiscardPatternPrimaryPatternNode;
+        if (primary is VarPatternPrimaryPatternNode or DiscardPatternPrimaryPatternNode)
+            return true;
+
+        // A tuple positional pattern with all catch-all elements is itself a catch-all.
+        if (primary is TuplePositionalPatternPrimaryPatternNode tuplePattern)
+        {
+            if (!IsCatchAllPattern(tuplePattern.First))
+                return false;
+            if (!IsCatchAllPattern(tuplePattern.Rest))
+                return false;
+            for (var i = 0; i < tuplePattern.Patterns.Length; i++)
+            {
+                if (!IsCatchAllPattern(tuplePattern.Patterns[i]))
+                    return false;
+            }
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>

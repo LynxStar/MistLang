@@ -653,6 +653,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId OptionalChainingRequiresOptionalType = new("MIST_TC_0111");
 
+    // ── tuple-pattern-matching feature: type checker diagnostics ─────────
+
+    /// <summary>
+    /// Emitted when a tuple positional pattern is applied to a scrutinee
+    /// whose type is not a <see cref="TupleType"/> (Requirement 4.1, 8.1).
+    /// </summary>
+    internal static readonly DiagnosticId TuplePositionalPatternRequiresTupleType = new("MIST_TC_0113");
+
+    /// <summary>
+    /// Emitted when a tuple positional pattern has a different number of
+    /// elements than the scrutinee's <see cref="TupleType"/> arity
+    /// (Requirement 4.2, 8.2).
+    /// </summary>
+    internal static readonly DiagnosticId TuplePositionalPatternArityMismatch = new("MIST_TC_0114");
+
     // ── enums feature: assignability diagnostic ──────────────────────────
 
     /// <summary>
@@ -6505,6 +6520,42 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 break;
             }
 
+            case TuplePositionalPatternPrimaryPatternNode tuplePattern:
+            {
+                // Suppress cascading errors when scrutinee already has an error type.
+                if (scrutineeType is ErrorType)
+                    break;
+
+                if (scrutineeType is not TupleType tupleType)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        TuplePositionalPatternRequiresTupleType.Value,
+                        $"Positional pattern requires a tuple type, but the scrutinee has type '{scrutineeType.DisplayName}'",
+                        tuplePattern, model));
+                    break;
+                }
+
+                // Collect element patterns: first, rest, plus any additional elements.
+                var elementPatterns = new List<PatternNode> { tuplePattern.First, tuplePattern.Rest };
+                elementPatterns.AddRange(tuplePattern.Patterns);
+
+                if (elementPatterns.Count != tupleType.Arity)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        TuplePositionalPatternArityMismatch.Value,
+                        $"Tuple positional pattern has {elementPatterns.Count} elements, but the tuple type '{tupleType.DisplayName}' has {tupleType.Arity} elements",
+                        tuplePattern, model));
+                    break;
+                }
+
+                // Validate each element against its corresponding type independently.
+                for (var i = 0; i < elementPatterns.Count; i++)
+                {
+                    CheckPattern(elementPatterns[i], tupleType.ElementTypes[i], model, diagnostics);
+                }
+                break;
+            }
+
             case ParenthesizedPatternPrimaryPatternNode parenPattern:
             {
                 // Recursively validate the inner pattern.
@@ -7602,7 +7653,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             if (missingCases.Count > 0)
                             {
                                 var casesStr = string.Join(", ", missingCases);
-                                diagnostics.Add(MakeDiagnostic(
+                                diagnostics.Add(MakeDiagnosticWarning(
                                     SwitchNotExhaustive.Value,
                                     $"Switch expression is not exhaustive. Missing cases: {casesStr}",
                                     switchExpr,

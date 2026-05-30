@@ -170,3 +170,39 @@ List patterns match arrays by element position. Each element in the pattern brac
 The pattern `[> 0, > 0]` matches an array of exactly two elements where both are positive. The pattern `[> 0, ..]` matches an array of one or more elements where the first is positive — the `..` slice absorbs any remaining elements regardless of count or value.
 
 List patterns compose with all other subpatterns. You can use relational patterns, logical combinators, or even nested property patterns inside the element positions.
+
+## Tuple Positional Patterns
+
+Tuple positional patterns match tuple elements by position using parenthesized syntax. Instead of the verbose property pattern approach (`value is { Item1: > 0, Item2: > 0 }`), you write the subpatterns directly in parentheses separated by commas — one subpattern per tuple element, matched by position.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/pattern-matching/tuple-positional.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/pattern-matching/tuple-positional.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The pattern `(> 0, > 0)` matches a two-element tuple where both elements are positive. Each position accepts any valid subpattern — constants, relational, logical, var, discard, or type patterns.
+
+Tuple positional patterns nest naturally. When a tuple element is itself a tuple, you can match its inner elements with another positional pattern:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/pattern-matching/tuple-positional-nested.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/pattern-matching/tuple-positional-nested.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The outer pattern matches a `((int, int), string)` tuple. The first element is itself a tuple, so a nested positional pattern `(> 0, > 0)` checks both inner elements. Nesting works to any depth — the compiler validates arity and element types at each level.

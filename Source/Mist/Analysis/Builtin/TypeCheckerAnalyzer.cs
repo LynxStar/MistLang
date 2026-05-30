@@ -2023,6 +2023,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 model));
         }
 
+        // ── MIST2002: Ref struct field restriction (Requirement 3.5) ──
+        // A ref struct type cannot be used as a field in a non-ref-struct type,
+        // since that would allow the ref struct value to escape to the heap.
+        if (fieldType is StructType { IsRefStruct: true } refFieldType)
+        {
+            var containingType = FindDeclaringType(fieldSymbol);
+            var containingIsRefStruct = containingType is StructType { IsRefStruct: true };
+            if (!containingIsRefStruct)
+            {
+                var containerName = containingType switch
+                {
+                    ClassType ct => ct.DisplayName,
+                    StructType st => st.DisplayName,
+                    _ => "unknown"
+                };
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST2002",
+                    $"Ref struct type '{refFieldType.DisplayName}' cannot be used as a field in non-ref-struct type '{containerName}'",
+                    declaringNode,
+                    model));
+            }
+        }
+
         // Field initializers: the grammar stores the initializer as part of the
         // field declaration. The semantic model builder resolves the field type.
         // For field initializers, we check that the expression type is assignable
@@ -2068,6 +2091,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 "Cannot store 'Task<T>' in a property; tasks must be awaited or returned to maintain structured concurrency",
                 declaringNode,
                 model));
+        }
+
+        // ── MIST2003: Ref struct property restriction (Requirement 3.6) ──
+        // A ref struct type cannot be used as a property type in a non-ref-struct type,
+        // since that would allow the ref struct value to escape to the heap.
+        if (propType is StructType { IsRefStruct: true } refPropType)
+        {
+            var containingType = _currentEnclosingType;
+            var containingIsRefStruct = containingType is StructType { IsRefStruct: true };
+            if (!containingIsRefStruct)
+            {
+                var containerName = containingType switch
+                {
+                    ClassType ct => ct.DisplayName,
+                    StructType st => st.DisplayName,
+                    _ => "unknown"
+                };
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST2003",
+                    $"Ref struct type '{refPropType.DisplayName}' cannot be used as a property type in non-ref-struct type '{containerName}'",
+                    declaringNode,
+                    model));
+            }
         }
 
         switch (declaringNode)
@@ -9711,6 +9757,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     continue;
                 }
 
+                // ── MIST2007: Ref struct interface argument restriction (Requirements 3.11, 3.12) ──
+                // A ref struct value cannot be passed as an argument to an interface-typed parameter
+                // because that would require boxing (heap allocation).
+                if (IsRefStructType(argType) && IsInterfaceTargetType(paramType))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST2007",
+                        $"Ref struct value cannot be converted to interface type '{paramType.DisplayName}'",
+                        argExprs[i],
+                        model));
+                    continue;
+                }
+
                 // ── refinement-types feature: compile-time enforcement ──
                 // When the parameter is a RefinementType, check the argument
                 // against the refinement predicate (Requirement 5.3).
@@ -9867,6 +9926,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             model));
                     }
 
+                    continue;
+                }
+
+                // ── MIST2007: Ref struct interface argument restriction (Requirements 3.11, 3.12) ──
+                // A ref struct value cannot be passed as an argument to an interface-typed parameter
+                // because that would require boxing (heap allocation).
+                if (IsRefStructType(argType) && IsInterfaceTargetType(paramType))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST2007",
+                        $"Ref struct value cannot be converted to interface type '{paramType.DisplayName}'",
+                        argExprs[i],
+                        model));
                     continue;
                 }
 
@@ -12840,6 +12912,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckAssignability(IType source, IType target, SyntaxNode node, DiagnosticBag diagnostics, ISemanticModel model)
     {
+        // ── MIST2007: Ref struct interface assignment restriction (Requirements 3.11, 3.12) ──
+        // A ref struct value cannot be assigned to an interface-typed variable because
+        // that would require boxing (heap allocation), violating the stack-only constraint.
+        // The restriction is at the usage site — declaring that a ref struct implements
+        // an interface is permitted.
+        if (IsRefStructType(source) && IsInterfaceTargetType(target))
+        {
+            var ifaceName = target.DisplayName;
+            diagnostics.Add(MakeDiagnostic(
+                "MIST2007",
+                $"Ref struct value cannot be converted to interface type '{ifaceName}'",
+                node,
+                model));
+            return;
+        }
+
         if (!IsAssignable(source, target, model))
         {
             // unknown-type feature (Req 4.2, 4.4): before falling back to
@@ -14555,9 +14643,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (type is ArrayType arrayType)
         {
             var substitutedElement = SubstituteType(arrayType.ElementType, typeParams, typeArgs);
-            if (!ReferenceEquals(substitutedElement, arrayType.ElementType))
-                return new ArrayType(substitutedElement);
-            return type;
+            return ReferenceEquals(substitutedElement, arrayType.ElementType)
+                ? arrayType
+                : new ArrayType(substitutedElement);
         }
 
         // Substitute inside union type constituents (e.g., T | void → string | void when T = string).
@@ -14571,7 +14659,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 if (!ReferenceEquals(substitutedConstituents[i], unionType.Constituents[i]))
                     changed = true;
             }
-            return changed ? new UnionType(substitutedConstituents) : type;
+            if (!changed)
+                return unionType;
+            var result = new UnionType(substitutedConstituents);
+            result.NullableProjection = unionType.NullableProjection;
+            return result;
         }
 
         return type;
@@ -14858,6 +14950,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsErrorType(IType type)
     {
         return type is ErrorType;
+    }
+
+    /// <summary>
+    /// Returns true if the given type is a ref struct (stack-only value type).
+    /// Handles both plain <see cref="StructType"/> and <see cref="ConstructedType"/>
+    /// whose generic definition is a ref struct (e.g., a generic ref struct like Span&lt;int&gt;).
+    /// </summary>
+    private static bool IsRefStructType(IType type)
+    {
+        return type is StructType { IsRefStruct: true }
+            || (type is ConstructedType ct && ct.GenericDefinition is StructType { IsRefStruct: true });
+    }
+
+    /// <summary>
+    /// Returns true if the given type is an interface type (assignment target
+    /// that would require boxing a ref struct). Handles both plain <see cref="InterfaceType"/>
+    /// and <see cref="ConstructedType"/> whose generic definition is an interface
+    /// (e.g., IEnumerable&lt;int&gt;).
+    /// </summary>
+    private static bool IsInterfaceTargetType(IType type)
+    {
+        return type is InterfaceType
+            || (type is ConstructedType ct && ct.GenericDefinition is InterfaceType);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -16251,12 +16366,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        var constraints = typeParameter.Constraints;
-        if (constraints is null)
-            return;
-
         // Suppress cascading errors for error types.
         if (IsErrorType(typeArgument))
+            return;
+
+        // Unwrap type aliases to their underlying type for constraint checking.
+        var effectiveTypeArgument = typeArgument is TypeAliasType aliasArgEarly
+            ? aliasArgEarly.UnderlyingType
+            : typeArgument;
+
+        // ── MIST2004: Ref struct generic type argument restriction (Requirement 3.7) ──
+        // A ref struct type cannot be used as a generic type argument, since generic
+        // instantiation may box or store the value on the heap.
+        if (effectiveTypeArgument is StructType { IsRefStruct: true } refStructArg)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST2004",
+                $"Ref struct type '{refStructArg.DisplayName}' cannot be used as a generic type argument",
+                node,
+                model));
+        }
+
+        var constraints = typeParameter.Constraints;
+        if (constraints is null)
             return;
 
         // Unwrap type aliases to their underlying type for constraint checking.

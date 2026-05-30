@@ -61,6 +61,10 @@ public sealed class CSharpEmitter
         var backendNamespaces = CollectBackendNamespaces(model);
 
         // Emit one .cs file per Mist source file.
+        // NOTE: Only Mist-declared types are emitted. Ambient types projected from
+        // .NET assemblies (including any synthesized interfaces like IEnumerable<T>
+        // on duck-typed types such as Span<T>) are never in model.Units and therefore
+        // never appear in emitted C# output. (Requirements: 10.4, 10.5)
         var anyNeedsMistVoid = false;
         for (var i = 0; i < model.Units.Count; i++)
         {
@@ -3737,7 +3741,14 @@ internal sealed class CSharpSourceWriter
         {
             readonlyPrefix = "readonly ";
         }
-        AppendLine($"{modifiers}{readonlyPrefix}struct {name}{typeParams}{interfaceList}");
+
+        // Task 10.1 — Emit `ref struct` for ref struct types.
+        var refPrefix = "";
+        if (symbol?.DeclaredType is StructType refCheck && refCheck.IsRefStruct)
+        {
+            refPrefix = "ref ";
+        }
+        AppendLine($"{modifiers}{readonlyPrefix}{refPrefix}struct {name}{typeParams}{interfaceList}");
         // Emit constraint clauses (where T : ...) for constrained type parameters.
         if (symbol?.DeclaredType is not null)
         {
@@ -7340,6 +7351,13 @@ internal sealed class CSharpSourceWriter
         }
     }
 
+    /// <summary>
+    /// Emits a C# <c>foreach</c> statement. The emitted code calls <c>GetEnumerator()</c>
+    /// on the concrete collection type — C#'s duck-typing handles the rest. This means
+    /// synthesized <c>IEnumerable&lt;T&gt;</c> interfaces (added to ambient types like
+    /// <c>Span&lt;T&gt;</c> for Mist's type system) are never referenced in emitted code.
+    /// </summary>
+    /// <remarks>Requirements: 10.4, 10.5.</remarks>
     private void EmitForeachStatement(ForeachStatementNode foreachStmt)
     {
         var type = EmitTypeReference(foreachStmt.Type, isValueContext: true);

@@ -89,10 +89,6 @@ public sealed class VisibilityFilterCompletenessPropertyTests
         if (member is EventInfo)
             return true;
 
-        // Rule (g): Declaring type is a ref struct → exclude (Requirement 6.5)
-        if (member.DeclaringType is not null && IsRefStruct(member.DeclaringType))
-            return true;
-
         // Rule (c): out parameters → exclude (Requirement 6.1)
         if (HasOutParameters(member))
             return true;
@@ -106,7 +102,7 @@ public sealed class VisibilityFilterCompletenessPropertyTests
         if (HasPointerTypes(member))
             return true;
 
-        // Rule (h): Signature references an excluded type → exclude (Requirement 6.6)
+        // Rule (g): Signature references an excluded type → exclude (Requirement 6.6)
         if (ReferencesExcludedType(member))
             return true;
 
@@ -141,11 +137,6 @@ public sealed class VisibilityFilterCompletenessPropertyTests
         if (type.IsNested)
             return type.IsNestedPublic && type.DeclaringType is not null && IsTypePublic(type.DeclaringType);
         return type.IsPublic;
-    }
-
-    private static bool IsRefStruct(Type type)
-    {
-        return type.IsValueType && type.IsByRefLike;
     }
 
     private static bool HasOutParameters(MemberInfo member)
@@ -284,9 +275,6 @@ public sealed class VisibilityFilterCompletenessPropertyTests
     private static bool IsTypeExcludedByRules(Type type)
     {
         if (!IsTypePublic(type))
-            return true;
-
-        if (IsRefStruct(type))
             return true;
 
         return false;

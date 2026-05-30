@@ -2257,6 +2257,9 @@ public sealed class MistPrettyPrinter
                 case AsyncModifierModifierNode:
                     parts.Add("async");
                     break;
+                case RefModifierModifierNode:
+                    parts.Add("ref");
+                    break;
             }
         }
 

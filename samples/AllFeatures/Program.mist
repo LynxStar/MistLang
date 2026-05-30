@@ -60,6 +60,7 @@ public class Program
         OptionalTypes.Program.RunDemo();
         AssemblyTypeProvider.Program.RunDemo();
         ClrRefInterop.Program.RunDemo();
+        RefStructs.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

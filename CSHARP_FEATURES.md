@@ -837,8 +837,8 @@ The specificity ordering is: exact type match > base type match > universal (`un
 | `stackalloc` | ⛔ | Out of scope |
 | `sizeof` | ⛔ | Out of scope |
 | Function pointers | ⛔ | Out of scope |
-| `Span<T>` / `Memory<T>` | ⛔ | Out of scope for v1 |
-| `ref struct` | ⛔ | Out of scope for v1 |
+| `Span<T>` / `Memory<T>` | ✅ | Projected from ambient assemblies as ref struct types |
+| `ref struct` | ✅ | Declaration and consumption; stack-only restrictions enforced |
 
 ---
 

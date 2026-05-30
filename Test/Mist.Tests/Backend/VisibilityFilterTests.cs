@@ -51,12 +51,12 @@ public class VisibilityFilterTests
         Assert.False(_filter.IsMemberExcluded(method));
     }
 
-    // --- Requirement 6.5: Ref struct types excluded entirely ---
+    // --- Ref struct types are no longer excluded (lifted for ref-structs feature) ---
 
     [Fact]
-    public void IsTypeExcluded_RefStruct_ReturnsTrue()
+    public void IsTypeExcluded_RefStruct_ReturnsFalse()
     {
-        Assert.True(_filter.IsTypeExcluded(typeof(RefStructType)));
+        Assert.False(_filter.IsTypeExcluded(typeof(RefStructType)));
     }
 
     [Fact]
@@ -72,10 +72,10 @@ public class VisibilityFilterTests
     }
 
     [Fact]
-    public void IsMemberExcluded_MemberOnRefStruct_ReturnsTrue()
+    public void IsMemberExcluded_MemberOnRefStruct_ReturnsFalse()
     {
         var method = typeof(RefStructType).GetMethod(nameof(RefStructType.GetValue))!;
-        Assert.True(_filter.IsMemberExcluded(method));
+        Assert.False(_filter.IsMemberExcluded(method));
     }
 
     // --- Requirement 6.1: out parameters exclude method ---
@@ -227,19 +227,21 @@ public class VisibilityFilterTests
     }
 
     // --- Requirement 6.6: Signature referencing excluded type → member excluded ---
+    // Note: Ref struct types are no longer excluded by IsTypeExcluded, so members
+    // referencing ref struct types in their signatures are no longer excluded.
 
     [Fact]
-    public void IsMemberExcluded_ParameterReferencesRefStruct_ReturnsTrue()
+    public void IsMemberExcluded_ParameterReferencesRefStruct_ReturnsFalse()
     {
         var method = typeof(ReferencesExcludedType).GetMethod(nameof(ReferencesExcludedType.AcceptRefStruct))!;
-        Assert.True(_filter.IsMemberExcluded(method));
+        Assert.False(_filter.IsMemberExcluded(method));
     }
 
     [Fact]
-    public void IsMemberExcluded_ReturnTypeReferencesRefStruct_ReturnsTrue()
+    public void IsMemberExcluded_ReturnTypeReferencesRefStruct_ReturnsFalse()
     {
         var method = typeof(ReferencesExcludedType).GetMethod(nameof(ReferencesExcludedType.ReturnRefStruct))!;
-        Assert.True(_filter.IsMemberExcluded(method));
+        Assert.False(_filter.IsMemberExcluded(method));
     }
 
     [Fact]

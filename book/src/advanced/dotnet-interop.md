@@ -134,7 +134,7 @@ Not all CLR members are visible in Mist. The Assembly Type Provider hides member
 | `out` parameters | Mist has no `out` parameter semantics; methods like `TryGetValue` are excluded |
 | `ref readonly` return types | Mist cannot express `ref readonly` locals for CLR-originated references; the emitted C# would require `ref readonly` binding |
 | Pointer types (`int*`, `void*`) | Mist does not expose unsafe pointer operations |
-| `ref struct` types (`Span<T>`, `ReadOnlySpan<T>`) | Ref structs have stack-only lifetime constraints that Mist's type system does not model |
+| ~~`ref struct` types~~ | Ref structs (`Span<T>`, `ReadOnlySpan<T>`, etc.) are now projected as `StructType` with stack-only restrictions — see [Ref Structs](../object-model/structs.md#ref-structs) for the full restriction list |
 | Members referencing excluded types | If a method's signature uses an excluded type in any position, the entire method is hidden |
 | Non-public members | Only `public` members are projected; `internal`, `protected`, and `private` are excluded |
 | Events | Mist does not yet support the .NET event model |

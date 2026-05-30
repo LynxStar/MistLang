@@ -126,6 +126,11 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
                 projectedMembers = projectedMembers.AddRange(operators);
             }
 
+            // Synthesize duck-typed IEnumerable<T> for types that have
+            // GetEnumerator()/MoveNext()/Current but don't implement IEnumerable<T>.
+            // Called here (after UpdateStdlibProvider) to ensure the stdlib is available.
+            _projector.SynthesizeDuckTypedIEnumerable(clrType, projectedType, _stdlib);
+
             // Synthesize IEnumerable interop slots.
             _projector.SynthesizeEnumeratorSlots(clrType, projectedType, _stdlib);
         }

@@ -5,7 +5,7 @@ namespace Mist.Backends.CSharpTranspiler;
 /// <summary>
 /// Determines which CLR types and members are visible to Mist.
 /// Members that use unsupported CLR features (out params, ref readonly returns,
-/// pointer types, ref structs) are hidden rather than producing errors, so developers
+/// pointer types) are hidden rather than producing errors, so developers
 /// can still use the supported surface of a type.
 /// </summary>
 /// <remarks>
@@ -13,7 +13,6 @@ namespace Mist.Backends.CSharpTranspiler;
 /// <list type="number">
 ///   <item>Non-public accessibility → exclude</item>
 ///   <item>Events → exclude</item>
-///   <item>Ref struct types → exclude entirely</item>
 ///   <item><c>out</c> parameters → exclude method/constructor</item>
 ///   <item><c>ref readonly</c> return type → exclude method/property</item>
 ///   <item>Pointer types in signature → exclude member</item>
@@ -30,7 +29,7 @@ internal sealed class VisibilityFilter
 {
     /// <summary>
     /// Returns <c>true</c> if the type should be excluded from projection.
-    /// Excludes: non-public types, ref structs.
+    /// Excludes: non-public types.
     /// </summary>
     // CA1822 suppressed: IsTypeExcluded is intentionally an instance method because it is
     // called from IsTypeExcludedInSignature (instance) to enable the recursive exclusion
@@ -43,16 +42,12 @@ internal sealed class VisibilityFilter
         if (!IsTypePublic(clrType))
             return true;
 
-        // Ref structs are excluded entirely (Requirement 6.5).
-        if (IsRefStruct(clrType))
-            return true;
-
         return false;
     }
 
     /// <summary>
     /// Returns <c>true</c> if the member should be excluded from projection.
-    /// Evaluation order: accessibility → events → ref struct → out → ref → ref readonly return → pointers → excluded type references.
+    /// Evaluation order: accessibility → events → out → ref → ref readonly return → pointers → excluded type references.
     /// </summary>
     public bool IsMemberExcluded(MemberInfo member)
     {
@@ -64,27 +59,23 @@ internal sealed class VisibilityFilter
         if (member is EventInfo)
             return true;
 
-        // 3. Ref struct declaring type → exclude entirely (Requirement 6.5)
-        if (member.DeclaringType is not null && IsRefStruct(member.DeclaringType))
-            return true;
-
-        // 4. out parameters → exclude method/constructor (Requirement 6.1)
+        // 3. out parameters → exclude method/constructor (Requirement 6.1)
         if (HasOutParameters(member))
             return true;
 
-        // 5. ref parameters — no longer excluded (CLR ref is now supported)
+        // 4. ref parameters — no longer excluded (CLR ref is now supported)
         if (HasRefParameters(member))
             return true;
 
-        // 6. ref readonly return type → exclude method/property (Requirement 6.3)
+        // 5. ref readonly return type → exclude method/property (Requirement 6.3)
         if (HasRefReturn(member))
             return true;
 
-        // 7. Pointer types in signature → exclude member (Requirement 6.4)
+        // 6. Pointer types in signature → exclude member (Requirement 6.4)
         if (HasPointerTypes(member))
             return true;
 
-        // 8. Signature references an excluded type → exclude member (Requirement 6.6)
+        // 7. Signature references an excluded type → exclude member (Requirement 6.6)
         if (ReferencesExcludedType(member))
             return true;
 
@@ -101,17 +92,6 @@ internal sealed class VisibilityFilter
             return type.IsNestedPublic && type.DeclaringType is not null && IsTypePublic(type.DeclaringType);
 
         return type.IsPublic;
-    }
-
-    /// <summary>
-    /// Determines whether a type is a ref struct by checking for the
-    /// <c>IsByRefLikeAttribute</c> (the CLR marker for ref structs).
-    /// </summary>
-    private static bool IsRefStruct(Type type)
-    {
-        // In MetadataLoadContext, ref structs are marked with IsByRefLikeAttribute.
-        // The Type.IsByRefLike property is available on .NET 7+.
-        return type.IsValueType && type.IsByRefLike;
     }
 
     /// <summary>

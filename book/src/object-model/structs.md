@@ -56,3 +56,59 @@ This makes structs ideal for small, immutable data. Because each variable holds 
 Use structs for small, self-contained values where copy semantics are desirable. Use classes for larger objects or when you need shared references.
 
 Structs also support single inheritance — see the [Inheritance](./inheritance.md#struct-inheritance) chapter for details on how this works as a compile-time composition mechanism.
+
+## Ref Structs {#ref-structs}
+
+A **ref struct** is a struct that is restricted to the stack. It can never be boxed, stored on the heap, or escape the method that created it. This makes ref structs ideal for high-performance scenarios where you need zero-allocation access to contiguous memory — types like `Span<T>` and `ReadOnlySpan<T>` in .NET are ref structs.
+
+### Declaration Syntax
+
+Declare a ref struct by placing the `ref` modifier before `struct`:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/object-model/structs/ref-struct.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/object-model/structs/ref-struct.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+A ref struct can have fields, constructors, methods, properties, and indexers — the same members as a regular struct. You can also combine `ref` with `readonly` (e.g., `readonly ref struct`).
+
+### Stack-Only Lifetime
+
+The defining characteristic of a ref struct is that its value **cannot escape to the heap**. The compiler enforces this at every usage site:
+
+- A ref struct value can only exist as a local variable, a method parameter, or a method return value.
+- A ref struct can contain fields of other ref struct types (since the containing type is also stack-only).
+- When a method returns a ref struct, the caller receives a copy on its own stack frame.
+
+### Permitted Operations
+
+| Operation | Example |
+|-----------|---------|
+| Local variable | `var pair = new IntPair(1, 2);` |
+| Method parameter | `fun Add(p: IntPair): int` |
+| Method return type | `fun Make(): IntPair` |
+| Field in another ref struct | `ref struct Wrapper { pair: IntPair; }` |
+| Member access (methods, properties, indexers) | `pair.Sum()`, `span[0]`, `span.Length` |
+
+### Prohibited Operations
+
+The compiler rejects any attempt to store a ref struct value in a location that could outlive the stack frame:
+
+| Operation | Why it's rejected |
+|-----------|-------------------|
+| Field in a non-ref-struct class or struct | The containing object lives on the heap |
+| Property type in a non-ref-struct | Same reason — the backing storage is heap-allocated |
+| Generic type argument (e.g., `List<Span<int>>`) | Generic containers are heap-allocated |
+| Union type constituent (e.g., `Span<int> \| string`) | Unions are boxed |
+| Optional type (e.g., `Span<int>?`) | Optionals map to `Nullable<T>`, which requires boxing |
+| Assignment to an interface variable | Interface assignment boxes the value |
+
+Note that a ref struct **can** declare that it implements an interface (e.g., `ref struct Foo : IBar`). The restriction applies at the usage site — you cannot assign a ref struct value to an interface-typed variable or pass it where an interface type is expected.

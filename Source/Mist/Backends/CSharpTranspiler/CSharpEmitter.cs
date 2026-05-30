@@ -5994,15 +5994,21 @@ internal sealed class CSharpSourceWriter
                 emittedArg = WrapWithImplicitCastIfNeeded(argExprs[i], emittedArg);
                 if (argNodes[i] is RefArgumentArgumentNode)
                 {
-                    // Check if the corresponding parameter has ClrCallingConvention.In —
-                    // if so, emit 'in' instead of 'ref' at the call site (Requirement 3.4).
+                    // Check if the corresponding parameter has ClrCallingConvention.In or .Out —
+                    // if so, emit 'in' or 'out' instead of 'ref' at the call site (Requirement 3.4).
                     var refKeyword = "ref";
                     if (calledMethod?.Parameters is { Count: > 0 } parameters && i < parameters.Count)
                     {
-                        if (parameters[i] is Symbol paramSymbol &&
-                            paramSymbol.ClrCallingConvention == ClrCallingConvention.In)
+                        if (parameters[i] is Symbol paramSymbol)
                         {
-                            refKeyword = "in";
+                            if (paramSymbol.ClrCallingConvention == ClrCallingConvention.In)
+                            {
+                                refKeyword = "in";
+                            }
+                            else if (paramSymbol.ClrCallingConvention == ClrCallingConvention.Out)
+                            {
+                                refKeyword = "out";
+                            }
                         }
                     }
                     emittedArg = $"{refKeyword} {emittedArg}";

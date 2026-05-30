@@ -1,7 +1,7 @@
 namespace Mist.Tests.InteropFixtures;
 
 /// <summary>
-/// Type with an out parameter — methods should be filtered by VisibilityFilter.
+/// Type with an out parameter — out params are projected as ref with ClrCallingConvention.Out.
 /// </summary>
 public class HasOutParam
 {

@@ -387,7 +387,7 @@ public class TypeProjectorTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void ProjectMembers_OutParamMethod_IsFiltered()
+    public void ProjectMembers_OutParamMethod_IsVisible()
     {
         var (type, _) = _projector.ProjectType(typeof(HasOutParam), _stdlib);
         var members = _projector.ProjectMembers(typeof(HasOutParam), type, _stdlib);
@@ -397,8 +397,8 @@ public class TypeProjectorTests
             .Select(m => m.Name)
             .ToList();
 
-        // TryParse has out param → filtered
-        Assert.DoesNotContain("TryParse", methodNames);
+        // TryParse has out param → now visible (projected as ref with ClrCallingConvention.Out)
+        Assert.Contains("TryParse", methodNames);
         // Parse has no out param → visible
         Assert.Contains("Parse", methodNames);
     }
@@ -451,8 +451,8 @@ public class TypeProjectorTests
             .Where(m => m.Kind == SymbolKind.Method && m.Name == "Process")
             .ToList();
 
-        // HasOverloads has 5 Process overloads, but one has out param → 4 visible
-        Assert.Equal(4, processMethods.Count);
+        // HasOverloads has 5 Process overloads — all now visible (out params pass through)
+        Assert.Equal(5, processMethods.Count);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

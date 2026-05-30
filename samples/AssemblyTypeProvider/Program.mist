@@ -29,11 +29,10 @@ public class Program
         var dict = new Dictionary<string, int>();
         dict.Add("hello", 42);
 
-        // PROOF: Nullable value handling — TryGetValue excluded (out param),
-        // so we use ContainsKey + indexer pattern
-        if (dict.ContainsKey("hello"))
+        // PROOF: Out parameter interop — TryGetValue is now callable (out projected as ref)
+        int val = 0;
+        if (dict.TryGetValue("hello", ref val))
         {
-            var val = dict["hello"];
             Console.WriteLine($"Found={val}");
         }
 

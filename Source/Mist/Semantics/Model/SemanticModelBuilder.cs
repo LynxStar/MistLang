@@ -21,6 +21,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     internal static readonly DiagnosticId DuplicateConstructorSignature = new("MIST_SM_0021");
     internal static readonly DiagnosticId MissingInterfaceOverload = new("MIST_SM_0022");
 
+    // ── Deprecation diagnostic IDs ───────────────────────────────────────
+    internal static readonly DiagnosticId VoidDotVoidDeprecated = new("MIST_SM_0023");
+
     // ── Extension member lookup context ──────────────────────────────────
     // Set before Pass 2 type resolution and cleared after. Allows
     // LookupMemberType to perform extension member fallback without
@@ -34,6 +37,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     // the declared array type. Cleared immediately after resolution.
     [ThreadStatic]
     private static IType? _emptyArrayTargetType;
+
+    // ── Target type context for void value literal resolution ─────────────
+    // Set before resolving an expression whose target type is known (typed
+    // variable initializer, method argument, return value, generic constructor
+    // argument) so that TypeLiteralExpressionPrimaryNode with a void type
+    // reference can resolve as VoidType when the target type is void.
+    // Cleared immediately after resolution.
+    [ThreadStatic]
+    private static IType? _voidLiteralTargetType;
+
+    // ── Current method return type for return-statement void resolution ───
+    // Set when entering a method body so that return statements can thread
+    // the method's declared return type as the target type for void literals.
+    [ThreadStatic]
+    private static IType? _currentMethodReturnType;
 
     // ── Symbolic length ID allocation for parameter arrays ────────────────
     // Generates unique IDs for unsized array parameters so that two references
@@ -14211,8 +14229,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var isStatic = fieldDecl.Modifiers.Any(m => m is StaticModifierModifierNode);
             _emptyArrayTargetType = fieldType;
+            _voidLiteralTargetType = fieldType;
             ResolveExpression(initExpr, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
             _emptyArrayTargetType = null;
+            _voidLiteralTargetType = null;
         }
     }
 
@@ -14397,6 +14417,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var previousAsyncContext = _isInAsyncContext;
             _isInAsyncContext = methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode);
 
+            // Track the method's declared return type so return statements can
+            // thread it as the target type for void value literal resolution.
+            var previousMethodReturnType = _currentMethodReturnType;
+            _currentMethodReturnType = returnType;
+
             // Initialize live task tracking for this method body.
             var previousLiveTaskScopes = _liveTaskScopes;
             var previousLiveTaskCounter = _liveTaskCounter;
@@ -14412,6 +14437,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 _liveTaskScopes = previousLiveTaskScopes;
                 _liveTaskCounter = previousLiveTaskCounter;
                 _isInAsyncContext = previousAsyncContext;
+                _currentMethodReturnType = previousMethodReturnType;
             }
         }
     }
@@ -14463,7 +14489,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // resolve; Pass 1e validates whether ; is permitted on this operator
         // based on the intrinsic modifier.
         if (opDecl.Body.GetBlock() is BlockNode opBlock)
+        {
+            var previousMethodReturnType = _currentMethodReturnType;
+            _currentMethodReturnType = returnType;
             ResolveBlock(opBlock, methodScope, fileScope, enclosingType, /* isStatic */ true, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _currentMethodReturnType = previousMethodReturnType;
+        }
     }
 
     /// <summary>
@@ -14509,7 +14540,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // (for intrinsic cast operators) and has no statements to resolve;
         // Pass 1e validates whether ; is permitted based on the intrinsic modifier.
         if (castOpDecl.Body.GetBlock() is BlockNode castOpBlock)
+        {
+            var previousMethodReturnType = _currentMethodReturnType;
+            _currentMethodReturnType = targetType;
             ResolveBlock(castOpBlock, methodScope, fileScope, enclosingType, /* isStatic */ true, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _currentMethodReturnType = previousMethodReturnType;
+        }
     }
 
     /// <summary>
@@ -14962,7 +14998,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case ReturnStatementStatementNode returnStmt:
                 if (returnStmt.ReturnStatement.Value is not null)
                 {
+                    // Set target type context for void value literal resolution
+                    // from the enclosing method's declared return type.
+                    var previousVoidTarget = _voidLiteralTargetType;
+                    _voidLiteralTargetType = _currentMethodReturnType;
                     var returnValueType = ResolveExpression(returnStmt.ReturnStatement.Value, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    _voidLiteralTargetType = previousVoidTarget;
 
                     // Mark returned tasks as consumed (Requirement 7.1):
                     // If the return value is a Task<T> variable, mark it as returned
@@ -15155,8 +15196,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Set target type context so EmptyArrayLiteralExpressionPrimaryNode
                 // can infer its element type from the declared array type.
                 _emptyArrayTargetType = declaredType;
+                // Set target type context for void value literal resolution.
+                _voidLiteralTargetType = declaredType;
                 var initType = ResolveExpression(typed.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 _emptyArrayTargetType = null;
+                _voidLiteralTargetType = null;
 
                 var varName = typed.Name.Lexeme;
                 var varSpan = ToMistSourceSpan(typed.Name.Span);
@@ -19403,10 +19447,36 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // via model.GetTypeOf(postfix.Target).
         expressionTypes[node.Target] = targetType;
 
+        // Look up the primary node's symbol for parameter type threading
+        // in direct invocations (e.g., method(void)).
+        IReadOnlyList<IType>? primaryParamTypes = null;
+        if (node.Suffix.Length > 0 && node.Suffix[0] is InvocationSuffixPostfixSuffixNode)
+        {
+            var primarySymbol = symbolTable.GetDeclaredSymbol(node.Target);
+            if (primarySymbol is not null && primarySymbol.Kind == SymbolKind.Method)
+            {
+                primaryParamTypes = ParameterSignature.Extract(primarySymbol, symbolTable);
+            }
+        }
+
         // Apply each postfix suffix in order.
         foreach (var suffix in node.Suffix)
         {
-            targetType = ResolvePostfixSuffix(suffix, targetType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            if (suffix is InvocationSuffixPostfixSuffixNode invocationSuffix && primaryParamTypes is not null)
+            {
+                // Pass parameter types for void value literal target-type threading.
+                if (invocationSuffix.Arguments is not null)
+                {
+                    ResolveArgumentList(invocationSuffix.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics, primaryParamTypes);
+                }
+                expressionTypes[suffix] = targetType;
+                primaryParamTypes = null; // Only applies to the first invocation suffix.
+            }
+            else
+            {
+                targetType = ResolvePostfixSuffix(suffix, targetType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                primaryParamTypes = null; // Clear after first suffix is processed.
+            }
         }
 
         // Auto-unwrap for direct invocations of async methods in sync contexts.
@@ -19545,7 +19615,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Resolve arguments.
                 if (methodCall.Arguments is not null)
                 {
-                    ResolveArgumentList(methodCall.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    // Look up parameter types for void value literal target-type threading.
+                    var methodSym2 = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                    IReadOnlyList<IType>? paramTypes = null;
+                    if (methodSym2 is not null)
+                    {
+                        paramTypes = ParameterSignature.Extract(methodSym2, symbolTable);
+                    }
+                    ResolveArgumentList(methodCall.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics, paramTypes);
                 }
 
                 // Auto-unwrap: in a sync context, if the invoked method is async,
@@ -19576,6 +19653,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // instance that the `void` keyword resolves to.
                 if (targetType.IsVoid() && memberName == "Void")
                 {
+                    // Emit deprecation warning for Void.Void usage.
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        VoidDotVoidDeprecated.Value,
+                        DiagnosticSeverity.Warning,
+                        "Use 'void' in expression position instead of 'Void.Void' to obtain the Void singleton.",
+                        suffix,
+                        sourceText));
+
                     IType voidType;
                     try
                     {
@@ -19805,6 +19890,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     // ─── Optional Chaining Helpers ───────────────────────────────────────
+
+    /// <summary>
+    /// Returns true if the given type is VoidType or a union type containing void
+    /// (i.e., an optional type like T?). Used for target-type-aware void literal resolution.
+    /// </summary>
+    private static bool IsVoidOrOptionalType(IType? type)
+    {
+        if (type is null)
+            return false;
+        if (type.IsVoid())
+            return true;
+        if (type is TypeAliasType alias)
+            type = alias.UnderlyingType;
+        if (type is UnionType union)
+        {
+            foreach (var constituent in union.Constituents)
+            {
+                if (constituent.IsVoid())
+                    return true;
+            }
+        }
+        return false;
+    }
 
     /// <summary>
     /// Projects an optional type by removing void from a union type.
@@ -20218,7 +20326,40 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 if (objCreation.Arguments is not null)
                 {
-                    ResolveArgumentList(objCreation.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    // Look up constructor parameter types for void value literal
+                    // target-type threading (e.g., new Result<void>(void, true)).
+                    IReadOnlyList<IType>? ctorParamTypes = null;
+                    var ctorLookupType = createdType is ConstructedType ict ? ict.GenericDefinition : createdType;
+                    IScope? ctorMemberScope = ctorLookupType switch
+                    {
+                        ClassType ct => ct.MemberScope,
+                        StructType st => st.MemberScope,
+                        _ => null,
+                    };
+                    if (ctorMemberScope is not null)
+                    {
+                        var ctorSymbol = ctorMemberScope.Members
+                            .FirstOrDefault(m => m.Kind == SymbolKind.Constructor);
+                        if (ctorSymbol is not null)
+                        {
+                            ctorParamTypes = ParameterSignature.Extract(ctorSymbol, symbolTable);
+                            // Apply type argument substitution for generic types.
+                            if (createdType is ConstructedType constructedType && ctorParamTypes.Count > 0)
+                            {
+                                var typeParams = GetTypeParameters(constructedType.GenericDefinition);
+                                if (typeParams is not null && typeParams.Count == constructedType.TypeArguments.Count)
+                                {
+                                    var substituted = new List<IType>(ctorParamTypes.Count);
+                                    foreach (var pt in ctorParamTypes)
+                                    {
+                                        substituted.Add(SubstituteTypeParameters(pt, typeParams, constructedType.TypeArguments));
+                                    }
+                                    ctorParamTypes = substituted;
+                                }
+                            }
+                        }
+                    }
+                    ResolveArgumentList(objCreation.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics, ctorParamTypes);
                 }
 
                 // Resolve value expressions in the property initializer block.
@@ -20407,7 +20548,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     typeLiteral.TypeRef, fileScope, ambientTypeResolver,
                     symbolTable, sourceText, diagnostics);
 
-                // The expression type of a type literal is always the metatype Type.
+                // Target-type-aware void resolution: when the type literal is `void`
+                // and the target type is VoidType (or a union containing void, i.e. optional),
+                // resolve as the Void singleton value rather than the metatype Type.
+                if (typeLiteral.TypeRef is VoidTypeRefTypeReferenceNode && IsVoidOrOptionalType(_voidLiteralTargetType))
+                {
+                    result = referencedType; // VoidType.Instance
+                    break;
+                }
+
+                // Existing behavior: resolve as Standard.Type (metatype).
                 try
                 {
                     var typeGlobalScope = FindGlobalScope(fileScope) ?? fileScope;
@@ -21883,13 +22033,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
         IAmbientTypeResolver? ambientTypeResolver,
         SourceText? sourceText,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        IReadOnlyList<IType>? parameterTypes = null)
     {
         // The ArgumentListNode has Argument (first) and Arguments (rest),
         // each wrapping an ExpressionNode.
-        foreach (var expr in argList.GetAllExpressions())
+        var argExprs = argList.GetAllExpressions();
+        for (var i = 0; i < argExprs.Length; i++)
         {
-            ResolveExpression(expr, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            var previousVoidTarget = _voidLiteralTargetType;
+            if (parameterTypes is not null && i < parameterTypes.Count)
+            {
+                _voidLiteralTargetType = parameterTypes[i];
+            }
+            ResolveExpression(argExprs[i], currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _voidLiteralTargetType = previousVoidTarget;
         }
     }
 

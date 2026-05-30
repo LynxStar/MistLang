@@ -4,6 +4,11 @@ public struct Void
 
     private Void() { }
 
+    public static implicit operator Type(Void v)
+    {
+        return void;
+    }
+
     public static bool operator ==(Void a, Void b)
     {
         return true;

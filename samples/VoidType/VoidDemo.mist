@@ -1,5 +1,5 @@
 // VoidDemo — Demonstrates the void unit type feature.
-// Void is a first-class value type with a single instance (Void.Void),
+// Void is a first-class value type with a single instance (void keyword),
 // usable anywhere a type is expected except as an array element type.
 
 using Standard;
@@ -11,7 +11,7 @@ public class VoidDemo
     // A void method whose return value is consumed — demonstrates value-returning void.
     public static void DoNothing()
     {
-        return Void.Void;
+        return void;
     }
 
     // A fire-and-forget void method — demonstrates standard void emission.
@@ -29,24 +29,24 @@ public class VoidDemo
     // Returns a Result<void> — demonstrates void as a generic type argument.
     public static Result<void> SuccessResult()
     {
-        return new Result<void>(Void.Void, true);
+        return new Result<void>(void, true);
     }
 
     public static void RunDemo()
     {
         Console.WriteLine("--- Void Unit Type ---");
 
-        // 1. Void.Void is the sole mechanism for obtaining a void value
-        var v = Void.Void;
+        // 1. void keyword produces the Void singleton when target type is void
+        void v = void;
         Console.WriteLine($"void value obtained: {v}");
 
-        // 2. Typed void variable
-        void unit = Void.Void;
+        // 2. Typed void variable — explicit annotation with void literal
+        void unit = void;
         Console.WriteLine($"typed void variable: {unit}");
 
         // 3. Void equality — all void values are equal
-        Console.WriteLine($"void == void: {Void.Void == Void.Void}");
-        Console.WriteLine($"void != void: {Void.Void != Void.Void}");
+        Console.WriteLine($"void == void: {v == unit}");
+        Console.WriteLine($"void != void: {v != unit}");
 
         // 4. Value-returning void method
         var result = DoNothing();
@@ -56,7 +56,7 @@ public class VoidDemo
         PrintMessage("fire-and-forget call");
 
         // 6. Void as parameter type
-        string desc = DescribeVoid(Void.Void);
+        string desc = DescribeVoid(void);
         Console.WriteLine($"DescribeVoid: {desc}");
 
         // 7. Void as generic type argument: Result<void>
@@ -65,7 +65,7 @@ public class VoidDemo
         Console.WriteLine($"IsSuccess: {success.IsSuccess()}");
 
         // 8. Void field in a generic context
-        var box = new GenericBox<void>(Void.Void);
+        var box = new GenericBox<void>(void);
         Console.WriteLine($"GenericBox of void: {box.Describe()}");
     }
 }

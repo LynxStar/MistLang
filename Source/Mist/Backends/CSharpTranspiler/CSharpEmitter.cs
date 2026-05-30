@@ -244,6 +244,7 @@ public sealed class CSharpEmitter
                 public static bool operator ==(MistVoid left, MistVoid right) => true;
                 public static bool operator !=(MistVoid left, MistVoid right) => false;
                 public override string ToString() => "Void";
+                public static implicit operator System.Type(MistVoid v) => typeof(MistVoid);
             }
             """;
     }
@@ -6049,8 +6050,17 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        // Fallback: emit the first argument we do have.
-        return EmitExpression(argList.GetExpression());
+        // Fallback: emit all arguments through the expression emitter.
+        {
+            var emitted = new List<string>();
+            for (var i = 0; i < argExprs.Count; i++)
+            {
+                var emittedArg = EmitExpression(argExprs[i]);
+                emittedArg = WrapWithImplicitCastIfNeeded(argExprs[i], emittedArg);
+                emitted.Add(emittedArg);
+            }
+            return string.Join(", ", emitted);
+        }
     }
 
     /// <summary>
@@ -9802,6 +9812,18 @@ internal sealed class CSharpSourceWriter
                 return "field";
             case TypeLiteralExpressionPrimaryNode typeLiteral:
             {
+                // Check if this void type literal resolved as a value literal.
+                var resolvedType = _model.GetTypeOf(typeLiteral);
+                if (resolvedType is not null && resolvedType.IsVoid())
+                {
+                    // Value literal context: emit the Void singleton.
+                    if (_emitVoidAsNull)
+                        return "null";
+                    _needsMistVoidStruct = true;
+                    return "MistVoid.Instance";
+                }
+
+                // Existing behavior: type literal → typeof(...)
                 return $"typeof({EmitTypeReference(typeLiteral.TypeRef)})";
             }
             case DefaultExpressionPrimaryNode defaultExpr:

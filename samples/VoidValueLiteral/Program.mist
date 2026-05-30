@@ -1,0 +1,79 @@
+// VoidValueLiteral — Demonstrates context-sensitive void keyword in expression position.
+
+using Standard;
+
+namespace VoidValueLiteral;
+
+public class Program
+{
+    public static void DoNothing()
+    {
+        // PROOF: void in return statement resolves as Void singleton (target type is void)
+        return void;
+    }
+
+    public static string DescribeVoid(void v)
+    {
+        return "received void";
+    }
+
+    public class Result<T>
+    {
+        T value;
+        bool success;
+
+        public Result(T value, bool success)
+        {
+            this.value = value;
+            this.success = success;
+        }
+
+        public bool IsSuccess()
+        {
+            return success;
+        }
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("--- Void Value Literal ---");
+
+        // PROOF: void with target type void resolves as Void singleton value
+        void unit = void;
+        Console.WriteLine($"void variable: {unit}");
+
+        // PROOF: void with target type Type resolves as type literal (backward compat)
+        Type t = void;
+        Console.WriteLine($"Type variable: {t.Name}");
+
+        // PROOF: void with var inference resolves as type literal (backward compat)
+        var inferred = void;
+        Console.WriteLine($"var inferred type name: {inferred.Name}");
+
+        // PROOF: void as method argument where parameter type is void
+        string desc = DescribeVoid(void);
+        Console.WriteLine($"DescribeVoid(void): {desc}");
+
+        // PROOF: void in return position — DoNothing returns Void singleton
+        var returned = DoNothing();
+        Console.WriteLine($"DoNothing() returned: {returned}");
+
+        // PROOF: void in generic context — Result<void> field assigned void
+        var result = new Result<void>(void, true);
+        Console.WriteLine($"Result<void>.IsSuccess: {result.IsSuccess()}");
+
+        // PROOF: implicit Void → Type conversion
+        void v = void;
+        Type fromVoid = v;
+        Console.WriteLine($"implicit Void->Type: {fromVoid.Name}");
+
+        // PROOF: void equality still works with void literal
+        Console.WriteLine($"void == void: {void == void}");
+        Console.WriteLine($"void != void: {void != void}");
+
+        // PROOF: optional assignment — void as absence value
+        int? absent = void;
+        int coalesced = absent ?? 42;
+        Console.WriteLine($"absent ?? 42: {coalesced}");
+    }
+}

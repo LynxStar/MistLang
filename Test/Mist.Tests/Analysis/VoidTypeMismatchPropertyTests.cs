@@ -162,7 +162,7 @@ public class VoidTypeMismatchPropertyTests
             NonVoidKind.CharacterType => new CharTypePrimitiveTypeNode(),
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
-        return new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveNode };
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveNode } };
     }
 
     /// <summary>
@@ -173,7 +173,7 @@ public class VoidTypeMismatchPropertyTests
         return new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body ?? ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -200,7 +200,7 @@ public class VoidTypeMismatchPropertyTests
         var testMethod = new MethodDeclarationNode
         {
             Name = Tok(scenario.MethodName),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray.Create<StatementNode>(returnStmt) } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
@@ -230,7 +230,7 @@ public class VoidTypeMismatchPropertyTests
     {
         var literal = MakeLiteralExpression(scenario.TypeKind);
         var varDecl = MistAstGenerator.MakeVarDecl(
-            new VoidTypeRefTypeReferenceNode(),
+            new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             scenario.VarName,
             literal);
 

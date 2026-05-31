@@ -197,10 +197,10 @@ public class AccessModifierPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MakeToken(name),
                 Initializer = MakeIntLiteralExpression(value),
             },
@@ -216,14 +216,14 @@ public class AccessModifierPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = MakeToken(typeName),
                         Span = new Storm.Runtime.SourceSpan(0, typeName.Length),
                     },
-                },
+                } },
                 Name = MakeToken(varName),
                 Initializer = MakeNewObjectExpression(typeName),
             },
@@ -250,7 +250,7 @@ public class AccessModifierPropertyTests
             var targetMethod = new MethodDeclarationNode
             {
                 Name = MakeToken("DoWork"),
-                ReturnType = new VoidTypeRefTypeReferenceNode(),
+                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Parameters = null,
                 Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
                 Modifiers = memberModifiers,
@@ -262,10 +262,10 @@ public class AccessModifierPropertyTests
             var targetField = new FieldDeclarationNode
             {
                 Name = MakeToken("Value"),
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Modifiers = memberModifiers,
             };
             classAMembers.Add(new FieldMemberMemberDeclarationNode { Field = targetField });
@@ -316,7 +316,7 @@ public class AccessModifierPropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = mainStatements.ToImmutable() } },
             Modifiers = ImmutableArray.Create<ModifierNode>(

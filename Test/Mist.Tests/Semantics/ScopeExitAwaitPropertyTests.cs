@@ -50,7 +50,7 @@ public class ScopeExitAwaitPropertyTests
             "float" => new FloatTypePrimitiveTypeNode(),
             _ => new IntTypePrimitiveTypeNode(),
         };
-        return new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveNode };
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveNode } };
     }
 
     /// <summary>
@@ -149,7 +149,7 @@ public class ScopeExitAwaitPropertyTests
     {
         // Build the async target method (the one being called)
         TypeReferenceNode returnTypeRef = scenario.IsVoid
-            ? new VoidTypeRefTypeReferenceNode()
+            ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
             : MakePrimitiveTypeRef(scenario.ReturnTypeName);
 
         var targetMethod = new MethodDeclarationNode
@@ -180,7 +180,7 @@ public class ScopeExitAwaitPropertyTests
         var callerMethod = new MethodDeclarationNode
         {
             Name = Tok(scenario.CallerMethodName),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = callerBlock },
             Modifiers = ImmutableArray.Create<ModifierNode>(

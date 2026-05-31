@@ -227,10 +227,10 @@ public class TraitTypeRegistrationPropertyTests
         {
             Field = new TraitFieldDeclarationNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MistTypeGenerator.MakeToken("value"),
             },
         };
@@ -238,10 +238,10 @@ public class TraitTypeRegistrationPropertyTests
         {
             Field = new TraitFieldDeclarationNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new StringTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MistTypeGenerator.MakeToken("label"),
             },
         };
@@ -274,7 +274,7 @@ public class TraitTypeRegistrationPropertyTests
         {
             Method = new TraitMethodDeclarationNode
             {
-                ReturnType = new VoidTypeRefTypeReferenceNode(),
+                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Name = MistTypeGenerator.MakeToken("Execute"),
                 Parameters = null,
             },
@@ -307,10 +307,10 @@ public class TraitTypeRegistrationPropertyTests
         {
             Property = new TraitPropertyDeclarationNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new StringTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MistTypeGenerator.MakeToken("Title"),
                 Accessors = ImmutableArray.Create<InterfaceAccessorDeclarationNode>(
                     new InterfaceGetAccessorInterfaceAccessorDeclarationNode()),
@@ -344,10 +344,10 @@ public class TraitTypeRegistrationPropertyTests
         {
             Field = new TraitFieldDeclarationNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MistTypeGenerator.MakeToken("count"),
             },
         };
@@ -355,7 +355,7 @@ public class TraitTypeRegistrationPropertyTests
         {
             Method = new TraitMethodDeclarationNode
             {
-                ReturnType = new VoidTypeRefTypeReferenceNode(),
+                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Name = MistTypeGenerator.MakeToken("Process"),
                 Parameters = null,
             },
@@ -364,10 +364,10 @@ public class TraitTypeRegistrationPropertyTests
         {
             Property = new TraitPropertyDeclarationNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new StringTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MistTypeGenerator.MakeToken("Name"),
                 Accessors = ImmutableArray.Create<InterfaceAccessorDeclarationNode>(
                     new InterfaceGetAccessorInterfaceAccessorDeclarationNode(),
@@ -412,7 +412,7 @@ public class TraitTypeRegistrationPropertyTests
                 {
                     Method = new TraitMethodDeclarationNode
                     {
-                        ReturnType = new VoidTypeRefTypeReferenceNode(),
+                        ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                         Name = MistTypeGenerator.MakeToken("Serialize"),
                         Parameters = null,
                     },

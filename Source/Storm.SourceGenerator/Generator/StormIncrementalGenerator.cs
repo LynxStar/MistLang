@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Storm.SourceGenerator.Analyze;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Emit;
 using Storm.SourceGenerator.IR;
@@ -183,8 +184,14 @@ public sealed class StormIncrementalGenerator : IIncrementalGenerator
             return;
         }
 
-        // Step 5: Emit
-        var emissionContext = new EmissionContext(consumerNamespace, grammarName, loweringResult.Grammar);
+        // Step 5: Analyze for selective packrat memoization (pure, deterministic).
+        // Runs after lowering succeeds and before emission, operating on the same
+        // lowered GrammarIR the emitters consume. Cannot fail on validated IR, so
+        // it emits no diagnostics. Returns MemoizationPlan.Empty when nothing qualifies.
+        var memoizationPlan = MemoizationAnalysisPass.Run(loweringResult.Grammar);
+
+        // Step 6: Emit
+        var emissionContext = new EmissionContext(consumerNamespace, grammarName, loweringResult.Grammar, memoizationPlan);
 
         // Emit runtime types
         var runtimeSource = AstEmitter.EmitRuntimeTypes();

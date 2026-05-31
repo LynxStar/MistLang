@@ -72,22 +72,22 @@ public class TraitAssignabilityPropertyTests
     {
         return typeName switch
         {
-            "int" => new PrimitiveTypeRefTypeReferenceNode
+            "int" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
-            "string" => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            "string" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new StringTypePrimitiveTypeNode(),
-            },
-            "bool" => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            "bool" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new BoolTypePrimitiveTypeNode(),
-            },
-            _ => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            _ => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
         };
     }
 
@@ -135,14 +135,14 @@ public class TraitAssignabilityPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = Tok(declaredTypeName),
                         Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
                     },
-                },
+                } },
                 Name = Tok(varName),
                 Initializer = MakeNewObjectExpression(initializedTypeName),
             },
@@ -163,7 +163,7 @@ public class TraitAssignabilityPropertyTests
         return new MethodDeclarationNode
         {
             Name = Tok(name),
-            ReturnType = returnType ?? new VoidTypeRefTypeReferenceNode(),
+            ReturnType = returnType ?? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = parameters,
             Body = new MethodBlockBodyMethodBodyNode
             {
@@ -588,14 +588,14 @@ public class TraitAssignabilityPropertyTests
         {
             Parameter = new ParameterNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = Tok(scenario.TraitName),
                         Span = new Storm.Runtime.SourceSpan(0, scenario.TraitName.Length),
                     },
-                },
+                } },
                 Name = Tok("t"),
             },
         };
@@ -684,14 +684,14 @@ public class TraitAssignabilityPropertyTests
         var createMethod = MakeMethodDecl("Create",
             ImmutableArray.Create<StatementNode>(returnStatement),
             isStatic: true,
-            returnType: new NamedTypeRefTypeReferenceNode
+            returnType: new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode
                 {
                     IDENTIFIER = Tok(scenario.TraitName),
                     Span = new Storm.Runtime.SourceSpan(0, scenario.TraitName.Length),
                 },
-            });
+            } });
 
         // Main: T x = Create();
         var createCallPrimary = new IdentifierExpressionPrimaryNode { Name = Tok("Create") };
@@ -715,14 +715,14 @@ public class TraitAssignabilityPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = Tok(scenario.TraitName),
                         Span = new Storm.Runtime.SourceSpan(0, scenario.TraitName.Length),
                     },
-                },
+                } },
                 Name = Tok("x"),
                 Initializer = createExpr,
             },

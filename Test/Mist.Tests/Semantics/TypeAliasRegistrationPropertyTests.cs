@@ -148,9 +148,9 @@ public class TypeAliasRegistrationPropertyTests
     }
 
     private static RefinableTypeExpressionNode MakeRefinableTypeExpr(string name) =>
-        new RefinableSingleTypeRefinableTypeExpressionNode
+        new RefinableTypeExpressionNode
         {
-            SingleType = new RefinableSingleTypeExprNode
+            First = new RefinableSingleTypeExprNode
             {
                 Type = new NamedSingleTypeRefSingleTypeRefNode
                 {

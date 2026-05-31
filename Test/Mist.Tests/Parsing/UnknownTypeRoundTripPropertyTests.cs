@@ -2,7 +2,7 @@
 //
 // Validates: Requirement 14.4
 //
-// For any valid Mist AST containing UnknownTypeRefTypeReferenceNode in any
+// For any valid Mist AST containing UnknownSingleTypeRefSingleTypeRefNode in any
 // permitted position (bare local, method return, method parameter, and as a
 // type argument at arbitrary depth), parse → pretty-print → parse SHALL
 // produce an AST that is structurally equivalent to the original.
@@ -16,7 +16,7 @@
 // and asserting text₂ == text₃. Because the pretty printer is deterministic
 // and one-to-one on structure, equality of the two printed outputs is a
 // strong proxy for structural AST equivalence. We additionally assert that
-// the parsed AST contains a UnknownTypeRefTypeReferenceNode at the expected
+// the parsed AST contains a UnknownSingleTypeRefSingleTypeRefNode at the expected
 // positions, before and after the round-trip, so that the test cannot pass
 // accidentally by collapsing `unknown` to a different node type.
 //
@@ -105,16 +105,16 @@ public class UnknownTypeRoundTripPropertyTests
 
     /// <summary>
     /// Returns true iff the given type reference contains an
-    /// <see cref="UnknownTypeRefTypeReferenceNode"/> at any depth (bare or
+    /// <see cref="UnknownSingleTypeRefSingleTypeRefNode"/> at any depth (bare or
     /// nested inside a type-argument list).
     /// </summary>
     private static bool ContainsUnknown(TypeReferenceNode typeRef)
     {
-        switch (typeRef)
+        switch (typeRef.First)
         {
-            case UnknownTypeRefTypeReferenceNode:
+            case UnknownSingleTypeRefSingleTypeRefNode:
                 return true;
-            case NamedTypeRefTypeReferenceNode named when named.TypeArgs is not null:
+            case NamedSingleTypeRefSingleTypeRefNode named when named.TypeArgs is not null:
                 return GetTypeArgs(named.TypeArgs).Any(ContainsUnknown);
             default:
                 return false;
@@ -143,7 +143,7 @@ public class UnknownTypeRoundTripPropertyTests
     // The task spec enumerates six essential positions that must round-trip.
     // Each fact parses a minimal program, runs the full round-trip, and also
     // verifies that the AST after the first parse carries a
-    // UnknownTypeRefTypeReferenceNode at the expected spot. This guards
+    // UnknownSingleTypeRefSingleTypeRefNode at the expected spot. This guards
     // against a regression in which `unknown` is silently dropped or
     // collapsed into another node type while still printing back to itself.
 
@@ -156,7 +156,7 @@ public class UnknownTypeRoundTripPropertyTests
         var ast = AssertRoundTripPreserved(source);
 
         var local = GetFirstLocalDecl(ast);
-        Assert.IsType<UnknownTypeRefTypeReferenceNode>(local.Type);
+        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(local.Type.First);
     }
 
     [Fact]
@@ -169,11 +169,11 @@ public class UnknownTypeRoundTripPropertyTests
         var ast = AssertRoundTripPreserved(source);
 
         var local = GetFirstLocalDecl(ast);
-        var named = Assert.IsType<NamedTypeRefTypeReferenceNode>(local.Type);
+        var named = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(local.Type.First);
         Assert.NotNull(named.TypeArgs);
         var args = GetTypeArgs(named.TypeArgs!);
         Assert.Single(args);
-        Assert.IsType<UnknownTypeRefTypeReferenceNode>(args[0]);
+        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(args[0].First);
     }
 
     [Fact]
@@ -186,12 +186,12 @@ public class UnknownTypeRoundTripPropertyTests
         var ast = AssertRoundTripPreserved(source);
 
         var local = GetFirstLocalDecl(ast);
-        var named = Assert.IsType<NamedTypeRefTypeReferenceNode>(local.Type);
+        var named = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(local.Type.First);
         Assert.NotNull(named.TypeArgs);
         var args = GetTypeArgs(named.TypeArgs!);
         Assert.Equal(2, args.Count);
-        Assert.IsType<PrimitiveTypeRefTypeReferenceNode>(args[0]);
-        Assert.IsType<UnknownTypeRefTypeReferenceNode>(args[1]);
+        Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(args[0].First);
+        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(args[1].First);
     }
 
     [Fact]
@@ -204,15 +204,15 @@ public class UnknownTypeRoundTripPropertyTests
         var ast = AssertRoundTripPreserved(source);
 
         var local = GetFirstLocalDecl(ast);
-        var outer = Assert.IsType<NamedTypeRefTypeReferenceNode>(local.Type);
+        var outer = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(local.Type.First);
         Assert.NotNull(outer.TypeArgs);
         var outerArgs = GetTypeArgs(outer.TypeArgs!);
         Assert.Single(outerArgs);
-        var inner = Assert.IsType<NamedTypeRefTypeReferenceNode>(outerArgs[0]);
+        var inner = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(outerArgs[0].First);
         Assert.NotNull(inner.TypeArgs);
         var innerArgs = GetTypeArgs(inner.TypeArgs!);
         Assert.Single(innerArgs);
-        Assert.IsType<UnknownTypeRefTypeReferenceNode>(innerArgs[0]);
+        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(innerArgs[0].First);
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public class UnknownTypeRoundTripPropertyTests
         var ast = AssertRoundTripPreserved(source);
 
         var method = GetFirstMethod(ast);
-        Assert.IsType<UnknownTypeRefTypeReferenceNode>(method.ReturnType);
+        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(method.ReturnType.First);
     }
 
     [Fact]
@@ -241,7 +241,7 @@ public class UnknownTypeRoundTripPropertyTests
         var method = GetFirstMethod(ast);
         Assert.NotNull(method.Parameters);
         var firstParam = method.Parameters!.Parameter;
-        Assert.IsType<UnknownTypeRefTypeReferenceNode>(firstParam.Type);
+        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(firstParam.Type.First);
     }
 
     [Fact]
@@ -258,19 +258,19 @@ public class UnknownTypeRoundTripPropertyTests
         var method = GetFirstMethod(ast);
 
         // Return type: List<unknown>
-        var retNamed = Assert.IsType<NamedTypeRefTypeReferenceNode>(method.ReturnType);
+        var retNamed = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(method.ReturnType.First);
         Assert.NotNull(retNamed.TypeArgs);
         var retArgs = GetTypeArgs(retNamed.TypeArgs!);
         Assert.Single(retArgs);
-        Assert.IsType<UnknownTypeRefTypeReferenceNode>(retArgs[0]);
+        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(retArgs[0].First);
 
         // First parameter: Map<string, unknown>
         Assert.NotNull(method.Parameters);
-        var paramNamed = Assert.IsType<NamedTypeRefTypeReferenceNode>(method.Parameters!.Parameter.Type);
+        var paramNamed = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(method.Parameters!.Parameter.Type.First);
         Assert.NotNull(paramNamed.TypeArgs);
         var paramArgs = GetTypeArgs(paramNamed.TypeArgs!);
         Assert.Equal(2, paramArgs.Count);
-        Assert.IsType<UnknownTypeRefTypeReferenceNode>(paramArgs[1]);
+        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(paramArgs[1].First);
     }
 
     // ─── Property-based test — random combinations of legal positions ──────

@@ -96,18 +96,18 @@ public class DefaultTypeCheckerPropertyTests
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string typeName)
     {
-        return new PrimitiveTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
         {
             PrimitiveType = MakePrimitiveType(typeName),
-        };
+        } };
     }
 
     private static TypeReferenceNode MakeNamedTypeRef(string typeName)
     {
-        return new NamedTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(typeName) },
-        };
+        } };
     }
 
     private static FieldDeclarationNode MakeField(
@@ -283,7 +283,7 @@ public class DefaultTypeCheckerPropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {

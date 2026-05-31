@@ -148,7 +148,7 @@ public class TypeCheckerOverloadDiagnosticTests
     private static StatementNode MakeIntVarDecl(string name, string value = "0")
     {
         return MakeTypedVarDecl(
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             name, MakeIntLiteralExpression(value));
     }
 
@@ -169,7 +169,7 @@ public class TypeCheckerOverloadDiagnosticTests
 
         return new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveType },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveType } },
             Name = MakeToken(paramName),
         };
     }
@@ -188,7 +188,7 @@ public class TypeCheckerOverloadDiagnosticTests
         return new MethodDeclarationNode
         {
             Name = MakeToken(name),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = modifiers,
@@ -219,7 +219,7 @@ public class TypeCheckerOverloadDiagnosticTests
         return new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
             Modifiers = ImmutableArray.Create<ModifierNode>(

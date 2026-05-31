@@ -80,14 +80,14 @@ public class NewtypeSymbolRegistrationPropertyTests
             _ => new IntTypePrimitiveTypeNode(),
         };
 
-        return new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveType };
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveType } };
     }
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new NamedTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        };
+        } };
 
     private static TypeReferenceNode MakeTypeRef(string typeName)
     {

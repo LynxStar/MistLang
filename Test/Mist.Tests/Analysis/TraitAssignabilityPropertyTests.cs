@@ -65,22 +65,22 @@ public class TraitAssignabilityPropertyTests
     {
         return typeName switch
         {
-            "int" => new PrimitiveTypeRefTypeReferenceNode
+            "int" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
-            "string" => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            "string" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new StringTypePrimitiveTypeNode(),
-            },
-            "bool" => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            "bool" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new BoolTypePrimitiveTypeNode(),
-            },
-            _ => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            _ => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
         };
     }
 
@@ -130,14 +130,14 @@ public class TraitAssignabilityPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = Tok(declaredTypeName),
                         Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
                     },
-                },
+                } },
                 Name = Tok(varName),
                 Initializer = MakeNewObjectExpression(initializedTypeName),
             },
@@ -151,7 +151,7 @@ public class TraitAssignabilityPropertyTests
         return new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {

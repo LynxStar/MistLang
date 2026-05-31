@@ -87,11 +87,11 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
 
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null)
     {
-        return new NamedTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
             TypeArgs = typeArgs,
-        };
+        } };
     }
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string primitiveName)
@@ -104,7 +104,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
             "float" => new FloatTypePrimitiveTypeNode(),
             _ => new IntTypePrimitiveTypeNode(),
         };
-        return new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveNode };
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveNode } };
     }
 
     private static BaseListNode MakeBaseList(BaseTypeRefNode[] entries)
@@ -248,7 +248,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = mainStatements } },
             Modifiers = ImmutableArray.Create<ModifierNode>(

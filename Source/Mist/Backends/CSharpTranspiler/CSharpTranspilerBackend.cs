@@ -186,8 +186,10 @@ public sealed class CSharpTranspilerBackend : IBackend
             // Valid entry point return types:
             // - void (standard or async entry point)
             // - int with async modifier (exit code entry point, Requirement 11.4)
-            var isVoidReturn = methodDecl.ReturnType is VoidTypeRefTypeReferenceNode;
-            var isIntReturn = methodDecl.ReturnType is PrimitiveTypeRefTypeReferenceNode primitiveRef
+            var isVoidReturn = methodDecl.ReturnType.First is VoidSingleTypeRefSingleTypeRefNode
+                && methodDecl.ReturnType.SingleTypeRefs.Length == 0;
+            var isIntReturn = methodDecl.ReturnType.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef
+                && methodDecl.ReturnType.SingleTypeRefs.Length == 0
                 && primitiveRef.PrimitiveType is IntTypePrimitiveTypeNode
                 && primitiveRef.ArrayRank is null;
 

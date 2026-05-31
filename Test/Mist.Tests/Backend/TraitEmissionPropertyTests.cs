@@ -66,22 +66,22 @@ public sealed class TraitEmissionPropertyTests : IDisposable
     {
         return typeName switch
         {
-            "int" => new PrimitiveTypeRefTypeReferenceNode
+            "int" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
-            "string" => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            "string" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new StringTypePrimitiveTypeNode(),
-            },
-            "bool" => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            "bool" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new BoolTypePrimitiveTypeNode(),
-            },
-            _ => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            _ => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
         };
     }
 
@@ -128,7 +128,7 @@ public sealed class TraitEmissionPropertyTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {
@@ -190,7 +190,7 @@ public sealed class TraitEmissionPropertyTests : IDisposable
                 Method = new TraitMethodDeclarationNode
                 {
                     ReturnType = m.returnType == "void"
-                        ? new VoidTypeRefTypeReferenceNode()
+                        ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
                         : MakePrimitiveTypeRef(m.returnType),
                     Name = Tok(m.methodName),
                     Parameters = paramList,
@@ -272,7 +272,7 @@ public sealed class TraitEmissionPropertyTests : IDisposable
                 {
                     Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
                     ReturnType = m.returnType == "void"
-                        ? new VoidTypeRefTypeReferenceNode()
+                        ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
                         : MakePrimitiveTypeRef(m.returnType),
                     Name = Tok(m.methodName),
                     Parameters = paramList,
@@ -601,7 +601,7 @@ public sealed class TraitEmissionPropertyTests : IDisposable
                     Method = new TraitMethodDeclarationNode
                     {
                         ReturnType = m.MemberType == "void"
-                            ? new VoidTypeRefTypeReferenceNode()
+                            ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
                             : MakePrimitiveTypeRef(m.MemberType),
                         Name = Tok(m.MemberName),
                         Parameters = m.MethodParams is { Length: > 0 }

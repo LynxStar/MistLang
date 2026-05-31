@@ -141,7 +141,7 @@ public class TypeCheckerPreservationPropertyTests
         // Primary constructor: TypeName(int x) { }
         var paramX = new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Name = MakeToken("x"),
         };
         var primaryCtor = new ConstructorDeclarationNode
@@ -175,7 +175,7 @@ public class TypeCheckerPreservationPropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -224,7 +224,7 @@ public class TypeCheckerPreservationPropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -260,10 +260,10 @@ public class TypeCheckerPreservationPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MakeToken("x"),
                 Initializer = WrapPrimaryAsExpression(new TrueLiteralExpressionPrimaryNode()),
             },
@@ -272,7 +272,7 @@ public class TypeCheckerPreservationPropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -306,7 +306,7 @@ public class TypeCheckerPreservationPropertyTests
         // Foo class with Foo(int x) constructor
         var paramX = new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Name = MakeToken("x"),
         };
         var fooCtor = new ConstructorDeclarationNode
@@ -339,7 +339,7 @@ public class TypeCheckerPreservationPropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -376,10 +376,10 @@ public class TypeCheckerPreservationPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new BoolTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MakeToken("a"),
                 Initializer = WrapPrimaryAsExpression(new TrueLiteralExpressionPrimaryNode()),
             },
@@ -389,10 +389,10 @@ public class TypeCheckerPreservationPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new BoolTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MakeToken("b"),
                 Initializer = WrapPrimaryAsExpression(new FalseLiteralExpressionPrimaryNode()),
             },
@@ -419,7 +419,7 @@ public class TypeCheckerPreservationPropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {

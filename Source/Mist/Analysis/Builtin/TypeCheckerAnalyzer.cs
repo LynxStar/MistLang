@@ -995,7 +995,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 continue;
 
             // Must return void.
-            if (methodDecl.ReturnType is not VoidTypeRefTypeReferenceNode)
+            if (methodDecl.ReturnType.First is not VoidSingleTypeRefSingleTypeRefNode
+                || methodDecl.ReturnType.SingleTypeRefs.Length > 0)
                 continue;
 
             // Must have either no parameters or a single string[] parameter.
@@ -1059,7 +1060,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsStringArrayTypeRef(TypeReferenceNode typeRef)
     {
         // string[] as a primitive type ref: PrimitiveTypeRef with StringType and array rank.
-        if (typeRef is PrimitiveTypeRefTypeReferenceNode primitiveRef)
+        if (typeRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef)
         {
             return primitiveRef.PrimitiveType is StringTypePrimitiveTypeNode
                    && primitiveRef.ArrayRank is not null;
@@ -7053,9 +7054,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static string ExtractTypeReferenceName(TypeReferenceNode typeRef)
     {
-        return typeRef switch
+        return typeRef.First switch
         {
-            PrimitiveTypeRefTypeReferenceNode primitiveRef => primitiveRef.PrimitiveType switch
+            PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => primitiveRef.PrimitiveType switch
             {
                 IntTypePrimitiveTypeNode => "int",
                 UintTypePrimitiveTypeNode => "uint",
@@ -7074,8 +7075,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 RegexTypePrimitiveTypeNode => "regex",
                 _ => "unknown",
             },
-            VoidTypeRefTypeReferenceNode => "void",
-            NamedTypeRefTypeReferenceNode namedRef => ExtractQualifiedIdentifierName(namedRef.Name),
+            VoidSingleTypeRefSingleTypeRefNode => "void",
+            NamedSingleTypeRefSingleTypeRefNode namedRef => ExtractQualifiedIdentifierName(namedRef.Name),
             _ => "unknown",
         };
     }
@@ -8188,9 +8189,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static string? ExtractTypeDisplayNameFromRef(TypeReferenceNode typeRef)
     {
-        return typeRef switch
+        return typeRef.First switch
         {
-            PrimitiveTypeRefTypeReferenceNode primitiveRef => primitiveRef.PrimitiveType switch
+            PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => primitiveRef.PrimitiveType switch
             {
                 IntTypePrimitiveTypeNode => "int",
                 UintTypePrimitiveTypeNode => "uint",
@@ -8209,7 +8210,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 RegexTypePrimitiveTypeNode => "regex",
                 _ => null,
             },
-            NamedTypeRefTypeReferenceNode namedRef => namedRef.Name.IDENTIFIER.Lexeme,
+            NamedSingleTypeRefSingleTypeRefNode namedRef => namedRef.Name.IDENTIFIER.Lexeme,
             _ => null,
         };
     }
@@ -10402,20 +10403,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return resolved;
         }
 
-        switch (typeRef)
+        switch (typeRef.First)
         {
-            case PrimitiveTypeRefTypeReferenceNode primitiveRef:
+            case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
             {
                 var primType = ResolvePrimitiveType(primitiveRef.PrimitiveType);
                 if (primitiveRef.ArrayRank is not null && primType is not null)
                     return new ArrayType(primType);
                 return primType ?? ErrorType.Instance;
             }
-            case NamedTypeRefTypeReferenceNode namedRef:
+            case NamedSingleTypeRefSingleTypeRefNode namedRef:
             {
                 var name = namedRef.Name.Children().FirstOrDefault()?.Span;
-                // Try to find the type by looking up the symbol.
-                var symbol = model.GetDeclaredSymbol(namedRef);
+                // Try to find the type by looking up the symbol. The semantic model
+                // keys declared symbols on the flat TypeReferenceNode, so look up via
+                // `typeRef` (not the SingleTypeRef child).
+                var symbol = model.GetDeclaredSymbol(typeRef);
                 if (symbol?.DeclaredType is not null)
                 {
                     return ResolveTypeAliasMaybeGeneric(
@@ -10435,7 +10438,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
                 return ErrorType.Instance;
             }
-            case VoidTypeRefTypeReferenceNode:
+            case VoidSingleTypeRefSingleTypeRefNode:
                 return LegacyPrimitiveTypes.Void;
             default:
                 return ErrorType.Instance;
@@ -10451,7 +10454,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static IType ResolveTypeAliasMaybeGeneric(
         IType type,
-        NamedTypeRefTypeReferenceNode namedRef,
+        NamedSingleTypeRefSingleTypeRefNode namedRef,
         ISemanticModel model,
         DiagnosticBag? diagnostics)
     {
@@ -10521,9 +10524,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Extracts the type name from a <see cref="NamedTypeRefTypeReferenceNode"/>.
+    /// Extracts the type name from a <see cref="NamedSingleTypeRefSingleTypeRefNode"/>.
     /// </summary>
-    private static string ExtractTypeName(NamedTypeRefTypeReferenceNode namedRef)
+    private static string ExtractTypeName(NamedSingleTypeRefSingleTypeRefNode namedRef)
     {
         return namedRef.Name.IDENTIFIER.Lexeme;
     }
@@ -15990,9 +15993,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static string? ExtractTypeBindingName(TypeReferenceNode typeRef)
     {
-        return typeRef switch
+        return typeRef.First switch
         {
-            NamedTypeRefTypeReferenceNode named => named.Name.IDENTIFIER.Lexeme,
+            NamedSingleTypeRefSingleTypeRefNode named => named.Name.IDENTIFIER.Lexeme,
             _ => null,
         };
     }
@@ -16800,7 +16803,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 ValidateTypeArgListForNode(objCreation, objCreation.TypeArgs, model, diagnostics);
                 break;
 
-            case NamedTypeRefTypeReferenceNode namedRef when namedRef.TypeArgs is not null:
+            case NamedSingleTypeRefSingleTypeRefNode namedRef when namedRef.TypeArgs is not null:
                 ValidateTypeArgListForNode(namedRef, namedRef.TypeArgs, model, diagnostics);
                 break;
 
@@ -17041,7 +17044,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Check if this is a forwarded dependent parameter.
         if (argNode is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg
-            && typeRefArg.Type is NamedTypeRefTypeReferenceNode namedRef
+            && typeRefArg.Type.First is NamedSingleTypeRefSingleTypeRefNode namedRef
             && namedRef.TypeArgs is null
             && namedRef.ArrayRank is null)
         {
@@ -17154,12 +17157,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             case TypeReferenceTypeArgumentTypeArgumentNode typeRefArg:
             {
                 // A bare identifier could be a const reference or a forwarded dependent parameter.
-                if (typeRefArg.Type is NamedTypeRefTypeReferenceNode namedRef
+                if (typeRefArg.Type.First is NamedSingleTypeRefSingleTypeRefNode namedRef
                     && namedRef.TypeArgs is null
                     && namedRef.ArrayRank is null)
                 {
-                    // Check what the semantic model resolved this to.
-                    var symbol = model.GetDeclaredSymbol(namedRef);
+                    // Check what the semantic model resolved this to. The model keys
+                    // declared symbols / types on the flat TypeReferenceNode, so look
+                    // up via `typeRefArg.Type` (not the SingleTypeRef child).
+                    var symbol = model.GetDeclaredSymbol(typeRefArg.Type);
                     if (symbol is not null)
                     {
                         // Type symbols are not constants — they shouldn't be in a dependent position.
@@ -17194,7 +17199,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                     // If the symbol wasn't found via GetDeclaredSymbol, check the type map.
                     // If the type reference resolved to a type, it's not a constant.
-                    var resolvedType = model.GetTypeOf(namedRef);
+                    var resolvedType = model.GetTypeOf(typeRefArg.Type);
                     if (resolvedType is not null && resolvedType is not ErrorType)
                     {
                         // If it resolved to a DependentTypeParameterType, it's a forwarded param.

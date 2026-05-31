@@ -131,10 +131,10 @@ public class StructInheritanceConstructorTests
         {
             Parameter = new ParameterNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MakeToken(paramName),
             },
         };
@@ -149,18 +149,18 @@ public class StructInheritanceConstructorTests
         {
             Parameter = new ParameterNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MakeToken(paramName1),
             },
             Parameters = ImmutableArray.Create(new ParameterNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MakeToken(paramName2),
             }),
         };

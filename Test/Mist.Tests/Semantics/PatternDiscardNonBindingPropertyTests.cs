@@ -105,10 +105,10 @@ public class PatternDiscardNonBindingPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = MakePrimitiveType(typeName),
-                },
+                } },
                 Name = Tok(name),
                 Initializer = initializer,
             },

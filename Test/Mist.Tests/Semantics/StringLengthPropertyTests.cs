@@ -214,10 +214,10 @@ public class StringLengthPropertyTests
     {
         var param = new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new StringTypePrimitiveTypeNode(),
-            },
+            } },
             Name = MakeToken("input"),
         };
 
@@ -231,7 +231,7 @@ public class StringLengthPropertyTests
 
         var varDecl = new TypedVariableDeclarationVariableDeclarationStatementNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveTypeNode },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveTypeNode } },
             Name = MakeToken("result"),
             Initializer = callExpr,
         };
@@ -248,7 +248,7 @@ public class StringLengthPropertyTests
         var method = new MethodDeclarationNode
         {
             Name = MakeToken("TestMethod"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
             Body = body.AsMethodBody(),
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
@@ -277,11 +277,11 @@ public class StringLengthPropertyTests
     {
         var param = new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
                 ArrayRank = new UnsizedArrayRankArrayRankSuffixNode(),
-            },
+            } },
             Name = MakeToken("arr"),
         };
 
@@ -289,7 +289,7 @@ public class StringLengthPropertyTests
 
         var varDecl = new TypedVariableDeclarationVariableDeclarationStatementNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Name = MakeToken("result"),
             Initializer = callExpr,
         };
@@ -306,7 +306,7 @@ public class StringLengthPropertyTests
         var method = new MethodDeclarationNode
         {
             Name = MakeToken("TestMethod"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
             Body = body.AsMethodBody(),
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),

@@ -74,7 +74,7 @@ public class InterfaceRoundTripPropertyTests
         return new InterfaceMethodDeclarationNode
         {
             Name = Tok(name),
-            ReturnType = returnType ?? new VoidTypeRefTypeReferenceNode(),
+            ReturnType = returnType ?? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = parameters,
         };
     }
@@ -204,11 +204,11 @@ public class InterfaceRoundTripPropertyTests
 
     // ─── Type reference helpers ──────────────────────────────────────────
 
-    private static readonly TypeReferenceNode VoidType = new VoidTypeRefTypeReferenceNode();
-    private static readonly TypeReferenceNode IntType = new PrimitiveTypeRefTypeReferenceNode
+    private static readonly TypeReferenceNode VoidType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() };
+    private static readonly TypeReferenceNode IntType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
     {
         PrimitiveType = new IntTypePrimitiveTypeNode(),
-    };
+    } };
 
     // ─── FsCheck generators ─────────────────────────────────────────────
 
@@ -226,18 +226,18 @@ public class InterfaceRoundTripPropertyTests
     private static Gen<TypeReferenceNode> GenReturnType()
     {
         return Gen.Elements<TypeReferenceNode>(
-            new VoidTypeRefTypeReferenceNode(),
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new BoolTypePrimitiveTypeNode() },
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new StringTypePrimitiveTypeNode() });
+            new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } });
     }
 
     private static Gen<TypeReferenceNode> GenParamType()
     {
         return Gen.Elements<TypeReferenceNode>(
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new BoolTypePrimitiveTypeNode() },
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new StringTypePrimitiveTypeNode() });
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } });
     }
 
     private static Gen<ImmutableArray<ModifierNode>> GenModifiers()
@@ -393,7 +393,7 @@ public class InterfaceRoundTripPropertyTests
                     {
                         Method = MakeMethod(
                             MethodNames[rng.Next(MethodNames.Length)],
-                            new VoidTypeRefTypeReferenceNode(),
+                            new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                             ImmutableArray<StatementNode>.Empty,
                             mods),
                     });
@@ -448,10 +448,10 @@ public class InterfaceRoundTripPropertyTests
     {
         return (rng.Next(4)) switch
         {
-            0 => new VoidTypeRefTypeReferenceNode(),
-            1 => new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
-            2 => new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new BoolTypePrimitiveTypeNode() },
-            _ => new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new StringTypePrimitiveTypeNode() },
+            0 => new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
+            1 => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
+            2 => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
+            _ => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } },
         };
     }
 
@@ -459,9 +459,9 @@ public class InterfaceRoundTripPropertyTests
     {
         return (rng.Next(3)) switch
         {
-            0 => new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
-            1 => new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new BoolTypePrimitiveTypeNode() },
-            _ => new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new StringTypePrimitiveTypeNode() },
+            0 => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
+            1 => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
+            _ => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } },
         };
     }
 
@@ -621,10 +621,10 @@ public class InterfaceRoundTripPropertyTests
         // Interface with methods
         var iface = MakeInterfaceDecl("IShape",
             ImmutableArray.Create(
-                MakeInterfaceMethod("Area", new PrimitiveTypeRefTypeReferenceNode
+                MakeInterfaceMethod("Area", new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                }),
+                } }),
                 MakeInterfaceMethod("Draw")));
 
         // Class implementing interface

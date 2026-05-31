@@ -179,23 +179,19 @@ public sealed class MistPrettyPrinter
 
     private string EmitRefinableTypeExpression(RefinableTypeExpressionNode node)
     {
-        return node switch
+        // Union when there are PIPE-separated continuations; otherwise a single (optionally refined) type.
+        if (node.RefinableSingleTypeExprs.Length > 0)
         {
-            RefinableUnionTypeRefinableTypeExpressionNode union => EmitRefinableUnion(union.UnionType),
-            RefinableSingleTypeRefinableTypeExpressionNode single => EmitRefinableSingle(single.SingleType),
-            _ => "object",
-        };
-    }
-
-    private string EmitRefinableUnion(RefinableUnionTypeExprNode unionExpr)
-    {
-        var parts = new List<string>();
-        parts.Add(EmitRefinableSingle(unionExpr.First));
-        foreach (var constituent in unionExpr.RefinableSingleTypeExprs)
-        {
-            parts.Add(EmitRefinableSingle(constituent));
+            var parts = new List<string>();
+            parts.Add(EmitRefinableSingle(node.First));
+            foreach (var constituent in node.RefinableSingleTypeExprs)
+            {
+                parts.Add(EmitRefinableSingle(constituent));
+            }
+            return string.Join(" | ", parts);
         }
-        return string.Join(" | ", parts);
+
+        return EmitRefinableSingle(node.First);
     }
 
     private string EmitRefinableSingle(RefinableSingleTypeExprNode expr)
@@ -1190,71 +1186,20 @@ public sealed class MistPrettyPrinter
 
     private string EmitTypeReference(TypeReferenceNode typeRef)
     {
-        switch (typeRef)
+        // Union (non-empty PIPE-separated continuation list): emit constituents
+        // joined by " | ". A single (non-union) type ref delegates to EmitSingleTypeRef.
+        if (typeRef.SingleTypeRefs.Length > 0)
         {
-            case UnionTypeRefTypeReferenceNode unionRef:
+            var parts = new List<string>();
+            parts.Add(EmitSingleTypeRef(typeRef.First));
+            foreach (var constituent in typeRef.SingleTypeRefs)
             {
-                var parts = new List<string>();
-                parts.Add(EmitSingleTypeRef(unionRef.UnionType.First));
-                foreach (var constituent in unionRef.UnionType.SingleTypeRefs)
-                {
-                    parts.Add(EmitSingleTypeRef(constituent));
-                }
-                return string.Join(" | ", parts);
+                parts.Add(EmitSingleTypeRef(constituent));
             }
-            case PrimitiveTypeRefTypeReferenceNode primitiveRef:
-            {
-                var keyword = EmitPrimitiveType(primitiveRef.PrimitiveType);
-                if (primitiveRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
-                {
-                    return $"{keyword}[{sizedRank.Size.Lexeme}]";
-                }
-                else if (primitiveRef.ArrayRank is not null)
-                {
-                    return $"{keyword}[]";
-                }
-                return keyword;
-            }
-            case VoidTypeRefTypeReferenceNode:
-                return "void";
-            case UnknownTypeRefTypeReferenceNode:
-                return "unknown";
-            case NamedTypeRefTypeReferenceNode namedRef:
-            {
-                var name = ExtractQualifiedName(namedRef.Name);
-                var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs);
-                if (namedRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
-                {
-                    return $"{name}{typeArgs}[{sizedRank.Size.Lexeme}]";
-                }
-                else if (namedRef.ArrayRank is not null)
-                {
-                    return $"{name}{typeArgs}[]";
-                }
-                return $"{name}{typeArgs}";
-            }
-            case TupleTypeRefTypeReferenceNode tupleRef:
-            {
-                var parts = new List<string>();
-
-                string FormatTupleElement(TupleTypeElementNode element)
-                {
-                    var type = EmitTypeReference(element.Type);
-                    return element.Name.HasValue ? $"{type} {element.Name.Value.Lexeme}" : type;
-                }
-
-                parts.Add(FormatTupleElement(tupleRef.First));
-                parts.Add(FormatTupleElement(tupleRef.Rest));
-                foreach (var additional in tupleRef.TupleTypeElements)
-                {
-                    parts.Add(FormatTupleElement(additional));
-                }
-
-                return $"({string.Join(", ", parts)})";
-            }
-            default:
-                return "object";
+            return string.Join(" | ", parts);
         }
+
+        return EmitSingleTypeRef(typeRef.First);
     }
 
     private string EmitSingleTypeRef(SingleTypeRefNode singleTypeRef)

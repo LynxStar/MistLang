@@ -123,10 +123,10 @@ public class BaseConstructorValidationTests
         {
             Parameter = new ParameterNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MakeToken(paramName),
             },
         };

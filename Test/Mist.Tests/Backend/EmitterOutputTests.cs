@@ -169,7 +169,7 @@ public sealed class EmitterOutputTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -217,7 +217,7 @@ public sealed class EmitterOutputTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -269,7 +269,7 @@ public sealed class EmitterOutputTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -307,10 +307,10 @@ public sealed class EmitterOutputTests : IDisposable
         var field = new FieldDeclarationNode
         {
             Name = MakeToken("x"),
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -325,7 +325,7 @@ public sealed class EmitterOutputTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -368,10 +368,10 @@ public sealed class EmitterOutputTests : IDisposable
         var getValueMethod = new MethodDeclarationNode
         {
             Name = MakeToken("GetValue"),
-            ReturnType = new PrimitiveTypeRefTypeReferenceNode
+            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -390,7 +390,7 @@ public sealed class EmitterOutputTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -428,12 +428,12 @@ public sealed class EmitterOutputTests : IDisposable
 
         var paramA = new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Name = MakeToken("a"),
         };
         var paramB = new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Name = MakeToken("b"),
         };
         var paramList = new ParameterListNode { Parameter = paramA };
@@ -441,10 +441,10 @@ public sealed class EmitterOutputTests : IDisposable
         var addMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Add"),
-            ReturnType = new PrimitiveTypeRefTypeReferenceNode
+            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Parameters = paramList,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -463,7 +463,7 @@ public sealed class EmitterOutputTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -511,13 +511,13 @@ public sealed class EmitterOutputTests : IDisposable
         var field = new FieldDeclarationNode
         {
             Name = MakeToken("c"),
-            Type = new NamedTypeRefTypeReferenceNode { Name = qualifiedId },
+            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode { Name = qualifiedId } },
         };
 
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -561,7 +561,7 @@ public sealed class EmitterOutputTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -615,7 +615,7 @@ public sealed class EmitterOutputTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -681,7 +681,7 @@ public sealed class EmitterOutputTests : IDisposable
         // Constructor: Point(int x) { }
         var paramX = new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Name = MakeToken("x"),
         };
         var paramCtor = new ConstructorDeclarationNode
@@ -694,7 +694,7 @@ public sealed class EmitterOutputTests : IDisposable
         var fieldX = new FieldDeclarationNode
         {
             Name = MakeToken("x"),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
         };
 
         var pointClass = new ClassDeclarationNode
@@ -709,7 +709,7 @@ public sealed class EmitterOutputTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -758,11 +758,11 @@ public sealed class EmitterOutputTests : IDisposable
 
         var varDecl = new TypedVariableDeclarationVariableDeclarationStatementNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
                 ArrayRank = new UnsizedArrayRankArrayRankSuffixNode(),
-            },
+            } },
             Name = MakeToken("arr"),
             Initializer = arrayExpr,
         };
@@ -770,7 +770,7 @@ public sealed class EmitterOutputTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -844,7 +844,7 @@ public sealed class EmitterOutputTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -892,7 +892,7 @@ public sealed class EmitterOutputTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(

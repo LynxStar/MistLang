@@ -163,14 +163,14 @@ public class EnumTypeReferencePropertyTests
     }
 
     private static TypeReferenceNode MakeEnumTypeRef(string enumName) =>
-        new NamedTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode
             {
                 IDENTIFIER = Tok(enumName),
                 Span = new Storm.Runtime.SourceSpan(0, enumName.Length),
             },
-        };
+        } };
 
     private static ExpressionNode MakeMemberAccessExpression(string target, string memberName)
     {
@@ -243,7 +243,7 @@ public class EnumTypeReferencePropertyTests
                 var mainMethod = new MethodDeclarationNode
                 {
                     Name = Tok("Main"),
-                    ReturnType = new VoidTypeRefTypeReferenceNode(),
+                    ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                     Parameters = null,
                     Body = new MethodBlockBodyMethodBodyNode
                     {
@@ -273,7 +273,7 @@ public class EnumTypeReferencePropertyTests
                 var useMethod = new MethodDeclarationNode
                 {
                     Name = Tok("UseEnum"),
-                    ReturnType = new VoidTypeRefTypeReferenceNode(),
+                    ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                     Parameters = paramList,
                     Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
                     Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -286,7 +286,7 @@ public class EnumTypeReferencePropertyTests
                 var mainMethod = new MethodDeclarationNode
                 {
                     Name = Tok("Main"),
-                    ReturnType = new VoidTypeRefTypeReferenceNode(),
+                    ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                     Parameters = null,
                     Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
                     Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -327,7 +327,7 @@ public class EnumTypeReferencePropertyTests
                 var mainMethod = new MethodDeclarationNode
                 {
                     Name = Tok("Main"),
-                    ReturnType = new VoidTypeRefTypeReferenceNode(),
+                    ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                     Parameters = null,
                     Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
                     Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -353,7 +353,7 @@ public class EnumTypeReferencePropertyTests
                 var mainMethod = new MethodDeclarationNode
                 {
                     Name = Tok("Main"),
-                    ReturnType = new VoidTypeRefTypeReferenceNode(),
+                    ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                     Parameters = null,
                     Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
                     Modifiers = ImmutableArray.Create<ModifierNode>(

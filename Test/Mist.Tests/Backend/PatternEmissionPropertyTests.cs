@@ -164,10 +164,10 @@ public sealed class PatternEmissionPropertyTests : IDisposable
         {
             EmissionPatternKind.TypePattern => new TypePatternPrimaryPatternNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = Tok("matched"),
             },
             EmissionPatternKind.VarPattern => new VarPatternPrimaryPatternNode

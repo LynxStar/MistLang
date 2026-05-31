@@ -81,7 +81,7 @@ public sealed partial class InterfaceEmissionPropertyTests : IDisposable
         return new InterfaceMethodDeclarationNode
         {
             Name = MakeToken(name),
-            ReturnType = returnType ?? new VoidTypeRefTypeReferenceNode(),
+            ReturnType = returnType ?? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
         };
     }
@@ -209,7 +209,7 @@ public sealed partial class InterfaceEmissionPropertyTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -719,10 +719,10 @@ public sealed partial class InterfaceEmissionPropertyTests : IDisposable
     {
         CleanOutputDir();
 
-        var intReturnType = new PrimitiveTypeRefTypeReferenceNode
+        var intReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
         {
             PrimitiveType = new IntTypePrimitiveTypeNode(),
-        };
+        } };
         var interfaceDecl = MakeInterfaceDecl("ICalculator",
             ImmutableArray.Create(MakeInterfaceMethod("Calculate", intReturnType)));
 

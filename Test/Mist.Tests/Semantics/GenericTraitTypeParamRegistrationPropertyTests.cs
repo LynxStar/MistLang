@@ -100,22 +100,22 @@ public class GenericTraitTypeParamRegistrationPropertyTests
 
     private static TypeReferenceNode MakeNamedTypeRef(string name)
     {
-        return new NamedTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode
             {
                 IDENTIFIER = Tok(name),
                 IDENTIFIERs = ImmutableArray<Storm.Runtime.Token>.Empty,
             },
-        };
+        } };
     }
 
     private static TypeReferenceNode MakePrimitiveTypeRef()
     {
-        return new PrimitiveTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
         {
             PrimitiveType = new IntTypePrimitiveTypeNode(),
-        };
+        } };
     }
 
     // ─── Test data models ────────────────────────────────────────────────

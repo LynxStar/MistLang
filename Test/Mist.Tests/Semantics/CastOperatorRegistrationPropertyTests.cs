@@ -161,10 +161,10 @@ public class CastOperatorRegistrationPropertyTests
             : (CastOperatorKindNode)new ExplicitCastCastOperatorKindNode();
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new NamedTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        };
+        } };
 
     private static CastOperatorDeclarationNode MakeCastOperatorDecl(CastOperatorScenario scenario)
     {

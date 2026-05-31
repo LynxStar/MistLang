@@ -71,7 +71,7 @@ public class InterfaceTypeRegistrationPropertyTests
         return new InterfaceMethodDeclarationNode
         {
             Name = MakeToken(name),
-            ReturnType = returnType ?? new VoidTypeRefTypeReferenceNode(),
+            ReturnType = returnType ?? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = parameters,
         };
     }

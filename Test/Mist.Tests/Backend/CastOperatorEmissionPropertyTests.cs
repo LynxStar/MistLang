@@ -147,10 +147,10 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
             lexeme: lexeme);
 
     private static TypeReferenceNode NamedTypeRef(string name) =>
-        new NamedTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        };
+        } };
 
     private static ParameterNode MakeParam(string typeName, string paramName) =>
         new() { Type = NamedTypeRef(typeName), Name = Tok(paramName) };
@@ -288,7 +288,7 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
             Method = new MethodDeclarationNode
             {
                 Name = Tok("Main"),
-                ReturnType = new VoidTypeRefTypeReferenceNode(),
+                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Parameters = null,
                 Body = new MethodBlockBodyMethodBodyNode
                 {
@@ -329,7 +329,7 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
             Method = new MethodDeclarationNode
             {
                 Name = Tok("Accept"),
-                ReturnType = new VoidTypeRefTypeReferenceNode(),
+                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Parameters = new ParameterListNode { Parameter = MakeParam(paramType, "param") },
                 Body = new MethodBlockBodyMethodBodyNode
                 {

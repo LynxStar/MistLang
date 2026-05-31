@@ -245,10 +245,10 @@ public class TypeCheckerPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MakeToken(name),
                 Initializer = MakeIntLiteralExpression(value),
             },
@@ -261,10 +261,10 @@ public class TypeCheckerPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new BoolTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MakeToken(name),
                 Initializer = MakeBoolLiteralExpression(value),
             },
@@ -277,10 +277,10 @@ public class TypeCheckerPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new StringTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MakeToken(name),
                 Initializer = MakeStringLiteralExpression(value),
             },
@@ -321,7 +321,7 @@ public class TypeCheckerPropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = mainStatements } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -371,7 +371,7 @@ public class TypeCheckerPropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = mainStatements ?? ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -451,7 +451,7 @@ public class TypeCheckerPropertyTests
 
         new("IntReturn", () => MakeProgramWithMethod(
             "GetValue",
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             ImmutableArray.Create(MakeReturnStatement(MakeIntLiteralExpression("42"))))),
 
         new("StringVariable", () => MakeWellTypedProgram(ImmutableArray.Create(
@@ -534,7 +534,7 @@ public class TypeCheckerPropertyTests
     {
         var ast = MakeProgramWithMethod(
             "GetValue",
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             ImmutableArray.Create(MakeReturnStatement(MakeIntLiteralExpression("42"))));
 
         var model = BuildModel(ast);

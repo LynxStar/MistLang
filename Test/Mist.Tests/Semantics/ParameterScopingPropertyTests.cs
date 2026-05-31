@@ -74,7 +74,7 @@ public class ParameterScopingPropertyTests
 
         return new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveType },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveType } },
             Name = MakeToken(paramName),
         };
     }
@@ -194,7 +194,7 @@ public class ParameterScopingPropertyTests
             var method = new MethodDeclarationNode
             {
                 Name = MakeToken($"M{i}"),
-                ReturnType = new VoidTypeRefTypeReferenceNode(),
+                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Parameters = new ParameterListNode { Parameter = param },
                 Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
                 Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
@@ -268,7 +268,7 @@ public class ParameterScopingPropertyTests
             var method = new MethodDeclarationNode
             {
                 Name = MakeToken("DoWork"),
-                ReturnType = new VoidTypeRefTypeReferenceNode(),
+                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Parameters = new ParameterListNode { Parameter = param },
                 Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
                 Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),

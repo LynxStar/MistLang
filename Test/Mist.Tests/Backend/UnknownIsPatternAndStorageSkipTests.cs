@@ -400,7 +400,7 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
     /// bare <c>unknown</c> field. This locks in that the emitter's
     /// <c>IsStorageBannedMember</c> helper consults the semantic
     /// type via <c>GetDeclaredSymbol</c> rather than matching only
-    /// the surface-level AST <c>UnknownTypeRefTypeReferenceNode</c>.
+    /// the surface-level AST <c>UnknownSingleTypeRefSingleTypeRefNode</c>.
     /// </summary>
     [Fact]
     public void StorageBan_CascadeField_IsSkippedTogetherWithBareUnknown()

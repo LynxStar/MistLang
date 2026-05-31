@@ -3236,9 +3236,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static string ExtractTypeReferenceName(TypeReferenceNode typeRef, SourceText? sourceText = null)
     {
-        switch (typeRef)
+        switch (typeRef.First)
         {
-            case NamedTypeRefTypeReferenceNode namedRef:
+            case NamedSingleTypeRefSingleTypeRefNode namedRef:
                 var lexeme = namedRef.Name.IDENTIFIER.Lexeme;
                 if (!string.IsNullOrEmpty(lexeme))
                     return lexeme;
@@ -3263,11 +3263,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                 }
                 return "";
-            case PrimitiveTypeRefTypeReferenceNode primitiveRef:
+            case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
                 return FormatPrimitiveType(primitiveRef.PrimitiveType);
-            case VoidTypeRefTypeReferenceNode:
+            case VoidSingleTypeRefSingleTypeRefNode:
                 return "void";
-            case TupleTypeRefTypeReferenceNode tupleRef:
+            case TupleSingleTypeRefSingleTypeRefNode tupleRef:
                 return FormatTupleTypeReference(tupleRef);
             default:
                 return "unknown";
@@ -5117,7 +5117,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 // Disambiguation: check if this is a bare identifier that resolves to a
                 // forwarded dependent parameter from the declaring type.
-                if (typeRefArg.Type is NamedTypeRefTypeReferenceNode namedRef
+                if (typeRefArg.Type.First is NamedSingleTypeRefSingleTypeRefNode namedRef
                     && namedRef.TypeArgs is null
                     && namedRef.ArrayRank is null)
                 {
@@ -5182,18 +5182,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
-        switch (typeRef)
+        switch (typeRef.First)
         {
-            case PrimitiveTypeRefTypeReferenceNode primitiveRef:
+            case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
                 var baseType = ResolvePrimitiveType(primitiveRef.PrimitiveType);
                 if (primitiveRef.ArrayRank is not null)
                     return new ArrayType(baseType);
                 return baseType;
 
-            case VoidTypeRefTypeReferenceNode:
+            case VoidSingleTypeRefSingleTypeRefNode:
                 return LegacyPrimitiveTypes.Void;
 
-            case NamedTypeRefTypeReferenceNode namedRef:
+            case NamedSingleTypeRefSingleTypeRefNode namedRef:
             {
                 // The generated parser may not populate IDENTIFIER.Lexeme on
                 // QualifiedIdentifierNode. Fall back to extracting the name
@@ -5318,7 +5318,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return ErrorType.Instance;
             }
 
-            case TupleTypeRefTypeReferenceNode tupleRef:
+            case TupleSingleTypeRefSingleTypeRefNode tupleRef:
             {
                 // Collect all elements: First + Rest + TupleTypeElements (additional).
                 var elementCount = 2 + tupleRef.TupleTypeElements.Length;
@@ -6825,7 +6825,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // that the resolved type is the same instance used during Pass 2
         // (e.g., Standard.Int32 rather than the legacy "int" singleton).
         // Falls back to legacy primitives when stdlib is not loaded (unit tests).
-        if (typeRef is PrimitiveTypeRefTypeReferenceNode primitiveRef)
+        if (typeRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef)
         {
             try
             {
@@ -6841,7 +6841,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // For named type references, look up in scope.
-        if (typeRef is NamedTypeRefTypeReferenceNode namedRef)
+        if (typeRef.First is NamedSingleTypeRefSingleTypeRefNode namedRef)
         {
             var typeName = ExtractQualifiedName(namedRef.Name, sourceText);
 
@@ -6878,7 +6878,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var scope = declaringSymbol.ContainingScope;
 
         // For named type references, look up in scope.
-        if (typeRef is NamedTypeRefTypeReferenceNode namedRef)
+        if (typeRef.First is NamedSingleTypeRefSingleTypeRefNode namedRef)
         {
             var typeName = ExtractQualifiedName(namedRef.Name, sourceText);
 
@@ -7276,7 +7276,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText)
     {
         // For primitive type references, resolve through the stdlib path.
-        if (typeRef is PrimitiveTypeRefTypeReferenceNode primitiveRef)
+        if (typeRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef)
         {
             try
             {
@@ -7292,7 +7292,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // For named type references, look up in scope.
-        if (typeRef is NamedTypeRefTypeReferenceNode namedRef)
+        if (typeRef.First is NamedSingleTypeRefSingleTypeRefNode namedRef)
         {
             var typeName = ExtractQualifiedName(namedRef.Name, sourceText);
 
@@ -8859,11 +8859,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static IType? ResolveTypeArgFromBaseList(
         TypeReferenceNode typeRef, Scope globalScope, IScope containingScope)
     {
-        switch (typeRef)
+        switch (typeRef.First)
         {
-            case PrimitiveTypeRefTypeReferenceNode primitiveRef:
+            case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
                 return ResolveLegacyPrimitive(primitiveRef.PrimitiveType);
-            case NamedTypeRefTypeReferenceNode namedRef:
+            case NamedSingleTypeRefSingleTypeRefNode namedRef:
                 var name = namedRef.Name.IDENTIFIER.Lexeme;
                 var sym = containingScope.Lookup(name) ?? globalScope.Lookup(name);
                 return sym?.DeclaredType;
@@ -9363,7 +9363,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // If the trait return type is a type parameter, substitute it and
         // compare the impl return against the substituted concrete type.
-        if (traitReturn is NamedTypeRefTypeReferenceNode namedTarget)
+        if (traitReturn.First is NamedSingleTypeRefSingleTypeRefNode namedTarget)
         {
             var targetName = GetNamedTypeRefName(namedTarget, sourceText);
             for (var i = 0; i < typeParams.Count; i++)
@@ -11613,15 +11613,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static bool TypeReferencesMatch(TypeReferenceNode a, TypeReferenceNode b)
     {
-        return (a, b) switch
-        {
-            (VoidTypeRefTypeReferenceNode, VoidTypeRefTypeReferenceNode) => true,
+        // Unions (non-empty SingleTypeRefs continuation) never structurally match
+        // here — the pre-restructure code represented them as a distinct
+        // union node variant that fell through to the `_ => false` arm.
+        if (a.SingleTypeRefs.Length > 0 || b.SingleTypeRefs.Length > 0)
+            return false;
 
-            (PrimitiveTypeRefTypeReferenceNode pa, PrimitiveTypeRefTypeReferenceNode pb) =>
+        return (a.First, b.First) switch
+        {
+            (VoidSingleTypeRefSingleTypeRefNode, VoidSingleTypeRefSingleTypeRefNode) => true,
+
+            (PrimitiveSingleTypeRefSingleTypeRefNode pa, PrimitiveSingleTypeRefSingleTypeRefNode pb) =>
                 PrimitiveTypesMatch(pa.PrimitiveType, pb.PrimitiveType)
                 && (pa.ArrayRank is not null) == (pb.ArrayRank is not null),
 
-            (NamedTypeRefTypeReferenceNode na, NamedTypeRefTypeReferenceNode nb) =>
+            (NamedSingleTypeRefSingleTypeRefNode na, NamedSingleTypeRefSingleTypeRefNode nb) =>
                 na.Name.IDENTIFIER.Lexeme == nb.Name.IDENTIFIER.Lexeme
                 && (na.ArrayRank is not null) == (nb.ArrayRank is not null),
 
@@ -11630,12 +11636,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // in both sides trivially satisfies Req 12.1) and trait
             // parameter positions (Req 12.3 — `unknown` in a trait
             // parameter requires exactly `unknown` in the implementer).
-            (UnknownTypeRefTypeReferenceNode, UnknownTypeRefTypeReferenceNode) => true,
+            (UnknownSingleTypeRefSingleTypeRefNode, UnknownSingleTypeRefSingleTypeRefNode) => true,
 
             // Two tuple type references match if they have the same arity
             // and each element type reference matches (names are ignored
             // for structural matching, consistent with name-erasure semantics).
-            (TupleTypeRefTypeReferenceNode ta, TupleTypeRefTypeReferenceNode tb) =>
+            (TupleSingleTypeRefSingleTypeRefNode ta, TupleSingleTypeRefSingleTypeRefNode tb) =>
                 TupleTypeReferencesMatch(ta, tb),
 
             // A named type ref could match a primitive type ref if someone
@@ -11647,12 +11653,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Compares two <see cref="TupleTypeRefTypeReferenceNode"/> instances for
+    /// Compares two <see cref="TupleSingleTypeRefSingleTypeRefNode"/> instances for
     /// structural equivalence: same arity and each element type reference matches.
     /// Element names are ignored (name-erasure semantics).
     /// </summary>
     private static bool TupleTypeReferencesMatch(
-        TupleTypeRefTypeReferenceNode a, TupleTypeRefTypeReferenceNode b)
+        TupleSingleTypeRefSingleTypeRefNode a, TupleSingleTypeRefSingleTypeRefNode b)
     {
         // Check arity: both must have the same number of additional elements.
         if (a.TupleTypeElements.Length != b.TupleTypeElements.Length)
@@ -11692,7 +11698,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return TypeReferencesMatch(interfaceRef, implRef);
 
         // Check if the interface type reference is a named type that matches a slot name.
-        if (interfaceRef is NamedTypeRefTypeReferenceNode namedInterface)
+        if (interfaceRef.First is NamedSingleTypeRefSingleTypeRefNode namedInterface)
         {
             var interfaceName = namedInterface.Name.IDENTIFIER.Lexeme;
             if (!string.IsNullOrEmpty(interfaceName)
@@ -11700,7 +11706,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 // The interface type is an associated type slot or type parameter reference.
                 // The implementor must use one of the acceptable concrete type names.
-                if (implRef is NamedTypeRefTypeReferenceNode namedImpl)
+                if (implRef.First is NamedSingleTypeRefSingleTypeRefNode namedImpl)
                 {
                     var implName = namedImpl.Name.IDENTIFIER.Lexeme;
                     return !string.IsNullOrEmpty(implName)
@@ -11709,7 +11715,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
 
                 // Handle primitive type references (e.g., int, string, bool) on the impl side.
-                if (implRef is PrimitiveTypeRefTypeReferenceNode primitiveImpl)
+                if (implRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveImpl)
                 {
                     var primitiveName = FormatPrimitiveType(primitiveImpl.PrimitiveType);
                     return !string.IsNullOrEmpty(primitiveName)
@@ -11742,7 +11748,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // If the target is a named type ref that matches a type parameter name,
         // substitute it with the corresponding type argument and compare.
-        if (targetRef is NamedTypeRefTypeReferenceNode namedTarget)
+        if (targetRef.First is NamedSingleTypeRefSingleTypeRefNode namedTarget)
         {
             var targetName = GetNamedTypeRefName(namedTarget, traitSourceText);
 
@@ -11778,19 +11784,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool TypeReferenceMatchesSubstitutedType(
         TypeReferenceNode sourceRef, IType substitutedType)
     {
-        return (sourceRef, substitutedType) switch
+        // Unions never match a single substituted type here — the
+        // pre-restructure code matched only the non-union variants.
+        if (sourceRef.SingleTypeRefs.Length > 0)
+            return false;
+
+        return (sourceRef.First, substitutedType) switch
         {
             // Primitive type references match their corresponding semantic types.
-            (PrimitiveTypeRefTypeReferenceNode prim, _) =>
+            (PrimitiveSingleTypeRefSingleTypeRefNode prim, _) =>
                 PrimitiveTypeRefMatchesType(prim, substitutedType),
 
             // Named type references match by display name.
-            (NamedTypeRefTypeReferenceNode named, _) =>
+            (NamedSingleTypeRefSingleTypeRefNode named, _) =>
                 named.Name.IDENTIFIER.Lexeme == substitutedType.DisplayName
                 && named.ArrayRank is null,
 
             // Void matches void.
-            (VoidTypeRefTypeReferenceNode, _) =>
+            (VoidSingleTypeRefSingleTypeRefNode, _) =>
                 substitutedType.DisplayName == "Void",
 
             _ => false,
@@ -11801,7 +11812,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Checks whether a primitive type reference AST node matches a resolved semantic type.
     /// </summary>
     private static bool PrimitiveTypeRefMatchesType(
-        PrimitiveTypeRefTypeReferenceNode primRef, IType type)
+        PrimitiveSingleTypeRefSingleTypeRefNode primRef, IType type)
     {
         var primName = FormatPrimitiveType(primRef.PrimitiveType);
         // The semantic type's DisplayName may be the stdlib name (e.g., "Int32")
@@ -11835,7 +11846,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ImmutableArray<Storm.Runtime.SyntaxNode>? asts = null,
         MistCompilation? compilation = null)
     {
-        if (typeRef is NamedTypeRefTypeReferenceNode namedRef)
+        if (typeRef.First is NamedSingleTypeRefSingleTypeRefNode namedRef)
         {
             var name = GetNamedTypeRefName(namedRef, sourceText);
 
@@ -11860,7 +11871,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Extracts the textual name from a <see cref="NamedTypeRefTypeReferenceNode"/>,
+    /// Extracts the textual name from a <see cref="NamedSingleTypeRefSingleTypeRefNode"/>,
     /// preferring <c>Name.IDENTIFIER.Lexeme</c> and falling back to slicing
     /// the AST span out of an optional source text. Returns an empty string
     /// when neither source is available.
@@ -11871,7 +11882,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </para>
     /// </summary>
     private static string GetNamedTypeRefName(
-        NamedTypeRefTypeReferenceNode named, SourceText? sourceText)
+        NamedSingleTypeRefSingleTypeRefNode named, SourceText? sourceText)
     {
         var lexeme = named.Name.IDENTIFIER.Lexeme;
         if (!string.IsNullOrEmpty(lexeme))
@@ -11908,7 +11919,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// where span-based file identification may be unreliable).
     /// </summary>
     private static string GetNamedTypeRefName(
-        NamedTypeRefTypeReferenceNode named,
+        NamedSingleTypeRefSingleTypeRefNode named,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation)
     {
@@ -11976,9 +11987,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Req 12.1 — trait return `unknown` matches any non-void implementer
         // return. The "non-void" guard is enforced by rejecting a void
         // implementer when the trait asks for `unknown`.
-        if (traitReturn is UnknownTypeRefTypeReferenceNode)
+        if (traitReturn.First is UnknownSingleTypeRefSingleTypeRefNode)
         {
-            return implReturn is not VoidTypeRefTypeReferenceNode;
+            return implReturn.First is not VoidSingleTypeRefSingleTypeRefNode;
         }
 
         // Req 12.2 — widening on generic type arguments. Both sides must be
@@ -11986,8 +11997,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // contain `unknown` at positions where the implementer has a
         // concrete argument. The class-only restriction (Req 8.6) is
         // enforced by a kind check on the generic definition symbol.
-        if (traitReturn is NamedTypeRefTypeReferenceNode traitNamed
-            && implReturn is NamedTypeRefTypeReferenceNode implNamed)
+        if (traitReturn.First is NamedSingleTypeRefSingleTypeRefNode traitNamed
+            && implReturn.First is NamedSingleTypeRefSingleTypeRefNode implNamed)
         {
             var traitName = GetNamedTypeRefName(traitNamed, sourceText);
             var implName = GetNamedTypeRefName(implNamed, sourceText);
@@ -12071,13 +12082,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Widening: trait's argument is `unknown`, implementer's is
             // concrete. The class-only rule (Req 8.6) is enforced at the
             // level where the widening actually happens.
-            if (traitArg is UnknownTypeRefTypeReferenceNode)
+            if (traitArg.First is UnknownSingleTypeRefSingleTypeRefNode)
             {
                 if (!isClassGeneric)
                     return false;
                 // Implementer must be non-void and non-unknown (unknown-to-
                 // unknown is already covered by TypeReferencesMatch above).
-                if (implArg is VoidTypeRefTypeReferenceNode)
+                if (implArg.First is VoidSingleTypeRefSingleTypeRefNode)
                     return false;
                 continue;
             }
@@ -12087,8 +12098,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // nested name as the new defCtx. Nested widening is allowed
             // even when the outer generic is a struct — what is
             // prohibited is widening the struct's own arguments.
-            if (traitArg is NamedTypeRefTypeReferenceNode traitNested
-                && implArg is NamedTypeRefTypeReferenceNode implNested
+            if (traitArg.First is NamedSingleTypeRefSingleTypeRefNode traitNested
+                && implArg.First is NamedSingleTypeRefSingleTypeRefNode implNested
                 && (traitNested.ArrayRank is not null) == (implNested.ArrayRank is not null)
                 && traitNested.TypeArgs is not null
                 && implNested.TypeArgs is not null)
@@ -12254,23 +12265,43 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static string FormatTypeReference(TypeReferenceNode typeRef)
     {
-        return typeRef switch
+        // Unions render their constituents joined by " | " (preserved from the
+        // pre-restructure behaviour where unions were a distinct node type that
+        // fell through to "unknown"; render them explicitly now).
+        if (typeRef.SingleTypeRefs.Length > 0)
         {
-            VoidTypeRefTypeReferenceNode => "void",
-            PrimitiveTypeRefTypeReferenceNode p =>
+            var constituents = new List<string> { FormatSingleTypeRef(typeRef.First) };
+            foreach (var rest in typeRef.SingleTypeRefs)
+                constituents.Add(FormatSingleTypeRef(rest));
+            return string.Join(" | ", constituents);
+        }
+
+        return FormatSingleTypeRef(typeRef.First);
+    }
+
+    /// <summary>
+    /// Formats a single <see cref="SingleTypeRefNode"/> constituent as a
+    /// human-readable string.
+    /// </summary>
+    private static string FormatSingleTypeRef(SingleTypeRefNode singleRef)
+    {
+        return singleRef switch
+        {
+            VoidSingleTypeRefSingleTypeRefNode => "void",
+            PrimitiveSingleTypeRefSingleTypeRefNode p =>
                 FormatPrimitiveType(p.PrimitiveType) + (p.ArrayRank is not null ? "[]" : ""),
-            NamedTypeRefTypeReferenceNode n =>
+            NamedSingleTypeRefSingleTypeRefNode n =>
                 n.Name.IDENTIFIER.Lexeme + (n.ArrayRank is not null ? "[]" : ""),
-            TupleTypeRefTypeReferenceNode t => FormatTupleTypeReference(t),
+            TupleSingleTypeRefSingleTypeRefNode t => FormatTupleTypeReference(t),
             _ => "unknown",
         };
     }
 
     /// <summary>
-    /// Formats a <see cref="TupleTypeRefTypeReferenceNode"/> as a human-readable
+    /// Formats a <see cref="TupleSingleTypeRefSingleTypeRefNode"/> as a human-readable
     /// string of the form <c>(T1, T2)</c> or <c>(T1 name1, T2 name2)</c>.
     /// </summary>
-    private static string FormatTupleTypeReference(TupleTypeRefTypeReferenceNode tupleRef)
+    private static string FormatTupleTypeReference(TupleSingleTypeRefSingleTypeRefNode tupleRef)
     {
         var parts = new List<string>();
 
@@ -15612,7 +15643,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // the element-name bindings whenever the pattern type
                 // carries names, without restricting on the scrutinee
                 // type.
-                if (typePattern.Type is TupleTypeRefTypeReferenceNode tupleRef
+                if (typePattern.Type.First is TupleSingleTypeRefSingleTypeRefNode tupleRef
                     && patternType is TupleType tupleType
                     && tupleType.ElementNames is not null)
                 {
@@ -15660,7 +15691,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // `i` and `str` as deconstructed element variables.
                 var barePatternType = ResolveTypeReference(bareTypePattern.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
 
-                if (bareTypePattern.Type is TupleTypeRefTypeReferenceNode bareTupleRef
+                if (bareTypePattern.Type.First is TupleSingleTypeRefSingleTypeRefNode bareTupleRef
                     && barePatternType is TupleType bareTupleType
                     && bareTupleType.ElementNames is not null)
                 {
@@ -16211,36 +16242,30 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics,
         string? aliasName = null)
     {
-        switch (refinableExpr)
+        // Union when there are PIPE-separated continuations; otherwise a single (optionally refined) type.
+        if (refinableExpr.RefinableSingleTypeExprs.Length > 0)
         {
-            case RefinableSingleTypeRefinableTypeExpressionNode single:
-                return ResolveRefinableSingleTypeExpr(
-                    single.SingleType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics, aliasName);
+            var constituents = new List<IType>();
+            var firstType = ResolveRefinableSingleTypeExpr(
+                refinableExpr.First, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics, aliasName);
+            constituents.Add(firstType);
 
-            case RefinableUnionTypeRefinableTypeExpressionNode union:
+            foreach (var additional in refinableExpr.RefinableSingleTypeExprs)
             {
-                var constituents = new List<IType>();
-                var firstType = ResolveRefinableSingleTypeExpr(
-                    union.UnionType.First, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics, aliasName);
-                constituents.Add(firstType);
-
-                foreach (var additional in union.UnionType.RefinableSingleTypeExprs)
-                {
-                    var additionalType = ResolveRefinableSingleTypeExpr(
-                        additional, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics, aliasName);
-                    constituents.Add(additionalType);
-                }
-
-                // If any constituent is an error, propagate.
-                if (constituents.Any(c => c is ErrorType))
-                    return ErrorType.Instance;
-
-                return new UnionType(constituents.ToImmutableArray());
+                var additionalType = ResolveRefinableSingleTypeExpr(
+                    additional, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics, aliasName);
+                constituents.Add(additionalType);
             }
 
-            default:
+            // If any constituent is an error, propagate.
+            if (constituents.Any(c => c is ErrorType))
                 return ErrorType.Instance;
+
+            return new UnionType(constituents.ToImmutableArray());
         }
+
+        return ResolveRefinableSingleTypeExpr(
+            refinableExpr.First, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics, aliasName);
     }
 
     /// <summary>
@@ -16496,26 +16521,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static bool HasRefinementPredicate(RefinableTypeExpressionNode refinableExpr)
     {
-        switch (refinableExpr)
+        if (refinableExpr.First.Refinement is not null)
+            return true;
+
+        foreach (var additional in refinableExpr.RefinableSingleTypeExprs)
         {
-            case RefinableSingleTypeRefinableTypeExpressionNode single:
-                return single.SingleType.Refinement is not null;
-
-            case RefinableUnionTypeRefinableTypeExpressionNode union:
-            {
-                if (union.UnionType.First.Refinement is not null)
-                    return true;
-                foreach (var additional in union.UnionType.RefinableSingleTypeExprs)
-                {
-                    if (additional.Refinement is not null)
-                        return true;
-                }
-                return false;
-            }
-
-            default:
-                return false;
+            if (additional.Refinement is not null)
+                return true;
         }
+
+        return false;
     }
 
     /// <summary>
@@ -16526,17 +16541,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         RefinableTypeExpressionNode refinableExpr,
         SourceText? sourceText)
     {
-        switch (refinableExpr)
-        {
-            case RefinableSingleTypeRefinableTypeExpressionNode single:
-                return ExtractSingleTypeRefName(single.SingleType.Type, sourceText);
-
-            case RefinableUnionTypeRefinableTypeExpressionNode union:
-                return ExtractSingleTypeRefName(union.UnionType.First.Type, sourceText);
-
-            default:
-                return "unknown";
-        }
+        return ExtractSingleTypeRefName(refinableExpr.First.Type, sourceText);
     }
 
     private static string ExtractSingleTypeRefName(SingleTypeRefNode singleTypeRef, SourceText? sourceText)
@@ -16687,240 +16692,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        IType baseType;
+        // Post parser-backtracking restructure: TypeReference is a flat
+        // `first:SingleTypeRef (PIPE rest:SingleTypeRef)*` node. A union is
+        // signalled by a non-empty SingleTypeRefs continuation list — never
+        // by the non-nullable `Rest` codegen artifact. A non-union reference
+        // is fully described by `First` and resolves through ResolveSingleTypeRef.
+        if (typeRef.SingleTypeRefs.Length > 0)
+            return ResolveUnionTypeRef(typeRef, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
 
-        switch (typeRef)
-        {
-            case PrimitiveTypeRefTypeReferenceNode primitiveRef:
-                // Task 31 of the Mist Standard Library spec: primitive
-                // keyword references (`int`, `bool`, `string`, …) now
-                // resolve through ResolvePrimitiveKeyword, which walks
-                // directly to the Standard namespace scope and returns
-                // the stdlib IType instance. The resolution bypasses
-                // every scope-chain / using-directive / user-type lookup
-                // (Requirement 7.6): a user declaring `class Int32 { }`
-                // in their own namespace cannot intercept the keyword
-                // `int`.
-                //
-                // Fallback: when no stdlib has been loaded for this
-                // compilation (unit tests that build a semantic model
-                // from a minimal AST), LookupQualifiedStdlibType throws
-                // StdlibMissingException. We catch and fall back to the
-                // legacy LegacyPrimitiveTypes singletons
-                // (LegacyPrimitiveTypes.Int, LegacyPrimitiveTypes.String,
-                // …) — NOT the public property accessors (which read the
-                // global registry, whose state might reflect a previous
-                // compilation's stdlib). The direct-to-legacy fallback
-                // guarantees that a stdlib-less build never embeds
-                // another build's stdlib IType instances in its own
-                // expression-type map.
-                IType primBase;
-                try
-                {
-                    var primGlobalScope = FindGlobalScope(fileScope) ?? fileScope;
-                    primBase = ResolvePrimitiveKeyword(primGlobalScope, symbolTable, primitiveRef.PrimitiveType);
-                }
-                catch (StdlibMissingException)
-                {
-                    primBase = ResolveLegacyPrimitive(primitiveRef.PrimitiveType);
-                }
-                if (primitiveRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
-                {
-                    var size = long.Parse(sizedRank.Size.Lexeme);
-                    primBase = new ArrayType(primBase, size);
-                }
-                else if (primitiveRef.ArrayRank is not null)
-                {
-                    primBase = _allocatingParameterArrayType
-                        ? new ArrayType(primBase, _nextSymbolicLengthId++)
-                        : new ArrayType(primBase);
-                }
-                // Apply optional suffix: T? → UnionType([T, VoidType])
-                if (primitiveRef.Optional is { } primOptToken)
-                {
-                    return ApplyOptionalSuffix(primBase, primOptToken, fileScope, symbolTable, sourceText, diagnostics);
-                }
-                return primBase;
-
-            case VoidTypeRefTypeReferenceNode:
-                // Resolve void through the stdlib path, same as primitives.
-                try
-                {
-                    var voidGlobalScope = FindGlobalScope(fileScope) ?? fileScope;
-                    return ResolveVoidKeyword(voidGlobalScope, symbolTable);
-                }
-                catch (StdlibMissingException)
-                {
-                    return LegacyPrimitiveTypes.Void;
-                }
-
-            case UnknownTypeRefTypeReferenceNode:
-                // The user-facing `unknown` top type (unknown-type feature, Req 3.6, 7.1-7.3).
-                // Always resolves to the UnknownType singleton — no stdlib lookup, no scope
-                // walk. Legal in any TypeReference position at the grammar level; the storage
-                // ban (Req 5), inheritance prohibition (Req 6), and member-filtering rules
-                // (Req 10) are enforced later by Pass 1 checks and the Type Checker.
-                return UnknownType.Instance;
-
-            case NamedTypeRefTypeReferenceNode namedRef:
-                var typeName = ExtractQualifiedName(namedRef.Name, sourceText);
-
-                // Check if the identifier resolves to a TypeParameterType or
-                // DependentTypeParameterType first. Type parameters don't accept
-                // type arguments.
-                var namedSymbol = fileScope.Lookup(typeName);
-                if (namedSymbol is not null && namedSymbol.DeclaredType is TypeParameterType tpt)
-                {
-                    if (namedRef.TypeArgs is not null)
-                    {
-                        diagnostics.Add(MakeDiagnosticWithLocation(
-                            DiagnosticId.NotGeneric.Value,
-                            DiagnosticSeverity.Error,
-                            $"Type '{typeName}' is not generic and does not accept type arguments.",
-                            namedRef,
-                            sourceText));
-                    }
-                    // Apply optional suffix if present
-                    if (namedRef.Optional is { } tptOptToken)
-                        return ApplyOptionalSuffix(tpt, tptOptToken, fileScope, symbolTable, sourceText, diagnostics);
-                    return tpt;
-                }
-
-                if (namedSymbol is not null && namedSymbol.DeclaredType is DependentTypeParameterType dpt)
-                {
-                    if (namedRef.TypeArgs is not null)
-                    {
-                        diagnostics.Add(MakeDiagnosticWithLocation(
-                            DiagnosticId.NotGeneric.Value,
-                            DiagnosticSeverity.Error,
-                            $"Type '{typeName}' is not generic and does not accept type arguments.",
-                            namedRef,
-                            sourceText));
-                    }
-                    // Apply optional suffix if present
-                    if (namedRef.Optional is { } dptOptToken)
-                        return ApplyOptionalSuffix(dpt, dptOptToken, fileScope, symbolTable, sourceText, diagnostics);
-                    return dpt;
-                }
-
-                // ── Associated type resolution: T.SlotName in generic contexts ──
-                // When a qualified name like "T.SlotName" is used as a type reference
-                // and the first part is a type parameter constrained by an interface
-                // with associated type slots, resolve through the constraint's member scope.
-                {
-                    var firstDot = typeName.IndexOf('.');
-                    if (firstDot > 0 && firstDot < typeName.Length - 1)
-                    {
-                        var leftPart = typeName.Substring(0, firstDot);
-                        var rightPart = typeName.Substring(firstDot + 1);
-
-                        var leftSymbol = fileScope.Lookup(leftPart);
-                        if (leftSymbol is not null && leftSymbol.DeclaredType is TypeParameterType typeParamLeft)
-                        {
-                            var resolvedSlot = ResolveAssociatedTypeSlotFromConstraints(typeParamLeft, rightPart);
-                            if (resolvedSlot is not null)
-                            {
-                                // Apply optional suffix if present
-                                if (namedRef.Optional is { } slotOptToken)
-                                    return ApplyOptionalSuffix(resolvedSlot, slotOptToken, fileScope, symbolTable, sourceText, diagnostics);
-                                return resolvedSlot;
-                            }
-
-                            // The left part is a type parameter but the right part is not
-                            // an associated type slot of any constraining interface/trait.
-                            diagnostics.Add(MakeDiagnosticWithLocation(
-                                DiagnosticId.UnresolvedAssociatedTypeReference.Value,
-                                DiagnosticSeverity.Error,
-                                $"Type parameter '{leftPart}' does not have an associated type '{rightPart}'; '{leftPart}' is not constrained by an interface or trait declaring '{rightPart}'.",
-                                namedRef,
-                                sourceText));
-                            return ErrorType.Instance;
-                        }
-                    }
-                }
-
-                baseType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics,
-                    typeArgumentCount: namedRef.TypeArgs is not null ? CountTypeArgs(namedRef.TypeArgs) : 0);
-
-                // Handle type arguments if present.
-                if (namedRef.TypeArgs is not null)
-                {
-                    baseType = ResolvePass2TypeArguments(baseType, typeName, namedRef.TypeArgs, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-                }
-                else if (baseType is TraitType tt && tt.TypeParameters.Count > 0)
-                {
-                    // Generic trait referenced without type arguments — emit diagnostic.
-                    diagnostics.Add(MakeDiagnosticWithLocation(
-                        DiagnosticId.MissingTypeArguments.Value,
-                        DiagnosticSeverity.Error,
-                        $"Generic trait '{typeName}' requires type arguments.",
-                        namedRef,
-                        sourceText));
-                }
-
-                if (namedRef.ArrayRank is SizedArrayRankArrayRankSuffixNode namedSizedRank)
-                {
-                    var size = long.Parse(namedSizedRank.Size.Lexeme);
-                    baseType = new ArrayType(baseType, size);
-                }
-                else if (namedRef.ArrayRank is not null)
-                {
-                    baseType = _allocatingParameterArrayType
-                        ? new ArrayType(baseType, _nextSymbolicLengthId++)
-                        : new ArrayType(baseType);
-                }
-                // Apply optional suffix: T? → UnionType([T, VoidType])
-                if (namedRef.Optional is { } namedOptToken)
-                {
-                    return ApplyOptionalSuffix(baseType, namedOptToken, fileScope, symbolTable, sourceText, diagnostics);
-                }
-                return baseType;
-
-            case TupleTypeRefTypeReferenceNode tupleRef:
-            {
-                // Collect all elements: First + Rest + TupleTypeElements (additional).
-                var elementCount = 2 + tupleRef.TupleTypeElements.Length;
-                var elementTypes = new List<IType>(elementCount);
-                var elementNames = new List<string?>(elementCount);
-                var hasAnyName = false;
-
-                // Resolve First element.
-                elementTypes.Add(ResolveTypeReference(tupleRef.First.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
-                var firstName = tupleRef.First.Name?.Lexeme;
-                elementNames.Add(firstName);
-                if (firstName is not null) hasAnyName = true;
-
-                // Resolve Rest element.
-                elementTypes.Add(ResolveTypeReference(tupleRef.Rest.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
-                var restName = tupleRef.Rest.Name?.Lexeme;
-                elementNames.Add(restName);
-                if (restName is not null) hasAnyName = true;
-
-                // Resolve additional elements.
-                foreach (var additional in tupleRef.TupleTypeElements)
-                {
-                    elementTypes.Add(ResolveTypeReference(additional.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
-                    var additionalName = additional.Name?.Lexeme;
-                    elementNames.Add(additionalName);
-                    if (additionalName is not null) hasAnyName = true;
-                }
-
-                return new TupleType(elementTypes, hasAnyName ? elementNames : null);
-            }
-
-            case UnionTypeRefTypeReferenceNode unionRef:
-            {
-                return ResolveUnionTypeRef(unionRef, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-            }
-
-            default:
-                return ErrorType.Instance;
-        }
+        return ResolveSingleTypeRef(typeRef.First, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
     }
 
     /// <summary>
-    /// Resolves a <see cref="UnionTypeRefTypeReferenceNode"/> to an <see cref="IType"/>.
-    /// Applies the construction rules from the design document:
+    /// Resolves a union <see cref="TypeReferenceNode"/> (one with a non-empty
+    /// <see cref="TypeReferenceNode.SingleTypeRefs"/> continuation list) to an
+    /// <see cref="IType"/>. Applies the construction rules from the design document:
     /// 1. Resolve each constituent type reference.
     /// 2. Flatten: if a constituent is itself a <see cref="UnionType"/>, inline its constituents.
     /// 3. Deduplicate: remove duplicate types by <see cref="IType.DisplayName"/> equality.
@@ -16929,17 +16715,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// 6. If any constituent resolves to <see cref="ErrorType"/>, include it but still produce the union.
     /// </summary>
     private static IType ResolveUnionTypeRef(
-        UnionTypeRefTypeReferenceNode unionRef,
+        TypeReferenceNode typeRef,
         Scope fileScope,
         IAmbientTypeResolver? ambientTypeResolver,
         SymbolTable symbolTable,
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // Collect all constituent SingleTypeRefNodes.
+        // Collect all constituent SingleTypeRefNodes: First + the PIPE-separated
+        // continuations in SingleTypeRefs (never the non-nullable Rest artifact).
         var singleTypeRefs = new List<SingleTypeRefNode>();
-        singleTypeRefs.Add(unionRef.UnionType.First);
-        foreach (var rest in unionRef.UnionType.SingleTypeRefs)
+        singleTypeRefs.Add(typeRef.First);
+        foreach (var rest in typeRef.SingleTypeRefs)
         {
             singleTypeRefs.Add(rest);
         }
@@ -17011,7 +16798,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     "MIST_TC_0075",
                     DiagnosticSeverity.Warning,
                     $"Union type has fewer than 2 distinct types after deduplication (resolved to '{distinct[0].DisplayName}'). A union type requires at least two distinct types.",
-                    unionRef,
+                    typeRef,
                     sourceText));
             }
 
@@ -17154,6 +16941,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if (namedRef.Optional is { } tptOptToken)
                         return ApplyOptionalSuffix(tpt, tptOptToken, fileScope, symbolTable, sourceText, diagnostics);
                     return tpt;
+                }
+
+                // Dependent type parameters (e.g., class Buffer<N:int>) also do not
+                // accept type arguments. Preserved from the pre-restructure
+                // ResolveTypeReference Named case so delegation is behaviour-equivalent.
+                if (namedSymbol is not null && namedSymbol.DeclaredType is DependentTypeParameterType dpt)
+                {
+                    if (namedRef.TypeArgs is not null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            DiagnosticId.NotGeneric.Value,
+                            DiagnosticSeverity.Error,
+                            $"Type '{typeName}' is not generic and does not accept type arguments.",
+                            namedRef,
+                            sourceText));
+                    }
+                    // Apply optional suffix if present
+                    if (namedRef.Optional is { } dptOptToken)
+                        return ApplyOptionalSuffix(dpt, dptOptToken, fileScope, symbolTable, sourceText, diagnostics);
+                    return dpt;
                 }
 
                 // ── Associated type resolution: T.SlotName in generic contexts ──
@@ -18191,7 +17998,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     ///   <item>Literal type arguments (integer, boolean, char, hex, binary, negated) are parsed
     ///         and converted to <see cref="DependentValueArgument"/> instances.</item>
     ///   <item>A bare identifier (<see cref="TypeReferenceTypeArgumentTypeArgumentNode"/> with a
-    ///         simple <see cref="NamedTypeRefTypeReferenceNode"/>) is looked up in scope:
+    ///         simple <see cref="NamedSingleTypeRefSingleTypeRefNode"/>) is looked up in scope:
     ///         if it resolves to a const/dependent-parameter → dependent value argument;
     ///         if it resolves to a type → regular type argument (type mismatch handled later by type checker);
     ///         if unresolved → diagnostic emitted.</item>
@@ -18332,7 +18139,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case TypeReferenceTypeArgumentTypeArgumentNode typeRefArg:
             {
                 // Disambiguation: check if this is a bare identifier that resolves to a const.
-                if (typeRefArg.Type is NamedTypeRefTypeReferenceNode namedRef
+                if (typeRefArg.Type.First is NamedSingleTypeRefSingleTypeRefNode namedRef
                     && namedRef.TypeArgs is null
                     && namedRef.ArrayRank is null)
                 {
@@ -18447,7 +18254,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // For named type references, check if the name can be resolved before
         // calling the full ResolveTypeReference (which emits MIST_UNDEFINED_TYPE).
         // If it can't be resolved, emit MIST_UNDEFINED_TYPE_ARGUMENT instead.
-        if (typeRef is NamedTypeRefTypeReferenceNode namedRef)
+        if (typeRef.First is NamedSingleTypeRefSingleTypeRefNode namedRef)
         {
             var argName = ExtractQualifiedName(namedRef.Name, sourceText);
 
@@ -19007,7 +18814,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Special case: if the type reference is a qualified name like
                 // EnumName.MemberName, ResolveTypeReference will fail (it's not a type).
                 // We detect this and resolve it as an enum member access pattern instead.
-                if (bareTypePattern.Type is NamedTypeRefTypeReferenceNode namedPatternRef)
+                if (bareTypePattern.Type.First is NamedSingleTypeRefSingleTypeRefNode namedPatternRef)
                 {
                     var qualifiedName = ExtractQualifiedName(namedPatternRef.Name, sourceText);
                     var dotIndex = qualifiedName.LastIndexOf('.');
@@ -22913,7 +22720,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         // Find the correct source text by locating the struct's declaring
                         // node in the compilation units.
                         var concreteTypeName = "";
-                        if (typeBinding.TypeName is NamedTypeRefTypeReferenceNode namedTypeRef)
+                        if (typeBinding.TypeName.First is NamedSingleTypeRefSingleTypeRefNode namedTypeRef)
                         {
                             // First try the Lexeme directly
                             concreteTypeName = namedTypeRef.Name.IDENTIFIER.Lexeme;
@@ -23217,11 +23024,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static string ExtractTypeReferenceName(TypeReferenceNode typeRef)
     {
-        return typeRef switch
+        return typeRef.First switch
         {
-            NamedTypeRefTypeReferenceNode named => named.Name.IDENTIFIER.Lexeme,
-            PrimitiveTypeRefTypeReferenceNode primitive => FormatPrimitiveType(primitive.PrimitiveType),
-            TupleTypeRefTypeReferenceNode tuple => FormatTupleTypeReference(tuple),
+            NamedSingleTypeRefSingleTypeRefNode named => named.Name.IDENTIFIER.Lexeme,
+            PrimitiveSingleTypeRefSingleTypeRefNode primitive => FormatPrimitiveType(primitive.PrimitiveType),
+            TupleSingleTypeRefSingleTypeRefNode tuple => FormatTupleTypeReference(tuple),
             _ => "",
         };
     }

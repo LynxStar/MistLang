@@ -111,17 +111,17 @@ public class PropertyAccessTypePropertyTests
         var property = new BlockPropertyPropertyDeclarationNode
         {
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Name = Tok(propName),
             Accessors = accessors.ToImmutable(),
         };
 
         // Main body: var x = this.PropName; (simplified as just reading the property)
         var readStmt = MistAstGenerator.MakeVarDecl(
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             "x",
             MistAstGenerator.MakeIdentifierExpr(propName));
 
@@ -142,10 +142,10 @@ public class PropertyAccessTypePropertyTests
         var property = new BlockPropertyPropertyDeclarationNode
         {
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Name = Tok(propName),
             Accessors = accessors.ToImmutable(),
         };

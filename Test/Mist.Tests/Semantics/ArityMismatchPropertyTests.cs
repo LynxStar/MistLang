@@ -83,11 +83,11 @@ public class ArityMismatchPropertyTests
 
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null)
     {
-        return new NamedTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(name) },
             TypeArgs = typeArgs,
-        };
+        } };
     }
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string primitiveName)
@@ -100,7 +100,7 @@ public class ArityMismatchPropertyTests
             "float" => new FloatTypePrimitiveTypeNode(),
             _ => new IntTypePrimitiveTypeNode(),
         };
-        return new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveNode };
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveNode } };
     }
 
     private static MemberDeclarationNode MakeFieldMember(string name, TypeReferenceNode typeRef)
@@ -120,7 +120,7 @@ public class ArityMismatchPropertyTests
         return new MethodDeclarationNode
         {
             Name = MakeToken(name),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             TypeParams = MakeTypeParamList(typeParamNames),
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
@@ -321,7 +321,7 @@ public class ArityMismatchPropertyTests
         var callerMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Caller"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray.Create(callStatement) } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
@@ -427,7 +427,7 @@ public class ArityMismatchPropertyTests
         var callerMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Caller"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray.Create(callStatement) } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };

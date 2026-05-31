@@ -68,10 +68,10 @@ public class RefKindRecordingPropertyTests
         return new ParameterNode
         {
             RefModifier = MakeToken("ref"),
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = MakePrimitiveTypeNode(typeName),
-            },
+            } },
             Name = MakeToken(paramName),
         };
     }
@@ -82,10 +82,10 @@ public class RefKindRecordingPropertyTests
         {
             Modifier = MakeToken("readonly"),
             RefModifier = MakeToken("ref"),
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = MakePrimitiveTypeNode(typeName),
-            },
+            } },
             Name = MakeToken(paramName),
         };
     }
@@ -94,10 +94,10 @@ public class RefKindRecordingPropertyTests
     {
         return new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = MakePrimitiveTypeNode(typeName),
-            },
+            } },
             Name = MakeToken(paramName),
         };
     }
@@ -132,10 +132,10 @@ public class RefKindRecordingPropertyTests
         return new MethodDeclarationNode
         {
             Name = MakeToken(name),
-            ReturnType = new PrimitiveTypeRefTypeReferenceNode
+            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             ReturnOwnership = returnOwnership,
             Parameters = parameter is not null
                 ? new ParameterListNode { Parameter = parameter }
@@ -165,10 +165,10 @@ public class RefKindRecordingPropertyTests
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
                 OwnershipSpecifier = ownershipSpecifier,
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = MakePrimitiveTypeNode(typeName),
-                },
+                } },
                 Name = MakeToken(varName),
                 Initializer = MistAstGenerator.WrapPrimary(
                     new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = MakeToken("0") }),
@@ -301,7 +301,7 @@ public class RefKindRecordingPropertyTests
         var method = new MethodDeclarationNode
         {
             Name = MakeToken("TestMethod"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
             Body = new MethodBlockBodyMethodBodyNode
             {
@@ -375,7 +375,7 @@ public class RefKindRecordingPropertyTests
         var method = new MethodDeclarationNode
         {
             Name = MakeToken("TestMethod"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {
@@ -421,7 +421,7 @@ public class RefKindRecordingPropertyTests
         var method = new MethodDeclarationNode
         {
             Name = MakeToken("TestMethod"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
             Body = new MethodBlockBodyMethodBodyNode
             {

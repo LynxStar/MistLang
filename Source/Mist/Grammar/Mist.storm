@@ -131,12 +131,7 @@ rule TypeAliasDeclaration = TYPE name:IDENTIFIER typeParams:TypeParameterList? E
     constraints:WhereClause*
     SEMICOLON;
 
-rule RefinableTypeExpression
-    = unionType:RefinableUnionTypeExpr   as RefinableUnionType
-    | singleType:RefinableSingleTypeExpr as RefinableSingleType
-    ;
-
-rule RefinableUnionTypeExpr = first:RefinableSingleTypeExpr (PIPE rest:RefinableSingleTypeExpr)+;
+rule RefinableTypeExpression = first:RefinableSingleTypeExpr (PIPE rest:RefinableSingleTypeExpr)*;
 
 rule RefinableSingleTypeExpr = type:SingleTypeRef refinement:RefinementPredicate?;
 
@@ -474,16 +469,7 @@ rule ElementTypeRef
     | name:QualifiedIdentifier typeArgs:TypeArgumentList? as NamedElementTypeRef
     ;
 
-rule TypeReference
-    = unionType:UnionTypeRef                                                as UnionTypeRef
-    | primitiveType:PrimitiveType arrayRank:ArrayRankSuffix? optional:QUESTION?  as PrimitiveTypeRef
-    | VOID                                                                  as VoidTypeRef
-    | UNKNOWN                                                               as UnknownTypeRef
-    | name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:ArrayRankSuffix? optional:QUESTION?  as NamedTypeRef
-    | LEFT_PARENTHESIS first:TupleTypeElement COMMA rest:TupleTypeElement (COMMA additional:TupleTypeElement)* RIGHT_PARENTHESIS  as TupleTypeRef
-    ;
-
-rule UnionTypeRef = first:SingleTypeRef (PIPE rest:SingleTypeRef)+;
+rule TypeReference = first:SingleTypeRef (PIPE rest:SingleTypeRef)*;
 
 rule SingleTypeRef
     = primitiveType:PrimitiveType arrayRank:ArrayRankSuffix? optional:QUESTION?  as PrimitiveSingleTypeRef

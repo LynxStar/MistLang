@@ -126,10 +126,10 @@ public class StringLengthTests
         // Parameter: string input
         var param = new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new StringTypePrimitiveTypeNode(),
-            },
+            } },
             Name = MakeToken("input"),
         };
 
@@ -146,7 +146,7 @@ public class StringLengthTests
 
         var varDecl = new TypedVariableDeclarationVariableDeclarationStatementNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveTypeNode },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveTypeNode } },
             Name = MakeToken("result"),
             Initializer = methodCallExpr,
         };
@@ -163,7 +163,7 @@ public class StringLengthTests
         var method = new MethodDeclarationNode
         {
             Name = MakeToken("TestMethod"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
             Body = body.AsMethodBody(),
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),

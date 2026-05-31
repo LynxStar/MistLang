@@ -75,7 +75,7 @@ public class InvalidInterfaceReferencePropertyTests
         return new InterfaceMethodDeclarationNode
         {
             Name = MakeToken(name),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
         };
     }

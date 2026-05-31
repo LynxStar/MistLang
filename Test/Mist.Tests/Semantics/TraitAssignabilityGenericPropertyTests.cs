@@ -105,13 +105,13 @@ public class TraitAssignabilityGenericPropertyTests
         };
 
     private static TypeReferenceNode MakeIntTypeRef() =>
-        new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() };
+        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } };
 
     private static TypeReferenceNode MakeStringTypeRef() =>
-        new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new StringTypePrimitiveTypeNode() };
+        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } };
 
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null) =>
-        new NamedTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode
             {
@@ -119,7 +119,7 @@ public class TraitAssignabilityGenericPropertyTests
                 Span = new Storm.Runtime.SourceSpan(0, name.Length),
             },
             TypeArgs = typeArgs,
-        };
+        } };
 
     private static BaseListNode MakeBaseList(params BaseTypeRefNode[] refs) =>
         new()
@@ -197,7 +197,7 @@ public class TraitAssignabilityGenericPropertyTests
         return new MethodDeclarationNode
         {
             Name = Tok(name),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {

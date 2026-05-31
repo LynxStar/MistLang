@@ -196,9 +196,9 @@ public class InheritanceRoundTripPropertyTests
     private static Gen<TypeReferenceNode> GenPrimitiveType()
     {
         return Gen.Elements<TypeReferenceNode>(
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new BoolTypePrimitiveTypeNode() },
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new StringTypePrimitiveTypeNode() });
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } });
     }
 
     private static Gen<ImmutableArray<ModifierNode>> GenModifiers()
@@ -228,7 +228,7 @@ public class InheritanceRoundTripPropertyTests
                {
                    Method = MakeMethod(
                        name,
-                       new VoidTypeRefTypeReferenceNode(),
+                       new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                        ImmutableArray<StatementNode>.Empty,
                        mods),
                };
@@ -258,10 +258,10 @@ public class InheritanceRoundTripPropertyTests
                    {
                        Parameter = new ParameterNode
                        {
-                           Type = new PrimitiveTypeRefTypeReferenceNode
+                           Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                            {
                                PrimitiveType = new IntTypePrimitiveTypeNode(),
-                           },
+                           } },
                            Name = Tok("val"),
                        },
                    }
@@ -362,7 +362,7 @@ public class InheritanceRoundTripPropertyTests
                     {
                         Field = MakeField(
                             fieldName,
-                            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() }),
+                            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } }),
                     });
                 }
                 else
@@ -372,7 +372,7 @@ public class InheritanceRoundTripPropertyTests
                     {
                         Method = MakeMethod(
                             methodName,
-                            new VoidTypeRefTypeReferenceNode(),
+                            new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                             ImmutableArray<StatementNode>.Empty,
                             ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode())),
                     });

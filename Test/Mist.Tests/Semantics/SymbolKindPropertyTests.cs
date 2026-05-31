@@ -167,10 +167,10 @@ public class SymbolKindPropertyTests
             var fieldDecl = new FieldDeclarationNode
             {
                 Name = MakeToken("_testField"),
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
             };
             classMembers.Add(new FieldMemberMemberDeclarationNode { Field = fieldDecl });
             expected.Add(("_testField", SymbolKind.Field));
@@ -183,10 +183,10 @@ public class SymbolKindPropertyTests
                 {
                     Parameter = new ParameterNode
                     {
-                        Type = new PrimitiveTypeRefTypeReferenceNode
+                        Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                         {
                             PrimitiveType = new IntTypePrimitiveTypeNode(),
-                        },
+                        } },
                         Name = MakeToken("ctorParam"),
                     },
                 }
@@ -202,10 +202,10 @@ public class SymbolKindPropertyTests
                         {
                             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
                             {
-                                Type = new PrimitiveTypeRefTypeReferenceNode
+                                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                                 {
                                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                                },
+                                } },
                                 Name = MakeToken("localInCtor"),
                                 Initializer = MakeIntLiteralExpression("42"),
                             },
@@ -236,10 +236,10 @@ public class SymbolKindPropertyTests
                 {
                     Parameter = new ParameterNode
                     {
-                        Type = new PrimitiveTypeRefTypeReferenceNode
+                        Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                         {
                             PrimitiveType = new IntTypePrimitiveTypeNode(),
-                        },
+                        } },
                         Name = MakeToken("methodParam"),
                     },
                 }
@@ -255,10 +255,10 @@ public class SymbolKindPropertyTests
                         {
                             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
                             {
-                                Type = new PrimitiveTypeRefTypeReferenceNode
+                                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                                 {
                                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                                },
+                                } },
                                 Name = MakeToken("localInMethod"),
                                 Initializer = MakeIntLiteralExpression("99"),
                             },
@@ -270,7 +270,7 @@ public class SymbolKindPropertyTests
             var methodDecl = new MethodDeclarationNode
             {
                 Name = MakeToken("TestMethod"),
-                ReturnType = new VoidTypeRefTypeReferenceNode(),
+                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Parameters = methodParams,
                 Body = methodBody.AsMethodBody(),
             };
@@ -292,10 +292,10 @@ public class SymbolKindPropertyTests
                 {
                     Parameter = new ParameterNode
                     {
-                        Type = new PrimitiveTypeRefTypeReferenceNode
+                        Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                         {
                             PrimitiveType = new IntTypePrimitiveTypeNode(),
-                        },
+                        } },
                         Name = MakeToken("hostParam"),
                     },
                 }
@@ -311,10 +311,10 @@ public class SymbolKindPropertyTests
                         {
                             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
                             {
-                                Type = new PrimitiveTypeRefTypeReferenceNode
+                                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                                 {
                                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                                },
+                                } },
                                 Name = MakeToken("hostLocal"),
                                 Initializer = MakeIntLiteralExpression("1"),
                             },
@@ -326,7 +326,7 @@ public class SymbolKindPropertyTests
             var hostMethod = new MethodDeclarationNode
             {
                 Name = MakeToken("HostMethod"),
-                ReturnType = new VoidTypeRefTypeReferenceNode(),
+                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Parameters = hostParams,
                 Body = hostBody.AsMethodBody(),
             };
@@ -359,10 +359,10 @@ public class SymbolKindPropertyTests
             var structField = new FieldDeclarationNode
             {
                 Name = MakeToken("StructValue"),
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
             };
             structMembers.Add(new FieldMemberMemberDeclarationNode { Field = structField });
 

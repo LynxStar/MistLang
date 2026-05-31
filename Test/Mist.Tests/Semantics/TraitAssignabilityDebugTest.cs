@@ -23,7 +23,7 @@ public class TraitAssignabilityDebugTest
         MistTypeGenerator.MakeToken(lexeme);
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string typeName) =>
-        new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() };
+        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } };
 
     [Fact]
     public void Debug_UnsatisfiedAssignment()
@@ -92,14 +92,14 @@ public class TraitAssignabilityDebugTest
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = Tok("Printable"),
                         Span = new Storm.Runtime.SourceSpan(0, 9),
                     },
-                },
+                } },
                 Name = Tok("x"),
                 Initializer = initExpr,
             },
@@ -108,7 +108,7 @@ public class TraitAssignabilityDebugTest
         var mainMethod = new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode
             {
                 Block = new BlockNode { Statements = ImmutableArray.Create<StatementNode>(varDecl) },

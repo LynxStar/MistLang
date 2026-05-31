@@ -68,11 +68,11 @@ public class NonGenericTypeArgumentPropertyTests
 
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null)
     {
-        return new NamedTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(name) },
             TypeArgs = typeArgs,
-        };
+        } };
     }
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string primitiveName)
@@ -85,7 +85,7 @@ public class NonGenericTypeArgumentPropertyTests
             "float" => new FloatTypePrimitiveTypeNode(),
             _ => new IntTypePrimitiveTypeNode(),
         };
-        return new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveNode };
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveNode } };
     }
 
     private static MemberDeclarationNode MakeFieldMember(string name, TypeReferenceNode typeRef)

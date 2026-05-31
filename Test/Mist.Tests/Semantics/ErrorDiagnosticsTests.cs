@@ -82,7 +82,7 @@ public sealed class ErrorDiagnosticsTests
         return new MethodDeclarationNode
         {
             Name = MakeToken(name),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode
             {
                 Block = new BlockNode
@@ -459,14 +459,14 @@ public sealed class ErrorDiagnosticsTests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("myField"),
-            Type = new NamedTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode
                 {
                     IDENTIFIER = MakeToken("Widget", start: 60),
                     Span = new Storm.Runtime.SourceSpan(60, 6),
                 },
-            },
+            } },
         };
 
         var classDecl = new ClassDeclarationNode

@@ -91,11 +91,11 @@ public class ConstructedTypeAssignabilityPropertyTests
 
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null)
     {
-        return new NamedTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(name) },
             TypeArgs = typeArgs,
-        };
+        } };
     }
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string primitiveName)
@@ -108,7 +108,7 @@ public class ConstructedTypeAssignabilityPropertyTests
             "float" => new FloatTypePrimitiveTypeNode(),
             _ => new IntTypePrimitiveTypeNode(),
         };
-        return new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveNode };
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveNode } };
     }
 
     private static ExpressionNode WrapPrimaryAsExpression(PrimaryNode primary)
@@ -423,7 +423,7 @@ public class ConstructedTypeAssignabilityPropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = mainStatements } },
             Modifiers = ImmutableArray.Create<ModifierNode>(

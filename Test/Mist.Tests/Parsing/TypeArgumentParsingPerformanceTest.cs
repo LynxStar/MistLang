@@ -85,7 +85,7 @@ public sealed class TypeArgumentParsingPerformanceTest
     /// re-parse the same content from scratch. This doubles the work per type argument,
     /// compounding to ~3.5x exponential growth per additional type parameter.
     /// </summary>
-    [Fact(Skip = "Known exponential parsing issue — documents the problem for future fix")]
+    [Fact]
     public void FuncActionArityOverloads_ShouldNotGrowExponentially()
     {
         var lexer = new MistLexer();

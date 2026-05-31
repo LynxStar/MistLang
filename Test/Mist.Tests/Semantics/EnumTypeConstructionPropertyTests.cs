@@ -148,10 +148,10 @@ public class EnumTypeConstructionPropertyTests
     }
 
     private static TypeReferenceNode MakeIntTypeRef() =>
-        new PrimitiveTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
         {
             PrimitiveType = new IntTypePrimitiveTypeNode(),
-        };
+        } };
 
     private static EnumMemberNode MakeEnumMember(string name, ExpressionNode? value = null) =>
         new()

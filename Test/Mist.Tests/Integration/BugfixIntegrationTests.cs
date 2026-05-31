@@ -168,7 +168,7 @@ public sealed class BugfixIntegrationTests : IDisposable
 
         return new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveType },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveType } },
             Name = MakeToken(paramName),
         };
     }
@@ -236,7 +236,7 @@ public sealed class BugfixIntegrationTests : IDisposable
         var fieldWithInit = new FieldDeclarationNode
         {
             Name = MakeToken("dimension"),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Initializer = MakeIntLiteralExpression("0"),
             Modifiers = ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()),
         };
@@ -245,14 +245,14 @@ public sealed class BugfixIntegrationTests : IDisposable
         var fieldX = new FieldDeclarationNode
         {
             Name = MakeToken("x"),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()),
         };
 
         var fieldY = new FieldDeclarationNode
         {
             Name = MakeToken("y"),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()),
         };
 
@@ -284,10 +284,10 @@ public sealed class BugfixIntegrationTests : IDisposable
 
         var stringParam = new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new StringTypePrimitiveTypeNode(),
-            },
+            } },
             Name = MakeToken("input"),
         };
 
@@ -295,7 +295,7 @@ public sealed class BugfixIntegrationTests : IDisposable
         var lengthCallExpr = MakeMemberAccessExpression("input", "Length");
         var varDecl = new TypedVariableDeclarationVariableDeclarationStatementNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Name = MakeToken("len"),
             Initializer = lengthCallExpr,
         };
@@ -311,10 +311,10 @@ public sealed class BugfixIntegrationTests : IDisposable
         var getLengthMethod = new MethodDeclarationNode
         {
             Name = MakeToken("GetLength"),
-            ReturnType = new PrimitiveTypeRefTypeReferenceNode
+            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Parameters = new ParameterListNode { Parameter = stringParam },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -351,7 +351,7 @@ public sealed class BugfixIntegrationTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -457,7 +457,7 @@ public sealed class BugfixIntegrationTests : IDisposable
         var fieldCount = new FieldDeclarationNode
         {
             Name = MakeToken("count"),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Initializer = MakeIntLiteralExpression("0"),
             Modifiers = ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()),
         };
@@ -500,17 +500,17 @@ public sealed class BugfixIntegrationTests : IDisposable
 
         var textParam = new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new StringTypePrimitiveTypeNode(),
-            },
+            } },
             Name = MakeToken("text"),
         };
 
         var lengthCall = MakeMemberAccessExpression("text", "Length");
         var lenVarDecl = new TypedVariableDeclarationVariableDeclarationStatementNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Name = MakeToken("len"),
             Initializer = lengthCall,
         };
@@ -526,10 +526,10 @@ public sealed class BugfixIntegrationTests : IDisposable
         var measureMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Measure"),
-            ReturnType = new PrimitiveTypeRefTypeReferenceNode
+            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Parameters = new ParameterListNode { Parameter = textParam },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -566,7 +566,7 @@ public sealed class BugfixIntegrationTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(

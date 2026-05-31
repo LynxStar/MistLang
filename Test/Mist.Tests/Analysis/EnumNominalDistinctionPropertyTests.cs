@@ -159,20 +159,20 @@ public class EnumNominalDistinctionPropertyTests
     }
 
     private static TypeReferenceNode MakeIntTypeRef() =>
-        new PrimitiveTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
         {
             PrimitiveType = new IntTypePrimitiveTypeNode(),
-        };
+        } };
 
     private static TypeReferenceNode MakeEnumTypeRef(string enumName) =>
-        new NamedTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode
             {
                 IDENTIFIER = Tok(enumName),
                 Span = new Storm.Runtime.SourceSpan(0, enumName.Length),
             },
-        };
+        } };
 
     private static ExpressionNode MakeMemberAccessExpression(string target, string memberName)
     {
@@ -259,7 +259,7 @@ public class EnumNominalDistinctionPropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {

@@ -102,7 +102,7 @@ public class FieldInitializerPropertyTests
         return new FieldDeclarationNode
         {
             Name = MakeToken(fieldName),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveType },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveType } },
             Initializer = MakeIntLiteralExpression("0"),
             Modifiers = modifiers.Length > 0
                 ? ImmutableArray.Create(modifiers)
@@ -118,7 +118,7 @@ public class FieldInitializerPropertyTests
         return new FieldDeclarationNode
         {
             Name = MakeToken(fieldName),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveType },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveType } },
             Modifiers = modifiers.Length > 0
                 ? ImmutableArray.Create(modifiers)
                 : ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()),

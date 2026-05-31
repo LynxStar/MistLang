@@ -223,14 +223,14 @@ public class ExtensionRegistrationPropertyTests
     // ─── AST construction helpers ────────────────────────────────────────
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new NamedTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        };
+        } };
 
     private static TypeReferenceNode MakeReturnTypeRef(string typeName) =>
         typeName == "void"
-            ? new VoidTypeRefTypeReferenceNode()
+            ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
             : MakeNamedTypeRef(typeName);
 
     private static ExpressionNode MakeLiteralExpression(string typeName)

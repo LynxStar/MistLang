@@ -60,7 +60,7 @@ public class AsyncMethodReturnTypePropertyTests
             "float" => new FloatTypePrimitiveTypeNode(),
             _ => new IntTypePrimitiveTypeNode(),
         };
-        return new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveNode };
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveNode } };
     }
 
     private static MethodDeclarationNode MakeAsyncMethod(
@@ -154,7 +154,7 @@ public class AsyncMethodReturnTypePropertyTests
     private static CompilationUnitNode BuildAst(AsyncMethodScenario scenario)
     {
         TypeReferenceNode returnTypeRef = scenario.IsVoid
-            ? new VoidTypeRefTypeReferenceNode()
+            ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
             : MakePrimitiveTypeRef(scenario.ReturnTypeName);
 
         var additionalModifiers = scenario.IsStatic

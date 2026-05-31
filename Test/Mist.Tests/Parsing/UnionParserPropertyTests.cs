@@ -32,8 +32,9 @@ public sealed class UnionParseScenario
 /// Property-based tests for union type parsing correctness.
 ///
 /// Property 2: For any valid union type source string composed of N constituent type
-/// references separated by |, parsing SHALL produce a UnionTypeRefNode whose constituent
-/// list has exactly N elements in source order, with array rank binding tighter than |.
+/// references separated by |, parsing SHALL produce a union TypeReferenceNode (one with
+/// non-empty SingleTypeRefs) whose constituent list has exactly N elements in source
+/// order, with array rank binding tighter than |.
 /// </summary>
 public class UnionParserPropertyTests
 {
@@ -97,10 +98,10 @@ public class UnionParserPropertyTests
         return varDecl.Type;
     }
 
-    private static List<SingleTypeRefNode> GetAllConstituents(UnionTypeRefNode unionNode)
+    private static List<SingleTypeRefNode> GetAllConstituents(TypeReferenceNode typeRef)
     {
-        var constituents = new List<SingleTypeRefNode> { unionNode.First };
-        constituents.AddRange(unionNode.SingleTypeRefs);
+        var constituents = new List<SingleTypeRefNode> { typeRef.First };
+        constituents.AddRange(typeRef.SingleTypeRefs);
         return constituents;
     }
 
@@ -134,7 +135,7 @@ public class UnionParserPropertyTests
     // ─── Property Tests ─────────────────────────────────────────────────────
 
     /// <summary>
-    /// Property 2a: A union type with N constituents produces a UnionTypeRefNode
+    /// Property 2a: A union type with N constituents produces a union TypeReferenceNode
     /// with exactly N elements.
     ///
     /// **Validates: Requirements 2.2, 2.3, 2.4, 3.1, 3.2**
@@ -145,15 +146,13 @@ public class UnionParserPropertyTests
         var typeAnnotation = string.Join(" | ", scenario.Constituents);
         var typeRef = GetVariableTypeRef(typeAnnotation);
 
-        var unionTypeRef = (UnionTypeRefTypeReferenceNode)typeRef;
-        var unionNode = unionTypeRef.UnionType;
-        var constituents = GetAllConstituents(unionNode);
+        var constituents = GetAllConstituents(typeRef);
 
         return constituents.Count == scenario.Constituents.Length;
     }
 
     /// <summary>
-    /// Property 2b: The constituents of the parsed UnionTypeRefNode are in source order —
+    /// Property 2b: The constituents of the parsed union TypeReferenceNode are in source order —
     /// the i-th constituent in the AST corresponds to the i-th type in the source string.
     ///
     /// **Validates: Requirements 3.3, 3.4, 3.5**
@@ -164,9 +163,7 @@ public class UnionParserPropertyTests
         var typeAnnotation = string.Join(" | ", scenario.Constituents);
         var typeRef = GetVariableTypeRef(typeAnnotation);
 
-        var unionTypeRef = (UnionTypeRefTypeReferenceNode)typeRef;
-        var unionNode = unionTypeRef.UnionType;
-        var constituents = GetAllConstituents(unionNode);
+        var constituents = GetAllConstituents(typeRef);
 
         if (constituents.Count != scenario.Constituents.Length)
             return false;

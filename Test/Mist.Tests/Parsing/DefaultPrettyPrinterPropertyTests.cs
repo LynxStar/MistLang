@@ -74,10 +74,10 @@ public class DefaultPrettyPrinterPropertyTests
                select (DefaultFieldInitializerNode)new DefaultTypeBindingDefaultFieldInitializerNode
                {
                    FieldName = Tok(fieldName),
-                   TypeName = new NamedTypeRefTypeReferenceNode
+                   TypeName = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                    {
                        Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(typeName) },
-                   },
+                   } },
                };
     }
 
@@ -103,10 +103,10 @@ public class DefaultPrettyPrinterPropertyTests
                select (DefaultFieldInitializerNode)new DefaultTypeBindingDefaultFieldInitializerNode
                {
                    FieldName = Tok(fieldName),
-                   TypeName = new NamedTypeRefTypeReferenceNode
+                   TypeName = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                    {
                        Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(typeName) },
-                   },
+                   } },
                    NestedEntries = nestedOverrides.ToImmutableArray(),
                };
     }
@@ -160,10 +160,10 @@ public class DefaultPrettyPrinterPropertyTests
         return Gen.Elements(ClassNames).Select(typeName =>
             MistAstGenerator.WrapPrimary(new DefaultExpressionPrimaryNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(typeName) },
-                },
+                } },
             }));
     }
 
@@ -302,7 +302,7 @@ public class DefaultPrettyPrinterPropertyTests
                                            Method = new MethodDeclarationNode
                                            {
                                                Name = Tok("Test"),
-                                               ReturnType = new VoidTypeRefTypeReferenceNode(),
+                                               ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                                                Modifiers = ImmutableArray.Create<ModifierNode>(
                                                    new PublicModifierModifierNode()),
                                                Body = new MethodBlockBodyMethodBodyNode
@@ -361,7 +361,7 @@ public class DefaultPrettyPrinterPropertyTests
                                            Method = new MethodDeclarationNode
                                            {
                                                Name = Tok("Run"),
-                                               ReturnType = new VoidTypeRefTypeReferenceNode(),
+                                               ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                                                Modifiers = ImmutableArray.Create<ModifierNode>(
                                                    new PublicModifierModifierNode()),
                                                Body = new MethodBlockBodyMethodBodyNode
@@ -430,7 +430,7 @@ public class DefaultPrettyPrinterPropertyTests
                                            Method = new MethodDeclarationNode
                                            {
                                                Name = Tok("Init"),
-                                               ReturnType = new VoidTypeRefTypeReferenceNode(),
+                                               ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                                                Modifiers = ImmutableArray.Create<ModifierNode>(
                                                    new PublicModifierModifierNode()),
                                                Body = new MethodBlockBodyMethodBodyNode

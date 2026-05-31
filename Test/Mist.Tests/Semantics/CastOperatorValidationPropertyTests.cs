@@ -181,10 +181,10 @@ public class CastOperatorValidationPropertyTests
             : (CastOperatorKindNode)new ExplicitCastCastOperatorKindNode();
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new NamedTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        };
+        } };
 
     private static ParameterNode MakeParameter(string typeName, string paramName) =>
         new()

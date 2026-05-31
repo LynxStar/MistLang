@@ -183,14 +183,14 @@ public class TypeLiteralParserPropertyTests
         var expectedNodeType = KeywordToNodeType[testCase.Keyword];
 
         var matchingLiteral = typeLiterals.FirstOrDefault(tl =>
-            tl.TypeRef is PrimitiveTypeRefTypeReferenceNode primitiveRef &&
+            tl.TypeRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef &&
             primitiveRef.PrimitiveType.GetType() == expectedNodeType);
 
         if (matchingLiteral is null)
             return false;
 
         // Verify the TypeRef is a PrimitiveTypeRef with the correct PrimitiveTypeNode
-        var typeRef = matchingLiteral.TypeRef as PrimitiveTypeRefTypeReferenceNode;
+        var typeRef = matchingLiteral.TypeRef.First as PrimitiveSingleTypeRefSingleTypeRefNode;
         return typeRef is not null && typeRef.PrimitiveType.GetType() == expectedNodeType;
     }
 
@@ -279,7 +279,7 @@ public class TypeLiteralParserPropertyTests
         var expectedNodeType = KeywordToNodeType[testCase.Keyword];
 
         var matchingLiteral = typeLiterals.FirstOrDefault(tl =>
-            tl.TypeRef is PrimitiveTypeRefTypeReferenceNode primitiveRef &&
+            tl.TypeRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef &&
             primitiveRef.PrimitiveType.GetType() == expectedNodeType &&
             primitiveRef.ArrayRank is not null);
 
@@ -370,7 +370,7 @@ public class TypeLiteralParserPropertyTests
         var expectedNodeType = KeywordToNodeType[testCase.Keyword];
 
         var matchingLiteral = typeLiterals.FirstOrDefault(tl =>
-            tl.TypeRef is PrimitiveTypeRefTypeReferenceNode primitiveRef &&
+            tl.TypeRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef &&
             primitiveRef.PrimitiveType.GetType() == expectedNodeType);
 
         // There should be NO TypeLiteralExpression for the keyword in annotation position

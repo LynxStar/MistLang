@@ -242,10 +242,10 @@ public class PrettyPrinterPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MakeToken(name),
                 Initializer = MakeIntLiteralExpression(value),
             },
@@ -301,19 +301,19 @@ public class PrettyPrinterPropertyTests
         var fieldDecl = new FieldDeclarationNode
         {
             Modifiers = ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()),
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Name = MakeToken("x"),
         };
 
         var ctorParam = new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Name = MakeToken("x"),
         };
 
@@ -358,10 +358,10 @@ public class PrettyPrinterPropertyTests
         var methodDecl = new MethodDeclarationNode
         {
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
-            ReturnType = new PrimitiveTypeRefTypeReferenceNode
+            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Name = MakeToken("GetX"),
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
@@ -405,10 +405,10 @@ public class PrettyPrinterPropertyTests
         var fieldR = new FieldDeclarationNode
         {
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Name = MakeToken("r"),
         };
 
@@ -485,10 +485,10 @@ public class PrettyPrinterPropertyTests
             {
                 Initializer = new ForInitializerVariableDeclarationForInitializerNode
                 {
-                    VariableDeclaration = new PrimitiveTypeRefTypeReferenceNode
+                    VariableDeclaration = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                     {
                         PrimitiveType = new IntTypePrimitiveTypeNode(),
-                    },
+                    } },
                     Name = MakeToken("i"),
                     Initializer = MakeIntLiteralExpression("0"),
                 },
@@ -503,10 +503,10 @@ public class PrettyPrinterPropertyTests
         {
             ForeachStatement = new ForeachStatementNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MakeToken("item"),
                 Collection = MakeIdentifierExpression("items"),
                 Body = new BlockNode(),
@@ -518,7 +518,7 @@ public class PrettyPrinterPropertyTests
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Name = MakeToken("Run"),
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
@@ -559,10 +559,10 @@ public class PrettyPrinterPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MakeToken("y"),
                 Initializer = addExpr,
             },
@@ -576,7 +576,7 @@ public class PrettyPrinterPropertyTests
 
         var methodDecl = new MethodDeclarationNode
         {
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Name = MakeToken("Test"),
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
@@ -610,10 +610,10 @@ public class PrettyPrinterPropertyTests
     {
         var paramX = new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Name = MakeToken("x"),
         };
 

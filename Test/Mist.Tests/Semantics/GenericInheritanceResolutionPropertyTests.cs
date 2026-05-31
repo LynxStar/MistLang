@@ -87,10 +87,10 @@ public class GenericInheritanceResolutionPropertyTests
 
     private static TypeReferenceNode MakeNamedTypeRef(string name)
     {
-        return new NamedTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(name) },
-        };
+        } };
     }
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string primitiveName)
@@ -103,7 +103,7 @@ public class GenericInheritanceResolutionPropertyTests
             "float" => new FloatTypePrimitiveTypeNode(),
             _ => new IntTypePrimitiveTypeNode(),
         };
-        return new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveNode };
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveNode } };
     }
 
     private static BaseListNode MakeBaseList(BaseTypeRefNode[] entries)

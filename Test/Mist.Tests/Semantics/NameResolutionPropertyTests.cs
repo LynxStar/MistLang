@@ -129,10 +129,10 @@ public class NameResolutionPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MakeToken(name),
                 Initializer = MakeIntLiteralExpression(value),
             },
@@ -174,7 +174,7 @@ public class NameResolutionPropertyTests
         var methodDecl = new MethodDeclarationNode
         {
             Name = MakeToken(methodName),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = paramList,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -346,7 +346,7 @@ public class NameResolutionPropertyTests
         var methodDecl = new MethodDeclarationNode
         {
             Name = MakeToken("TestMethod"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -413,25 +413,25 @@ public class NameResolutionPropertyTests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("x"),
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
         };
 
         var paramNode = new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Name = MakeToken("x"),
         };
 
         var methodDecl = new MethodDeclarationNode
         {
             Name = MakeToken("TestMethod"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = paramNode },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -553,16 +553,16 @@ public class NameResolutionPropertyTests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("NsItem"),
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
         };
 
         var methodDecl = new MethodDeclarationNode
         {
             Name = MakeToken("TestMethod"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -608,25 +608,25 @@ public class NameResolutionPropertyTests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("x"),
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
         };
 
         var paramNode = new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Name = MakeToken("x"),
         };
 
         var methodDecl = new MethodDeclarationNode
         {
             Name = MakeToken("TestMethod"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = paramNode },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };

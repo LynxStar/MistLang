@@ -126,14 +126,14 @@ public class SubtypeAssignabilityPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = MakeToken(declaredTypeName),
                         Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
                     },
-                },
+                } },
                 Name = MakeToken(varName),
                 Initializer = MakeNewObjectExpression(initializedTypeName),
             },
@@ -281,7 +281,7 @@ public class SubtypeAssignabilityPropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = mainStatements } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -345,21 +345,21 @@ public class SubtypeAssignabilityPropertyTests
     {
         var param = new ParameterNode
         {
-            Type = new NamedTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode
                 {
                     IDENTIFIER = MakeToken(baseClassName),
                     Span = new Storm.Runtime.SourceSpan(0, baseClassName.Length),
                 },
-            },
+            } },
             Name = MakeToken("param"),
         };
 
         return new MethodDeclarationNode
         {
             Name = MakeToken("AcceptBase"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(

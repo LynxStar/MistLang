@@ -61,22 +61,22 @@ public class TraitWithBlockSatisfactionPropertyTests
     {
         return typeName switch
         {
-            "int" => new PrimitiveTypeRefTypeReferenceNode
+            "int" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
-            "string" => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            "string" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new StringTypePrimitiveTypeNode(),
-            },
-            "bool" => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            "bool" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new BoolTypePrimitiveTypeNode(),
-            },
-            _ => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            _ => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
         };
     }
 

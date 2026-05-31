@@ -209,7 +209,7 @@ public class AsyncFunctorOperandPropertyTests
         var method = new MethodDeclarationNode
         {
             Name = Tok(scenario.MethodName),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {
@@ -227,10 +227,10 @@ public class AsyncFunctorOperandPropertyTests
             var valueField = new FieldDeclarationNode
             {
                 Name = Tok("Value"),
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
             };
             members.Add(new FieldMemberMemberDeclarationNode { Field = valueField });
@@ -242,7 +242,7 @@ public class AsyncFunctorOperandPropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {

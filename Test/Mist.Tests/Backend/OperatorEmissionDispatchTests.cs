@@ -128,14 +128,14 @@ public sealed class OperatorEmissionDispatchTests : IDisposable
             MistAstGenerator.MakeIdentifierExpr("b"),
             "+");
         var stmtC = MistAstGenerator.MakeVarDecl(
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             "c",
             addExpr);
 
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {
@@ -208,67 +208,67 @@ class Program {
         var fieldX = new FieldDeclarationNode
         {
             Name = MakeToken("x"),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new FloatTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new FloatTypePrimitiveTypeNode() } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
         var fieldY = new FieldDeclarationNode
         {
             Name = MakeToken("y"),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new FloatTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new FloatTypePrimitiveTypeNode() } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
         var fieldZ = new FieldDeclarationNode
         {
             Name = MakeToken("z"),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new FloatTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new FloatTypePrimitiveTypeNode() } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
         // operator+ declaration: public static Vector3 operator +(Vector3 a, Vector3 b) { return a; }
-        var vector3TypeRef = new NamedTypeRefTypeReferenceNode
+        var vector3TypeRef = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode
             {
                 IDENTIFIER = MakeToken("Vector3"),
                 Span = new Storm.Runtime.SourceSpan(0, 0),
             },
-        };
+        } };
 
         var paramA = new ParameterNode
         {
-            Type = new NamedTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode
                 {
                     IDENTIFIER = MakeToken("Vector3"),
                     Span = new Storm.Runtime.SourceSpan(0, 0),
                 },
-            },
+            } },
             Name = MakeToken("a"),
         };
         var paramB = new ParameterNode
         {
-            Type = new NamedTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode
                 {
                     IDENTIFIER = MakeToken("Vector3"),
                     Span = new Storm.Runtime.SourceSpan(0, 0),
                 },
-            },
+            } },
             Name = MakeToken("b"),
         };
 
         var operatorDecl = new OperatorDeclarationNode
         {
-            ReturnType = new NamedTypeRefTypeReferenceNode
+            ReturnType = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode
                 {
                     IDENTIFIER = MakeToken("Vector3"),
                     Span = new Storm.Runtime.SourceSpan(0, 0),
                 },
-            },
+            } },
             Symbol = new PlusOpOperatorSymbolNode(),
             Parameters = new ParameterListNode { Parameter = paramA, Parameters = ImmutableArray.Create(paramB) },
             Body = new OperatorBlockBodyOperatorBodyNode
@@ -307,14 +307,14 @@ class Program {
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = MakeToken("Vector3"),
                         Span = new Storm.Runtime.SourceSpan(0, 0),
                     },
-                },
+                } },
                 Name = MakeToken("a"),
                 Initializer = MistAstGenerator.WrapPrimary(new ObjectCreationExpressionPrimaryNode
                 {
@@ -331,14 +331,14 @@ class Program {
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = MakeToken("Vector3"),
                         Span = new Storm.Runtime.SourceSpan(0, 0),
                     },
-                },
+                } },
                 Name = MakeToken("b"),
                 Initializer = MistAstGenerator.WrapPrimary(new ObjectCreationExpressionPrimaryNode
                 {
@@ -361,14 +361,14 @@ class Program {
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = MakeToken("Vector3"),
                         Span = new Storm.Runtime.SourceSpan(0, 0),
                     },
-                },
+                } },
                 Name = MakeToken("c"),
                 Initializer = addExpr,
             },
@@ -377,7 +377,7 @@ class Program {
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {

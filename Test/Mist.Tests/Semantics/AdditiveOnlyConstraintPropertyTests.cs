@@ -96,10 +96,10 @@ public class AdditiveOnlyConstraintPropertyTests
             Field = new FieldDeclarationNode
             {
                 Name = MakeToken(name),
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
             },
         };
     }
@@ -111,7 +111,7 @@ public class AdditiveOnlyConstraintPropertyTests
             Method = new MethodDeclarationNode
             {
                 Name = MakeToken(name),
-                ReturnType = new VoidTypeRefTypeReferenceNode(),
+                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             },
         };

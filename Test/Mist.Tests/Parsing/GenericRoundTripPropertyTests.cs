@@ -448,7 +448,7 @@ public class GenericRoundTripPropertyTests
         var method = new MethodDeclarationNode
         {
             Name = Tok("Run"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = statements } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),

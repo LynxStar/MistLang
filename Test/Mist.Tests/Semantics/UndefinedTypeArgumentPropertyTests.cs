@@ -81,11 +81,11 @@ public class UndefinedTypeArgumentPropertyTests
 
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null)
     {
-        return new NamedTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(name) },
             TypeArgs = typeArgs,
-        };
+        } };
     }
 
     private static MemberDeclarationNode MakeFieldMember(string name, TypeReferenceNode typeRef)
@@ -291,7 +291,7 @@ public class UndefinedTypeArgumentPropertyTests
         };
 
         var typeArgList = MakeTypeArgList([
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             MakeNamedTypeRef("Nonexistent"),
         ]);
         var fieldTypeRef = MakeNamedTypeRef("Map", typeArgList);

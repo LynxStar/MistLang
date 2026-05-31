@@ -61,22 +61,22 @@ public class TraitInterfaceCoexistencePropertyTests
     {
         return typeName switch
         {
-            "int" => new PrimitiveTypeRefTypeReferenceNode
+            "int" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
-            "string" => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            "string" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new StringTypePrimitiveTypeNode(),
-            },
-            "bool" => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            "bool" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new BoolTypePrimitiveTypeNode(),
-            },
-            _ => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            _ => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
         };
     }
 
@@ -182,7 +182,7 @@ public class TraitInterfaceCoexistencePropertyTests
                 {
                     Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
                     ReturnType = m.returnType == "void"
-                        ? new VoidTypeRefTypeReferenceNode()
+                        ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
                         : MakePrimitiveTypeRef(m.returnType),
                     Name = Tok(m.methodName),
                     Parameters = null,
@@ -260,7 +260,7 @@ public class TraitInterfaceCoexistencePropertyTests
                 {
                     Name = Tok(m.methodName),
                     ReturnType = m.returnType == "void"
-                        ? new VoidTypeRefTypeReferenceNode()
+                        ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
                         : MakePrimitiveTypeRef(m.returnType),
                     Parameters = null,
                 },
@@ -659,7 +659,7 @@ public class TraitInterfaceCoexistencePropertyTests
                         Method = new TraitMethodDeclarationNode
                         {
                             ReturnType = m.ReturnType == "void"
-                                ? new VoidTypeRefTypeReferenceNode()
+                                ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
                                 : MakePrimitiveTypeRef(m.ReturnType),
                             Name = Tok(m.MethodName),
                             Parameters = null,
@@ -686,7 +686,7 @@ public class TraitInterfaceCoexistencePropertyTests
                         {
                             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
                             ReturnType = m.ReturnType == "void"
-                                ? new VoidTypeRefTypeReferenceNode()
+                                ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
                                 : MakePrimitiveTypeRef(m.ReturnType),
                             Name = Tok(m.MethodName),
                             Parameters = null,

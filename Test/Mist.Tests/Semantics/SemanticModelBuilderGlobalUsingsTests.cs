@@ -54,14 +54,14 @@ public sealed class SemanticModelBuilderGlobalUsingsTests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("myField"),
-            Type = new NamedTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode
                 {
                     IDENTIFIER = MakeToken(fieldTypeName, start: typeSpanStart),
                     Span = new Storm.Runtime.SourceSpan(typeSpanStart, fieldTypeName.Length),
                 },
-            },
+            } },
         };
 
         return new ClassDeclarationNode

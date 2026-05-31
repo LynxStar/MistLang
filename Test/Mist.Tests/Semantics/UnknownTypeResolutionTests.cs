@@ -1,6 +1,6 @@
 // Feature: unknown-type (Phase B, Task 8.2)
 // Validates Requirements 3.6, 7.1, 7.2, 7.3 — the semantic model builder resolves
-// `UnknownTypeRefTypeReferenceNode` references to the `UnknownType.Instance`
+// `UnknownSingleTypeRefSingleTypeRefNode` references to the `UnknownType.Instance`
 // singleton, both as a bare type and nested inside `TypeArgumentList` at any depth.
 
 using System.Collections.Immutable;
@@ -16,7 +16,7 @@ namespace Mist.Tests.Semantics;
 
 /// <summary>
 /// Unit tests for the integration point added in Task 8.1: the
-/// <c>UnknownTypeRefTypeReferenceNode</c> case in
+/// <c>UnknownSingleTypeRefSingleTypeRefNode</c> case in
 /// <c>SemanticModelBuilder.ResolveTypeReference</c> that returns
 /// <see cref="UnknownType.Instance"/>.
 ///
@@ -99,21 +99,21 @@ public class UnknownTypeResolutionTests
 
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null)
     {
-        return new NamedTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(name) },
             TypeArgs = typeArgs,
-        };
+        } };
     }
 
     private static TypeReferenceNode MakeUnknownTypeRef()
     {
-        return new UnknownTypeRefTypeReferenceNode { UNKNOWN = MakeToken("unknown") };
+        return new TypeReferenceNode { First = new UnknownSingleTypeRefSingleTypeRefNode { UNKNOWN = MakeToken("unknown") } };
     }
 
     private static TypeReferenceNode MakeStringTypeRef()
     {
-        return new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new StringTypePrimitiveTypeNode() };
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } };
     }
 
     /// <summary>
@@ -174,7 +174,7 @@ public class UnknownTypeResolutionTests
         var methodDecl = new MethodDeclarationNode
         {
             Name = MakeToken("M"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {

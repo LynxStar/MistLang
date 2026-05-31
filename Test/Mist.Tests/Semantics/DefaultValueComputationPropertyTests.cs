@@ -100,18 +100,18 @@ public class DefaultValueComputationPropertyTests
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string typeName)
     {
-        return new PrimitiveTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
         {
             PrimitiveType = MakePrimitiveType(typeName),
-        };
+        } };
     }
 
     private static TypeReferenceNode MakeNamedTypeRef(string typeName)
     {
-        return new NamedTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(typeName) },
-        };
+        } };
     }
 
     private static FieldDeclarationNode MakeField(

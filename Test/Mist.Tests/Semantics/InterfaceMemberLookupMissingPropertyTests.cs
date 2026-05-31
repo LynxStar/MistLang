@@ -76,7 +76,7 @@ public class InterfaceMemberLookupMissingPropertyTests
         return new InterfaceMethodDeclarationNode
         {
             Name = MakeToken(name),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
         };
     }
@@ -119,7 +119,7 @@ public class InterfaceMemberLookupMissingPropertyTests
         return new MethodDeclarationNode
         {
             Name = MakeToken(name),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
                 Statements = bodyStatements ?? ImmutableArray<StatementNode>.Empty,
@@ -233,14 +233,14 @@ public class InterfaceMemberLookupMissingPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = MakeToken(declaredTypeName),
                         Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
                     },
-                },
+                } },
                 Name = MakeToken(varName),
                 Initializer = MakeNewObjectExpression(initializedTypeName),
             },

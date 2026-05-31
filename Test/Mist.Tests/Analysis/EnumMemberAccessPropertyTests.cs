@@ -196,14 +196,14 @@ public class EnumMemberAccessPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = Tok(scenario.EnumName),
                         Span = new Storm.Runtime.SourceSpan(0, scenario.EnumName.Length),
                     },
-                },
+                } },
                 Name = Tok("x"),
                 Initializer = accessExpr,
             },
@@ -212,7 +212,7 @@ public class EnumMemberAccessPropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {

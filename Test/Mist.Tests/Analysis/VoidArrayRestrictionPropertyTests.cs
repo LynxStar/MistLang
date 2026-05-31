@@ -111,7 +111,7 @@ public class VoidArrayRestrictionPropertyTests
         return new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body ?? ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -141,7 +141,7 @@ public class VoidArrayRestrictionPropertyTests
 
     /// <summary>
     /// Builds a program with a <c>Void[] x = new void[n];</c> declaration.
-    /// Uses <c>NamedTypeRefTypeReferenceNode</c> with "Void" identifier and ArrayRank
+    /// Uses <c>NamedSingleTypeRefSingleTypeRefNode</c> with "Void" identifier and ArrayRank
     /// to represent the <c>Void[]</c> type reference.
     /// Expected: MIST_TC_0034 diagnostic (Req 8.1).
     /// </summary>
@@ -150,11 +150,11 @@ public class VoidArrayRestrictionPropertyTests
         var arrayCreationExpr = MakeVoidArrayCreation(scenario.ArraySize);
 
         // Void[] type reference: NamedTypeRef with "Void" identifier and ArrayRank set
-        var voidArrayTypeRef = new NamedTypeRefTypeReferenceNode
+        var voidArrayTypeRef = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = Tok("Void") },
             ArrayRank = new UnsizedArrayRankArrayRankSuffixNode(),
-        };
+        } };
 
         var varDecl = new VariableDeclarationStatementStatementNode
         {

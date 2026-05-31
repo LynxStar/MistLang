@@ -120,7 +120,7 @@ public sealed class TupleEmitterOutputTests : IDisposable
         var method = new MethodDeclarationNode
         {
             Name = MakeToken("Run"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = block },
             Modifiers = ImmutableArray<ModifierNode>.Empty,
@@ -236,12 +236,12 @@ public sealed class TupleEmitterOutputTests : IDisposable
         {
             First = new TupleDeconstructionElementNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
                 Name = MakeToken("a"),
             },
             Rest = new TupleDeconstructionElementNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new BoolTypePrimitiveTypeNode() },
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
                 Name = MakeToken("b"),
             },
             TupleDeconstructionElements = ImmutableArray<TupleDeconstructionElementNode>.Empty,

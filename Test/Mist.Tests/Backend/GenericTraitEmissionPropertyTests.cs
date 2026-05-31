@@ -66,17 +66,17 @@ public sealed class GenericTraitEmissionPropertyTests : IDisposable
     private static TypeReferenceNode MakePrimitiveTypeRef(string typeName) =>
         typeName switch
         {
-            "int" => new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
-            "string" => new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new StringTypePrimitiveTypeNode() },
-            "bool" => new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new BoolTypePrimitiveTypeNode() },
-            _ => new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            "int" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
+            "string" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } },
+            "bool" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
+            _ => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
         };
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new NamedTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        };
+        } };
 
     private static TypeParameterListNode MakeTypeParamList(params string[] names)
     {
@@ -138,7 +138,7 @@ public sealed class GenericTraitEmissionPropertyTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {
@@ -445,11 +445,11 @@ public sealed class GenericTraitEmissionPropertyTests : IDisposable
 
         // Program class with: TraitName<concreteType> x = new ClassName();
         var typeArgList = MakeTypeArgList(MakePrimitiveTypeRef(s.ConcreteType));
-        var constructedTypeRef = new NamedTypeRefTypeReferenceNode
+        var constructedTypeRef = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(s.TraitName) },
             TypeArgs = typeArgList,
-        };
+        } };
         var newExpr = WrapPrimaryAsExpression(new ObjectCreationExpressionPrimaryNode
         {
             Type = new QualifiedIdentifierNode { IDENTIFIER = Tok(s.ClassName) },
@@ -468,7 +468,7 @@ public sealed class GenericTraitEmissionPropertyTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {

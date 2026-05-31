@@ -64,7 +64,7 @@ public class ParameterSignatureTests
 
         return new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveType },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveType } },
             Name = MakeToken(paramName),
         };
     }
@@ -147,7 +147,7 @@ public class ParameterSignatureTests
         var method = new MethodDeclarationNode
         {
             Name = MakeToken("M"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
@@ -182,7 +182,7 @@ public class ParameterSignatureTests
         var method = new MethodDeclarationNode
         {
             Name = MakeToken("M"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
@@ -287,7 +287,7 @@ public class ParameterSignatureTests
         var interfaceMethod = new InterfaceMethodDeclarationNode
         {
             Name = MakeToken("M"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
         };
 
@@ -325,7 +325,7 @@ public class ParameterSignatureTests
         var method1 = new MethodDeclarationNode
         {
             Name = MakeToken("M"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = MakeParameter("int", "x") },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
@@ -334,7 +334,7 @@ public class ParameterSignatureTests
         var method2 = new MethodDeclarationNode
         {
             Name = MakeToken("M"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = MakeParameter("bool", "y") },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
@@ -389,7 +389,7 @@ public class ParameterSignatureTests
         var method1 = new MethodDeclarationNode
         {
             Name = MakeToken("M"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = MakeParameter("int", "x") },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
@@ -398,7 +398,7 @@ public class ParameterSignatureTests
         var method2 = new MethodDeclarationNode
         {
             Name = MakeToken("M"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = MakeParameter("int", "y") },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),

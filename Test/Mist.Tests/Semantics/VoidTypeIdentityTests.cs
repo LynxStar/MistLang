@@ -84,7 +84,7 @@ public class VoidTypeIdentityTests
         return new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -180,7 +180,7 @@ public class VoidTypeIdentityTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new VoidTypeRefTypeReferenceNode(),
+                Type = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Name = MakeToken("x"),
                 Initializer = voidExpr,
             },

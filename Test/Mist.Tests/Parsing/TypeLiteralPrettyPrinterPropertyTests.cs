@@ -128,17 +128,17 @@ public class TypeLiteralPrettyPrinterPropertyTests
     /// </summary>
     private static (string TypeNodeName, bool IsArray) DescribeTypeLiteral(TypeLiteralExpressionPrimaryNode tl)
     {
-        if (tl.TypeRef is PrimitiveTypeRefTypeReferenceNode primitiveRef)
+        if (tl.TypeRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef)
         {
             return (primitiveRef.PrimitiveType.GetType().Name, primitiveRef.ArrayRank is not null);
         }
 
-        if (tl.TypeRef is NamedTypeRefTypeReferenceNode namedRef)
+        if (tl.TypeRef.First is NamedSingleTypeRefSingleTypeRefNode namedRef)
         {
             return (namedRef.Name.IDENTIFIER.Lexeme, namedRef.ArrayRank is not null);
         }
 
-        if (tl.TypeRef is VoidTypeRefTypeReferenceNode)
+        if (tl.TypeRef.First is VoidSingleTypeRefSingleTypeRefNode)
         {
             return ("VoidTypeRef", false);
         }

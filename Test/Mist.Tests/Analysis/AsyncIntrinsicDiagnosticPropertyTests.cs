@@ -45,7 +45,7 @@ public class AsyncIntrinsicDiagnosticPropertyTests
             "float" => new FloatTypePrimitiveTypeNode(),
             _ => new IntTypePrimitiveTypeNode(),
         };
-        return new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveNode };
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveNode } };
     }
 
     private static ImmutableArray<Diagnostic> RunTypeChecker(ISemanticModel model)
@@ -118,7 +118,7 @@ public class AsyncIntrinsicDiagnosticPropertyTests
     private static CompilationUnitNode BuildAst(AsyncIntrinsicScenario scenario)
     {
         TypeReferenceNode returnTypeRef = scenario.ReturnTypeName == "void"
-            ? new VoidTypeRefTypeReferenceNode()
+            ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
             : MakePrimitiveTypeRef(scenario.ReturnTypeName);
 
         // Build modifiers in the specified order

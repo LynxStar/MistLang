@@ -103,14 +103,14 @@ public sealed class ValueTaskEmissionPropertyTests
             "float" => new FloatTypePrimitiveTypeNode(),
             _ => new IntTypePrimitiveTypeNode(),
         };
-        return new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveNode };
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveNode } };
     }
 
     private static CompilationUnitNode BuildAst(ValueTaskEmissionScenario scenario)
     {
         // Build the async method
         TypeReferenceNode returnTypeRef = scenario.IsVoid
-            ? new VoidTypeRefTypeReferenceNode()
+            ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
             : MakePrimitiveTypeRef(scenario.ReturnTypeName);
 
         var modifiers = ImmutableArray.CreateBuilder<ModifierNode>();
@@ -192,7 +192,7 @@ public sealed class ValueTaskEmissionPropertyTests
         return new MethodDeclarationNode
         {
             Name = Tok("CallAsync"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {

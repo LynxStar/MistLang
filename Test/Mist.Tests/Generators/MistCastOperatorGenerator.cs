@@ -118,10 +118,10 @@ public static class MistCastOperatorGenerator
     public static Gen<TypeReferenceNode> GenNamedTypeRef()
     {
         return Gen.Elements(ClassNames).Select(name =>
-            (TypeReferenceNode)new NamedTypeRefTypeReferenceNode
+            (TypeReferenceNode)new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-            });
+            } });
     }
 
     /// <summary>
@@ -354,7 +354,7 @@ public static class MistCastOperatorGenerator
                                            Method = new MethodDeclarationNode
                                            {
                                                Name = Tok("Test"),
-                                               ReturnType = new VoidTypeRefTypeReferenceNode(),
+                                               ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                                                Modifiers = ImmutableArray.Create<ModifierNode>(
                                                    new PublicModifierModifierNode()),
                                                Body = new MethodBlockBodyMethodBodyNode
@@ -424,7 +424,7 @@ public static class MistCastOperatorGenerator
                                            Method = new MethodDeclarationNode
                                            {
                                                Name = Tok("Test"),
-                                               ReturnType = new VoidTypeRefTypeReferenceNode(),
+                                               ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                                                Modifiers = ImmutableArray.Create<ModifierNode>(
                                                    new PublicModifierModifierNode()),
                                                Body = new MethodBlockBodyMethodBodyNode

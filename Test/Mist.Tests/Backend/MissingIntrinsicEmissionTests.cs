@@ -91,37 +91,37 @@ public class Program {
 }";
 
         // Build the stdlib AST: intrinsic struct FakeType with operator+
-        var fakeTypeRef = new NamedTypeRefTypeReferenceNode
+        var fakeTypeRef = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode
             {
                 IDENTIFIER = MakeToken("FakeType"),
                 Span = new Storm.Runtime.SourceSpan(0, 0),
             },
-        };
+        } };
 
         var paramA = new ParameterNode
         {
-            Type = new NamedTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode
                 {
                     IDENTIFIER = MakeToken("FakeType"),
                     Span = new Storm.Runtime.SourceSpan(0, 0),
                 },
-            },
+            } },
             Name = MakeToken("a"),
         };
         var paramB = new ParameterNode
         {
-            Type = new NamedTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode
                 {
                     IDENTIFIER = MakeToken("FakeType"),
                     Span = new Storm.Runtime.SourceSpan(0, 0),
                 },
-            },
+            } },
             Name = MakeToken("b"),
         };
 
@@ -177,14 +177,14 @@ public class Program {
             MistAstGenerator.MakeIdentifierExpr("b"),
             "+");
         var stmtAdd = MistAstGenerator.MakeVarDecl(
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             "c",
             addExpr);
 
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {
@@ -288,14 +288,14 @@ public class Program {
 }";
 
         // Build stdlib AST
-        var fakeTypeRef = new NamedTypeRefTypeReferenceNode
+        var fakeTypeRef = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode
             {
                 IDENTIFIER = MakeToken("FakeType"),
                 Span = new Storm.Runtime.SourceSpan(0, 0),
             },
-        };
+        } };
 
         var paramA = new ParameterNode
         {
@@ -304,27 +304,27 @@ public class Program {
         };
         var paramB = new ParameterNode
         {
-            Type = new NamedTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode
                 {
                     IDENTIFIER = MakeToken("FakeType"),
                     Span = new Storm.Runtime.SourceSpan(0, 0),
                 },
-            },
+            } },
             Name = MakeToken("b"),
         };
 
         var operatorDecl = new OperatorDeclarationNode
         {
-            ReturnType = new NamedTypeRefTypeReferenceNode
+            ReturnType = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode
                 {
                     IDENTIFIER = MakeToken("FakeType"),
                     Span = new Storm.Runtime.SourceSpan(0, 0),
                 },
-            },
+            } },
             Symbol = new PlusOpOperatorSymbolNode(),
             Parameters = new ParameterListNode { Parameter = paramA, Parameters = ImmutableArray.Create(paramB) },
             Body = new OperatorNoBodyOperatorBodyNode(),
@@ -367,14 +367,14 @@ public class Program {
             MistAstGenerator.MakeIdentifierExpr("b"),
             "+");
         var stmtAdd = MistAstGenerator.MakeVarDecl(
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             "c",
             addExpr);
 
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {
@@ -474,7 +474,7 @@ public class Program {
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {

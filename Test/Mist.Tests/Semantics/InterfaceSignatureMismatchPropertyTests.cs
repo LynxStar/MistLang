@@ -77,7 +77,7 @@ public class InterfaceSignatureMismatchPropertyTests
         return new InterfaceMethodDeclarationNode
         {
             Name = MakeToken(name),
-            ReturnType = returnType ?? new VoidTypeRefTypeReferenceNode(),
+            ReturnType = returnType ?? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = parameters,
         };
     }
@@ -107,7 +107,7 @@ public class InterfaceSignatureMismatchPropertyTests
         return new MethodDeclarationNode
         {
             Name = MakeToken(name),
-            ReturnType = returnType ?? new VoidTypeRefTypeReferenceNode(),
+            ReturnType = returnType ?? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = parameters,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
@@ -201,19 +201,19 @@ public class InterfaceSignatureMismatchPropertyTests
     // ─── Primitive type reference helpers ─────────────────────────────────
 
     private static TypeReferenceNode MakeIntTypeRef() =>
-        new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() };
+        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } };
 
     private static TypeReferenceNode MakeStringTypeRef() =>
-        new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new StringTypePrimitiveTypeNode() };
+        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } };
 
     private static TypeReferenceNode MakeBoolTypeRef() =>
-        new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new BoolTypePrimitiveTypeNode() };
+        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } };
 
     private static TypeReferenceNode MakeFloatTypeRef() =>
-        new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new FloatTypePrimitiveTypeNode() };
+        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new FloatTypePrimitiveTypeNode() } };
 
     private static TypeReferenceNode MakeVoidTypeRef() =>
-        new VoidTypeRefTypeReferenceNode();
+        new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() };
 
     // ─── Test data models ────────────────────────────────────────────────
 

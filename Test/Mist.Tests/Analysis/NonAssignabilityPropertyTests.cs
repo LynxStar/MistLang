@@ -116,14 +116,14 @@ public class NonAssignabilityPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = MakeToken(declaredTypeName),
                         Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
                     },
-                },
+                } },
                 Name = MakeToken(varName),
                 Initializer = MakeNewObjectExpression(initializedTypeName),
             },
@@ -295,7 +295,7 @@ public class NonAssignabilityPropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = mainStatements } },
             Modifiers = ImmutableArray.Create<ModifierNode>(

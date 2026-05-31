@@ -99,23 +99,23 @@ public class WithBlockGenericTraitPropertyTests
         };
 
     private static TypeReferenceNode MakeIntTypeRef() =>
-        new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() };
+        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } };
 
     private static TypeReferenceNode MakeStringTypeRef() =>
-        new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new StringTypePrimitiveTypeNode() };
+        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } };
 
     private static TypeReferenceNode MakeBoolTypeRef() =>
-        new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new BoolTypePrimitiveTypeNode() };
+        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } };
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new NamedTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode
             {
                 IDENTIFIER = Tok(name),
                 IDENTIFIERs = ImmutableArray<Storm.Runtime.Token>.Empty,
             },
-        };
+        } };
 
     /// <summary>
     /// Creates a generic trait with a field member whose type is the first type parameter.

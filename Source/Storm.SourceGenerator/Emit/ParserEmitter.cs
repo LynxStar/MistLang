@@ -75,6 +75,14 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteLine("[ThreadStatic] private static bool _hasError;");
             writer.WriteLine("[ThreadStatic] private static DiagnosticBag? _diagnostics;");
             writer.WriteLine("[ThreadStatic] private static string? _sourcePath;");
+
+            // Selective packrat memo table: per-parse, thread-local, keyed by (ruleId, pos).
+            // Emitted only when at least one rule is memoized so the zero-memo path is
+            // byte-for-byte identical to the pre-feature parser source.
+            if (context.Memoization.Count > 0)
+            {
+                writer.WriteLine("[ThreadStatic] private static Dictionary<long, (SyntaxNode? Node, int End)>? _memo;");
+            }
         }
 
         // ── Helpers ─────────────────────────────────────────────────────
@@ -90,6 +98,10 @@ namespace Storm.SourceGenerator.Emit
                 writer.WriteLine("_hasError = false;");
                 writer.WriteLine("_diagnostics = diag;");
                 writer.WriteLine("_sourcePath = ts.Source.Path;");
+                if (context.Memoization.Count > 0)
+                {
+                    writer.WriteLine("_memo = new Dictionary<long, (SyntaxNode?, int)>();");
+                }
             });
             writer.WriteEmptyLine();
 
@@ -165,6 +177,14 @@ namespace Storm.SourceGenerator.Emit
 
             // Hidden token attachment
             EmitHiddenTokenHelpers(writer, context);
+
+            // Memo-table key helper: packs (ruleId, pos) into a long. Emitted only
+            // when at least one rule is memoized so the zero-memo path is unchanged.
+            if (context.Memoization.Count > 0)
+            {
+                writer.WriteEmptyLine();
+                writer.WriteLine("private static long MemoKey(int ruleId, int pos) => ((long)ruleId << 32) | (uint)pos;");
+            }
         }
 
         // ── Hidden token attachment ─────────────────────────────────────
@@ -278,10 +298,76 @@ namespace Storm.SourceGenerator.Emit
         private static void EmitInternalParseMethod(CodeWriter writer, EmissionContext context, RuleIR rule)
         {
             var nodeName = rule.Name + "Node";
-            var methodName = "_Parse" + rule.Name;
             var hasNamedAlts = rule.Alternatives.Any(a => a.AlternativeName != null);
 
+            // Memoized rule: emit a thin probe/store wrapper under the public internal
+            // name (_ParseR) and the existing body machinery under _ParseR_Body. Every
+            // caller already calls _ParseR() and is unchanged. Non-memoized rules (and
+            // every rule when no plan is present) are emitted exactly as before, so the
+            // zero-memo path stays byte-for-byte identical to the pre-feature parser.
+            if (context.Memoization.IsMemoized(rule.Name))
+            {
+                EmitMemoizedInternalParseMethod(writer, context, rule, nodeName, hasNamedAlts);
+                return;
+            }
+
+            var methodName = "_Parse" + rule.Name;
+
             writer.WriteBlock($"private static {nodeName}? {methodName}()", () =>
+            {
+                writer.WriteLine("if (_hasError) return null;");
+                if (rule.Alternatives.Count == 1 && !hasNamedAlts)
+                {
+                    EmitSingleAlt(writer, context, rule.Alternatives[0], nodeName);
+                }
+                else
+                {
+                    EmitMultiAlt(writer, context, rule, nodeName, hasNamedAlts);
+                }
+            });
+        }
+
+        // ── Memoized internal parse method (wrapper + renamed body) ─────
+
+        private static void EmitMemoizedInternalParseMethod(CodeWriter writer, EmissionContext context, RuleIR rule, string nodeName, bool hasNamedAlts)
+        {
+            var ruleId = context.Memoization.RuleIds[rule.Name];
+            var wrapperName = "_Parse" + rule.Name;
+            var bodyName = "_Parse" + rule.Name + "_Body";
+
+            // Thin memoized wrapper. The leading error-flag check is evaluated exactly
+            // once at entry; there is no re-check before the probe. On a cache hit we
+            // restore the saved end position and return the cached node/null without
+            // running the body or touching diagnostics. On a miss we run the existing
+            // body, store (result, endPos), and return.
+            writer.WriteBlock($"private static {nodeName}? {wrapperName}()", () =>
+            {
+                writer.WriteLine("if (_hasError) return null;");
+                writer.WriteEmptyLine();
+                writer.WriteLine($"var _key = MemoKey({ruleId}, _pos);");
+                writer.WriteBlock("if (_memo!.TryGetValue(_key, out var _hit))", () =>
+                {
+                    writer.WriteLine("_pos = _hit.End;");
+                    writer.WriteLine($"return ({nodeName}?)_hit.Node;");
+                });
+                writer.WriteEmptyLine();
+                writer.WriteLine("var _entryPos = _pos;");
+                writer.WriteLine($"var _result = {bodyName}();");
+                // Store the end position. A successful body leaves _pos at the end of the
+                // consumed span; a failed body returns null. Multi-alternative bodies
+                // restore _pos to the entry position on failure, but single-alternative
+                // bodies do not, so we force End == _entryPos on failure to guarantee a
+                // cached failure restores the cursor to the entry position (Req 2.6).
+                writer.WriteLine("_memo[_key] = (_result, _result == null ? _entryPos : _pos);");
+                writer.WriteLine("return _result;");
+            });
+
+            writer.WriteEmptyLine();
+
+            // Renamed body: exactly today's emitted method, under the _Body name. The
+            // EmitSingleAlt/EmitMultiAlt machinery is untouched — only the method name
+            // differs when the rule is memoized.
+            writer.WriteBlock($"private static {nodeName}? {bodyName}()", () =>
             {
                 writer.WriteLine("if (_hasError) return null;");
                 if (rule.Alternatives.Count == 1 && !hasNamedAlts)

@@ -60,22 +60,22 @@ public class TraitMemberAccessPropertyTests
     {
         return typeName switch
         {
-            "int" => new PrimitiveTypeRefTypeReferenceNode
+            "int" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
-            "string" => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            "string" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new StringTypePrimitiveTypeNode(),
-            },
-            "bool" => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            "bool" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new BoolTypePrimitiveTypeNode(),
-            },
-            _ => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            _ => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
         };
     }
 
@@ -152,14 +152,14 @@ public class TraitMemberAccessPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = Tok(declaredTypeName),
                         Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
                     },
-                },
+                } },
                 Name = Tok(varName),
                 Initializer = MakeNewObjectExpression(initializedTypeName),
             },
@@ -189,7 +189,7 @@ public class TraitMemberAccessPropertyTests
         return new MethodDeclarationNode
         {
             Name = Tok(name),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode
             {
                 Block = new BlockNode
@@ -273,7 +273,7 @@ public class TraitMemberAccessPropertyTests
                 Method = new TraitMethodDeclarationNode
                 {
                     ReturnType = m.returnType == "void"
-                        ? new VoidTypeRefTypeReferenceNode()
+                        ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
                         : MakePrimitiveTypeRef(m.returnType),
                     Name = Tok(m.methodName),
                     Parameters = paramList,
@@ -342,7 +342,7 @@ public class TraitMemberAccessPropertyTests
                 {
                     Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
                     ReturnType = m.returnType == "void"
-                        ? new VoidTypeRefTypeReferenceNode()
+                        ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
                         : MakePrimitiveTypeRef(m.returnType),
                     Name = Tok(m.methodName),
                     Parameters = paramList,

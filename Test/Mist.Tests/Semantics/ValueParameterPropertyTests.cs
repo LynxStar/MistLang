@@ -84,9 +84,9 @@ public class ValueParameterPropertyTests
 
     private static string GetTypeName(TypeReferenceNode type)
     {
-        return type switch
+        return type.First switch
         {
-            PrimitiveTypeRefTypeReferenceNode prim => prim.PrimitiveType switch
+            PrimitiveSingleTypeRefSingleTypeRefNode prim => prim.PrimitiveType switch
             {
                 IntTypePrimitiveTypeNode => "int",
                 BoolTypePrimitiveTypeNode => "bool",

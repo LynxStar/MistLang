@@ -101,7 +101,7 @@ public class VoidInstanceExpressionPropertyTests
         return new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -187,7 +187,7 @@ public class VoidInstanceExpressionPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new VoidTypeRefTypeReferenceNode(),
+                Type = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Name = MakeToken(scenario.VarName),
                 Initializer = voidExpr,
             },
@@ -254,7 +254,7 @@ public class VoidInstanceExpressionPropertyTests
         var testMethod = new MethodDeclarationNode
         {
             Name = MakeToken(scenario.MethodName),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray.Create<StatementNode>(returnStmt) } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
@@ -288,7 +288,7 @@ public class VoidInstanceExpressionPropertyTests
         {
             Parameter = new ParameterNode
             {
-                Type = new VoidTypeRefTypeReferenceNode(),
+                Type = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Name = MakeToken(scenario.ParamName),
             },
         };
@@ -296,7 +296,7 @@ public class VoidInstanceExpressionPropertyTests
         var targetMethod = new MethodDeclarationNode
         {
             Name = MakeToken(scenario.MethodName),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = paramList,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),

@@ -68,12 +68,12 @@ public class NewtypeParserPropertyTests
 
     private static string ExtractTypeReferenceText(TypeReferenceNode typeRef, string source)
     {
-        return typeRef switch
+        return typeRef.First switch
         {
-            PrimitiveTypeRefTypeReferenceNode primitiveRef => EmitPrimitiveType(primitiveRef.PrimitiveType),
-            NamedTypeRefTypeReferenceNode namedRef => ExtractSpanText(namedRef.Name, source),
+            PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => EmitPrimitiveType(primitiveRef.PrimitiveType),
+            NamedSingleTypeRefSingleTypeRefNode namedRef => ExtractSpanText(namedRef.Name, source),
             _ => throw new InvalidOperationException(
-                $"Unexpected TypeReferenceNode variant: {typeRef.GetType().Name}")
+                $"Unexpected TypeReferenceNode variant: {typeRef.First.GetType().Name}")
         };
     }
 

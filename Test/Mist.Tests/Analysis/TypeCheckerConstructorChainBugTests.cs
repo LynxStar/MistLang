@@ -145,14 +145,14 @@ public class TypeCheckerConstructorChainBugTests
         var fieldX = new FieldDeclarationNode
         {
             Name = MakeToken("x"),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()),
         };
 
         // Primary constructor: Point(int x) { this.x = x; }
         var paramX = new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Name = MakeToken("x"),
         };
         var primaryCtor = new ConstructorDeclarationNode
@@ -191,7 +191,7 @@ public class TypeCheckerConstructorChainBugTests
         var getXMethod = new MethodDeclarationNode
         {
             Name = MakeToken("GetX"),
-            ReturnType = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -244,19 +244,19 @@ public class TypeCheckerConstructorChainBugTests
         var fieldR = new FieldDeclarationNode
         {
             Name = MakeToken("r"),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
         var fieldG = new FieldDeclarationNode
         {
             Name = MakeToken("g"),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
         var fieldB = new FieldDeclarationNode
         {
             Name = MakeToken("b"),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -305,7 +305,7 @@ public class TypeCheckerConstructorChainBugTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(

@@ -92,20 +92,20 @@ public class TraitEffectiveMembersPropertyTests
         };
 
     private static TypeReferenceNode MakeIntTypeRef() =>
-        new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() };
+        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } };
 
     private static TypeReferenceNode MakeStringTypeRef() =>
-        new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new StringTypePrimitiveTypeNode() };
+        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } };
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new NamedTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode
             {
                 IDENTIFIER = Tok(name),
                 IDENTIFIERs = ImmutableArray<Storm.Runtime.Token>.Empty,
             },
-        };
+        } };
 
     private static BaseListNode MakeBaseList(params BaseTypeRefNode[] refs)
     {

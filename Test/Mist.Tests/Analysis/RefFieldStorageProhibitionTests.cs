@@ -89,10 +89,10 @@ public class RefFieldStorageProhibitionTests
 
     private static TypeReferenceNode MakeIntTypeRef()
     {
-        return new PrimitiveTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
         {
             PrimitiveType = new IntTypePrimitiveTypeNode(),
-        };
+        } };
     }
 
     /// <summary>

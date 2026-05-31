@@ -139,10 +139,10 @@ public class RefReturnLifetimeSafetyTests
 
     private static TypeReferenceNode MakeIntTypeRef()
     {
-        return new PrimitiveTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
         {
             PrimitiveType = new IntTypePrimitiveTypeNode(),
-        };
+        } };
     }
 
     private static ReturnStatementNode MakeReturnStatement(ExpressionNode value)

@@ -124,10 +124,10 @@ public class TypeUnionExhaustivenessPropertyTests
         var keyword = TypePool[typeIndex].Keyword;
         PrimaryPatternNode primary = new TypePatternPrimaryPatternNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = MakePrimitiveTypeNode(keyword),
-            },
+            } },
             Name = Tok("x"),
         };
         var unary = new DirectPatternUnaryPatternNode { Primary = primary };

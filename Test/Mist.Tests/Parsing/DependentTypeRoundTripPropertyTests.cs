@@ -415,7 +415,7 @@ public class DependentTypeRoundTripPropertyTests
         string fieldName)
     {
         // Build a NamedTypeRef with type arguments: Buffer<5>
-        var fieldType = (TypeReferenceNode)new NamedTypeRefTypeReferenceNode
+        var fieldType = (TypeReferenceNode)new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode
             {
@@ -423,7 +423,7 @@ public class DependentTypeRoundTripPropertyTests
                 IDENTIFIERs = ImmutableArray<Storm.Runtime.Token>.Empty,
             },
             TypeArgs = typeArgs,
-        };
+        } };
 
         var field = new FieldDeclarationNode
         {
@@ -481,7 +481,7 @@ public class DependentTypeRoundTripPropertyTests
         };
 
         // Usage: class Client { FixedBuffer<5> data; }
-        var fieldType = (TypeReferenceNode)new NamedTypeRefTypeReferenceNode
+        var fieldType = (TypeReferenceNode)new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode
             {
@@ -489,7 +489,7 @@ public class DependentTypeRoundTripPropertyTests
                 IDENTIFIERs = ImmutableArray<Storm.Runtime.Token>.Empty,
             },
             TypeArgs = typeArgs,
-        };
+        } };
 
         var field = new FieldDeclarationNode
         {

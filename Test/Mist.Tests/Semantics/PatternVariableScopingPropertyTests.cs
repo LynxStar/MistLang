@@ -116,10 +116,10 @@ public class PatternVariableScopingPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = MakePrimitiveType(typeName),
-                },
+                } },
                 Name = Tok(name),
                 Initializer = initializer,
             },
@@ -130,10 +130,10 @@ public class PatternVariableScopingPropertyTests
     {
         var primary = new TypePatternPrimaryPatternNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = MakePrimitiveType(typeName),
-            },
+            } },
             Name = Tok(bindingName),
         };
         var unary = new DirectPatternUnaryPatternNode { Primary = primary };

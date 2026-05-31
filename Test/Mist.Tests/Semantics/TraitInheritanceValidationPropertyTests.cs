@@ -142,10 +142,10 @@ public class TraitInheritanceValidationPropertyTests
                 {
                     Field = new TraitFieldDeclarationNode
                     {
-                        Type = new PrimitiveTypeRefTypeReferenceNode
+                        Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                         {
                             PrimitiveType = new IntTypePrimitiveTypeNode(),
-                        },
+                        } },
                         Name = Tok("dummy"),
                     },
                 }),

@@ -77,11 +77,11 @@ public class EntryPointPropertyTests
             {
                 Parameter = new ParameterNode
                 {
-                    Type = new PrimitiveTypeRefTypeReferenceNode
+                    Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                     {
                         PrimitiveType = new StringTypePrimitiveTypeNode(),
                         ArrayRank = new UnsizedArrayRankArrayRankSuffixNode(),
-                    },
+                    } },
                     Name = MakeToken("args"),
                 },
             };
@@ -90,7 +90,7 @@ public class EntryPointPropertyTests
         return new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = parameters,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -159,7 +159,7 @@ public class EntryPointPropertyTests
             var method = new MethodDeclarationNode
             {
                 Name = MakeToken("Run"),
-                ReturnType = new VoidTypeRefTypeReferenceNode(),
+                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Parameters = null,
                 Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
                 Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -195,7 +195,7 @@ public class EntryPointPropertyTests
             var method = new MethodDeclarationNode
             {
                 Name = MakeToken("Main"),
-                ReturnType = new VoidTypeRefTypeReferenceNode(),
+                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Parameters = null,
                 Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
                 Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -216,10 +216,10 @@ public class EntryPointPropertyTests
             var method = new MethodDeclarationNode
             {
                 Name = MakeToken("Main"),
-                ReturnType = new PrimitiveTypeRefTypeReferenceNode
+                ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Parameters = null,
                 Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
                 Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -305,7 +305,7 @@ public class EntryPointPropertyTests
         var method = new MethodDeclarationNode
         {
             Name = MakeToken("Run"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
@@ -349,7 +349,7 @@ public class EntryPointPropertyTests
         var method = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -375,10 +375,10 @@ public class EntryPointPropertyTests
         var method = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new PrimitiveTypeRefTypeReferenceNode
+            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
             Modifiers = ImmutableArray.Create<ModifierNode>(

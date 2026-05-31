@@ -9,7 +9,7 @@ namespace Mist.Tests.Parsing;
 /// Unit tests for parsing the <c>unknown</c> keyword.
 ///
 /// Positive tests validate that <c>unknown</c> parses to an
-/// <see cref="UnknownTypeRefTypeReferenceNode"/> in every legal type-reference
+/// <see cref="UnknownSingleTypeRefSingleTypeRefNode"/> in every legal type-reference
 /// position (local variable type, top-level type argument, nested type argument).
 ///
 /// Negative tests validate that the lexer produces the <c>UNKNOWN</c> token
@@ -73,7 +73,7 @@ public class UnknownTypeParserTests
     public void Parses_Unknown_As_Local_Variable_Type()
     {
         // `unknown x = 1;` inside a method body. The local's declared type
-        // reference must resolve to UnknownTypeRefTypeReferenceNode.
+        // reference must resolve to UnknownSingleTypeRefSingleTypeRefNode.
         var source = "class T { public void M() { unknown x = 1; } }";
         var (cu, hasErrors) = ParseSource(source);
 
@@ -81,14 +81,14 @@ public class UnknownTypeParserTests
         Assert.NotNull(cu);
 
         var varDecl = GetFirstLocalDecl(cu!);
-        Assert.IsType<UnknownTypeRefTypeReferenceNode>(varDecl.Type);
+        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(varDecl.Type.First);
     }
 
     [Fact]
     public void Parses_Unknown_As_Type_Argument_In_List()
     {
         // `List<unknown> xs = ...;` — the type argument at position 0 of
-        // the named-type reference must be UnknownTypeRefTypeReferenceNode.
+        // the named-type reference must be UnknownSingleTypeRefSingleTypeRefNode.
         var source = "class T { public void M() { List<unknown> xs = 0; } }";
         var (cu, hasErrors) = ParseSource(source);
 
@@ -96,11 +96,11 @@ public class UnknownTypeParserTests
         Assert.NotNull(cu);
 
         var varDecl = GetFirstLocalDecl(cu!);
-        var named = Assert.IsType<NamedTypeRefTypeReferenceNode>(varDecl.Type);
+        var named = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(varDecl.Type.First);
         Assert.NotNull(named.TypeArgs);
         var typeArgs = GetTypeArgs(named.TypeArgs!);
         Assert.Single(typeArgs);
-        Assert.IsType<UnknownTypeRefTypeReferenceNode>(typeArgs[0]);
+        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(typeArgs[0].First);
     }
 
     [Fact]
@@ -115,15 +115,15 @@ public class UnknownTypeParserTests
         Assert.NotNull(cu);
 
         var varDecl = GetFirstLocalDecl(cu!);
-        var named = Assert.IsType<NamedTypeRefTypeReferenceNode>(varDecl.Type);
+        var named = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(varDecl.Type.First);
         Assert.NotNull(named.TypeArgs);
         var typeArgs = GetTypeArgs(named.TypeArgs!);
         Assert.Equal(2, typeArgs.Count);
 
-        var firstPrim = Assert.IsType<PrimitiveTypeRefTypeReferenceNode>(typeArgs[0]);
+        var firstPrim = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(typeArgs[0].First);
         Assert.IsType<StringTypePrimitiveTypeNode>(firstPrim.PrimitiveType);
 
-        Assert.IsType<UnknownTypeRefTypeReferenceNode>(typeArgs[1]);
+        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(typeArgs[1].First);
     }
 
     [Fact]
@@ -138,17 +138,17 @@ public class UnknownTypeParserTests
         Assert.NotNull(cu);
 
         var varDecl = GetFirstLocalDecl(cu!);
-        var outer = Assert.IsType<NamedTypeRefTypeReferenceNode>(varDecl.Type);
+        var outer = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(varDecl.Type.First);
         Assert.NotNull(outer.TypeArgs);
         var outerArgs = GetTypeArgs(outer.TypeArgs!);
         Assert.Single(outerArgs);
 
-        var inner = Assert.IsType<NamedTypeRefTypeReferenceNode>(outerArgs[0]);
+        var inner = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(outerArgs[0].First);
         Assert.NotNull(inner.TypeArgs);
         var innerArgs = GetTypeArgs(inner.TypeArgs!);
         Assert.Single(innerArgs);
 
-        Assert.IsType<UnknownTypeRefTypeReferenceNode>(innerArgs[0]);
+        Assert.IsType<UnknownSingleTypeRefSingleTypeRefNode>(innerArgs[0].First);
     }
 
     // ─── Negative tests — `unknown` cannot be an identifier ────────────────

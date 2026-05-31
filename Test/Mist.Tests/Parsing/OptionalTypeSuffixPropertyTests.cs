@@ -183,12 +183,12 @@ public sealed class OptionalTypeSuffixPropertyTests
         bool optionalIsSet;
         if (scenario.IsPrimitive)
         {
-            var primitiveRef = typeRef as PrimitiveTypeRefTypeReferenceNode;
+            var primitiveRef = typeRef.First as PrimitiveSingleTypeRefSingleTypeRefNode;
             optionalIsSet = primitiveRef?.Optional is not null;
         }
         else
         {
-            var namedRef = typeRef as NamedTypeRefTypeReferenceNode;
+            var namedRef = typeRef.First as NamedSingleTypeRefSingleTypeRefNode;
             optionalIsSet = namedRef?.Optional is not null;
         }
 
@@ -247,7 +247,7 @@ public sealed class OptionalTypeSuffixPropertyTests
         var source = $"class T {{ public void M() {{ {primitiveType}[]? x = default; }} }}";
         var typeRef = GetVariableTypeRef(source);
 
-        var primitiveRef = Assert.IsType<PrimitiveTypeRefTypeReferenceNode>(typeRef);
+        var primitiveRef = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(typeRef.First);
         Assert.NotNull(primitiveRef.ArrayRank);
         Assert.NotNull(primitiveRef.Optional);
     }
@@ -258,12 +258,12 @@ public sealed class OptionalTypeSuffixPropertyTests
     [InlineData("string", "float")]
     public void OptionalBeforeUnion_ParsesAsUnionTypeRef(string leftType, string rightType)
     {
-        // T? | U should parse as a UnionTypeRef with T? as the first constituent
+        // T? | U should parse as a union with T? as the first constituent
         var source = $"class T {{ public void M() {{ {leftType}? | {rightType} x = default; }} }}";
         var typeRef = GetVariableTypeRef(source);
 
-        var unionRef = Assert.IsType<UnionTypeRefTypeReferenceNode>(typeRef);
-        var firstConstituent = unionRef.UnionType.First;
+        Assert.NotEmpty(typeRef.SingleTypeRefs);
+        var firstConstituent = typeRef.First;
 
         // The first constituent should be a PrimitiveSingleTypeRef with optional set
         var primSingle = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(firstConstituent);
@@ -279,7 +279,7 @@ public sealed class OptionalTypeSuffixPropertyTests
         var source = $"class T {{ public void M() {{ {namedType}[]? x = default; }} }}";
         var typeRef = GetVariableTypeRef(source);
 
-        var namedRef = Assert.IsType<NamedTypeRefTypeReferenceNode>(typeRef);
+        var namedRef = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(typeRef.First);
         Assert.NotNull(namedRef.ArrayRank);
         Assert.NotNull(namedRef.Optional);
     }
@@ -321,7 +321,7 @@ public sealed class OptionalTypeSuffixPropertyTests
         // T? sets the optional field
         var sourceWithOptional = $"class T {{ public void M() {{ {primitiveType}? x = default; }} }}";
         var typeRefOptional = GetVariableTypeRef(sourceWithOptional);
-        var primRefOptional = Assert.IsType<PrimitiveTypeRefTypeReferenceNode>(typeRefOptional);
+        var primRefOptional = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(typeRefOptional.First);
         Assert.NotNull(primRefOptional.Optional);
 
         // Verify that the QUESTION token is what sets the optional field

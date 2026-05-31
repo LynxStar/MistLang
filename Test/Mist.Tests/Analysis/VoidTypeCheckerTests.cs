@@ -123,7 +123,7 @@ public class VoidTypeCheckerTests
         return new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body ?? ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -134,11 +134,11 @@ public class VoidTypeCheckerTests
 
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null)
     {
-        return new NamedTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
             TypeArgs = typeArgs,
-        };
+        } };
     }
 
     private static TypeParameterListNode MakeTypeParamList(string[] names)
@@ -292,7 +292,7 @@ public class VoidTypeCheckerTests
         {
             Parameter = new ParameterNode
             {
-                Type = new VoidTypeRefTypeReferenceNode(),
+                Type = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Name = Tok("p"),
             },
         };
@@ -300,7 +300,7 @@ public class VoidTypeCheckerTests
         var targetMethod = new MethodDeclarationNode
         {
             Name = Tok("Target"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = paramList,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -350,7 +350,7 @@ public class VoidTypeCheckerTests
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        var typeArgList = MakeTypeArgList([new VoidTypeRefTypeReferenceNode()]);
+        var typeArgList = MakeTypeArgList([new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }]);
         var fieldTypeRef = MakeNamedTypeRef("Result", typeArgList);
         var fieldMember = MakeFieldMember("result", fieldTypeRef);
 
@@ -397,7 +397,7 @@ public class VoidTypeCheckerTests
         var testMethod = new MethodDeclarationNode
         {
             Name = Tok("DoWork"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray.Create<StatementNode>(returnStmt) } },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
@@ -437,7 +437,7 @@ public class VoidTypeCheckerTests
         {
             Name = Tok("Container"),
             Members = ImmutableArray.Create(
-                MakeFieldMember("value", new VoidTypeRefTypeReferenceNode())),
+                MakeFieldMember("value", new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() })),
         };
 
         var programClass = new ClassDeclarationNode
@@ -470,10 +470,10 @@ public class VoidTypeCheckerTests
     {
         // struct Container { Void value; }
         // class Program { public static void Main() { } }
-        var voidIdentifierTypeRef = new NamedTypeRefTypeReferenceNode
+        var voidIdentifierTypeRef = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = Tok("Void") },
-        };
+        } };
 
         var containerStruct = new StructDeclarationNode
         {
@@ -523,7 +523,7 @@ public class VoidTypeCheckerTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new VoidTypeRefTypeReferenceNode(),
+                Type = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Name = Tok("value"),
                 Initializer = MakeVoidDotVoidExpression(),
             },

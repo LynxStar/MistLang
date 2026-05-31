@@ -202,8 +202,10 @@ public sealed class EntryPointAnalyzer : IAnalyzer
             // Valid entry point return types:
             // - void (standard entry point)
             // - int (exit code entry point, requires async modifier per Requirement 11.4)
-            var isVoidReturn = methodDecl.ReturnType is VoidTypeRefTypeReferenceNode;
-            var isIntReturn = methodDecl.ReturnType is PrimitiveTypeRefTypeReferenceNode primitiveRef
+            var isVoidReturn = methodDecl.ReturnType.First is VoidSingleTypeRefSingleTypeRefNode
+                && methodDecl.ReturnType.SingleTypeRefs.Length == 0;
+            var isIntReturn = methodDecl.ReturnType.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef
+                && methodDecl.ReturnType.SingleTypeRefs.Length == 0
                 && primitiveRef.PrimitiveType is IntTypePrimitiveTypeNode
                 && primitiveRef.ArrayRank is null;
 
@@ -246,7 +248,7 @@ public sealed class EntryPointAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsStringArrayTypeRef(TypeReferenceNode typeRef)
     {
-        if (typeRef is PrimitiveTypeRefTypeReferenceNode primitiveRef)
+        if (typeRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef)
         {
             return primitiveRef.PrimitiveType is StringTypePrimitiveTypeNode
                    && primitiveRef.ArrayRank is not null;

@@ -98,9 +98,9 @@ public static class MistPropertyGenerator
     /// <summary>Generates a simple initializer expression matching a type.</summary>
     public static Gen<ExpressionNode> GenInitializerForType(TypeReferenceNode type)
     {
-        return type switch
+        return type.First switch
         {
-            PrimitiveTypeRefTypeReferenceNode prim => prim.PrimitiveType switch
+            PrimitiveSingleTypeRefSingleTypeRefNode prim => prim.PrimitiveType switch
             {
                 IntTypePrimitiveTypeNode => Gen.Choose(0, 100).Select(n => MakeIntLiteral(n.ToString())),
                 BoolTypePrimitiveTypeNode => Gen.Elements(true, false).Select(MakeBoolLiteral),
@@ -559,7 +559,7 @@ public static class MistPropertyGenerator
         var mainMethod = new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {

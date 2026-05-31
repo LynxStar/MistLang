@@ -92,7 +92,7 @@ public class WithStatementParsingTests
         var stmt = GetFirstStatement(result);
         var withTypedStmt = Assert.IsType<WithTypedDeclarationStatementStatementNode>(stmt);
         Assert.Equal("count", withTypedStmt.WithTypedDeclaration.Name.Lexeme);
-        Assert.IsType<PrimitiveTypeRefTypeReferenceNode>(withTypedStmt.WithTypedDeclaration.Type);
+        Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(withTypedStmt.WithTypedDeclaration.Type.First);
     }
 
     // ─── Test 3: with MyType _ = someExpr; ──────────────────────────────

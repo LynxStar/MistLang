@@ -119,7 +119,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
             var field = new FieldDeclarationNode
             {
                 Name = MakeToken($"field{i}"),
-                Type = new NamedTypeRefTypeReferenceNode { Name = qualifiedId },
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode { Name = qualifiedId } },
             };
             fields.Add(new FieldMemberMemberDeclarationNode { Field = field });
         }
@@ -128,7 +128,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -312,7 +312,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -321,10 +321,10 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
                     {
                         VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
                         {
-                            Type = new PrimitiveTypeRefTypeReferenceNode
+                            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                             {
                                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-                            },
+                            } },
                             Name = MakeToken("x"),
                             Initializer = MakeIntLiteralExpression("42"),
                         },

@@ -9,8 +9,9 @@ using Mist.Parsing.Contracts;
 namespace Mist.Tests.Parsing;
 
 /// <summary>
-/// Unit tests verifying that the parser produces <see cref="UnionTypeRefNode"/>
-/// for union type annotations, with correct constituent count and ordering.
+/// Unit tests verifying that the parser produces a union <see cref="TypeReferenceNode"/>
+/// (one with non-empty <c>SingleTypeRefs</c>) for union type annotations, with correct
+/// constituent count and ordering.
 /// </summary>
 public class UnionTypeRefParsingTests
 {
@@ -58,13 +59,14 @@ public class UnionTypeRefParsingTests
     }
 
     /// <summary>
-    /// Collects all constituent <see cref="SingleTypeRefNode"/> from a <see cref="UnionTypeRefNode"/>.
+    /// Collects all constituent <see cref="SingleTypeRefNode"/> from a union
+    /// <see cref="TypeReferenceNode"/>.
     /// The order is: First, then all elements from SingleTypeRefs (which are the rest constituents in source order).
     /// </summary>
-    private static List<SingleTypeRefNode> GetAllConstituents(UnionTypeRefNode unionNode)
+    private static List<SingleTypeRefNode> GetAllConstituents(TypeReferenceNode typeRef)
     {
-        var constituents = new List<SingleTypeRefNode> { unionNode.First };
-        constituents.AddRange(unionNode.SingleTypeRefs);
+        var constituents = new List<SingleTypeRefNode> { typeRef.First };
+        constituents.AddRange(typeRef.SingleTypeRefs);
         return constituents;
     }
 
@@ -75,9 +77,8 @@ public class UnionTypeRefParsingTests
     {
         var typeRef = GetVariableTypeRef("int | string");
 
-        var unionTypeRef = Assert.IsType<UnionTypeRefTypeReferenceNode>(typeRef);
-        var unionNode = unionTypeRef.UnionType;
-        var constituents = GetAllConstituents(unionNode);
+        Assert.NotEmpty(typeRef.SingleTypeRefs);
+        var constituents = GetAllConstituents(typeRef);
 
         Assert.Equal(2, constituents.Count);
     }
@@ -87,9 +88,8 @@ public class UnionTypeRefParsingTests
     {
         var typeRef = GetVariableTypeRef("int | string");
 
-        var unionTypeRef = Assert.IsType<UnionTypeRefTypeReferenceNode>(typeRef);
-        var unionNode = unionTypeRef.UnionType;
-        var constituents = GetAllConstituents(unionNode);
+        Assert.NotEmpty(typeRef.SingleTypeRefs);
+        var constituents = GetAllConstituents(typeRef);
 
         var first = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(constituents[0]);
         Assert.IsType<IntTypePrimitiveTypeNode>(first.PrimitiveType);
@@ -100,9 +100,8 @@ public class UnionTypeRefParsingTests
     {
         var typeRef = GetVariableTypeRef("int | string");
 
-        var unionTypeRef = Assert.IsType<UnionTypeRefTypeReferenceNode>(typeRef);
-        var unionNode = unionTypeRef.UnionType;
-        var constituents = GetAllConstituents(unionNode);
+        Assert.NotEmpty(typeRef.SingleTypeRefs);
+        var constituents = GetAllConstituents(typeRef);
 
         var second = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(constituents[1]);
         Assert.IsType<StringTypePrimitiveTypeNode>(second.PrimitiveType);
@@ -115,9 +114,8 @@ public class UnionTypeRefParsingTests
     {
         var typeRef = GetVariableTypeRef("int | string | bool");
 
-        var unionTypeRef = Assert.IsType<UnionTypeRefTypeReferenceNode>(typeRef);
-        var unionNode = unionTypeRef.UnionType;
-        var constituents = GetAllConstituents(unionNode);
+        Assert.NotEmpty(typeRef.SingleTypeRefs);
+        var constituents = GetAllConstituents(typeRef);
 
         Assert.Equal(3, constituents.Count);
     }
@@ -127,9 +125,8 @@ public class UnionTypeRefParsingTests
     {
         var typeRef = GetVariableTypeRef("int | string | bool");
 
-        var unionTypeRef = Assert.IsType<UnionTypeRefTypeReferenceNode>(typeRef);
-        var unionNode = unionTypeRef.UnionType;
-        var constituents = GetAllConstituents(unionNode);
+        Assert.NotEmpty(typeRef.SingleTypeRefs);
+        var constituents = GetAllConstituents(typeRef);
 
         var first = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(constituents[0]);
         Assert.IsType<IntTypePrimitiveTypeNode>(first.PrimitiveType);
@@ -148,9 +145,8 @@ public class UnionTypeRefParsingTests
     {
         var typeRef = GetVariableTypeRef("int[] | string");
 
-        var unionTypeRef = Assert.IsType<UnionTypeRefTypeReferenceNode>(typeRef);
-        var unionNode = unionTypeRef.UnionType;
-        var constituents = GetAllConstituents(unionNode);
+        Assert.NotEmpty(typeRef.SingleTypeRefs);
+        var constituents = GetAllConstituents(typeRef);
 
         Assert.Equal(2, constituents.Count);
     }
@@ -160,9 +156,8 @@ public class UnionTypeRefParsingTests
     {
         var typeRef = GetVariableTypeRef("int[] | string");
 
-        var unionTypeRef = Assert.IsType<UnionTypeRefTypeReferenceNode>(typeRef);
-        var unionNode = unionTypeRef.UnionType;
-        var constituents = GetAllConstituents(unionNode);
+        Assert.NotEmpty(typeRef.SingleTypeRefs);
+        var constituents = GetAllConstituents(typeRef);
 
         // First constituent should be int[] (PrimitiveSingleTypeRef with ArrayRank set)
         var first = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(constituents[0]);
@@ -175,9 +170,8 @@ public class UnionTypeRefParsingTests
     {
         var typeRef = GetVariableTypeRef("int[] | string");
 
-        var unionTypeRef = Assert.IsType<UnionTypeRefTypeReferenceNode>(typeRef);
-        var unionNode = unionTypeRef.UnionType;
-        var constituents = GetAllConstituents(unionNode);
+        Assert.NotEmpty(typeRef.SingleTypeRefs);
+        var constituents = GetAllConstituents(typeRef);
 
         var second = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(constituents[1]);
         Assert.IsType<StringTypePrimitiveTypeNode>(second.PrimitiveType);
@@ -191,13 +185,12 @@ public class UnionTypeRefParsingTests
     {
         // (int | string)[] is a ParenthesizedTypeRef SingleTypeRef with array rank.
         // Since it's a single SingleTypeRef without a top-level PIPE, it cannot be
-        // a UnionTypeRef at the top level. We need to use it within a union to test
+        // a union at the top level. We need to use it within a union to test
         // the parenthesized form: (int | string)[] | bool
         var typeRef = GetVariableTypeRef("(int | string)[] | bool");
 
-        var unionTypeRef = Assert.IsType<UnionTypeRefTypeReferenceNode>(typeRef);
-        var unionNode = unionTypeRef.UnionType;
-        var constituents = GetAllConstituents(unionNode);
+        Assert.NotEmpty(typeRef.SingleTypeRefs);
+        var constituents = GetAllConstituents(typeRef);
 
         Assert.Equal(2, constituents.Count);
 
@@ -206,8 +199,8 @@ public class UnionTypeRefParsingTests
         Assert.NotNull(parenRef.ArrayRank);
 
         // The inner type of the parenthesized ref should be a union: int | string
-        var innerUnion = Assert.IsType<UnionTypeRefTypeReferenceNode>(parenRef.Inner);
-        var innerConstituents = GetAllConstituents(innerUnion.UnionType);
+        Assert.NotEmpty(parenRef.Inner.SingleTypeRefs);
+        var innerConstituents = GetAllConstituents(parenRef.Inner);
         Assert.Equal(2, innerConstituents.Count);
 
         var innerFirst = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(innerConstituents[0]);

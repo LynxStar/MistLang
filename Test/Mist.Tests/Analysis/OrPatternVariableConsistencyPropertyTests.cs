@@ -119,10 +119,10 @@ public class OrPatternVariableConsistencyPropertyTests
         // Left alternative: int leftName
         var leftPrimary = new TypePatternPrimaryPatternNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Name = Tok(scenario.LeftBindingName),
         };
         var leftUnary = new DirectPatternUnaryPatternNode { Primary = leftPrimary };
@@ -131,10 +131,10 @@ public class OrPatternVariableConsistencyPropertyTests
         // Right alternative: string rightName
         var rightPrimary = new TypePatternPrimaryPatternNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new StringTypePrimitiveTypeNode(),
-            },
+            } },
             Name = Tok(scenario.RightBindingName),
         };
         var rightUnary = new DirectPatternUnaryPatternNode { Primary = rightPrimary };

@@ -33,7 +33,7 @@ public sealed class UnionPrettyPrintScenario
 /// <summary>
 /// Property-based tests for pretty-printer formatting of union types.
 ///
-/// Property 3: For any UnionTypeRefNode AST, the pretty-printer SHALL produce output
+/// Property 3: For any union TypeReferenceNode AST, the pretty-printer SHALL produce output
 /// with exactly one space before and after each | operator, and constituent types
 /// formatted according to their individual formatting rules.
 /// </summary>

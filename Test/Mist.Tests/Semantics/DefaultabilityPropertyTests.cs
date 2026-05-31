@@ -92,21 +92,21 @@ public class DefaultabilityPropertyTests
 
     private static FieldDeclarationNode MakePrimitiveField(string fieldName, string typeName)
     {
-        return MakeField(fieldName, new PrimitiveTypeRefTypeReferenceNode
+        return MakeField(fieldName, new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
         {
             PrimitiveType = MakePrimitiveType(typeName),
-        });
+        } });
     }
 
     private static FieldDeclarationNode MakeNamedTypeField(string fieldName, string typeName)
     {
-        return MakeField(fieldName, new NamedTypeRefTypeReferenceNode
+        return MakeField(fieldName, new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode
             {
                 IDENTIFIER = MakeToken(typeName),
             },
-        });
+        } });
     }
 
     private static MemberDeclarationNode MakeFieldMember(FieldDeclarationNode field)

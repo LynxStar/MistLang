@@ -176,7 +176,7 @@ public class ConstraintClauseParsingTests
         // Single parameter type: int
         var paramTypes = ctorConstraint.ParamTypes!;
         Assert.Empty(paramTypes.TypeReferences); // Only the first TypeReference, no additional ones
-        var firstType = paramTypes.TypeReference as PrimitiveTypeRefTypeReferenceNode;
+        var firstType = paramTypes.TypeReference.First as PrimitiveSingleTypeRefSingleTypeRefNode;
         Assert.NotNull(firstType);
         Assert.IsType<IntTypePrimitiveTypeNode>(firstType!.PrimitiveType);
     }
@@ -198,11 +198,11 @@ public class ConstraintClauseParsingTests
         var paramTypes = ctorConstraint.ParamTypes!;
         Assert.Single(paramTypes.TypeReferences); // One additional type beyond the first
 
-        var firstType = paramTypes.TypeReference as PrimitiveTypeRefTypeReferenceNode;
+        var firstType = paramTypes.TypeReference.First as PrimitiveSingleTypeRefSingleTypeRefNode;
         Assert.NotNull(firstType);
         Assert.IsType<IntTypePrimitiveTypeNode>(firstType!.PrimitiveType);
 
-        var secondType = paramTypes.TypeReferences[0] as PrimitiveTypeRefTypeReferenceNode;
+        var secondType = paramTypes.TypeReferences[0].First as PrimitiveSingleTypeRefSingleTypeRefNode;
         Assert.NotNull(secondType);
         Assert.IsType<StringTypePrimitiveTypeNode>(secondType!.PrimitiveType);
     }
@@ -221,7 +221,7 @@ public class ConstraintClauseParsingTests
         var constraints = GetConstraints(clause);
         Assert.Single(constraints);
         var typeConstraint = Assert.IsType<TypeConstraintConstraintNode>(constraints[0]);
-        var namedType = typeConstraint.Type as NamedTypeRefTypeReferenceNode;
+        var namedType = typeConstraint.Type.First as NamedSingleTypeRefSingleTypeRefNode;
         Assert.NotNull(namedType);
     }
 
@@ -481,15 +481,15 @@ public class ConstraintClauseParsingTests
         var paramTypes = ctorConstraint.ParamTypes!;
         Assert.Equal(2, paramTypes.TypeReferences.Length); // 2 additional beyond the first
 
-        var firstType = paramTypes.TypeReference as PrimitiveTypeRefTypeReferenceNode;
+        var firstType = paramTypes.TypeReference.First as PrimitiveSingleTypeRefSingleTypeRefNode;
         Assert.NotNull(firstType);
         Assert.IsType<IntTypePrimitiveTypeNode>(firstType!.PrimitiveType);
 
-        var secondType = paramTypes.TypeReferences[0] as PrimitiveTypeRefTypeReferenceNode;
+        var secondType = paramTypes.TypeReferences[0].First as PrimitiveSingleTypeRefSingleTypeRefNode;
         Assert.NotNull(secondType);
         Assert.IsType<IntTypePrimitiveTypeNode>(secondType!.PrimitiveType);
 
-        var thirdType = paramTypes.TypeReferences[1] as PrimitiveTypeRefTypeReferenceNode;
+        var thirdType = paramTypes.TypeReferences[1].First as PrimitiveSingleTypeRefSingleTypeRefNode;
         Assert.NotNull(thirdType);
         Assert.IsType<StringTypePrimitiveTypeNode>(thirdType!.PrimitiveType);
     }
@@ -511,14 +511,14 @@ public class ConstraintClauseParsingTests
         // Second: new(int)
         var ctor2 = Assert.IsType<ConstructorConstraintConstraintNode>(constraints[1]);
         Assert.NotNull(ctor2.ParamTypes);
-        var ctor2Type = ctor2.ParamTypes!.TypeReference as PrimitiveTypeRefTypeReferenceNode;
+        var ctor2Type = ctor2.ParamTypes!.TypeReference.First as PrimitiveSingleTypeRefSingleTypeRefNode;
         Assert.NotNull(ctor2Type);
         Assert.IsType<IntTypePrimitiveTypeNode>(ctor2Type!.PrimitiveType);
 
         // Third: new(bool)
         var ctor3 = Assert.IsType<ConstructorConstraintConstraintNode>(constraints[2]);
         Assert.NotNull(ctor3.ParamTypes);
-        var ctor3Type = ctor3.ParamTypes!.TypeReference as PrimitiveTypeRefTypeReferenceNode;
+        var ctor3Type = ctor3.ParamTypes!.TypeReference.First as PrimitiveSingleTypeRefSingleTypeRefNode;
         Assert.NotNull(ctor3Type);
         Assert.IsType<BoolTypePrimitiveTypeNode>(ctor3Type!.PrimitiveType);
     }

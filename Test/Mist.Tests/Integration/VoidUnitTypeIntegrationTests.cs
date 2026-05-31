@@ -151,11 +151,11 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
 
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null)
     {
-        return new NamedTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
             TypeArgs = typeArgs,
-        };
+        } };
     }
 
     private static TypeParameterListNode MakeTypeParamList(string[] names)
@@ -185,7 +185,7 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         return new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body ?? ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -293,7 +293,7 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         //   Result<void> result;
         //   public static void Main() { }
         // }
-        var typeArgList = MakeTypeArgList([new VoidTypeRefTypeReferenceNode()]);
+        var typeArgList = MakeTypeArgList([new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }]);
         var fieldTypeRef = MakeNamedTypeRef("Result", typeArgList);
         var resultFieldMember = new FieldMemberMemberDeclarationNode
         {
@@ -435,7 +435,7 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         var doWorkMethod = new MethodDeclarationNode
         {
             Name = Tok("DoWork"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -503,7 +503,7 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         var doWorkMethod = new MethodDeclarationNode
         {
             Name = Tok("DoWork"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {

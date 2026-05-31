@@ -1,3 +1,4 @@
+using Storm.SourceGenerator.Analyze;
 using Storm.SourceGenerator.IR;
 
 namespace Storm.SourceGenerator.Emit
@@ -25,11 +26,20 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         public GrammarIR Grammar { get; }
 
-        public EmissionContext(string consumerNamespace, string grammarName, GrammarIR grammar)
+        /// <summary>
+        /// The set of rules selected for packrat memoization, with a stable integer id
+        /// per memoized rule. Never null; defaults to <see cref="MemoizationPlan.Empty"/>
+        /// when memoization is disabled, so emitters constructed without a plan produce
+        /// output identical to the pre-feature parser. Only <c>ParserEmitter</c> reads it.
+        /// </summary>
+        public MemoizationPlan Memoization { get; }
+
+        public EmissionContext(string consumerNamespace, string grammarName, GrammarIR grammar, MemoizationPlan? memoization = null)
         {
             ConsumerNamespace = consumerNamespace;
             GrammarName = grammarName;
             Grammar = grammar;
+            Memoization = memoization ?? MemoizationPlan.Empty;
         }
     }
 }

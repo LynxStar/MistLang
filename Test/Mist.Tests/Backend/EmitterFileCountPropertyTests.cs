@@ -90,10 +90,10 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
         var field = new FieldDeclarationNode
         {
             Name = MakeToken("value"),
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
         };
         members.Add(new FieldMemberMemberDeclarationNode { Field = field });
 
@@ -102,7 +102,7 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
             var mainMethod = new MethodDeclarationNode
             {
                 Name = MakeToken("Main"),
-                ReturnType = new VoidTypeRefTypeReferenceNode(),
+                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Parameters = null,
                 Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
                 Modifiers = ImmutableArray.Create<ModifierNode>(

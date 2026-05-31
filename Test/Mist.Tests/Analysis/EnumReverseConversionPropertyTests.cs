@@ -141,20 +141,20 @@ public class EnumReverseConversionPropertyTests
     }
 
     private static TypeReferenceNode MakeIntTypeRef() =>
-        new PrimitiveTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
         {
             PrimitiveType = new IntTypePrimitiveTypeNode(),
-        };
+        } };
 
     private static TypeReferenceNode MakeEnumTypeRef(string enumName) =>
-        new NamedTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode
             {
                 IDENTIFIER = Tok(enumName),
                 Span = new Storm.Runtime.SourceSpan(0, enumName.Length),
             },
-        };
+        } };
 
     private static CompilationUnitNode BuildAst(EnumReverseConversionScenario scenario)
     {
@@ -195,7 +195,7 @@ public class EnumReverseConversionPropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {

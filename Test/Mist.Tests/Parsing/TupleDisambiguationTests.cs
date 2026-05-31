@@ -83,7 +83,7 @@ public class TupleDisambiguationTests
         var fieldMember = Assert.IsType<FieldMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
 
         // The type should be a PrimitiveTypeRef, not a TupleTypeRef.
-        Assert.IsType<PrimitiveTypeRefTypeReferenceNode>(fieldMember.Field.Type);
+        Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(fieldMember.Field.Type.First);
     }
 
     // ─── Requirement 7.5: var ( disambiguates deconstruction from var x ──
@@ -179,7 +179,7 @@ public class TupleDisambiguationTests
         var typeDecl = Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
         var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(typeDecl.ClassDeclaration.Members[0]);
 
-        Assert.IsType<TupleTypeRefTypeReferenceNode>(methodMember.Method.ReturnType);
+        Assert.IsType<TupleSingleTypeRefSingleTypeRefNode>(methodMember.Method.ReturnType.First);
     }
 
     // ─── Helper ─────────────────────────────────────────────────────────

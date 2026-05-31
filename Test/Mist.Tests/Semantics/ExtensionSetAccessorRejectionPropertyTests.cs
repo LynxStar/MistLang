@@ -124,10 +124,10 @@ public class ExtensionSetAccessorRejectionPropertyTests
     // ─── AST construction helpers ────────────────────────────────────────
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new NamedTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        };
+        } };
 
     private static ExpressionNode MakeLiteralExpression(string typeName)
     {

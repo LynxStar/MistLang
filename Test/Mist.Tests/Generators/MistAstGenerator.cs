@@ -286,7 +286,7 @@ public static class MistAstGenerator
     public static StatementNode MakeIntVarDecl(string name, string value = "0")
     {
         return MakeVarDecl(
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             name,
             WrapPrimary(new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = Tok(value) }));
     }
@@ -298,7 +298,7 @@ public static class MistAstGenerator
             ? new TrueLiteralExpressionPrimaryNode()
             : new FalseLiteralExpressionPrimaryNode();
         return MakeVarDecl(
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new BoolTypePrimitiveTypeNode() },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
             name,
             WrapPrimary(primary));
     }
@@ -307,7 +307,7 @@ public static class MistAstGenerator
     public static StatementNode MakeStringVarDecl(string name, string value = "\"hello\"")
     {
         return MakeVarDecl(
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new StringTypePrimitiveTypeNode() },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } },
             name,
             WrapPrimary(new StringLiteralExpressionPrimaryNode { StringLiteral = Tok(value) }));
     }
@@ -446,7 +446,7 @@ public static class MistAstGenerator
                from stmt in GenStatement(0)
                select MakeMethod(
                    name,
-                   new VoidTypeRefTypeReferenceNode(),
+                   new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                    ImmutableArray.Create(stmt),
                    ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()));
     }

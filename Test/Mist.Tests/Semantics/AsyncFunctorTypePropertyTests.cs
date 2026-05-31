@@ -48,7 +48,7 @@ public class AsyncFunctorTypePropertyTests
             "float" => new FloatTypePrimitiveTypeNode(),
             _ => new IntTypePrimitiveTypeNode(),
         };
-        return new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveNode };
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveNode } };
     }
 
     // ─── Scenario record ─────────────────────────────────────────────────
@@ -122,7 +122,7 @@ public class AsyncFunctorTypePropertyTests
     {
         // Build the target method (the one being called with async functor)
         TypeReferenceNode returnTypeRef = scenario.IsVoid
-            ? new VoidTypeRefTypeReferenceNode()
+            ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
             : MakePrimitiveTypeRef(scenario.ReturnTypeName);
 
         var targetModifiers = ImmutableArray.CreateBuilder<ModifierNode>();
@@ -180,7 +180,7 @@ public class AsyncFunctorTypePropertyTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {

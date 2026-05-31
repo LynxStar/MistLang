@@ -109,7 +109,7 @@ public class FieldInitializerTests
         return new FieldDeclarationNode
         {
             Name = MakeToken(fieldName),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveType },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveType } },
             Initializer = MakeIntLiteralExpression("0"),  // The initializer expression
             Modifiers = modifiers.Length > 0
                 ? ImmutableArray.Create(modifiers)
@@ -125,7 +125,7 @@ public class FieldInitializerTests
         return new FieldDeclarationNode
         {
             Name = MakeToken(fieldName),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveType },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveType } },
             Modifiers = modifiers.Length > 0
                 ? ImmutableArray.Create(modifiers)
                 : ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()),
@@ -273,10 +273,10 @@ public class FieldInitializerTests
         var method = new MethodDeclarationNode
         {
             Name = MakeToken("GetValue"),
-            ReturnType = new PrimitiveTypeRefTypeReferenceNode
+            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -349,7 +349,7 @@ public class FieldInitializerTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             Modifiers = ImmutableArray.Create<ModifierNode>(

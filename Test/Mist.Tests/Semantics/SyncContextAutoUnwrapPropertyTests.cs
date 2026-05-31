@@ -48,7 +48,7 @@ public class SyncContextAutoUnwrapPropertyTests
             "float" => new FloatTypePrimitiveTypeNode(),
             _ => new IntTypePrimitiveTypeNode(),
         };
-        return new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveNode };
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveNode } };
     }
 
     // ─── Scenario record ─────────────────────────────────────────────────
@@ -119,7 +119,7 @@ public class SyncContextAutoUnwrapPropertyTests
     {
         // Build the async target method
         TypeReferenceNode returnTypeRef = scenario.IsVoid
-            ? new VoidTypeRefTypeReferenceNode()
+            ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
             : MakePrimitiveTypeRef(scenario.ReturnTypeName);
 
         var targetMethod = new MethodDeclarationNode
@@ -170,7 +170,7 @@ public class SyncContextAutoUnwrapPropertyTests
         var callerMethod = new MethodDeclarationNode
         {
             Name = Tok("Caller"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {

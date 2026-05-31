@@ -480,14 +480,14 @@ public class TypeLiteralSemanticPropertyTests
     {
         var primary = new TypeLiteralExpressionPrimaryNode
         {
-            TypeRef = new NamedTypeRefTypeReferenceNode
+            TypeRef = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode
                 {
                     IDENTIFIER = MakeToken(typeName),
                     Span = new Storm.Runtime.SourceSpan(0, typeName.Length),
                 },
-            },
+            } },
         };
         var postfix = new PostfixNode
         {
@@ -513,7 +513,7 @@ public class TypeLiteralSemanticPropertyTests
         var methodDecl = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = statements } },
         };

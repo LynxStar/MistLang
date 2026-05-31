@@ -129,14 +129,14 @@ public class InterfaceAssignabilityPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = MakeToken(declaredTypeName),
                         Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
                     },
-                },
+                } },
                 Name = MakeToken(varName),
                 Initializer = MakeNewObjectExpression(initializedTypeName),
             },
@@ -172,7 +172,7 @@ public class InterfaceAssignabilityPropertyTests
         return new InterfaceMethodDeclarationNode
         {
             Name = MakeToken(name),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
         };
     }
@@ -217,7 +217,7 @@ public class InterfaceAssignabilityPropertyTests
         return new MethodDeclarationNode
         {
             Name = MakeToken(name),
-            ReturnType = returnType ?? new VoidTypeRefTypeReferenceNode(),
+            ReturnType = returnType ?? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = parameters,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -511,14 +511,14 @@ public class InterfaceAssignabilityPropertyTests
                 // Add the helper method: static void AcceptInterface(IFoo param) { }
                 var param = new ParameterNode
                 {
-                    Type = new NamedTypeRefTypeReferenceNode
+                    Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                     {
                         Name = new QualifiedIdentifierNode
                         {
                             IDENTIFIER = MakeToken(scenario.InterfaceName),
                             Span = new Storm.Runtime.SourceSpan(0, scenario.InterfaceName.Length),
                         },
-                    },
+                    } },
                     Name = MakeToken("param"),
                 };
                 programMembers.Add(WrapMethod(MakeMethodDecl(
@@ -532,14 +532,14 @@ public class InterfaceAssignabilityPropertyTests
                 // static IFoo GetInstance() { return new Foo(); }
                 var returnStmt = MakeReturnStatement(
                     MakeNewObjectExpression(scenario.ImplementingTypeName));
-                var returnTypeRef = new NamedTypeRefTypeReferenceNode
+                var returnTypeRef = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = MakeToken(scenario.InterfaceName),
                         Span = new Storm.Runtime.SourceSpan(0, scenario.InterfaceName.Length),
                     },
-                };
+                } };
                 programMembers.Add(WrapMethod(MakeMethodDecl(
                     "GetInstance",
                     returnType: returnTypeRef,

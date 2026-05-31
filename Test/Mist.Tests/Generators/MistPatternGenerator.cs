@@ -109,20 +109,20 @@ public static class MistPatternGenerator
         var intTypePattern = from bindName in Gen.Elements(BindingNames)
                              select (PrimaryPatternNode)new TypePatternPrimaryPatternNode
                              {
-                                 Type = new PrimitiveTypeRefTypeReferenceNode
+                                 Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                                  {
                                      PrimitiveType = new IntTypePrimitiveTypeNode(),
-                                 },
+                                 } },
                                  Name = Tok(bindName),
                              };
 
         var stringTypePattern = from bindName in Gen.Elements(BindingNames)
                                 select (PrimaryPatternNode)new TypePatternPrimaryPatternNode
                                 {
-                                    Type = new PrimitiveTypeRefTypeReferenceNode
+                                    Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                                     {
                                         PrimitiveType = new StringTypePrimitiveTypeNode(),
-                                    },
+                                    } },
                                     Name = Tok(bindName),
                                 };
 
@@ -368,18 +368,18 @@ public static class MistPatternGenerator
                select MakeOrPattern(
                    new TypePatternPrimaryPatternNode
                    {
-                       Type = new PrimitiveTypeRefTypeReferenceNode
+                       Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                        {
                            PrimitiveType = new IntTypePrimitiveTypeNode(),
-                       },
+                       } },
                        Name = Tok(leftBind),
                    },
                    new TypePatternPrimaryPatternNode
                    {
-                       Type = new PrimitiveTypeRefTypeReferenceNode
+                       Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                        {
                            PrimitiveType = new StringTypePrimitiveTypeNode(),
-                       },
+                       } },
                        Name = Tok(rightBind),
                    });
     }

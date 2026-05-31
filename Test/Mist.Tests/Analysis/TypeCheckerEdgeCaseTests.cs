@@ -250,14 +250,14 @@ public class TypeCheckerEdgeCaseTests
     private static StatementNode MakeIntVarDecl(string name, string value = "0")
     {
         return MakeTypedVarDecl(
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             name, MakeIntLiteralExpression(value));
     }
 
     private static StatementNode MakeStringVarDecl(string name, string value = "\"hello\"")
     {
         return MakeTypedVarDecl(
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new StringTypePrimitiveTypeNode() },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } },
             name, MakeStringLiteralExpression(value));
     }
 
@@ -271,7 +271,7 @@ public class TypeCheckerEdgeCaseTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = mainStatements } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -314,7 +314,7 @@ public class TypeCheckerEdgeCaseTests
         var mainMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -351,7 +351,7 @@ public class TypeCheckerEdgeCaseTests
         var ast = MakeProgram(ImmutableArray.Create(
             MakeIntVarDecl("x", "0"),
             MakeTypedVarDecl(
-                new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new BoolTypePrimitiveTypeNode() },
+                new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
                 "b",
                 MakeBoolLiteralExpression(true)),
             MakeExpressionStatement(assignExpr)));
@@ -369,10 +369,10 @@ public class TypeCheckerEdgeCaseTests
         // bool a = true; bool b = false; a + b;
         var ast = MakeProgram(ImmutableArray.Create(
             MakeTypedVarDecl(
-                new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new BoolTypePrimitiveTypeNode() },
+                new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
                 "a", MakeBoolLiteralExpression(true)),
             MakeTypedVarDecl(
-                new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new BoolTypePrimitiveTypeNode() },
+                new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
                 "b", MakeBoolLiteralExpression(false)),
             MakeExpressionStatement(MakeAdditiveExpression(
                 MakeIdentifierExpression("a"), MakeIdentifierExpression("b"), "+"))));
@@ -410,10 +410,10 @@ public class TypeCheckerEdgeCaseTests
 
         var ast = MakeProgram(ImmutableArray.Create(
             MakeTypedVarDecl(
-                new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new BoolTypePrimitiveTypeNode() },
+                new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
                 "a", MakeBoolLiteralExpression(true)),
             MakeTypedVarDecl(
-                new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new BoolTypePrimitiveTypeNode() },
+                new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
                 "b", MakeBoolLiteralExpression(false)),
             MakeExpressionStatement(expr)));
 
@@ -492,7 +492,7 @@ public class TypeCheckerEdgeCaseTests
         // int GetValue() { return "hello"; }
         var ast = MakeProgramWithMethod(
             "GetValue",
-            new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             ImmutableArray.Create(MakeReturnStatement(MakeStringLiteralExpression("\"hello\""))));
 
         var model = BuildModel(ast);
@@ -523,7 +523,7 @@ public class TypeCheckerEdgeCaseTests
         var method = new MethodDeclarationNode
         {
             Name = MakeToken("Run"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
@@ -552,7 +552,7 @@ public class TypeCheckerEdgeCaseTests
         var mainA = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -561,7 +561,7 @@ public class TypeCheckerEdgeCaseTests
         var mainB = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -760,7 +760,7 @@ public class TypeCheckerEdgeCaseTests
 
     // ─── Helper: create PrimitiveTypeRef from type name ──────────────────
 
-    private static PrimitiveTypeRefTypeReferenceNode MakePrimitiveTypeRef(string typeName)
+    private static TypeReferenceNode MakePrimitiveTypeRef(string typeName)
     {
         PrimitiveTypeNode primitiveNode = typeName switch
         {
@@ -781,9 +781,9 @@ public class TypeCheckerEdgeCaseTests
             _ => throw new ArgumentException($"Unknown primitive type: {typeName}"),
         };
 
-        return new PrimitiveTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
         {
             PrimitiveType = primitiveNode,
-        };
+        } };
     }
 }

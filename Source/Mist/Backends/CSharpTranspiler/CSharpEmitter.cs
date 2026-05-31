@@ -1035,7 +1035,7 @@ internal sealed class CSharpSourceWriter
         foreach (var member in members)
         {
             if (member is MethodMemberMemberDeclarationNode methodMember &&
-                methodMember.Method.ReturnType is VoidTypeRefTypeReferenceNode)
+                methodMember.Method.ReturnType.First is VoidSingleTypeRefSingleTypeRefNode)
             {
                 voidMethodNames.Add(methodMember.Method.Name.Lexeme);
             }
@@ -2343,11 +2343,11 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string GetExtensionReceiverTypeName(TypeReferenceNode typeRef)
     {
-        return typeRef switch
+        return typeRef.First switch
         {
-            UnknownTypeRefTypeReferenceNode => "Unknown",
-            NamedTypeRefTypeReferenceNode namedRef => ExtractSimpleTypeName(namedRef),
-            PrimitiveTypeRefTypeReferenceNode primitiveRef => GetPrimitiveTypeName(primitiveRef),
+            UnknownSingleTypeRefSingleTypeRefNode => "Unknown",
+            NamedSingleTypeRefSingleTypeRefNode namedRef => ExtractSimpleTypeName(namedRef),
+            PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => GetPrimitiveTypeName(primitiveRef),
             _ => "Unknown",
         };
     }
@@ -2356,7 +2356,7 @@ internal sealed class CSharpSourceWriter
     /// Extracts the simple type name from a named type reference, including
     /// generic type arguments in a flattened form (e.g., <c>List&lt;T&gt;</c> → <c>ListOfT</c>).
     /// </summary>
-    private string ExtractSimpleTypeName(NamedTypeRefTypeReferenceNode namedRef)
+    private string ExtractSimpleTypeName(NamedSingleTypeRefSingleTypeRefNode namedRef)
     {
         // Use the qualified name extraction which handles dotted names via source span.
         var fullName = ExtractQualifiedName(namedRef.Name);
@@ -2384,11 +2384,11 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string GetTypeArgName(TypeReferenceNode typeRef)
     {
-        return typeRef switch
+        return typeRef.First switch
         {
-            NamedTypeRefTypeReferenceNode named => ExtractSimpleTypeName(named),
-            PrimitiveTypeRefTypeReferenceNode prim => GetPrimitiveTypeName(prim),
-            UnknownTypeRefTypeReferenceNode => "Unknown",
+            NamedSingleTypeRefSingleTypeRefNode named => ExtractSimpleTypeName(named),
+            PrimitiveSingleTypeRefSingleTypeRefNode prim => GetPrimitiveTypeName(prim),
+            UnknownSingleTypeRefSingleTypeRefNode => "Unknown",
             _ => "T"
         };
     }
@@ -2416,7 +2416,7 @@ internal sealed class CSharpSourceWriter
     /// <summary>
     /// Gets the C#-friendly name for a primitive type reference.
     /// </summary>
-    private static string GetPrimitiveTypeName(PrimitiveTypeRefTypeReferenceNode primitiveRef)
+    private static string GetPrimitiveTypeName(PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef)
     {
         return primitiveRef.PrimitiveType switch
         {
@@ -3381,7 +3381,7 @@ internal sealed class CSharpSourceWriter
             if (member is not MethodMemberMemberDeclarationNode methodMember) continue;
             var methodDecl = methodMember.Method;
             var returnTypeRef = methodDecl.ReturnType;
-            if (returnTypeRef is not NamedTypeRefTypeReferenceNode namedReturn) continue;
+            if (returnTypeRef.First is not NamedSingleTypeRefSingleTypeRefNode namedReturn) continue;
             if (namedReturn.TypeArgs is null) continue;
 
             var returnName = ExtractQualifiedName(namedReturn.Name);
@@ -3431,7 +3431,7 @@ internal sealed class CSharpSourceWriter
             return EmitTypeReference(typeRef);
 
         // For named type references, check if the name is a type parameter that needs substitution.
-        if (typeRef is NamedTypeRefTypeReferenceNode namedRef)
+        if (typeRef.First is NamedSingleTypeRefSingleTypeRefNode namedRef)
         {
             var name = namedRef.Name.IDENTIFIER.Lexeme;
             if (string.IsNullOrEmpty(name))
@@ -4783,7 +4783,8 @@ internal sealed class CSharpSourceWriter
             {
                 // Sync method that needs C# async due to propagation:
                 // Wrap the declared return type in Task<T>.
-                if (methodDecl.ReturnType is VoidTypeRefTypeReferenceNode)
+                if (methodDecl.ReturnType.First is VoidSingleTypeRefSingleTypeRefNode
+                    && methodDecl.ReturnType.SingleTypeRefs.Length == 0)
                 {
                     returnType = "System.Threading.Tasks.Task";
                 }
@@ -4797,7 +4798,8 @@ internal sealed class CSharpSourceWriter
         // Context-sensitive void return type: if this void method's return value
         // is consumed at any call site, emit MistVoid instead of void.
         // (Only applies when not already wrapped in Task by async emission above.)
-        var isValueReturningVoid = methodDecl.ReturnType is VoidTypeRefTypeReferenceNode
+        var isValueReturningVoid = methodDecl.ReturnType.First is VoidSingleTypeRefSingleTypeRefNode
+            && methodDecl.ReturnType.SingleTypeRefs.Length == 0
             && _valueReturningVoidMethods.Contains(name)
             && asyncPrefix.Length == 0;
         if (isValueReturningVoid)
@@ -5494,8 +5496,8 @@ internal sealed class CSharpSourceWriter
             // a parameter list is always the union type operator (not logical OR
             // which is `||`).
             var firstType = paramList.Parameter.Type;
-            if (firstType is not VoidTypeRefTypeReferenceNode
-                && firstType is not UnionTypeRefTypeReferenceNode
+            if (firstType.First is not VoidSingleTypeRefSingleTypeRefNode
+                && firstType.SingleTypeRefs.Length == 0
                 && !TypeReferenceContainsUnknown(firstType)
                 && !TypeReferenceHasOptionalSuffix(firstType)
                 && !ContainsVoidOrUnknownKeyword(sourceText)
@@ -5570,10 +5572,10 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private static bool TypeReferenceHasOptionalSuffix(TypeReferenceNode typeRef)
     {
-        return typeRef switch
+        return typeRef.First switch
         {
-            PrimitiveTypeRefTypeReferenceNode p => p.Optional is not null,
-            NamedTypeRefTypeReferenceNode n => n.Optional is not null,
+            PrimitiveSingleTypeRefSingleTypeRefNode p => p.Optional is not null,
+            NamedSingleTypeRefSingleTypeRefNode n => n.Optional is not null,
             _ => false,
         };
     }
@@ -5695,9 +5697,9 @@ internal sealed class CSharpSourceWriter
 
     /// <summary>
     /// Returns <c>true</c> if <paramref name="typeRef"/> is either
-    /// <see cref="UnknownTypeRefTypeReferenceNode"/> directly, or a
-    /// <see cref="NamedTypeRefTypeReferenceNode"/> whose type-argument
-    /// list transitively contains an <see cref="UnknownTypeRefTypeReferenceNode"/>.
+    /// <see cref="UnknownSingleTypeRefSingleTypeRefNode"/> directly, or a
+    /// <see cref="NamedSingleTypeRefSingleTypeRefNode"/> whose type-argument
+    /// list transitively contains an <see cref="UnknownSingleTypeRefSingleTypeRefNode"/>.
     /// Used by <see cref="EmitParameterList"/> to decide whether the
     /// source-text fast-path is safe; any appearance of <c>unknown</c>
     /// in the type requires the fallback (which routes through
@@ -5707,12 +5709,17 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private static bool TypeReferenceContainsUnknown(TypeReferenceNode typeRef)
     {
-        switch (typeRef)
+        // Unions (non-empty continuation list) were a distinct node variant
+        // pre-restructure that fell through to `return false`; preserve that.
+        if (typeRef.SingleTypeRefs.Length > 0)
+            return false;
+
+        switch (typeRef.First)
         {
-            case UnknownTypeRefTypeReferenceNode:
+            case UnknownSingleTypeRefSingleTypeRefNode:
                 return true;
 
-            case NamedTypeRefTypeReferenceNode named:
+            case NamedSingleTypeRefSingleTypeRefNode named:
                 if (named.TypeArgs is null) return false;
                 // Check all type arguments — only TypeReferenceTypeArgument variants
                 // can contain unknown. Literal type arguments (int, bool, char, etc.)
@@ -5732,7 +5739,7 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
-    /// Checks if a single type argument contains <see cref="UnknownTypeRefTypeReferenceNode"/>.
+    /// Checks if a single type argument contains <see cref="UnknownSingleTypeRefSingleTypeRefNode"/>.
     /// Only <see cref="TypeReferenceTypeArgumentTypeArgumentNode"/> variants can contain unknown;
     /// literal type arguments (integers, booleans, chars) for dependent types never contain unknown.
     /// </summary>
@@ -5750,7 +5757,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private bool TypeReferenceHasDependentTypeArguments(TypeReferenceNode typeRef)
     {
-        if (typeRef is not NamedTypeRefTypeReferenceNode named)
+        if (typeRef.First is not NamedSingleTypeRefSingleTypeRefNode named)
             return false;
         if (named.TypeArgs is null)
             return false;
@@ -5774,7 +5781,7 @@ internal sealed class CSharpSourceWriter
             {
                 if (targetTypeParams[i] is DependentTypeParameterType
                     && allArgs[i] is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg
-                    && typeRefArg.Type is NamedTypeRefTypeReferenceNode argNamedRef
+                    && typeRefArg.Type.First is NamedSingleTypeRefSingleTypeRefNode argNamedRef
                     && argNamedRef.TypeArgs is null
                     && argNamedRef.ArrayRank is null)
                 {
@@ -5805,7 +5812,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string ResolveAliasForEmission(
         TypeAliasType aliasType,
-        NamedTypeRefTypeReferenceNode namedRef,
+        NamedSingleTypeRefSingleTypeRefNode namedRef,
         bool isValueContext)
     {
         var underlying = aliasType.UnderlyingType;
@@ -5894,7 +5901,7 @@ internal sealed class CSharpSourceWriter
     private bool ParameterListContainsTypeAlias(ParameterListNode paramList, string sourceText)
     {
         // Check the first parameter's type reference structurally.
-        if (paramList.Parameter.Type is NamedTypeRefTypeReferenceNode namedRef)
+        if (paramList.Parameter.Type.First is NamedSingleTypeRefSingleTypeRefNode namedRef)
         {
             var name = ExtractQualifiedName(namedRef.Name);
             if (_model.AllSymbols.Any(s => s.Name == name && s.Kind == SymbolKind.TypeAlias))
@@ -6220,10 +6227,10 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private static bool IsArrayTypeReference(TypeReferenceNode typeRef)
     {
-        return typeRef switch
+        return typeRef.First switch
         {
-            PrimitiveTypeRefTypeReferenceNode primitiveRef => primitiveRef.ArrayRank is not null,
-            NamedTypeRefTypeReferenceNode namedRef => namedRef.ArrayRank is not null,
+            PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => primitiveRef.ArrayRank is not null,
+            NamedSingleTypeRefSingleTypeRefNode namedRef => namedRef.ArrayRank is not null,
             _ => false,
         };
     }
@@ -6234,10 +6241,10 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string EmitArrayElementTypeName(TypeReferenceNode typeRef)
     {
-        return typeRef switch
+        return typeRef.First switch
         {
-            PrimitiveTypeRefTypeReferenceNode primitiveRef => EmitPrimitiveType(primitiveRef.PrimitiveType),
-            NamedTypeRefTypeReferenceNode namedRef => ExtractQualifiedName(namedRef.Name) + EmitTypeArgumentList(namedRef.TypeArgs),
+            PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => EmitPrimitiveType(primitiveRef.PrimitiveType),
+            NamedSingleTypeRefSingleTypeRefNode namedRef => ExtractQualifiedName(namedRef.Name) + EmitTypeArgumentList(namedRef.TypeArgs),
             _ => "object",
         };
     }
@@ -6255,9 +6262,34 @@ internal sealed class CSharpSourceWriter
 
     private string EmitTypeReference(TypeReferenceNode typeRef, bool isValueContext = false)
     {
-        switch (typeRef)
+        // Union handling (non-empty PIPE-separated continuation list). Must run
+        // before the switch because `typeRef.First` is never itself a union.
+        if (typeRef.SingleTypeRefs.Length > 0)
         {
-            case PrimitiveTypeRefTypeReferenceNode primitiveRef:
+            // Check if this is a two-constituent void union (T | void) that should
+            // emit as Nullable<T> or plain T instead of a union helper struct.
+            var resolvedUnionType = _model.GetTypeOf(typeRef) as UnionType;
+            if (resolvedUnionType is not null && CSharpTypeMap.TryGetOptionalTypeName(resolvedUnionType) is { } optionalName)
+            {
+                return optionalName;
+            }
+
+            // Multi-constituent unions or non-void unions emit as the generated helper type name.
+            // Collect constituent names matching UnionHelperGenerator.GetConstituentCSharpName,
+            // sort alphabetically, and join with "_" to form "Union_{Type1}_{Type2}".
+            var constituentNames = new List<string>();
+            constituentNames.Add(GetConstituentNameForHelper(typeRef.First));
+            foreach (var rest in typeRef.SingleTypeRefs)
+            {
+                constituentNames.Add(GetConstituentNameForHelper(rest));
+            }
+            constituentNames.Sort(StringComparer.Ordinal);
+            return "Union_" + string.Join("_", constituentNames);
+        }
+
+        switch (typeRef.First)
+        {
+            case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
             {
                 var keyword = EmitPrimitiveType(primitiveRef.PrimitiveType);
                 if (primitiveRef.ArrayRank is not null)
@@ -6274,14 +6306,14 @@ internal sealed class CSharpSourceWriter
                 }
                 return keyword;
             }
-            case VoidTypeRefTypeReferenceNode:
+            case VoidSingleTypeRefSingleTypeRefNode:
                 if (isValueContext)
                 {
                     _needsMistVoidStruct = true;
                     return "MistVoid";
                 }
                 return "void";
-            case UnknownTypeRefTypeReferenceNode:
+            case UnknownSingleTypeRefSingleTypeRefNode:
                 // User-facing `unknown` (Task 30.1 / Req 13.5, 15.1, 15.4):
                 // emit C# `object` at every syntactic type-reference position.
                 // This is the emission partner to `CSharpTypeMap.GetTypeName`'s
@@ -6292,7 +6324,7 @@ internal sealed class CSharpSourceWriter
                 // `(unknown) expr`, which `EmitCastExpression` lowers to
                 // `((object) <operand>)` without any operator dispatch).
                 return "object";
-            case NamedTypeRefTypeReferenceNode namedRef:
+            case NamedSingleTypeRefSingleTypeRefNode namedRef:
             {
                 var name = ExtractQualifiedName(namedRef.Name);
 
@@ -6301,7 +6333,9 @@ internal sealed class CSharpSourceWriter
                 // underlying type instead of the alias name. Type aliases are erased
                 // during transpilation — no alias name should appear in C# output.
                 // Check the expression type map first, then fall back to symbol lookup.
-                var resolvedType = _model.GetTypeOf(namedRef);
+                // The semantic model keys resolved types on the flat TypeReferenceNode,
+                // so look up via `typeRef` (not the SingleTypeRef child `namedRef`).
+                var resolvedType = _model.GetTypeOf(typeRef);
                 // ── Associated type slot reference: T.SlotName → TSlotName (Task 7.3) ──
                 // When a type reference resolves to an AssociatedTypeSlotType (e.g., T.Enumerator
                 // in a generic context), emit the synthesized type parameter name.
@@ -6452,7 +6486,7 @@ internal sealed class CSharpSourceWriter
                 // `InvalidCastException` at runtime due to C# generic
                 // invariance.
                 if (namedRef.TypeArgs is not null
-                    && TypeReferenceContainsUnknown(namedRef))
+                    && TypeReferenceContainsUnknown(typeRef))
                 {
                     return namedRef.ArrayRank is not null ? "dynamic[]" : "dynamic";
                 }
@@ -6462,7 +6496,7 @@ internal sealed class CSharpSourceWriter
                 // Dependent type parameters are emitted with a T-prefix in C#.
                 if (namedRef.TypeArgs is null && namedRef.ArrayRank is null)
                 {
-                    var resolvedNamedType = _model.GetTypeOf(namedRef);
+                    var resolvedNamedType = _model.GetTypeOf(typeRef);
                     if (resolvedNamedType is DependentTypeParameterType depParamType)
                     {
                         return $"T{depParamType.Name}";
@@ -6493,7 +6527,7 @@ internal sealed class CSharpSourceWriter
                 }
                 return $"{name}{typeArgs}";
             }
-            case TupleTypeRefTypeReferenceNode tupleRef:
+            case TupleSingleTypeRefSingleTypeRefNode tupleRef:
             {
                 // Emit C# tuple type syntax: (T1, T2) or (T1 name1, T2 name2).
                 var parts = new List<string>();
@@ -6512,28 +6546,6 @@ internal sealed class CSharpSourceWriter
                 }
 
                 return $"({string.Join(", ", parts)})";
-            }
-            case UnionTypeRefTypeReferenceNode unionRef:
-            {
-                // Check if this is a two-constituent void union (T | void) that should
-                // emit as Nullable<T> or plain T instead of a union helper struct.
-                var resolvedUnionType = _model.GetTypeOf(unionRef) as UnionType;
-                if (resolvedUnionType is not null && CSharpTypeMap.TryGetOptionalTypeName(resolvedUnionType) is { } optionalName)
-                {
-                    return optionalName;
-                }
-
-                // Multi-constituent unions or non-void unions emit as the generated helper type name.
-                // Collect constituent names matching UnionHelperGenerator.GetConstituentCSharpName,
-                // sort alphabetically, and join with "_" to form "Union_{Type1}_{Type2}".
-                var constituentNames = new List<string>();
-                constituentNames.Add(GetConstituentNameForHelper(unionRef.UnionType.First));
-                foreach (var rest in unionRef.UnionType.SingleTypeRefs)
-                {
-                    constituentNames.Add(GetConstituentNameForHelper(rest));
-                }
-                constituentNames.Sort(StringComparer.Ordinal);
-                return "Union_" + string.Join("_", constituentNames);
             }
             default:
                 return "object";
@@ -6591,18 +6603,32 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string GetConstituentNameFromTypeRef(TypeReferenceNode typeRef)
     {
-        switch (typeRef)
+        // Nested union (non-empty continuation list) — flatten by returning the
+        // helper type name as the constituent name.
+        if (typeRef.SingleTypeRefs.Length > 0)
         {
-            case PrimitiveTypeRefTypeReferenceNode primitiveRef:
+            var unionNames = new List<string>();
+            unionNames.Add(GetConstituentNameForHelper(typeRef.First));
+            foreach (var rest in typeRef.SingleTypeRefs)
+            {
+                unionNames.Add(GetConstituentNameForHelper(rest));
+            }
+            unionNames.Sort(StringComparer.Ordinal);
+            return "Union_" + string.Join("_", unionNames);
+        }
+
+        switch (typeRef.First)
+        {
+            case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
             {
                 var name = GetPrimitiveDisplayName(primitiveRef.PrimitiveType);
                 return primitiveRef.ArrayRank is not null ? $"{name}Array" : name;
             }
-            case VoidTypeRefTypeReferenceNode:
+            case VoidSingleTypeRefSingleTypeRefNode:
                 return "Void";
-            case UnknownTypeRefTypeReferenceNode:
+            case UnknownSingleTypeRefSingleTypeRefNode:
                 return "Object";
-            case NamedTypeRefTypeReferenceNode namedRef:
+            case NamedSingleTypeRefSingleTypeRefNode namedRef:
             {
                 var name = ExtractQualifiedName(namedRef.Name);
                 if (namedRef.TypeArgs is not null)
@@ -6612,19 +6638,6 @@ internal sealed class CSharpSourceWriter
                     name = $"{name}_{typeArgNames.Count}_{string.Join("_", typeArgNames)}";
                 }
                 return namedRef.ArrayRank is not null ? $"{name}Array" : name;
-            }
-            case UnionTypeRefTypeReferenceNode unionRef:
-            {
-                // Nested union inside parenthesized ref — flatten by returning
-                // the helper type name itself as the constituent name.
-                var constituentNames = new List<string>();
-                constituentNames.Add(GetConstituentNameForHelper(unionRef.UnionType.First));
-                foreach (var rest in unionRef.UnionType.SingleTypeRefs)
-                {
-                    constituentNames.Add(GetConstituentNameForHelper(rest));
-                }
-                constituentNames.Sort(StringComparer.Ordinal);
-                return "Union_" + string.Join("_", constituentNames);
             }
             default:
                 return "Object";
@@ -6699,7 +6712,7 @@ internal sealed class CSharpSourceWriter
     /// so dropping them produces the correct C# with no loss of
     /// information.
     /// </summary>
-    private string EmitTupleTypePatternType(TupleTypeRefTypeReferenceNode tupleRef)
+    private string EmitTupleTypePatternType(TupleSingleTypeRefSingleTypeRefNode tupleRef)
     {
         var parts = new List<string>();
         parts.Add(EmitTypeReference(tupleRef.First.Type));
@@ -6718,7 +6731,7 @@ internal sealed class CSharpSourceWriter
     /// chained deconstruction pattern that introduces the element names
     /// as locals.
     /// </summary>
-    private static bool TupleTypeRefHasAnyElementName(TupleTypeRefTypeReferenceNode tupleRef)
+    private static bool TupleTypeRefHasAnyElementName(TupleSingleTypeRefSingleTypeRefNode tupleRef)
     {
         if (tupleRef.First.Name.HasValue) return true;
         if (tupleRef.Rest.Name.HasValue) return true;
@@ -6743,7 +6756,7 @@ internal sealed class CSharpSourceWriter
     /// the narrowed binding so C# introduces the element names in the
     /// enclosing scope.
     /// </summary>
-    private string EmitTupleDeconstructionPattern(TupleTypeRefTypeReferenceNode tupleRef)
+    private string EmitTupleDeconstructionPattern(TupleSingleTypeRefSingleTypeRefNode tupleRef)
     {
         string FormatElement(TupleTypeElementNode element)
         {
@@ -8102,7 +8115,7 @@ internal sealed class CSharpSourceWriter
 
         // The type reference contains the qualified name (e.g., "Direction.North").
         // Extract it directly — this is an enum member access, not a type reference.
-        if (bareTypePattern.Type is NamedTypeRefTypeReferenceNode namedRef)
+        if (bareTypePattern.Type.First is NamedSingleTypeRefSingleTypeRefNode namedRef)
         {
             var qualifiedName = ExtractQualifiedName(namedRef.Name);
             return $"{scrutineeExpr} == {qualifiedName}";
@@ -8287,7 +8300,7 @@ internal sealed class CSharpSourceWriter
                 // if C# would reject `is (int a, int b) pair` against a
                 // given scrutinee, the Mist emitter routes through the
                 // `ValueTuple<>` form instead.
-                if (typePattern.Type is TupleTypeRefTypeReferenceNode tupleRef)
+                if (typePattern.Type.First is TupleSingleTypeRefSingleTypeRefNode tupleRef)
                 {
                     var name = typePattern.Name.Lexeme;
                     if (scrutineeType is TupleType)
@@ -8331,7 +8344,7 @@ internal sealed class CSharpSourceWriter
             case BareTypePatternPrimaryPatternNode bareTypePattern:
             {
                 // Bare type pattern: emit just the type (no binding name).
-                if (bareTypePattern.Type is TupleTypeRefTypeReferenceNode tupleRef)
+                if (bareTypePattern.Type.First is TupleSingleTypeRefSingleTypeRefNode tupleRef)
                 {
                     if (scrutineeType is TupleType)
                     {
@@ -10076,7 +10089,7 @@ internal sealed class CSharpSourceWriter
 
                 // Also check by name: if the type reference is a simple identifier that matches
                 // a dependent type parameter name on any type in the model, emit T-prefixed.
-                if (typeRefArg.Type is NamedTypeRefTypeReferenceNode namedRef
+                if (typeRefArg.Type.First is NamedSingleTypeRefSingleTypeRefNode namedRef
                     && namedRef.TypeArgs is null
                     && namedRef.ArrayRank is null)
                 {

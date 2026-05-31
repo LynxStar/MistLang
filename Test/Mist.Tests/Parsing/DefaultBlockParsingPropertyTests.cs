@@ -286,8 +286,8 @@ public class DefaultBlockParsingPropertyTests
 
     /// <summary>
     /// Primitive type keywords recognized by the Mist parser.
-    /// These are parsed as <c>PrimitiveTypeRefTypeReferenceNode</c> rather than
-    /// <c>NamedTypeRefTypeReferenceNode</c>.
+    /// These are parsed as <c>PrimitiveSingleTypeRefSingleTypeRefNode</c> rather than
+    /// <c>NamedSingleTypeRefSingleTypeRefNode</c>.
     /// </summary>
     private static readonly string[] PrimitiveTypeKeywords =
         ["int", "uint", "long", "ulong", "short", "ushort", "byte", "sbyte",
@@ -352,11 +352,11 @@ public class DefaultBlockParsingPropertyTests
             return source.Substring(span.Start, span.Length);
 
         // Fallback for hand-crafted ASTs: check known node types
-        return typeRef switch
+        return typeRef.First switch
         {
-            NamedTypeRefTypeReferenceNode namedRef when !string.IsNullOrEmpty(namedRef.Name.IDENTIFIER.Lexeme)
+            NamedSingleTypeRefSingleTypeRefNode namedRef when !string.IsNullOrEmpty(namedRef.Name.IDENTIFIER.Lexeme)
                 => namedRef.Name.IDENTIFIER.Lexeme,
-            PrimitiveTypeRefTypeReferenceNode primitiveRef => primitiveRef.PrimitiveType switch
+            PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => primitiveRef.PrimitiveType switch
             {
                 IntTypePrimitiveTypeNode => "int",
                 UintTypePrimitiveTypeNode => "uint",

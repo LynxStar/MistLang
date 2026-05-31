@@ -113,7 +113,7 @@ public sealed class TaskVoidLoweringPropertyTests
         var targetMethod = new MethodDeclarationNode
         {
             Name = Tok(scenario.AsyncVoidMethodName),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {
@@ -153,7 +153,7 @@ public sealed class TaskVoidLoweringPropertyTests
         var callerMethod = new MethodDeclarationNode
         {
             Name = Tok(scenario.CallerMethodName),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode
             {

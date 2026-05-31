@@ -233,9 +233,9 @@ internal static class ExhaustivenessChecker
     /// </summary>
     private static string? ExtractTypeDisplayName(TypeReferenceNode typeRef)
     {
-        return typeRef switch
+        return typeRef.First switch
         {
-            PrimitiveTypeRefTypeReferenceNode primitiveRef => primitiveRef.PrimitiveType switch
+            PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => primitiveRef.PrimitiveType switch
             {
                 IntTypePrimitiveTypeNode => "Int32",
                 UintTypePrimitiveTypeNode => "UInt32",
@@ -254,7 +254,7 @@ internal static class ExhaustivenessChecker
                 RegexTypePrimitiveTypeNode => "Regex",
                 _ => null,
             },
-            NamedTypeRefTypeReferenceNode namedRef => namedRef.Name.IDENTIFIER.Lexeme,
+            NamedSingleTypeRefSingleTypeRefNode namedRef => namedRef.Name.IDENTIFIER.Lexeme,
             _ => null,
         };
     }

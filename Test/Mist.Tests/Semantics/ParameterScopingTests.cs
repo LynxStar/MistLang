@@ -119,7 +119,7 @@ public class ParameterScopingTests
 
         return new ParameterNode
         {
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = primitiveType },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveType } },
             Name = MakeToken(paramName),
         };
     }
@@ -141,7 +141,7 @@ public class ParameterScopingTests
         return new MethodDeclarationNode
         {
             Name = MakeToken(methodName),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = bodyStatements } },
             Modifiers = modifiers,
@@ -314,7 +314,7 @@ public class ParameterScopingTests
         var fieldX = new FieldDeclarationNode
         {
             Name = MakeToken("x"),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
         };
 
         var ctorA = new ConstructorDeclarationNode
@@ -338,7 +338,7 @@ public class ParameterScopingTests
         var fieldY = new FieldDeclarationNode
         {
             Name = MakeToken("y"),
-            Type = new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
         };
 
         var ctorB = new ConstructorDeclarationNode

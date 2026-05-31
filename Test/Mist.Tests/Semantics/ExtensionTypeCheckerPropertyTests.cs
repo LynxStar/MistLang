@@ -79,7 +79,7 @@ public class ExtensionTypeCheckerPropertyTests
     // ─── AST construction helpers ────────────────────────────────────────
 
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null) =>
-        new NamedTypeRefTypeReferenceNode
+        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
         {
             Name = new QualifiedIdentifierNode
             {
@@ -87,20 +87,20 @@ public class ExtensionTypeCheckerPropertyTests
                 Span = new Storm.Runtime.SourceSpan(0, name.Length),
             },
             TypeArgs = typeArgs,
-        };
+        } };
 
     private static TypeReferenceNode MakeUnknownTypeRef() =>
-        new UnknownTypeRefTypeReferenceNode();
+        new TypeReferenceNode { First = new UnknownSingleTypeRefSingleTypeRefNode() };
 
     private static TypeReferenceNode MakeReturnTypeRef(string typeName) =>
         typeName == "void"
-            ? new VoidTypeRefTypeReferenceNode()
+            ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
             : typeName == "int"
-                ? new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() }
+                ? new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } }
                 : typeName == "string"
-                    ? new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new StringTypePrimitiveTypeNode() }
+                    ? new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } }
                     : typeName == "bool"
-                        ? new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new BoolTypePrimitiveTypeNode() }
+                        ? new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } }
                         : MakeNamedTypeRef(typeName);
 
     private static ExpressionNode MakeLiteralExpression(string typeName)
@@ -551,7 +551,7 @@ public class ExtensionTypeCheckerPropertyTests
         var probeMethod = new MethodDeclarationNode
         {
             Name = Tok("_probe_"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode { Block = probeBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
@@ -601,7 +601,7 @@ public class ExtensionTypeCheckerPropertyTests
         var probeMethod = new MethodDeclarationNode
         {
             Name = Tok("_probe_"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode { Block = probeBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
@@ -657,7 +657,7 @@ public class ExtensionTypeCheckerPropertyTests
         var probeMethod = new MethodDeclarationNode
         {
             Name = Tok("_probe_"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode { Block = probeBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
@@ -823,7 +823,7 @@ public class ExtensionTypeCheckerPropertyTests
         var callerMethod = new MethodDeclarationNode
         {
             Name = Tok("_probe_"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode { Block = callerBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
@@ -871,7 +871,7 @@ public class ExtensionTypeCheckerPropertyTests
         var probeMethod = new MethodDeclarationNode
         {
             Name = Tok("_probe_"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode { Block = probeBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
@@ -998,7 +998,7 @@ public class ExtensionTypeCheckerPropertyTests
         var probeMethod = new MethodDeclarationNode
         {
             Name = Tok("_probe_"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode { Block = probeBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
@@ -1050,7 +1050,7 @@ public class ExtensionTypeCheckerPropertyTests
         var probeMethod = new MethodDeclarationNode
         {
             Name = Tok("_probe_"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode { Block = probeBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
@@ -1090,7 +1090,7 @@ public class ExtensionTypeCheckerPropertyTests
         var probeMethod = new MethodDeclarationNode
         {
             Name = Tok("_probe_"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Body = new MethodBlockBodyMethodBodyNode { Block = probeBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
@@ -1229,7 +1229,7 @@ public class ExtensionTypeCheckerPropertyTests
         var callerMethod = new MethodDeclarationNode
         {
             Name = Tok("_probe_"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
             Body = new MethodBlockBodyMethodBodyNode { Block = callerBody },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),

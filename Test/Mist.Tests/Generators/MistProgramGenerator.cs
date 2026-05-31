@@ -39,7 +39,7 @@ public static class MistProgramGenerator
         var mainMethod = new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = mainStatements } },
             Modifiers = ImmutableArray.Create<ModifierNode>(
@@ -179,7 +179,7 @@ public static class MistProgramGenerator
         return Gen.Choose(0, 1000).Select(n =>
             MakeProgramWithMethod(
                 "GetValue",
-                new PrimitiveTypeRefTypeReferenceNode { PrimitiveType = new IntTypePrimitiveTypeNode() },
+                new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
                 ImmutableArray.Create(
                     MistAstGenerator.MakeReturnStatement(
                         MistAstGenerator.WrapPrimary(

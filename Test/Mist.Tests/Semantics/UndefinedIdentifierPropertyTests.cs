@@ -130,10 +130,10 @@ public class UndefinedIdentifierPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
                 Name = MakeToken(name),
                 Initializer = MakeIntLiteralExpression(value),
             },
@@ -149,14 +149,14 @@ public class UndefinedIdentifierPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new NamedTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
                     Name = new QualifiedIdentifierNode
                     {
                         IDENTIFIER = MakeToken(typeName),
                         Span = new Storm.Runtime.SourceSpan(0, typeName.Length),
                     },
-                },
+                } },
                 Name = MakeToken(varName),
                 Initializer = MakeIntLiteralExpression("0"),
             },
@@ -174,7 +174,7 @@ public class UndefinedIdentifierPropertyTests
         var methodDecl = new MethodDeclarationNode
         {
             Name = MakeToken(methodName),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
             {
@@ -293,7 +293,7 @@ public class UndefinedIdentifierPropertyTests
                     Method = new MethodDeclarationNode
                     {
                         Name = MakeToken("TestMethod"),
-                        ReturnType = new VoidTypeRefTypeReferenceNode(),
+                        ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                         Parameters = null,
                         Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
                         {

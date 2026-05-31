@@ -92,10 +92,10 @@ public class RefLocalRequiresInitializerTests
 
     private static TypeReferenceNode MakeIntTypeRef()
     {
-        return new PrimitiveTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
         {
             PrimitiveType = new IntTypePrimitiveTypeNode(),
-        };
+        } };
     }
 
     private static MethodDeclarationNode MakeMainMethod(ImmutableArray<StatementNode> body)
@@ -103,7 +103,7 @@ public class RefLocalRequiresInitializerTests
         return new MethodDeclarationNode
         {
             Name = Tok("Main"),
-            ReturnType = new VoidTypeRefTypeReferenceNode(),
+            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = body } },
             Modifiers = ImmutableArray.Create<ModifierNode>(

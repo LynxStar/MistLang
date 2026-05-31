@@ -111,7 +111,7 @@ public class GenericTraitRoundTripPropertyTests
         // Generate a NamedTypeRef with its own type arguments (nested generic)
         var nestedTypeRef = from typeName in Gen.Elements("List", "Set", "Map")
                            from innerType in MistTypeGenerator.GenPrimitiveTypeRef()
-                           select (TypeReferenceNode)new NamedTypeRefTypeReferenceNode
+                           select (TypeReferenceNode)new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                            {
                                Name = new QualifiedIdentifierNode
                                {
@@ -123,7 +123,7 @@ public class GenericTraitRoundTripPropertyTests
                                    TypeArgument = new TypeReferenceTypeArgumentTypeArgumentNode { Type = innerType },
                                    TypeArguments = ImmutableArray<TypeArgumentNode>.Empty,
                                },
-                           };
+                           } };
 
         return from nested in nestedTypeRef
                select new TypeArgumentListNode
@@ -191,14 +191,14 @@ public class GenericTraitRoundTripPropertyTests
             return MistTypeGenerator.GenPrimitiveTypeRef();
 
         var typeParamRef = Gen.Elements(availableTypeParams)
-            .Select(name => (TypeReferenceNode)new NamedTypeRefTypeReferenceNode
+            .Select(name => (TypeReferenceNode)new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode
                 {
                     IDENTIFIER = Tok(name),
                     IDENTIFIERs = ImmutableArray<Storm.Runtime.Token>.Empty,
                 },
-            });
+            } });
 
         return Gen.OneOf(MistTypeGenerator.GenPrimitiveTypeRef(), typeParamRef);
     }

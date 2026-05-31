@@ -98,10 +98,10 @@ public class InheritedMemberResolutionPropertyTests
             Field = new FieldDeclarationNode
             {
                 Name = MakeToken(name),
-                Type = new PrimitiveTypeRefTypeReferenceNode
+                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                },
+                } },
             },
         };
     }
@@ -113,7 +113,7 @@ public class InheritedMemberResolutionPropertyTests
             Method = new MethodDeclarationNode
             {
                 Name = MakeToken(name),
-                ReturnType = new VoidTypeRefTypeReferenceNode(),
+                ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                 Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
             },
         };
@@ -384,7 +384,7 @@ public class InheritedMemberResolutionPropertyTests
                 var probeMethod = new MethodDeclarationNode
                 {
                     Name = MakeToken("_probe_"),
-                    ReturnType = new VoidTypeRefTypeReferenceNode(),
+                    ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                     Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
                     {
                         Statements = ImmutableArray.Create(MakeExpressionStatement(accessExpr)),

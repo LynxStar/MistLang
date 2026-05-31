@@ -135,10 +135,10 @@ public class AccessorModifierPropertyTests
         var property = new BlockPropertyPropertyDeclarationNode
         {
             Modifiers = propertyModifiers,
-            Type = new PrimitiveTypeRefTypeReferenceNode
+            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
             Name = Tok("Value"),
             Accessors = accessors,
         };

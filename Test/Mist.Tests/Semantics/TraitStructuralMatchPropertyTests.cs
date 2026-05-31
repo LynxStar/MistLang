@@ -62,22 +62,22 @@ public class TraitStructuralMatchPropertyTests
     {
         return typeName switch
         {
-            "int" => new PrimitiveTypeRefTypeReferenceNode
+            "int" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
-            "string" => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            "string" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new StringTypePrimitiveTypeNode(),
-            },
-            "bool" => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            "bool" => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new BoolTypePrimitiveTypeNode(),
-            },
-            _ => new PrimitiveTypeRefTypeReferenceNode
+            } },
+            _ => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
+            } },
         };
     }
 
@@ -212,7 +212,7 @@ public class TraitStructuralMatchPropertyTests
                 {
                     Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
                     ReturnType = m.returnType == "void"
-                        ? new VoidTypeRefTypeReferenceNode()
+                        ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
                         : MakePrimitiveTypeRef(m.returnType),
                     Name = Tok(m.methodName),
                     Parameters = paramList,
@@ -324,7 +324,7 @@ public class TraitStructuralMatchPropertyTests
                 Method = new TraitMethodDeclarationNode
                 {
                     ReturnType = m.returnType == "void"
-                        ? new VoidTypeRefTypeReferenceNode()
+                        ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
                         : MakePrimitiveTypeRef(m.returnType),
                     Name = Tok(m.methodName),
                     Parameters = paramList,
@@ -983,7 +983,7 @@ public class TraitStructuralMatchPropertyTests
                         {
                             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
                             ReturnType = scenario.ReturnType == "void"
-                                ? new VoidTypeRefTypeReferenceNode()
+                                ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
                                 : MakePrimitiveTypeRef(scenario.ReturnType),
                             Name = Tok(scenario.MethodName),
                             Parameters = paramList,

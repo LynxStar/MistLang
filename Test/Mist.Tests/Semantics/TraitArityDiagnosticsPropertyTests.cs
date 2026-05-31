@@ -116,18 +116,18 @@ public class TraitArityDiagnosticsPropertyTests
 
     private static TypeReferenceNode MakePrimitiveTypeRef()
     {
-        return new PrimitiveTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
         {
             PrimitiveType = new IntTypePrimitiveTypeNode(),
-        };
+        } };
     }
 
     private static TypeReferenceNode MakeStringTypeRef()
     {
-        return new PrimitiveTypeRefTypeReferenceNode
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
         {
             PrimitiveType = new StringTypePrimitiveTypeNode(),
-        };
+        } };
     }
 
     private static BaseListNode MakeBaseList(params BaseTypeRefNode[] entries)
@@ -430,14 +430,14 @@ public class TraitArityDiagnosticsPropertyTests
             TypeParams = MakeTypeParamList("T"),
             Parents = MakeBaseList(
                 MakeBaseTypeRef("Comparable",
-                    MakeTypeArgList(new NamedTypeRefTypeReferenceNode
+                    MakeTypeArgList(new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                     {
                         Name = new QualifiedIdentifierNode
                         {
                             IDENTIFIER = Tok("T"),
                             IDENTIFIERs = ImmutableArray<Storm.Runtime.Token>.Empty,
                         },
-                    }))),
+                    } }))),
             Members = ImmutableArray.Create<TraitMemberDeclarationNode>(
                 new TraitFieldMemberTraitMemberDeclarationNode
                 {

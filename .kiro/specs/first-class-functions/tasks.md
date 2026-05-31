@@ -27,9 +27,10 @@ This plan implements first-class functions and lambda expressions for the Mist l
     - Add `token FUNC = "func";` to `Source/Mist/Grammar/keywords.storm`
     - _Requirements: 2.1, 12.1_
 
-  - [ ] 2.2 Add `FuncTypeRef` alternative to the `TypeReference` rule in `Mist.storm`
-    - Add `| FUNC typeArgs:TypeArgumentList as FuncTypeRef` to the `TypeReference` rule
-    - Also add to `SingleTypeRef` rule for union type contexts: `| FUNC typeArgs:TypeArgumentList as FuncSingleTypeRef`
+  - [ ] 2.2 Add `FuncSingleTypeRef` alternative to the `SingleTypeRef` rule in `Mist.storm`
+    - Add `| FUNC typeArgs:TypeArgumentList as FuncSingleTypeRef` to the `SingleTypeRef` rule (alongside `PrimitiveSingleTypeRef`, `VoidSingleTypeRef`, `UnknownSingleTypeRef`, `NamedSingleTypeRef`, `ParenthesizedTypeRef`, `TupleSingleTypeRef`)
+    - Do NOT add it to `TypeReference`, which is now the flat union `first:SingleTypeRef (PIPE rest:SingleTypeRef)*`; composing `SingleTypeRef` automatically makes `func<...>` usable as a union member
+    - This generates the `FuncSingleTypeRefSingleTypeRefNode` AST node
     - _Requirements: 2.2, 12.2_
 
   - [ ] 2.3 Add `LambdaExpression` grammar rules to `Mist.storm`
@@ -40,8 +41,8 @@ This plan implements first-class functions and lambda expressions for the Mist l
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 5.1, 5.2, 8.1, 9.1, 12.3, 12.4, 12.5_
 
 - [ ] 3. Pretty-printer support
-  - [ ] 3.1 Add `FuncTypeRef` emission to `MistPrettyPrinter.cs`
-    - Handle `FuncTypeRefTypeReferenceNode` emitting `func<T1, T2, ..., TReturn>`
+  - [ ] 3.1 Add `FuncSingleTypeRef` emission to `MistPrettyPrinter.cs`
+    - Handle `FuncSingleTypeRefSingleTypeRefNode` emitting `func<T1, T2, ..., TReturn>`
     - _Requirements: 13.1, 13.7_
 
   - [ ] 3.2 Add `LambdaExpression` emission to `MistPrettyPrinter.cs`
@@ -60,7 +61,7 @@ This plan implements first-class functions and lambda expressions for the Mist l
 
 - [ ] 5. Semantic model: Func type resolution
   - [ ] 5.1 Implement `func` keyword resolution in `SemanticModelBuilder.cs`
-    - When resolving a `FuncTypeRefTypeReferenceNode`, look up `Standard.Func` with the matching arity and construct a `ConstructedType`
+    - When resolving a `FuncSingleTypeRefSingleTypeRefNode`, look up `Standard.Func` with the matching arity and construct a `ConstructedType`
     - Ensure `func<int, string>` and `Func<int, string>` resolve to the same type
     - _Requirements: 2.2, 2.3, 1.6_
 

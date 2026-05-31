@@ -14,6 +14,8 @@ The core abstractions are:
 6. **Async lambdas** — `async` modifier enables explicit async context within the lambda
 7. **Variable capture** — by-reference capture with closure generation delegated to C#
 
+Parser prerequisite (resolved): deep type-argument lists such as `Func<T1, ..., T16, TResult>` previously triggered exponential parser backtracking; this is now fixed by the selective packrat memoization feature, so the full `Func`/`Action` arity range parses in linear time and is no longer a parse-time concern for this feature.
+
 ### Design Rationale
 
 Mist's approach differs from C#'s delegate system:
@@ -155,20 +157,21 @@ These use the existing type alias mechanism. The semantic model builder resolves
 token FUNC = "func";
 ```
 
-#### PrimitiveType Rule Extension (`Mist.storm`)
+#### SingleTypeRef Rule Extension (`Mist.storm`)
 
-The `func` keyword is NOT added to `PrimitiveType` because it requires type arguments (it's always `func<...>`). Instead, it's handled as a special case in `TypeReference` — when the parser encounters `FUNC` followed by `<`, it produces a `NamedTypeRef` node with the identifier "func". This is resolved by the semantic model builder to `Standard.Func` with the appropriate arity.
-
-Alternative approach: Add `func` as a recognized keyword in the `TypeReference` rule directly:
+The `func` keyword is added as a dedicated alternative in the `SingleTypeRef` rule. It is NOT added to `TypeReference`, which is now the flat union `first:SingleTypeRef (PIPE rest:SingleTypeRef)*` and no longer an alternation of type forms. It is also NOT added to `PrimitiveType`, because `func` always carries a type-argument list (it's always `func<...>`).
 
 ```storm
-rule TypeReference
-    = ...existing alternatives...
-    | FUNC typeArgs:TypeArgumentList as FuncTypeRef
+rule SingleTypeRef
+    = ...existing alternatives (PrimitiveSingleTypeRef, VoidSingleTypeRef,
+      UnknownSingleTypeRef, NamedSingleTypeRef, ParenthesizedTypeRef, TupleSingleTypeRef)...
+    | FUNC typeArgs:TypeArgumentList as FuncSingleTypeRef
     ;
 ```
 
-This produces a dedicated `FuncTypeRefTypeReferenceNode` that the semantic model builder maps to `Standard.Func<...>`.
+`func` is the `FUNC` keyword token, not an `IDENTIFIER`, so it cannot flow through `NamedSingleTypeRef`'s `QualifiedIdentifier`. Combined with the fact that it always requires a type-argument list, this means it needs its own alternative rather than being reachable through any existing one. The generated node is `FuncSingleTypeRefSingleTypeRefNode` (the emitter's node name for a `FuncSingleTypeRef`-labeled `SingleTypeRef` alternative), which the semantic model builder maps to `Standard.Func<...>` with the appropriate arity.
+
+Because `TypeReference` composes `SingleTypeRef` elements, adding `func<...>` here makes it automatically usable as a union member — e.g. `func<int, bool> | string` parses with no additional grammar changes.
 
 #### Lambda Expression Grammar (`Mist.storm`)
 
@@ -340,7 +343,7 @@ For emission, when Mist code interacts with an API expecting a specific named de
 
 Add cases to `MistPrettyPrinter`:
 
-- `FuncTypeRefTypeReferenceNode` → emit `func<T1, T2, ..., TReturn>`
+- `FuncSingleTypeRefSingleTypeRefNode` → emit `func<T1, T2, ..., TReturn>`
 - `LambdaExpressionPrimaryNode` → emit `[static] [async] params => body`
 - Expression lambda: `params => expr`
 - Block lambda: `params => { stmts }`

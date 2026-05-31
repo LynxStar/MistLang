@@ -191,7 +191,7 @@ The `delegate` keyword is deliberately omitted. Since Mist has type aliases and 
 #### Acceptance Criteria
 
 1. THE Grammar SHALL define `FUNC = "func";` as a keyword token in `keywords.storm`.
-2. THE Grammar SHALL include `FUNC` as an alternative in the `PrimitiveType` rule (or a new `BuiltinTypeKeyword` rule) so that `func<int, string>` is parsed as a type reference with type arguments, following the same pattern as other keyword-aliased types.
+2. THE Grammar SHALL include `FUNC` followed by a type-argument list as a dedicated alternative in the `SingleTypeRef` rule (e.g., `FUNC typeArgs:TypeArgumentList`), so that `func<int, string>` is parsed as a single type element with type arguments. WHERE `TypeReference` composes one or more `SingleTypeRef` elements into a union via `PIPE`, THE `func` type element SHALL be usable wherever a `SingleTypeRef` is valid, including as a union member.
 3. THE Grammar SHALL define a `LambdaExpression` alternative in the `Primary` rule supporting: optional modifiers (`static`, `async`), a parameter list (either a single identifier, or a parenthesized list of optionally-typed identifiers), the `SUCH_THAT` (`=>`) token, and either an expression body or a block body.
 4. THE Grammar SHALL define `LambdaParameter` as either `type:TypeReference name:IDENTIFIER` (explicitly typed) or `name:IDENTIFIER` (implicitly typed).
 5. THE `LambdaExpression` rule SHALL have lower precedence than assignment to avoid ambiguity with the `=>` token used in switch arms and expression-bodied properties.

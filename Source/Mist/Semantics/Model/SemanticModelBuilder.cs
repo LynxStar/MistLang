@@ -893,9 +893,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             csharpResolver.UpdateStdlibProvider(
                 new ScopeBasedStdlibTypeProvider(globalScope, symbolTable));
         }
-        if (ambientTypeResolver is Backends.CSharpTranspiler.AssemblyTypeProvider assemblyProvider)
+        if (ambientTypeResolver is Backends.CSharpTranspiler.AssemblyTypeProvider)
         {
-            assemblyProvider.UpdateStdlibProvider(
+            Backends.CSharpTranspiler.AssemblyTypeProvider.UpdateStdlibProvider(
                 new ScopeBasedStdlibTypeProvider(globalScope, symbolTable));
         }
 
@@ -1012,6 +1012,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // This runs after type resolution so that parameter types are resolved
         // and signatures can be compared accurately.
         Pass1_CheckDuplicateSignatures(symbolTable, asts, compilation, diagnostics);
+
+        // Clear the thread-local stdlib provider to prevent stale references
+        // to this compilation's scopes from leaking to subsequent compilations
+        // on the same thread.
+        if (ambientTypeResolver is Backends.CSharpTranspiler.AssemblyTypeProvider)
+        {
+            Backends.CSharpTranspiler.AssemblyTypeProvider.ClearStdlibProvider();
+        }
 
         return new SemanticModel(
             compilation,
@@ -2219,7 +2227,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IReadOnlyList<string> importedNamespaces)
     {
         var projector = assemblyProvider.Projector;
-        var stdlib = assemblyProvider.Stdlib;
+        var stdlib = assemblyProvider.CurrentStdlib;
 
         foreach (var ns in importedNamespaces)
         {

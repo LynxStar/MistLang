@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Reflection;
 using Mist.Common.Diagnostics;
@@ -35,8 +36,10 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// <summary>
     /// Cache: (namespace, typeName) → (IType, ImmutableArray&lt;ISymbol&gt;).
     /// Ensures reference equality for repeated resolutions of the same type (Requirement 3.4).
+    /// Thread-safe: this instance is shared across parallel compilations via the
+    /// backend's cached provider singleton.
     /// </summary>
-    private readonly Dictionary<(string Namespace, string TypeName), (IType Type, ImmutableArray<ISymbol> Members)> _cache = new();
+    private readonly ConcurrentDictionary<(string Namespace, string TypeName), (IType Type, ImmutableArray<ISymbol> Members)> _cache = new();
 
     /// <summary>
     /// Namespace index: namespace → set of type names in that namespace.
@@ -53,8 +56,18 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// The stdlib type provider used to look up Mist types for member signatures.
     /// Starts as <see cref="FallbackStdlibTypeProvider"/> and is upgraded by
     /// <see cref="UpdateStdlibProvider"/> after Pass 1 registers all stdlib types.
+    /// Thread-local: each compilation thread gets its own provider referencing
+    /// its own global scope, preventing cross-thread scope iteration races.
     /// </summary>
-    private IStdlibTypeProvider _stdlib;
+    [ThreadStatic]
+    private static IStdlibTypeProvider? _stdlibThreadLocal;
+
+    /// <summary>
+    /// Fallback provider used when no thread-local provider has been set.
+    /// </summary>
+    private readonly IStdlibTypeProvider _stdlibFallback = FallbackStdlibTypeProvider.Instance;
+
+    private IStdlibTypeProvider Stdlib => _stdlibThreadLocal ?? _stdlibFallback;
 
     /// <summary>
     /// Creates a new <see cref="AssemblyTypeProvider"/> from the given assembly paths.
@@ -71,7 +84,6 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         _intrinsicMap = new IntrinsicTypeMap();
         _filter = new VisibilityFilter();
         _projector = new TypeProjector(_intrinsicMap, _filter);
-        _stdlib = FallbackStdlibTypeProvider.Instance;
 
         // Create MetadataLoadContext with a PathAssemblyResolver for all assembly paths.
         var resolver = new PathAssemblyResolver(assemblyPaths);
@@ -90,10 +102,22 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// Called by <see cref="Mist.Semantics.Model.SemanticModelBuilder"/>
     /// after Pass 1 registers all stdlib types so that projected member
     /// signatures reference the real stdlib <see cref="IType"/> instances.
+    /// Sets the thread-local provider so parallel compilations don't
+    /// interfere with each other's scope iteration.
     /// </summary>
-    internal void UpdateStdlibProvider(IStdlibTypeProvider provider)
+    internal static void UpdateStdlibProvider(IStdlibTypeProvider provider)
     {
-        _stdlib = provider;
+        _stdlibThreadLocal = provider;
+    }
+
+    /// <summary>
+    /// Clears the thread-local stdlib provider after a compilation completes.
+    /// Prevents stale references to compilation-specific scopes from leaking
+    /// across subsequent compilations on the same thread.
+    /// </summary>
+    internal static void ClearStdlibProvider()
+    {
+        _stdlibThreadLocal = null;
     }
 
     /// <summary>
@@ -104,7 +128,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// <summary>
     /// Exposes the current stdlib type provider for ambient extension registration.
     /// </summary>
-    internal IStdlibTypeProvider Stdlib => _stdlib;
+    internal IStdlibTypeProvider CurrentStdlib => Stdlib;
 
     /// <inheritdoc />
     public bool HasNamespace(string namespaceName)
@@ -148,16 +172,17 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             return null;
 
         // Project the type lazily on first access (Requirement 3.3).
-        var (projectedType, members) = _projector.ProjectType(clrType, _stdlib);
+        var stdlib = Stdlib;
+        var (projectedType, members) = _projector.ProjectType(clrType, stdlib);
 
         // Project members (methods, properties, fields, constructors, indexers).
-        var projectedMembers = _projector.ProjectMembers(clrType, projectedType, _stdlib);
+        var projectedMembers = _projector.ProjectMembers(clrType, projectedType, stdlib);
 
         // Project operators and add them to the member list.
         var memberScope = GetMemberScope(projectedType);
         if (memberScope is not null)
         {
-            var operators = _projector.ProjectOperators(clrType, memberScope, _stdlib);
+            var operators = _projector.ProjectOperators(clrType, memberScope, stdlib);
             if (operators.Length > 0)
             {
                 projectedMembers = projectedMembers.AddRange(operators);
@@ -166,10 +191,10 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             // Synthesize duck-typed IEnumerable<T> for types that have
             // GetEnumerator()/MoveNext()/Current but don't implement IEnumerable<T>.
             // Called here (after UpdateStdlibProvider) to ensure the stdlib is available.
-            _projector.SynthesizeDuckTypedIEnumerable(clrType, projectedType, _stdlib);
+            _projector.SynthesizeDuckTypedIEnumerable(clrType, projectedType, stdlib);
 
             // Synthesize IEnumerable interop slots.
-            _projector.SynthesizeEnumeratorSlots(clrType, projectedType, _stdlib);
+            _projector.SynthesizeEnumeratorSlots(clrType, projectedType, stdlib);
         }
 
         // Combine initial members from ProjectType (e.g., enum fields) with projected members.
@@ -178,7 +203,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             : projectedMembers;
 
         // Cache the result for reference equality on subsequent resolutions.
-        _cache[cacheKey] = (projectedType, allMembers);
+        // TryAdd ensures only the first projection wins if two threads race on the
+        // same key; the loser's projection is discarded (both are equivalent).
+        _cache.TryAdd(cacheKey, (projectedType, allMembers));
 
         return projectedType;
     }
@@ -186,7 +213,8 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// <inheritdoc />
     public ImmutableArray<ISymbol> GetMembers(IType type)
     {
-        // Search the cache for the type instance (reference equality).
+        // ConcurrentDictionary enumeration is safe against concurrent writes —
+        // it takes a snapshot of the internal buckets without locking.
         foreach (var entry in _cache.Values)
         {
             if (ReferenceEquals(entry.Type, type))

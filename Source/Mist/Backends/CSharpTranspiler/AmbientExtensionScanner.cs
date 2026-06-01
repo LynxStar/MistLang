@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using Mist.Driver;
 
@@ -18,7 +19,7 @@ internal sealed class AmbientExtensionScanner
         "System.Runtime.CompilerServices.ExtensionAttribute";
 
     private readonly IReadOnlyList<LoadedAssemblyInfo> _assemblies;
-    private readonly Dictionary<string, IReadOnlyList<AmbientExtensionMethodInfo>> _cache = new();
+    private readonly ConcurrentDictionary<string, IReadOnlyList<AmbientExtensionMethodInfo>> _cache = new();
 
     /// <summary>
     /// Creates a new <see cref="AmbientExtensionScanner"/> that will scan the given
@@ -43,14 +44,8 @@ internal sealed class AmbientExtensionScanner
     /// </returns>
     public IReadOnlyList<AmbientExtensionMethodInfo> GetExtensionsForNamespace(string namespaceName)
     {
-        // Return cached results if available (Requirement 11.2).
-        if (_cache.TryGetValue(namespaceName, out var cached))
-            return cached;
-
-        // Lazy discovery: only scan when first queried (Requirement 11.1).
-        var results = ScanNamespace(namespaceName);
-        _cache[namespaceName] = results;
-        return results;
+        // GetOrAdd is atomic — only one thread will scan a given namespace.
+        return _cache.GetOrAdd(namespaceName, ScanNamespace);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

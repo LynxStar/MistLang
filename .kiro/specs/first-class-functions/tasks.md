@@ -190,20 +190,20 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 13. C# code generation
-  - [ ] 13.1 Implement lambda expression emission in `CSharpEmitter.cs`
+  - [x] 13.1 Implement lambda expression emission in `CSharpEmitter.cs`
     - Emit `(params) => expr` / `(params) => { stmts }`; emit `static` (C# 9 static lambdas) and `async`; for non-async lambdas that call async methods (auto-await), emit `async` on the C# lambda
     - Dispatch through the abstract `ExpressionNode` subtypes (`LambdaFormExpressionNode` emits the lambda; `AssignmentFormExpressionNode` uses the existing assignment path)
     - _Requirements: 14.4, 14.5, 14.6, 14.9_
 
-  - [ ] 13.2 Implement method group emission in `CSharpEmitter.cs`
+  - [x] 13.2 Implement method group emission in `CSharpEmitter.cs`
     - When emitting a method group conversion, emit just the method name (C# handles the implicit delegate conversion)
     - _Requirements: 14.7_
 
-  - [ ] 13.3 Implement Func-typed invocation emission in `CSharpEmitter.cs`
+  - [x] 13.3 Implement Func-typed invocation emission in `CSharpEmitter.cs`
     - Emit standard C# delegate invocation: `variable(args)`
     - _Requirements: 14.8_
 
-  - [ ] 13.4 Write unit tests for Func type emission mapping
+  - [x] 13.4 Write unit tests for Func type emission mapping
     - Assert `CSharpTypeMap` emits `System.Func<...>` / `System.Action<...>` / `System.Action` correctly by return type; in-process string-level assertions (no `dotnet` spawning)
     - **Property 7: C# Emission Correctness**
     - **Validates: Requirements 14.1, 14.2, 14.3**
@@ -222,7 +222,7 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
     - For `Predicate<T>`, `Comparison<T>`, `EventHandler`, etc., project as a (generic) type alias based on the delegate's `Invoke` signature
     - _Requirements: 15.3, 15.6_
 
-  - [ ] 15.3 Ensure the emitter uses original delegate type names for interop in `CSharpEmitter.cs`
+  - [x] 15.3 Ensure the emitter uses original delegate type names for interop in `CSharpEmitter.cs`
     - When Mist passes a lambda to a .NET API expecting a specific named delegate type, emit the original delegate type name in C#
     - _Requirements: 15.7_
 

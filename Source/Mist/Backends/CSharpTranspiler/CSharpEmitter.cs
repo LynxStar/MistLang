@@ -7415,19 +7415,183 @@ internal sealed class CSharpSourceWriter
 
     /// <summary>
     /// Emits a lambda expression to C#.
+    /// Handles expression bodies (<c>(params) =&gt; expr</c>), block bodies
+    /// (<c>(params) =&gt; { stmts }</c>), <c>static</c> (C# 9 static lambdas),
+    /// and <c>async</c> modifiers. For non-async Mist lambdas whose body calls
+    /// async methods (auto-await), the emitted C# lambda receives the <c>async</c>
+    /// keyword so that the auto-unwrap <c>await</c> is valid.
     /// </summary>
-    /// <remarks>
-    /// Full lambda emission (expression/block bodies, <c>static</c>/<c>async</c> modifiers,
-    /// auto-await) is implemented by first-class-functions task 13.1. This stub exists so the
-    /// abstract <see cref="ExpressionNode"/> dispatch compiles and the assignment-form path is
-    /// fully preserved; task 13.1 fills in the body here (and will promote this to an instance
-    /// method once it needs emitter state such as <c>_model</c>).
-    /// </remarks>
-    private static string EmitLambda(LambdaExpressionNode lambda)
+    private string EmitLambda(LambdaExpressionNode lambda)
     {
-        _ = lambda;
-        throw new System.NotSupportedException(
-            "Lambda expression emission is implemented by first-class-functions task 13.1.");
+        var modifiers = lambda switch
+        {
+            ExpressionLambdaLambdaExpressionNode exprLambda => exprLambda.Modifiers,
+            BlockLambdaLambdaExpressionNode blockLambda => blockLambda.Modifiers,
+            _ => ImmutableArray<LambdaModifierNode>.Empty,
+        };
+
+        var paramList = lambda switch
+        {
+            ExpressionLambdaLambdaExpressionNode exprLambda => exprLambda.Params,
+            BlockLambdaLambdaExpressionNode blockLambda => blockLambda.Params,
+            _ => null!,
+        };
+
+        // Determine if the lambda has explicit static/async modifiers.
+        var hasStatic = false;
+        var hasAsync = false;
+        foreach (var modifier in modifiers)
+        {
+            switch (modifier)
+            {
+                case StaticLambdaModifierLambdaModifierNode:
+                    hasStatic = true;
+                    break;
+                case AsyncLambdaModifierLambdaModifierNode:
+                    hasAsync = true;
+                    break;
+            }
+        }
+
+        // For non-async lambdas, detect if the body contains calls to async methods
+        // (auto-await). If so, the emitted C# lambda needs the `async` keyword because
+        // the auto-unwrap logic will emit `await` inside the lambda body.
+        if (!hasAsync && LambdaBodyContainsAutoAwait(lambda))
+        {
+            hasAsync = true;
+        }
+
+        // Build the modifier prefix.
+        var prefix = "";
+        if (hasStatic && hasAsync)
+            prefix = "static async ";
+        else if (hasStatic)
+            prefix = "static ";
+        else if (hasAsync)
+            prefix = "async ";
+
+        // Emit the parameter list.
+        var parameters = EmitLambdaParameterList(paramList);
+
+        // Emit the body.
+        return lambda switch
+        {
+            ExpressionLambdaLambdaExpressionNode exprLambda =>
+                $"{prefix}{parameters} => {EmitExpression(exprLambda.Body)}",
+            BlockLambdaLambdaExpressionNode blockLambda =>
+                $"{prefix}{parameters} => {EmitLambdaBlockBody(blockLambda.Body)}",
+            _ => throw new System.InvalidOperationException(
+                $"Unknown LambdaExpressionNode variant: {lambda.GetType().Name}"),
+        };
+    }
+
+    /// <summary>
+    /// Emits a lambda parameter list to C#.
+    /// Single implicit params emit without parentheses (<c>x</c>);
+    /// parenthesized params emit with parens (<c>(int x, string y)</c> or <c>()</c>).
+    /// </summary>
+    private string EmitLambdaParameterList(LambdaParameterListNode paramList)
+    {
+        return paramList switch
+        {
+            SingleImplicitParamLambdaParameterListNode singleParam => singleParam.Name.Lexeme,
+            ParenthesizedLambdaParamsLambdaParameterListNode parenParams => EmitParenthesizedLambdaParams(parenParams),
+            _ => throw new System.InvalidOperationException(
+                $"Unknown LambdaParameterListNode variant: {paramList.GetType().Name}"),
+        };
+    }
+
+    /// <summary>
+    /// Emits a parenthesized lambda parameter list to C#.
+    /// </summary>
+    private string EmitParenthesizedLambdaParams(ParenthesizedLambdaParamsLambdaParameterListNode parenParams)
+    {
+        if (parenParams.Params is null)
+            return "()";
+
+        var parts = new List<string>();
+        parts.Add(EmitLambdaParam(parenParams.Params.LambdaParam));
+        foreach (var param in parenParams.Params.LambdaParams)
+        {
+            parts.Add(EmitLambdaParam(param));
+        }
+
+        return $"({string.Join(", ", parts)})";
+    }
+
+    /// <summary>
+    /// Emits a single lambda parameter to C#.
+    /// Typed params emit as <c>Type name</c>; untyped params emit as just <c>name</c>.
+    /// </summary>
+    private string EmitLambdaParam(LambdaParamNode param)
+    {
+        return param switch
+        {
+            TypedLambdaParamLambdaParamNode typed => $"{EmitTypeReference(typed.Type)} {typed.Name.Lexeme}",
+            UntypedLambdaParamLambdaParamNode untyped => untyped.Name.Lexeme,
+            _ => throw new System.InvalidOperationException(
+                $"Unknown LambdaParamNode variant: {param.GetType().Name}"),
+        };
+    }
+
+    /// <summary>
+    /// Emits a lambda block body as an inline C# block: <c>{ stmt1; stmt2; }</c>.
+    /// </summary>
+    private string EmitLambdaBlockBody(BlockNode block)
+    {
+        var sb = new StringBuilder();
+        sb.Append("{ ");
+
+        foreach (var stmt in block.Statements)
+        {
+            sb.Append(EmitStatementToString(stmt));
+            sb.Append(' ');
+        }
+
+        sb.Append('}');
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Determines whether a non-async lambda body contains calls to async methods
+    /// that will trigger auto-await (emitting <c>await</c> in the C# output).
+    /// When this returns <c>true</c>, the emitted C# lambda needs the <c>async</c>
+    /// keyword for the <c>await</c> to be valid.
+    /// </summary>
+    private bool LambdaBodyContainsAutoAwait(LambdaExpressionNode lambda)
+    {
+        Storm.Runtime.SyntaxNode? body = lambda switch
+        {
+            ExpressionLambdaLambdaExpressionNode exprLambda => exprLambda.Body,
+            BlockLambdaLambdaExpressionNode blockLambda => blockLambda.Body,
+            _ => null,
+        };
+
+        return body is not null && ContainsAutoAwaitCall(body);
+    }
+
+    /// <summary>
+    /// Recursively walks an AST subtree looking for postfix expressions that call
+    /// async methods (which would trigger auto-await emission).
+    /// </summary>
+    private bool ContainsAutoAwaitCall(Storm.Runtime.SyntaxNode node)
+    {
+        // If we hit a nested lambda, stop — its auto-await is independent.
+        if (node is LambdaExpressionNode)
+            return false;
+
+        if (node is PostfixNode postfix && IsPostfixAsyncMethodCall(postfix))
+            return true;
+
+        foreach (var child in node.Children())
+        {
+            if (child is null)
+                continue;
+            if (ContainsAutoAwaitCall(child))
+                return true;
+        }
+
+        return false;
     }
 
     private string EmitAssignment(AssignmentNode assignment)

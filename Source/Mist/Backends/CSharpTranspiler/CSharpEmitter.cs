@@ -344,6 +344,18 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private bool _insideAsyncFunctor;
     /// <summary>
+    /// Set to <c>true</c> while emitting the operand of an explicit <c>await</c> expression.
+    /// When inside an explicit await, auto-unwrap is suppressed to prevent double-await
+    /// (the explicit await already handles the async call).
+    /// </summary>
+    private bool _insideExplicitAwait;
+    /// <summary>
+    /// Set to <c>true</c> while emitting the body of a sync lambda that contains
+    /// auto-await calls. In this context, auto-await emits <c>.GetAwaiter().GetResult()</c>
+    /// instead of <c>await</c> because the lambda's declared return type is not <c>Task&lt;T&gt;</c>.
+    /// </summary>
+    private bool _insideSyncLambdaAutoAwait;
+    /// <summary>
     /// Active associated type slot substitutions for the current method being emitted.
     /// Maps dotted names like "T.Enumerator" to synthesized type parameter names like "TEnumerator".
     /// Set during <see cref="EmitMethodDeclaration"/> when the method has type parameters
@@ -5508,11 +5520,13 @@ internal sealed class CSharpSourceWriter
             // which is `||`).
             var firstType = paramList.Parameter.Type;
             if (firstType.First is not VoidSingleTypeRefSingleTypeRefNode
+                && firstType.First is not FuncSingleTypeRefSingleTypeRefNode
                 && firstType.SingleTypeRefs.Length == 0
                 && !TypeReferenceContainsUnknown(firstType)
                 && !TypeReferenceHasOptionalSuffix(firstType)
                 && !ContainsVoidOrUnknownKeyword(sourceText)
                 && !ContainsPipeOperator(sourceText)
+                && !ContainsFuncKeyword(sourceText)
                 && !ParameterListContainsTypeAlias(paramList, sourceText)
                 && !TypeReferenceHasDependentTypeArguments(firstType)
                 && !SourceContainsDependentTypeArguments(sourceText)
@@ -5549,6 +5563,18 @@ internal sealed class CSharpSourceWriter
     private static bool ContainsVoidOrUnknownKeyword(string source)
     {
         return ContainsWord(source, "unknown") || ContainsWord(source, "void");
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if <paramref name="source"/> contains the
+    /// Mist keyword <c>func</c> as a standalone identifier (matched at word
+    /// boundaries). Used as a lexical fallback in <see cref="EmitParameterList"/>
+    /// to detect func type annotations that must be rewritten to
+    /// <c>System.Func&lt;...&gt;</c> or <c>System.Action&lt;...&gt;</c> in C# emission.
+    /// </summary>
+    private static bool ContainsFuncKeyword(string source)
+    {
+        return ContainsWord(source, "func");
     }
 
     /// <summary>
@@ -5846,6 +5872,59 @@ internal sealed class CSharpSourceWriter
         // e.g., `Box<int>` where `type Box<T> = GenericBox<T>` → `GenericBox<int>`
         if (underlying is ConstructedType ct)
         {
+            // For Standard.Func underlying types (e.g., type Predicate<T> = func<T, bool>),
+            // we must substitute the alias's type parameters into the underlying type's
+            // type arguments and emit the resulting type string directly.
+            // This handles the Func→System.Func / Action→System.Action mapping correctly.
+            if (ct.GenericDefinition is ClassType { DisplayName: "Func", ContainingNamespace: "Standard", IsBackendBacked: true })
+            {
+                // Build a substitution map from alias type parameter names to emitted
+                // type argument strings (resolved through EmitTypeReference).
+                var refTypeArgs = new List<TypeArgumentNode> { namedRef.TypeArgs.TypeArgument };
+                foreach (var arg in namedRef.TypeArgs.TypeArguments)
+                    refTypeArgs.Add(arg);
+
+                var paramNameToEmitted = new Dictionary<string, string>(StringComparer.Ordinal);
+                for (var p = 0; p < aliasType.TypeParameters.Count && p < refTypeArgs.Count; p++)
+                {
+                    if (aliasType.TypeParameters[p] is TypeParameterType aliasTpt
+                        && refTypeArgs[p] is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg)
+                    {
+                        paramNameToEmitted[aliasTpt.Name] = EmitTypeReference(typeRefArg.Type, isValueContext: true);
+                    }
+                }
+
+                // Build the substituted type argument strings for the Func type.
+                var funcArgStrings = new List<string>(ct.TypeArguments.Count);
+                for (var i = 0; i < ct.TypeArguments.Count; i++)
+                {
+                    var ctArg = ct.TypeArguments[i];
+                    if (ctArg is TypeParameterType tpt && paramNameToEmitted.TryGetValue(tpt.Name, out var emitted))
+                    {
+                        funcArgStrings.Add(emitted);
+                    }
+                    else
+                    {
+                        // Fixed type argument (e.g., `bool` in `type Predicate<T> = func<T, bool>`).
+                        funcArgStrings.Add(CSharpTypeMap.GetTypeName(ctArg, isValueContext: true));
+                    }
+                }
+
+                // Determine if this is Action (last arg is void) or Func.
+                var lastArg = ct.TypeArguments[ct.TypeArguments.Count - 1];
+                if (lastArg.IsVoid())
+                {
+                    // Action family: drop the trailing void return type.
+                    if (ct.TypeArguments.Count == 1)
+                        return "System.Action";
+                    var actionArgs = funcArgStrings.Take(funcArgStrings.Count - 1);
+                    return $"System.Action<{string.Join(", ", actionArgs)}>";
+                }
+
+                // Func family: all type arguments, including the return type.
+                return $"System.Func<{string.Join(", ", funcArgStrings)}>";
+            }
+
             // Emit the generic definition name and substitute type args.
             var defName = CSharpTypeMap.GetTypeName(ct.GenericDefinition, isValueContext);
             var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs);
@@ -6400,6 +6479,26 @@ internal sealed class CSharpSourceWriter
                         ?? UnionHelperGenerator.GetHelperTypeName(unionFromExprMap);
                     return namedRef.ArrayRank is not null ? $"{emittedType}[]" : emittedType;
                 }
+                // ── Func type from resolved alias: emit via CSharpTypeMap ──
+                // When a type alias (e.g., Predicate<int>) resolves to a ConstructedType
+                // whose generic definition is Standard.Func, emit it directly through
+                // CSharpTypeMap which handles the Func→System.Func / Action→System.Action mapping.
+                if (resolvedType is ConstructedType resolvedCtFunc
+                    && resolvedCtFunc.GenericDefinition is ClassType { DisplayName: "Func", ContainingNamespace: "Standard", IsBackendBacked: true })
+                {
+                    var emittedType = CSharpTypeMap.GetTypeName(resolvedCtFunc, isValueContext);
+                    return namedRef.ArrayRank is not null ? $"{emittedType}[]" : emittedType;
+                }
+                // ── Task type: emit via CSharpTypeMap ──
+                // When a named type reference resolves to a ConstructedType whose generic
+                // definition is Standard.Task, emit it through CSharpTypeMap which handles
+                // Task<Void> → non-generic Task mapping.
+                if (resolvedType is ConstructedType resolvedCtTask
+                    && resolvedCtTask.GenericDefinition is ClassType { DisplayName: "Task", ContainingNamespace: "Standard", IsBackendBacked: true })
+                {
+                    var emittedType = CSharpTypeMap.GetTypeName(resolvedCtTask, isValueContext);
+                    return namedRef.ArrayRank is not null ? $"{emittedType}[]" : emittedType;
+                }
                 // Fallback: search all symbols for a type alias with this name.
                 // Only apply if no concrete type (class/struct/interface/newtype) with the
                 // same name exists in the current namespace — prevents cross-namespace
@@ -6407,8 +6506,22 @@ internal sealed class CSharpSourceWriter
                 // name in different namespaces compiled together.
                 if (resolvedType is null)
                 {
+                    // Determine the arity of the type reference (number of type arguments).
+                    var refArity = 0;
+                    if (namedRef.TypeArgs is not null)
+                    {
+                        refArity = 1; // First type argument
+                        refArity += namedRef.TypeArgs.TypeArguments.Length;
+                    }
+
+                    // Look up type alias symbols matching by name and arity.
+                    // For TypeAliasType, match arity to disambiguate overloaded aliases
+                    // (e.g., Action vs Action<T1> vs Action<T1, T2>).
                     var aliasSymbol = _model.AllSymbols
-                        .FirstOrDefault(s => s.Name == name && s.Kind == SymbolKind.TypeAlias);
+                        .FirstOrDefault(s => s.Name == name && s.Kind == SymbolKind.TypeAlias
+                            && (s.DeclaredType is TypeAliasType at && at.TypeParameters.Count == refArity
+                                || s.DeclaredType is RefinementType
+                                || s.DeclaredType is UnionType));
                     if (aliasSymbol?.DeclaredType is TypeAliasType aliasType)
                     {
                         // Check that no concrete type with this name exists in the
@@ -6484,6 +6597,29 @@ internal sealed class CSharpSourceWriter
                 {
                     return namedRef.ArrayRank is not null ? $"{mappedName}[]" : mappedName;
                 }
+                // When a mapped name exists AND there are type arguments (e.g., Task<string>),
+                // emit the mapped name with the type arguments (e.g., System.Threading.Tasks.Task<string>).
+                if (mappedName is not null && namedRef.TypeArgs is not null)
+                {
+                    // Special case: Task<void> → non-generic Task.
+                    // C# uses `Task` (not `Task<void>`) for async operations with no return value.
+                    if (name == "Task" && namedRef.TypeArgs.TypeArguments.Length == 0)
+                    {
+                        var singleArg = namedRef.TypeArgs.TypeArgument;
+                        if (singleArg is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg
+                            && typeRefArg.Type.SingleTypeRefs.Length == 0
+                            && typeRefArg.Type.First is VoidSingleTypeRefSingleTypeRefNode)
+                        {
+                            return namedRef.ArrayRank is not null
+                                ? "System.Threading.Tasks.Task[]"
+                                : "System.Threading.Tasks.Task";
+                        }
+                    }
+
+                    var mappedTypeArgs = EmitTypeArgumentList(namedRef.TypeArgs, GetTypeParamsForName(name));
+                    var mappedResult = $"{mappedName}{mappedTypeArgs}";
+                    return namedRef.ArrayRank is not null ? $"{mappedResult}[]" : mappedResult;
+                }
 
                 // Closed_Generic_With_Unknown emission (Task 31 revised,
                 // Req 15.1/15.2): any named type whose type-argument list
@@ -6539,6 +6675,20 @@ internal sealed class CSharpSourceWriter
                     return baseName;
                 }
                 return $"{name}{typeArgs}";
+            }
+            case FuncSingleTypeRefSingleTypeRefNode:
+            {
+                // The `func<T1, ..., TN>` keyword form resolves to Standard.Func<T1, ..., TN>
+                // in the semantic model. Use the resolved type to emit via CSharpTypeMap,
+                // which handles the Func→System.Func / Action→System.Action mapping.
+                var resolvedFuncType = _model.GetTypeOf(typeRef);
+                if (resolvedFuncType is not null && resolvedFuncType is not ErrorType)
+                {
+                    return CSharpTypeMap.GetTypeName(resolvedFuncType, isValueContext);
+                }
+                // Fallback: emit type arguments manually through the Func mapping path.
+                var funcTypeArgs = EmitTypeArgumentList(((FuncSingleTypeRefSingleTypeRefNode)typeRef.First).TypeArgs);
+                return $"System.Func{funcTypeArgs}";
             }
             case TupleSingleTypeRefSingleTypeRefNode tupleRef:
             {
@@ -7453,13 +7603,11 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        // For non-async lambdas, detect if the body contains calls to async methods
-        // (auto-await). If so, the emitted C# lambda needs the `async` keyword because
-        // the auto-unwrap logic will emit `await` inside the lambda body.
-        if (!hasAsync && LambdaBodyContainsAutoAwait(lambda))
-        {
-            hasAsync = true;
-        }
+        // For non-async lambdas that contain auto-await calls, we do NOT add the
+        // `async` keyword. Instead, the auto-await will emit `.GetAwaiter().GetResult()`
+        // at the call site, keeping the lambda synchronous (matching the declared
+        // `Func<..., T>` return type rather than `Func<..., Task<T>>`).
+        var needsSyncAutoAwait = !hasAsync && LambdaBodyContainsAutoAwait(lambda);
 
         // Build the modifier prefix.
         var prefix = "";
@@ -7473,16 +7621,31 @@ internal sealed class CSharpSourceWriter
         // Emit the parameter list.
         var parameters = EmitLambdaParameterList(paramList);
 
+        // Save and set lambda context flags for body emission.
+        var previousSyncLambdaAutoAwait = _insideSyncLambdaAutoAwait;
+
+        if (needsSyncAutoAwait)
+            _insideSyncLambdaAutoAwait = true;
+
         // Emit the body.
-        return lambda switch
+        string result;
+        switch (lambda)
         {
-            ExpressionLambdaLambdaExpressionNode exprLambda =>
-                $"{prefix}{parameters} => {EmitExpression(exprLambda.Body)}",
-            BlockLambdaLambdaExpressionNode blockLambda =>
-                $"{prefix}{parameters} => {EmitLambdaBlockBody(blockLambda.Body)}",
-            _ => throw new System.InvalidOperationException(
-                $"Unknown LambdaExpressionNode variant: {lambda.GetType().Name}"),
-        };
+            case ExpressionLambdaLambdaExpressionNode exprLambda:
+                result = $"{prefix}{parameters} => {EmitExpression(exprLambda.Body)}";
+                break;
+            case BlockLambdaLambdaExpressionNode blockLambda:
+                result = $"{prefix}{parameters} => {EmitLambdaBlockBody(blockLambda.Body)}";
+                break;
+            default:
+                throw new System.InvalidOperationException(
+                    $"Unknown LambdaExpressionNode variant: {lambda.GetType().Name}");
+        }
+
+        // Restore lambda context flags.
+        _insideSyncLambdaAutoAwait = previousSyncLambdaAutoAwait;
+
+        return result;
     }
 
     /// <summary>
@@ -7578,6 +7741,17 @@ internal sealed class CSharpSourceWriter
     {
         // If we hit a nested lambda, stop — its auto-await is independent.
         if (node is LambdaExpressionNode)
+            return false;
+
+        // If we hit an async functor expression, stop — the functor explicitly
+        // captures the Task (either passing it through or wrapping in Task.Run),
+        // so the contained call does not need auto-await.
+        if (node is AsyncExpressionUnaryNode)
+            return false;
+
+        // If we hit an explicit await expression, stop — the user already handles
+        // the async call explicitly, so it should not trigger auto-await.
+        if (node is AwaitExpressionUnaryNode)
             return false;
 
         if (node is PostfixNode postfix && IsPostfixAsyncMethodCall(postfix))
@@ -8751,7 +8925,12 @@ internal sealed class CSharpSourceWriter
             }
             case AwaitExpressionUnaryNode awaitExpr:
             {
+                // Suppress auto-await inside the explicit await operand to prevent
+                // double-await (e.g., `await await AsyncLookup(id)`).
+                var previousExplicitAwait = _insideExplicitAwait;
+                _insideExplicitAwait = true;
                 var operand = EmitUnary(awaitExpr.Operand);
+                _insideExplicitAwait = previousExplicitAwait;
                 return $"await {operand}";
             }
             case PostfixExpressionUnaryNode postfix:
@@ -9277,11 +9456,20 @@ internal sealed class CSharpSourceWriter
         // Top-level statements (_currentMethodSymbol is null) are always a sync context —
         // C#'s top-level statement support automatically generates `async Task Main` when
         // `await` is used, so emitting `await` here is sufficient (Task 13.1).
+        //
+        // Lambda-specific behavior:
+        // - Inside an explicit await: suppress auto-await (prevents double-await).
+        // - Inside a sync lambda with auto-await: emit `.GetAwaiter().GetResult()` instead
+        //   of `await` to keep the lambda synchronous.
         if (!_insideAsyncFunctor
+            && !_insideExplicitAwait
             && (_currentMethodSymbol is null or { IsAsync: false })
             && IsPostfixAsyncMethodCall(postfix))
         {
-            primaryResult = $"await {primaryResult}";
+            if (_insideSyncLambdaAutoAwait)
+                primaryResult = $"{primaryResult}.GetAwaiter().GetResult()";
+            else
+                primaryResult = $"await {primaryResult}";
         }
 
         return primaryResult;
@@ -9301,7 +9489,10 @@ internal sealed class CSharpSourceWriter
         if (postfix.Suffix[^1] is InvocationSuffixPostfixSuffixNode)
         {
             var targetSymbol = _model.GetDeclaredSymbol(postfix.Target);
-            return targetSymbol is Symbol { IsAsync: true };
+            // Check both IsAsync (declared async in Mist) and NeedsCSharpAsync
+            // (propagated async due to transitive calls). A method with NeedsCSharpAsync
+            // emits as async Task<T> in C#, so callers must await it.
+            return targetSymbol is Symbol { IsAsync: true } or Symbol { NeedsCSharpAsync: true };
         }
 
         // Case 2: Member method call — obj.Method(args)
@@ -9322,7 +9513,7 @@ internal sealed class CSharpSourceWriter
 
             // Look up the method symbol in the receiver type.
             var methodSymbol = FindMethodInType(receiverType, memberName);
-            return methodSymbol is { IsAsync: true };
+            return methodSymbol is { IsAsync: true } or { NeedsCSharpAsync: true };
         }
 
         return false;

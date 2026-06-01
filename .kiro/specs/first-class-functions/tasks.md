@@ -267,7 +267,7 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
   - [x] 21.1 Create `samples/FirstClassFunctions/mist.toml` with `name = "FirstClassFunctions"`
     - _Requirements: 20.1_
 
-  - [ ] 21.2 Create `samples/FirstClassFunctions/Program.mist` with the proof code from Requirement 20 verbatim
+  - [x] 21.2 Create `samples/FirstClassFunctions/Program.mist` with the proof code from Requirement 20 verbatim
     - Copy the proof code block verbatim (Allman braces, all `// PROOF:` comments and the `extension(int[] self)` block); it MUST compile and produce the exact expected output
     - _Requirements: 20.2, 20.3, 20.4, 20.6, 20.7_
 

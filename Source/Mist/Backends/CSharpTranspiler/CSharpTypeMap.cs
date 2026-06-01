@@ -215,8 +215,7 @@ internal static class CSharpTypeMap
         TypeParameterType tp => tp.Name,
 
         // Standard.Task<T> — maps to System.Threading.Tasks.Task<T> or non-generic Task.
-        // Task<Void> where value is not used → "Task" (non-generic).
-        // Task<Void> where value is used (isValueContext) → "Task<MistVoid>".
+        // Task<Void> always emits as non-generic "Task".
         // Task<T> where T is not Void → "Task<T>".
         // For the initial implementation, always emit Task<T> (ValueTask optimization comes later).
         ConstructedType ctTask when IsStandardTask(ctTask)
@@ -341,10 +340,12 @@ internal static class CSharpTypeMap
     /// <summary>
     /// Emits the C# type name for a <c>Standard.Task&lt;T&gt;</c> constructed type.
     /// <list type="bullet">
-    ///   <item><c>Task&lt;Void&gt;</c> (value not used) → <c>Task</c> (non-generic)</item>
-    ///   <item><c>Task&lt;Void&gt;</c> (value used / isValueContext) → <c>Task&lt;MistVoid&gt;</c></item>
-    ///   <item><c>Task&lt;T&gt;</c> where T is not Void → <c>Task&lt;{GetTypeName(T)}&gt;</c></item>
+    ///   <item><c>Task&lt;Void&gt;</c> → <c>System.Threading.Tasks.Task</c> (non-generic)</item>
+    ///   <item><c>Task&lt;T&gt;</c> where T is not Void → <c>System.Threading.Tasks.Task&lt;{GetTypeName(T)}&gt;</c></item>
     /// </list>
+    /// <c>Task&lt;Void&gt;</c> always emits as the non-generic <c>Task</c> because C# uses
+    /// <c>Task</c> (not <c>Task&lt;void&gt;</c>) for async operations with no return value.
+    /// This is valid even in generic type argument positions (e.g., <c>Func&lt;int, Task&gt;</c>).
     /// For the initial implementation, always emits <c>Task&lt;T&gt;</c> (the ValueTask
     /// optimization is deferred to task 12.6).
     /// </summary>
@@ -354,11 +355,7 @@ internal static class CSharpTypeMap
 
         if (innerType.IsVoid())
         {
-            // Task<Void> where value is used → Task<MistVoid>
-            if (isValueContext)
-                return "System.Threading.Tasks.Task<MistVoid>";
-
-            // Task<Void> where value is not used → non-generic Task
+            // Task<Void> always emits as non-generic Task.
             return "System.Threading.Tasks.Task";
         }
 

@@ -220,10 +220,10 @@ The existing `_emitVoidAsNull` flag (from the optional-types feature) already ha
 When the emitter encounters an assignment where the source is a void-typed expression and the target is `Type`, it emits `MistVoid.Instance` and relies on the C# compiler to resolve the implicit operator on the generated `MistVoid` struct. The `MistVoid.g.cs` helper file needs an additional implicit operator:
 
 ```csharp
-public static implicit operator System.Type(MistVoid v) => typeof(MistVoid);
+public static implicit operator System.Type(MistVoid v) => typeof(void);
 ```
 
-This mirrors the Mist-level `implicit operator Type(Void v)` in the generated C# output.
+This mirrors the Mist-level `implicit operator Type(Void v)` in the generated C# output. It returns a Type whose `.Name == "Void"` per Requirement 4.1 (an earlier draft used `typeof(MistVoid)`, which yields `.Name == "MistVoid"` and contradicts Requirement 4.1).
 
 ### 4. MistVoid.g.cs Update
 
@@ -242,7 +242,8 @@ public readonly struct MistVoid : System.IEquatable<MistVoid>
     public override string ToString() => "Void";
 
     // NEW: Implicit conversion to System.Type (mirrors Mist's Void → Type).
-    public static implicit operator System.Type(MistVoid v) => typeof(MistVoid);
+    // Returns a Type whose .Name == "Void" per Requirement 4.1.
+    public static implicit operator System.Type(MistVoid v) => typeof(void);
 }
 ```
 

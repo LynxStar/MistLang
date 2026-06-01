@@ -20,7 +20,7 @@ public class Program
             Console.WriteLine($"Name={s}");
         }
 
-        string? empty = Void.Void;
+        string? empty = void;
         if (empty is string e)
         {
             Console.WriteLine($"Unreachable={e}");

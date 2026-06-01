@@ -3,7 +3,7 @@ public class Program
     public static void Main(string[] args)
     {
         int? hasValue = 10;
-        int? noValue = Void.Void;
+        int? noValue = void;
 
         int result1 = hasValue ?? 0;
         int result2 = noValue ?? 42;

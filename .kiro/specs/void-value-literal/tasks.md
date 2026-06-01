@@ -95,7 +95,7 @@ This plan implements context-sensitive `void` keyword resolution in expression p
   - **Requirements:** 7.1, 7.2, 7.3, 7.4, 7.5
   - **Files:** `samples/VoidType/VoidDemo.mist`, `samples/OptionalTypes/Program.mist`, other samples as needed
 
-- [-] 9. Create VoidValueLiteral sample application
+- [x] 9. Create VoidValueLiteral sample application
   - Create `samples/VoidValueLiteral/mist.toml` project file
   - Create `samples/VoidValueLiteral/Program.mist` containing the Proof Code from Requirement 9 verbatim
   - Add `VoidValueLiteral.Program.RunDemo()` call to `samples/AllFeatures/Program.mist`
@@ -105,7 +105,7 @@ This plan implements context-sensitive `void` keyword resolution in expression p
   - **Requirements:** 9.1, 9.2, 9.3, 9.4, 9.5, 9.6
   - **Files:** `samples/VoidValueLiteral/Program.mist`, `samples/VoidValueLiteral/mist.toml`, `samples/AllFeatures/Program.mist`, `samples/AllFeatures/mist.toml`
 
-- [ ] 10. Update language book
+- [x] 10. Update language book
   - Update `book/src/basics/void-type.md` to document void as value literal with context-sensitive resolution rules
   - Update `book/src/basics/functions.md` to replace `Void.Void` reference with `void`
   - Update all `.mist` snippets in `book/snippets/basics/void-type/` to use `void` instead of `Void.Void`

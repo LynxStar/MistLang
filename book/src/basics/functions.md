@@ -80,7 +80,7 @@ Here `ApplyFee` is `private` — it's a helper that only `Deposit` uses internal
 
 ## Void Return Type
 
-Remember that `void` is a real type in Mist — it has a single value (`Void.Void`). A method with a `void` return type can use any of these forms: no return statement at all, `return;`, or `return Void.Void;`. Omitting the return statement is syntactic sugar; the compiler inserts the implicit return for you.
+Remember that `void` is a real type in Mist — it has a single value, the Void singleton. A method with a `void` return type can use any of these forms: no return statement at all, `return;`, or `return void;`. Omitting the return statement is syntactic sugar; the compiler inserts the implicit return for you.
 
 See [Void Type](./void-type.md) for the full details on using `void` as a first-class value.
 

@@ -1,4 +1,6 @@
 using System;
 
-Console.WriteLine($"void == void: {MistVoid.Instance == MistVoid.Instance}");
-Console.WriteLine($"void != void: {MistVoid.Instance != MistVoid.Instance}");
+MistVoid a = MistVoid.Instance;
+MistVoid b = MistVoid.Instance;
+Console.WriteLine($"void == void: {a == b}");
+Console.WriteLine($"void != void: {a != b}");

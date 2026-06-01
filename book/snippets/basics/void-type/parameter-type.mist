@@ -4,5 +4,5 @@ public static string DescribeVoid(void v)
 }
 
 // Calling the method:
-string desc = DescribeVoid(Void.Void);
+string desc = DescribeVoid(void);
 Console.WriteLine($"DescribeVoid: {desc}");

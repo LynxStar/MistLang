@@ -1330,4 +1330,15 @@ nested: both positive with label
 --- 3-element tuple ---
 red-ish color with no blue
 Done!
+--- Void Value Literal ---
+void variable: Void
+Type variable: Void
+var inferred type name: Void
+DescribeVoid(void): received void
+DoNothing() returned: Void
+Result<void>.IsSuccess: True
+implicit Void->Type: Void
+void == void: True
+void != void: False
+absent ?? 42: 42
 === Done! ===

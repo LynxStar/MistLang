@@ -18770,18 +18770,73 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var leftType = ResolveRelational(node.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        var rightOperand = node.Right is not null && !ReferenceEquals(node.Right, node.Left)
+            ? node.Right
+            : null;
 
-        if (node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        // Target-type-aware void resolution for equality operands: when either
+        // operand is a bare `void` keyword literal (e.g. `void == void`), there
+        // is no external target type to drive value-literal resolution, so each
+        // `void` would otherwise resolve to the Standard.Type metatype — which
+        // declares no equality operators. Set the void target type so each bare
+        // `void` operand resolves as VoidType (the Void singleton) instead. The
+        // void-equality short-circuit in TypeCheckerAnalyzer.CheckEqualityNode
+        // then types the comparison as bool. (void-value-literal, Requirement 9.)
+        var setVoidTarget = rightOperand is not null
+            && (IsBareVoidTypeLiteral(node.Left) || IsBareVoidTypeLiteral(rightOperand));
+        var previousVoidTarget = _voidLiteralTargetType;
+        if (setVoidTarget)
         {
-            ResolveRelational(node.Right, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-            var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
-            expressionTypes[node] = result;
-            return result;
+            _voidLiteralTargetType = LegacyPrimitiveTypes.Void;
         }
 
-        expressionTypes[node] = leftType;
-        return leftType;
+        try
+        {
+            var leftType = ResolveRelational(node.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+            if (rightOperand is not null)
+            {
+                ResolveRelational(rightOperand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                var result = ResolvePrimitiveByKeyword("bool", fileScope, symbolTable);
+                expressionTypes[node] = result;
+                return result;
+            }
+
+            expressionTypes[node] = leftType;
+            return leftType;
+        }
+        finally
+        {
+            if (setVoidTarget)
+            {
+                _voidLiteralTargetType = previousVoidTarget;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns true when the given relational operand is a bare <c>void</c>
+    /// keyword type literal — i.e. it reduces (with no binary operators or
+    /// postfix suffixes) to a <see cref="TypeLiteralExpressionPrimaryNode"/>
+    /// whose <c>TypeRef</c> is a <see cref="VoidTypeRefTypeReferenceNode"/>.
+    /// Used to drive target-type-aware void resolution for equality operands
+    /// such as <c>void == void</c>, which have no external target type. Returns
+    /// false for any other operand (e.g. <c>1 == 2</c>, <c>"a" == "b"</c>,
+    /// <c>x == y</c>), preserving normal equality behavior.
+    /// </summary>
+    private static bool IsBareVoidTypeLiteral(RelationalNode? relational)
+    {
+        if (relational is not RelationalComparisonRelationalNode { Right: null } cmp)
+            return false;
+        if (cmp.Left is not AdditiveNode { Right: null } additive)
+            return false;
+        if (additive.Left is not MultiplicativeNode { Right: null } multiplicative)
+            return false;
+        if (multiplicative.Left is not PostfixExpressionUnaryNode postfix)
+            return false;
+        if (postfix.Primary is not PostfixNode { Suffix.Length: 0 } postfixNode)
+            return false;
+        return postfixNode.Target is TypeLiteralExpressionPrimaryNode { TypeRef: VoidTypeRefTypeReferenceNode };
     }
 
     private static IType ResolveRelational(

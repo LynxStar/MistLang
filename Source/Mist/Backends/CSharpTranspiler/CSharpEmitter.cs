@@ -244,7 +244,7 @@ public sealed class CSharpEmitter
                 public static bool operator ==(MistVoid left, MistVoid right) => true;
                 public static bool operator !=(MistVoid left, MistVoid right) => false;
                 public override string ToString() => "Void";
-                public static implicit operator System.Type(MistVoid v) => typeof(MistVoid);
+                public static implicit operator System.Type(MistVoid v) => typeof(void);
             }
             """;
     }
@@ -6158,70 +6158,26 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
-    /// Recursively checks if an expression contains a <see cref="TypeLiteralExpressionPrimaryNode"/>.
+    /// Recursively checks if an expression tree contains a
+    /// <see cref="TypeLiteralExpressionPrimaryNode"/> anywhere within it (not just
+    /// on the left spine). A type literal in expression position requires special
+    /// emission — <c>typeof(...)</c> for type-literal contexts or
+    /// <c>MistVoid.Instance</c> for void value literals — so its presence anywhere
+    /// in a method argument (including nested binary operands and interpolated
+    /// string holes such as <c>$"{void == void}"</c>) must bypass the source-text
+    /// fast path and route through the expression emitter.
     /// </summary>
-    private static bool ExpressionContainsTypeLiteral(ExpressionNode expr)
+    private static bool ExpressionContainsTypeLiteral(Storm.Runtime.SyntaxNode node)
     {
-        // Walk the expression tree: Assignment → LogicalOr → ... → Unary → Postfix → Primary
-        var assignment = expr.Assignment;
-        return AssignmentContainsTypeLiteral(assignment);
-    }
-
-    private static bool AssignmentContainsTypeLiteral(AssignmentNode assignment)
-    {
-        if (LogicalOrContainsTypeLiteral(assignment.Target.Left))
+        if (node is TypeLiteralExpressionPrimaryNode)
             return true;
-        if (assignment.Value is not null)
-            return AssignmentContainsTypeLiteral(assignment.Value);
+
+        foreach (var child in node.Children())
+        {
+            if (child is not null && ExpressionContainsTypeLiteral(child))
+                return true;
+        }
         return false;
-    }
-
-    private static bool LogicalOrContainsTypeLiteral(LogicalOrNode logicalOr)
-    {
-        return LogicalAndContainsTypeLiteral(logicalOr.Left);
-    }
-
-    private static bool LogicalAndContainsTypeLiteral(LogicalAndNode logicalAnd)
-    {
-        return EqualityContainsTypeLiteral(logicalAnd.Left);
-    }
-
-    private static bool EqualityContainsTypeLiteral(EqualityNode equality)
-    {
-        return RelationalContainsTypeLiteral(equality.Left);
-    }
-
-    private static bool RelationalContainsTypeLiteral(RelationalNode relational)
-    {
-        return relational switch
-        {
-            RelationalComparisonRelationalNode comp => AdditiveContainsTypeLiteral(comp.Left),
-            _ => false,
-        };
-    }
-
-    private static bool AdditiveContainsTypeLiteral(AdditiveNode additive)
-    {
-        return MultiplicativeContainsTypeLiteral(additive.Left);
-    }
-
-    private static bool MultiplicativeContainsTypeLiteral(MultiplicativeNode multiplicative)
-    {
-        return UnaryContainsTypeLiteral(multiplicative.Left);
-    }
-
-    private static bool UnaryContainsTypeLiteral(UnaryNode unary)
-    {
-        return unary switch
-        {
-            PostfixExpressionUnaryNode postfix => PostfixContainsTypeLiteral(postfix.Primary),
-            _ => false,
-        };
-    }
-
-    private static bool PostfixContainsTypeLiteral(PostfixNode postfix)
-    {
-        return postfix.Target is TypeLiteralExpressionPrimaryNode;
     }
 
     /// <summary>

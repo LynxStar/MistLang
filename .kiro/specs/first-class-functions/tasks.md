@@ -179,7 +179,7 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
     - `MIST_TC_0110` ref struct capture; `MIST_TC_0111` owned-type capture; `MIST_TC_0112` borrowed/frozen/readonly-ref capture; permit unrestricted reference and value types
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8_
 
-  - [ ] 11.6 Write unit tests for lambda diagnostics and static-lambda isolation
+  - [x] 11.6 Write unit tests for lambda diagnostics and static-lambda isolation
     - Cover each diagnostic (`MIST_TC_0110`–`MIST_TC_0121`) and static-lambda isolation; in-process (no `dotnet` spawning)
     - **Property 4: Static Lambda Isolation**
     - **Validates: Requirements 8.2, 8.3, 8.4, 8.5**
@@ -232,7 +232,7 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 17. Advanced feature integration
-  - [ ] 17.1 Implement Func type ownership rules in the type checker
+  - [x] 17.1 Implement Func type ownership rules in the type checker
     - Treat Func-typed values as reference types; permit unrestricted/`owned`/`readonly ref`/`frozen ref`/`ref`; invocation is a read (permitted on `readonly ref`/`frozen ref`); reassignment requires `ref`; static lambdas are still reference types
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5, 17.6_
 

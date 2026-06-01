@@ -1,4 +1,62 @@
 === AllFeatures Mist Sample ===
+=== FirstClassFunctions Sample ===
+--- Expression Lambda ---
+doubler(5)=10
+doubler(0)=0
+--- Multi-Param Lambda ---
+adder(3,4)=7
+--- Zero-Param Lambda ---
+greeter()=Hello, Mist!
+--- Block Lambda ---
+describer(5)=positive
+describer(-1)=negative
+describer(0)=zero
+--- Var Inference ---
+square(6)=36
+--- Action Lambda ---
+printed: test
+--- Higher-Order Parameter ---
+Apply(10, x=>x+5)=15
+--- Higher-Order Return ---
+multiplier(7)=21
+multiplier(0)=0
+--- Method Group ---
+fn(42)=-42
+--- Type Alias ---
+isEven(4)=True
+isEven(7)=False
+toStr(99)=val=99
+--- Capture ---
+increment()=1
+increment()=2
+counter=2
+--- Static Lambda ---
+staticAdd(10,20)=30
+--- Nested Func Type ---
+add5(3)=8
+curryAdd(1)(2)=3
+--- Sync Lambda Calls Async ---
+syncLookup(1)=item-1
+syncLookup(2)=item-2
+--- Async Lambda Explicit Await ---
+asyncLookup(3)=item-3
+--- Async Lambda Scope Exit ---
+asyncFire completed
+--- Sync Lambda Async Lift ---
+liftedSync(10)=20
+--- Async Lambda Async Lift ---
+asyncLifted(20)=40
+--- Sync Lambda Returns Task ---
+taskReturner(5)=item-5
+--- Mist Extension Method ---
+evens.Length=2
+evens[0]=2
+evens[1]=4
+--- C# Extension Method ---
+item=10
+item=20
+item=30
+=== FirstClassFunctions Done ===
 int=42 uint=100 long=100 ulong=999
 short=16 ushort=32 byte=255 sbyte=-128
 float=2.5 double=3.14 decimal=99.99

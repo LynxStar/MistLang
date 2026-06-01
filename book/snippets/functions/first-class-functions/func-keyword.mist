@@ -1,0 +1,16 @@
+using Standard;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // The func keyword declares a function type
+        func<int, int> doubler = x => x * 2;
+        func<int, int, int> adder = (x, y) => x + y;
+        func<string> greeter = () => "Hello, Mist!";
+
+        Console.WriteLine($"doubler(5)={doubler(5)}");
+        Console.WriteLine($"adder(3,4)={adder(3, 4)}");
+        Console.WriteLine($"greeter()={greeter()}");
+    }
+}

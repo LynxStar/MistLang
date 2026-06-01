@@ -1,0 +1,25 @@
+using Standard;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Block lambda: params => { statements }
+        func<int, string> classify = (int n) =>
+        {
+            if (n > 0)
+            {
+                return "positive";
+            }
+            if (n < 0)
+            {
+                return "negative";
+            }
+            return "zero";
+        };
+
+        Console.WriteLine($"classify(5)={classify(5)}");
+        Console.WriteLine($"classify(-1)={classify(-1)}");
+        Console.WriteLine($"classify(0)={classify(0)}");
+    }
+}

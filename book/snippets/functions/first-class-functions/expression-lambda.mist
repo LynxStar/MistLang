@@ -1,0 +1,16 @@
+using Standard;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Expression lambda: params => expression
+        func<int, int> square = x => x * x;
+        func<int, int, int> multiply = (x, y) => x * y;
+        func<string> hello = () => "Hello!";
+
+        Console.WriteLine($"square(6)={square(6)}");
+        Console.WriteLine($"multiply(3,7)={multiply(3, 7)}");
+        Console.WriteLine($"hello()={hello()}");
+    }
+}

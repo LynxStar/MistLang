@@ -1,0 +1,20 @@
+using Standard;
+
+public class Program
+{
+    public static async string FetchData(int id)
+    {
+        return $"data-{id}";
+    }
+
+    public static void Main(string[] args)
+    {
+        // Async lambda with explicit await
+        func<int, Task<string>> fetcher = async id => await FetchData(id);
+        Console.WriteLine($"fetcher(1)={await fetcher(1)}");
+
+        // Sync lambda calling async method — auto-awaits
+        func<int, string> syncFetcher = id => FetchData(id);
+        Console.WriteLine($"syncFetcher(2)={syncFetcher(2)}");
+    }
+}

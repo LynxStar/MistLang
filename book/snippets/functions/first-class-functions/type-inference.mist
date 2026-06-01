@@ -1,0 +1,16 @@
+using Standard;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Target-type inference: param types inferred from func type
+        func<int, int> doubler = x => x * 2;
+
+        // var with explicit params: func type inferred from lambda
+        var square = (int x) => x * x;
+
+        Console.WriteLine($"doubler(5)={doubler(5)}");
+        Console.WriteLine($"square(4)={square(4)}");
+    }
+}

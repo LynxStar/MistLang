@@ -1,0 +1,18 @@
+using Standard;
+
+// Type aliases for function types
+type Predicate<T> = func<T, bool>;
+type Transform<TIn, TOut> = func<TIn, TOut>;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Predicate<int> isEven = x => x % 2 == 0;
+        Transform<int, string> toStr = x => $"val={x}";
+
+        Console.WriteLine($"isEven(4)={isEven(4)}");
+        Console.WriteLine($"isEven(7)={isEven(7)}");
+        Console.WriteLine($"toStr(99)={toStr(99)}");
+    }
+}

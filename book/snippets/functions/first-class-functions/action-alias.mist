@@ -1,0 +1,14 @@
+using Standard;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Action is a type alias for func<..., void>
+        Action<string> printer = msg => Console.WriteLine($"[LOG] {msg}");
+        Action doNothing = () => { };
+
+        printer("hello");
+        doNothing();
+    }
+}

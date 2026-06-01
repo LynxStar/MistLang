@@ -1,0 +1,16 @@
+using Standard;
+
+public class Program
+{
+    public static int Negate(int x)
+    {
+        return -x;
+    }
+
+    public static void Main(string[] args)
+    {
+        // Method group: use a named method where a func is expected
+        func<int, int> fn = Negate;
+        Console.WriteLine($"fn(42)={fn(42)}");
+    }
+}

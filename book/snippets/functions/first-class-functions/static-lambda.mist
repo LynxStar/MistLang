@@ -1,0 +1,11 @@
+using Standard;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Static lambda: cannot capture enclosing variables
+        func<int, int, int> add = static (a, b) => a + b;
+        Console.WriteLine($"add(10,20)={add(10, 20)}");
+    }
+}

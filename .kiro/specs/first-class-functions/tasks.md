@@ -74,7 +74,7 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
     - Emit lambdas: expression body `params => expr`, block body `params => { stmts }`, single implicit param without parens `x => expr`, zero params `() => expr`, typed params `(int x) => expr`, and the `static`/`async` modifiers
     - _Requirements: 13.3, 13.4, 13.5, 13.6, 13.8_
 
-- [ ] 6. Parser and precedence tests
+- [x] 6. Parser and precedence tests
   - [x] 6.1 Add parser unit tests for lambda forms and the precedence model
     - Extend/replace `Test/Mist.Tests/Parsing/LambdaExpressionParserTests.cs` to assert each lambda form produces the correct AST node at the `Expression` level: single/multi/zero params, typed params, block body, expression body, `static`, `async`, `static async`
     - Assert `f = x => x + 1` parses as `f = (x => x + 1)` (assignment RHS is the lambda) and `x => y => x + y` parses right-associatively as `x => (y => (x + y))`
@@ -111,7 +111,7 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
   - Verify `func<int, string>` parses as a type reference and lambda expressions parse in all forms at the `Expression` level
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 8. Semantic model: Func type resolution
+- [x] 8. Semantic model: Func type resolution
   - [x] 8.1 Implement `func` keyword resolution in `SemanticModelBuilder.cs`
     - When resolving a `FuncSingleTypeRefSingleTypeRefNode`, look up `Standard.Func` with the matching arity and construct a `ConstructedType`
     - Ensure `func<int, string>` and `Func<int, string>` resolve to the same type
@@ -131,7 +131,7 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
     - **Property 1: Func Type Structural Equality**
     - **Validates: Requirements 1.6, 2.3, 7.6, 7.7, 16.4**
 
-- [ ] 9. Semantic model: Lambda expression type resolution
+- [x] 9. Semantic model: Lambda expression type resolution
   - [x] 9.1 Implement target-type-driven lambda inference in `SemanticModelBuilder.cs`
     - For the `LambdaFormExpressionNode` subtype, when implicitly-typed params are assigned to an explicit `Func`-typed variable or passed to a `Func`-typed parameter, infer param types from the target type's type arguments
     - _Requirements: 6.1, 6.2_
@@ -158,7 +158,7 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
   - Verify `func<int, string> f = x => ...` resolves correctly and Func-typed invocation produces the correct return type
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 11. Type checker: validation rules
+- [x] 11. Type checker: validation rules
   - [x] 11.1 Implement lambda parameter validation in `TypeCheckerAnalyzer.cs`
     - `MIST_TC_0115` mixed typed/untyped params; `MIST_TC_0116` cannot infer param types (no target type, implicit params); `MIST_TC_0117` inconsistent return types in block lambda; `MIST_TC_0118` missing return in non-void block lambda
     - _Requirements: 4.7, 4.8, 6.6, 6.7, 5.4_
@@ -189,7 +189,7 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
   - Verify capture-restriction errors and static lambda validation fire correctly
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 13. C# code generation
+- [x] 13. C# code generation
   - [x] 13.1 Implement lambda expression emission in `CSharpEmitter.cs`
     - Emit `(params) => expr` / `(params) => { stmts }`; emit `static` (C# 9 static lambdas) and `async`; for non-async lambdas that call async methods (auto-await), emit `async` on the C# lambda
     - Dispatch through the abstract `ExpressionNode` subtypes (`LambdaFormExpressionNode` emits the lambda; `AssignmentFormExpressionNode` uses the existing assignment path)
@@ -213,7 +213,7 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
   - Add a batched integration test (one compile, one run) for `func<int, int> f = x => x * 2; f(5);` and verify it compiles and runs correctly through the full pipeline
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 15. Assembly type provider: delegate projection
+- [x] 15. Assembly type provider: delegate projection
   - [x] 15.1 Project `System.Func<>`/`System.Action<>` as Mist `Func` types in `TypeProjector`
     - `System.Func<T1,...,TN,TResult>` → `Standard.Func<T1,...,TN,TResult>`; `System.Action<T1,...,TN>` → `Standard.Func<T1,...,TN,Void>`; `System.Action` → `Standard.Func<Void>`
     - _Requirements: 15.1, 15.2_
@@ -231,7 +231,7 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
   - Add batched tests verifying `List<T>.ForEach(Action<T>)` and LINQ-style `Func<T, bool>` methods accept Mist lambdas
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 17. Advanced feature integration
+- [x] 17. Advanced feature integration
   - [x] 17.1 Implement Func type ownership rules in the type checker
     - Treat Func-typed values as reference types; permit unrestricted/`owned`/`readonly ref`/`frozen ref`/`ref`; invocation is a read (permitted on `readonly ref`/`frozen ref`); reassignment requires `ref`; static lambdas are still reference types
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5, 17.6_
@@ -263,7 +263,7 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
     - `Delegates` `🔲` → `✅` (`Func<T, TResult> type family with func keyword; no delegate keyword`); `Lambda expressions (=>)` `🔲` → `✅` (`Expression and block bodies, static, async`); retain `Anonymous methods (delegate { })` `⛔` (`Superseded by lambdas`); `Generic delegates` `🔲` → `✅` (`Func type family supports 0-16 parameters`)
     - _Requirements: 19.1, 19.2, 19.3, 19.4_
 
-- [ ] 21. Sample application
+- [x] 21. Sample application
   - [x] 21.1 Create `samples/FirstClassFunctions/mist.toml` with `name = "FirstClassFunctions"`
     - _Requirements: 20.1_
 
@@ -271,11 +271,11 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
     - Copy the proof code block verbatim (Allman braces, all `// PROOF:` comments and the `extension(int[] self)` block); it MUST compile and produce the exact expected output
     - _Requirements: 20.2, 20.3, 20.4, 20.6, 20.7_
 
-  - [ ] 21.3 Integrate the sample into the AllFeatures orchestrator
+  - [x] 21.3 Integrate the sample into the AllFeatures orchestrator
     - Add `FirstClassFunctions.Program.RunDemo()` call to `samples/AllFeatures/Program.mist` and a project reference entry to `samples/AllFeatures/mist.toml`
     - _Requirements: 20.5_
 
-  - [ ] 21.4 Verify the sample compiles and produces the expected output
+  - [x] 21.4 Verify the sample compiles and produces the expected output
     - Compile and run the sample (batched: one compile, one run) and verify stdout matches the Requirement 20 expected output line-by-line
     - _Requirements: 20.6, 20.7_
 
@@ -284,16 +284,16 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
     - Highlight `func` with the same scope as other type keywords
     - _Requirements: 21.1, 21.2_
 
-- [ ] 23. Book documentation
-  - [ ] 23.1 Create `book/src/functions/first-class-functions.md` chapter
+- [x] 23. Book documentation
+  - [x] 23.1 Create `book/src/functions/first-class-functions.md` chapter
     - Cover the `func` keyword, `Func` type family, `Action` alias, expression/block lambdas, type inference, higher-order functions, method groups, static lambdas, async lambdas, capture semantics, capture restrictions, and type aliases for function types; include a comparison with C#'s Func/Action/delegate system
     - _Requirements: 22.1, 22.3, 22.4_
 
-  - [ ] 23.2 Add the chapter to `book/src/SUMMARY.md`
+  - [x] 23.2 Add the chapter to `book/src/SUMMARY.md`
     - Add under an appropriate section
     - _Requirements: 22.2_
 
-  - [ ] 23.3 Create compilable snippet files in `book/snippets/functions/`
+  - [x] 23.3 Create compilable snippet files in `book/snippets/functions/`
     - Create `.mist`/`.cs` pairs for each code example and generate the `.cs` files via the snippet emitter tool
     - _Requirements: 22.5_
 

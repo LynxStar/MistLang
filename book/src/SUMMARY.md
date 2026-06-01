@@ -49,6 +49,7 @@
 
 # Advanced Features
 
+- [First-Class Functions](functions/first-class-functions.md)
 - [Ownership](advanced/ownership.md)
 - [Ref Parameters](advanced/ref-parameters.md)
 - [Readonly Contexts](advanced/readonly-contexts.md)

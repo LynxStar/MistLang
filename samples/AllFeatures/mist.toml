@@ -54,3 +54,4 @@ RefStructs = { path = "../RefStructs" }
 ExtensionMethodBinding = { path = "../ExtensionMethodBinding" }
 TuplePatternMatching = { path = "../TuplePatternMatching" }
 ArityOverloads = { path = "../ArityOverloads" }
+FirstClassFunctions = { path = "../FirstClassFunctions" }

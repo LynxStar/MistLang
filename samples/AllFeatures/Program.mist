@@ -10,6 +10,7 @@ public class Program
     public static void Main(string[] args)
     {
         Console.WriteLine("=== AllFeatures Mist Sample ===");
+        FirstClassFunctions.Program.RunDemo();
         Primitives.Program.RunDemo();
         Classes.Program.RunDemo();
         ShapeInterfaces.Program.RunDemo();

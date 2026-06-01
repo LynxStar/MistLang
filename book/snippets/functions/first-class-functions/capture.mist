@@ -1,0 +1,19 @@
+using Standard;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Lambdas capture enclosing variables by reference
+        int counter = 0;
+        func<int> increment = () =>
+        {
+            counter = counter + 1;
+            return counter;
+        };
+
+        Console.WriteLine($"increment()={increment()}");
+        Console.WriteLine($"increment()={increment()}");
+        Console.WriteLine($"counter={counter}");
+    }
+}

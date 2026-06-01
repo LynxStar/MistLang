@@ -1652,20 +1652,74 @@ public sealed class MistPrettyPrinter
         };
     }
 
-    /// <summary>
-    /// Pretty-prints a lambda expression.
-    /// </summary>
-    /// <remarks>
-    /// Full lambda pretty-printing (expression/block bodies, single implicit param, typed
-    /// params, <c>static</c>/<c>async</c> modifiers) is implemented by first-class-functions
-    /// task 5.2. This stub exists so the abstract <see cref="ExpressionNode"/> dispatch
-    /// compiles and the assignment-form path is fully preserved; task 5.2 fills in the body.
-    /// </remarks>
-    private static string EmitLambda(LambdaExpressionNode lambda)
+    private string EmitLambda(LambdaExpressionNode lambda)
     {
-        _ = lambda;
-        throw new System.NotSupportedException(
-            "Lambda expression pretty-printing is implemented by first-class-functions task 5.2.");
+        return lambda switch
+        {
+            ExpressionLambdaLambdaExpressionNode exprLambda =>
+                $"{EmitLambdaModifiers(exprLambda.Modifiers)}{EmitLambdaParameterList(exprLambda.Params)} => {EmitExpression(exprLambda.Body)}",
+            BlockLambdaLambdaExpressionNode blockLambda =>
+                $"{EmitLambdaModifiers(blockLambda.Modifiers)}{EmitLambdaParameterList(blockLambda.Params)} => {EmitBlockBody(blockLambda.Body)}",
+            _ => throw new System.InvalidOperationException(
+                $"Unknown LambdaExpressionNode variant: {lambda.GetType().Name}"),
+        };
+    }
+
+    private static string EmitLambdaModifiers(ImmutableArray<LambdaModifierNode> modifiers)
+    {
+        if (modifiers.IsDefaultOrEmpty) return "";
+
+        var parts = new List<string>();
+        foreach (var modifier in modifiers)
+        {
+            parts.Add(modifier switch
+            {
+                StaticLambdaModifierLambdaModifierNode => "static",
+                AsyncLambdaModifierLambdaModifierNode => "async",
+                _ => "",
+            });
+        }
+
+        return string.Join(" ", parts) + " ";
+    }
+
+    private string EmitLambdaParameterList(LambdaParameterListNode paramList)
+    {
+        return paramList switch
+        {
+            SingleImplicitParamLambdaParameterListNode singleParam => singleParam.Name.Lexeme,
+            ParenthesizedLambdaParamsLambdaParameterListNode parenParams => EmitParenthesizedLambdaParams(parenParams),
+            _ => throw new System.InvalidOperationException(
+                $"Unknown LambdaParameterListNode variant: {paramList.GetType().Name}"),
+        };
+    }
+
+    private string EmitParenthesizedLambdaParams(ParenthesizedLambdaParamsLambdaParameterListNode parenParams)
+    {
+        if (parenParams.Params is null)
+        {
+            return "()";
+        }
+
+        var parts = new List<string>();
+        parts.Add(EmitLambdaParam(parenParams.Params.LambdaParam));
+        foreach (var param in parenParams.Params.LambdaParams)
+        {
+            parts.Add(EmitLambdaParam(param));
+        }
+
+        return $"({string.Join(", ", parts)})";
+    }
+
+    private string EmitLambdaParam(LambdaParamNode param)
+    {
+        return param switch
+        {
+            TypedLambdaParamLambdaParamNode typed => $"{EmitTypeReference(typed.Type)} {typed.Name.Lexeme}",
+            UntypedLambdaParamLambdaParamNode untyped => untyped.Name.Lexeme,
+            _ => throw new System.InvalidOperationException(
+                $"Unknown LambdaParamNode variant: {param.GetType().Name}"),
+        };
     }
 
     private string EmitAssignment(AssignmentNode assignment)

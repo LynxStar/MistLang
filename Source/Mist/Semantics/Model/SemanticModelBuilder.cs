@@ -35,6 +35,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     [ThreadStatic]
     private static IType? _emptyArrayTargetType;
 
+    // ── Target type context for lambda expression inference ──────────────
+    // Set before resolving a lambda expression's initializer so that
+    // implicitly-typed lambda parameters can infer their types from the
+    // target Func type. Cleared immediately after resolution.
+    [ThreadStatic]
+    private static IType? _lambdaTargetType;
+
     // ── Symbolic length ID allocation for parameter arrays ────────────────
     // Generates unique IDs for unsized array parameters so that two references
     // to the same parameter's .Length resolve to the same symbolic identity.
@@ -14254,8 +14261,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var isStatic = fieldDecl.Modifiers.Any(m => m is StaticModifierModifierNode);
             _emptyArrayTargetType = fieldType;
+            if (IsFuncType(fieldType))
+            {
+                _lambdaTargetType = fieldType;
+            }
             ResolveExpression(initExpr, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
             _emptyArrayTargetType = null;
+            _lambdaTargetType = null;
         }
     }
 
@@ -15198,8 +15210,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Set target type context so EmptyArrayLiteralExpressionPrimaryNode
                 // can infer its element type from the declared array type.
                 _emptyArrayTargetType = declaredType;
+
+                // Set lambda target type context so implicitly-typed lambda parameters
+                // can infer their types from the declared Func type.
+                if (IsFuncType(declaredType))
+                {
+                    _lambdaTargetType = declaredType;
+                }
+
                 var initType = ResolveExpression(typed.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 _emptyArrayTargetType = null;
+                _lambdaTargetType = null;
 
                 var varName = typed.Name.Lexeme;
                 var varSpan = ToMistSourceSpan(typed.Name.Span);
@@ -17095,6 +17116,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return new TupleType(elementTypes, hasAnyName ? elementNames : null);
             }
 
+            case FuncSingleTypeRefSingleTypeRefNode funcRef:
+            {
+                // The `func<T1, ..., TN>` keyword form resolves to the same
+                // Standard.Func<T1, ..., TN> type as the named `Func<T1, ..., TN>` path.
+                var typeArgumentCount = CountTypeArgs(funcRef.TypeArgs);
+                var globalScope = FindGlobalScope(fileScope) ?? fileScope;
+                IType funcDefinition;
+                try
+                {
+                    funcDefinition = LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.Func", typeArgumentCount);
+                }
+                catch (StdlibMissingException)
+                {
+                    return ErrorType.Instance;
+                }
+
+                return ResolvePass2TypeArguments(funcDefinition, "func", funcRef.TypeArgs, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            }
+
             default:
                 return ErrorType.Instance;
         }
@@ -17381,6 +17421,65 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             // Stdlib not loaded (unit tests with minimal AST) — fall back gracefully.
             return innerType;
+        }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the given type is a <c>Standard.Func&lt;...&gt;</c>
+    /// constructed type (the Mist first-class-function type family).
+    /// </summary>
+    internal static bool IsFuncType(IType type)
+    {
+        return type is ConstructedType ct
+            && ct.GenericDefinition is ClassType { DisplayName: "Func", ContainingNamespace: "Standard", IsBackendBacked: true };
+    }
+
+    /// <summary>
+    /// Extracts the return type from a <c>Standard.Func&lt;T1, ..., TN, TResult&gt;</c>
+    /// constructed type. The return type is always the last type argument.
+    /// </summary>
+    internal static IType GetFuncReturnType(ConstructedType funcType)
+    {
+        return funcType.TypeArguments[^1];
+    }
+
+    /// <summary>
+    /// Constructs a <c>Standard.Func&lt;T1, ..., TN, TResult&gt;</c> type from a method
+    /// symbol's parameter types and return type. Used for method group conversion: when
+    /// a method identifier is used as a value (not invoked), its type is the equivalent
+    /// Func type. Returns <c>null</c> if the stdlib is not loaded or the Func arity is
+    /// not available.
+    /// </summary>
+    private static IType? ConstructFuncTypeFromMethod(Symbol methodSymbol, Scope fileScope, SymbolTable symbolTable)
+    {
+        // Get the method's parameter types.
+        var paramTypes = ParameterSignature.Extract(methodSymbol, symbolTable);
+
+        // Get the method's return type (effective return type visible to callers).
+        var returnType = methodSymbol.DeclaredType;
+        if (returnType is null || returnType is ErrorType)
+            return null;
+
+        // Construct the type arguments array: [paramTypes..., returnType].
+        var arity = paramTypes.Count + 1;
+        var typeArgs = new IType[arity];
+        for (var i = 0; i < paramTypes.Count; i++)
+        {
+            typeArgs[i] = paramTypes[i];
+        }
+        typeArgs[^1] = returnType;
+
+        // Look up Standard.Func with the matching arity.
+        var globalScope = FindGlobalScope(fileScope) ?? fileScope;
+        try
+        {
+            var funcDefinition = LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.Func", arity);
+            return new ConstructedType(funcDefinition, typeArgs);
+        }
+        catch (StdlibMissingException)
+        {
+            // Stdlib not loaded (unit tests with minimal AST) — fall back gracefully.
+            return null;
         }
     }
 
@@ -18559,13 +18658,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 type = ResolveAssignment(assignmentForm.Assignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
 
-            case LambdaFormExpressionNode:
-                // TODO(first-class-functions tasks 9.x): resolve lambda expression types
-                // (target-type-driven inference, var + explicit-param inference, body
-                // resolution, async wrapping). Until those tasks land, record a
-                // placeholder type so the tree compiles and downstream code has a
-                // non-null type to read. No existing program parses to a lambda form.
-                type = UnknownType.Instance;
+            case LambdaFormExpressionNode lambdaForm:
+                type = ResolveLambdaExpression(lambdaForm.Lambda, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
 
             default:
@@ -18575,6 +18669,616 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         expressionTypes[expr] = type;
         return type;
+    }
+
+    /// <summary>
+    /// Resolves a lambda expression's type using target-type-driven inference.
+    /// When a target Func type is available (from a typed variable declaration or
+    /// a Func-typed parameter), infers implicit parameter types from the target
+    /// type's type arguments, creates a child scope with the parameters registered,
+    /// and resolves the lambda body in that scope.
+    /// </summary>
+    private static IType ResolveLambdaExpression(
+        LambdaExpressionNode lambda,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Check if a target type is available from the enclosing context.
+        var targetType = _lambdaTargetType;
+
+        if (targetType is not null && IsFuncType(targetType) && targetType is ConstructedType funcCt)
+        {
+            // Target-type-driven inference: extract parameter types from the Func
+            // type arguments (all but the last, which is the return type).
+            var typeArgs = funcCt.TypeArguments;
+            var paramTypes = typeArgs.Count > 1
+                ? typeArgs.Take(typeArgs.Count - 1).ToList()
+                : new List<IType>();
+            var returnType = GetFuncReturnType(funcCt);
+
+            // Create a child scope for the lambda body.
+            var lambdaScope = new Scope(parent: currentScope);
+
+            // Register lambda parameters in the child scope.
+            RegisterLambdaParameters(lambda, paramTypes, lambdaScope, symbolTable, sourceText, diagnostics);
+
+            // Set async context if the lambda has the async modifier.
+            var isAsync = IsAsyncLambda(lambda);
+            var previousAsyncContext = _isInAsyncContext;
+            if (isAsync)
+                _isInAsyncContext = true;
+
+            try
+            {
+                // Resolve the lambda body in the child scope.
+                ResolveLambdaBody(lambda, lambdaScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            }
+            finally
+            {
+                _isInAsyncContext = previousAsyncContext;
+            }
+
+            // Generic type argument inference (Requirement 6.8): when the target Func type
+            // contains unresolved type parameters (e.g., Func<int, T> from a generic method),
+            // infer the actual return type from the lambda body and construct a concrete Func
+            // type. This allows the TypeArgumentInferenceEngine to unify the method's parameter
+            // type (Func<int, T>) with the lambda's concrete type (Func<int, string>) and
+            // deduce T = string.
+            if (ContainsTypeParameter(returnType))
+            {
+                var inferredReturnType = InferLambdaBodyReturnType(lambda, expressionTypes, fileScope, symbolTable, isAsync);
+                if (inferredReturnType is not null && inferredReturnType is not ErrorType && inferredReturnType is not UnknownType)
+                {
+                    // Construct a concrete Func type from the actual param types and inferred return type.
+                    var concreteArity = paramTypes.Count + 1;
+                    var concreteTypeArgs = new IType[concreteArity];
+                    for (var i = 0; i < paramTypes.Count; i++)
+                    {
+                        concreteTypeArgs[i] = paramTypes[i];
+                    }
+                    concreteTypeArgs[^1] = inferredReturnType;
+
+                    try
+                    {
+                        var globalScopeForFunc = FindGlobalScope(fileScope) ?? fileScope;
+                        var funcDefinition = LookupQualifiedStdlibType(globalScopeForFunc, symbolTable, "Standard.Func", concreteArity);
+                        return new ConstructedType(funcDefinition, concreteTypeArgs);
+                    }
+                    catch (StdlibMissingException)
+                    {
+                        // Stdlib not loaded — fall back to target type.
+                    }
+                }
+            }
+
+            // The lambda's type is the target Func type.
+            return targetType;
+        }
+
+        // No target type available (or target type is not a Func type).
+        // Attempt explicit-parameter inference: if the lambda has all explicitly-typed
+        // parameters, resolve their type annotations, infer the return type from the
+        // body, and construct the Func type.
+        return ResolveExplicitParamLambda(lambda, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    /// <summary>
+    /// Handles the case where a lambda has explicitly-typed parameters but no target
+    /// Func type (e.g., <c>var f = (int x) => x + 1;</c>). Resolves parameter type
+    /// annotations, infers the return type from the body, and constructs the Func type.
+    /// Returns <see cref="UnknownType"/> if the lambda does not have all explicitly-typed params.
+    /// </summary>
+    private static IType ResolveExplicitParamLambda(
+        LambdaExpressionNode lambda,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Get the parameter list from the lambda.
+        var paramList = lambda switch
+        {
+            ExpressionLambdaLambdaExpressionNode exprLambda => exprLambda.Params,
+            BlockLambdaLambdaExpressionNode blockLambda => blockLambda.Params,
+            _ => null,
+        };
+
+        // Single implicit param (e.g., x => x + 1) cannot be inferred without a target type.
+        if (paramList is null or SingleImplicitParamLambdaParameterListNode)
+            return UnknownType.Instance;
+
+        if (paramList is not ParenthesizedLambdaParamsLambdaParameterListNode parenParams)
+            return UnknownType.Instance;
+
+        // Collect all param nodes.
+        var paramNodes = new List<LambdaParamNode>();
+        if (parenParams.Params is not null)
+        {
+            paramNodes.Add(parenParams.Params.LambdaParam);
+            paramNodes.AddRange(parenParams.Params.LambdaParams);
+        }
+
+        // Check that ALL parameters are explicitly typed.
+        foreach (var paramNode in paramNodes)
+        {
+            if (paramNode is not TypedLambdaParamLambdaParamNode)
+                return UnknownType.Instance;
+        }
+
+        // All parameters are explicitly typed — resolve their type annotations.
+        var lambdaScope = new Scope(parent: currentScope);
+        var paramTypes = new List<IType>(paramNodes.Count);
+
+        foreach (var paramNode in paramNodes)
+        {
+            var typed = (TypedLambdaParamLambdaParamNode)paramNode;
+            var paramType = ResolveTypeReference(typed.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            paramTypes.Add(paramType);
+
+            var paramName = typed.Name.Lexeme;
+            var paramSpan = ToMistSourceSpan(typed.Name.Span);
+            var paramSymbol = new Symbol(paramName, SymbolKind.Parameter, SymbolOrigin.UserCode, lambdaScope, paramType, paramSpan);
+            lambdaScope.AddMember(paramSymbol);
+            symbolTable.Register(paramSymbol, typed);
+        }
+
+        // Resolve the lambda body and infer the return type.
+        // Set async context if the lambda has the async modifier.
+        var isAsync = IsAsyncLambda(lambda);
+        var previousAsyncContext = _isInAsyncContext;
+        if (isAsync)
+            _isInAsyncContext = true;
+
+        IType returnType;
+        try
+        {
+            switch (lambda)
+            {
+                case ExpressionLambdaLambdaExpressionNode exprLambda:
+                {
+                    // Expression body: the return type is the expression's resolved type.
+                    returnType = ResolveExpression(exprLambda.Body, lambdaScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    break;
+                }
+
+                case BlockLambdaLambdaExpressionNode blockLambda:
+                {
+                    // Block body: resolve the block, then find all return statements
+                    // and determine the common return type.
+                    ResolveBlock(blockLambda.Body, lambdaScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                    // Collect return types from the block's return statements.
+                    var returnTypes = new List<IType>();
+                    CollectReturnTypes(blockLambda.Body, expressionTypes, returnTypes);
+
+                    if (returnTypes.Count == 0)
+                    {
+                        // No return statements with values — void lambda.
+                        var globalScope = FindGlobalScope(fileScope) ?? fileScope;
+                        try
+                        {
+                            returnType = ResolveVoidKeyword(globalScope, symbolTable);
+                        }
+                        catch (StdlibMissingException)
+                        {
+                            returnType = LegacyPrimitiveTypes.Void;
+                        }
+                    }
+                    else if (returnTypes.Count == 1)
+                    {
+                        returnType = returnTypes[0];
+                    }
+                    else
+                    {
+                        // Multiple return statements — find the common type.
+                        var firstType = returnTypes[0];
+                        var allSame = true;
+                        for (var i = 1; i < returnTypes.Count; i++)
+                        {
+                            if (!ReferenceEquals(firstType, returnTypes[i])
+                                && firstType.DisplayName != returnTypes[i].DisplayName)
+                            {
+                                allSame = false;
+                                break;
+                            }
+                        }
+                        returnType = allSame ? firstType : ErrorType.Instance;
+                    }
+                    break;
+                }
+
+                default:
+                    return UnknownType.Instance;
+            }
+        }
+        finally
+        {
+            _isInAsyncContext = previousAsyncContext;
+        }
+
+        // For async lambdas, wrap the inferred return type in Task<T>.
+        if (isAsync)
+        {
+            returnType = ConstructTaskType(returnType, fileScope, symbolTable);
+        }
+
+        // Construct the Func type: Func<paramType1, ..., paramTypeN, returnType>.
+        var arity = paramTypes.Count + 1;
+        var typeArgs = new IType[arity];
+        for (var i = 0; i < paramTypes.Count; i++)
+        {
+            typeArgs[i] = paramTypes[i];
+        }
+        typeArgs[^1] = returnType;
+
+        var globalScopeForFunc = FindGlobalScope(fileScope) ?? fileScope;
+        try
+        {
+            var funcDefinition = LookupQualifiedStdlibType(globalScopeForFunc, symbolTable, "Standard.Func", arity);
+            return new ConstructedType(funcDefinition, typeArgs);
+        }
+        catch (StdlibMissingException)
+        {
+            // Stdlib not loaded (unit tests with minimal AST) — fall back gracefully.
+            return UnknownType.Instance;
+        }
+    }
+
+    /// <summary>
+    /// Recursively collects the types of all return statement values within a block.
+    /// Only collects returns with a value expression (bare <c>return;</c> is treated as void).
+    /// Does not descend into nested lambdas (their returns belong to the inner lambda).
+    /// </summary>
+    private static void CollectReturnTypes(
+        BlockNode block,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        List<IType> returnTypes)
+    {
+        foreach (var stmt in block.Statements)
+        {
+            CollectReturnTypesFromStatement(stmt, expressionTypes, returnTypes);
+        }
+    }
+
+    /// <summary>
+    /// Collects return types from a single statement, recursing into control-flow
+    /// blocks (if/else, while, for, etc.) but NOT into nested lambdas.
+    /// </summary>
+    private static void CollectReturnTypesFromStatement(
+        StatementNode stmt,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        List<IType> returnTypes)
+    {
+        switch (stmt)
+        {
+            case ReturnStatementStatementNode returnStmt:
+                if (returnStmt.ReturnStatement.Value is not null
+                    && expressionTypes.TryGetValue(returnStmt.ReturnStatement.Value, out var returnValueType))
+                {
+                    returnTypes.Add(returnValueType);
+                }
+                break;
+
+            case IfStatementStatementNode ifStmt:
+                CollectReturnTypesFromBlock(ifStmt.IfStatement.ThenBranch, expressionTypes, returnTypes);
+                if (ifStmt.IfStatement.ElseBranch is not null)
+                {
+                    CollectReturnTypesFromElse(ifStmt.IfStatement.ElseBranch, expressionTypes, returnTypes);
+                }
+                break;
+
+            case WhileStatementStatementNode whileStmt:
+                CollectReturnTypesFromBlock(whileStmt.WhileStatement.Body, expressionTypes, returnTypes);
+                break;
+
+            case ForStatementStatementNode forStmt:
+                CollectReturnTypesFromBlock(forStmt.ForStatement.Body, expressionTypes, returnTypes);
+                break;
+
+            case ForeachStatementStatementNode foreachStmt:
+                CollectReturnTypesFromBlock(foreachStmt.ForeachStatement.Body, expressionTypes, returnTypes);
+                break;
+
+            case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
+                CollectReturnTypesFromBlock(readonlyBlockStmt.ReadonlyBlock.Body, expressionTypes, returnTypes);
+                break;
+
+            case WithBlockStatementStatementNode withBlockStmt:
+                CollectReturnTypesFromBlock(withBlockStmt.WithBlockStatement.Body, expressionTypes, returnTypes);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Collects return types from a block node.
+    /// </summary>
+    private static void CollectReturnTypesFromBlock(
+        BlockNode block,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        List<IType> returnTypes)
+    {
+        foreach (var stmt in block.Statements)
+        {
+            CollectReturnTypesFromStatement(stmt, expressionTypes, returnTypes);
+        }
+    }
+
+    /// <summary>
+    /// Collects return types from an else clause (which may be an else-if chain).
+    /// </summary>
+    private static void CollectReturnTypesFromElse(
+        ElseClauseNode elseClause,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        List<IType> returnTypes)
+    {
+        switch (elseClause)
+        {
+            case ElseBlockElseClauseNode elseBlock:
+                CollectReturnTypes(elseBlock.ElseBlock, expressionTypes, returnTypes);
+                break;
+
+            case ElseIfElseClauseNode elseIf:
+                CollectReturnTypesFromBlock(elseIf.ElseIf.ThenBranch, expressionTypes, returnTypes);
+                if (elseIf.ElseIf.ElseBranch is not null)
+                {
+                    CollectReturnTypesFromElse(elseIf.ElseIf.ElseBranch, expressionTypes, returnTypes);
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Registers lambda parameters as symbols in the given scope. For implicitly-typed
+    /// parameters, uses the corresponding type from the target Func type's type arguments.
+    /// For explicitly-typed parameters, resolves the type annotation.
+    /// </summary>
+    private static void RegisterLambdaParameters(
+        LambdaExpressionNode lambda,
+        List<IType> paramTypes,
+        Scope lambdaScope,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Get the parameter list from the lambda (both expression and block lambdas
+        // share the same Params property via the grammar structure).
+        var paramList = lambda switch
+        {
+            ExpressionLambdaLambdaExpressionNode exprLambda => exprLambda.Params,
+            BlockLambdaLambdaExpressionNode blockLambda => blockLambda.Params,
+            _ => null,
+        };
+
+        if (paramList is null)
+            return;
+
+        switch (paramList)
+        {
+            case SingleImplicitParamLambdaParameterListNode singleParam:
+            {
+                // Single implicit param (e.g., x => x + 1).
+                // Infer type from the first target type argument.
+                var paramType = paramTypes.Count > 0 ? paramTypes[0] : UnknownType.Instance;
+                var paramName = singleParam.Name.Lexeme;
+                var paramSpan = ToMistSourceSpan(singleParam.Name.Span);
+                var paramSymbol = new Symbol(paramName, SymbolKind.Parameter, SymbolOrigin.UserCode, lambdaScope, paramType, paramSpan);
+                lambdaScope.AddMember(paramSymbol);
+                symbolTable.Register(paramSymbol, singleParam);
+                break;
+            }
+
+            case ParenthesizedLambdaParamsLambdaParameterListNode parenParams:
+            {
+                if (parenParams.Params is null)
+                {
+                    // Zero-parameter lambda: () => expr
+                    break;
+                }
+
+                // Collect all param nodes (first + rest).
+                var paramNodes = new List<LambdaParamNode> { parenParams.Params.LambdaParam };
+                paramNodes.AddRange(parenParams.Params.LambdaParams);
+
+                for (var i = 0; i < paramNodes.Count; i++)
+                {
+                    var paramNode = paramNodes[i];
+                    switch (paramNode)
+                    {
+                        case UntypedLambdaParamLambdaParamNode untyped:
+                        {
+                            // Infer type from the target Func type argument at this position.
+                            var paramType = i < paramTypes.Count ? paramTypes[i] : UnknownType.Instance;
+                            var paramName = untyped.Name.Lexeme;
+                            var paramSpan = ToMistSourceSpan(untyped.Name.Span);
+                            var paramSymbol = new Symbol(paramName, SymbolKind.Parameter, SymbolOrigin.UserCode, lambdaScope, paramType, paramSpan);
+                            lambdaScope.AddMember(paramSymbol);
+                            symbolTable.Register(paramSymbol, untyped);
+                            break;
+                        }
+
+                        case TypedLambdaParamLambdaParamNode typed:
+                        {
+                            // Explicitly-typed param — resolve the type annotation.
+                            // The fileScope is needed for type resolution but we don't have it here;
+                            // use the target type argument as a fallback since the type checker will
+                            // validate compatibility later.
+                            var paramType = i < paramTypes.Count ? paramTypes[i] : UnknownType.Instance;
+                            var paramName = typed.Name.Lexeme;
+                            var paramSpan = ToMistSourceSpan(typed.Name.Span);
+                            var paramSymbol = new Symbol(paramName, SymbolKind.Parameter, SymbolOrigin.UserCode, lambdaScope, paramType, paramSpan);
+                            lambdaScope.AddMember(paramSymbol);
+                            symbolTable.Register(paramSymbol, typed);
+                            break;
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the lambda has the <c>async</c> modifier.
+    /// </summary>
+    private static bool IsAsyncLambda(LambdaExpressionNode lambda)
+    {
+        var modifiers = lambda switch
+        {
+            ExpressionLambdaLambdaExpressionNode exprLambda => exprLambda.Modifiers,
+            BlockLambdaLambdaExpressionNode blockLambda => blockLambda.Modifiers,
+            _ => ImmutableArray<LambdaModifierNode>.Empty,
+        };
+
+        return modifiers.Any(m => m is AsyncLambdaModifierLambdaModifierNode);
+    }
+
+    /// <summary>
+    /// Resolves the body of a lambda expression (either an expression body or a block body)
+    /// in the given scope.
+    /// </summary>
+    private static void ResolveLambdaBody(
+        LambdaExpressionNode lambda,
+        Scope lambdaScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        switch (lambda)
+        {
+            case ExpressionLambdaLambdaExpressionNode exprLambda:
+                // Expression body: resolve the body expression in the lambda scope.
+                ResolveExpression(exprLambda.Body, lambdaScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+
+            case BlockLambdaLambdaExpressionNode blockLambda:
+                // Block body: resolve the block in the lambda scope.
+                // ResolveBlock creates its own child scope, but we pass lambdaScope
+                // as the parent so the lambda parameters are visible.
+                ResolveBlock(blockLambda.Body, lambdaScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the given type contains any <see cref="TypeParameterType"/> instances,
+    /// either directly or nested within a <see cref="ConstructedType"/>'s type arguments.
+    /// Used to detect when a lambda's target Func type has unresolved generic type parameters
+    /// (e.g., <c>Func&lt;int, T&gt;</c> from a generic method parameter).
+    /// </summary>
+    private static bool ContainsTypeParameter(IType type)
+    {
+        if (type is TypeParameterType)
+            return true;
+
+        if (type is ConstructedType ct)
+        {
+            foreach (var arg in ct.TypeArguments)
+            {
+                if (ContainsTypeParameter(arg))
+                    return true;
+            }
+        }
+
+        if (type is ArrayType arrayType)
+            return ContainsTypeParameter(arrayType.ElementType);
+
+        return false;
+    }
+
+    /// <summary>
+    /// Infers the actual return type of a lambda body after it has been resolved.
+    /// For expression lambdas, retrieves the resolved type of the body expression.
+    /// For block lambdas, collects return statement types and finds the common type.
+    /// Returns <c>null</c> if the return type cannot be determined.
+    /// </summary>
+    private static IType? InferLambdaBodyReturnType(
+        LambdaExpressionNode lambda,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        bool isAsync)
+    {
+        IType? returnType = null;
+
+        switch (lambda)
+        {
+            case ExpressionLambdaLambdaExpressionNode exprLambda:
+            {
+                // Expression body: the return type is the resolved type of the body expression.
+                if (expressionTypes.TryGetValue(exprLambda.Body, out var bodyType))
+                {
+                    returnType = bodyType;
+                }
+                break;
+            }
+
+            case BlockLambdaLambdaExpressionNode blockLambda:
+            {
+                // Block body: collect return types from all return statements.
+                var returnTypes = new List<IType>();
+                CollectReturnTypes(blockLambda.Body, expressionTypes, returnTypes);
+
+                if (returnTypes.Count == 0)
+                {
+                    // No return statements with values — void lambda.
+                    var globalScope = FindGlobalScope(fileScope) ?? fileScope;
+                    try
+                    {
+                        returnType = ResolveVoidKeyword(globalScope, symbolTable);
+                    }
+                    catch (StdlibMissingException)
+                    {
+                        returnType = LegacyPrimitiveTypes.Void;
+                    }
+                }
+                else if (returnTypes.Count == 1)
+                {
+                    returnType = returnTypes[0];
+                }
+                else
+                {
+                    // Multiple return statements — find the common type.
+                    var firstType = returnTypes[0];
+                    var allSame = true;
+                    for (var i = 1; i < returnTypes.Count; i++)
+                    {
+                        if (!ReferenceEquals(firstType, returnTypes[i])
+                            && firstType.DisplayName != returnTypes[i].DisplayName)
+                        {
+                            allSame = false;
+                            break;
+                        }
+                    }
+                    returnType = allSame ? firstType : null;
+                }
+                break;
+            }
+        }
+
+        // For async lambdas, wrap the inferred return type in Task<T>.
+        if (isAsync && returnType is not null)
+        {
+            returnType = ConstructTaskType(returnType, fileScope, symbolTable);
+        }
+
+        return returnType;
     }
 
     private static IType ResolveAssignment(
@@ -19386,6 +20090,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var targetType = ResolvePrimary(node.Target, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
+        // Method group conversion: when an identifier resolves to a method symbol
+        // and is NOT followed by an invocation suffix (i.e., it's used as a value,
+        // not called), convert the expression type to the equivalent Func type
+        // constructed from the method's parameter types + return type.
+        if (node.Target is IdentifierExpressionPrimaryNode
+            && (node.Suffix.Length == 0 || node.Suffix[0] is not InvocationSuffixPostfixSuffixNode))
+        {
+            var targetSymbol = symbolTable.GetDeclaredSymbol(node.Target);
+            if (targetSymbol is Symbol { Kind: SymbolKind.Method } methodSymbol)
+            {
+                var funcType = ConstructFuncTypeFromMethod(methodSymbol, fileScope, symbolTable);
+                if (funcType is not null)
+                {
+                    targetType = funcType;
+                }
+            }
+        }
+
         // Explicitly store the target's type on the PostfixNode.Target node as well,
         // so that downstream analysis (e.g., for-loop narrowing) can retrieve it
         // via model.GetTypeOf(postfix.Target).
@@ -19394,6 +20116,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Apply each postfix suffix in order.
         foreach (var suffix in node.Suffix)
         {
+            // For direct invocations (e.g., foo(lambda)), propagate the method's
+            // parameter types so lambda arguments can infer their types.
+            if (suffix is InvocationSuffixPostfixSuffixNode invocationSuffix
+                && invocationSuffix.Arguments is not null
+                && node.Target is IdentifierExpressionPrimaryNode)
+            {
+                var targetSymbol = symbolTable.GetDeclaredSymbol(node.Target);
+                if (targetSymbol is Symbol { Kind: SymbolKind.Method } methodSym)
+                {
+                    var methodParamTypes = ParameterSignature.Extract(methodSym, symbolTable);
+                    ResolveArgumentListWithParameterTypes(invocationSuffix.Arguments, methodParamTypes, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                    // Still need to resolve the suffix for its return type, but skip
+                    // re-resolving arguments (they're already resolved above).
+                    targetType = ResolvePostfixSuffixSkipArguments(invocationSuffix, targetType, expressionTypes);
+                    continue;
+                }
+            }
+
             targetType = ResolvePostfixSuffix(suffix, targetType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
         }
 
@@ -19415,6 +20156,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         expressionTypes[node] = targetType;
+        return targetType;
+    }
+
+    /// <summary>
+    /// Resolves the return type of an InvocationSuffix without re-resolving its arguments.
+    /// Used when arguments have already been resolved with lambda target type propagation.
+    /// </summary>
+    private static IType ResolvePostfixSuffixSkipArguments(
+        InvocationSuffixPostfixSuffixNode invocation,
+        IType targetType,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes)
+    {
+        // If the target expression's type is a Func constructed type,
+        // the invocation's result type is the Func's return type (last type arg).
+        if (IsFuncType(targetType) && targetType is ConstructedType funcCt)
+        {
+            var returnType = GetFuncReturnType(funcCt);
+            expressionTypes[invocation] = returnType;
+            return returnType;
+        }
+
+        // The result type is the return type of the target (if it's a method).
+        expressionTypes[invocation] = targetType;
         return targetType;
     }
 
@@ -19530,10 +20294,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                 }
 
-                // Resolve arguments.
+                // Resolve arguments with lambda target type propagation.
                 if (methodCall.Arguments is not null)
                 {
-                    ResolveArgumentList(methodCall.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    // Look up the method symbol to get parameter types for lambda inference.
+                    var methodSymForParams = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                    IReadOnlyList<IType>? methodParamTypes = null;
+                    if (methodSymForParams is not null)
+                    {
+                        methodParamTypes = ParameterSignature.Extract(methodSymForParams, symbolTable);
+                    }
+                    ResolveArgumentListWithParameterTypes(methodCall.Arguments, methodParamTypes, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 }
 
                 // Auto-unwrap: in a sync context, if the invoked method is async,
@@ -19662,6 +20433,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (invocation.Arguments is not null)
                 {
                     ResolveArgumentList(invocation.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                }
+
+                // If the target expression's type is a Func constructed type,
+                // the invocation's result type is the Func's return type (last type arg).
+                if (IsFuncType(targetType) && targetType is ConstructedType funcCt)
+                {
+                    var returnType = GetFuncReturnType(funcCt);
+                    expressionTypes[suffix] = returnType;
+                    return returnType;
                 }
 
                 // The result type is the return type of the target (if it's a method).
@@ -21876,11 +22656,46 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
+        ResolveArgumentListWithParameterTypes(argList, null, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    /// <summary>
+    /// Resolves argument list expressions with optional parameter type information
+    /// for lambda target-type inference. When parameter types are provided and a
+    /// parameter is a Func type, sets the lambda target type context so that
+    /// implicitly-typed lambda arguments can infer their parameter types.
+    /// </summary>
+    private static void ResolveArgumentListWithParameterTypes(
+        ArgumentListNode argList,
+        IReadOnlyList<IType>? parameterTypes,
+        Scope currentScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
         // The ArgumentListNode has Argument (first) and Arguments (rest),
         // each wrapping an ExpressionNode.
-        foreach (var expr in argList.GetAllExpressions())
+        var argExprs = argList.GetAllExpressions();
+        for (var i = 0; i < argExprs.Length; i++)
         {
+            var expr = argExprs[i];
+
+            // Set lambda target type if the corresponding parameter is a Func type.
+            IType? previousLambdaTarget = _lambdaTargetType;
+            if (parameterTypes is not null && i < parameterTypes.Count && IsFuncType(parameterTypes[i]))
+            {
+                _lambdaTargetType = parameterTypes[i];
+            }
+
             ResolveExpression(expr, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+            // Restore previous lambda target type.
+            _lambdaTargetType = previousLambdaTarget;
         }
     }
 

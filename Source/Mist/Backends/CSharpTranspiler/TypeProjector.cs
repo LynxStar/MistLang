@@ -923,6 +923,14 @@ internal sealed class TypeProjector
             return funcType;
         }
 
+        // Project named delegate types (Predicate<T>, Comparison<T>, EventHandler, etc.)
+        // to their equivalent Standard.Func type based on the delegate's Invoke signature
+        // (Requirements 15.3, 15.6).
+        if (TryProjectNamedDelegate(clrType, stdlib, out var namedDelegateType))
+        {
+            return namedDelegateType;
+        }
+
         // Handle constructed generic types (e.g., List<int>, Dictionary<string, int>)
         if (clrType.IsConstructedGenericType)
         {
@@ -1101,6 +1109,87 @@ internal sealed class TypeProjector
             voidType = null!;
             return false;
         }
+    }
+
+    /// <summary>
+    /// Attempts to project a named CLR delegate type (e.g., <c>Predicate&lt;T&gt;</c>,
+    /// <c>Comparison&lt;T&gt;</c>, <c>EventHandler</c>, <c>Converter&lt;TInput, TOutput&gt;</c>)
+    /// into the equivalent <c>Standard.Func</c> constructed type based on the delegate's
+    /// <c>Invoke</c> method signature (Requirements 15.3, 15.6).
+    ///
+    /// <para>
+    /// This handles all delegate types that are NOT <c>System.Func</c> or <c>System.Action</c>
+    /// (those are handled by <see cref="TryProjectStandardFuncDelegate"/>). The projection
+    /// inspects the delegate's <c>Invoke</c> method to determine parameter types and return
+    /// type, then constructs the equivalent <c>Standard.Func</c> type. For void-returning
+    /// delegates, the trailing type argument is <c>Standard.Void</c>.
+    /// </para>
+    /// </summary>
+    /// <param name="clrType">The CLR type to inspect.</param>
+    /// <param name="stdlib">The stdlib type provider used to resolve <c>Standard.Func</c>/<c>Void</c>.</param>
+    /// <param name="funcType">The projected <c>Standard.Func</c> constructed type, when matched.</param>
+    /// <returns><c>true</c> when <paramref name="clrType"/> is a projectable named delegate; otherwise <c>false</c>.</returns>
+    private bool TryProjectNamedDelegate(
+        Type clrType,
+        IStdlibTypeProvider stdlib,
+        out IType funcType)
+    {
+        funcType = null!;
+
+        // All delegates inherit from System.MulticastDelegate.
+        if (clrType.BaseType?.FullName != "System.MulticastDelegate")
+            return false;
+
+        // Get the Invoke method that defines the delegate's signature.
+        var invokeMethod = clrType.GetMethod("Invoke");
+        if (invokeMethod is null)
+            return false;
+
+        var parameters = invokeMethod.GetParameters();
+        var returnType = invokeMethod.ReturnType;
+        var isVoidReturn = returnType == typeof(void);
+
+        // Arity = parameter count + 1 (for the return type or Void).
+        var arity = parameters.Length + 1;
+
+        // Look up the arity-matched Standard.Func definition.
+        IType funcDefinition;
+        try
+        {
+            funcDefinition = stdlib.LookupStandardType("Func", arity);
+        }
+        catch (InvalidOperationException)
+        {
+            // Stdlib doesn't have the Func family yet (fallback provider before Pass 1).
+            return false;
+        }
+
+        // Guard: ensure we resolved the real Standard.Func family.
+        if (funcDefinition is not ClassType { DisplayName: "Func", ContainingNamespace: "Standard" })
+            return false;
+
+        // Build the type arguments: parameter types followed by return type (or Void).
+        var funcTypeArguments = new IType[arity];
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            var projectedArg = ProjectTypeReference(parameters[i].ParameterType, stdlib);
+            funcTypeArguments[i] = _intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
+        }
+
+        if (isVoidReturn)
+        {
+            if (!TryLookupVoid(stdlib, out var voidType))
+                return false;
+            funcTypeArguments[parameters.Length] = voidType;
+        }
+        else
+        {
+            var projectedReturn = ProjectTypeReference(returnType, stdlib);
+            funcTypeArguments[parameters.Length] = _intrinsicMap.SubstituteIntrinsics(projectedReturn, stdlib);
+        }
+
+        funcType = new ConstructedType(funcDefinition, funcTypeArguments);
+        return true;
     }
 
     /// <summary>

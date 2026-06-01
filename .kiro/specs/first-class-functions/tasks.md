@@ -64,43 +64,43 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
   - Ensure all existing tests pass (no regressions from the accessor migration or guard/pattern rebind)
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Pretty-printer support
-  - [-] 5.1 Add `FuncSingleTypeRef` emission to `MistPrettyPrinter.cs`
+- [x] 5. Pretty-printer support
+  - [x] 5.1 Add `FuncSingleTypeRef` emission to `MistPrettyPrinter.cs`
     - Handle `FuncSingleTypeRefSingleTypeRefNode` emitting `func<T1, T2, ..., TReturn>` using the lowercase keyword form
     - _Requirements: 13.1, 13.7_
 
-  - [ ] 5.2 Add lambda and abstract-`Expression` dispatch to `MistPrettyPrinter.cs`
+  - [x] 5.2 Add lambda and abstract-`Expression` dispatch to `MistPrettyPrinter.cs`
     - Make `EmitExpression(ExpressionNode)` dispatch on subtype: `LambdaFormExpressionNode` emits the lambda; `AssignmentFormExpressionNode` delegates to the existing `EmitAssignment` path
     - Emit lambdas: expression body `params => expr`, block body `params => { stmts }`, single implicit param without parens `x => expr`, zero params `() => expr`, typed params `(int x) => expr`, and the `static`/`async` modifiers
     - _Requirements: 13.3, 13.4, 13.5, 13.6, 13.8_
 
 - [ ] 6. Parser and precedence tests
-  - [-] 6.1 Add parser unit tests for lambda forms and the precedence model
+  - [x] 6.1 Add parser unit tests for lambda forms and the precedence model
     - Extend/replace `Test/Mist.Tests/Parsing/LambdaExpressionParserTests.cs` to assert each lambda form produces the correct AST node at the `Expression` level: single/multi/zero params, typed params, block body, expression body, `static`, `async`, `static async`
     - Assert `f = x => x + 1` parses as `f = (x => x + 1)` (assignment RHS is the lambda) and `x => y => x + y` parses right-associatively as `x => (y => (x + y))`
     - **Regression:** assert `value switch { int n when predicate => n.ToString(), _ => "none" }` parses into two well-formed arms; the first arm's guard condition is the identifier `predicate` (not a lambda) and its result is `n.ToString()`; also cover `when n > 7 => ...` and `when isOdd(n) => ...`
     - In-process parser tests only (no `dotnet` process spawning)
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 5.1, 5.2, 8.1, 9.1, 12.5_
 
-  - [-] 6.2 Write property test for switch-arm guard precedence
+  - [x] 6.2 Write property test for switch-arm guard precedence
     - **Property 8: Switch-Arm Guard Never Captures a Trailing Lambda**
     - **Validates: Requirements 12.5**
     - New file (e.g. `SwitchGuardLambdaPrecedencePropertyTests.cs`); generator: arms of the form `pattern when <VoidCoalescing-level guard> => <result>` plus the explicit `when predicate => ...` regression case; assert the guard/result split is correct and the guard condition is not a lambda node; ≥100 iterations, parse-only/in-process (no `dotnet` spawning)
     - Test tag: `Feature: first-class-functions, Property 8: Switch-arm guard never captures a trailing lambda`
 
-  - [-] 6.3 Write property test for lambda lowest-precedence and right-associativity
+  - [x] 6.3 Write property test for lambda lowest-precedence and right-associativity
     - **Property 9: Lambda Is Lowest-Precedence and Right-Associative**
     - **Validates: Requirements 12.5, 4.1**
     - New file (e.g. `LambdaPrecedencePropertyTests.cs`); generator: `f = <lambda>` and nested `x => y => <body>`; assert the parse-tree shape (`f = (L)`, never `(f = ...) => ...`; right-nested lambdas); ≥100 iterations, parse-only/in-process
     - Test tag: `Feature: first-class-functions, Property 9: Lambda is lowest-precedence and right-associative`
 
-  - [-] 6.4 Write property test for lambda reachability from every value position
+  - [x] 6.4 Write property test for lambda reachability from every value position
     - **Property 10: Lambda Is Reachable From Every Value Position**
     - **Validates: Requirements 7.1, 7.2, 7.3, 12.3**
     - New file (e.g. `LambdaReachabilityPropertyTests.cs`); generator: embed a generated lambda as an assignment RHS (`f = L`), a call argument (`g(L)`), a return value (`return L;`), and a nested lambda body (`x => L`); assert a lambda node appears in each AST slot; ≥100 iterations, parse-only/in-process
     - Test tag: `Feature: first-class-functions, Property 10: Lambda is reachable from every value position`
 
-  - [ ] 6.5 Write pretty-print round-trip property test for func types and lambdas
+  - [x] 6.5 Write pretty-print round-trip property test for func types and lambdas
     - **Property 6: Pretty-Print Round-Trip**
     - **Validates: Requirements 13.7, 13.8**
     - New file (e.g. `LambdaRoundTripPropertyTests.cs`); generator strengthened to emit lambdas in RHS / argument / return / nested-body positions and inside bounded-guard switch arms; assert `print(parse(print(ast))) == print(ast)`; ≥100 iterations, parse + pretty-print only/in-process (no `dotnet` spawning)
@@ -112,43 +112,43 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 8. Semantic model: Func type resolution
-  - [ ] 8.1 Implement `func` keyword resolution in `SemanticModelBuilder.cs`
+  - [x] 8.1 Implement `func` keyword resolution in `SemanticModelBuilder.cs`
     - When resolving a `FuncSingleTypeRefSingleTypeRefNode`, look up `Standard.Func` with the matching arity and construct a `ConstructedType`
     - Ensure `func<int, string>` and `Func<int, string>` resolve to the same type
     - _Requirements: 2.2, 2.3, 1.6_
 
-  - [ ] 8.2 Implement Func-typed invocation recognition in `SemanticModelBuilder.cs`
+  - [x] 8.2 Implement Func-typed invocation recognition in `SemanticModelBuilder.cs`
     - When an `InvocationSuffix` is applied to an expression whose resolved type is a `Func` constructed type, extract parameter types (all but last type arg) and return type (last type arg), and record the invocation expression's type as the return type
     - Add the `IsFuncType(IType)` helper (ConstructedType whose `GenericDefinition` is a `Standard.Func` backend-backed class)
     - _Requirements: 7.6_
 
-  - [ ] 8.3 Implement method group conversion in `SemanticModelBuilder.cs`
+  - [x] 8.3 Implement method group conversion in `SemanticModelBuilder.cs`
     - When an identifier expression appears in a context expecting a `Func` type and resolves to a method symbol, verify signature compatibility and record the expression type as the target `Func` type
     - _Requirements: 7.7_
 
-  - [ ] 8.4 Write unit tests for Func resolution and invocation
+  - [x] 8.4 Write unit tests for Func resolution and invocation
     - Cover `func`/`Func` structural equality (Property 1), Func-typed invocation return types, and method group conversion; in-process via the shared `CompilerDriver`/semantic model (no `dotnet` spawning)
     - **Property 1: Func Type Structural Equality**
     - **Validates: Requirements 1.6, 2.3, 7.6, 7.7, 16.4**
 
 - [ ] 9. Semantic model: Lambda expression type resolution
-  - [ ] 9.1 Implement target-type-driven lambda inference in `SemanticModelBuilder.cs`
+  - [x] 9.1 Implement target-type-driven lambda inference in `SemanticModelBuilder.cs`
     - For the `LambdaFormExpressionNode` subtype, when implicitly-typed params are assigned to an explicit `Func`-typed variable or passed to a `Func`-typed parameter, infer param types from the target type's type arguments
     - _Requirements: 6.1, 6.2_
 
-  - [ ] 9.2 Implement explicit-parameter inference with `var` in `SemanticModelBuilder.cs`
+  - [x] 9.2 Implement explicit-parameter inference with `var` in `SemanticModelBuilder.cs`
     - When a lambda has explicitly-typed params and is assigned using `var`, infer the return type from the body and construct the `Func` type (expression body: expression type; block body: common type of all return statements)
     - _Requirements: 6.3, 6.4, 6.5_
 
-  - [ ] 9.3 Implement lambda body type resolution in `SemanticModelBuilder.cs`
+  - [x] 9.3 Implement lambda body type resolution in `SemanticModelBuilder.cs`
     - Resolve expressions/statements within lambda bodies using inferred parameter types; handle `return` statements in block bodies and implicit `Void.Void` return for void block lambdas
     - _Requirements: 5.3, 5.4, 5.5_
 
-  - [ ] 9.4 Implement async lambda return-type wrapping in `SemanticModelBuilder.cs`
+  - [x] 9.4 Implement async lambda return-type wrapping in `SemanticModelBuilder.cs`
     - For async lambdas wrap the inferred return type in `Task<T>` and set the async context flag (enables `await`); for non-async lambdas calling async methods apply the existing auto-await rules
     - _Requirements: 9.2, 9.3, 9.4, 9.6, 9.8, 9.9_
 
-  - [ ] 9.5 Write unit tests for lambda type inference
+  - [x] 9.5 Write unit tests for lambda type inference
     - Cover target-type inference, `var` + explicit-param inference, block-body common-type inference, and async wrapping; in-process (no `dotnet` spawning)
     - **Property 2: Lambda Type Inference Completeness**
     - **Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5**
@@ -214,11 +214,11 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 15. Assembly type provider: delegate projection
-  - [-] 15.1 Project `System.Func<>`/`System.Action<>` as Mist `Func` types in `TypeProjector`
+  - [x] 15.1 Project `System.Func<>`/`System.Action<>` as Mist `Func` types in `TypeProjector`
     - `System.Func<T1,...,TN,TResult>` → `Standard.Func<T1,...,TN,TResult>`; `System.Action<T1,...,TN>` → `Standard.Func<T1,...,TN,Void>`; `System.Action` → `Standard.Func<Void>`
     - _Requirements: 15.1, 15.2_
 
-  - [ ] 15.2 Project named C# delegate types as type aliases to equivalent `Func` types in `TypeProjector`
+  - [x] 15.2 Project named C# delegate types as type aliases to equivalent `Func` types in `TypeProjector`
     - For `Predicate<T>`, `Comparison<T>`, `EventHandler`, etc., project as a (generic) type alias based on the delegate's `Invoke` signature
     - _Requirements: 15.3, 15.6_
 
@@ -240,7 +240,7 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
     - `type Predicate<T> = func<T, bool>;` resolves; lambda inference sees through aliases; structural equivalence `Predicate<int>` == `func<int, bool>` == `Func<int, bool>`
     - _Requirements: 16.1, 16.2, 16.3, 16.4_
 
-  - [ ] 17.3 Implement lambda participation in generic type argument inference
+  - [x] 17.3 Implement lambda participation in generic type argument inference
     - When a lambda is passed to a generic method whose type argument depends on the lambda's type, propagate the lambda's inferred type to resolve the generic
     - _Requirements: 6.8_
 

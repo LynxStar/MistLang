@@ -159,23 +159,23 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 11. Type checker: validation rules
-  - [ ] 11.1 Implement lambda parameter validation in `TypeCheckerAnalyzer.cs`
+  - [x] 11.1 Implement lambda parameter validation in `TypeCheckerAnalyzer.cs`
     - `MIST_TC_0115` mixed typed/untyped params; `MIST_TC_0116` cannot infer param types (no target type, implicit params); `MIST_TC_0117` inconsistent return types in block lambda; `MIST_TC_0118` missing return in non-void block lambda
     - _Requirements: 4.7, 4.8, 6.6, 6.7, 5.4_
 
-  - [ ] 11.2 Implement Func invocation validation in `TypeCheckerAnalyzer.cs`
+  - [x] 11.2 Implement Func invocation validation in `TypeCheckerAnalyzer.cs`
     - `MIST_TC_0119` argument count mismatch; `MIST_TC_0120` argument type mismatch; `MIST_TC_0121` ambiguous method group
     - _Requirements: 7.8, 7.9, 7.10_
 
-  - [ ] 11.3 Implement static lambda validation in `TypeCheckerAnalyzer.cs`
+  - [x] 11.3 Implement static lambda validation in `TypeCheckerAnalyzer.cs`
     - `MIST_TC_0113`: static lambda references enclosing variable, instance field, or `this`; permit own params, static fields, constants, type names
     - _Requirements: 8.2, 8.3, 8.4_
 
-  - [ ] 11.4 Implement async lambda validation in `TypeCheckerAnalyzer.cs`
+  - [x] 11.4 Implement async lambda validation in `TypeCheckerAnalyzer.cs`
     - `MIST_TC_0114`: `await` in non-async lambda body; permit `await` in async bodies; validate `static async` combination
     - _Requirements: 9.5, 9.7_
 
-  - [ ] 11.5 Implement capture restriction validation in `TypeCheckerAnalyzer.cs`
+  - [x] 11.5 Implement capture restriction validation in `TypeCheckerAnalyzer.cs`
     - `MIST_TC_0110` ref struct capture; `MIST_TC_0111` owned-type capture; `MIST_TC_0112` borrowed/frozen/readonly-ref capture; permit unrestricted reference and value types
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8_
 
@@ -236,7 +236,7 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
     - Treat Func-typed values as reference types; permit unrestricted/`owned`/`readonly ref`/`frozen ref`/`ref`; invocation is a read (permitted on `readonly ref`/`frozen ref`); reassignment requires `ref`; static lambdas are still reference types
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5, 17.6_
 
-  - [ ] 17.2 Verify type-alias interaction for Func types end-to-end
+  - [x] 17.2 Verify type-alias interaction for Func types end-to-end
     - `type Predicate<T> = func<T, bool>;` resolves; lambda inference sees through aliases; structural equivalence `Predicate<int>` == `func<int, bool>` == `Func<int, bool>`
     - _Requirements: 16.1, 16.2, 16.3, 16.4_
 

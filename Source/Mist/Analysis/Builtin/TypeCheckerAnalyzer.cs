@@ -668,6 +668,102 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId TuplePositionalPatternArityMismatch = new("MIST_TC_0114");
 
+    // ── first-class-functions feature: lambda validation diagnostics ─────
+
+    /// <summary>
+    /// Emitted when a parenthesized lambda parameter list mixes typed and untyped
+    /// parameters. All parameters must be either all typed or all untyped
+    /// (Requirements 4.7, 4.8).
+    /// </summary>
+    internal static readonly DiagnosticId MixedLambdaParameterTypes = new("MIST_TC_0115");
+
+    /// <summary>
+    /// Emitted when a lambda has implicit (untyped) parameters and no target Func
+    /// type is available to infer parameter types from (Requirements 6.6, 6.7).
+    /// </summary>
+    internal static readonly DiagnosticId CannotInferLambdaParameterTypes = new("MIST_TC_0116");
+
+    /// <summary>
+    /// Emitted when a block lambda has multiple return statements with inconsistent
+    /// types that cannot be unified (Requirement 6.7).
+    /// </summary>
+    internal static readonly DiagnosticId InconsistentLambdaReturnTypes = new("MIST_TC_0117");
+
+    /// <summary>
+    /// Emitted when a block lambda's target return type is non-void but the block
+    /// contains no return statement with a value (Requirement 5.4).
+    /// </summary>
+    internal static readonly DiagnosticId MissingReturnInNonVoidLambda = new("MIST_TC_0118");
+
+    /// <summary>
+    /// Emitted when an <c>await</c> expression appears inside a non-async lambda body.
+    /// Only async lambdas may use <c>await</c> (Requirement 9.5).
+    /// </summary>
+    internal static readonly DiagnosticId AwaitInNonAsyncLambda = new("MIST_TC_0126");
+
+    // ── first-class-functions feature: Func invocation validation diagnostics ─────
+
+    /// <summary>
+    /// Emitted when a Func-typed expression is invoked with the wrong number of
+    /// arguments. The expected count is derived from the Func type's type arguments
+    /// (all but the last, which is the return type) (Requirement 7.8).
+    /// </summary>
+    internal static readonly DiagnosticId FuncInvocationArgumentCountMismatch = new("MIST_TC_0119");
+
+    /// <summary>
+    /// Emitted when a Func-typed expression is invoked with an argument whose type
+    /// is not assignable to the corresponding Func parameter type (Requirement 7.9).
+    /// </summary>
+    internal static readonly DiagnosticId FuncInvocationArgumentTypeMismatch = new("MIST_TC_0120");
+
+    /// <summary>
+    /// Emitted when a method group conversion is ambiguous — multiple overloads of
+    /// the method match the target Func type's signature (Requirement 7.10).
+    /// </summary>
+    internal static readonly DiagnosticId AmbiguousMethodGroupConversion = new("MIST_TC_0121");
+
+    /// <summary>
+    /// Emitted when a static lambda references an enclosing variable, instance field,
+    /// or <c>this</c>. Static lambdas may only reference their own parameters, static
+    /// fields/methods, constants, and type names (Requirements 8.2, 8.3, 8.4).
+    /// </summary>
+    internal static readonly DiagnosticId StaticLambdaCaptureViolation = new("MIST_TC_0122");
+
+    // ── first-class-functions feature: capture restriction diagnostics ───
+    //
+    // Note on numbering: the first-class-functions design document's Diagnostic
+    // ID Allocation table originally proposed MIST_TC_0110 / MIST_TC_0111 /
+    // MIST_TC_0112 for the three capture restriction diagnostics below. Those
+    // first two codes were already allocated to the structured-concurrency
+    // feature (TaskStorageRestriction) and the optional-types feature
+    // (OptionalChainingRequiresOptionalType) respectively, so the capture
+    // restriction diagnostics were reallocated to MIST_TC_0123 / MIST_TC_0124 /
+    // MIST_TC_0125 — the next free codes after the static lambda capture
+    // violation (MIST_TC_0122). This continues the same reallocation strategy
+    // used throughout this file.
+
+    /// <summary>
+    /// Emitted when a lambda captures a variable whose type is a ref struct.
+    /// Ref struct values cannot live on the heap, so they cannot be captured
+    /// by a closure (Requirements 11.1, 11.2).
+    /// </summary>
+    internal static readonly DiagnosticId CaptureRefStruct = new("MIST_TC_0123");
+
+    /// <summary>
+    /// Emitted when a lambda captures a variable with <c>owned</c> ownership tier.
+    /// Ownership transfer semantics conflict with closure capture — the owned
+    /// variable's lifetime cannot be shared with the closure (Requirements 11.3, 11.4).
+    /// </summary>
+    internal static readonly DiagnosticId CaptureOwned = new("MIST_TC_0124");
+
+    /// <summary>
+    /// Emitted when a lambda captures a variable with <c>borrowed</c>, <c>frozen</c>,
+    /// or <c>readonly ref</c> ownership tier. These variables have lifetimes bounded
+    /// to the current scope and cannot outlive it via closure capture
+    /// (Requirements 11.5, 11.6, 11.7, 11.8).
+    /// </summary>
+    internal static readonly DiagnosticId CaptureBorrowedOrFrozen = new("MIST_TC_0125");
+
     // ── enums feature: assignability diagnostic ──────────────────────────
 
     /// <summary>
@@ -3507,6 +3603,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // (e.g., TypeType assigned to a non-Type variable).
                 declaredType ??= model.GetDeclaredSymbol(typed)?.DeclaredType;
 
+                // ── first-class-functions: method group ambiguity check (MIST_TC_0121) ──
+                // When the declared type is a Func type and the initializer is a bare
+                // identifier (method group), check for ambiguous overloads.
+                if (declaredType is not null && SemanticModelBuilder.IsFuncType(declaredType))
+                {
+                    var postfix = TryExtractPostfixNode(typed.Initializer);
+                    if (postfix is not null)
+                    {
+                        CheckMethodGroupAmbiguity(postfix, declaredType, model, diagnostics);
+                    }
+                }
+
                 // Check for void[] variable declarations (MIST_TC_0034).
                 if (declaredType is ArrayType arrayType && arrayType.ElementType.IsVoid())
                 {
@@ -5275,11 +5383,594 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private void CheckExpression(ExpressionNode expr, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        // Lambda-form expression checking (parameter/capture/async validation) is
-        // implemented by later first-class-functions tasks (11.x); the assignment form
-        // is checked as before.
-        if (expr.AsAssignmentOrNull() is { } assignment)
+        if (expr.AsLambdaOrNull() is { } lambda)
+        {
+            CheckLambdaExpression(lambda, expr, model, diagnostics);
+        }
+        else if (expr.AsAssignmentOrNull() is { } assignment)
+        {
             CheckAssignmentNode(assignment, model, diagnostics);
+        }
+    }
+
+    // ── first-class-functions: lambda expression validation ──────────────
+
+    /// <summary>
+    /// Validates a lambda expression for parameter consistency, type inference
+    /// completeness, return type consistency, and missing returns.
+    /// </summary>
+    private void CheckLambdaExpression(
+        LambdaExpressionNode lambda,
+        ExpressionNode enclosingExpr,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Get the parameter list from the lambda.
+        var paramList = lambda switch
+        {
+            ExpressionLambdaLambdaExpressionNode exprLambda => exprLambda.Params,
+            BlockLambdaLambdaExpressionNode blockLambda => blockLambda.Params,
+            _ => null,
+        };
+
+        // ── MIST_TC_0115: Mixed typed/untyped parameters ──
+        // When a lambda has parenthesized params, all must be either all typed or all untyped.
+        if (paramList is ParenthesizedLambdaParamsLambdaParameterListNode parenParams
+            && parenParams.Params is not null)
+        {
+            var paramNodes = new List<LambdaParamNode> { parenParams.Params.LambdaParam };
+            paramNodes.AddRange(parenParams.Params.LambdaParams);
+
+            if (paramNodes.Count > 1)
+            {
+                var hasTyped = false;
+                var hasUntyped = false;
+                foreach (var p in paramNodes)
+                {
+                    if (p is TypedLambdaParamLambdaParamNode)
+                        hasTyped = true;
+                    else
+                        hasUntyped = true;
+                }
+
+                if (hasTyped && hasUntyped)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        MixedLambdaParameterTypes.Value,
+                        "Lambda parameters must be all typed or all untyped; mixing typed and untyped parameters is not allowed",
+                        enclosingExpr,
+                        model));
+                }
+            }
+        }
+
+        // ── MIST_TC_0116: Cannot infer parameter types ──
+        // When a lambda has implicit (untyped) params and the resolved type is UnknownType,
+        // the semantic model could not infer parameter types (no target Func type available).
+        var resolvedType = model.GetTypeOf(enclosingExpr);
+        if (resolvedType is UnknownType)
+        {
+            // Only emit when the lambda actually has implicit params that need inference.
+            var hasImplicitParams = paramList is SingleImplicitParamLambdaParameterListNode;
+            if (!hasImplicitParams && paramList is ParenthesizedLambdaParamsLambdaParameterListNode pp && pp.Params is not null)
+            {
+                var firstParam = pp.Params.LambdaParam;
+                hasImplicitParams = firstParam is UntypedLambdaParamLambdaParamNode;
+            }
+
+            if (hasImplicitParams)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    CannotInferLambdaParameterTypes.Value,
+                    "Cannot infer lambda parameter types; provide explicit parameter types or assign to a variable with an explicit Func type",
+                    enclosingExpr,
+                    model));
+            }
+        }
+
+        // ── MIST_TC_0117: Inconsistent return types in block lambda ──
+        // When the semantic model resolved the lambda to a Func type whose return type
+        // is ErrorType, the block has inconsistent return types.
+        if (lambda is BlockLambdaLambdaExpressionNode
+            && resolvedType is ConstructedType ct
+            && SemanticModelBuilder.IsFuncType(ct))
+        {
+            var returnType = SemanticModelBuilder.GetFuncReturnType(ct);
+            if (IsErrorType(returnType))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    InconsistentLambdaReturnTypes.Value,
+                    "Block lambda has inconsistent return types; all return statements must return compatible types",
+                    enclosingExpr,
+                    model));
+            }
+        }
+
+        // ── MIST_TC_0118: Missing return in non-void block lambda ──
+        // When the target return type is non-void but the block has no return statements
+        // with values, emit an error.
+        if (lambda is BlockLambdaLambdaExpressionNode blockLambdaForReturn
+            && resolvedType is ConstructedType funcCt
+            && SemanticModelBuilder.IsFuncType(funcCt))
+        {
+            var returnType = SemanticModelBuilder.GetFuncReturnType(funcCt);
+            if (!IsErrorType(returnType) && !returnType.IsVoid())
+            {
+                // Check if the block has any return statements with values.
+                if (!BlockHasReturnWithValue(blockLambdaForReturn.Body))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        MissingReturnInNonVoidLambda.Value,
+                        $"Block lambda with return type '{returnType.DisplayName}' must contain a return statement with a value",
+                        enclosingExpr,
+                        model));
+                }
+            }
+        }
+
+        // ── MIST_TC_0123/0124/0125: Capture restriction validation ──
+        // ALL lambdas (not just static) must not capture variables with restricted types/ownership.
+        // Ref struct types cannot live on the heap (0123), owned variables cannot be shared (0124),
+        // and borrowed/frozen/readonly-ref variables have bounded lifetimes (0125).
+        {
+            var captureParamNames = CollectLambdaParameterNames(lambda);
+            SyntaxNode captureBodyNode = lambda switch
+            {
+                ExpressionLambdaLambdaExpressionNode el => el.Body,
+                BlockLambdaLambdaExpressionNode bl => bl.Body,
+                _ => null!,
+            };
+
+            if (captureBodyNode is not null)
+            {
+                CheckCaptureRestrictions(captureBodyNode, captureParamNames, model, diagnostics);
+            }
+        }
+
+        // ── MIST_TC_0122: Static lambda capture violation ──
+        // A static lambda cannot capture variables from the enclosing scope.
+        // It may only reference its own parameters, static fields/methods, constants, and type names.
+        if (IsStaticLambda(lambda))
+        {
+            var lambdaParamNames = CollectLambdaParameterNames(lambda);
+            SyntaxNode bodyNode = lambda switch
+            {
+                ExpressionLambdaLambdaExpressionNode el => el.Body,
+                BlockLambdaLambdaExpressionNode bl => bl.Body,
+                _ => null!,
+            };
+
+            if (bodyNode is not null)
+            {
+                CheckStaticLambdaBody(bodyNode, lambdaParamNames, model, diagnostics);
+            }
+        }
+
+        // ── MIST_TC_0126: await in non-async lambda body ──
+        // When a lambda does NOT have the async modifier, any await expression
+        // in its body is an error. Async lambdas permit await freely.
+        // The static async combination is valid (both modifiers can coexist).
+        if (!IsAsyncLambda(lambda))
+        {
+            SyntaxNode asyncBodyNode = lambda switch
+            {
+                ExpressionLambdaLambdaExpressionNode el => el.Body,
+                BlockLambdaLambdaExpressionNode bl => bl.Body,
+                _ => null!,
+            };
+
+            if (asyncBodyNode is not null)
+            {
+                CheckAwaitInNonAsyncLambdaBody(asyncBodyNode, model, diagnostics);
+            }
+        }
+
+        // Recurse into the lambda body to check nested expressions.
+        switch (lambda)
+        {
+            case ExpressionLambdaLambdaExpressionNode exprLambda:
+                CheckExpression(exprLambda.Body, model, diagnostics);
+                break;
+            case BlockLambdaLambdaExpressionNode blockLambda:
+                CheckBlock(blockLambda.Body, GetLambdaBodyReturnType(resolvedType), model, diagnostics);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the given block contains at least one return statement
+    /// with a value expression. Does not descend into nested lambdas.
+    /// </summary>
+    private static bool BlockHasReturnWithValue(BlockNode block)
+    {
+        foreach (var stmt in block.Statements)
+        {
+            if (StatementHasReturnWithValue(stmt))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Checks a single statement (and its nested control-flow blocks) for return
+    /// statements with values. Does not descend into nested lambdas.
+    /// </summary>
+    private static bool StatementHasReturnWithValue(StatementNode stmt)
+    {
+        switch (stmt)
+        {
+            case ReturnStatementStatementNode returnStmt:
+                return returnStmt.ReturnStatement.Value is not null;
+
+            case IfStatementStatementNode ifStmt:
+                if (BlockHasReturnWithValue(ifStmt.IfStatement.ThenBranch))
+                    return true;
+                if (ifStmt.IfStatement.ElseBranch is not null)
+                    return ElseClauseHasReturnWithValue(ifStmt.IfStatement.ElseBranch);
+                return false;
+
+            case WhileStatementStatementNode whileStmt:
+                return BlockHasReturnWithValue(whileStmt.WhileStatement.Body);
+
+            case ForStatementStatementNode forStmt:
+                return BlockHasReturnWithValue(forStmt.ForStatement.Body);
+
+            case ForeachStatementStatementNode foreachStmt:
+                return BlockHasReturnWithValue(foreachStmt.ForeachStatement.Body);
+
+            case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
+                return BlockHasReturnWithValue(readonlyBlockStmt.ReadonlyBlock.Body);
+
+            case WithBlockStatementStatementNode withBlockStmt:
+                return BlockHasReturnWithValue(withBlockStmt.WithBlockStatement.Body);
+
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// Checks an else clause for return statements with values.
+    /// </summary>
+    private static bool ElseClauseHasReturnWithValue(ElseClauseNode elseClause)
+    {
+        return elseClause switch
+        {
+            ElseBlockElseClauseNode elseBlock => BlockHasReturnWithValue(elseBlock.ElseBlock),
+            ElseIfElseClauseNode elseIf =>
+                BlockHasReturnWithValue(elseIf.ElseIf.ThenBranch)
+                || (elseIf.ElseIf.ElseBranch is not null && ElseClauseHasReturnWithValue(elseIf.ElseIf.ElseBranch)),
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Extracts the return type from a lambda's resolved Func type for use as the
+    /// expected return type when checking the block body. Returns <c>ErrorType</c>
+    /// if the type is not a Func type.
+    /// </summary>
+    private static IType GetLambdaBodyReturnType(IType? resolvedType)
+    {
+        if (resolvedType is ConstructedType ct && SemanticModelBuilder.IsFuncType(ct))
+            return SemanticModelBuilder.GetFuncReturnType(ct);
+        return ErrorType.Instance;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the lambda has the <c>static</c> modifier.
+    /// </summary>
+    private static bool IsStaticLambda(LambdaExpressionNode lambda)
+    {
+        var modifiers = lambda switch
+        {
+            ExpressionLambdaLambdaExpressionNode exprLambda => exprLambda.Modifiers,
+            BlockLambdaLambdaExpressionNode blockLambda => blockLambda.Modifiers,
+            _ => ImmutableArray<LambdaModifierNode>.Empty,
+        };
+
+        return modifiers.Any(m => m is StaticLambdaModifierLambdaModifierNode);
+    }
+
+    /// <summary>
+    /// Collects the parameter names declared by a lambda expression.
+    /// </summary>
+    private static HashSet<string> CollectLambdaParameterNames(LambdaExpressionNode lambda)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+
+        var paramList = lambda switch
+        {
+            ExpressionLambdaLambdaExpressionNode exprLambda => exprLambda.Params,
+            BlockLambdaLambdaExpressionNode blockLambda => blockLambda.Params,
+            _ => null,
+        };
+
+        switch (paramList)
+        {
+            case SingleImplicitParamLambdaParameterListNode singleParam:
+                names.Add(singleParam.Name.Lexeme);
+                break;
+
+            case ParenthesizedLambdaParamsLambdaParameterListNode parenParams when parenParams.Params is not null:
+            {
+                var paramNodes = new List<LambdaParamNode> { parenParams.Params.LambdaParam };
+                paramNodes.AddRange(parenParams.Params.LambdaParams);
+
+                foreach (var paramNode in paramNodes)
+                {
+                    var name = paramNode switch
+                    {
+                        TypedLambdaParamLambdaParamNode typed => typed.Name.Lexeme,
+                        UntypedLambdaParamLambdaParamNode untyped => untyped.Name.Lexeme,
+                        _ => null,
+                    };
+                    if (name is not null)
+                        names.Add(name);
+                }
+                break;
+            }
+        }
+
+        return names;
+    }
+
+    /// <summary>
+    /// Walks the body of a static lambda looking for references to enclosing variables,
+    /// instance fields, or <c>this</c>. Emits <c>MIST_TC_0122</c> for each violation.
+    /// Does not descend into nested lambda bodies (they have their own scope rules).
+    /// </summary>
+    private static void CheckStaticLambdaBody(
+        SyntaxNode node,
+        HashSet<string> lambdaParamNames,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // 'this' reference in a static lambda is always a violation.
+        if (node is ThisExpressionPrimaryNode)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                StaticLambdaCaptureViolation.Value,
+                "A static lambda cannot reference 'this'",
+                node,
+                model));
+            return;
+        }
+
+        // Check identifier references.
+        if (node is IdentifierExpressionPrimaryNode identifier)
+        {
+            var name = identifier.Name.Lexeme;
+
+            // The lambda's own parameters are always permitted.
+            if (lambdaParamNames.Contains(name))
+                return;
+
+            // Resolve the symbol to determine what it refers to.
+            var symbol = model.GetDeclaredSymbol(identifier);
+            if (symbol is Symbol concreteSymbol)
+            {
+                switch (concreteSymbol.Kind)
+                {
+                    case SymbolKind.LocalVariable:
+                        // Local variable from an enclosing scope — violation.
+                        diagnostics.Add(MakeDiagnostic(
+                            StaticLambdaCaptureViolation.Value,
+                            $"A static lambda cannot reference enclosing variable '{name}'",
+                            identifier,
+                            model));
+                        return;
+
+                    case SymbolKind.Parameter:
+                        // Parameter from an enclosing method/lambda — violation.
+                        // (The lambda's own params were already excluded above.)
+                        diagnostics.Add(MakeDiagnostic(
+                            StaticLambdaCaptureViolation.Value,
+                            $"A static lambda cannot reference enclosing parameter '{name}'",
+                            identifier,
+                            model));
+                        return;
+
+                    case SymbolKind.Field:
+                        // Instance field — violation. Static fields are OK.
+                        if (!concreteSymbol.IsStatic)
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                StaticLambdaCaptureViolation.Value,
+                                $"A static lambda cannot reference instance field '{name}'",
+                                identifier,
+                                model));
+                            return;
+                        }
+                        break;
+
+                    case SymbolKind.Method:
+                        // Instance method — violation. Static methods are OK.
+                        if (!concreteSymbol.IsStatic)
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                StaticLambdaCaptureViolation.Value,
+                                $"A static lambda cannot reference instance method '{name}'",
+                                identifier,
+                                model));
+                            return;
+                        }
+                        break;
+
+                    case SymbolKind.Property:
+                        // Instance property — violation. Static properties are OK.
+                        if (!concreteSymbol.IsStatic)
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                StaticLambdaCaptureViolation.Value,
+                                $"A static lambda cannot reference instance property '{name}'",
+                                identifier,
+                                model));
+                            return;
+                        }
+                        break;
+
+                    // Namespace, Class, Struct, Interface, Trait, Enum, TypeAlias, Newtype,
+                    // Constructor, Indexer — these are type-level references and are always OK.
+                }
+            }
+
+            // If the symbol could not be resolved, or it's a type name / static member,
+            // no diagnostic is needed.
+            return;
+        }
+
+        // Do not descend into nested lambda bodies — they have their own scope rules.
+        if (node is LambdaExpressionNode)
+            return;
+
+        // Recurse into child nodes.
+        foreach (var child in node.Children())
+        {
+            if (child is not null)
+            {
+                CheckStaticLambdaBody(child, lambdaParamNames, model, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Walks the body of a lambda looking for captured variables (outer scope locals/parameters)
+    /// that have restricted types or ownership tiers. Emits:
+    /// <list type="bullet">
+    ///   <item><c>MIST_TC_0123</c> — captured variable is a ref struct type.</item>
+    ///   <item><c>MIST_TC_0124</c> — captured variable has <c>owned</c> ownership.</item>
+    ///   <item><c>MIST_TC_0125</c> — captured variable has <c>borrowed</c>, <c>frozen</c>, or <c>readonly ref</c> ownership.</item>
+    /// </list>
+    /// Does not descend into nested lambda bodies (they have their own capture scope).
+    /// </summary>
+    private static void CheckCaptureRestrictions(
+        SyntaxNode node,
+        HashSet<string> lambdaParamNames,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Check identifier references for captured variables with restricted types/ownership.
+        if (node is IdentifierExpressionPrimaryNode identifier)
+        {
+            var name = identifier.Name.Lexeme;
+
+            // The lambda's own parameters are NOT captured — skip them.
+            if (lambdaParamNames.Contains(name))
+                return;
+
+            // Resolve the symbol to determine what it refers to.
+            var symbol = model.GetDeclaredSymbol(identifier);
+            if (symbol is Symbol concreteSymbol &&
+                concreteSymbol.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter)
+            {
+                // This is a captured variable from an outer scope.
+                var declaredType = concreteSymbol.DeclaredType;
+
+                // ── MIST_TC_0123: ref struct capture ──
+                if (declaredType is not null && IsRefStructType(declaredType))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        CaptureRefStruct.Value,
+                        $"Cannot capture variable '{name}' of ref struct type '{declaredType.DisplayName}' in a lambda; ref struct values cannot live on the heap",
+                        identifier,
+                        model));
+                    return;
+                }
+
+                // ── MIST_TC_0124: owned capture ──
+                if (concreteSymbol.OwnershipTier == OwnershipTier.Owned)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        CaptureOwned.Value,
+                        $"Cannot capture owned variable '{name}' in a lambda; ownership transfer semantics conflict with closure capture",
+                        identifier,
+                        model));
+                    return;
+                }
+
+                // ── MIST_TC_0125: borrowed/frozen/readonly-ref capture ──
+                if (concreteSymbol.OwnershipTier is OwnershipTier.Borrowed or OwnershipTier.Frozen or OwnershipTier.ReadonlyRef)
+                {
+                    var tierName = concreteSymbol.OwnershipTier switch
+                    {
+                        OwnershipTier.Borrowed => "borrowed",
+                        OwnershipTier.Frozen => "frozen",
+                        OwnershipTier.ReadonlyRef => "readonly ref",
+                        _ => concreteSymbol.OwnershipTier.ToString(),
+                    };
+                    diagnostics.Add(MakeDiagnostic(
+                        CaptureBorrowedOrFrozen.Value,
+                        $"Cannot capture {tierName} variable '{name}' in a lambda; its lifetime is bounded to the current scope",
+                        identifier,
+                        model));
+                    return;
+                }
+            }
+
+            // Unrestricted reference types, value types, and variables with no special ownership are permitted.
+            return;
+        }
+
+        // Do not descend into nested lambda bodies — they have their own capture scope.
+        if (node is LambdaExpressionNode)
+            return;
+
+        // Recurse into child nodes.
+        foreach (var child in node.Children())
+        {
+            if (child is not null)
+            {
+                CheckCaptureRestrictions(child, lambdaParamNames, model, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the lambda has the <c>async</c> modifier.
+    /// </summary>
+    private static bool IsAsyncLambda(LambdaExpressionNode lambda)
+    {
+        var modifiers = lambda switch
+        {
+            ExpressionLambdaLambdaExpressionNode exprLambda => exprLambda.Modifiers,
+            BlockLambdaLambdaExpressionNode blockLambda => blockLambda.Modifiers,
+            _ => ImmutableArray<LambdaModifierNode>.Empty,
+        };
+
+        return modifiers.Any(m => m is AsyncLambdaModifierLambdaModifierNode);
+    }
+
+    /// <summary>
+    /// Walks the body of a non-async lambda looking for <c>await</c> expressions.
+    /// Emits <c>MIST_TC_0126</c> for each <c>await</c> found. Does not descend
+    /// into nested lambda bodies (they have their own async context).
+    /// </summary>
+    private static void CheckAwaitInNonAsyncLambdaBody(
+        SyntaxNode node,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        if (node is AwaitExpressionUnaryNode)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                AwaitInNonAsyncLambda.Value,
+                "Cannot use 'await' in a non-async lambda; add the 'async' modifier to the lambda",
+                node,
+                model));
+            return;
+        }
+
+        // Do not descend into nested lambda bodies — they have their own async context.
+        if (node is LambdaExpressionNode)
+            return;
+
+        foreach (var child in node.Children())
+        {
+            if (child is not null)
+            {
+                CheckAwaitInNonAsyncLambdaBody(child, model, diagnostics);
+            }
+        }
     }
 
     private void CheckAssignmentNode(AssignmentNode assignment, ISemanticModel model, DiagnosticBag diagnostics)
@@ -5342,6 +6033,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             var lhsType = model.GetTypeOf(assignment.Target);
             var rhsType = model.GetTypeOf(assignment.Value);
+
+            // ── first-class-functions: method group ambiguity check (MIST_TC_0121) ──
+            // When the LHS type is a Func type and the RHS is a bare identifier
+            // (method group), check for ambiguous overloads.
+            if (lhsType is not null && SemanticModelBuilder.IsFuncType(lhsType))
+            {
+                var rhsPostfix = TryExtractPostfixNode(assignment.Value);
+                if (rhsPostfix is not null)
+                {
+                    CheckMethodGroupAmbiguity(rhsPostfix, lhsType, model, diagnostics);
+                }
+            }
 
             if (lhsType is not null && rhsType is not null)
             {
@@ -9282,6 +9985,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             CheckArgumentListExpressions(invocation.Arguments, model, diagnostics);
         }
 
+        // ── first-class-functions: Func-typed invocation validation ──
+        // When the target expression's type is a Func constructed type, validate
+        // argument count and types against the Func's parameter types.
+        if (targetType is not null && SemanticModelBuilder.IsFuncType(targetType) && targetType is ConstructedType funcCt)
+        {
+            CheckFuncInvocationArguments(invocation, funcCt, model, diagnostics);
+            return;
+        }
+
         // Look up the invoked symbol.
         var invokedSymbol = model.GetDeclaredSymbol(invocation);
         if (invokedSymbol is null)
@@ -9352,6 +10064,155 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Validate ref arguments are assignable storage locations (MIST_REF_0001).
         CheckRefArgumentAssignability(argList, model, diagnostics);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Func invocation argument validation (MIST_TC_0119, MIST_TC_0120)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates that a Func-typed invocation has the correct number of arguments
+    /// and that each argument's type is compatible with the corresponding Func
+    /// parameter type. Emits <c>MIST_TC_0119</c> for count mismatches and
+    /// <c>MIST_TC_0120</c> for type mismatches.
+    /// </summary>
+    private static void CheckFuncInvocationArguments(
+        InvocationSuffixPostfixSuffixNode invocation,
+        ConstructedType funcType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // The Func type arguments are [P1, P2, ..., PN, TReturn].
+        // Parameter count is typeArgs.Count - 1.
+        var typeArgs = funcType.TypeArguments;
+        var expectedParamCount = typeArgs.Count - 1;
+
+        // Collect actual argument types.
+        var argTypes = CollectArgumentTypes(invocation.Arguments, model);
+        var actualArgCount = argTypes.Count;
+
+        // ── MIST_TC_0119: argument count mismatch ──
+        if (actualArgCount != expectedParamCount)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                FuncInvocationArgumentCountMismatch.Value,
+                $"Func invocation expects {expectedParamCount} argument(s) but was given {actualArgCount}",
+                (SyntaxNode)invocation,
+                model));
+            return;
+        }
+
+        // ── MIST_TC_0120: argument type mismatch ──
+        for (var i = 0; i < actualArgCount; i++)
+        {
+            var argType = argTypes[i];
+            var paramType = typeArgs[i];
+
+            // Skip error types to avoid cascading diagnostics.
+            if (IsErrorType(argType) || IsErrorType(paramType))
+                continue;
+
+            if (!IsAssignable(argType, paramType, model))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    FuncInvocationArgumentTypeMismatch.Value,
+                    $"Argument {i + 1} of type '{argType.DisplayName}' is not assignable to Func parameter type '{paramType.DisplayName}'",
+                    (SyntaxNode)invocation,
+                    model));
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Ambiguous method group conversion validation (MIST_TC_0121)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Checks whether a method group conversion is ambiguous. When an identifier
+    /// resolves to a method symbol and the expression is used as a value (assigned
+    /// to a Func-typed variable), verifies that only one overload of the method
+    /// matches the target Func type's signature. Emits <c>MIST_TC_0121</c> if
+    /// multiple overloads match.
+    /// </summary>
+    private static void CheckMethodGroupAmbiguity(
+        PostfixNode postfix,
+        IType targetFuncType,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Only applies when the target is a Func type and the expression is a bare identifier
+        // (no invocation suffix — i.e., used as a value, not called).
+        if (targetFuncType is not ConstructedType funcCt || !SemanticModelBuilder.IsFuncType(funcCt))
+            return;
+
+        if (postfix.Target is not IdentifierExpressionPrimaryNode identifier)
+            return;
+
+        // If there's an invocation suffix, this is a call, not a method group conversion.
+        if (postfix.Suffix.Length > 0 && postfix.Suffix[0] is InvocationSuffixPostfixSuffixNode)
+            return;
+
+        // Resolve the symbol for the identifier.
+        var symbol = model.GetDeclaredSymbol(identifier);
+        if (symbol is not Symbol { Kind: SymbolKind.Method } methodSymbol)
+            return;
+
+        // Find the containing scope to look for overloads.
+        var containingScope = methodSymbol.ContainingScope;
+        if (containingScope is null)
+            return;
+
+        // Collect all methods with the same name in the containing scope.
+        var methodName = methodSymbol.Name;
+        var overloads = new List<ISymbol>();
+        foreach (var member in containingScope.Members)
+        {
+            if (member.Kind == SymbolKind.Method && member.Name == methodName)
+                overloads.Add(member);
+        }
+
+        // If there's only one overload, no ambiguity is possible.
+        if (overloads.Count <= 1)
+            return;
+
+        // Extract the target Func type's parameter types (all but last type arg).
+        var funcTypeArgs = funcCt.TypeArguments;
+        var funcParamCount = funcTypeArgs.Count - 1;
+
+        // Count how many overloads match the target Func type's signature.
+        var matchingOverloads = new List<ISymbol>();
+        foreach (var overload in overloads)
+        {
+            var paramTypes = ParameterSignature.Extract(overload, model);
+            if (paramTypes.Count != funcParamCount)
+                continue;
+
+            var allMatch = true;
+            for (var i = 0; i < funcParamCount; i++)
+            {
+                if (!IsAssignable(funcTypeArgs[i], paramTypes[i], model)
+                    && !IsAssignable(paramTypes[i], funcTypeArgs[i], model))
+                {
+                    allMatch = false;
+                    break;
+                }
+            }
+
+            if (allMatch)
+                matchingOverloads.Add(overload);
+        }
+
+        // If more than one overload matches, emit MIST_TC_0121.
+        if (matchingOverloads.Count > 1)
+        {
+            var signatures = matchingOverloads
+                .Select(o => FormatCandidateSignature(o, methodName, model));
+            diagnostics.Add(MakeDiagnostic(
+                AmbiguousMethodGroupConversion.Value,
+                $"Method group '{methodName}' is ambiguous; multiple overloads match the target type '{funcCt.DisplayName}': {string.Join(" and ", signatures)}",
+                postfix,
+                model));
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════

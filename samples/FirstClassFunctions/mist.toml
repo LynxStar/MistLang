@@ -1,1 +1,4 @@
 name = "FirstClassFunctions"
+
+[global_usings]
+namespaces = ["System.Collections.Generic"]

@@ -21,6 +21,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     internal static readonly DiagnosticId DuplicateConstructorSignature = new("MIST_SM_0021");
     internal static readonly DiagnosticId MissingInterfaceOverload = new("MIST_SM_0022");
 
+    // ── Namespace scope registry ─────────────────────────────────────────
+    // Maps fully-qualified namespace names to their scope instances. Populated
+    // by GetOrCreateNamespaceScope during Pass 1 and consulted by
+    // FindExistingNamespaceScope. This replaces the fragile heuristic of
+    // locating namespace scopes by searching for type symbols with a matching
+    // ContainingNamespace — that approach failed when a namespace contained
+    // only type aliases (which lack ContainingNamespace on their DeclaredType).
+    [ThreadStatic]
+    private static Dictionary<string, Scope>? _namespaceScopeMap;
+
     // ── Extension member lookup context ──────────────────────────────────
     // Set before Pass 2 type resolution and cleared after. Allows
     // LookupMemberType to perform extension member fallback without
@@ -41,6 +51,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     // target Func type. Cleared immediately after resolution.
     [ThreadStatic]
     private static IType? _lambdaTargetType;
+
+    // ── Current method return type for return-statement lambda inference ──
+    // Set when entering a method body so that return statements can propagate
+    // the method's return type as a lambda target type.
+    [ThreadStatic]
+    private static IType? _currentMethodReturnType;
 
     // ── Symbolic length ID allocation for parameter arrays ────────────────
     // Generates unique IDs for unsized array parameters so that two references
@@ -695,6 +711,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         _nextSymbolicLengthId = 1;
         _allocatingParameterArrayType = false;
 
+        // Reset namespace scope map for this compilation.
+        _namespaceScopeMap = new Dictionary<string, Scope>();
+
         // Initialize live task tracking for this compilation.
         _liveTaskResult = new Dictionary<Storm.Runtime.SyntaxNode, List<LiveTaskInfo>>();
 
@@ -1235,41 +1254,40 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         string namespaceName,
         Storm.Runtime.SyntaxNode declaringNode)
     {
-        // Try to find an existing namespace scope.
-        Scope? namespaceScope = FindExistingNamespaceScope(globalScope, symbolTable, namespaceName);
+        // Fast path: check the namespace scope map first.
+        _namespaceScopeMap ??= new Dictionary<string, Scope>();
+        if (_namespaceScopeMap.TryGetValue(namespaceName, out var cached))
+            return cached;
 
-        if (namespaceScope is not null)
-            return namespaceScope;
+        // Create a new namespace scope and register the namespace symbol.
+        var namespaceScope = new Scope(parent: globalScope);
+        _namespaceScopeMap[namespaceName] = namespaceScope;
 
-        // Also check if there's already a namespace symbol registered (even if no types yet).
+        // Only register the namespace symbol if it doesn't already exist.
+        var symbolExists = false;
         foreach (var member in globalScope.Members)
         {
             if (member.Kind == SymbolKind.Namespace && member.Name == namespaceName)
             {
-                // The namespace symbol exists but FindExistingNamespaceScope didn't find a scope
-                // (no types registered yet). We need to find or create the scope.
-                // Look for the scope associated with this namespace symbol.
-                // Since we can't directly get the scope from the symbol, create a new one
-                // and it will be found next time via types registered in it.
-                namespaceScope = new Scope(parent: globalScope);
-                return namespaceScope;
+                symbolExists = true;
+                break;
             }
         }
 
-        // Create a new namespace scope and register the namespace symbol.
-        namespaceScope = new Scope(parent: globalScope);
+        if (!symbolExists)
+        {
+            var namespaceSpan = ToMistSourceSpan(declaringNode.Span);
+            var namespaceSymbol = new Symbol(
+                namespaceName,
+                SymbolKind.Namespace,
+                SymbolOrigin.UserCode,
+                globalScope,
+                declaredType: null,
+                namespaceSpan);
 
-        var namespaceSpan = ToMistSourceSpan(declaringNode.Span);
-        var namespaceSymbol = new Symbol(
-            namespaceName,
-            SymbolKind.Namespace,
-            SymbolOrigin.UserCode,
-            globalScope,
-            declaredType: null,
-            namespaceSpan);
-
-        globalScope.AddMember(namespaceSymbol);
-        symbolTable.Register(namespaceSymbol, declaringNode);
+            globalScope.AddMember(namespaceSymbol);
+            symbolTable.Register(namespaceSymbol, declaringNode);
+        }
 
         return namespaceScope;
     }
@@ -2381,10 +2399,84 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
 
             // Create a file scope for type resolution that includes the
-            // extension block's parent scope (which has namespace context).
-            var fileScope = extensionScope.Parent is Scope parentScope
-                ? parentScope
-                : globalScope;
+            // extension block's parent scope (which has namespace context)
+            // AND the imported namespaces from the containing compilation unit.
+            var parentScope = extensionScope.Parent is Scope ps ? ps : globalScope;
+            var fileScope = new Scope(parent: parentScope);
+
+            // Add the extension's own namespace as implicitly imported.
+            if (namespaceName is not null)
+            {
+                fileScope.AddImportedNamespace(namespaceName);
+            }
+
+            // Find the containing compilation unit to get using directives and global usings.
+            var filePath = sourceText?.Path;
+            CompilationUnit? containingUnit = null;
+            CompilationUnitNode? containingCu = null;
+            if (filePath is not null)
+            {
+                for (var i = 0; i < compilation.Units.Length; i++)
+                {
+                    if (compilation.Units[i].Source.Path == filePath)
+                    {
+                        containingUnit = compilation.Units[i];
+                        if (i < asts.Length && asts[i] is CompilationUnitNode cu)
+                            containingCu = cu;
+                        break;
+                    }
+                }
+            }
+
+            // Register using directives from the compilation unit.
+            if (containingCu is not null)
+            {
+                foreach (var usingDecl in containingCu.Usings)
+                {
+                    var usingName = ExtractQualifiedName(usingDecl.Name, sourceText);
+                    if (!string.IsNullOrEmpty(usingName))
+                    {
+                        // Verify namespace exists before adding.
+                        var nsExists = false;
+                        foreach (var member in globalScope.Members)
+                        {
+                            if (member.Kind == SymbolKind.Namespace && member.Name == usingName)
+                            {
+                                nsExists = true;
+                                break;
+                            }
+                        }
+                        if (!nsExists && ambientTypeResolver is not null)
+                            nsExists = ambientTypeResolver.HasNamespace(usingName);
+                        if (nsExists)
+                            fileScope.AddImportedNamespace(usingName);
+                    }
+                }
+            }
+
+            // Register global usings from the compilation unit.
+            if (containingUnit is not null)
+            {
+                foreach (var globalNs in containingUnit.GlobalUsings)
+                {
+                    if (!string.IsNullOrEmpty(globalNs))
+                    {
+                        var nsExists = false;
+                        foreach (var member in globalScope.Members)
+                        {
+                            if (member.Kind == SymbolKind.Namespace && member.Name == globalNs)
+                            {
+                                nsExists = true;
+                                break;
+                            }
+                        }
+                        if (!nsExists && ambientTypeResolver is not null)
+                            nsExists = ambientTypeResolver.HasNamespace(globalNs);
+                        if (nsExists)
+                            fileScope.AddImportedNamespace(globalNs);
+                    }
+                }
+            }
 
             // Find the receiver type (already resolved in Phase A).
             var receiverType = ResolveTypeReference(
@@ -13373,29 +13465,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Finds an existing namespace scope by looking at type symbols already registered
-    /// under the given namespace name. Used in Pass 1 to reuse the same scope when
-    /// multiple files contribute to the same namespace.
+    /// Finds an existing namespace scope by consulting the namespace scope map.
+    /// Falls back to the legacy heuristic of searching type symbols for backward
+    /// compatibility with callers that run before the map is populated.
     /// </summary>
     private static Scope? FindExistingNamespaceScope(
         Scope globalScope,
         SymbolTable symbolTable,
         string namespaceName)
     {
-        // Look through all symbols in the global scope for types whose
-        // ContainingScope is a child of globalScope (i.e. a namespace scope).
-        // We identify the right one by checking if any type in that scope
-        // belongs to the target namespace.
-        foreach (var member in globalScope.Members)
-        {
-            if (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.Enum)
-            {
-                // Top-level types (no namespace) — skip.
-                continue;
-            }
-        }
+        // Primary path: consult the namespace scope map (populated by GetOrCreateNamespaceScope).
+        if (_namespaceScopeMap is not null && _namespaceScopeMap.TryGetValue(namespaceName, out var mapped))
+            return mapped;
 
-        // Walk all registered symbols to find a type in this namespace.
+        // Fallback: walk all registered symbols to find a type in this namespace.
+        // This handles edge cases where FindExistingNamespaceScope is called before
+        // the map is populated (e.g., from Pass 2 after a fresh Build() call).
         foreach (var symbol in symbolTable.AllSymbols)
         {
             if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
@@ -13949,6 +14034,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // from a different generic class in the same file.
         var classFileScope = CreateTypeParameterScope(typeScope, fileScope);
 
+        // Pre-pass: resolve all method signatures (return types + parameters) before
+        // resolving bodies. This ensures forward references within the same class can
+        // access parameter types for lambda target-type propagation.
+        foreach (var memberDecl in classDecl.Members)
+        {
+            if (memberDecl is MethodMemberMemberDeclarationNode methodMember)
+            {
+                PreResolveMethodSignature(methodMember.Method, typeScope, classFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+            }
+        }
+
         foreach (var memberDecl in classDecl.Members)
         {
             ResolveMemberDeclaration(memberDecl, typeScope, classFileScope, classType, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -14322,6 +14418,69 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ResolveBlock(ctorBlock, methodScope, fileScope, enclosingType, /* isStatic */ false, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
     }
 
+    /// <summary>
+    /// Pre-resolves a method's signature (return type + parameters) without resolving
+    /// the body. This ensures that forward references within the same class can access
+    /// parameter types for lambda target-type propagation during body resolution.
+    /// Diagnostics from parameter type resolution are suppressed (they will be emitted
+    /// during the full ResolveMethodDeclaration pass).
+    /// </summary>
+    private static void PreResolveMethodSignature(
+        MethodDeclarationNode methodDecl,
+        Scope typeScope,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
+        if (methodSymbol is null || methodSymbol.DeclaredType is not null)
+            return; // Already resolved or no symbol.
+
+        // Resolve the return type (diagnostics go to the real bag since this is the
+        // canonical resolution point for the return type).
+        var returnType = ResolveTypeReference(methodDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+        // Set the method symbol's declared type.
+        var isAsync = methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode);
+        if (isAsync)
+        {
+            methodSymbol.IsAsync = true;
+            methodSymbol.DeclaredReturnType = returnType;
+            var effectiveReturnType = ConstructTaskType(returnType, fileScope, symbolTable);
+            methodSymbol.EffectiveReturnType = effectiveReturnType;
+            methodSymbol.DeclaredType = effectiveReturnType;
+        }
+        else
+        {
+            methodSymbol.DeclaredReturnType = returnType;
+            methodSymbol.EffectiveReturnType = returnType;
+            methodSymbol.DeclaredType = returnType;
+        }
+
+        // Resolve parameter types and store them on the method symbol's Parameters
+        // collection so that ParameterSignature.Extract can find them during body
+        // resolution of other methods in the same class. Use a temporary diagnostic
+        // bag to suppress duplicate diagnostics (the real resolution happens in
+        // ResolveMethodDeclaration).
+        if (methodDecl.Parameters is not null)
+        {
+            var tempDiagnostics = new DiagnosticBag();
+            var paramSymbols = new List<ISymbol>();
+            foreach (var child in methodDecl.Parameters.Children())
+            {
+                if (child is ParameterNode param)
+                {
+                    var paramType = ResolveTypeReference(param.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                    var paramSym = new Symbol(param.Name.Lexeme, SymbolKind.Parameter, SymbolOrigin.UserCode, typeScope, paramType, null);
+                    paramSymbols.Add(paramSym);
+                }
+            }
+            methodSymbol.Parameters = paramSymbols;
+        }
+    }
+
     private static void ResolveMethodDeclaration(
         MethodDeclarationNode methodDecl,
         Scope typeScope,
@@ -14334,30 +14493,40 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         // Resolve the return type and update the method symbol.
-        var returnType = ResolveTypeReference(methodDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        // Skip return type resolution if already done by the signature pre-pass,
+        // but always process ownership/ref modifiers.
         var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
+        IType returnType;
+        if (methodSymbol is not null && methodSymbol.DeclaredType is not null)
+        {
+            // Already resolved by pre-pass — use the stored return type.
+            returnType = methodSymbol.DeclaredReturnType ?? methodSymbol.DeclaredType;
+        }
+        else
+        {
+            returnType = ResolveTypeReference(methodDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            if (methodSymbol is not null)
+            {
+                // Detect async modifier and wrap return type in Task<T>.
+                var isAsync = methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode);
+                if (isAsync)
+                {
+                    methodSymbol.IsAsync = true;
+                    methodSymbol.DeclaredReturnType = returnType;
+                    var effectiveReturnType = ConstructTaskType(returnType, fileScope, symbolTable);
+                    methodSymbol.EffectiveReturnType = effectiveReturnType;
+                    methodSymbol.DeclaredType = effectiveReturnType;
+                }
+                else
+                {
+                    methodSymbol.DeclaredReturnType = returnType;
+                    methodSymbol.EffectiveReturnType = returnType;
+                    methodSymbol.DeclaredType = returnType;
+                }
+            }
+        }
         if (methodSymbol is not null)
         {
-            // Detect async modifier and wrap return type in Task<T>.
-            var isAsync = methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode);
-            if (isAsync)
-            {
-                methodSymbol.IsAsync = true;
-                methodSymbol.DeclaredReturnType = returnType;
-
-                // Construct Task<T> as the effective return type.
-                // For void return type, construct Task<Void>.
-                var effectiveReturnType = ConstructTaskType(returnType, fileScope, symbolTable);
-                methodSymbol.EffectiveReturnType = effectiveReturnType;
-                methodSymbol.DeclaredType = effectiveReturnType;
-            }
-            else
-            {
-                methodSymbol.DeclaredReturnType = returnType;
-                methodSymbol.EffectiveReturnType = returnType;
-                methodSymbol.DeclaredType = returnType;
-            }
-
             // When the parser sees "public owned Foo Method(...)", it may parse "owned"
             // as a modifier (OwnedModifier) rather than as the returnOwnership specifier.
             // In that case, ReturnOwnership is null but the method has an OwnedModifier.
@@ -14452,6 +14621,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var previousAsyncContext = _isInAsyncContext;
             _isInAsyncContext = methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode);
 
+            // Track the method's return type so return statements can propagate
+            // it as a lambda target type for implicit-param lambdas.
+            var previousMethodReturnType = _currentMethodReturnType;
+            _currentMethodReturnType = methodSymbol?.DeclaredReturnType ?? returnType;
+
             // Initialize live task tracking for this method body.
             var previousLiveTaskScopes = _liveTaskScopes;
             var previousLiveTaskCounter = _liveTaskCounter;
@@ -14467,6 +14641,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 _liveTaskScopes = previousLiveTaskScopes;
                 _liveTaskCounter = previousLiveTaskCounter;
                 _isInAsyncContext = previousAsyncContext;
+                _currentMethodReturnType = previousMethodReturnType;
             }
         }
     }
@@ -15017,7 +15192,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case ReturnStatementStatementNode returnStmt:
                 if (returnStmt.ReturnStatement.Value is not null)
                 {
+                    // Set lambda target type from the enclosing method's return type
+                    // so that implicit-param lambdas in return statements can infer types.
+                    IType? previousLambdaTarget = _lambdaTargetType;
+                    if (_currentMethodReturnType is not null && IsFuncType(_currentMethodReturnType))
+                    {
+                        _lambdaTargetType = _currentMethodReturnType;
+                    }
+
                     var returnValueType = ResolveExpression(returnStmt.ReturnStatement.Value, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                    _lambdaTargetType = previousLambdaTarget;
 
                     // Mark returned tasks as consumed (Requirement 7.1):
                     // If the return value is a Task<T> variable, mark it as returned
@@ -20299,10 +20484,74 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     // Look up the method symbol to get parameter types for lambda inference.
                     var methodSymForParams = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+
+                    // If not found on the type itself, check extension methods.
+                    if (methodSymForParams is null && _extensionRegistryContext is not null)
+                    {
+                        var extLookupType = targetType;
+                        if (extLookupType is ConstructedType extCt)
+                            extLookupType = extCt.GenericDefinition;
+                        var extensions = _extensionRegistryContext.GetApplicableExtensions(targetType);
+                        foreach (var ext in extensions)
+                        {
+                            foreach (var m in ext.MemberScope.Members)
+                            {
+                                if (m.Name == memberName && m.Kind == SymbolKind.Method)
+                                {
+                                    methodSymForParams = m;
+                                    break;
+                                }
+                            }
+                            if (methodSymForParams is not null) break;
+                        }
+                    }
+
+                    // If still not found, check ambient members (e.g., List<T>.ForEach).
+                    if (methodSymForParams is null && ambientTypeResolver is not null)
+                    {
+                        var ambientLookupType = targetType is ConstructedType ambCt
+                            ? ambCt.GenericDefinition
+                            : targetType;
+                        if (ambientLookupType is ClassType or StructType or InterfaceType)
+                        {
+                            var ambientMembers = ambientTypeResolver.GetMembers(ambientLookupType);
+                            foreach (var m in ambientMembers)
+                            {
+                                if (m.Name == memberName && m.Kind == SymbolKind.Method)
+                                {
+                                    methodSymForParams = m;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
                     IReadOnlyList<IType>? methodParamTypes = null;
                     if (methodSymForParams is not null)
                     {
                         methodParamTypes = ParameterSignature.Extract(methodSymForParams, symbolTable);
+
+                        // If the target is a constructed generic type (e.g., List<int>),
+                        // substitute type parameters in the extracted parameter types so that
+                        // lambda target types use concrete types (e.g., Func<int, void>
+                        // instead of Func<T, void>).
+                        if (methodParamTypes.Count > 0 && targetType is ConstructedType ctForSubst)
+                        {
+                            var typeParams = GetTypeParameters(ctForSubst.GenericDefinition);
+                            if (typeParams.Count > 0 && typeParams.Count == ctForSubst.TypeArguments.Count)
+                            {
+                                var substituted = new IType[methodParamTypes.Count];
+                                var anyChanged = false;
+                                for (var pi = 0; pi < methodParamTypes.Count; pi++)
+                                {
+                                    substituted[pi] = SubstituteTypeInMember(methodParamTypes[pi], typeParams, ctForSubst.TypeArguments);
+                                    if (!ReferenceEquals(substituted[pi], methodParamTypes[pi]))
+                                        anyChanged = true;
+                                }
+                                if (anyChanged)
+                                    methodParamTypes = substituted;
+                            }
+                        }
                     }
                     ResolveArgumentListWithParameterTypes(methodCall.Arguments, methodParamTypes, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 }
@@ -22384,6 +22633,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return changed ? new UnionType(substitutedConstituents) : unionType;
         }
 
+        if (type is ArrayType arrayType)
+        {
+            var substitutedElement = SubstituteTypeInMember(arrayType.ElementType, typeParams, typeArgs);
+            if (!ReferenceEquals(substitutedElement, arrayType.ElementType))
+                return new ArrayType(substitutedElement);
+            return type;
+        }
+
         return type;
     }
 
@@ -22686,10 +22943,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var expr = argExprs[i];
 
             // Set lambda target type if the corresponding parameter is a Func type.
+            // Also handles nullable Func types (UnionType containing a Func constituent).
             IType? previousLambdaTarget = _lambdaTargetType;
-            if (parameterTypes is not null && i < parameterTypes.Count && IsFuncType(parameterTypes[i]))
+            if (parameterTypes is not null && i < parameterTypes.Count)
             {
-                _lambdaTargetType = parameterTypes[i];
+                var paramType = parameterTypes[i];
+                if (IsFuncType(paramType))
+                {
+                    _lambdaTargetType = paramType;
+                }
+                else if (paramType is UnionType unionParam)
+                {
+                    // Check if the union contains a Func constituent (e.g., Func<T, void> | Void).
+                    foreach (var constituent in unionParam.Constituents)
+                    {
+                        if (IsFuncType(constituent))
+                        {
+                            _lambdaTargetType = constituent;
+                            break;
+                        }
+                    }
+                }
             }
 
             ResolveExpression(expr, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);

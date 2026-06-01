@@ -5496,8 +5496,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var returnType = SemanticModelBuilder.GetFuncReturnType(funcCt);
             if (!IsErrorType(returnType) && !returnType.IsVoid())
             {
+                // For async lambdas, the return type is Task<T>. If T is Void
+                // (i.e., the return type is Task<Void>), the lambda is effectively
+                // void and does not require a return statement.
+                var isAsyncLambda = blockLambdaForReturn.Modifiers.Any(
+                    m => m is AsyncLambdaModifierLambdaModifierNode);
+                var isAsyncVoid = isAsyncLambda
+                    && SemanticModelBuilder.IsStandardTaskType(returnType)
+                    && returnType is ConstructedType taskCt
+                    && taskCt.TypeArguments.Count > 0
+                    && taskCt.TypeArguments[^1].IsVoid();
+
                 // Check if the block has any return statements with values.
-                if (!BlockHasReturnWithValue(blockLambdaForReturn.Body))
+                if (!isAsyncVoid && !BlockHasReturnWithValue(blockLambdaForReturn.Body))
                 {
                     diagnostics.Add(MakeDiagnostic(
                         MissingReturnInNonVoidLambda.Value,

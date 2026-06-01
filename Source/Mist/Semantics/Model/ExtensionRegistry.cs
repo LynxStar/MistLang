@@ -200,6 +200,14 @@ public sealed class ExtensionRegistry
         if (ReferenceEquals(extensionReceiverType, valueType))
             return true;
 
+        // Array type structural match: two ArrayType instances with the same
+        // element type are applicable (ArrayType uses reference equality, so
+        // different instances of int[] won't match via ReferenceEquals).
+        if (extensionReceiverType is ArrayType extArray && valueType is ArrayType valArray)
+        {
+            return ReferenceEquals(extArray.ElementType, valArray.ElementType);
+        }
+
         // If the extension receiver is a generic type definition (has type parameters),
         // include it as a potential match — actual type inference happens in the type checker.
         if (extensionReceiverType is ClassType c && c.TypeParameters.Count > 0)

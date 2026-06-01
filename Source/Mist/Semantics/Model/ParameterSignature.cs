@@ -104,6 +104,19 @@ public static class ParameterSignature
             }
         }
 
+        // Fallback: if the AST-based path returned empty but the symbol has
+        // pre-resolved parameters (from the signature pre-pass), use those.
+        if (types.Count == 0 && symbol is Symbol { Parameters.Count: > 0 } preResolvedSym)
+        {
+            var fallbackTypes = new List<IType>(preResolvedSym.Parameters.Count);
+            foreach (var param in preResolvedSym.Parameters)
+            {
+                if (param.DeclaredType is { } paramType)
+                    fallbackTypes.Add(paramType);
+            }
+            return fallbackTypes;
+        }
+
         return types;
     }
 

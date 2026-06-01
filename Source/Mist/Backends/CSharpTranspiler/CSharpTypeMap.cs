@@ -197,7 +197,13 @@ internal static class CSharpTypeMap
         StructType st when st.IsBackendBacked && st.ContainingNamespace == "Standard"
             => GetKeyword(st),
         ClassType ct when ct.IsBackendBacked && ct.ContainingNamespace == "Standard"
+            && ct.DisplayName != "Func" && ct.DisplayName != "Task"
             => GetKeyword(ct),
+        // Bare Func/Task class types (generic definitions without type arguments)
+        // should not normally reach the type map. Emit as 'object' as a safe fallback.
+        ClassType ct when ct.IsBackendBacked && ct.ContainingNamespace == "Standard"
+            && (ct.DisplayName == "Func" || ct.DisplayName == "Task")
+            => "object",
 
         // Legacy fallback void (tests without stdlib)
         StructType st when st.IsVoid() => isValueContext ? "MistVoid" : "void",

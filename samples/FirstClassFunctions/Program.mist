@@ -1,0 +1,214 @@
+using Standard;
+
+namespace FirstClassFunctions;
+
+// PROOF: Type alias for a Func type works
+type Predicate<T> = func<T, bool>;
+type Transform<TIn, TOut> = func<TIn, TOut>;
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== FirstClassFunctions Sample ===");
+
+        // PROOF: func keyword as type, expression-bodied lambda
+        // PROOF: Type inference of lambda params from target func type
+        Console.WriteLine("--- Expression Lambda ---");
+        func<int, int> doubler = x => x * 2;
+        Console.WriteLine($"doubler(5)={doubler(5)}");
+        Console.WriteLine($"doubler(0)={doubler(0)}");
+
+        // PROOF: Multi-parameter func type with lambda
+        Console.WriteLine("--- Multi-Param Lambda ---");
+        func<int, int, int> adder = (x, y) => x + y;
+        Console.WriteLine($"adder(3,4)={adder(3, 4)}");
+
+        // PROOF: Zero-parameter func (Func<TResult> form)
+        Console.WriteLine("--- Zero-Param Lambda ---");
+        func<string> greeter = () => "Hello, Mist!";
+        Console.WriteLine($"greeter()={greeter()}");
+
+        // PROOF: Block-bodied lambda with explicit return
+        Console.WriteLine("--- Block Lambda ---");
+        func<int, string> describer = (int n) =>
+        {
+            if (n > 0)
+            {
+                return "positive";
+            }
+            if (n < 0)
+            {
+                return "negative";
+            }
+            return "zero";
+        };
+        Console.WriteLine($"describer(5)={describer(5)}");
+        Console.WriteLine($"describer(-1)={describer(-1)}");
+        Console.WriteLine($"describer(0)={describer(0)}");
+
+        // PROOF: var with explicitly-typed lambda params infers func type
+        Console.WriteLine("--- Var Inference ---");
+        var square = (int x) => x * x;
+        Console.WriteLine($"square(6)={square(6)}");
+
+        // PROOF: Action type alias (void return) works
+        Console.WriteLine("--- Action Lambda ---");
+        Action<string> printer = msg => Console.WriteLine($"printed: {msg}");
+        printer("test");
+
+        // PROOF: Higher-order function — func as parameter
+        Console.WriteLine("--- Higher-Order Parameter ---");
+        int result = Apply(10, x => x + 5);
+        Console.WriteLine($"Apply(10, x=>x+5)={result}");
+
+        // PROOF: Higher-order function — func as return value
+        Console.WriteLine("--- Higher-Order Return ---");
+        var multiplier = MakeMultiplier(3);
+        Console.WriteLine($"multiplier(7)={multiplier(7)}");
+        Console.WriteLine($"multiplier(0)={multiplier(0)}");
+
+        // PROOF: Method group conversion to func type
+        Console.WriteLine("--- Method Group ---");
+        func<int, int> fn = Negate;
+        Console.WriteLine($"fn(42)={fn(42)}");
+
+        // PROOF: Type alias for func type works as target type
+        Console.WriteLine("--- Type Alias ---");
+        Predicate<int> isEven = x => x % 2 == 0;
+        Console.WriteLine($"isEven(4)={isEven(4)}");
+        Console.WriteLine($"isEven(7)={isEven(7)}");
+        Transform<int, string> toStr = x => $"val={x}";
+        Console.WriteLine($"toStr(99)={toStr(99)}");
+
+        // PROOF: Variable capture — lambda reads and mutates enclosing variable
+        Console.WriteLine("--- Capture ---");
+        int counter = 0;
+        func<int> increment = () =>
+        {
+            counter = counter + 1;
+            return counter;
+        };
+        Console.WriteLine($"increment()={increment()}");
+        Console.WriteLine($"increment()={increment()}");
+        Console.WriteLine($"counter={counter}");
+
+        // PROOF: Static lambda — no capture allowed, uses only parameters
+        Console.WriteLine("--- Static Lambda ---");
+        func<int, int, int> staticAdd = static (a, b) => a + b;
+        Console.WriteLine($"staticAdd(10,20)={staticAdd(10, 20)}");
+
+        // PROOF: Func type storing a function that returns a function
+        Console.WriteLine("--- Nested Func Type ---");
+        func<int, func<int, int>> curryAdd = a => b => a + b;
+        var add5 = curryAdd(5);
+        Console.WriteLine($"add5(3)={add5(3)}");
+        Console.WriteLine($"curryAdd(1)(2)={curryAdd(1)(2)}");
+
+        // PROOF: Sync lambda calling async method — auto-awaits, gets unwrapped T
+        Console.WriteLine("--- Sync Lambda Calls Async ---");
+        func<int, string> syncLookup = id => AsyncLookup(id);
+        Console.WriteLine($"syncLookup(1)={syncLookup(1)}");
+        Console.WriteLine($"syncLookup(2)={syncLookup(2)}");
+
+        // PROOF: Async lambda calling async method with explicit await
+        Console.WriteLine("--- Async Lambda Explicit Await ---");
+        func<int, Task<string>> asyncLookup = async id => await AsyncLookup(id);
+        Console.WriteLine($"asyncLookup(3)={await asyncLookup(3)}");
+
+        // PROOF: Async lambda calling async method without await — structured concurrency awaits at scope exit
+        Console.WriteLine("--- Async Lambda Scope Exit ---");
+        func<int, Task<void>> asyncFire = async id =>
+        {
+            AsyncLookup(id);
+        };
+        await asyncFire(4);
+        Console.WriteLine("asyncFire completed");
+
+        // PROOF: Sync lambda using async functor to lift a sync call
+        Console.WriteLine("--- Sync Lambda Async Lift ---");
+        func<int, Task<int>> liftedSync = id => async ComputeSync(id);
+        Console.WriteLine($"liftedSync(10)={await liftedSync(10)}");
+
+        // PROOF: Async lambda using async functor to lift a sync call
+        Console.WriteLine("--- Async Lambda Async Lift ---");
+        func<int, Task<Task<int>>> asyncLifted = async id => async ComputeSync(id);
+        var innerTask = await asyncLifted(20);
+        Console.WriteLine($"asyncLifted(20)={await innerTask}");
+
+        // PROOF: Sync lambda returning a Task explicitly (not auto-awaited because it's the return value)
+        Console.WriteLine("--- Sync Lambda Returns Task ---");
+        func<int, Task<string>> taskReturner = id => async AsyncLookup(id);
+        Console.WriteLine($"taskReturner(5)={await taskReturner(5)}");
+
+        // PROOF: Lambda passed to a Mist extension method
+        Console.WriteLine("--- Mist Extension Method ---");
+        int[] nums = [1, 2, 3, 4, 5];
+        int[] evens = nums.Filter(x => x % 2 == 0);
+        Console.WriteLine($"evens.Length={evens.Length}");
+        Console.WriteLine($"evens[0]={evens[0]}");
+        Console.WriteLine($"evens[1]={evens[1]}");
+
+        // PROOF: Lambda passed to a C# ambient extension method (List<T>.ForEach)
+        Console.WriteLine("--- C# Extension Method ---");
+        List<int> items = new List<int>();
+        items.Add(10);
+        items.Add(20);
+        items.Add(30);
+        items.ForEach(item => Console.WriteLine($"item={item}"));
+
+        Console.WriteLine("=== FirstClassFunctions Done ===");
+    }
+
+    // Helper async method for concurrency demos
+    public static async string AsyncLookup(int id)
+    {
+        return $"item-{id}";
+    }
+
+    // Helper sync method for async functor demos
+    public static int ComputeSync(int x)
+    {
+        return x * 2;
+    }
+
+    // PROOF: Method with func-type parameter (higher-order)
+    public static int Apply(int value, func<int, int> transform)
+    {
+        return transform(value);
+    }
+
+    // PROOF: Method returning a func type (higher-order)
+    public static func<int, int> MakeMultiplier(int factor)
+    {
+        return x => x * factor;
+    }
+
+    // PROOF: Named method used as method group
+    public static int Negate(int x)
+    {
+        return -x;
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}
+
+// PROOF: Mist extension method that accepts a func parameter
+extension(int[] self)
+{
+    public int[] Filter(func<int, bool> predicate)
+    {
+        var result = new List<int>();
+        foreach (int item in self)
+        {
+            if (predicate(item))
+            {
+                result.Add(item);
+            }
+        }
+        return result.ToArray();
+    }
+}

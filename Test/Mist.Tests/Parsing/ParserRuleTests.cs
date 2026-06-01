@@ -85,7 +85,7 @@ public class ParserRuleTests
             Assert.NotNull(varDecl);
 
             var expr = varDecl!.Initializer;
-            var assignment = expr.Assignment;
+            var assignment = expr.AsAssignment();
             var logicalOr = assignment.Target.Left;
             var logicalAnd = logicalOr.Left;
             var equality = logicalAnd.Left;
@@ -117,7 +117,7 @@ public class ParserRuleTests
             var varDecl = stmt!.VariableDeclaration as TypedVariableDeclarationVariableDeclarationStatementNode;
 
             var expr = varDecl!.Initializer;
-            var assignment = expr.Assignment;
+            var assignment = expr.AsAssignment();
             var logicalOr = assignment.Target.Left;
 
             // LogicalOr should have Right (b && c)
@@ -141,7 +141,7 @@ public class ParserRuleTests
             var varDecl = stmt!.VariableDeclaration as TypedVariableDeclarationVariableDeclarationStatementNode;
 
             var expr = varDecl!.Initializer;
-            var assignment = expr.Assignment;
+            var assignment = expr.AsAssignment();
             var logicalOr = assignment.Target.Left;
             var logicalAnd = logicalOr.Left;
 

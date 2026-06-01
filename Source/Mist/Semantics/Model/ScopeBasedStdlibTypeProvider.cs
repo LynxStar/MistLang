@@ -26,18 +26,23 @@ internal sealed class ScopeBasedStdlibTypeProvider : IStdlibTypeProvider
 
     public IType LookupStandardType(string simpleName)
     {
+        return LookupStandardType(simpleName, typeArgumentCount: -1);
+    }
+
+    public IType LookupStandardType(string simpleName, int typeArgumentCount)
+    {
         // Map simple name to fully-qualified stdlib name.
         var qualifiedName = "Standard." + simpleName;
 
         try
         {
             return SemanticModelBuilder.LookupQualifiedStdlibType(
-                _globalScope, _symbolTable, qualifiedName);
+                _globalScope, _symbolTable, qualifiedName, typeArgumentCount);
         }
         catch (StdlibMissingException)
         {
             // Stdlib not loaded — fall back to legacy singletons.
-            return FallbackStdlibTypeProvider.Instance.LookupStandardType(simpleName);
+            return FallbackStdlibTypeProvider.Instance.LookupStandardType(simpleName, typeArgumentCount);
         }
     }
 }

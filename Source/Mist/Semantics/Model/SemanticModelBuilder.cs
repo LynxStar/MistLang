@@ -1816,31 +1816,34 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var aliasSpan = ToMistSourceSpan(aliasDecl.Name.Span);
 
         // Check for duplicate alias name in the same scope.
-        // A non-generic type alias is allowed to coexist with a generic class/struct
-        // of the same name (arity-based overloading, e.g., `type Task = Task<void>;`
-        // alongside `class Task<TResult>`).
+        // Type aliases participate in arity-based overloading: an alias may coexist
+        // with another alias or a class/struct/interface of the same name as long as
+        // they declare a different number of type parameters (e.g., the Action family
+        // `type Action = Func<void>;` through `type Action<T1, ..., T16> = ...;`, and
+        // `type Task = Task<void>;` alongside `class Task<TResult>`).
         var aliasTypeParams = aliasDecl.TypeParams;
-        var aliasArity = aliasTypeParams?.TypeParameters.Length ?? 0;
+        // A TypeParameterListNode stores its first parameter separately (TypeParameter)
+        // from the remaining ones (TypeParameters), so the arity is 1 + the rest.
+        var aliasArity = aliasTypeParams is null ? 0 : 1 + aliasTypeParams.TypeParameters.Length;
 
         foreach (var member in parentScope.Members)
         {
             if (member.Name != aliasName)
                 continue;
 
-            // Allow a non-generic alias to coexist with a generic type of the same name.
-            if (aliasArity == 0 && member.Kind is SymbolKind.Class or SymbolKind.Struct)
+            // Compute the existing member's arity. Aliases registered in Pass 1 have a
+            // null DeclaredType, so fall back to the symbol's TypeParameters list.
+            var memberArity = member.DeclaredType switch
             {
-                var memberType = member.DeclaredType;
-                var memberTypeParamCount = memberType switch
-                {
-                    ClassType ct => ct.TypeParameters.Count,
-                    StructType st => st.TypeParameters.Count,
-                    _ => 0
-                };
+                ClassType ct => ct.TypeParameters.Count,
+                StructType st => st.TypeParameters.Count,
+                InterfaceType it => it.TypeParameters.Count,
+                _ => (member as Symbol)?.TypeParameters.Count ?? 0,
+            };
 
-                if (memberTypeParamCount > 0)
-                    continue; // Different arity — not a conflict.
-            }
+            // Different arity — not a conflict (arity-based overloading).
+            if (memberArity != aliasArity)
+                continue;
 
             diagnostics.Add(MakeDiagnosticWithLocation(
                 DuplicateTypeAlias.Value,
@@ -13614,10 +13617,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Navigate: Expression → Assignment → LogicalOr → LogicalAnd → Equality
         //         → Relational → Additive → Multiplicative → Unary → Postfix → Primary
-        var assignment = expr.Assignment;
-        if (assignment?.Value is not null) return null; // It's an assignment, not a simple literal.
+        var assignment = expr.AsAssignmentOrNull();
+        if (assignment is null) return null; // Lambda form — not a simple literal.
+        if (assignment.Value is not null) return null; // It's an assignment, not a simple literal.
 
-        var voidCoalescing = assignment?.Target;
+        var voidCoalescing = assignment.Target;
         if (voidCoalescing?.LogicalOrs.Length > 0) return null;
         var logicalOr = voidCoalescing?.Left;
         if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left)) return null;
@@ -15405,7 +15409,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Expression → Assignment → LogicalOr → LogicalAnd → Equality → Relational
         // Walk through the chain to find IsExpressionRelationalNode nodes.
-        CollectFromAssignment(condition.Assignment, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
+        var assignment = condition.AsAssignmentOrNull();
+        if (assignment is null) return; // Lambda form has no is-expression pattern variables.
+        CollectFromAssignment(assignment, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
     }
 
     private static void CollectFromAssignment(
@@ -17188,6 +17194,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SymbolTable symbolTable,
         string qualifiedName)
     {
+        return LookupQualifiedStdlibType(globalScope, symbolTable, qualifiedName, typeArgumentCount: -1);
+    }
+
+    /// <summary>
+    /// Arity-aware overload of <see cref="LookupQualifiedStdlibType(Scope, SymbolTable, string)"/>.
+    /// When <paramref name="typeArgumentCount"/> is &gt;= 0, the member whose declared type
+    /// has exactly that many type parameters is returned (e.g., to disambiguate the
+    /// <c>Standard.Func</c> family's 17 same-named arities). When negative, the first
+    /// type-kind match is returned (legacy behavior).
+    /// </summary>
+    internal static IType LookupQualifiedStdlibType(
+        Scope globalScope,
+        SymbolTable symbolTable,
+        string qualifiedName,
+        int typeArgumentCount)
+    {
         // Split "Namespace.SimpleName" into its two parts. The stdlib keeps a
         // single-segment namespace ("Standard"); we intentionally split on
         // the LAST '.' so multi-segment namespaces like
@@ -17228,15 +17250,42 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 continue;
             }
 
-            if (member.DeclaredType is IType declaredType)
-            {
+            if (member.DeclaredType is not IType declaredType)
+                continue;
+
+            // Legacy behavior: when no specific arity is requested, return the
+            // first type-kind match.
+            if (typeArgumentCount < 0)
                 return declaredType;
-            }
+
+            // Arity disambiguation: return the variant whose definition declares
+            // exactly the requested number of type parameters (e.g., to pick the
+            // matching member of the Standard.Func family's 17 same-named variants).
+            // Callers that pass a specific arity (e.g., delegate projection) require
+            // an exact-arity match for structural type identity, so a same-named
+            // member of a different arity is intentionally not returned.
+            if (GetTypeParameterCount(declaredType) == typeArgumentCount)
+                return declaredType;
         }
 
         throw new StdlibMissingException(
             qualifiedName,
             $"MIST_STDLIB_MISSING: Standard Library type '{qualifiedName}' is not present in the semantic model.");
+    }
+
+    /// <summary>
+    /// Returns the number of type parameters declared on a resolved <see cref="IType"/>.
+    /// Used by the arity-aware stdlib lookup to disambiguate same-named generic families.
+    /// </summary>
+    private static int GetTypeParameterCount(IType type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.TypeParameters.Count,
+            StructType st => st.TypeParameters.Count,
+            InterfaceType it => it.TypeParameters.Count,
+            _ => 0,
+        };
     }
 
     /// <summary>
@@ -17368,7 +17417,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Walk through the expression wrapper to the underlying unary node.
         // A discarded invocation is an expression statement where the expression is
         // a method call (postfix with invocation suffix) or an async functor expression.
-        var assignment = expr.Assignment;
+        var assignment = expr.AsAssignmentOrNull();
+        if (assignment is null)
+            return false; // Lambda form — not a discarded async invocation.
         if (assignment.Value is not null)
             return false; // It's an assignment, not a discarded expression.
 
@@ -17495,7 +17546,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static string? ExtractVariableNameFromExpression(ExpressionNode expr)
     {
         // Walk through the expression wrapper layers to find a simple identifier.
-        var assignment = expr.Assignment;
+        var assignment = expr.AsAssignmentOrNull();
+        if (assignment is null)
+            return null; // Lambda form is not a simple identifier reference.
         if (assignment.Value is not null)
             return null;
 
@@ -18489,8 +18542,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // ExpressionNode wraps AssignmentNode.
-        var type = ResolveAssignment(expr.Assignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        // ExpressionNode is now an abstract base split into a lambda form and an
+        // assignment form. Dispatch on the subtype.
+        IType type;
+        switch (expr)
+        {
+            case AssignmentFormExpressionNode assignmentForm:
+                type = ResolveAssignment(assignmentForm.Assignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+
+            case LambdaFormExpressionNode:
+                // TODO(first-class-functions tasks 9.x): resolve lambda expression types
+                // (target-type-driven inference, var + explicit-param inference, body
+                // resolution, async wrapping). Until those tasks land, record a
+                // placeholder type so the tree compiles and downstream code has a
+                // non-null type to read. No existing program parses to a lambda form.
+                type = UnknownType.Instance;
+                break;
+
+            default:
+                throw new System.InvalidOperationException(
+                    $"Unknown ExpressionNode variant: {expr.GetType().Name}");
+        }
+
         expressionTypes[expr] = type;
         return type;
     }
@@ -18512,7 +18586,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (assignment.Value is not null)
         {
             // This is an assignment expression: target = value.
-            var valueType = ResolveAssignment(assignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            // The RHS is now a full ExpressionNode (widened to reach lambdas), so
+            // resolve it through the Expression-level entry point.
+            var valueType = ResolveExpression(assignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
             expressionTypes[assignment] = targetType;
             return targetType;
         }
@@ -18863,26 +18939,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             case LessThanRelationalPatternPrimaryPatternNode ltPattern:
             {
-                // Resolve the constant expression.
-                ResolveExpression(ltPattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                // Resolve the constant expression (now bounded to VoidCoalescing).
+                ResolveVoidCoalescing(ltPattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
             }
 
             case GreaterThanRelationalPatternPrimaryPatternNode gtPattern:
             {
-                ResolveExpression(gtPattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                ResolveVoidCoalescing(gtPattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
             }
 
             case LessThanOrEqualRelationalPatternPrimaryPatternNode ltePattern:
             {
-                ResolveExpression(ltePattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                ResolveVoidCoalescing(ltePattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
             }
 
             case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gtePattern:
             {
-                ResolveExpression(gtePattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                ResolveVoidCoalescing(gtePattern.Constant, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
             }
 
@@ -19829,9 +19905,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         CollectFromPattern(arm.Pattern, scrutineeType, armScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
 
         // Resolve the guard expression (if present) within the arm scope.
+        // The guard condition is now bounded to VoidCoalescing (below lambda/assignment).
         if (arm.Guard is not null)
         {
-            ResolveExpression(arm.Guard.Condition, armScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            ResolveVoidCoalescing(arm.Guard.Condition, armScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
         }
 
         // Resolve the result expression within the arm scope.

@@ -1,0 +1,28 @@
+namespace Standard;
+
+// Func type family: arity 0 (just a return type) through 16 parameters + return type.
+// The last type argument is always the return type; preceding type arguments are
+// the parameter types in order.
+//
+// Each Func variant is an intrinsic class (IsBackendBacked = true). The semantic
+// model builder recognizes these by their Standard.Func qualified name and arity.
+// They have no Mist-visible members — invocation is handled by the type checker
+// recognizing Func-typed expressions followed by an invocation suffix.
+
+intrinsic public class Func<TResult> { }
+intrinsic public class Func<T1, TResult> { }
+intrinsic public class Func<T1, T2, TResult> { }
+intrinsic public class Func<T1, T2, T3, TResult> { }
+intrinsic public class Func<T1, T2, T3, T4, TResult> { }
+intrinsic public class Func<T1, T2, T3, T4, T5, TResult> { }
+intrinsic public class Func<T1, T2, T3, T4, T5, T6, TResult> { }
+intrinsic public class Func<T1, T2, T3, T4, T5, T6, T7, TResult> { }
+intrinsic public class Func<T1, T2, T3, T4, T5, T6, T7, T8, TResult> { }
+intrinsic public class Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, TResult> { }
+intrinsic public class Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, TResult> { }
+intrinsic public class Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, TResult> { }
+intrinsic public class Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, TResult> { }
+intrinsic public class Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, TResult> { }
+intrinsic public class Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, TResult> { }
+intrinsic public class Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, TResult> { }
+intrinsic public class Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, TResult> { }

@@ -39,13 +39,13 @@ public static class MistAstGenerator
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>Extracts the UnaryNode from an ExpressionNode for reuse in compound expressions.</summary>
     public static UnaryNode ExtractUnary(ExpressionNode expr)
     {
-        var logOr = expr.Assignment.Target.Left;
+        var logOr = expr.AsAssignment().Target.Left;
         var logAnd = logOr.Left;
         var equality = logAnd.Left;
         var relational = (RelationalComparisonRelationalNode)equality.Left;
@@ -118,7 +118,7 @@ public static class MistAstGenerator
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>Creates a multiplicative expression: left op right.</summary>
@@ -133,7 +133,7 @@ public static class MistAstGenerator
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>Creates a relational expression: left op right.</summary>
@@ -150,7 +150,7 @@ public static class MistAstGenerator
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>Creates a logical AND expression: left && right.</summary>
@@ -169,7 +169,7 @@ public static class MistAstGenerator
         var logAnd = new LogicalAndNode { Left = leftEq, Right = rightEq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>Creates a logical OR expression: left || right.</summary>
@@ -189,7 +189,7 @@ public static class MistAstGenerator
         var rightLogAnd = new LogicalAndNode { Left = rightEq };
         var logOr = new LogicalOrNode { Left = leftLogAnd, Right = rightLogAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>Creates a logical NOT expression: !operand.</summary>
@@ -204,7 +204,7 @@ public static class MistAstGenerator
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>Creates a negate expression: -operand.</summary>
@@ -219,7 +219,7 @@ public static class MistAstGenerator
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     // ─── Depth-bounded expression generator ──────────────────────────────

@@ -178,13 +178,13 @@ public class RefinementImplicationPropertyTests
         };
     }
 
-    private static ExpressionNode MakeConstantExpression(int value)
+    private static VoidCoalescingNode MakeConstantExpression(int value)
     {
         return MistAstGenerator.WrapPrimary(
             new IntegerLiteralExpressionPrimaryNode
             {
                 IntegerLiteral = MistTypeGenerator.MakeToken(value.ToString()),
-            });
+            }).AsAssignment().Target;
     }
 
     /// <summary>

@@ -182,7 +182,7 @@ public sealed class ValueTaskEmissionPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        var expr = new ExpressionNode { Assignment = assign };
+        var expr = new AssignmentFormExpressionNode { Assignment = assign };
 
         var exprStmt = new ExpressionStatementStatementNode
         {

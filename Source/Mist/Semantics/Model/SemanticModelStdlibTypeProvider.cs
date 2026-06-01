@@ -25,8 +25,16 @@ internal sealed class SemanticModelStdlibTypeProvider : IStdlibTypeProvider
 
     public IType LookupStandardType(string simpleName)
     {
+        return LookupStandardType(simpleName, typeArgumentCount: -1);
+    }
+
+    public IType LookupStandardType(string simpleName, int typeArgumentCount)
+    {
         // Walk all symbols to find a type in the "Standard" namespace
-        // with the given simple name.
+        // with the given simple name (and arity, when specified).
+        ClassType? classFallback = null;
+        StructType? structFallback = null;
+
         foreach (var symbol in _model.AllSymbols)
         {
             if (symbol.Kind != SymbolKind.Class
@@ -40,13 +48,25 @@ internal sealed class SemanticModelStdlibTypeProvider : IStdlibTypeProvider
                 continue;
 
             if (symbol.DeclaredType is ClassType ct && ct.ContainingNamespace == "Standard")
-                return ct;
-
-            if (symbol.DeclaredType is StructType st && st.ContainingNamespace == "Standard")
-                return st;
+            {
+                if (typeArgumentCount < 0 || ct.TypeParameters.Count == typeArgumentCount)
+                    return ct;
+                classFallback ??= ct;
+            }
+            else if (symbol.DeclaredType is StructType st && st.ContainingNamespace == "Standard")
+            {
+                if (typeArgumentCount < 0 || st.TypeParameters.Count == typeArgumentCount)
+                    return st;
+                structFallback ??= st;
+            }
         }
 
+        if (classFallback is not null)
+            return classFallback;
+        if (structFallback is not null)
+            return structFallback;
+
         // Fallback to legacy singletons when stdlib is not loaded.
-        return FallbackStdlibTypeProvider.Instance.LookupStandardType(simpleName);
+        return FallbackStdlibTypeProvider.Instance.LookupStandardType(simpleName, typeArgumentCount);
     }
 }

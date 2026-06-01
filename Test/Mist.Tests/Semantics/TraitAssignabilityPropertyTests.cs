@@ -108,7 +108,7 @@ public class TraitAssignabilityPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     private static ExpressionNode MakeNewObjectExpression(string typeName)
@@ -626,7 +626,7 @@ public class TraitAssignabilityPropertyTests
         {
             ExpressionStatement = new ExpressionStatementNode
             {
-                Expression = new ExpressionNode { Assignment = assign },
+                Expression = new AssignmentFormExpressionNode { Assignment = assign },
             },
         };
 
@@ -709,7 +709,7 @@ public class TraitAssignabilityPropertyTests
         var createLogAnd = new LogicalAndNode { Left = createEq };
         var createLogOr = new LogicalOrNode { Left = createLogAnd };
         var createAssign = new AssignmentNode { Target = new VoidCoalescingNode { Left = createLogOr } };
-        var createExpr = new ExpressionNode { Assignment = createAssign };
+        var createExpr = new AssignmentFormExpressionNode { Assignment = createAssign };
 
         var mainVarDecl = new VariableDeclarationStatementStatementNode
         {

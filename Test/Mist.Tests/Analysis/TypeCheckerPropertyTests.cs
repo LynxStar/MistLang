@@ -118,7 +118,7 @@ public class TypeCheckerPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>
@@ -144,7 +144,7 @@ public class TypeCheckerPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>
@@ -175,7 +175,7 @@ public class TypeCheckerPropertyTests
         };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>
@@ -203,7 +203,7 @@ public class TypeCheckerPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>
@@ -220,7 +220,7 @@ public class TypeCheckerPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>
@@ -228,7 +228,7 @@ public class TypeCheckerPropertyTests
     /// </summary>
     private static UnaryNode ExtractUnary(ExpressionNode expr)
     {
-        var logOr = expr.Assignment.Target.Left;
+        var logOr = expr.AsAssignment().Target.Left;
         var logAnd = logOr.Left;
         var equality = logAnd.Left;
         var relational = (RelationalComparisonRelationalNode)equality.Left;

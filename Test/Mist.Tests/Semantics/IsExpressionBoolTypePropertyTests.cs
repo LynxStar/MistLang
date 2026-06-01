@@ -182,7 +182,7 @@ public class IsExpressionBoolTypePropertyTests
             PatternKind.RelationalPattern => new GreaterThanRelationalPatternPrimaryPatternNode
             {
                 Constant = MistAstGenerator.WrapPrimary(
-                    new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = Tok("0") }),
+                    new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = Tok("0") }).AsAssignment().Target,
             },
             _ => new VarPatternPrimaryPatternNode { Name = Tok("_") },
         };
@@ -205,7 +205,7 @@ public class IsExpressionBoolTypePropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        var isExpr = new ExpressionNode { Assignment = assign };
+        var isExpr = new AssignmentFormExpressionNode { Assignment = assign };
 
         var ifStatement = new IfStatementStatementNode
         {

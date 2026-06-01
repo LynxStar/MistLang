@@ -44,6 +44,13 @@ internal sealed class FallbackStdlibTypeProvider : IStdlibTypeProvider
 
     public IType LookupStandardType(string simpleName)
     {
+        return LookupStandardType(simpleName, typeArgumentCount: -1);
+    }
+
+    public IType LookupStandardType(string simpleName, int typeArgumentCount)
+    {
+        // The fallback provider has no generic families, so arity is ignored.
+        _ = typeArgumentCount;
         return simpleName switch
         {
             "Int32" => FallbackInt,

@@ -71,6 +71,9 @@ token STRING  = "string";
 token REGEX   = "regex";
 token UNKNOWN = "unknown";
 
+// Function type keyword (lowercase alias for Standard.Func)
+token FUNC = "func";
+
 // Generic constraint keywords
 token WHERE = "where";
 

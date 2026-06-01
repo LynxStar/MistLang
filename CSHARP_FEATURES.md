@@ -57,7 +57,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | Structs | ✅ | |
 | Interfaces | ✅ | |
 | Enums | 🔲 | |
-| Delegates | 🔲 | |
+| Delegates | ✅ | `Func<T, TResult>` type family with `func` keyword; no `delegate` keyword |
 | Records | 🔲 | C# 9 |
 | Record structs | 🔲 | C# 10 |
 | Abstract classes | 🔲 | |
@@ -345,7 +345,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | `is` type check | 🔲 | |
 | `as` type cast | 🔲 | |
 | Cast expressions (`(T)expr`) | ✅ | |
-| Lambda expressions (`=>`) | 🔲 | |
+| Lambda expressions (`=>`) | ✅ | Expression and block bodies, static, async |
 | Anonymous methods (`delegate { }`) | ⛔ | Superseded by lambdas |
 | LINQ query expressions | 🔲 | |
 | `await` | 🔲 | |
@@ -567,7 +567,7 @@ Mist supports ad-hoc refinement constraints — `where` clauses that attach refi
 | Type constraints (`where T : class`) | ✅ | |
 | Dependent type parameters | ✅ | `<Size:int>` syntax for compile-time constant values |
 | Covariance / contravariance | 🔲 | |
-| Generic delegates | 🔲 | |
+| Generic delegates | ✅ | `Func` type family supports 0-16 parameters |
 
 ---
 

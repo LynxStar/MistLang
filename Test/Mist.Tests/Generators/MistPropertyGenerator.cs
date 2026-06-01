@@ -238,12 +238,12 @@ public static class MistPropertyGenerator
 
         var valueExpr = MakeIdentifierExpr("value");
 
-        return new ExpressionNode
+        return new AssignmentFormExpressionNode
         {
             Assignment = new AssignmentNode
             {
                 Target = new VoidCoalescingNode { Left = fieldLogOr },
-                Value = valueExpr.Assignment,
+                Value = valueExpr,
             },
         };
     }

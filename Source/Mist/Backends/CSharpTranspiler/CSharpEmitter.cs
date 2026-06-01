@@ -1229,7 +1229,10 @@ internal sealed class CSharpSourceWriter
     private void ScanExpressionForValueReturningCalls(ExpressionNode expr, HashSet<string> voidMethodNames)
     {
         // Walk the expression tree looking for method calls to void methods.
-        ScanAssignmentForValueReturningCalls(expr.Assignment, voidMethodNames, isValueContext: true);
+        // Lambda-form expressions have their own body scope; their value-returning
+        // call handling is deferred to lambda emission (task 13.1).
+        if (expr.AsAssignmentOrNull() is { } assignment)
+            ScanAssignmentForValueReturningCalls(assignment, voidMethodNames, isValueContext: true);
     }
 
     /// <summary>
@@ -1241,7 +1244,9 @@ internal sealed class CSharpSourceWriter
     {
         // The top-level expression in an expression statement is NOT in a value context,
         // but sub-expressions (like arguments) ARE.
-        ScanAssignmentForValueReturningCalls(expr.Assignment, voidMethodNames, isValueContext: false);
+        // Lambda-form expressions are handled by lambda emission (task 13.1).
+        if (expr.AsAssignmentOrNull() is { } assignment)
+            ScanAssignmentForValueReturningCalls(assignment, voidMethodNames, isValueContext: false);
     }
 
     private void ScanAssignmentForValueReturningCalls(AssignmentNode assignment, HashSet<string> voidMethodNames, bool isValueContext)
@@ -1259,8 +1264,9 @@ internal sealed class CSharpSourceWriter
 
         if (assignment.Value is not null)
         {
-            // The RHS of an assignment is always in a value context.
-            ScanAssignmentForValueReturningCalls(assignment.Value, voidMethodNames, isValueContext: true);
+            // The RHS of an assignment is always in a value context. It is now a full
+            // ExpressionNode (widened to reach lambdas), so scan via the expression entry.
+            ScanExpressionForValueReturningCalls(assignment.Value, voidMethodNames);
         }
     }
 
@@ -4581,7 +4587,8 @@ internal sealed class CSharpSourceWriter
                 continue;
 
             var expr = exprStmt.ExpressionStatement.Expression;
-            var assignment = expr.Assignment;
+            if (expr.AsAssignmentOrNull() is not { } assignment)
+                continue; // Lambda-form expression statement — not a field initializer.
 
             // Check if this is a simple assignment (has a Value part).
             if (assignment.Value is null)
@@ -4593,7 +4600,11 @@ internal sealed class CSharpSourceWriter
                 continue;
 
             // The value should be a simple identifier matching a parameter name.
-            var valueText = GetSimpleIdentifierFromAssignmentTarget(assignment.Value.Target.Left);
+            // The RHS is now a full ExpressionNode; only the assignment form can be a
+            // simple identifier reference.
+            if (assignment.Value.AsAssignmentOrNull() is not { } valueAssignment)
+                continue;
+            var valueText = GetSimpleIdentifierFromAssignmentTarget(valueAssignment.Target.Left);
             if (valueText is null)
                 continue;
 
@@ -6160,7 +6171,9 @@ internal sealed class CSharpSourceWriter
     private static bool ExpressionContainsTypeLiteral(ExpressionNode expr)
     {
         // Walk the expression tree: Assignment → LogicalOr → ... → Unary → Postfix → Primary
-        var assignment = expr.Assignment;
+        // Lambda-form expressions do not directly contain a top-level type literal.
+        if (expr.AsAssignmentOrNull() is not { } assignment)
+            return false;
         return AssignmentContainsTypeLiteral(assignment);
     }
 
@@ -6169,7 +6182,7 @@ internal sealed class CSharpSourceWriter
         if (LogicalOrContainsTypeLiteral(assignment.Target.Left))
             return true;
         if (assignment.Value is not null)
-            return AssignmentContainsTypeLiteral(assignment.Value);
+            return ExpressionContainsTypeLiteral(assignment.Value);
         return false;
     }
 
@@ -7391,7 +7404,30 @@ internal sealed class CSharpSourceWriter
 
     private string EmitExpression(ExpressionNode expr)
     {
-        return EmitAssignment(expr.Assignment);
+        return expr switch
+        {
+            AssignmentFormExpressionNode assignmentForm => EmitAssignment(assignmentForm.Assignment),
+            LambdaFormExpressionNode lambdaForm => EmitLambda(lambdaForm.Lambda),
+            _ => throw new System.InvalidOperationException(
+                $"Unknown ExpressionNode variant: {expr.GetType().Name}"),
+        };
+    }
+
+    /// <summary>
+    /// Emits a lambda expression to C#.
+    /// </summary>
+    /// <remarks>
+    /// Full lambda emission (expression/block bodies, <c>static</c>/<c>async</c> modifiers,
+    /// auto-await) is implemented by first-class-functions task 13.1. This stub exists so the
+    /// abstract <see cref="ExpressionNode"/> dispatch compiles and the assignment-form path is
+    /// fully preserved; task 13.1 fills in the body here (and will promote this to an instance
+    /// method once it needs emitter state such as <c>_model</c>).
+    /// </remarks>
+    private static string EmitLambda(LambdaExpressionNode lambda)
+    {
+        _ = lambda;
+        throw new System.NotSupportedException(
+            "Lambda expression emission is implemented by first-class-functions task 13.1.");
     }
 
     private string EmitAssignment(AssignmentNode assignment)
@@ -7407,7 +7443,7 @@ internal sealed class CSharpSourceWriter
             if (IsOptionalUnionType(assignTargetType))
                 _emitVoidAsNull = true;
 
-            var value = EmitAssignment(assignment.Value);
+            var value = EmitExpression(assignment.Value);
             _emitVoidAsNull = previousVoidAsNull;
 
             value = WrapWithImplicitCastIfNeeded(assignment, value);
@@ -7433,7 +7469,9 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private bool TryEmitVoidCoalescingAssignment(ExpressionNode expression)
     {
-        var assignment = expression.Assignment;
+        // A lambda-form expression is never a ??= assignment.
+        if (expression.AsAssignmentOrNull() is not { } assignment)
+            return false;
 
         // Check if this is a ??= assignment by inspecting the operator token.
         if (assignment.Operator is not { } op || op.Kind != (int)TokenKind.QUESTION_QUESTION_EQUAL)
@@ -7445,8 +7483,9 @@ internal sealed class CSharpSourceWriter
         // Emit the target variable name.
         var target = EmitLogicalOr(assignment.Target.Left);
 
-        // Emit the value expression.
-        var value = EmitAssignment(assignment.Value);
+        // Emit the value expression. The RHS is now a full ExpressionNode (widened to
+        // reach lambdas); route through the expression-level entry point.
+        var value = EmitExpression(assignment.Value);
         value = WrapWithImplicitCastIfNeeded(assignment, value);
 
         // Generate: x ??= value;
@@ -7963,16 +8002,16 @@ internal sealed class CSharpSourceWriter
         switch (primary)
         {
             case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gte:
-                parts.Add($"{scrutineeExpr} >= {EmitExpression(gte.Constant)}");
+                parts.Add($"{scrutineeExpr} >= {EmitVoidCoalescing(gte.Constant)}");
                 break;
             case LessThanOrEqualRelationalPatternPrimaryPatternNode lte:
-                parts.Add($"{scrutineeExpr} <= {EmitExpression(lte.Constant)}");
+                parts.Add($"{scrutineeExpr} <= {EmitVoidCoalescing(lte.Constant)}");
                 break;
             case GreaterThanRelationalPatternPrimaryPatternNode gt:
-                parts.Add($"{scrutineeExpr} > {EmitExpression(gt.Constant)}");
+                parts.Add($"{scrutineeExpr} > {EmitVoidCoalescing(gt.Constant)}");
                 break;
             case LessThanRelationalPatternPrimaryPatternNode lt:
-                parts.Add($"{scrutineeExpr} < {EmitExpression(lt.Constant)}");
+                parts.Add($"{scrutineeExpr} < {EmitVoidCoalescing(lt.Constant)}");
                 break;
             case ConstantPatternPrimaryPatternNode constant:
                 if (constant.Literal is RegexConstantConstantLiteralNode regexConstInCondition)
@@ -8363,13 +8402,13 @@ internal sealed class CSharpSourceWriter
             case ConstantPatternPrimaryPatternNode constantPattern:
                 return EmitConstantLiteral(constantPattern.Literal);
             case LessThanRelationalPatternPrimaryPatternNode ltPattern:
-                return $"< {EmitExpression(ltPattern.Constant)}";
+                return $"< {EmitVoidCoalescing(ltPattern.Constant)}";
             case GreaterThanRelationalPatternPrimaryPatternNode gtPattern:
-                return $"> {EmitExpression(gtPattern.Constant)}";
+                return $"> {EmitVoidCoalescing(gtPattern.Constant)}";
             case LessThanOrEqualRelationalPatternPrimaryPatternNode ltePattern:
-                return $"<= {EmitExpression(ltePattern.Constant)}";
+                return $"<= {EmitVoidCoalescing(ltePattern.Constant)}";
             case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gtePattern:
-                return $">= {EmitExpression(gtePattern.Constant)}";
+                return $">= {EmitVoidCoalescing(gtePattern.Constant)}";
             case PropertyPatternPrimaryPatternNode propertyPattern:
             {
                 var sb = new StringBuilder();
@@ -9359,7 +9398,7 @@ internal sealed class CSharpSourceWriter
                                 sb.Append(unionPattern);
                                 if (arm.Guard is not null)
                                 {
-                                    sb.Append($" when {EmitExpression(arm.Guard.Condition)}");
+                                    sb.Append($" when {EmitVoidCoalescing(arm.Guard.Condition)}");
                                 }
                                 sb.Append($" => {EmitExpression(arm.Result)},");
                                 return;
@@ -9376,7 +9415,7 @@ internal sealed class CSharpSourceWriter
                             if (arm.Guard is not null)
                             {
                                 // Combine the refinement guard with the user's guard.
-                                sb.Append($" && {EmitExpression(arm.Guard.Condition)}");
+                                sb.Append($" && {EmitVoidCoalescing(arm.Guard.Condition)}");
                             }
                             sb.Append($" => {EmitExpression(arm.Result)},");
                             return;
@@ -9391,7 +9430,7 @@ internal sealed class CSharpSourceWriter
                             if (arm.Guard is not null)
                             {
                                 // Combine the regex guard with the user's guard.
-                                sb.Append($" && {EmitExpression(arm.Guard.Condition)}");
+                                sb.Append($" && {EmitVoidCoalescing(arm.Guard.Condition)}");
                             }
                             sb.Append($" => {EmitExpression(arm.Result)},");
                             return;
@@ -9400,7 +9439,7 @@ internal sealed class CSharpSourceWriter
                         sb.Append(EmitPattern(arm.Pattern, receiverType));
                         if (arm.Guard is not null)
                         {
-                            sb.Append($" when {EmitExpression(arm.Guard.Condition)}");
+                            sb.Append($" when {EmitVoidCoalescing(arm.Guard.Condition)}");
                         }
                         sb.Append($" => {EmitExpression(arm.Result)},");
                     }

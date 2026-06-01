@@ -151,7 +151,7 @@ public class ExtensionSetAccessorRejectionPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     private static ExpressionNode MakeFieldAssignment()
@@ -188,12 +188,12 @@ public class ExtensionSetAccessorRejectionPropertyTests
         var valueLogOr = new LogicalOrNode { Left = valueLogAnd };
         var valueAssign = new AssignmentNode { Target = new VoidCoalescingNode { Left = valueLogOr } };
 
-        return new ExpressionNode
+        return new AssignmentFormExpressionNode
         {
             Assignment = new AssignmentNode
             {
                 Target = new VoidCoalescingNode { Left = fieldLogOr },
-                Value = valueAssign,
+                Value = new AssignmentFormExpressionNode { Assignment = valueAssign },
             },
         };
     }

@@ -478,6 +478,7 @@ rule SingleTypeRef
     | name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:ArrayRankSuffix? optional:QUESTION? as NamedSingleTypeRef
     | LEFT_PARENTHESIS inner:TypeReference RIGHT_PARENTHESIS arrayRank:ArrayRankSuffix? as ParenthesizedTypeRef
     | LEFT_PARENTHESIS first:TupleTypeElement COMMA rest:TupleTypeElement (COMMA additional:TupleTypeElement)* RIGHT_PARENTHESIS as TupleSingleTypeRef
+    | FUNC typeArgs:TypeArgumentList as FuncSingleTypeRef
     ;
 
 rule TupleTypeElement = type:TypeReference name:IDENTIFIER?;
@@ -567,12 +568,27 @@ rule WithClause = WITH type:TypeReference name:IDENTIFIER;
 // ─── Parser Rules — Expressions (Precedence Climbing) ───────────────────────
 // Operator precedence is encoded structurally via a chain of rules, from
 // lowest to highest binding:
-//   Assignment < VoidCoalescing < LogicalOr < LogicalAnd < Equality < Relational
-//   < Additive < Multiplicative < Unary < Postfix < Primary
+//   Lambda < Assignment < VoidCoalescing < LogicalOr < LogicalAnd < Equality
+//   < Relational < Additive < Multiplicative < Unary < Postfix < Primary
+//
+// Lambda sits at the lowest binding precedence (a peer of, but looser than,
+// Assignment) so that it can appear anywhere a value is expected and binds
+// looser than every operator including `=`. PEG ordered choice tries the
+// LambdaExpression alternative first: it only succeeds if it matches a
+// parameter list followed by SUCH_THAT (`=>`); otherwise it backtracks and
+// Assignment handles the input. This is the structural analogue of how
+// C#/Roslyn treats a lambda as the lowest-precedence expression form.
 
-rule Expression = Assignment;
+rule Expression
+    = lambda:LambdaExpression  as LambdaForm
+    | assignment:Assignment    as AssignmentForm
+    ;
 
-rule Assignment = target:VoidCoalescing (operator:(EQUAL | QUESTION_QUESTION_EQUAL) value:Assignment)?;
+// The assignment RHS is a full Expression (not just Assignment) so that lambdas
+// — which live above Assignment at the Expression level — are reachable from the
+// RHS of an assignment, and right-associativity falls out naturally
+// (`f = x => x + 1` parses as `f = (x => x + 1)`).
+rule Assignment = target:VoidCoalescing (operator:(EQUAL | QUESTION_QUESTION_EQUAL) value:Expression)?;
 
 rule VoidCoalescing = left:LogicalOr (QUESTION_QUESTION right:LogicalOr)*;
 
@@ -589,11 +605,19 @@ rule Multiplicative = left:Unary (operator:(STAR | SLASH | MODULO) right:Unary)*
 
 rule Unary
     = LEFT_PARENTHESIS targetType:TypeReference RIGHT_PARENTHESIS operand:Unary  as CastExpression
+    // PostfixExpression is tried before the ASYNC/AWAIT prefix operators. An
+    // async-prefixed lambda (`async x => ...`) is recognized at the Expression
+    // level (via the LambdaExpression alternative, whose LambdaModifier* accepts
+    // `async`), not here in Unary/Primary. Because Expression tries the
+    // LambdaExpression alternative before Assignment, a leading `async`/`static`
+    // followed by a lambda parameter list resolves as a lambda; non-lambda inputs
+    // such as `async foo()` fail the LambdaExpression attempt and fall through to
+    // Assignment, reaching the `ASYNC operand:Unary` async-functor rule below.
+    | primary:Postfix              as PostfixExpression
     | ASYNC operand:Unary                                                         as AsyncExpression
     | AWAIT operand:Unary                                                         as AwaitExpression
     | EXCLAMATION operand:Unary    as LogicalNot
     | MINUS operand:Unary          as Negate
-    | primary:Postfix              as PostfixExpression
     ;
 
 rule Postfix = target:Primary suffix:PostfixSuffix*;
@@ -612,9 +636,19 @@ rule SwitchArmList = SwitchArm (COMMA SwitchArm)* COMMA?;
 
 rule SwitchArm = pattern:Pattern guard:WhenGuard? SUCH_THAT result:Expression;
 
-rule WhenGuard = WHEN condition:Expression;
+// The guard condition is bounded to VoidCoalescing (not the full Expression)
+// so the arm's trailing `=>` is never consumed by a lambda/assignment inside
+// the guard. This is the structural analogue of Roslyn's Precedence.Coalescing
+// floor: `??` and everything tighter is permitted; lambda and assignment (which
+// sit above VoidCoalescing) are excluded, leaving the `=>` for SwitchArm.
+rule WhenGuard = WHEN condition:VoidCoalescing;
 
 rule Primary
+    // Lambda expressions are NOT handled here — they are recognized at the
+    // Expression level (the lowest precedence tier) as a peer of Assignment, so
+    // that a lambda's `=>` body binds looser than every operator and never
+    // collides with a switch-arm `=>`. Primary is the highest-precedence tier
+    // and contains only atomic/parenthesized forms.
     = integerLiteral:INTEGER_LITERAL                                               as IntegerLiteralExpression
     | hexLiteral:HEX_LITERAL                                                       as HexLiteralExpression
     | binaryLiteral:BINARY_LITERAL                                                 as BinaryLiteralExpression
@@ -643,6 +677,33 @@ rule Primary
 rule TupleLiteralElement
     = name:IDENTIFIER COLON value:Expression  as NamedTupleLiteralElement
     | value:Expression                         as UnnamedTupleLiteralElement
+    ;
+
+// ─── Parser Rules — Lambda Expressions ──────────────────────────────────────
+// Lambdas reuse the existing SUCH_THAT (`=>`) token. The block-bodied
+// alternative is tried before the expression-bodied one so that a brace-led
+// body (`{ ... }`) is parsed as a Block rather than failing through Expression.
+
+rule LambdaExpression
+    = modifiers:LambdaModifier* params:LambdaParameterList SUCH_THAT body:Block       as BlockLambda
+    | modifiers:LambdaModifier* params:LambdaParameterList SUCH_THAT body:Expression   as ExpressionLambda
+    ;
+
+rule LambdaModifier
+    = STATIC as StaticLambdaModifier
+    | ASYNC  as AsyncLambdaModifier
+    ;
+
+rule LambdaParameterList
+    = LEFT_PARENTHESIS params:LambdaParamList? RIGHT_PARENTHESIS  as ParenthesizedLambdaParams
+    | name:IDENTIFIER                                              as SingleImplicitParam
+    ;
+
+rule LambdaParamList = LambdaParam (COMMA LambdaParam)*;
+
+rule LambdaParam
+    = type:TypeReference name:IDENTIFIER  as TypedLambdaParam
+    | name:IDENTIFIER                      as UntypedLambdaParam
     ;
 
 rule InterpolatedString = INTERPOLATED_STRING_START parts:InterpolatedPart* INTERPOLATED_STRING_END;
@@ -679,10 +740,10 @@ rule PrimaryPattern
     | type:TypeReference                                                    as BareTypePattern
     | VAR name:(IDENTIFIER | DISCARD)                                       as VarPattern
     | DISCARD                                                               as DiscardPattern
-    | LESS_THAN constant:Expression                                         as LessThanRelationalPattern
-    | GREATER_THAN constant:Expression                                      as GreaterThanRelationalPattern
-    | LESS_THAN_OR_EQUAL constant:Expression                                as LessThanOrEqualRelationalPattern
-    | GREATER_THAN_OR_EQUAL constant:Expression                             as GreaterThanOrEqualRelationalPattern
+    | LESS_THAN constant:VoidCoalescing                                     as LessThanRelationalPattern
+    | GREATER_THAN constant:VoidCoalescing                                  as GreaterThanRelationalPattern
+    | LESS_THAN_OR_EQUAL constant:VoidCoalescing                            as LessThanOrEqualRelationalPattern
+    | GREATER_THAN_OR_EQUAL constant:VoidCoalescing                         as GreaterThanOrEqualRelationalPattern
     | typeName:QualifiedIdentifier? LEFT_BRACE subpatterns:PropertySubpatternList? RIGHT_BRACE name:(IDENTIFIER | DISCARD)?  as PropertyPattern
     | LEFT_BRACKET elements:ListPatternElementList? RIGHT_BRACKET           as ListPattern
     | LEFT_PARENTHESIS first:Pattern COMMA rest:Pattern (COMMA additional:Pattern)* RIGHT_PARENTHESIS  as TuplePositionalPattern

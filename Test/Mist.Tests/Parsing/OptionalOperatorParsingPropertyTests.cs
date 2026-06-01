@@ -92,7 +92,7 @@ public class OptionalOperatorParsingPropertyTests
         // -> Left (LogicalAnd) -> Left (Equality) -> Left (Relational as RelationalComparison)
         // -> Left (Additive) -> Left (Multiplicative) -> Left (Unary as PostfixExpression)
         // -> Primary (Postfix)
-        var assignment = expr.Assignment;
+        var assignment = expr.AsAssignment();
         var voidCoalescing = assignment.Target;
         var logicalOr = voidCoalescing.Left;
         var logicalAnd = logicalOr.Left;
@@ -131,7 +131,7 @@ public class OptionalOperatorParsingPropertyTests
         // Parse `a ?? b ?? c`
         var expr = GetExpressionFromStatement("a ?? b ?? c");
 
-        var assignment = expr.Assignment;
+        var assignment = expr.AsAssignment();
         var voidCoalescing = assignment.Target;
 
         // The Left should be a LogicalOr wrapping identifier 'a'
@@ -165,7 +165,7 @@ public class OptionalOperatorParsingPropertyTests
     {
         var expr = GetExpressionFromStatement(expression);
 
-        var assignment = expr.Assignment;
+        var assignment = expr.AsAssignment();
         var voidCoalescing = assignment.Target;
 
         // Left is the first operand
@@ -191,7 +191,7 @@ public class OptionalOperatorParsingPropertyTests
         // Parse `a || b ?? c`
         var expr = GetExpressionFromStatement("a || b ?? c");
 
-        var assignment = expr.Assignment;
+        var assignment = expr.AsAssignment();
         var voidCoalescing = assignment.Target;
 
         // The Left of VoidCoalescing should be a LogicalOr with both a and b
@@ -236,7 +236,7 @@ public class OptionalOperatorParsingPropertyTests
         // confirming it produces a single VoidCoalescing node — proving that
         // ?? is consumed at the VoidCoalescing level, not at the Assignment level.
         var expr = GetExpressionFromStatement("a ?? b");
-        var assignment = expr.Assignment;
+        var assignment = expr.AsAssignment();
         var voidCoalescing = assignment.Target;
 
         // The VoidCoalescing should have 'a' as Left and 'b' in LogicalOrs

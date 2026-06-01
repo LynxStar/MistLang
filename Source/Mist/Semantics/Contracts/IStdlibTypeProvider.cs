@@ -33,4 +33,23 @@ public interface IStdlibTypeProvider
     /// fallback when the stdlib is not loaded.
     /// </returns>
     IType LookupStandardType(string simpleName);
+
+    /// <summary>
+    /// Returns the stdlib <see cref="IType"/> for the given simple name, disambiguating
+    /// between same-named generic families of different arity (e.g., the
+    /// <c>Standard.Func</c> family, which declares 17 variants from <c>Func&lt;TResult&gt;</c>
+    /// through <c>Func&lt;T1, ..., T16, TResult&gt;</c>).
+    /// </summary>
+    /// <param name="simpleName">
+    /// The unqualified type name within the <c>Standard</c> namespace.
+    /// </param>
+    /// <param name="typeArgumentCount">
+    /// The number of type parameters the requested variant declares. When negative,
+    /// arity is ignored and the first match is returned (legacy behavior).
+    /// </param>
+    /// <returns>
+    /// The corresponding <see cref="IType"/> instance with the requested arity, or a
+    /// legacy fallback when the stdlib is not loaded.
+    /// </returns>
+    IType LookupStandardType(string simpleName, int typeArgumentCount) => LookupStandardType(simpleName);
 }

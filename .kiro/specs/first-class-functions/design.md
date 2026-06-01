@@ -16,6 +16,8 @@ The core abstractions are:
 
 Parser prerequisite (resolved): deep type-argument lists such as `Func<T1, ..., T16, TResult>` previously triggered exponential parser backtracking; this is now fixed by the selective packrat memoization feature, so the full `Func`/`Action` arity range parses in linear time and is no longer a parse-time concern for this feature.
 
+Lambda precedence (resolved in this design): lambdas reuse the `=>` (`SUCH_THAT`) token, which is also the separator in switch arms and the body marker in expression-bodied members. Naively placing lambda in the high-precedence `Primary` rule lets a switch-arm `when` guard greedily parse a trailing lambda and steal the arm's `=>`, violating Requirement 12.5. This design places lambda at the **lowest** precedence (peer of assignment) and **bounds** the switch-arm guard/pattern below lambda — mirroring how C#/Roslyn solves the same conflict. The full analysis, grammar rules, and downstream migration scope are in [Grammar Changes](#3-grammar-changes).
+
 ### Design Rationale
 
 Mist's approach differs from C#'s delegate system:
@@ -173,16 +175,56 @@ rule SingleTypeRef
 
 Because `TypeReference` composes `SingleTypeRef` elements, adding `func<...>` here makes it automatically usable as a union member — e.g. `func<int, bool> | string` parses with no additional grammar changes.
 
-#### Lambda Expression Grammar (`Mist.storm`)
+#### Lambda Expression Grammar and Precedence (`Mist.storm`)
 
-Lambda expressions are added as a new alternative in the `Primary` rule:
+##### Why the original `Primary`-level placement is wrong
+
+The original design added lambda as an alternative in the `Primary` rule — the **highest** precedence tier in the chain:
+
+```
+Expression → Assignment → VoidCoalescing → LogicalOr → LogicalAnd → Equality
+           → Relational → Additive → Multiplicative → Unary → Postfix → Primary
+```
+
+It justified this with a "Precedence note" claiming the switch-arm `=>` and the lambda `=>` were "syntactically distinct" because switch arms appear inside `switch { }` and lambdas appear in `Primary`. **That claim is false in a recursive-descent / PEG parser.** The switch-arm grammar is:
 
 ```storm
-rule Primary
-    = ...existing alternatives...
-    | lambda:LambdaExpression as LambdaExpressionPrimary
-    ;
+rule SwitchArm = pattern:Pattern guard:WhenGuard? SUCH_THAT result:Expression;
+rule WhenGuard = WHEN condition:Expression;
+```
 
+The guard's `condition` is parsed as a full `Expression`. `Expression` descends the entire precedence chain down into `Primary`, where the original design placed lambda. So when the parser reaches the `=>` after a guard, it is *inside* the guard's `Expression` parse, and a lambda alternative in `Primary` will greedily match `condition => result` as a single-parameter lambda. The arm is then stranded with no `=>`/result. The contexts are **not** distinct: the guard's `Expression` reaches lambda through the precedence chain.
+
+This is the concrete bug:
+
+```mist
+value switch { int n when predicate => n.ToString(), _ => "none" }
+```
+
+With lambda in `Primary`, `predicate` is the guard `condition`, and `predicate => n.ToString()` is parsed as a lambda *inside* the guard, leaving the `int n` arm with no separator and no result. The implementer (now-cancelled run) made this worse by moving lambda to the **first** alternative in `Primary` to make a standalone `x => ...` parse — pushing lambda even higher in precedence, the opposite of what Requirement 12.5 demands.
+
+##### How C# solves it (design reference)
+
+C# does **not** solve this in its grammar — Roslyn's parser is hand-written. C# treats a lambda as the **lowest-precedence** expression form, a peer of assignment. When parsing a switch arm, Roslyn parses the pattern and the `when` guard with a bounded precedence **floor** of `Precedence.Coalescing` (`ParseWhenClause(Precedence.Coalescing)` / `ParsePattern(Precedence.Coalescing)`). That floor excludes exactly three forms — assignment, lambda, and the ternary conditional (whose branches could themselves contain a lambda) — while permitting everything above the floor: `??`, `||`, `&&`, comparisons, arithmetic, member access, and method/delegate invocation. The floor exists precisely so the parser leaves the arm's `=>` token unconsumed for the switch arm to claim. A documented consequence: a lambda or conditional is only allowed in a guard if parenthesized, and even then a bare lambda fails to type-check because a guard must be `bool` (the lambda would have to be invoked to yield a bool).
+
+Mist mirrors this, but because Mist encodes precedence **structurally** (a chain of rules) rather than with a numeric precedence parameter, the "floor" is expressed by binding the guard to a specific rule in the chain rather than passing a precedence value.
+
+##### Chosen placement: lambda as a peer of assignment at the `Expression` level
+
+Lambda is placed at the **lowest** binding precedence by splitting the top-level `Expression` rule into two alternatives — lambda and assignment:
+
+```storm
+rule Expression
+    = lambda:LambdaExpression  as LambdaForm
+    | assignment:Assignment    as AssignmentForm
+    ;
+```
+
+This makes `Expression` an **abstract** node with two sealed subtypes — `LambdaFormExpressionNode` (carrying `Lambda`) and `AssignmentFormExpressionNode` (carrying `Assignment`); see [Node-Shape Change and Migration Scope](#node-shape-change-and-migration-scope). (The Storm emitter names an alternative's node `<Label><RuleName>Node`, so label `LambdaForm` in rule `Expression` emits `LambdaFormExpressionNode`.) Lambda binds looser than assignment, which is exactly Requirement 12.5 ("lower precedence than assignment").
+
+`LambdaExpression` itself is unchanged in shape, but its body alternatives now recurse correctly through the new low-precedence `Expression`:
+
+```storm
 rule LambdaExpression
     = modifiers:LambdaModifier* params:LambdaParameterList SUCH_THAT body:Block       as BlockLambda
     | modifiers:LambdaModifier* params:LambdaParameterList SUCH_THAT body:Expression   as ExpressionLambda
@@ -206,16 +248,135 @@ rule LambdaParam
     ;
 ```
 
-**Precedence note**: The `LambdaExpression` alternative in `Primary` uses `SUCH_THAT` (`=>`). This token is already used in switch arms and expression-bodied properties, but those contexts are syntactically distinct (switch arms appear inside `switch { }` blocks, properties appear in member declarations). In the `Primary` rule, a lambda is recognized by the presence of either a single identifier or a parenthesized list followed by `=>`.
+**Lambda is removed from `Primary` entirely.** The `Primary` rule reverts to its pre-feature alternatives (literals, `this`, `new`, parenthesized/tuple expressions, identifiers, type literals, etc.) with no lambda alternative. The `Unary` rule comment about trying `Postfix` before the `ASYNC`/`AWAIT` prefix operators is updated: an `async`-prefixed lambda (`async x => ...`) is now recognized at the `Expression` level (via the `LambdaExpression` alternative whose `LambdaModifier*` accepts `async`), not in `Primary`. Because `Expression` tries the `LambdaExpression` alternative before `Assignment`, a leading `static`/`async` followed by a lambda parameter list resolves as a lambda; non-lambda inputs (e.g. `async foo()`) fail the `LambdaExpression` alternative and fall through to `Assignment`, which reaches `AsyncExpression` in `Unary` as before.
 
-**Ambiguity resolution**: The parser must distinguish between:
-- `x => x + 1` (lambda with single implicit param)
-- `(x) => x + 1` (lambda with parenthesized single param)
-- `(x, y) => x + y` (lambda with multiple params)
-- `(int x) => x + 1` (lambda with typed param)
-- `() => 42` (lambda with zero params)
+##### Why ordered choice makes this unambiguous
 
-The key disambiguation is: when the parser sees `IDENTIFIER SUCH_THAT`, it's a single-param lambda. When it sees `LEFT_PARENTHESIS`, it looks ahead to determine if this is a parenthesized expression or a lambda parameter list (presence of `SUCH_THAT` after the closing paren confirms lambda).
+PEG ordered choice tries `LambdaExpression` first at the `Expression` level. `LambdaExpression` only succeeds if it matches a parameter list **and** a trailing `SUCH_THAT`:
+- `x => x + 1` — `SingleImplicitParam` (`x`) then `=>` → lambda.
+- `(x) => ...`, `(x, y) => ...`, `(int x) => ...`, `() => ...` — `ParenthesizedLambdaParams` then `=>` → lambda.
+- `(a + b)`, a bare identifier `x`, `f = 1` — the `LambdaExpression` attempt fails at the missing `=>` (or the parenthesized-params parse fails), the parser backtracks, and `Assignment` handles it.
+
+Because lambda is attempted at the top of `Expression` and the whole chain is below it, a lambda can appear anywhere a value is expected, and it binds looser than every operator including `=`.
+
+##### Reaching lambda from every value position
+
+Placing lambda at the `Expression` level (not inside `Assignment`) requires one supporting change so that the existing value positions still reach it. The assignment RHS is currently `value:Assignment`, which would **not** reach the lambda alternative (lambda is now *above* `Assignment`). The fix widens the assignment RHS to a full `Expression`:
+
+```storm
+rule Assignment = target:VoidCoalescing (operator:(EQUAL | QUESTION_QUESTION_EQUAL) value:Expression)?;
+```
+
+With this single change, every value position reaches lambda, because every value position ultimately parses an `Expression`:
+
+| Position | Grammar path | Reaches lambda? |
+|---|---|---|
+| `f = a => a + 1` | `Assignment.value` is now `Expression` → tries `LambdaExpression` first | yes |
+| `call(x => x + 1)` | `ArgumentList` → `Argument` → `expression:Expression` | yes |
+| `return x => x + 1;` | `ReturnStatement` → `value:Expression` | yes |
+| `func<int,int> f = x => x + 1;` | `VarDeclaration`/`FieldDeclaration` initializer → `Expression` | yes |
+| `x => y => x + y` (nested) | `ExpressionLambda.body` is `Expression` → tries `LambdaExpression` first | yes (right-associative) |
+| element of array/tuple literal | those literals parse element `Expression`s | yes |
+
+Right-associativity falls out naturally: `f = x => x + 1` parses as `f = (x => x + 1)` because the `Assignment` RHS is a full `Expression` that prefers the lambda alternative; and `x => y => x + y` parses as `x => (y => (x + y))` because the lambda body is itself an `Expression` that prefers the lambda alternative.
+
+#### Bounded Switch-Arm Guard (and Relational-Pattern Constant)
+
+To keep the arm's `=>` unconsumed, the guard and the arm-side relational-pattern constants are **bounded below lambda and assignment** — the Mist analogue of Roslyn's `Precedence.Coalescing` floor. The floor is expressed structurally by binding these positions to the existing `VoidCoalescing` rule instead of the full `Expression` rule:
+
+```storm
+rule WhenGuard = WHEN condition:VoidCoalescing;
+```
+
+`VoidCoalescing` is the rule for `??`, and it transitively reaches `||`, `&&`, equality, relational, arithmetic, unary, postfix (method/delegate invocation, member access, indexing), and primary. It does **not** reach `Assignment` or the lambda alternative, which sit above it. This is exactly the C# floor: `??` and everything tighter is allowed in a guard; assignment, lambda, and (Mist has no ternary) are excluded. The arm's `=>` is therefore always left for `SwitchArm` to consume.
+
+The relational-pattern constants on the arm-pattern side have the same exposure (a pattern like `< limit` is immediately followed by the arm `=>`), so they are bounded the same way:
+
+```storm
+rule PrimaryPattern
+    = ...
+    | LESS_THAN constant:VoidCoalescing                  as LessThanRelationalPattern
+    | GREATER_THAN constant:VoidCoalescing               as GreaterThanRelationalPattern
+    | LESS_THAN_OR_EQUAL constant:VoidCoalescing         as LessThanOrEqualRelationalPattern
+    | GREATER_THAN_OR_EQUAL constant:VoidCoalescing      as GreaterThanOrEqualRelationalPattern
+    ...
+    ;
+```
+
+Relational-pattern constants are compile-time constant comparands; a lambda or assignment in that position was never meaningful, so bounding them to `VoidCoalescing` removes no legitimate program. (The `IsExpression` relational operator inside the expression `Relational` rule is unaffected — it is not adjacent to an arm `=>` and keeps using `Additive`/`Pattern` as today.)
+
+If a developer genuinely needs a lambda or assignment inside a guard, parenthesization reaches the full `Expression` again through `Primary`'s `ParenthesizedExpression` (`( Expression )`) — the same escape hatch C# documents. A bare lambda guard still fails type-checking because a guard must be `bool` (see Error Handling), matching C# semantics.
+
+##### Worked parse examples
+
+Non-conflicting guard (`>` is a comparison, well above the floor):
+
+```mist
+value switch { int n when n > 7 => n.ToString(), _ => "none" }
+```
+
+`when n > 7` parses as `VoidCoalescing → ... → Relational` (`n > 7`), the arm `=>` is left for `SwitchArm`, and `n.ToString()` is the result. Correct.
+
+The previously-broken case (regression target):
+
+```mist
+value switch { int n when predicate => n.ToString(), _ => "none" }
+```
+
+`when predicate` parses as `VoidCoalescing` resolving to the identifier `predicate`. `VoidCoalescing` cannot reach the lambda alternative, so it stops at `predicate`; the `=>` is left for `SwitchArm`, and `n.ToString()` is the arm result. Correct — the guard no longer swallows the `=>`.
+
+Invoked predicate (invocation is `Postfix`, above the floor):
+
+```mist
+value switch { int n when isOdd(n) => n.ToString(), _ => "none" }
+```
+
+`when isOdd(n)` parses as a `Postfix` invocation inside `VoidCoalescing`; the `=>` and result attach to the arm. Correct, and this is the idiomatic way to use a predicate in a guard (invoke it to get a `bool`).
+
+#### No Other `Expression`-then-`=>` Collision Sites
+
+A grep of every `SUCH_THAT` use confirms the switch arm is the **only** place where a full `Expression` is immediately followed by `=>`:
+
+- **Expression-bodied property** (`ExpressionBodiedProperty`): `... SUCH_THAT body:Expression SEMICOLON`. The `=>` *precedes* the body. A lambda in that body (`int Prop => x => x + 1;`) is valid and unambiguous — there is no trailing `=>` to contend for.
+- **Expression-bodied accessors** (`ExpressionGetAccessor`, `ExpressionSetAccessor`, `ExpressionInitAccessor`): same shape — `GET/SET/INIT SUCH_THAT expression:Expression SEMICOLON`. The `=>` precedes the body; no collision.
+- **Lambda bodies** (`ExpressionLambda`): `... SUCH_THAT body:Expression`. The `=>` precedes the body; nested lambdas are right-associative as shown above.
+
+Only `SwitchArm` has the dangerous `<Expression> => <Expression>` adjacency, and it is fixed by the bounded guard/pattern. No other site needs changing.
+
+#### Node-Shape Change and Migration Scope
+
+Splitting `Expression` into named alternatives changes its generated node from a sealed wrapper into an abstract base, which ripples to accessor sites. The counts below were verified against the current `Source/Mist` tree (excluding generated `obj/` and test code).
+
+**What changes in the generated AST.** Today `rule Expression = Assignment;` (a single production) emits:
+
+```csharp
+public sealed class ExpressionNode : SyntaxNode { public AssignmentNode Assignment { get; set; } }
+```
+
+Every consumer reaches the assignment via `expr.Assignment`. After the split, `Expression` has named alternatives and the emitter produces an **abstract** `ExpressionNode` with two sealed subtypes — `LambdaFormExpressionNode` (carrying `Lambda`) and `AssignmentFormExpressionNode` (carrying `Assignment`). The bare `ExpressionNode.Assignment` property disappears.
+
+**Primary ripple — `ExpressionNode.Assignment` (~13 source sites).** The semantic model, type checker, both emitters, and the refinement engine reach the assignment via `expr.Assignment`. Verified source (non-test, non-generated) accessor sites: `SemanticModelBuilder.cs` (5), `TypeCheckerAnalyzer.cs` (≈9 navigation helpers + `CheckExpression`), `CSharpEmitter.cs` (≈6), `MistPrettyPrinter.cs` (1), `SemanticModel.cs` (1), `OwnershipAnalyzer.cs` (≈4), `RefinementPredicate.cs` (1). Each site must first dispatch on the `Expression` subtype: if it is the lambda subtype, handle the lambda (resolve/emit/print the lambda); otherwise read `.Assignment` as before. In practice this is done by adding a single helper (e.g. `ExpressionNode.AsAssignmentOrNull()` / a `switch` on the two subtypes) and routing the existing call sites through it, so the change is mechanical rather than 13 independent rewrites. Test code additionally constructs `new ExpressionNode { Assignment = ... }` in generators and assertions; those must switch to the new sealed subtype constructor (`new AssignmentFormExpressionNode { Assignment = ... }`). The test-side count is larger but mechanical (constructor + `.Assignment` reads in `Test/Mist.Tests/**`).
+
+**Supporting ripple — assignment RHS type change (small).** Widening `Assignment.value` from `Assignment` to `Expression` changes the type of `AssignmentNode.Value` from `AssignmentNode` to `ExpressionNode`. The recursive resolver `ResolveAssignment(assignment.Value, ...)` becomes `ResolveExpression(assignment.Value, ...)` (one call-site redirect in `SemanticModelBuilder`), and the few places that read `assignment.Value` as an `AssignmentNode` (e.g. pretty-printer `EmitAssignment`, emitter value emission) now receive an `ExpressionNode` and call the `Expression`-level emit/resolve entry point. These are the same handful of sites already enumerated in the primary ripple.
+
+**Guard/pattern rebind ripple (≈7 source sites, zero node-shape change).** Rebinding `WhenGuard.condition` and the four relational-pattern constants from `Expression` to `VoidCoalescing` changes the static type of `WhenGuardNode.Condition` (and the relational patterns' `Constant`) from `ExpressionNode` to `VoidCoalescingNode`. The existing consumers all have ready counterparts:
+- Semantic model: `ResolveExpression(arm.Guard.Condition, ...)` → `ResolveVoidCoalescing(arm.Guard.Condition, ...)`. `ResolveVoidCoalescing` already records its result into `expressionTypes`, so `model.GetTypeOf(arm.Guard.Condition)` keeps working for the type checker's `bool` check.
+- Type checker: `CheckExpression(arm.Guard.Condition, ...)` → `CheckVoidCoalescingNode(arm.Guard.Condition, ...)` (the latter already exists).
+- Pretty printer: `EmitExpression(arm.Guard.Condition)` → `EmitVoidCoalescing(arm.Guard.Condition)` (already exists). Same for the four relational-pattern `Constant` emits in the pretty printer and C# emitter.
+- C# emitter: the four `EmitExpression(arm.Guard.Condition)` arm sites → `EmitVoidCoalescing(...)`; relational-pattern `Constant` emits likewise.
+- Refinement engine / relational-pattern constant readers (`RefinementPredicate.cs`, `TypeCheckerAnalyzer.cs` constraint extraction, `SemanticModelBuilder` constant resolution) accept the constant node and walk downward; walking from `VoidCoalescingNode` instead of `ExpressionNode` is one fewer wrapper hop and requires only the entry call to change.
+
+This is why the guard fix is deliberately bound to the **existing** `VoidCoalescing` rule rather than introducing a new alias rule (e.g. `rule BoundedExpression = VoidCoalescing;`). A new alias rule would emit a brand-new `BoundedExpressionNode : SyntaxNode` that is **not** an `ExpressionNode` and has **no** existing resolver/emitter, forcing new `ResolveBoundedExpression`/`EmitBoundedExpression`/`CheckBoundedExpression` methods. Reusing `VoidCoalescing` reuses the existing `ResolveVoidCoalescing`/`EmitVoidCoalescing`/`CheckVoidCoalescingNode` plumbing, reducing the guard fix to a ~2-line grammar change plus call-site redirects.
+
+**Placement options considered.**
+
+| Option | Grammar | Which node becomes abstract | Verified migration scope | Decision |
+|---|---|---|---|---|
+| **(a) Split `Expression` into `lambda \| assignment`** | `rule Expression = lambda:LambdaExpression \| assignment:Assignment;` | `ExpressionNode` (most-referenced expression type) | ~13 source `.Assignment` sites, routed through one helper; mechanical test-constructor updates | **Chosen** |
+| (b) Lambda as a low-precedence alternative inside `Assignment` | `rule Assignment = lambda:LambdaExpression \| target:VoidCoalescing (... )?;` | `AssignmentNode` | ~120 source `.Target`/`.Value` sites (≈85 in `TypeCheckerAnalyzer`, ≈32 in `CSharpEmitter`, ≈26 each in `OwnershipAnalyzer`/`ReadonlyAnalyzer`); `is/case AssignmentNode` (12 sites) still works | Rejected — ~10× the churn |
+| (c) New precedence tier between `Expression` and `Assignment` | `rule Expression = LambdaOrAssignment;` + `rule LambdaOrAssignment = lambda:LambdaExpression \| assignment:Assignment;` | new `LambdaOrAssignmentNode`; `ExpressionNode` stays sealed but its child becomes `LambdaOrAssignmentNode` (not `AssignmentNode`) | `ExpressionNode.Assignment` still disappears (becomes `.LambdaOrAssignment`), so the same ~13 sites change AND a new resolver tier is added | Rejected — same accessor churn as (a) plus an extra node type and resolver |
+
+Option (a) is chosen: it satisfies Requirement 12.5 (lambda strictly below assignment), keeps the migration mechanical and localized to ~13 source sites behind one helper, and adds no new resolver tier. Option (b)'s ~120-site churn is an order of magnitude larger for no precedence benefit, and option (c) pays (a)'s accessor cost plus an extra node type.
 
 ### 4. Semantic Model Builder Changes
 
@@ -225,7 +386,7 @@ The `Func` types are registered as intrinsic classes during stdlib loading (same
 
 #### Pass 2: Lambda Expression Type Resolution
 
-When the semantic model builder encounters a `LambdaExpressionPrimaryNode`, it:
+When the semantic model builder encounters a lambda expression (the `LambdaFormExpressionNode` subtype of `ExpressionNode`, wrapping a `LambdaExpressionNode`), it:
 
 1. **Determines the target type** from context (variable declaration type, parameter type, return type)
 2. **Resolves parameter types**:
@@ -309,7 +470,7 @@ This maps:
 
 #### Lambda Expression Emission
 
-When the emitter encounters a `LambdaExpressionPrimaryNode`:
+When the emitter encounters a lambda expression (the `LambdaFormExpressionNode` subtype, wrapping a `LambdaExpressionNode`):
 
 1. Emit modifiers: `static` → C# `static`, `async` → C# `async`
 2. Emit parameter list: `(type1 name1, type2 name2)` or just `(name1, name2)` for inferred types
@@ -344,12 +505,14 @@ For emission, when Mist code interacts with an API expecting a specific named de
 Add cases to `MistPrettyPrinter`:
 
 - `FuncSingleTypeRefSingleTypeRefNode` → emit `func<T1, T2, ..., TReturn>`
-- `LambdaExpressionPrimaryNode` → emit `[static] [async] params => body`
+- `LambdaFormExpressionNode` (wrapping `LambdaExpressionNode`) → emit `[static] [async] params => body`
 - Expression lambda: `params => expr`
 - Block lambda: `params => { stmts }`
 - Single param without parens: `x => expr`
 - Zero params: `() => expr`
 - Typed params: `(int x, string y) => expr`
+
+Because `Expression` is now abstract (lambda vs. assignment), `EmitExpression(ExpressionNode)` first dispatches on the subtype: the `LambdaFormExpressionNode` subtype emits the lambda; the `AssignmentFormExpressionNode` subtype delegates to the existing `EmitAssignment(assignment)` path. The switch-arm guard and relational-pattern constants are now `VoidCoalescingNode`, so the printer emits them via the existing `EmitVoidCoalescing` rather than `EmitExpression` (see migration scope).
 
 ### 9. TextMate Grammar Changes
 
@@ -486,6 +649,26 @@ For all valid `func` type references and lambda expressions: `print(parse(print(
 
 - **Validates: Requirements 14.1, 14.2, 14.3**
 
+### Property 8: Switch-Arm Guard Never Captures a Trailing Lambda
+
+For any switch expression whose arm has a `when` guard immediately followed by the arm `=>` and a result, the parser MUST attach the `=>` and result to the arm — the guard MUST NOT consume the `=>` as a lambda. Formally: for all guard conditions `c` drawn from the bounded (`VoidCoalescing`-level) grammar and all result expressions `r`, parsing `pattern when c => r` yields an arm with a non-null guard whose condition is `c` and whose result is `r`, and the guard condition is not a lambda node. This is the direct regression guard for the original defect (`when predicate => ...`).
+
+- **Validates: Requirements 12.5**
+
+### Property 9: Lambda Is Lowest-Precedence and Right-Associative
+
+For any lambda `L`, parsing `f = L` yields an assignment whose value is the lambda `L` (i.e. `f = (L)`, never `(f = ...) => ...`), and parsing a nested lambda `x => y => body` yields right-nested lambdas `x => (y => body)`. Lambda binds looser than assignment and every operator.
+
+- **Validates: Requirements 12.5, 4.1**
+
+### Property 10: Lambda Is Reachable From Every Value Position
+
+For any lambda `L`, embedding `L` as an assignment RHS (`f = L`), a call argument (`g(L)`), a return value (`return L;`), and a nested lambda body (`x => L`) each parses to a lambda node in the corresponding AST slot. Relocating lambda to the `Expression` level (and widening the assignment RHS to `Expression`) preserves reachability in all value positions.
+
+- **Validates: Requirements 7.1, 7.2, 7.3, 12.3**
+
+The lambda pretty-print round-trip (Property 6) is strengthened to generate lambdas in these positions and inside bounded-guard switch arms, so the round-trip exercises the new precedence placement.
+
 ## Error Handling
 
 ### Compile-Time Errors
@@ -511,9 +694,24 @@ All errors are non-fatal — the compiler continues analysis after reporting, us
 
 ### Unit Tests (In-Process, No Process Spawning)
 
-1. **Parser tests**: Verify that all lambda syntax variants produce correct AST node types. Test each form: single param, multi-param, zero-param, typed params, block body, expression body, static modifier, async modifier.
+1. **Parser tests**: Verify that all lambda syntax variants produce correct AST node types. Test each form: single param, multi-param, zero-param, typed params, block body, expression body, static modifier, async modifier. Additionally verify the **precedence placement**:
+   - `f = x => x + 1` parses as `f = (x => x + 1)` (assignment RHS is the lambda), confirming lambda binds looser than `=`.
+   - `x => y => x + y` parses as `x => (y => (x + y))` (right-associative nesting).
+   - Lambda appears correctly as a call argument, a `return` value, and an array/tuple element.
+   - **Regression**: `value switch { int n when predicate => n.ToString(), _ => "none" }` parses into two well-formed arms; the first arm has a guard whose condition is the identifier `predicate` (not a lambda) and a result of `n.ToString()`. Also cover `when n > 7 => ...` and `when isOdd(n) => ...`.
 
-2. **Pretty-printer round-trip tests**: Parse → print → parse → print produces identical output for all lambda and func type syntax variants.
+2. **Pretty-printer round-trip tests**: Parse → print → parse → print produces identical output for all lambda and func type syntax variants, including lambdas in RHS / argument / return / nested positions and inside bounded-guard switch arms.
+
+### Property-Based Tests (Batched / In-Process)
+
+These implement the Correctness Properties. Each runs a minimum of 100 generated iterations, parses in-process (no process spawning), and is tagged with its design property.
+
+- **Property 6** — lambda/func round-trip (extended to the new precedence positions).
+- **Property 8** — switch-arm guard never captures a trailing lambda. Generator: arms of the form `pattern when <VoidCoalescing-level guard> => <result>`, plus the explicit `when predicate => ...` regression case; assert the arm guard/result split is correct and the guard is not a lambda node.
+- **Property 9** — lambda lowest-precedence / right-associative. Generator: `f = <lambda>` and nested `x => y => <body>`; assert the parse tree shape.
+- **Property 10** — lambda reachable from every value position. Generator: embed a generated lambda in RHS / argument / return / nested-body slots; assert a lambda node appears in each slot.
+
+Tag format: **Feature: first-class-functions, Property {number}: {property_text}**. These are parse-only / pretty-print property tests, so they run fully in-process and do not spawn `dotnet`.
 
 3. **Semantic model tests**: Verify type resolution for `func<int, string>`, lambda type inference from target types, method group conversion, and Func-typed invocation return types.
 

@@ -177,7 +177,8 @@ public sealed class SemanticModel : ISemanticModel
         // → PostfixNode (target = identifier, no suffixes).
         if (node is ExpressionNode expr)
         {
-            var assignment = expr.Assignment;
+            var assignment = expr.AsAssignmentOrNull();
+            if (assignment is null) return null; // Lambda form has no refined identifier.
             if (assignment.Value is not null) return null;
 
             // Navigate through VoidCoalescing to the underlying LogicalOr.

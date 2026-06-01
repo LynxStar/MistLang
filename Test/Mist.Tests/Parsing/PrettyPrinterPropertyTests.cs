@@ -139,7 +139,7 @@ public class PrettyPrinterPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     private static ExpressionNode MakeMemberAccessExpression(string target, string memberName)
@@ -165,15 +165,14 @@ public class PrettyPrinterPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     private static ExpressionNode MakeAssignmentExpression(string target, ExpressionNode value)
     {
-        var targetLogOr = MakeIdentifierExpression(target).Assignment.Target.Left;
-        var valueAssignment = value.Assignment;
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = targetLogOr }, Value = valueAssignment };
-        return new ExpressionNode { Assignment = assign };
+        var targetLogOr = MakeIdentifierExpression(target).AsAssignment().Target.Left;
+        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = targetLogOr }, Value = value };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     private static ExpressionNode WrapPrimaryInExpression(PrimaryNode primary)
@@ -191,14 +190,14 @@ public class PrettyPrinterPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     private static ExpressionNode MakeBinaryExpression(ExpressionNode left, string op, ExpressionNode right)
     {
         // Build an additive expression: left op right
-        var leftUnary = ((RelationalComparisonRelationalNode)left.Assignment.Target.Left.Left.Left.Left).Left.Left.Left;
-        var rightUnary = ((RelationalComparisonRelationalNode)right.Assignment.Target.Left.Left.Left.Left).Left.Left.Left;
+        var leftUnary = ((RelationalComparisonRelationalNode)left.AsAssignment().Target.Left.Left.Left.Left).Left.Left.Left;
+        var rightUnary = ((RelationalComparisonRelationalNode)right.AsAssignment().Target.Left.Left.Left.Left).Left.Left.Left;
 
         var add = new AdditiveNode
         {
@@ -211,7 +210,7 @@ public class PrettyPrinterPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     private static StatementNode MakeExpressionStatement(ExpressionNode expr)
@@ -334,12 +333,12 @@ public class PrettyPrinterPropertyTests
         var eq = new EqualityNode { Left = rel };
         var logAnd = new LogicalAndNode { Left = eq };
         var targetLogOr = new LogicalOrNode { Left = logAnd };
-        var assignExpr = new ExpressionNode
+        var assignExpr = new AssignmentFormExpressionNode
         {
             Assignment = new AssignmentNode
             {
                 Target = new VoidCoalescingNode { Left = targetLogOr },
-                Value = MakeIdentifierExpression("x").Assignment,
+                Value = MakeIdentifierExpression("x"),
             },
         };
 

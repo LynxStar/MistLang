@@ -161,14 +161,14 @@ public class ValueParameterPropertyTests
         var fieldExpr = MistAstGenerator.WrapPrimary(new FieldKeywordExpressionPrimaryNode());
         var valueExpr = MistAstGenerator.MakeIdentifierExpr("value");
 
-        var fieldLogOr = fieldExpr.Assignment.Target;
+        var fieldLogOr = fieldExpr.AsAssignment().Target;
 
-        return new ExpressionNode
+        return new AssignmentFormExpressionNode
         {
             Assignment = new AssignmentNode
             {
                 Target = fieldLogOr,
-                Value = valueExpr.Assignment,
+                Value = valueExpr,
             },
         };
     }

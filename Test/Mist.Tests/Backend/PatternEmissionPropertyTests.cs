@@ -192,12 +192,12 @@ public sealed class PatternEmissionPropertyTests : IDisposable
             EmissionPatternKind.RelationalGreaterThan => new GreaterThanRelationalPatternPrimaryPatternNode
             {
                 Constant = MistAstGenerator.WrapPrimary(
-                    new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = Tok(intValue.ToString()) }),
+                    new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = Tok(intValue.ToString()) }).AsAssignment().Target,
             },
             EmissionPatternKind.RelationalLessThan => new LessThanRelationalPatternPrimaryPatternNode
             {
                 Constant = MistAstGenerator.WrapPrimary(
-                    new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = Tok(intValue.ToString()) }),
+                    new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = Tok(intValue.ToString()) }).AsAssignment().Target,
             },
             _ => new VarPatternPrimaryPatternNode { Name = Tok("_") },
         };
@@ -234,7 +234,7 @@ public sealed class PatternEmissionPropertyTests : IDisposable
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        var isExpr = new ExpressionNode { Assignment = assign };
+        var isExpr = new AssignmentFormExpressionNode { Assignment = assign };
 
         var ifStatement = new IfStatementStatementNode
         {

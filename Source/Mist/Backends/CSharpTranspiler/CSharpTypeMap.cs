@@ -216,6 +216,13 @@ internal static class CSharpTypeMap
         ConstructedType ctTask when IsStandardTask(ctTask)
             => EmitTaskTypeName(ctTask, isValueContext),
 
+        // Standard.Func<...> — maps to System.Func<...> / System.Action<...> / System.Action
+        // based on whether the last type argument (the return type) is Void.
+        // Func<void> → System.Action; Func<T1, void> → System.Action<T1>;
+        // Func<T1, ..., TN> (TResult ≠ void) → System.Func<T1, ..., TN>.
+        ConstructedType ctFunc when IsStandardFunc(ctFunc)
+            => EmitFuncTypeName(ctFunc),
+
         // Closed_Generic_With_Unknown (Task 31 revised) — a constructed type
         // whose type arguments transitively contain UnknownType lowers to C#
         // `dynamic`. See the XML remarks above for the rationale.
@@ -268,6 +275,52 @@ internal static class CSharpTypeMap
             }
         }
         return $"{GetTypeName(ct.GenericDefinition, isValueContext)}<{string.Join(", ", argParts)}>";
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the <see cref="ConstructedType"/>'s generic definition
+    /// is a <c>Standard.Func</c> class (the Mist first-class-function type family).
+    /// </summary>
+    private static bool IsStandardFunc(ConstructedType ct)
+    {
+        return ct.GenericDefinition is ClassType { DisplayName: "Func", ContainingNamespace: "Standard", IsBackendBacked: true };
+    }
+
+    /// <summary>
+    /// Emits the C# type name for a <c>Standard.Func&lt;...&gt;</c> constructed type.
+    /// The last type argument is always the return type; preceding arguments are the
+    /// parameter types in order.
+    /// <list type="bullet">
+    ///   <item>Return type <c>void</c>, arity 1 (just the return type) → <c>System.Action</c> (non-generic)</item>
+    ///   <item>Return type <c>void</c>, arity N &gt; 1 → <c>System.Action&lt;T1, ..., TN-1&gt;</c></item>
+    ///   <item>Return type non-<c>void</c> → <c>System.Func&lt;T1, ..., TN&gt;</c></item>
+    /// </list>
+    /// Func type arguments are emitted in value context: delegate type arguments are
+    /// CLR generic arguments, which cannot be the <c>void</c> keyword (a Func whose last
+    /// argument is <c>void</c> is emitted as <c>Action</c>, removing that argument entirely).
+    /// </summary>
+    private static string EmitFuncTypeName(ConstructedType ct)
+    {
+        var typeArgs = ct.TypeArguments;
+        var returnType = typeArgs[typeArgs.Count - 1];
+
+        if (returnType.IsVoid())
+        {
+            // Action family: drop the trailing void return type.
+            if (typeArgs.Count == 1)
+                return "System.Action";
+
+            var actionArgs = new string[typeArgs.Count - 1];
+            for (var i = 0; i < actionArgs.Length; i++)
+                actionArgs[i] = GetTypeName(typeArgs[i], isValueContext: true);
+            return $"System.Action<{string.Join(", ", actionArgs)}>";
+        }
+
+        // Func family: all type arguments, including the return type.
+        var funcArgs = new string[typeArgs.Count];
+        for (var i = 0; i < funcArgs.Length; i++)
+            funcArgs[i] = GetTypeName(typeArgs[i], isValueContext: true);
+        return $"System.Func<{string.Join(", ", funcArgs)}>";
     }
 
     /// <summary>

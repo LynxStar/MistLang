@@ -84,7 +84,7 @@ public class RefFieldStorageProhibitionTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     private static TypeReferenceNode MakeIntTypeRef()
@@ -119,12 +119,10 @@ public class RefFieldStorageProhibitionTests
         var lhsLogAnd = new LogicalAndNode { Left = lhsEq };
         var lhsLogOr = new LogicalOrNode { Left = lhsLogAnd };
 
-        // Build the RHS as an AssignmentNode (the Value of the outer assignment)
-        var rhsAssignment = rhsExpr.Assignment;
-
         // Build the full assignment expression: this.fieldName = rhs
-        var assignment = new AssignmentNode { Target = new VoidCoalescingNode { Left = lhsLogOr }, Value = rhsAssignment };
-        var expr = new ExpressionNode { Assignment = assignment };
+        // The assignment RHS is now a full ExpressionNode (widened to reach lambdas).
+        var assignment = new AssignmentNode { Target = new VoidCoalescingNode { Left = lhsLogOr }, Value = rhsExpr };
+        var expr = new AssignmentFormExpressionNode { Assignment = assignment };
 
         return new ExpressionStatementStatementNode
         {

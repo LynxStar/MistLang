@@ -49,13 +49,13 @@ public class RefinementComparisonEngineEdgeCaseTests
         return new RefinementPredicate(andNode);
     }
 
-    private static ExpressionNode MakeConstantExpression(int value)
+    private static VoidCoalescingNode MakeConstantExpression(int value)
     {
         return MistAstGenerator.WrapPrimary(
             new IntegerLiteralExpressionPrimaryNode
             {
                 IntegerLiteral = MistTypeGenerator.MakeToken(value.ToString()),
-            });
+            }).AsAssignment().Target;
     }
 
     // ─── Test 1: Property pattern rejection (Requirement 4.1) ────────────
@@ -201,7 +201,7 @@ public class RefinementComparisonEngineEdgeCaseTests
         // Build a >= pattern with the arithmetic expression as the constant operand.
         var gtePrimary = new GreaterThanOrEqualRelationalPatternPrimaryPatternNode
         {
-            Constant = arithmeticExpr,
+            Constant = arithmeticExpr.AsAssignment().Target,
         };
         var unary = new DirectPatternUnaryPatternNode { Primary = gtePrimary };
         var andNode = new AndPatternNode { Left = unary };
@@ -239,7 +239,7 @@ public class RefinementComparisonEngineEdgeCaseTests
 
         var gtePrimary = new GreaterThanOrEqualRelationalPatternPrimaryPatternNode
         {
-            Constant = arithmeticExpr,
+            Constant = arithmeticExpr.AsAssignment().Target,
         };
         var unary = new DirectPatternUnaryPatternNode { Primary = gtePrimary };
         var andNode = new AndPatternNode { Left = unary };

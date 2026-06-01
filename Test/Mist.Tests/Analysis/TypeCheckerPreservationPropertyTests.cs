@@ -62,7 +62,7 @@ public class TypeCheckerPreservationPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     private static ExpressionNode MakeIntLiteralExpression(string value = "0")
@@ -414,7 +414,7 @@ public class TypeCheckerPreservationPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        var addExpr = new ExpressionNode { Assignment = assign };
+        var addExpr = new AssignmentFormExpressionNode { Assignment = assign };
 
         var mainMethod = new MethodDeclarationNode
         {
@@ -448,7 +448,7 @@ public class TypeCheckerPreservationPropertyTests
 
     private static UnaryNode ExtractUnary(ExpressionNode expr)
     {
-        var logOr = expr.Assignment.Target.Left;
+        var logOr = expr.AsAssignment().Target.Left;
         var logAnd = logOr.Left;
         var equality = logAnd.Left;
         var relational = (RelationalComparisonRelationalNode)equality.Left;

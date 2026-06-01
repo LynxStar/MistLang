@@ -86,7 +86,7 @@ public class TraitAssignabilityDebugTest
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        var initExpr = new ExpressionNode { Assignment = assign };
+        var initExpr = new AssignmentFormExpressionNode { Assignment = assign };
 
         var varDecl = new VariableDeclarationStatementStatementNode
         {

@@ -89,7 +89,7 @@ public class SemanticModelBuilderUnitTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     private static ExpressionNode MakeIdentifierExpression(string name)
@@ -111,7 +111,7 @@ public class SemanticModelBuilderUnitTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     private static ExpressionNode MakeThisExpression()
@@ -130,7 +130,7 @@ public class SemanticModelBuilderUnitTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>
@@ -159,7 +159,7 @@ public class SemanticModelBuilderUnitTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>
@@ -189,7 +189,7 @@ public class SemanticModelBuilderUnitTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     private static StatementNode MakeIntVarDecl(string name, string value = "0")
@@ -676,7 +676,7 @@ public class SemanticModelBuilderUnitTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        var expr = new ExpressionNode { Assignment = assign };
+        var expr = new AssignmentFormExpressionNode { Assignment = assign };
 
         var methodDecl = new MethodDeclarationNode
         {
@@ -777,7 +777,7 @@ public class SemanticModelBuilderUnitTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        var expr = new ExpressionNode { Assignment = assign };
+        var expr = new AssignmentFormExpressionNode { Assignment = assign };
 
         var methodDecl = new MethodDeclarationNode
         {

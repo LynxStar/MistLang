@@ -121,7 +121,7 @@ public class ExtensionTypeCheckerPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>
@@ -148,7 +148,7 @@ public class ExtensionTypeCheckerPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>
@@ -175,7 +175,7 @@ public class ExtensionTypeCheckerPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>
@@ -198,7 +198,7 @@ public class ExtensionTypeCheckerPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     private static StatementNode MakeExpressionStatement(ExpressionNode expr) =>
@@ -249,7 +249,7 @@ public class ExtensionTypeCheckerPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     private static ExtensionMemberDeclarationNode MakeExtensionMethod(
@@ -928,7 +928,7 @@ public class ExtensionTypeCheckerPropertyTests
         var receiverLogAnd = new LogicalAndNode { Left = receiverEq };
         var receiverLogOr = new LogicalOrNode { Left = receiverLogAnd };
         var receiverAssign = new AssignmentNode { Target = new VoidCoalescingNode { Left = receiverLogOr } };
-        var receiverExpr = new ExpressionNode { Assignment = receiverAssign };
+        var receiverExpr = new AssignmentFormExpressionNode { Assignment = receiverAssign };
 
         var bodyStatements = ImmutableArray.Create(MakeExpressionStatement(receiverExpr));
         var extMethod = MakeExtensionMethod(scenario.MethodName, "void", isStatic: true, bodyStatements: bodyStatements);

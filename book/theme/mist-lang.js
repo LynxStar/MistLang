@@ -1,7 +1,7 @@
 // Mist language definition for highlight.js 11.x
 hljs.registerLanguage("mist", function(hljs) {
   var MODIFIERS = 'public private static readonly mutable owned frozen borrowed ref implicit explicit intrinsic async';
-  var RESERVED_TYPES = 'int uint long ulong short ushort byte sbyte float double decimal bool char string regex void unknown var';
+  var RESERVED_TYPES = 'int uint long ulong short ushort byte sbyte float double decimal bool char string regex void unknown var func';
   var KEYWORDS = 'namespace using class struct interface trait enum extension type where ' +
     'if else while for foreach in return new break is and or not ' +
     'switch when default with as this base null true false ' +

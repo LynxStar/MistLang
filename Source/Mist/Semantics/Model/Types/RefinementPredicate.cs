@@ -140,9 +140,9 @@ public sealed class RefinementPredicate
         };
     }
 
-    private static string ExtractExpressionText(ExpressionNode expr)
+    private static string ExtractExpressionText(VoidCoalescingNode expr)
     {
-        var value = TryExtractLongFromExpression(expr);
+        var value = TryExtractLongFromVoidCoalescing(expr);
         return value.HasValue ? value.Value.ToString() : "?";
     }
 
@@ -258,9 +258,9 @@ public sealed class RefinementPredicate
     /// Returns negative if value &lt; constant, zero if equal, positive if value &gt; constant.
     /// Returns <see cref="int.MinValue"/> if comparison is not possible.
     /// </summary>
-    private static int CompareToConstant(object value, ExpressionNode constantExpr)
+    private static int CompareToConstant(object value, VoidCoalescingNode constantExpr)
     {
-        var constantLong = TryExtractLongFromExpression(constantExpr);
+        var constantLong = TryExtractLongFromVoidCoalescing(constantExpr);
         if (!constantLong.HasValue) return int.MinValue;
 
         var valueLong = ConvertToLong(value);
@@ -481,28 +481,28 @@ public sealed class RefinementPredicate
         {
             case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gte:
             {
-                var val = TryExtractLongFromExpression(gte.Constant);
+                var val = TryExtractLongFromVoidCoalescing(gte.Constant);
                 if (val.HasValue)
                     constraints.Add(new Constraint(ConstraintKind.Relational, Relational: new RelationalConstraint(RelOp.Gte, val.Value)));
                 break;
             }
             case LessThanOrEqualRelationalPatternPrimaryPatternNode lte:
             {
-                var val = TryExtractLongFromExpression(lte.Constant);
+                var val = TryExtractLongFromVoidCoalescing(lte.Constant);
                 if (val.HasValue)
                     constraints.Add(new Constraint(ConstraintKind.Relational, Relational: new RelationalConstraint(RelOp.Lte, val.Value)));
                 break;
             }
             case GreaterThanRelationalPatternPrimaryPatternNode gt:
             {
-                var val = TryExtractLongFromExpression(gt.Constant);
+                var val = TryExtractLongFromVoidCoalescing(gt.Constant);
                 if (val.HasValue)
                     constraints.Add(new Constraint(ConstraintKind.Relational, Relational: new RelationalConstraint(RelOp.Gt, val.Value)));
                 break;
             }
             case LessThanRelationalPatternPrimaryPatternNode lt:
             {
-                var val = TryExtractLongFromExpression(lt.Constant);
+                var val = TryExtractLongFromVoidCoalescing(lt.Constant);
                 if (val.HasValue)
                     constraints.Add(new Constraint(ConstraintKind.Relational, Relational: new RelationalConstraint(RelOp.Lt, val.Value)));
                 break;
@@ -713,12 +713,24 @@ public sealed class RefinementPredicate
     /// </summary>
     internal static long? TryExtractLongFromExpression(ExpressionNode expr)
     {
-        // Navigate: Expression → Assignment → LogicalOr → LogicalAnd → Equality
-        //         → Relational → Additive → Multiplicative → Unary → Postfix → Primary
-        var assignment = expr.Assignment;
-        if (assignment?.Value is not null) return null;
+        // Navigate: Expression → Assignment → VoidCoalescing → ... → Primary
+        var assignment = expr.AsAssignmentOrNull();
+        if (assignment is null) return null; // Lambda form is not a constant integer.
+        if (assignment.Value is not null) return null;
 
-        var logicalOr = assignment?.Target?.Left;
+        return TryExtractLongFromVoidCoalescing(assignment.Target);
+    }
+
+    /// <summary>
+    /// Extracts a long integer value from a <see cref="VoidCoalescingNode"/> by navigating the
+    /// expression hierarchy down to an integer literal primary node. Used for relational-pattern
+    /// constants, which are bounded to <c>VoidCoalescing</c>.
+    /// </summary>
+    internal static long? TryExtractLongFromVoidCoalescing(VoidCoalescingNode? voidCoalescing)
+    {
+        // Navigate: VoidCoalescing → LogicalOr → LogicalAnd → Equality
+        //         → Relational → Additive → Multiplicative → Unary → Postfix → Primary
+        var logicalOr = voidCoalescing?.Left;
         if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left)) return null;
 
         var logicalAnd = logicalOr?.Left;

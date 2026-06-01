@@ -142,7 +142,7 @@ public class AsyncParsingTests
         Assert.NotNull(inferred);
 
         // The expression's assignment → target chain should contain an AsyncExpressionUnaryNode
-        var assignment = inferred!.Initializer.Assignment;
+        var assignment = inferred!.Initializer.AsAssignment();
         var unary = GetUnaryFromAssignment(assignment);
         Assert.IsType<AsyncExpressionUnaryNode>(unary);
     }
@@ -200,7 +200,7 @@ public class AsyncParsingTests
         var inferred = varDecl!.VariableDeclaration as InferredVariableDeclarationVariableDeclarationStatementNode;
         Assert.NotNull(inferred);
 
-        var assignment = inferred!.Initializer.Assignment;
+        var assignment = inferred!.Initializer.AsAssignment();
         var unary = GetUnaryFromAssignment(assignment);
         Assert.IsType<AwaitExpressionUnaryNode>(unary);
     }
@@ -268,7 +268,7 @@ public class AsyncParsingTests
         // Navigate through the expression tree:
         // Expression → Assignment → LogicalOr → LogicalAnd → Equality → Relational → Additive
         // The Additive should have a Left (containing async foo()) and a Right (containing 1)
-        var assignment = inferred!.Initializer.Assignment;
+        var assignment = inferred!.Initializer.AsAssignment();
         var additive = GetAdditiveFromAssignment(assignment);
         Assert.NotNull(additive);
 
@@ -298,7 +298,7 @@ public class AsyncParsingTests
         var inferred = varDecl!.VariableDeclaration as InferredVariableDeclarationVariableDeclarationStatementNode;
         Assert.NotNull(inferred);
 
-        var assignment = inferred!.Initializer.Assignment;
+        var assignment = inferred!.Initializer.AsAssignment();
         var additive = GetAdditiveFromAssignment(assignment);
         Assert.NotNull(additive);
 

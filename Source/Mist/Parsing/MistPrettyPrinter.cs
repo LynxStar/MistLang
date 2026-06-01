@@ -1269,6 +1269,13 @@ public sealed class MistPrettyPrinter
 
                 return $"({string.Join(", ", parts)})";
             }
+            case FuncSingleTypeRefSingleTypeRefNode funcRef:
+            {
+                // Emit the lowercase `func` keyword form with its type arguments
+                // (e.g., func<int, string>). The last type argument is the return type.
+                var typeArgs = EmitTypeArgumentList(funcRef.TypeArgs);
+                return $"func{typeArgs}";
+            }
             default:
                 return "object";
         }
@@ -1636,20 +1643,51 @@ public sealed class MistPrettyPrinter
 
     private string EmitExpression(ExpressionNode expr)
     {
-        return EmitAssignment(expr.Assignment);
+        return expr switch
+        {
+            AssignmentFormExpressionNode assignmentForm => EmitAssignment(assignmentForm.Assignment),
+            LambdaFormExpressionNode lambdaForm => EmitLambda(lambdaForm.Lambda),
+            _ => throw new System.InvalidOperationException(
+                $"Unknown ExpressionNode variant: {expr.GetType().Name}"),
+        };
+    }
+
+    /// <summary>
+    /// Pretty-prints a lambda expression.
+    /// </summary>
+    /// <remarks>
+    /// Full lambda pretty-printing (expression/block bodies, single implicit param, typed
+    /// params, <c>static</c>/<c>async</c> modifiers) is implemented by first-class-functions
+    /// task 5.2. This stub exists so the abstract <see cref="ExpressionNode"/> dispatch
+    /// compiles and the assignment-form path is fully preserved; task 5.2 fills in the body.
+    /// </remarks>
+    private static string EmitLambda(LambdaExpressionNode lambda)
+    {
+        _ = lambda;
+        throw new System.NotSupportedException(
+            "Lambda expression pretty-printing is implemented by first-class-functions task 5.2.");
     }
 
     private string EmitAssignment(AssignmentNode assignment)
     {
         var target = EmitVoidCoalescing(assignment.Target);
 
-        if (assignment.Value is not null && !ReferenceEquals(assignment.Value.Target, assignment.Target))
+        if (assignment.Value is not null && !ReferenceEquals(GetAssignmentValueTarget(assignment.Value), assignment.Target))
         {
-            var value = EmitAssignment(assignment.Value);
+            var value = EmitExpression(assignment.Value);
             return $"{target} = {value}";
         }
 
         return target;
+    }
+
+    /// <summary>
+    /// Returns the <see cref="VoidCoalescingNode"/> target of an assignment-RHS expression,
+    /// or <c>null</c> when the RHS is a lambda form (which has no assignment target).
+    /// </summary>
+    private static VoidCoalescingNode? GetAssignmentValueTarget(ExpressionNode value)
+    {
+        return value.AsAssignmentOrNull()?.Target;
     }
 
     private string EmitVoidCoalescing(VoidCoalescingNode voidCoalescing)
@@ -1811,13 +1849,13 @@ public sealed class MistPrettyPrinter
             case ConstantPatternPrimaryPatternNode constantPattern:
                 return EmitConstantLiteral(constantPattern.Literal);
             case LessThanRelationalPatternPrimaryPatternNode ltPattern:
-                return $"< {EmitExpression(ltPattern.Constant)}";
+                return $"< {EmitVoidCoalescing(ltPattern.Constant)}";
             case GreaterThanRelationalPatternPrimaryPatternNode gtPattern:
-                return $"> {EmitExpression(gtPattern.Constant)}";
+                return $"> {EmitVoidCoalescing(gtPattern.Constant)}";
             case LessThanOrEqualRelationalPatternPrimaryPatternNode ltePattern:
-                return $"<= {EmitExpression(ltePattern.Constant)}";
+                return $"<= {EmitVoidCoalescing(ltePattern.Constant)}";
             case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gtePattern:
-                return $">= {EmitExpression(gtePattern.Constant)}";
+                return $">= {EmitVoidCoalescing(gtePattern.Constant)}";
             case PropertyPatternPrimaryPatternNode propertyPattern:
             {
                 var sb = new StringBuilder();
@@ -2034,7 +2072,7 @@ public sealed class MistPrettyPrinter
                         builder.Append(EmitPattern(arm.Pattern));
                         if (arm.Guard is not null)
                         {
-                            builder.Append($" when {EmitExpression(arm.Guard.Condition)}");
+                            builder.Append($" when {EmitVoidCoalescing(arm.Guard.Condition)}");
                         }
                         builder.Append($" => {EmitExpression(arm.Result)}");
                         builder.Append(',');

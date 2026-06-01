@@ -293,4 +293,90 @@ public class CSharpTypeMapTests
         var utilityType = MakeStdlibClass(displayName);
         Assert.Equal(expected, CSharpTypeMap.GetKeyword(utilityType));
     }
+
+    // ── Standard.Func → System.Func / System.Action (first-class-functions Task 1.3) ──
+    // Requirements 14.1, 14.2, 14.3: a Standard.Func constructed type maps to
+    // System.Func<...> when the return type (last type argument) is non-void,
+    // System.Action<...> when the return type is void with >= 1 parameter, and
+    // the non-generic System.Action when the only type argument is void.
+
+    /// <summary>
+    /// Creates a stdlib Backend_Backed <c>Standard.Func</c> ClassType with the given
+    /// number of type parameters (arity = parameters + return type).
+    /// </summary>
+    private static ClassType MakeStdlibFunc(int arity)
+    {
+        var func = new ClassType("Func", new Scope(parent: null), containingNamespace: "Standard", isBackendBacked: true);
+        var typeParams = new IType[arity];
+        for (var i = 0; i < arity; i++)
+            typeParams[i] = new TypeParameterType($"T{i}", i);
+        func.TypeParameters = typeParams;
+        return func;
+    }
+
+    /// <summary>Creates the stdlib Backend_Backed <c>Standard.Void</c> struct.</summary>
+    private static StructType MakeStdlibVoid() => MakeStdlibStruct("Void");
+
+    [Fact]
+    public void GetTypeName_FuncWithNonVoidReturn_ReturnsSystemFunc()
+    {
+        // func<int, string> → System.Func<int, string>
+        var func = MakeStdlibFunc(2);
+        var constructed = new ConstructedType(func, new IType[]
+        {
+            MakeStdlibStruct("Int32"),
+            MakeStdlibClass("String"),
+        });
+
+        Assert.Equal("System.Func<int, string>", CSharpTypeMap.GetTypeName(constructed));
+    }
+
+    [Fact]
+    public void GetTypeName_FuncWithOnlyReturnType_ReturnsSystemFuncSingle()
+    {
+        // func<int> (zero-parameter function returning int) → System.Func<int>
+        var func = MakeStdlibFunc(1);
+        var constructed = new ConstructedType(func, new IType[] { MakeStdlibStruct("Int32") });
+
+        Assert.Equal("System.Func<int>", CSharpTypeMap.GetTypeName(constructed));
+    }
+
+    [Fact]
+    public void GetTypeName_FuncWithVoidReturnAndOneParam_ReturnsSystemActionOfOne()
+    {
+        // func<int, void> (Action<int>) → System.Action<int>
+        var func = MakeStdlibFunc(2);
+        var constructed = new ConstructedType(func, new IType[]
+        {
+            MakeStdlibStruct("Int32"),
+            MakeStdlibVoid(),
+        });
+
+        Assert.Equal("System.Action<int>", CSharpTypeMap.GetTypeName(constructed));
+    }
+
+    [Fact]
+    public void GetTypeName_FuncWithVoidReturnAndTwoParams_ReturnsSystemActionOfTwo()
+    {
+        // func<int, string, void> (Action<int, string>) → System.Action<int, string>
+        var func = MakeStdlibFunc(3);
+        var constructed = new ConstructedType(func, new IType[]
+        {
+            MakeStdlibStruct("Int32"),
+            MakeStdlibClass("String"),
+            MakeStdlibVoid(),
+        });
+
+        Assert.Equal("System.Action<int, string>", CSharpTypeMap.GetTypeName(constructed));
+    }
+
+    [Fact]
+    public void GetTypeName_FuncWithOnlyVoid_ReturnsNonGenericSystemAction()
+    {
+        // func<void> (Action) → System.Action (non-generic)
+        var func = MakeStdlibFunc(1);
+        var constructed = new ConstructedType(func, new IType[] { MakeStdlibVoid() });
+
+        Assert.Equal("System.Action", CSharpTypeMap.GetTypeName(constructed));
+    }
 }

@@ -93,7 +93,7 @@ public class StringLengthPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>
@@ -125,7 +125,7 @@ public class StringLengthPropertyTests
         var argLogAnd = new LogicalAndNode { Left = argEq };
         var argLogOr = new LogicalOrNode { Left = argLogAnd };
         var argAssign = new AssignmentNode { Target = new VoidCoalescingNode { Left = argLogOr } };
-        var argExpr = new ExpressionNode { Assignment = argAssign };
+        var argExpr = new AssignmentFormExpressionNode { Assignment = argAssign };
 
         var argList = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = argExpr } };
 
@@ -147,7 +147,7 @@ public class StringLengthPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>
@@ -178,7 +178,7 @@ public class StringLengthPropertyTests
         var argLogAnd = new LogicalAndNode { Left = argEq };
         var argLogOr = new LogicalOrNode { Left = argLogAnd };
         var argAssign = new AssignmentNode { Target = new VoidCoalescingNode { Left = argLogOr } };
-        var argExpr = new ExpressionNode { Assignment = argAssign };
+        var argExpr = new AssignmentFormExpressionNode { Assignment = argAssign };
 
         var argList = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = argExpr } };
 
@@ -200,7 +200,7 @@ public class StringLengthPropertyTests
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>

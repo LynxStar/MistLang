@@ -1030,7 +1030,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         bool isLoop)
     {
-        AnalyzeAssignment(expr.Assignment, state, model, diagnostics, isLoop);
+        // Lambda-form expressions introduce their own body scope; closure capture
+        // ownership is handled by the type checker's capture rules, not flow analysis.
+        if (expr.AsAssignmentOrNull() is { } assignment)
+            AnalyzeAssignment(assignment, state, model, diagnostics, isLoop);
     }
 
     /// <summary>
@@ -1046,15 +1049,23 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     {
         if (assignment.Value is not null)
         {
-            // This is an assignment: target = value.
+            // This is an assignment: target = value. The RHS is now a full
+            // ExpressionNode (widened to reach lambdas). A lambda RHS has no
+            // move/ownership effect on the assignment, so resolve the assignment
+            // form and skip when it is a lambda.
+            var rhsAssignment = assignment.Value.AsAssignmentOrNull();
+
             // First, check the RHS for use-after-move.
-            CheckAssignmentValueForUseAfterMove(assignment.Value, state, model, diagnostics);
+            if (rhsAssignment is not null)
+                CheckAssignmentValueForUseAfterMove(rhsAssignment, state, model, diagnostics);
 
             // Resolve the LHS target symbol.
             var lhsSymbol = TryResolveAssignmentTarget(assignment.Target, model);
 
             // Resolve the RHS source symbol.
-            var rhsSymbol = TryResolveAssignmentValueSymbol(assignment.Value, model);
+            var rhsSymbol = rhsAssignment is not null
+                ? TryResolveAssignmentValueSymbol(rhsAssignment, model)
+                : null;
 
             // Non-storability check: if the RHS is a ref-tier variable and the LHS
             // is a field, emit MIST_OWN_NOT_STORABLE.
@@ -1381,7 +1392,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        CheckAssignmentValueForUseAfterMove(expr.Assignment, state, model, diagnostics);
+        // Lambda-form expressions are handled by the type checker's capture rules.
+        if (expr.AsAssignmentOrNull() is { } assignment)
+            CheckAssignmentValueForUseAfterMove(assignment, state, model, diagnostics);
     }
 
     /// <summary>
@@ -1396,10 +1409,11 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // Check the target (which is the expression when Value is null).
         CheckLogicalOrForUseAfterMove(assignment.Target, state, model, diagnostics);
 
-        // If there's a chained assignment, check it recursively.
-        if (assignment.Value is not null)
+        // If there's a chained assignment, check it recursively. The RHS is now a
+        // full ExpressionNode; a lambda RHS has no use-after-move effect here.
+        if (assignment.Value is not null && assignment.Value.AsAssignmentOrNull() is { } rhsAssignment)
         {
-            CheckAssignmentValueForUseAfterMove(assignment.Value, state, model, diagnostics);
+            CheckAssignmentValueForUseAfterMove(rhsAssignment, state, model, diagnostics);
         }
     }
 
@@ -1743,7 +1757,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     {
         // Unwrap expression chain: ExpressionNode → AssignmentNode → LogicalOrNode → ... → PostfixNode → PrimaryNode
         if (node is ExpressionNode expr)
-            return TryResolveIdentifierSymbol(expr.Assignment, model);
+            return expr.AsAssignmentOrNull() is { } exprAssignment
+                ? TryResolveIdentifierSymbol(exprAssignment, model)
+                : null; // Lambda form is not a simple identifier reference.
 
         if (node is AssignmentNode assignment)
         {
@@ -1805,7 +1821,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     {
         // Unwrap expression chain to find the identifier.
         if (target is ExpressionNode expr)
-            return TryResolveFieldTarget(expr.Assignment, model);
+            return expr.AsAssignmentOrNull() is { } exprAssignment
+                ? TryResolveFieldTarget(exprAssignment, model)
+                : null; // Lambda form is not a field target.
 
         if (target is AssignmentNode assignment)
         {

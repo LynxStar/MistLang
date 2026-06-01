@@ -911,6 +911,18 @@ internal sealed class TypeProjector
             return new TypeParameterType(clrType.Name, clrType.GenericParameterPosition);
         }
 
+        // Project the well-known .NET delegate families to the Mist Func type family
+        // (Requirements 15.1, 15.2):
+        //   System.Func<T1, ..., TN, TResult> → Standard.Func<T1, ..., TN, TResult>
+        //   System.Action<T1, ..., TN>        → Standard.Func<T1, ..., TN, Void>
+        //   System.Action (non-generic)       → Standard.Func<Void>
+        // Done before the constructed-generic / simple-type branches so the delegate
+        // types are never projected as plain CLR classes.
+        if (TryProjectStandardFuncDelegate(clrType, stdlib, out var funcType))
+        {
+            return funcType;
+        }
+
         // Handle constructed generic types (e.g., List<int>, Dictionary<string, int>)
         if (clrType.IsConstructedGenericType)
         {
@@ -959,6 +971,136 @@ internal sealed class TypeProjector
         projectedDef = _intrinsicMap.SubstituteIntrinsics(projectedDef, stdlib);
 
         return new ConstructedType(projectedDef, projectedArgs);
+    }
+
+    /// <summary>
+    /// Attempts to project a well-known .NET delegate type from the <c>System</c>
+    /// namespace into the Mist <c>Standard.Func</c> type family (Requirements 15.1, 15.2).
+    ///
+    /// <list type="bullet">
+    ///   <item><c>System.Func&lt;T1, ..., TN, TResult&gt;</c> → <c>Standard.Func&lt;T1, ..., TN, TResult&gt;</c></item>
+    ///   <item><c>System.Action&lt;T1, ..., TN&gt;</c> → <c>Standard.Func&lt;T1, ..., TN, Void&gt;</c></item>
+    ///   <item><c>System.Action</c> (non-generic) → <c>Standard.Func&lt;Void&gt;</c></item>
+    /// </list>
+    ///
+    /// <para>
+    /// The resulting <see cref="ConstructedType"/> wraps the arity-matched
+    /// <c>Standard.Func</c> definition looked up from the stdlib so that it is
+    /// reference-equal to a <c>func&lt;...&gt;</c> / <c>Func&lt;...&gt;</c> type resolved
+    /// from Mist source (structural equality of constructed types compares the
+    /// generic definition by reference). When the stdlib has not yet loaded the
+    /// <c>Func</c> family (e.g., the fallback provider before Pass 1 completes),
+    /// projection is skipped and the caller falls back to the default CLR-class
+    /// projection — the type is re-resolved after <c>UpdateStdlibProvider</c>.
+    /// </para>
+    /// </summary>
+    /// <param name="clrType">The CLR type to inspect.</param>
+    /// <param name="stdlib">The stdlib type provider used to resolve <c>Standard.Func</c>/<c>Void</c>.</param>
+    /// <param name="funcType">The projected <c>Standard.Func</c> constructed type, when matched.</param>
+    /// <returns><c>true</c> when <paramref name="clrType"/> is a projectable delegate; otherwise <c>false</c>.</returns>
+    private bool TryProjectStandardFuncDelegate(
+        Type clrType,
+        IStdlibTypeProvider stdlib,
+        out IType funcType)
+    {
+        funcType = null!;
+
+        if (clrType.Namespace != "System")
+            return false;
+
+        // The Func type arguments, in Mist order (parameter types followed by the
+        // return type). For Action, the synthesized return type is Void.
+        IType[] funcTypeArguments;
+
+        if (clrType.IsConstructedGenericType)
+        {
+            var genericName = clrType.GetGenericTypeDefinition().Name;
+            var clrArgs = clrType.GetGenericArguments();
+
+            if (genericName.StartsWith("Func`", StringComparison.Ordinal))
+            {
+                // System.Func<T1, ..., TN, TResult> → Standard.Func<T1, ..., TN, TResult>.
+                // CLR Func already places the return type last, matching Mist's convention.
+                funcTypeArguments = new IType[clrArgs.Length];
+                for (var i = 0; i < clrArgs.Length; i++)
+                {
+                    var projectedArg = ProjectTypeReference(clrArgs[i], stdlib);
+                    funcTypeArguments[i] = _intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
+                }
+            }
+            else if (genericName.StartsWith("Action`", StringComparison.Ordinal))
+            {
+                // System.Action<T1, ..., TN> → Standard.Func<T1, ..., TN, Void>.
+                // Append Void as the trailing return type.
+                if (!TryLookupVoid(stdlib, out var voidType))
+                    return false;
+
+                funcTypeArguments = new IType[clrArgs.Length + 1];
+                for (var i = 0; i < clrArgs.Length; i++)
+                {
+                    var projectedArg = ProjectTypeReference(clrArgs[i], stdlib);
+                    funcTypeArguments[i] = _intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
+                }
+                funcTypeArguments[clrArgs.Length] = voidType;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else if (clrType.Name == "Action" && !clrType.IsGenericType)
+        {
+            // System.Action (non-generic) → Standard.Func<Void>.
+            if (!TryLookupVoid(stdlib, out var voidType))
+                return false;
+
+            funcTypeArguments = new[] { voidType };
+        }
+        else
+        {
+            return false;
+        }
+
+        // Look up the arity-matched Standard.Func definition. The arity is the number
+        // of type arguments on the Mist Func (parameters + return type).
+        IType funcDefinition;
+        try
+        {
+            funcDefinition = stdlib.LookupStandardType("Func", funcTypeArguments.Length);
+        }
+        catch (InvalidOperationException)
+        {
+            // Stdlib doesn't have the Func family yet (fallback provider before Pass 1).
+            // Skip projection; the type is re-resolved after UpdateStdlibProvider.
+            return false;
+        }
+
+        // Guard: ensure we resolved the real Standard.Func family and not a fallback
+        // (e.g., the fallback provider has no Func and would not reach here, but a
+        // wrong-arity fallback would produce a structurally incorrect type).
+        if (funcDefinition is not ClassType { DisplayName: "Func", ContainingNamespace: "Standard" })
+            return false;
+
+        funcType = new ConstructedType(funcDefinition, funcTypeArguments);
+        return true;
+    }
+
+    /// <summary>
+    /// Looks up the <c>Standard.Void</c> type from the stdlib provider, returning
+    /// <c>false</c> when the stdlib has not been loaded (fallback provider).
+    /// </summary>
+    private static bool TryLookupVoid(IStdlibTypeProvider stdlib, out IType voidType)
+    {
+        try
+        {
+            voidType = stdlib.LookupStandardType("Void");
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            voidType = null!;
+            return false;
+        }
     }
 
     /// <summary>

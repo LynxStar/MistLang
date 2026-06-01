@@ -162,7 +162,7 @@
       "patterns": [
         {
           "name": "storage.type.primitive.mist",
-          "match": "\\b(int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|regex|unknown)\\b"
+          "match": "\\b(int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|regex|unknown|func)\\b"
         },
         {
           "name": "storage.type.void.mist",

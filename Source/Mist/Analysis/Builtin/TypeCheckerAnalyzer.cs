@@ -4098,10 +4098,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var result = new List<(string, List<ConditionConstraint>)>();
 
         // Navigate: Expression → Assignment → LogicalOr → LogicalAnd → Equality → Relational
-        var assignment = condition.Assignment;
-        if (assignment?.Value is not null) return result; // Not a simple condition.
+        var assignment = condition.AsAssignmentOrNull();
+        if (assignment is null) return result; // Lambda form is not a narrowing condition.
+        if (assignment.Value is not null) return result; // Not a simple condition.
 
-        var voidCoalescing = assignment?.Target;
+        var voidCoalescing = assignment.Target;
         if (voidCoalescing is null) return result;
         if (voidCoalescing.LogicalOrs.Length > 0) return result;
 
@@ -4372,12 +4373,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Extracts a long integer value from a pattern constant expression.
+    /// Extracts a long integer value from a relational-pattern constant.
+    /// The constant is now bounded to <see cref="VoidCoalescingNode"/>.
     /// Delegates to the same logic used by <see cref="RefinementPredicate"/>.
     /// </summary>
-    private static long? TryExtractLongFromPatternConstant(ExpressionNode expr)
+    private static long? TryExtractLongFromPatternConstant(VoidCoalescingNode expr)
     {
-        return RefinementPredicate.TryExtractLongFromExpression(expr);
+        return RefinementPredicate.TryExtractLongFromVoidCoalescing(expr);
     }
 
     /// <summary>
@@ -4451,10 +4453,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private string? TryExtractNarrowedIdentifierName(ExpressionNode expr)
     {
         // Navigate to the identifier: Expression → Assignment → LogicalOr → ... → Primary
-        var assignment = expr.Assignment;
-        if (assignment?.Value is not null) return null;
+        var assignment = expr.AsAssignmentOrNull();
+        if (assignment is null) return null; // Lambda form is not a narrowed identifier.
+        if (assignment.Value is not null) return null;
 
-        var logicalOr = assignment?.Target?.Left;
+        var logicalOr = assignment.Target?.Left;
         if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return null;
 
@@ -4532,7 +4535,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static string? TryExtractIdentifierFromExpression(ExpressionNode expr)
     {
         // Expression → Assignment → VoidCoalescing → LogicalOr → ... → Postfix → Identifier
-        var assignment = expr.Assignment;
+        var assignment = expr.AsAssignmentOrNull();
+        if (assignment is null)
+            return null; // Lambda form is not a simple identifier reference.
         if (assignment.Value is not null || assignment.Operator is not null)
             return null;
         return TryExtractIdentifierFromLogicalOr(assignment.Target.Left);
@@ -4761,10 +4766,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static IdentifierExpressionPrimaryNode? TryExtractIdentifierPrimaryNode(ExpressionNode expr)
     {
-        var assignment = expr.Assignment;
-        if (assignment?.Value is not null) return null;
+        var assignment = expr.AsAssignmentOrNull();
+        if (assignment is null) return null; // Lambda form is not a simple identifier.
+        if (assignment.Value is not null) return null;
 
-        var logicalOr = assignment?.Target?.Left;
+        var logicalOr = assignment.Target?.Left;
         if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return null;
 
@@ -4911,10 +4917,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static long? TryExtractLongFromExpression(ExpressionNode expr)
     {
-        var assignment = expr.Assignment;
-        if (assignment?.Value is not null) return null;
+        var assignment = expr.AsAssignmentOrNull();
+        if (assignment is null) return null; // Lambda form is not a literal integer.
+        if (assignment.Value is not null) return null;
 
-        var logicalOr = assignment?.Target?.Left;
+        var logicalOr = assignment.Target?.Left;
         if (logicalOr is null) return null;
         if (logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return null;
@@ -4945,10 +4952,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static ConditionConstraint? TryExtractForLoopUpperBound(ExpressionNode condition, string varName, ISemanticModel model)
     {
         // Navigate: Expression → Assignment → LogicalOr → LogicalAnd → Equality → Relational
-        var assignment = condition.Assignment;
-        if (assignment?.Value is not null) return null;
+        var assignment = condition.AsAssignmentOrNull();
+        if (assignment is null) return null; // Lambda form is not a for-loop condition.
+        if (assignment.Value is not null) return null;
 
-        var logicalOr = assignment?.Target?.Left;
+        var logicalOr = assignment.Target?.Left;
         if (logicalOr is null) return null;
         if (logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return null;
@@ -5267,7 +5275,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private void CheckExpression(ExpressionNode expr, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        CheckAssignmentNode(expr.Assignment, model, diagnostics);
+        // Lambda-form expression checking (parameter/capture/async validation) is
+        // implemented by later first-class-functions tasks (11.x); the assignment form
+        // is checked as before.
+        if (expr.AsAssignmentOrNull() is { } assignment)
+            CheckAssignmentNode(assignment, model, diagnostics);
     }
 
     private void CheckAssignmentNode(AssignmentNode assignment, ISemanticModel model, DiagnosticBag diagnostics)
@@ -5316,12 +5328,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             CheckRefFieldStorageProhibition(assignment, model, diagnostics);
 
             // Infer bare 'default' type from the LHS type before checking the RHS.
+            // The RHS is now a full ExpressionNode (widened to reach lambdas); only the
+            // assignment form can carry a bare 'default' literal.
             var lhsTypeForDefault = model.GetTypeOf(assignment.Target);
-            TryInferDefaultLiteralTypeFromAssignment(assignment.Value, lhsTypeForDefault, model);
+            var rhsAssignment = assignment.Value.AsAssignmentOrNull();
+            if (rhsAssignment is not null)
+                TryInferDefaultLiteralTypeFromAssignment(rhsAssignment, lhsTypeForDefault, model);
 
             // This is an assignment: target = value.
             _assignmentNestingDepth++;
-            CheckAssignmentNode(assignment.Value, model, diagnostics);
+            CheckExpression(assignment.Value, model, diagnostics);
             _assignmentNestingDepth--;
 
             var lhsType = model.GetTypeOf(assignment.Target);
@@ -5330,7 +5346,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (lhsType is not null && rhsType is not null)
             {
                 // ── flow narrowing: use narrowed type for RHS if available ──
-                var effectiveRhsType = GetEffectiveSourceTypeFromAssignment(assignment.Value, rhsType);
+                var effectiveRhsType = rhsAssignment is not null
+                    ? GetEffectiveSourceTypeFromAssignment(rhsAssignment, rhsType)
+                    : rhsType;
 
                 // ── refinement-types feature: compile-time enforcement ──
                 // When the target is a RefinementType, check the assignment
@@ -5588,9 +5606,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
 
         // Step 2: Check if the RHS is a ref parameter or ref local.
-        // The RHS is assignment.Value which is an AssignmentNode. When it has no
-        // further chaining (Value is null), the expression is in its Target (LogicalOrNode).
-        var rhsAssignment = assignment.Value!;
+        // The RHS is assignment.Value which is now a full ExpressionNode. A simple ref
+        // identifier reference only occurs in the assignment form; a lambda RHS is not one.
+        var rhsAssignment = assignment.Value!.AsAssignmentOrNull();
+        if (rhsAssignment is null)
+            return; // Lambda-form RHS — not a simple ref identifier.
         if (rhsAssignment.Value is not null)
             return; // Chained assignment — not a simple ref identifier.
 
@@ -5861,8 +5881,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        // Check the RHS expression.
-        CheckAssignmentNode(assignment.Value, model, diagnostics);
+        // Check the RHS expression. The RHS is now a full ExpressionNode (widened to
+        // reach lambdas); route through the expression-level entry point.
+        CheckExpression(assignment.Value, model, diagnostics);
 
         // ── MIST_TC_0043: Left operand must be a mutable variable ──
         var targetVarName = TryExtractIdentifierFromLogicalOr(assignment.Target.Left);
@@ -6572,7 +6593,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckRelationalPattern(
         PrimaryPatternNode patternNode,
-        ExpressionNode constantExpr,
+        VoidCoalescingNode constantExpr,
         string op,
         IType scrutineeType,
         ISemanticModel model,
@@ -7956,7 +7977,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Walk the guard expression (if present) and verify it resolves to bool.
         if (arm.Guard is not null)
         {
-            CheckExpression(arm.Guard.Condition, model, diagnostics);
+            CheckVoidCoalescingNode(arm.Guard.Condition, model, diagnostics);
             var guardType = model.GetTypeOf(arm.Guard.Condition);
             if (guardType is not null && !IsErrorType(guardType) && !IsBoolLike(guardType))
             {
@@ -8660,7 +8681,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Expression → Assignment → LogicalOr → LogicalAnd → Equality →
         // Relational → Additive → Multiplicative → Unary → Postfix
-        var assignment = expr.Assignment;
+        var assignment = expr.AsAssignmentOrNull();
+        if (assignment is null)
+            return null; // Lambda form — not a simple postfix chain.
         if (assignment.Value is not null)
             return null;
 
@@ -8708,7 +8731,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Expression → Assignment → LogicalOr → LogicalAnd → Equality →
         // Relational → Additive → Multiplicative → Unary → Postfix → Primary
-        var assignment = expr.Assignment;
+        var assignment = expr.AsAssignmentOrNull();
+        if (assignment is null)
+            return null; // Lambda form — not a bare 'default'.
         if (assignment.Value is not null)
             return null; // Has an assignment operator — not a simple expression.
 
@@ -9544,10 +9569,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static PostfixNode? TryExtractPostfixNode(ExpressionNode expr)
     {
-        var assignment = expr.Assignment;
-        if (assignment?.Value is not null) return null;
+        var assignment = expr.AsAssignmentOrNull();
+        if (assignment is null) return null; // Lambda form — not a simple postfix chain.
+        if (assignment.Value is not null) return null;
 
-        var logicalOr = assignment?.Target?.Left;
+        var logicalOr = assignment.Target?.Left;
         if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return null;
 

@@ -56,7 +56,7 @@ public static class MistPatternGenerator
         var logAnd = new LogicalAndNode { Left = eq };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new ExpressionNode { Assignment = assign };
+        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     /// <summary>
@@ -624,10 +624,16 @@ public static class MistPatternGenerator
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>Creates a constant integer expression for use in relational patterns.</summary>
-    private static ExpressionNode MakeConstantExpression(string value)
+    /// <remarks>
+    /// The relational-pattern <c>Constant</c> property is bounded to <see cref="VoidCoalescingNode"/>
+    /// (the structural analogue of Roslyn's coalescing precedence floor), so this returns the
+    /// <c>VoidCoalescing</c> node from the built expression chain.
+    /// </remarks>
+    private static VoidCoalescingNode MakeConstantExpression(string value)
     {
         return MistAstGenerator.WrapPrimary(
-            new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = Tok(value) });
+            new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = Tok(value) })
+            .AsAssignment().Target;
     }
 
     /// <summary>Creates an <c>and</c> pattern from two primary patterns.</summary>

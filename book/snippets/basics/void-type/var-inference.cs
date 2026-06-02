@@ -1,4 +1,4 @@
 using System;
 
-var v = MistVoid.Instance;
-Console.WriteLine($"void value obtained: {v}");
+var inferred = typeof(void);
+Console.WriteLine($"var inferred type name: {inferred.Name}");

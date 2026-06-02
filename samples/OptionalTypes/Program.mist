@@ -63,7 +63,7 @@ public class Program
         Console.WriteLine($"present?.GetValue()={result1}");
 
         // PROOF: ?. operator short-circuits to void when receiver is void
-        Inner? absent = Void.Void;
+        Inner? absent = void;
         int? result2 = absent?.GetValue();
         Console.WriteLine($"absent?.GetValue()={result2}");
 
@@ -72,7 +72,7 @@ public class Program
         int? chained1 = outerPresent.GetChild()?.GetValue();
         Console.WriteLine($"outerPresent.GetChild()?.GetValue()={chained1}");
 
-        Inner? absentInner = Void.Void;
+        Inner? absentInner = void;
         Outer outerAbsent = new Outer(absentInner);
         int? chained2 = outerAbsent.GetChild()?.GetValue();
         Console.WriteLine($"outerAbsent.GetChild()?.GetValue()={chained2}");
@@ -83,19 +83,19 @@ public class Program
         Console.WriteLine($"hasValue ?? 0={coalesced1}");
 
         // PROOF: ?? operator returns right when left is void
-        int? noValue = Void.Void;
+        int? noValue = void;
         int coalesced2 = noValue ?? 42;
         Console.WriteLine($"noValue ?? 42={coalesced2}");
 
         // PROOF: ?? with nested optional — demonstrates fallback chain
-        int? a = Void.Void;
+        int? a = void;
         int? b = 77;
         int fromA = a ?? 99;
         int fromB = b ?? 99;
         Console.WriteLine($"a ?? 99={fromA}, b ?? 99={fromB}");
 
         // PROOF: ?. combined with ?? in a single expression
-        Inner? forCombo = Void.Void;
+        Inner? forCombo = void;
         int comboResult = forCombo?.GetValue() ?? -1;
         Console.WriteLine($"forCombo?.GetValue() ?? -1={comboResult}");
 
@@ -104,7 +104,7 @@ public class Program
         Console.WriteLine($"forCombo2?.GetValue() ?? -1={comboResult2}");
 
         // PROOF: ??= assigns when variable is void
-        int? x = Void.Void;
+        int? x = void;
         x ??= 100;
         Console.WriteLine($"after x ??= 100: x={x}");
 
@@ -114,7 +114,7 @@ public class Program
         Console.WriteLine($"after y ??= 200: y={y}");
 
         // PROOF: ??= narrows type — z is now int (not int?) after ??=
-        int? z = Void.Void;
+        int? z = void;
         z ??= 7;
         Console.WriteLine($"after z ??= 7: z={z}");
 

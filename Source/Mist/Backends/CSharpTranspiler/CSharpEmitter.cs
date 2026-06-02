@@ -244,6 +244,7 @@ public sealed class CSharpEmitter
                 public static bool operator ==(MistVoid left, MistVoid right) => true;
                 public static bool operator !=(MistVoid left, MistVoid right) => false;
                 public override string ToString() => "Void";
+                public static implicit operator System.Type(MistVoid v) => typeof(void);
             }
             """;
     }
@@ -6090,15 +6091,21 @@ internal sealed class CSharpSourceWriter
                 emittedArg = WrapWithImplicitCastIfNeeded(argExprs[i], emittedArg);
                 if (argNodes[i] is RefArgumentArgumentNode)
                 {
-                    // Check if the corresponding parameter has ClrCallingConvention.In —
-                    // if so, emit 'in' instead of 'ref' at the call site (Requirement 3.4).
+                    // Check if the corresponding parameter has ClrCallingConvention.In or .Out —
+                    // if so, emit 'in' or 'out' instead of 'ref' at the call site (Requirement 3.4).
                     var refKeyword = "ref";
                     if (calledMethod?.Parameters is { Count: > 0 } parameters && i < parameters.Count)
                     {
-                        if (parameters[i] is Symbol paramSymbol &&
-                            paramSymbol.ClrCallingConvention == ClrCallingConvention.In)
+                        if (parameters[i] is Symbol paramSymbol)
                         {
-                            refKeyword = "in";
+                            if (paramSymbol.ClrCallingConvention == ClrCallingConvention.In)
+                            {
+                                refKeyword = "in";
+                            }
+                            else if (paramSymbol.ClrCallingConvention == ClrCallingConvention.Out)
+                            {
+                                refKeyword = "out";
+                            }
                         }
                     }
                     emittedArg = $"{refKeyword} {emittedArg}";
@@ -6146,8 +6153,17 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        // Fallback: emit the first argument we do have.
-        return EmitExpression(argList.GetExpression());
+        // Fallback: emit all arguments through the expression emitter.
+        {
+            var emitted = new List<string>();
+            for (var i = 0; i < argExprs.Count; i++)
+            {
+                var emittedArg = EmitExpression(argExprs[i]);
+                emittedArg = WrapWithImplicitCastIfNeeded(argExprs[i], emittedArg);
+                emitted.Add(emittedArg);
+            }
+            return string.Join(", ", emitted);
+        }
     }
 
     /// <summary>
@@ -6245,72 +6261,26 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
-    /// Recursively checks if an expression contains a <see cref="TypeLiteralExpressionPrimaryNode"/>.
+    /// Recursively checks if an expression tree contains a
+    /// <see cref="TypeLiteralExpressionPrimaryNode"/> anywhere within it (not just
+    /// on the left spine). A type literal in expression position requires special
+    /// emission — <c>typeof(...)</c> for type-literal contexts or
+    /// <c>MistVoid.Instance</c> for void value literals — so its presence anywhere
+    /// in a method argument (including nested binary operands and interpolated
+    /// string holes such as <c>$"{void == void}"</c>) must bypass the source-text
+    /// fast path and route through the expression emitter.
     /// </summary>
-    private static bool ExpressionContainsTypeLiteral(ExpressionNode expr)
+    private static bool ExpressionContainsTypeLiteral(Storm.Runtime.SyntaxNode node)
     {
-        // Walk the expression tree: Assignment → LogicalOr → ... → Unary → Postfix → Primary
-        // Lambda-form expressions do not directly contain a top-level type literal.
-        if (expr.AsAssignmentOrNull() is not { } assignment)
-            return false;
-        return AssignmentContainsTypeLiteral(assignment);
-    }
-
-    private static bool AssignmentContainsTypeLiteral(AssignmentNode assignment)
-    {
-        if (LogicalOrContainsTypeLiteral(assignment.Target.Left))
+        if (node is TypeLiteralExpressionPrimaryNode)
             return true;
-        if (assignment.Value is not null)
-            return ExpressionContainsTypeLiteral(assignment.Value);
+
+        foreach (var child in node.Children())
+        {
+            if (child is not null && ExpressionContainsTypeLiteral(child))
+                return true;
+        }
         return false;
-    }
-
-    private static bool LogicalOrContainsTypeLiteral(LogicalOrNode logicalOr)
-    {
-        return LogicalAndContainsTypeLiteral(logicalOr.Left);
-    }
-
-    private static bool LogicalAndContainsTypeLiteral(LogicalAndNode logicalAnd)
-    {
-        return EqualityContainsTypeLiteral(logicalAnd.Left);
-    }
-
-    private static bool EqualityContainsTypeLiteral(EqualityNode equality)
-    {
-        return RelationalContainsTypeLiteral(equality.Left);
-    }
-
-    private static bool RelationalContainsTypeLiteral(RelationalNode relational)
-    {
-        return relational switch
-        {
-            RelationalComparisonRelationalNode comp => AdditiveContainsTypeLiteral(comp.Left),
-            _ => false,
-        };
-    }
-
-    private static bool AdditiveContainsTypeLiteral(AdditiveNode additive)
-    {
-        return MultiplicativeContainsTypeLiteral(additive.Left);
-    }
-
-    private static bool MultiplicativeContainsTypeLiteral(MultiplicativeNode multiplicative)
-    {
-        return UnaryContainsTypeLiteral(multiplicative.Left);
-    }
-
-    private static bool UnaryContainsTypeLiteral(UnaryNode unary)
-    {
-        return unary switch
-        {
-            PostfixExpressionUnaryNode postfix => PostfixContainsTypeLiteral(postfix.Primary),
-            _ => false,
-        };
-    }
-
-    private static bool PostfixContainsTypeLiteral(PostfixNode postfix)
-    {
-        return postfix.Target is TypeLiteralExpressionPrimaryNode;
     }
 
     /// <summary>
@@ -10029,31 +9999,44 @@ internal sealed class CSharpSourceWriter
                     .FirstOrDefault(s => s.Name == type && s.Kind == SymbolKind.TypeAlias);
                 if (aliasSymbol?.DeclaredType is TypeAliasType objAlias)
                 {
-                    var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
-                        && _model.AllSymbols.Any(s => s.Name == type
-                            && s.Kind is SymbolKind.Class or SymbolKind.Struct
-                            && GetSymbolContainingNamespace(s) == _currentNamespace);
-                    if (!hasConcreteTypeInCurrentNamespace)
+                    // Only apply the alias if its arity matches the type arguments
+                    // provided at the call site. e.g., `new Result<void>(...)` with 1
+                    // type arg should NOT resolve through a non-generic alias
+                    // `type Result = Result<string>` (arity 0).
+                    var callSiteArity = 0;
+                    if (objCreation.TypeArgs is not null)
                     {
-                        var underlying = objAlias.UnderlyingType;
-                        if (objCreation.TypeArgs is not null && objAlias.TypeParameters.Count > 0)
+                        callSiteArity = 1 + objCreation.TypeArgs.TypeArguments.Length;
+                    }
+
+                    if (callSiteArity == objAlias.TypeParameters.Count)
+                    {
+                        var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
+                            && _model.AllSymbols.Any(s => s.Name == type
+                                && s.Kind is SymbolKind.Class or SymbolKind.Struct
+                                && GetSymbolContainingNamespace(s) == _currentNamespace);
+                        if (!hasConcreteTypeInCurrentNamespace)
                         {
-                            // Generic alias with type arguments: emit definition + substituted args.
-                            if (underlying is ConstructedType ct)
+                            var underlying = objAlias.UnderlyingType;
+                            if (objCreation.TypeArgs is not null && objAlias.TypeParameters.Count > 0)
                             {
-                                type = CSharpTypeMap.GetTypeName(ct.GenericDefinition);
+                                // Generic alias with type arguments: emit definition + substituted args.
+                                if (underlying is ConstructedType ct)
+                                {
+                                    type = CSharpTypeMap.GetTypeName(ct.GenericDefinition);
+                                }
+                                else
+                                {
+                                    type = CSharpTypeMap.GetTypeName(underlying);
+                                    typeArgs = "";
+                                }
                             }
                             else
                             {
+                                // Non-generic alias or closed generic alias: emit the full resolved type.
                                 type = CSharpTypeMap.GetTypeName(underlying);
                                 typeArgs = "";
                             }
-                        }
-                        else
-                        {
-                            // Non-generic alias or closed generic alias: emit the full resolved type.
-                            type = CSharpTypeMap.GetTypeName(underlying);
-                            typeArgs = "";
                         }
                     }
                 }
@@ -10209,6 +10192,18 @@ internal sealed class CSharpSourceWriter
                 return "field";
             case TypeLiteralExpressionPrimaryNode typeLiteral:
             {
+                // Check if this void type literal resolved as a value literal.
+                var resolvedType = _model.GetTypeOf(typeLiteral);
+                if (resolvedType is not null && resolvedType.IsVoid())
+                {
+                    // Value literal context: emit the Void singleton.
+                    if (_emitVoidAsNull)
+                        return "null";
+                    _needsMistVoidStruct = true;
+                    return "MistVoid.Instance";
+                }
+
+                // Existing behavior: type literal → typeof(...)
                 return $"typeof({EmitTypeReference(typeLiteral.TypeRef)})";
             }
             case DefaultExpressionPrimaryNode defaultExpr:

@@ -14,10 +14,10 @@ namespace Mist.Tests.Backend;
 ///
 /// Property 3: For any CLR member, the visibility filter SHALL exclude it if and only if
 /// at least one of the following holds: (a) it is not public, (b) it is an event,
-/// (c) it has out parameters, (d) it has a ref readonly return type,
-/// (e) it has pointer types in its signature, (f) its declaring type
-/// is a ref struct, or (g) its signature references a type that is itself excluded.
-/// Ref parameters (including in) and mutable ref returns now pass through.
+/// (c) it has a ref readonly return type,
+/// (d) it has pointer types in its signature, (e) its declaring type
+/// is a ref struct, or (f) its signature references a type that is itself excluded.
+/// Ref parameters (including in), out parameters, and mutable ref returns now pass through.
 /// All other public members SHALL be projected.
 /// </summary>
 public sealed class VisibilityFilterCompletenessPropertyTests
@@ -89,11 +89,9 @@ public sealed class VisibilityFilterCompletenessPropertyTests
         if (member is EventInfo)
             return true;
 
-        // Rule (c): out parameters → exclude (Requirement 6.1)
-        if (HasOutParameters(member))
-            return true;
+        // Rule (c): out parameters — no longer excluded (projected as ref with ClrCallingConvention.Out)
 
-        // Rule (e): ref readonly return type → exclude (Requirement 4.3, 6.3)
+        // Rule (d): ref readonly return type → exclude (Requirement 4.3, 6.3)
         // Mutable ref returns now pass through (CLR Ref Interop feature)
         if (HasRefReadonlyReturn(member))
             return true;

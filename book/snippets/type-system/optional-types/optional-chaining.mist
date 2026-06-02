@@ -18,7 +18,7 @@ public class Program
     public static void Main(string[] args)
     {
         Item? present = new Item(5);
-        Item? absent = Void.Void;
+        Item? absent = void;
 
         int? result1 = present?.GetValue();
         int? result2 = absent?.GetValue();

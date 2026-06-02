@@ -1,2 +1,2 @@
-var v = Void.Void;
-Console.WriteLine($"void value obtained: {v}");
+var inferred = void;
+Console.WriteLine($"var inferred type name: {inferred.Name}");

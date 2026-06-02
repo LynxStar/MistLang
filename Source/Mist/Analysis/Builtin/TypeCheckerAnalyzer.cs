@@ -1478,8 +1478,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // enclosing type.
         if (sourceType is not null && targetType is not null)
         {
-            var sourceMatchesEnclosing = sourceType.DisplayName == enclosingType.DisplayName;
-            var targetMatchesEnclosing = targetType.DisplayName == enclosingType.DisplayName;
+            var sourceMatchesEnclosing = sourceType.DisplayName == enclosingType.DisplayName
+                || (sourceType.IsVoid() && enclosingType.IsVoid());
+            var targetMatchesEnclosing = targetType.DisplayName == enclosingType.DisplayName
+                || (targetType.IsVoid() && enclosingType.IsVoid());
 
             if (!sourceMatchesEnclosing && !targetMatchesEnclosing)
             {

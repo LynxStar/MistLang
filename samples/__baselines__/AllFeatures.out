@@ -1317,6 +1317,8 @@ ArrLen=3
 [ref-param] old=42, new=100
 [ref-param-array] length=4
 [in-param] doubled=14, x=7
+[out-param] success=True, found=42
+[out-param-miss] success=False, missing=0
 --- CLR Ref Interop Done ---
 === RefStructs Sample ===
 --- Mist Declared Ref Struct ---
@@ -1410,4 +1412,15 @@ plain: Wrapper(hello)
 single: Wrapper<T>(42)
 pair: Wrapper<T1,T2>(active, True)
 Done!
+--- Void Value Literal ---
+void variable: Void
+Type variable: Void
+var inferred type name: Void
+DescribeVoid(void): received void
+DoNothing() returned: Void
+Result<void>.IsSuccess: True
+implicit Void->Type: Void
+void == void: True
+void != void: False
+absent ?? 42: 42
 === Done! ===

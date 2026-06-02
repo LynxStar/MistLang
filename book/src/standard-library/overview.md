@@ -76,7 +76,7 @@ The core module provides higher-level abstractions built on top of the bootstrap
 
 | Type | Category | Description |
 |------|----------|-------------|
-| `Void` | Struct | Unit type with a single instance (`Void.Void`). Used as a first-class value when a function logically returns nothing but the type system requires a value. Supports equality operators where all instances are equal. |
+| `Void` | Struct | Unit type with a single instance, obtained by writing the `void` keyword in expression position. Used as a first-class value when a function logically returns nothing but the type system requires a value. Supports equality operators where all instances are equal. |
 
 ### Optional
 

@@ -1,8 +1,11 @@
 // PROOF: CLR ref parameter — Interlocked.Exchange(ref int, int) is now visible and callable
 // PROOF: The ref keyword is required at the call site for projected ref params
+// PROOF: CLR out parameter — Dictionary.TryGetValue(key, ref value) is now visible and callable
+// PROOF: Out parameters are projected as ref — same call-site syntax, emitter writes 'out'
 using Standard;
 using System;
 using System.Threading;
+using System.Collections.Generic;
 
 namespace ClrRefInterop;
 
@@ -28,6 +31,20 @@ public class Program
         int x = 7;
         int doubled = ReadAndDouble(ref x);
         Console.WriteLine($"[in-param] doubled={doubled}, x={x}");
+
+        // [out-param] Call Dictionary.TryGetValue(key, out value)
+        // Out parameters are projected as ref — caller passes ref, emitter emits 'out'
+        var dict = new Dictionary<string, int>();
+        dict.Add("hello", 42);
+        dict.Add("world", 99);
+        int found = 0;
+        bool success = dict.TryGetValue("hello", ref found);
+        Console.WriteLine($"[out-param] success={success}, found={found}");
+
+        // [out-param-miss] TryGetValue with missing key
+        int missing = 0;
+        bool miss = dict.TryGetValue("nope", ref missing);
+        Console.WriteLine($"[out-param-miss] success={miss}, missing={missing}");
 
         Console.WriteLine("--- CLR Ref Interop Done ---");
     }

@@ -1720,9 +1720,9 @@ internal sealed class TypeProjector
         var result = new List<ISymbol>(parameters.Length);
         foreach (var param in parameters)
         {
-            // Detect CLR ref/in parameters (IsByRef && !IsOut) and unwrap the by-ref type.
-            var isRefOrIn = param.ParameterType.IsByRef && !param.IsOut;
-            var typeToProject = isRefOrIn
+            // Detect CLR ref/in/out parameters (IsByRef) and unwrap the by-ref type.
+            var isByRef = param.ParameterType.IsByRef;
+            var typeToProject = isByRef
                 ? param.ParameterType.GetElementType()!
                 : param.ParameterType;
 
@@ -1737,13 +1737,15 @@ internal sealed class TypeProjector
                 scopeParamType,
                 null);
 
-            // Set RefKind and ClrCallingConvention for ref/in parameters.
-            if (isRefOrIn)
+            // Set RefKind and ClrCallingConvention for ref/in/out parameters.
+            if (isByRef)
             {
                 scopeParamSymbol.RefKind = RefKind.Ref;
-                scopeParamSymbol.ClrCallingConvention = param.IsIn
-                    ? ClrCallingConvention.In
-                    : ClrCallingConvention.Ref;
+                scopeParamSymbol.ClrCallingConvention = param.IsOut
+                    ? ClrCallingConvention.Out
+                    : param.IsIn
+                        ? ClrCallingConvention.In
+                        : ClrCallingConvention.Ref;
             }
 
             // Mark optional parameters (those with default values)
@@ -1766,12 +1768,14 @@ internal sealed class TypeProjector
                 null);
 
             // Propagate RefKind and ClrCallingConvention to the emitter symbol as well.
-            if (isRefOrIn)
+            if (isByRef)
             {
                 emitterParamSymbol.RefKind = RefKind.Ref;
-                emitterParamSymbol.ClrCallingConvention = param.IsIn
-                    ? ClrCallingConvention.In
-                    : ClrCallingConvention.Ref;
+                emitterParamSymbol.ClrCallingConvention = param.IsOut
+                    ? ClrCallingConvention.Out
+                    : param.IsIn
+                        ? ClrCallingConvention.In
+                        : ClrCallingConvention.Ref;
             }
 
             result.Add(emitterParamSymbol);

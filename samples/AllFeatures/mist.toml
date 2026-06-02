@@ -55,3 +55,4 @@ ExtensionMethodBinding = { path = "../ExtensionMethodBinding" }
 TuplePatternMatching = { path = "../TuplePatternMatching" }
 ArityOverloads = { path = "../ArityOverloads" }
 FirstClassFunctions = { path = "../FirstClassFunctions" }
+VoidValueLiteral = { path = "../VoidValueLiteral" }

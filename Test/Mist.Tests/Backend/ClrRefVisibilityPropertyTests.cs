@@ -1,5 +1,5 @@
 // Feature: clr-ref-interop, Property 1: Ref and in parameters pass through the visibility filter
-// Feature: clr-ref-interop, Property 2: Out parameters remain filtered
+// Feature: clr-ref-interop, Property 2: Out parameters pass through the visibility filter
 // Feature: clr-ref-interop, Property 5: Mutable ref returns pass through the visibility filter
 // Feature: clr-ref-interop, Property 6: Ref readonly returns remain filtered
 //
@@ -34,7 +34,7 @@ public sealed class ClrRefVisibilityPropertyTests
 
     /// <summary>
     /// All public methods from OutParamFixture and MixedRefOutFixture that have
-    /// at least one out parameter. These should remain filtered.
+    /// at least one out parameter. These should now pass through the filter.
     /// </summary>
     private static readonly MethodInfo[] OutParamMethods = BuildOutParamMethods();
 
@@ -185,16 +185,17 @@ public sealed class ClrRefVisibilityPropertyTests
         });
     }
 
-    // ─── Property 2: Out parameters remain filtered ──────────────────────────────
+    // ─── Property 2: Out parameters pass through the visibility filter ─────────
 
     /// <summary>
     /// Property 2: For any CLR method that has at least one out parameter,
-    /// VisibilityFilter.IsMemberExcluded SHALL return true.
+    /// VisibilityFilter.IsMemberExcluded SHALL return false (out params are now
+    /// projected as ref with ClrCallingConvention.Out).
     ///
     /// **Validates: Requirements 1.3, 6.1, 6.2**
     /// </summary>
     [Fact]
-    public void Property2_OutParams_RemainFiltered()
+    public void Property2_OutParams_PassThroughVisibilityFilter()
     {
         Assert.NotEmpty(OutParamMethods);
 
@@ -203,9 +204,9 @@ public sealed class ClrRefVisibilityPropertyTests
             var method = OutParamMethods[index];
             var excluded = Filter.IsMemberExcluded(method);
 
-            Assert.True(excluded,
+            Assert.False(excluded,
                 $"Method {method.DeclaringType!.Name}.{method.Name} has out params " +
-                $"but was NOT excluded by the visibility filter.");
+                $"but was excluded by the visibility filter.");
         });
     }
 

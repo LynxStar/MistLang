@@ -1,6 +1,6 @@
 public static void DoNothing()
 {
-    return Void.Void;
+    return void;
 }
 
 // Return value is captured — triggers MistVoid emission:

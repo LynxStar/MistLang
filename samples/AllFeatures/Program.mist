@@ -65,6 +65,7 @@ public class Program
         ExtensionMethodBinding.Program.RunDemo();
         TuplePatternMatching.Program.RunDemo();
         ArityOverloads.Program.RunDemo();
+        VoidValueLiteral.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

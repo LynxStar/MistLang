@@ -2,7 +2,7 @@
 
 ## What Void Means in Mist
 
-In most languages, `void` means "nothing" — a method returns no value, and you can't do anything with it. Mist takes a different approach: `void` is a real type with exactly one value, `Void.Void`. In type theory this is called a **unit type** — a type inhabited by a single value that carries no information.
+In most languages, `void` means "nothing" — a method returns no value, and you can't do anything with it. Mist takes a different approach: `void` is a real type with exactly one value, the **Void singleton**. In type theory this is called a **unit type** — a type inhabited by a single value that carries no information.
 
 This makes `void` a first-class citizen. You can store it in variables, pass it as a parameter, use it as a generic type argument, and return it from methods. There is no special case — `void` behaves like any other type, it just happens to have only one possible value.
 
@@ -12,7 +12,13 @@ The traditional split between "void methods" and "value-returning methods" force
 
 ## The Void Value
 
-The single instance of the `void` type is written as `Void.Void`:
+To obtain the Void singleton, write the `void` keyword in expression position. The same keyword serves double duty: depending on the surrounding context it resolves either to the Void singleton **value** or to a **type literal**. The rule is driven by the *target type* — the type the expression is expected to produce:
+
+- **Target type is `void`** → `void` resolves to the Void singleton value.
+- **Target type is `Type`** → `void` resolves to a type literal (a `Type` instance describing the Void type).
+- **No target type** (such as `var` inference) → `void` resolves to a type literal.
+
+This mirrors how `true` and `false` are both keywords and value literals for `bool`. When the target type is `void`, the keyword behaves as a value literal:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -27,7 +33,7 @@ The single instance of the `void` type is written as `Void.Void`:
 {{#endtab }}
 {{#endtabs }}
 
-Type inference works as expected:
+With `var` inference there is no target type, so `void` resolves as a type literal — the variable holds a `Type` instance describing the Void type rather than the Void singleton value:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -95,7 +101,7 @@ A method with return type `void` can either be used in fire-and-forget style (th
 {{#endtab }}
 {{#endtabs }}
 
-When the return value is explicitly used, the method returns `Void.Void`:
+When the return value is explicitly used, the method returns the Void singleton via `return void;`:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -112,7 +118,7 @@ When the return value is explicitly used, the method returns `Void.Void`:
 
 ## Equality Semantics
 
-Since there is only one possible void value, all `Void.Void` instances are equal. The `==` operator always returns `true` and `!=` always returns `false`:
+Since there is only one possible void value, all Void singleton values are equal. The `==` operator always returns `true` and `!=` always returns `false`:
 
 {{#tabs }}
 {{#tab name="Mist" }}

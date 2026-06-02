@@ -135,3 +135,98 @@ This mirrors Rust's `Send` trait / Erlang's message passing.
 ## North Star
 
 Time (scheduling) and space (allocation) are the two fundamental resources. Regions unify both under one model. The compiler enforces that resources don't outlive their region and don't cross region boundaries without explicit transfer. The only "magic" is the system-level intrinsic (kernel gives us pages + threads). Everything else — GC, threadpools, arenas — is user-space code implementing the region interface.
+
+---
+
+## Region Kind Declarations
+
+A region kind is a *policy declaration* — it defines which types the region governs, and what happens at each lifecycle event. It's not a class, not a trait — it's a new kind of entity that the compiler enforces.
+
+### The Type Filter: `controls`
+
+Each region kind declares which types it governs via a constraint expression:
+
+```mist
+region kind Scheduler
+{
+    controls<T> where T : ITask;   // only Task-like things
+}
+
+region kind Allocator
+{
+    controls<T> where T : any;     // everything
+}
+```
+
+When a value matching the constraint is created inside an active region of that kind, the compiler brands it with that region's identity.
+
+### The Three Lifecycle Events
+
+Every region-branded value has three possible lifecycle events. The region kind declares its policy for each:
+
+1. **Create** — A governed value originates in this region.
+2. **Drop** — A governed value falls out of scope without being moved or consumed.
+3. **Send** — A governed value is being transferred across a region boundary.
+
+```mist
+region kind Scheduler
+{
+    controls<T> where T : ITask;
+
+    create(T item) => schedule(item);
+    drop(T item) => await item;
+
+    send(T item, to: ancestor) => allow;
+    send(T item, to: child) => deny;
+    send(T item, to: sibling) => deny;
+}
+
+region kind Allocator
+{
+    controls<T> where T : any;
+
+    create(T item) => alloc(size_of(T));
+    drop(T item) => free(item);
+
+    send(T item, to: ancestor) => deny;
+    send(T item, to: child) => allow;    // child can reference parent data
+    send(T item, to: sibling) => deny;
+}
+```
+
+### Comptime Decision Functions for Send
+
+The `send` policy isn't just static allow/deny — it could be a comptime function that evaluates based on the type, the direction, and the target:
+
+```mist
+send(T item, to: target) =>
+    if target.is_ancestor => allow
+    if T : ICopyable => allow(copy)   // value types can be copied across
+    else => deny;
+```
+
+This gives configurable hermeticism — each region kind defines its own boundary rules at compile time.
+
+### The Three Questions the Compiler Asks
+
+At each point in the program, the compiler needs to answer:
+
+1. **At creation:** "Is there an active region that `controls` this type? If yes, brand it with the region's identity."
+2. **At scope exit:** "Does this branded value still exist unresolved? If yes, call the region's `drop` policy."
+3. **At transfer (argument passing, return, capture, assignment across context):** "Ask the region's `send` policy for this direction. Allow, deny, or transform."
+
+### Association Model (Option A: Region-Centric)
+
+The region declares what it controls. The type doesn't need to know about regions. This was preferred over:
+- Option B (type-centric): `Task<T> : IRegionBound<Scheduler>` — too tightly coupled
+- Option C (external bind): `bind Task<T> to Scheduler { ... }` — flexible but more indirection
+
+Option A feels most natural because the region is the *authority* — it's the policy owner. Types are just data; regions are governance.
+
+### Open Syntax Questions
+
+- The `controls<T> where T : constraint` is generic-constraint-like but applied to a region, not a method/type. New grammar territory.
+- `create`/`drop`/`send` are lifecycle hooks — are they methods? Comptime functions? Something new?
+- The send direction (`ancestor`/`child`/`sibling`) needs to be a first-class concept the compiler understands about the region tree.
+- How does this interact with `with` blocks? Is `with scheduler` implicitly activating a region kind?
+- Can a value be governed by *multiple* regions simultaneously? (e.g., a Task allocated by an Allocator AND scheduled by a Scheduler) — likely yes, and the compiler enforces all policies.

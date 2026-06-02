@@ -31,3 +31,41 @@ public static void Main(string[] args)
 **Impact:** Medium. Affects any code that invokes async lambdas in sync context without explicit `await`.
 
 ---
+
+### Scope-exit await not emitted for Task variables in sync context
+
+**Discovered:** 2026-06-01 (first-class-functions spec)
+
+**Symptom:** When a `Task<T>` value is stored in a variable in a sync context (e.g., captured via `async` functor or from an async lambda invocation), the live task tracking records it, but the emitter never generates scope-exit await code. The Task may never complete.
+
+```mist
+public static void Main(string[] args)
+{
+    var asyncLambda = async (int id) => $"lambda-{id}";
+    var result = asyncLambda(2);  // Task<string> — tracked as live task
+    // Scope exits here — but no await is emitted
+}
+```
+
+**Emitted C#:**
+```csharp
+public static void Main(string[] args)
+{
+    var asyncLambda = async (int id) => $"lambda-{id}";
+    var result = asyncLambda(2);
+    // No await — Main is not async, live task is abandoned
+}
+```
+
+**Root cause:** The `NeedsAsyncPropagationPass` only marks a method as `NeedsCSharpAsync` when it *calls* an async method. Storing a `Task<T>` in a variable (without calling an async method directly) doesn't trigger the propagation. Even though the semantic model's live task tracking records the variable, the emitter's scope-exit await logic only runs for methods that are already `async` — because you can't emit `await` in a non-async method.
+
+**Relationship to auto-unwrap gap:** If the auto-unwrap gap above is fixed (lambda invocations auto-unwrap like method calls), this issue becomes moot for the lambda case — `var result = asyncLambda(2)` would give `string` directly. But the issue persists for the `async` functor case: `var task = async SyncMethod()` intentionally captures a `Task<T>` and the scope-exit await should ensure it completes.
+
+**Fix options:**
+1. Extend `NeedsAsyncPropagationPass` to also trigger when a method contains live task variables (any `Task<T>` local from the async functor).
+2. For sync methods with live tasks, emit scope-exit as `.GetAwaiter().GetResult()` instead of `await` (blocking, but ensures completion).
+3. Alternatively, treat the `async` functor in sync context as always triggering `NeedsCSharpAsync` on the containing method (since scope-exit await requires `async`).
+
+**Impact:** Medium-high. Affects structured concurrency guarantees — live tasks in sync contexts may silently not complete.
+
+---

@@ -73,27 +73,27 @@ public static void Main(string[] args)
 ### Scope-exit await not emitted at all (even in async context)
 
 **Discovered:** 2026-06-01 (first-class-functions spec investigation)
+**Pre-existing since:** structured-concurrency spec implementation
 
-**Symptom:** The semantic model's live task tracking records `Task<T>` variables, but the emitter never generates scope-exit `await` statements at the end of the containing block — not in sync context, and not in async context either.
+**Symptom:** The semantic model's live task tracking records `Task<T>` variables, but the emitter never generates scope-exit `await` statements at the end of the containing block — not in sync context, and not in async context either. The `StructuredConcurrency` sample's `DemoDiscardedAsyncScopeExit` method claims "scope-exit will await both tasks" in a comment, but the emitted C# just drops the tasks on the floor:
 
 ```mist
-public static async void Main(string[] args)
+// Mist source (samples/StructuredConcurrency/Program.mist)
+public static async void DemoDiscardedAsyncScopeExit()
 {
-    var task1 = async InnerAsync();           // Task<string> — tracked
-    var makeNested = async () => async InnerAsync();
-    var nested = makeNested();                // Task<Task<string>> — tracked
-    // Scope exit — nothing is awaited
+    Helpers.LogAsync("task-a");
+    Helpers.LogAsync("task-b");
+    Console.WriteLine("  scope-exit will await both tasks");
 }
 ```
 
-**Emitted C#:**
 ```csharp
-public static async System.Threading.Tasks.Task Main(string[] args)
+// Emitted C# — no scope-exit await generated
+public static async System.Threading.Tasks.Task DemoDiscardedAsyncScopeExit()
 {
-    var task1 = InnerAsync();
-    var makeNested = async () => InnerAsync();
-    var nested = makeNested();
-    // No scope-exit await emitted — tasks abandoned
+    Helpers.LogAsync("task-a");
+    Helpers.LogAsync("task-b");
+    System.Console.WriteLine("  scope-exit will await both tasks");
 }
 ```
 

@@ -69,3 +69,41 @@ public static void Main(string[] args)
 **Impact:** Medium-high. Affects structured concurrency guarantees — live tasks in sync contexts may silently not complete.
 
 ---
+
+### Scope-exit await not emitted at all (even in async context)
+
+**Discovered:** 2026-06-01 (first-class-functions spec investigation)
+
+**Symptom:** The semantic model's live task tracking records `Task<T>` variables, but the emitter never generates scope-exit `await` statements at the end of the containing block — not in sync context, and not in async context either.
+
+```mist
+public static async void Main(string[] args)
+{
+    var task1 = async InnerAsync();           // Task<string> — tracked
+    var makeNested = async () => async InnerAsync();
+    var nested = makeNested();                // Task<Task<string>> — tracked
+    // Scope exit — nothing is awaited
+}
+```
+
+**Emitted C#:**
+```csharp
+public static async System.Threading.Tasks.Task Main(string[] args)
+{
+    var task1 = InnerAsync();
+    var makeNested = async () => InnerAsync();
+    var nested = makeNested();
+    // No scope-exit await emitted — tasks abandoned
+}
+```
+
+**Root cause:** The emitter does not read the `LiveTaskInfo` data from the semantic model to generate scope-exit await statements. The tracking infrastructure exists in the semantic model but the emitter pass that would consume it and emit `await __task_N;` at block boundaries is either missing or incomplete.
+
+**Additional concern — nested Tasks:** Even when scope-exit await is implemented, `await nested` on a `Task<Task<string>>` only unwraps one layer. The inner `Task<string>` is still unawaited. Structured concurrency should guarantee *all* layers complete. Options:
+1. Recursive unwrap: `await await nested` (or a generated loop for arbitrary nesting)
+2. Flatten at the type level: prevent `Task<Task<T>>` from being constructible (the `async` functor on an already-`Task<T>` value could return `Task<T>` instead of `Task<Task<T>>`)
+3. Emit a helper like `await TaskExtensions.UnwrapAll(nested)` that recursively awaits
+
+**Impact:** High. This is a core structured concurrency guarantee violation — "all tasks created in a scope complete before the scope exits" is not enforced.
+
+---

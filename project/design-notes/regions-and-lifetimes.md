@@ -39,7 +39,7 @@ The `with` block establishes which region is active. A region's children are bou
 
 ## Two Orthogonal Concerns
 
-### 1. Lifetime (IDroppable / linear types)
+### 1. Lifetime (IDroppable — linear-with-auto-drop)
 
 "This thing must be explicitly consumed before it goes out of scope."
 
@@ -49,7 +49,8 @@ The `with` block establishes which region is active. A region's children are bou
 - Compiler enforces: at scope exit, the value must have been dropped (consumed), moved (transferred), or returned
 - For Tasks: drop = await. For files: drop = close. For locks: drop = release.
 - If not explicitly consumed: compiler inserts auto-drop (scope-exit await, auto-close, etc.)
-- Types that need to coordinate with their region at drop time hold a reference to it (the "reference back" pattern)
+
+Note on type discipline: Rust's ownership is *affine* (use at most once, silent drop is permitted — `mem::forget` is safe). Mist's `IDroppable` is *linear* in intent (must be consumed) but ergonomically relaxed via compiler-inserted auto-drop. The key difference: in Rust, dropping is invisible and optional (the compiler silently deallocates, and `forget` is a valid choice). In Mist, drop is always explicit in the emitted code — the compiler just saves you from writing it by hand. There is no `forget` escape hatch.
 
 ### 2. Region Boundedness
 
@@ -271,6 +272,7 @@ Notice: this is just normal `IDroppable` implementation. The region *is* a dropp
 | Can be placed in `with` | ✅ (if IDisposable) | ✅ (primary use case) |
 | `governs<T>` clause | ❌ | ✅ — declares which types the region tracks |
 | `enter` hook | ❌ | ✅ — compiler calls on creation of governed types |
+| `exit` hook | ❌ | ✅ — compiler calls when governed value leaves scope |
 | `send` policy | ❌ | ✅ — compiler checks on traversal of governed values |
 | Compiler-inserted association | ❌ | ✅ — values created in scope are branded |
 
@@ -278,7 +280,7 @@ The `governs`, `enter`, and `send` declarations are what make a `region` a regio
 
 ### The `governs` Clause
 
-The `governs` clause tells the compiler which types this region interacts with. Only values matching this constraint get registered on creation and checked on traversal:
+The `governs` clause tells the compiler which types this region interacts with. Only values matching this constraint get registered on creation, notified on exit, and checked on traversal:
 
 ```mist
 region Scheduler
@@ -286,6 +288,8 @@ region Scheduler
     governs<T> where T : ITask;
 
     enter(T task) => self.enqueue(task);
+
+    exit(T task) => self.dequeue(task);
 
     send(T task, to: RegionRelation direction) -> SendResult
     {
@@ -305,6 +309,8 @@ region Arena
 
     enter(T item) => self.track_allocation(item);
 
+    exit(T item) => { }   // no-op — bulk-free handles everything
+
     send(T item, to: RegionRelation direction) -> SendResult
     {
         match direction
@@ -318,34 +324,111 @@ region Arena
 
 A region without a `governs` clause is just a class that happens to be used in `with` — no automatic registration or traversal checking.
 
-### Drop Is Type-Owned, Region Is Just a Participant
+### Three Kinds of Drop (2026-06-03 revision)
 
-The `IDroppable` interface belongs to the *type*. The type's drop logic can reference its region (if it holds one), but the region doesn't define what drop means for the type:
+There are three distinct events related to value/region cleanup. They are independent and compose:
+
+#### 1. Self-Managed Drop (value implements IDroppable)
+
+The value has internal state that *it* needs to reconcile before it ceases to exist. The value is the actor. It does not need to know about any region.
 
 ```mist
 struct Task<T> : IDroppable
 {
-    private Scheduler _scheduler;   // keeps a reference to its scheduling region
     private TaskState _state;
 
     drop()
     {
         if _state == .running
         {
-            _scheduler.await_completion(self);   // inform the region
+            self.await_completion();   // Task's own cleanup — no region reference needed
         }
+    }
+}
+
+struct FileHandle : IDroppable
+{
+    drop() => self.close();
+}
+```
+
+#### 2. Region-Exit (region is notified a governed value is leaving)
+
+When a governed value dies or escapes, the *region* is notified via an `exit` hook. The region is the actor, not the value. The value can be completely passive.
+
+```mist
+region Scheduler
+{
+    governs<T> where T : ITask;
+
+    exit(T task)
+    {
+        // Region learns a task is dying — dequeue it, record completion, etc.
+        self.dequeue_or_record(task);
+    }
+}
+
+region Arena
+{
+    governs<T> where T : any;
+
+    exit(T item)
+    {
+        // Mark the slot reclaimable (or do nothing — bulk-free handles it)
     }
 }
 ```
 
-The Task knows about its scheduler. When it drops, it does its own cleanup, which *may* involve talking to the region. But the region doesn't reach into the task and define its drop behavior. The relationship is:
+The value doesn't hold a reference to its region. The region already knows about the value (registered during `enter`). The compiler inserts the `exit` call when a governed value leaves scope.
 
-```
-Type's IDroppable.drop()  →  may call into region  →  region responds
-Region's own IDroppable.drop()  →  may iterate tracked values  →  calls their IDroppable.drop()
+#### 3. Region Bulk-Drop (region itself implements IDroppable)
+
+When the region's own `with` block ends, the region's `IDroppable.drop()` runs. This is "tearing down the whole context":
+
+```mist
+impl IDroppable for Arena
+{
+    drop()
+    {
+        sys_free(_buffer);   // bulk-free everything — no per-item work needed
+    }
+}
+
+impl IDroppable for Scheduler
+{
+    drop()
+    {
+        // Await all outstanding tasks before the scheduler goes away
+        for task in _running { task.await_completion(); }
+        for task in _pending { task.cancel(); }
+    }
+}
 ```
 
-Both directions are just normal method calls. No compiler magic beyond the standard `IDroppable` enforcement.
+#### Ordering
+
+When a governed value leaves scope:
+
+1. **Self-managed drop** fires first (if the value implements `IDroppable`) — the value cleans itself up
+2. **Region-exit** fires second — the region is informed the value is gone
+
+When the region's `with` block ends:
+
+1. For each remaining governed value: self-managed drop, then region-exit (same order as above)
+2. **Region bulk-drop** fires last — the region tears itself down
+
+#### Composition
+
+A value can have any combination:
+
+| Value type | Self-managed drop? | Region-exit? | Example |
+|---|---|---|---|
+| `Task<T>` in a scheduler | ✅ (awaits itself) | ✅ (scheduler dequeues it) | Both fire |
+| `int` in an arena | ❌ | ✅ (arena marks slot free) | Only region-exit |
+| `FileHandle` outside any region | ✅ (closes file) | ❌ | Only self-managed |
+| `int` outside any region | ❌ | ❌ | Nothing happens |
+
+~~The "reference back" pattern (value holds a reference to its region) is superseded by region-exit. The value never needs to know about its region — the compiler handles the notification.~~
 
 ### Full Example: Arena + Scheduler
 
@@ -377,6 +460,12 @@ region Arena
         }
     }
 
+    exit(T item)
+    {
+        // Region-exit: item is dying — mark slot reclaimable
+        // (or do nothing if we only bulk-free)
+    }
+
     send(T item, to: RegionRelation direction) -> SendResult
     {
         match direction
@@ -387,7 +476,7 @@ region Arena
     }
 }
 
-// Arena implements IDroppable — its own cleanup
+// Arena implements IDroppable — its own cleanup (region bulk-drop)
 impl IDroppable for Arena
 {
     drop()
@@ -417,6 +506,13 @@ region ThreadPoolScheduler
         self.maybe_dispatch();
     }
 
+    exit(T task)
+    {
+        // Region-exit: task is dying or leaving scope — dequeue/record it
+        _pending.remove(task);
+        _running.remove(task);
+    }
+
     send(T task, to: RegionRelation direction) -> SendResult
     {
         match direction
@@ -431,7 +527,7 @@ impl IDroppable for ThreadPoolScheduler
 {
     drop()
     {
-        // Cancel pending, await running
+        // Region bulk-drop: await/cancel everything before scheduler goes away
         for task in _pending { task.cancel(); }
         for task in _running { task.await_completion(); }
     }
@@ -463,15 +559,18 @@ with pool
 
 2. **No `drop_strategy` on regions** — the region implements `IDroppable` and does whatever it wants in its `drop()`. An arena bulk-frees. A pool awaits tasks. A transaction commits. It's just code.
 
-3. **No per-item `drop` policy on the region** — the region doesn't define what dropping a `Foo` means. `Foo` defines that (via `IDroppable`). The region's `drop()` may *call* individual items' `drop()` as part of its cleanup, but that's a choice made by the region's implementation.
+3. **No per-item `drop` policy on the region** — the region doesn't define what dropping a `Foo` means. `Foo` defines that (via `IDroppable`). The region is *notified* (via `exit`) but doesn't control what the value does during its own drop.
 
-4. **The compiler's job is simpler** — it only needs to:
+4. **No "reference back" from values to regions** — values don't hold references to their region. The region-exit mechanism handles notification. This eliminates a whole class of circular reference problems and simplifies value types.
+
+5. **The compiler's job is simpler** — it only needs to:
    - Know which types match `governs`
    - Insert `enter` calls at creation sites within `with` scope
+   - Insert `exit` calls when governed values leave scope
    - Check `send` at traversal points
    - Ensure the region itself is dropped (standard `IDroppable` enforcement)
 
-5. **Regions compose via `with` stacking** — multiple regions active simultaneously. A value might match multiple regions' `governs` clauses. All matching regions get an `enter` call. All must approve `send` for traversal to be allowed.
+6. **Regions compose via `with` stacking** — multiple regions active simultaneously. A value might match multiple regions' `governs` clauses. All matching regions get an `enter` call. All get an `exit` call. All must approve `send` for traversal to be allowed.
 
 ---
 
@@ -555,7 +654,9 @@ Cost: one integer comparison per cross-region transfer. This is only needed for 
 
 ---
 
-## Drop Semantics (Revised — Independent of Regions)
+## Drop Semantics (Revised — Three-Event Model)
+
+~~Previous version described a "reference back" pattern where values held references to their region. Superseded 2026-06-03 by the three-event model: self-managed drop, region-exit, and region bulk-drop. See "Three Kinds of Drop" section above.~~
 
 ### Drop Is Type-Owned
 
@@ -569,13 +670,13 @@ struct FileHandle : IDroppable
 
 struct Task<T> : IDroppable
 {
-    private Scheduler _scheduler;
+    private TaskState _state;
 
     drop()
     {
         if _state == .running
         {
-            _scheduler.await_completion(self);
+            self.await_completion();   // Task's own cleanup — no region reference
         }
     }
 }
@@ -585,7 +686,7 @@ The compiler enforces: if a value implements `IDroppable`, it must be consumed, 
 
 ### How Drop and Regions Interact (But Don't Merge)
 
-A region can *use* `IDroppable` in its implementation — it's just calling an interface method:
+A region can *use* `IDroppable` in its bulk-drop implementation — it's just calling an interface method:
 
 ```mist
 region ConnectionPool : IDroppable
@@ -601,49 +702,7 @@ region ConnectionPool : IDroppable
 }
 ```
 
-And a type's `IDroppable.drop()` can reference its region — it's just holding a normal reference:
-
-```mist
-struct Task<T> : IDroppable
-{
-    private Scheduler _scheduler;   // reference to the region it was created in
-
-    drop()
-    {
-        _scheduler.notify_task_complete(self);
-    }
-}
-```
-
-Neither side has special compiler magic for this interaction. It's just objects calling methods on each other.
-
-### What Regions Add That's Different From Drop
-
-Drop answers: "what happens when *this value* dies?"
-
-Regions answer:
-- "What happens when something is *created* in my scope?" → `enter`
-- "Is this value *allowed to leave*?" → `send`
-- "What happens when *I* die and things are still registered with me?" → the region's own `IDroppable.drop()`
-
-A value can be `IDroppable` without being in a region (file handle opened in plain scope).
-A value can be in a region without being `IDroppable` (plain data allocated in an arena).
-A value can be both (a task that implements `IDroppable` *and* is registered with a scheduler region).
-
-### The "Reference Back" Pattern
-
-For types that need to coordinate with their region at drop time, the standard pattern is: hold a reference to the region.
-
-```mist
-struct PooledConnection : IDroppable
-{
-    private ConnectionPool _pool;
-
-    drop() => _pool.return_connection(self);   // inform region on individual drop
-}
-```
-
-The region gives the value a reference to itself during `enter`:
+The region is informed about individual value deaths via the `exit` hook — no reference-back needed:
 
 ```mist
 region ConnectionPool
@@ -652,13 +711,33 @@ region ConnectionPool
 
     enter(T conn)
     {
-        conn.set_pool(self);    // hand the value a reference back
         _active.add(conn);
+    }
+
+    exit(T conn)
+    {
+        // Compiler calls this when conn leaves scope
+        _active.remove(conn);
+        self.return_to_pool(conn);
     }
 }
 ```
 
-This is explicit, visible, debuggable — no hidden compiler-generated callbacks.
+Neither side has special compiler magic for this interaction beyond: compiler inserts `exit` calls at scope-exit for governed values, same way it inserts `drop()` calls for `IDroppable` values.
+
+### What Regions Add That's Different From Drop
+
+Drop answers: "what happens when *this value* dies?"
+
+Regions answer:
+- "What happens when something is *created* in my scope?" → `enter`
+- "Is this value *allowed to leave*?" → `send`
+- "What happens when a governed value *dies*?" → `exit` (region-exit notification)
+- "What happens when *I* die and things are still registered with me?" → the region's own `IDroppable.drop()` (bulk-drop)
+
+A value can be `IDroppable` without being in a region (file handle opened in plain scope).
+A value can be in a region without being `IDroppable` (plain data allocated in an arena).
+A value can be both (a task that implements `IDroppable` *and* is registered with a scheduler region).
 
 ---
 
@@ -687,18 +766,19 @@ The compiler's responsibilities for regions are narrow and well-defined:
    - allow_copy: insert copy, original stays in region
    - deny: compile error
 
-4. VALUE DROP (value's own IDroppable, if any)
-   - Independent of region — compiler enforces IDroppable normally
-   - If the type holds a region reference and notifies it, that's just a method call
+4. VALUE DROP (value leaves scope — two-step)
+   a. Self-managed drop: if the value implements IDroppable, compiler inserts value.drop()
+   b. Region-exit: if the value is governed, compiler inserts region.exit(value)
+   - Self-managed drop always fires before region-exit
 
-5. DEACTIVATION (with block ends)
+5. DEACTIVATION (with block ends — region bulk-drop)
+   - For each remaining governed value: step 4 fires (self-managed drop then region-exit)
    - Region's own IDroppable.drop() runs (if region implements IDroppable)
-   - Region decides in its drop() what to do with remaining registered values
    - Region instance is popped from active context
    - Any remaining references to values branded with this region → compile error if they exist
 ```
 
-Note what's *not* here: no per-item drop policy on the region. No `drop_strategy`. No compiler-inserted finalization of individual values. The region's `drop()` is just code — it can iterate its tracked values and call their `drop()` if it wants to, or it can bulk-free, or it can do nothing. That's an implementation choice, not a compiler concern.
+Note what's *not* here: no per-item drop policy on the region. No `drop_strategy`. No "reference back" from values to their region. The region's `exit` hook handles per-item notification. The region's `drop()` handles bulk teardown. Both are just code — the compiler's only job is inserting the calls at the right points.
 
 ---
 
@@ -772,7 +852,7 @@ This prevents the most common source of use-after-free in concurrent systems: a 
    }
    ```
 
-3. **`enter` and `send` — methods or something new?** They look like methods but have special calling conventions (compiler inserts calls). Are they just methods with a well-known name (like `drop()` on `IDroppable`)? Or a new concept?
+3. **`enter`, `exit`, and `send` — methods or something new?** They look like methods but have special calling conventions (compiler inserts calls). Are they just methods with a well-known name (like `drop()` on `IDroppable`)? Or a new concept?
 
    Lean: they're just methods. The compiler knows to call them based on the `governs` clause, same way it knows to call `drop()` based on `IDroppable`. No new concept needed.
 
@@ -826,18 +906,9 @@ This prevents the most common source of use-after-free in concurrent systems: a 
 
    Innermost matching region wins. Outer is shadowed. To explicitly target outer: `new Foo() in outer`?
 
-8. **The "reference back" pattern** — if a type wants to talk to its region at drop time, it holds a reference. But how does it *get* that reference? The region gives it during `enter`. Does this mean `enter` needs to be able to mutate the value?
+8. ~~**The "reference back" pattern**~~ — **Resolved (2026-06-03).** The reference-back pattern is eliminated. Values don't hold references to their region. Instead, the compiler inserts `exit` calls when governed values leave scope. The region is notified without the value needing to know about its region.
 
-   ```mist
-   enter(T item)
-   {
-       item._pool = self;    // requires mutable access to item
-   }
-   ```
-
-   This conflicts with the value potentially being constructed as `let` (immutable). Options: `enter` receives the value before binding completes, or the reference is injected by the constructor (type is aware of its region from birth).
-
-9. **Multi-region governance** — a value matches multiple active regions' `governs` clauses. All get `enter` called. For `send`, must *all* approve or just *any*? Most restrictive wins (all must approve) seems safer.
+9. **Multi-region governance** — a value matches multiple active regions' `governs` clauses. All get `enter` called. All get `exit` called. For `send`, must *all* approve or just *any*? Most restrictive wins (all must approve) seems safer.
 
 10. **Region and interfaces** — if you want polymorphism over regions (e.g., "any allocator"), you'd define `IAllocator` as an interface and have multiple region types implement it. Does `with` work with interface-typed values?
 
@@ -860,3 +931,90 @@ This prevents the most common source of use-after-free in concurrent systems: a 
 12. **Cost of enter** — every allocation in a region scope calls `enter`. For an arena allocating thousands of objects, is this overhead acceptable? Could the compiler optimize `enter` away when it's trivial (e.g., just bumps a pointer)?
 
 13. **Region identity for traversal checking** — when `send` is checked at compile time (lexical regions), no runtime cost. When regions are dynamic (interface-typed, passed as parameters), does traversal checking need a runtime component?
+
+---
+
+## Ambient Region Model (2026-06-03)
+
+### The Core Insight: One Region Per Function
+
+Every function body executes in exactly one ambient region. You don't know *which* region it is, but you know:
+
+1. All parameters passed in are branded with the same region (`'a`)
+2. All allocations (`new Foo()`) are branded with `'a`
+3. Therefore everything in the function lives in the same region — no accidental cross-region movement is possible
+
+Since everything is `'a`, there is no `send` violation possible within a function body that doesn't lexically introduce a second region. The `send` check only fires when there is a *visible second region* — i.e., you explicitly opened one with `with`.
+
+### Why This Works
+
+```mist
+void Foo(Banana b)   // b is in 'a (whatever 'a is — Foo doesn't know or care)
+{
+    var x = new Apple();   // x is also in 'a — same region as b
+    b = x;                 // fine — same region
+    return x;             // fine — caller is also in 'a (it passed us 'a)
+
+    with localArena = Arena(1.mb)   // introduces 'b — a NEW, visible region
+    {
+        var y = new Cherry();        // y is in 'b
+        x = y;                       // ERROR: 'b → 'a requires send
+        return y;                    // ERROR: 'b → 'a requires send
+    }
+}
+```
+
+The compiler doesn't need to know what `'a` *concretely* is. It just knows "there's one ambient region, and everything agrees on it." The only time a `send` check is needed is when you lexically introduce a second region via `with`. That's always visible in the function body.
+
+### What This Gives Us
+
+- **Implicit participation** — functions don't declare their region. They inherit it from the caller via the ambient context. User-defined regions with `governs any` work transparently.
+- **Local reasoning for `send` violations** — they only appear at lexical `with` boundaries you wrote yourself. You can never get a surprise `send` error from ambient context you can't see.
+- **No annotation in the common case** — most functions operate in a single region and need zero lifetime/region annotations.
+
+### Analogy to Rust Lifetimes
+
+In Rust, a function with no lifetime annotations assumes all borrows share the same lifetime. You only annotate when you have *multiple* lifetimes that need to be distinguished. Same principle here — you only annotate when you have *multiple* regions in one scope.
+
+### When Annotations Are Needed
+
+Functions that accept values from *different* regions simultaneously need to declare that:
+
+```mist
+// These two values might be in different regions — must be explicit
+void Transfer<'a, 'b>(Foo in 'a source, Bar in 'b target)
+{
+    // compiler knows 'a ≠ 'b — send check required
+    target.items.add(source);   // ERROR: 'a → 'b requires send
+}
+```
+
+But the common case (everything in one ambient region) requires no annotation. The unifying `'a` is implicit and never needs to be named.
+
+### How `enter`/`exit` Work Under This Model
+
+Since `new Foo()` is always in the ambient region `'a`, the compiler emits a call through the ambient context — "allocate in the current region." At runtime, this dispatches to whatever concrete region is active. The function doesn't know *which* region it's calling `enter` on. It calls through the context slot.
+
+Similarly, when a governed value leaves scope, the compiler emits an `exit` call through the ambient context. The function doesn't need to know the concrete region — it just calls through the slot.
+
+### Multi-Region: Shadowing, Not Broadcasting
+
+When multiple `with` blocks are stacked for the *same* context slot (e.g., nested allocators), the innermost shadows. There is only one active region per slot at any point. `new` resolves to the current allocator slot value. This eliminates the "value enters multiple regions" problem entirely for same-typed regions.
+
+Different-typed regions (allocator + scheduler) occupy different slots and don't interfere. A `Banana` might only be governed by the allocator slot, not the scheduler slot — the `governs` constraint on each region determines which slot cares about which types.
+
+### What Remains Unresolved: `send` Mechanics
+
+The model above establishes *when* a `send` check occurs (only at lexical `with` boundaries where a second region is visible). What remains open:
+
+1. **How do you express a cross-region transfer?** What does the syntax look like for moving a value from `'b` into `'a`? Is it a method call on the region? A keyword? An operator?
+
+2. **What does the region's `send` policy return?** Current draft has `allow`, `allow_borrow`, `allow_copy`, `deny`. Are these the right set? What does `allow_copy` mean concretely — who allocates the copy, and in which region?
+
+3. **Who initiates the transfer?** Does the source region release, or does the target region accept? Or is it a handshake through the parent?
+
+4. **Can `send` be conditional on runtime state?** (e.g., "allow if the task is completed"). If so, is `send` a compile-time check or a runtime check? Or both — compile-time proves the check *exists*, runtime evaluates it?
+
+5. **How does `send` interact with the ambient region model?** If everything in a function is `'a`, and you open a `with` block creating `'b`, and you want to move something from `'b` into `'a` — is that "sending to parent" or "sending to caller's ambient"? (Probably the same thing, but worth confirming.)
+
+These are the next design questions to resolve.

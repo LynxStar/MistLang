@@ -1021,20 +1021,152 @@ These are the next design questions to resolve.
 
 ---
 
-## Two Region Kinds: Space and Time (2026-06-04)
+## Regions Are Space Only (2026-06-04, revised)
 
-### Core Realization: Every Region Is Either Space or Time
+### Core Realization
 
-Every program is just operations that manipulate space via time. There is no third category. Transactions, rendering frames, undo scopes, security contexts — they all reduce to either "data containment" (space) or "operation sequencing" (time).
+Every program is operations that manipulate space via time. We initially explored two region kinds (`space` and `time`). After further exploration, the conclusion is:
 
-This means we don't need a general `region` keyword. We need exactly two kinds:
+**Regions are space only.** Time concerns (transactions, logging, operation sequencing) are handled by regular types with `IDroppable` + structured context (`with`). They don't need compiler-level region interception.
 
-- **`space`** — intercepts *creation* (`new`). Governs types. Tracks values in memory.
-- **`time`** — intercepts *execution* (method calls). Governs operations. Tracks what the program does.
+### Why Space Only
 
-### `space` — Heap Allocation Interception
+A `space` region intercepts `new`. This is clean because:
+- `new T()` is a single, universal syntactic form
+- The governs clause filters by type
+- `enter` receives a value — the region tracks it
+- `send` checks whether the value can escape — clear lifetime semantics
+- `exit` fires when the value dies — clean notification
+- Bulk-drop frees/cleans up everything owned by the region
 
-A `space` region intercepts `new`. The `governs` clause filters which types it cares about. The interception point is always the same syntactic form: `new T()`.
+A hypothetical `time` region would intercept method calls. This is problematic because:
+- Method calls happen constantly — which ones get intercepted?
+- The `enter` shape is awkward (target + method name + args as strings/objects?)
+- `send` semantics are unclear (what "escapes" from a method call?)
+- It's effectively AOP (aspect-oriented programming) and brings all of AOP's composition problems
+- Everything a `time` region does can be achieved with explicit method calls on a type in structured context
+
+### Schedulers Are Space Regions
+
+A scheduler owns *values* (tasks). When you `new Task<T>()`, that task is allocated into the scheduler region. The scheduler controls whether the task can escape (`send`) and what happens when the task dies (`exit`) or the scheduler itself tears down (bulk-drop via `IDroppable`).
+
+```mist
+public space Scheduler
+{
+    governs T : ITask;
+
+    private Queue<ITask> _pending;
+    private List<ITask> _running;
+
+    public Scheduler(int threads) { /* ... */ }
+
+    enter(T task)
+    {
+        _pending.Enqueue(task);
+        self.MaybeDispatch();
+    }
+
+    exit(T task)
+    {
+        _running.Remove(task);
+    }
+
+    send(T task, RegionRelation direction) -> SendResult
+    {
+        return match direction
+        {
+            .ancestor => if task.IsCompleted { .allow } else { .deny },
+            _ => .deny,
+        };
+    }
+}
+
+impl IDroppable for Scheduler
+{
+    drop()
+    {
+        for task in _pending { task.Cancel(); }
+        for task in _running { task.AwaitCompletion(); }
+    }
+}
+```
+
+Usage:
+
+```mist
+public void ProcessWork(List<WorkItem> items)
+{
+    with scheduler = Scheduler(4)
+    {
+        for item in items
+        {
+            let task = new ComputeTask(item);   // → scheduler.enter(task)
+            // task can't escape scheduler region until completed
+        }
+    }
+    // scheduler.drop() → awaits all running, cancels all pending
+}
+```
+
+The scheduler is just an allocator that allocates tasks instead of bytes. Same mechanism: `new` routes through the region, `send` enforces boundaries, `drop` cleans up.
+
+### Transactions Without Regions
+
+The transaction example doesn't need compiler-level interception. It's just a type with `IDroppable`:
+
+```mist
+public class TransactionScope : IDroppable
+{
+    private List<Operation> _log;
+    private bool _committed;
+
+    public TransactionScope(Database db)
+    {
+        _log = new List<Operation>();
+        _committed = false;
+    }
+
+    public void Record(Operation op)
+    {
+        _log.Add(op);
+    }
+
+    public void Commit()
+    {
+        for op in _log { op.Execute(); }
+        _committed = true;
+    }
+
+    public void Rollback()
+    {
+        _log.Clear();
+    }
+
+    drop()
+    {
+        if not _committed { self.Rollback(); }
+    }
+}
+```
+
+Usage:
+
+```mist
+public void TransferFunds(Account from, Account to, Money amount)
+{
+    with tx = TransactionScope(db)
+    {
+        tx.Record(from.Debit(amount));
+        tx.Record(to.Credit(amount));
+        tx.Commit();
+    }
+    // tx.drop() → rollback if not committed
+}
+```
+
+No magic interception. The programmer explicitly records operations. `IDroppable` guarantees cleanup on scope exit. The `with` gives scoped lifetime. This is sufficient.
+
+### The `space` Declaration
 
 ```mist
 public space Arena
@@ -1097,186 +1229,49 @@ public ParsedItem Parse(RawInput input)
 }
 ```
 
-The compiler sees `new TokenList()` → checks the ambient space slot → arena is active → arena governs `any` → emits `arena.enter(tokens)`.
+### What `space` Gives You (Summary)
 
-`Parse` has no `with` declaration. It just calls `new` and the ambient context routes it.
-
-### `time` — Method Call Interception
-
-A `time` region intercepts method calls. The `governs` clause specifies both the type constraint (which objects are relevant) AND the specific methods to intercept:
-
-```mist
-public interface ITransactional
-{
-    Operation ToOperation();
-}
-
-public class Account : ITransactional
-{
-    public void Debit(Money amount) { /* ... */ }
-    public void Credit(Money amount) { /* ... */ }
-    public Money GetBalance() { return _balance; }
-    public Operation ToOperation() { /* ... */ }
-}
-
-public time TransactionScope
-{
-    governs T : ITransactional { Debit, Credit, Transfer };
-
-    private List<Operation> _log;
-    private bool _committed;
-
-    public TransactionScope(Database db)
-    {
-        _log = new List<Operation>();
-        _committed = false;
-    }
-
-    enter(T target, string method, object[] args)
-    {
-        _log.Add(new Operation(target, method, args));
-    }
-
-    exit(T target, string method) { }
-
-    send(T op, RegionRelation direction) -> SendResult
-    {
-        return match direction
-        {
-            .ancestor => if _committed { .allow } else { .deny },
-            _ => .deny,
-        };
-    }
-
-    public void Commit()
-    {
-        for op in _log { op.Execute(); }
-        _committed = true;
-    }
-
-    public void Rollback()
-    {
-        _log.Clear();
-    }
-}
-
-impl IDroppable for TransactionScope
-{
-    drop()
-    {
-        if not _committed { self.Rollback(); }
-    }
-}
-```
-
-Usage:
-
-```mist
-public void TransferFunds(Account from, Account to, Money amount)
-{
-    with tx = TransactionScope(db)
-    {
-        from.Debit(amount);     // Account : ITransactional, Debit is governed → tx.enter(from, "Debit", [amount])
-        to.Credit(amount);      // Account : ITransactional, Credit is governed → tx.enter(to, "Credit", [amount])
-
-        from.GetBalance();      // Account : ITransactional, but GetBalance NOT in governs list → no interception
-
-        tx.Commit();
-    }
-    // if Commit wasn't called → tx.drop() → Rollback
-}
-```
-
-The compiler sees `from.Debit(amount)` → `from` is `Account` → `Account : ITransactional` → active time slot governs `ITransactional { Debit, Credit, Transfer }` → `Debit` is in the list → wrap call with `enter`/`exit`.
-
-Calling `from.GetBalance()` — even though `Account : ITransactional` — does NOT trigger the region because `GetBalance` is not in the governs method list.
-
-### Comparison
-
-| | `space` | `time` |
-|---|---|---|
-| Keyword | `space` | `time` |
-| Intercepts | `new` (heap allocation) | method calls on governed types |
-| `governs` filters on | the type being created | the type + specific methods |
-| `governs` syntax | `governs T : Constraint` | `governs T : Constraint { Method1, Method2 }` |
-| `enter` receives | the newly created value | the target + method + args |
-| `exit` means | "this value is dying" | "this call completed" |
-| `send` means | "can this value escape?" | "can this result escape?" |
-| Bulk-drop means | free all tracked memory | rollback/cancel all tracked ops |
-| Ambient slot | always filled (default allocator) | can be empty (not everything is transactional) |
-
-### Why Two Kinds, Not One
-
-A single `region` keyword with a unified `governs` clause can't cleanly express both:
-
-- "intercept `new Foo()` and track the value" (space)
-- "intercept `account.Debit()` and track the operation" (time)
-
-These are fundamentally different interception points with different shapes:
-- Space enter receives a *value* and tracks it for the region's lifetime
-- Time enter receives a *call* (target + method + args) and logs it
-
-The `send` semantics also differ:
-- Space send asks "can this value leave the region?" — answers are about the value's lifetime
-- Time send asks "can this operation's result escape?" — answers are about causality/consistency
-
-### How Both Use the Ambient Model
-
-Both kinds use the same ambient context mechanism:
-
-1. `with arena = Arena(16.mb)` pushes `arena` into the space context slot
-2. `with tx = TransactionScope(db)` pushes `tx` into the time context slot
-3. Functions don't declare which regions they're in — they inherit from the caller
-4. The compiler emits interception calls through the ambient slot at the appropriate points
-
-For space: the interception point is every `new T()` where T matches the governs clause.
-For time: the interception point is every `target.Method()` where target's type matches the governs clause and Method is in the method list.
-
-Both are fully implicit to the called function. `Parse` doesn't know it's in an arena. `TransferFunds`'s callees don't know they're in a transaction (unless they also call governed methods, in which case they transitively participate).
+| Mechanism | What It Does |
+|---|---|
+| `governs T : Constraint` | Filters which types this region tracks |
+| `enter(T item)` | Called by compiler when `new T()` is used in this region's scope |
+| `exit(T item)` | Called by compiler when a governed value leaves scope |
+| `send(T item, direction)` | Compile-time check: can this value cross the region boundary? |
+| `IDroppable.drop()` | Region's own cleanup when the `with` block ends |
 
 ### Shadowing
 
-Both kinds shadow by slot. Inner `with` replaces the active region for that slot:
+Inner `with` replaces the active space region. One slot, innermost wins:
 
 ```mist
 with outer = Arena(4.mb)
 {
-    // space slot = outer
     let a = new Foo();   // → outer.enter(a)
 
     with inner = Arena(1.mb)
     {
-        // space slot = inner (outer is shadowed)
         let b = new Bar();   // → inner.enter(b)
     }
-    // space slot = outer again
+    // outer is active again
 
     let c = new Baz();   // → outer.enter(c)
 }
 ```
 
-Same for time:
+### Time Regions: Deferred
 
-```mist
-with outerTx = TransactionScope(db)
-{
-    from.Debit(amount);   // → outerTx.enter(...)
+Time regions (intercepting method calls) may be valuable as a first-class concept in the future, but they are not needed for the regions/lifetimes work. The use cases we explored (transactions, logging, undo) are all achievable with explicit types + `IDroppable` + structured context.
 
-    with innerTx = TransactionScope(db)
-    {
-        to.Credit(amount);   // → innerTx.enter(...), NOT outerTx
-    }
-}
-```
+If time regions are revisited later, the open questions are:
+- What is the interception point? (which method calls get wrapped?)
+- What does `send` mean for an operation? (what "escapes"?)
+- How does `governs` work? (explored: `governs T : Interface { Method1, Method2 }`)
+- Is this just AOP with scoping, or is there something deeper?
 
-### Open Questions (Space vs Time)
+### Open Questions (Space Regions)
 
-1. **Can you have multiple space slots active simultaneously?** An allocator + a memory pool that governs a subset of types? Or is there strictly one space slot?
+1. **Multiple space slots simultaneously?** Can an allocator and a scheduler both be active? They govern different types (`any` vs `ITask`), so they wouldn't conflict. But does the ambient model support multiple space slots, or is it strictly one?
 
-2. **Can you have multiple time slots active simultaneously?** A transaction scope + a logging scope that watches different methods on the same types?
+2. **Slot keying** — if multiple space regions can be active, how does the compiler know which slot to route `new T()` to? By the governs constraint: whichever region's governs matches T gets the enter call. If multiple match, is that an error? Or does the most specific win?
 
-3. **If the time slot is empty and you call a governed method, what happens?** Nothing (methods work normally without a transaction)? Or compile error (you must be in a transaction to call Debit)?
-
-4. **The `send` signature for time** — what exactly is being "sent"? The method's return value? Or the operation record? If `Debit` returns `void`, what does send even check?
-
-5. **Time enter/exit shape** — is `enter(T target, string method, object[] args)` right? Or should it be more structured (e.g., a generated delegate/action type per governed method)?
+3. **Default allocator** — is there always a space region active? (The system allocator as the implicit bottom of the stack.) Or can you have no space region, meaning `new` just does what it does today (GC-managed on the current backend)?

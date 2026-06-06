@@ -3633,12 +3633,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         return specifier switch
         {
             OwnedSpecifierOwnershipSpecifierNode => OwnershipTier.Owned,
-            LinearSpecifierOwnershipSpecifierNode => OwnershipTier.Owned,
-            AffineSpecifierOwnershipSpecifierNode => OwnershipTier.Owned,
             FrozenSpecifierOwnershipSpecifierNode => OwnershipTier.Frozen,
             ReadonlyRefSpecifierOwnershipSpecifierNode => OwnershipTier.ReadonlyRef,
             BorrowedSpecifierOwnershipSpecifierNode => OwnershipTier.Borrowed,
-            RelevantSpecifierOwnershipSpecifierNode => OwnershipTier.Unrestricted,
             RefSpecifierOwnershipSpecifierNode => OwnershipTier.Borrowed,
             _ => OwnershipTier.Unrestricted,
         };
@@ -14773,10 +14770,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
             }
             else if (methodDecl.Modifiers.Any(m => m is OwnedModifierModifierNode))
-            {
-                methodSymbol.OwnershipTier = OwnershipTier.Owned;
-            }
-            else if (methodDecl.Modifiers.Any(m => m is LinearModifierModifierNode or AffineModifierModifierNode))
             {
                 methodSymbol.OwnershipTier = OwnershipTier.Owned;
             }

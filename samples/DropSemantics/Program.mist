@@ -125,13 +125,13 @@ public linear class Session
 
 public class Sink
 {
-    public static void ConsumeHandle(linear FileHandle h)
+    public static void ConsumeHandle(FileHandle h)
     {
         Console.WriteLine($"  Sink consumed FileHandle({h.GetFd()})");
         // PROOF: Drop() fires here at function exit
     }
 
-    public static linear FileHandle PassThrough(linear FileHandle h)
+    public static FileHandle PassThrough(FileHandle h)
     {
         Console.WriteLine($"  PassThrough FileHandle({h.GetFd()})");
         // PROOF: Drop() NOT called — h is returned (ownership transferred)
@@ -155,7 +155,7 @@ public class Program
         // ─── 1. Linear: auto-drop at scope exit ─────────────────────────
         Console.WriteLine("--- 1. Linear: auto-drop at scope exit ---");
         {
-            linear FileHandle f = new FileHandle(1);
+            FileHandle f = new FileHandle(1);
             Console.WriteLine($"  Created FileHandle({f.GetFd()})");
             // PROOF: compiler inserts f.Drop() here — exactly once
         }
@@ -163,7 +163,7 @@ public class Program
         // ─── 2. Linear: drop elision on move ────────────────────────────
         Console.WriteLine("--- 2. Linear: drop elision on move ---");
         {
-            linear FileHandle f = new FileHandle(2);
+            FileHandle f = new FileHandle(2);
             Console.WriteLine($"  Created FileHandle({f.GetFd()})");
             Sink.ConsumeHandle(f);
             // PROOF: no Drop() here — moved to ConsumeHandle
@@ -172,8 +172,8 @@ public class Program
         // ─── 3. Linear: drop elision on return ──────────────────────────
         Console.WriteLine("--- 3. Linear: drop elision on return ---");
         {
-            linear FileHandle f = new FileHandle(3);
-            linear FileHandle f2 = Sink.PassThrough(f);
+            FileHandle f = new FileHandle(3);
+            FileHandle f2 = Sink.PassThrough(f);
             Console.WriteLine($"  Got back FileHandle({f2.GetFd()})");
             // PROOF: f2.Drop() fires here
         }
@@ -181,7 +181,7 @@ public class Program
         // ─── 4. Linear: Drop() with return value ────────────────────────
         Console.WriteLine("--- 4. Linear: Drop with return value ---");
         {
-            linear LinearBox<int> box = new LinearBox<int>(42);
+            LinearBox<int> box = new LinearBox<int>(42);
             int value = box.Drop();
             // PROOF: box is consumed, value captured
             Console.WriteLine($"  Got value: {value}");
@@ -190,9 +190,9 @@ public class Program
         // ─── 5. Linear: reverse drop ordering ───────────────────────────
         Console.WriteLine("--- 5. Linear: reverse drop ordering ---");
         {
-            linear FileHandle first = new FileHandle(10);
-            linear FileHandle second = new FileHandle(11);
-            linear FileHandle third = new FileHandle(12);
+            FileHandle first = new FileHandle(10);
+            FileHandle second = new FileHandle(11);
+            FileHandle third = new FileHandle(12);
             Console.WriteLine($"  Created: {first.GetFd()}, {second.GetFd()}, {third.GetFd()}");
             // PROOF: drops in reverse: third, second, first
         }
@@ -200,7 +200,7 @@ public class Program
         // ─── 6. Relevant: drop fires for every reference ────────────────
         Console.WriteLine("--- 6. Relevant: drop fires for every reference ---");
         {
-            relevant SharedResource res = new SharedResource("conn-1");
+            SharedResource res = new SharedResource("conn-1");
             var alias = res;
             Console.WriteLine($"  res={res.GetId()}, alias={alias.GetId()}");
             // PROOF: both alias.Drop() and res.Drop() fire (one is no-op)
@@ -217,7 +217,7 @@ public class Program
         // ─── 8. Affine: no auto-drop outside with ───────────────────────
         Console.WriteLine("--- 8. Affine: no auto-drop outside with ---");
         {
-            affine AuthToken token = new AuthToken("xyz-789");
+            AuthToken token = new AuthToken("xyz-789");
             Console.WriteLine($"  AuthToken({token.GetToken()}) falls out of scope");
             // PROOF: NO Drop() call — affine allows forgetting outside with
         }
@@ -225,7 +225,7 @@ public class Program
         // ─── 9. Synthetic drop on containing type ────────────────────────
         Console.WriteLine("--- 9. Synthetic drop on containing type ---");
         {
-            linear Session session = new Session(50, 51);
+            Session session = new Session(50, 51);
             Console.WriteLine("  Session created with handles 50 and 51");
             // PROOF: synthetic Drop() calls Handle.Drop() then Log.Drop()
         }
@@ -233,7 +233,7 @@ public class Program
         // ─── 10. Lending retains drop responsibility ─────────────────────
         Console.WriteLine("--- 10. Lending retains drop responsibility ---");
         {
-            linear FileHandle f = new FileHandle(30);
+            FileHandle f = new FileHandle(30);
             ReadFd(f);
             Console.WriteLine($"  Owner still has FileHandle({f.GetFd()})");
             // PROOF: Drop() fires on f here — lending did not move it

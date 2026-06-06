@@ -325,9 +325,6 @@ rule OwnershipSpecifier
     | FROZEN               as FrozenSpecifier
     | READONLY REF         as ReadonlyRefSpecifier
     | BORROWED             as BorrowedSpecifier
-    | LINEAR               as LinearSpecifier
-    | AFFINE               as AffineSpecifier
-    | RELEVANT             as RelevantSpecifier
     | REF                  as RefSpecifier
     ;
 

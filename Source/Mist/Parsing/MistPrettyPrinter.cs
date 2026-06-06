@@ -1138,9 +1138,6 @@ public sealed class MistPrettyPrinter
         return specifier switch
         {
             OwnedSpecifierOwnershipSpecifierNode => "owned ",
-            LinearSpecifierOwnershipSpecifierNode => "linear ",
-            AffineSpecifierOwnershipSpecifierNode => "affine ",
-            RelevantSpecifierOwnershipSpecifierNode => "relevant ",
             FrozenSpecifierOwnershipSpecifierNode => "frozen ",
             ReadonlyRefSpecifierOwnershipSpecifierNode => "readonly ref ",
             BorrowedSpecifierOwnershipSpecifierNode => "borrowed ",

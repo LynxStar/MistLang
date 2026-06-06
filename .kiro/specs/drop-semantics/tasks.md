@@ -113,7 +113,7 @@ All code is C# (the compiler) and Mist (standard library + samples), matching th
     - Tag: `Feature: drop-semantics, Property 14: Field drop restriction`
     - Generate field `Drop()` calls at varied sites (inside the container's `Drop()`, in other methods, on another object's field); assert error iff outside the container's `Drop()` for affine/linear fields; relevant fields exempt. In-process; **spawns 0 external processes**.
 
-- [ ] 6. Checkpoint - foundational analysis complete
+- [x] 6. Checkpoint - foundational analysis complete
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 7. C# emitter auto-drop insertion
@@ -121,11 +121,11 @@ All code is C# (the compiler) and Mist (standard library + samples), matching th
     - In `Source/Mist/Backends/CSharpTranspiler/CSharpEmitter.cs`, for scopes containing linear/relevant locals emit `Drop()` calls at scope exit in reverse declaration order, wrapped in `try/finally` so drops fire on exception. Ensure the new `affine`/`linear`/`relevant` modifier nodes are erased (never emitted) in C#. Relevant types always drop (idempotent); linear drops exactly once when `Live`.
     - _Requirements: 4.1, 4.4, 4.5, 4.7, 13.1, 13.2, 14.1, 14.2, 14.3, 14.7_
 
-  - [-] 7.2 Implement drop elision and conditional-move branch sensitivity
+  - [ ] 7.2 Implement drop elision and conditional-move branch sensitivity
     - Skip drop insertion when a linear variable was moved (to a variable or function parameter) or returned; for a variable moved in one conditional branch but not another, insert `Drop()` only in the live branches. Loop-body variables drop at end of each iteration.
     - _Requirements: 4.2, 4.3, 4.6, 13.4, 13.5_
 
-  - [ ] 7.3 Emit `await` for Task/ValueTask Drop and support explicit Drop return capture
+  - [x] 7.3 Emit `await` for Task/ValueTask Drop and support explicit Drop return capture
     - Emit `await expr` (not a `.Drop()` call) when the dropped value's type is `Task<T>`/`ValueTask<T>`; emit a Mist-source `await expr` as C# `await`; on explicit `Drop()` of an owned non-void type allow the caller to capture the return value (`T r = v.Drop();`); discard the return value on auto-insert and in `with` contexts.
     - _Requirements: 2.5, 3.4, 3.5, 7.4, 7.10, 8.8, 14.5, 14.6_
 
@@ -133,13 +133,13 @@ All code is C# (the compiler) and Mist (standard library + samples), matching th
     - When a type provides a manual `Drop()` and has droppable fields, track which fields were explicitly dropped in the body and emit `Drop()` for the remaining droppable fields (declaration order) at the end of the method body.
     - _Requirements: 10.7, 10.8_
 
-  - [ ] 7.5 Write property test for linear auto-drop and elision
+  - [x] 7.5 Write property test for linear auto-drop and elision
     - **Property 5: Linear auto-drop at scope exit** and **Property 6: Linear drop elision on move or return**
     - **Validates: Requirements 2.8, 4.1, 4.2, 4.3**
     - Tag: `Feature: drop-semantics, Property 5: Linear auto-drop at scope exit`
     - Generate linear locals with random control flow (some moved/returned, some live at exit), compile once in-process, inspect emitted C# to assert `Drop()`/`await` appears exactly where expected and is elided otherwise. **Spawns 0 external processes**.
 
-  - [-] 7.6 Write property test for reverse-declaration drop order
+  - [ ] 7.6 Write property test for reverse-declaration drop order
     - **Property 10: Reverse declaration order for multiple drops**
     - **Validates: Requirements 4.5, 13.1**
     - Tag: `Feature: drop-semantics, Property 10: Reverse declaration order`
@@ -157,7 +157,7 @@ All code is C# (the compiler) and Mist (standard library + samples), matching th
     - Tag: `Feature: drop-semantics, Property 18: Try/finally wrapping`
     - Assert emitted C# wraps linear/relevant scopes in `try/finally` with drops in the `finally`. In-process; **spawns 0 external processes**.
 
-  - [ ] 7.9 Write test for conditional-move branch sensitivity
+  - [x] 7.9 Write test for conditional-move branch sensitivity
     - **Property 19: Conditional move branch-sensitive drop**
     - **Validates: Requirements 4.6, 13.5**
     - Tag: `Feature: drop-semantics, Property 19: Conditional move branch-sensitive drop`
@@ -193,7 +193,7 @@ All code is C# (the compiler) and Mist (standard library + samples), matching th
     - Tag: `Feature: drop-semantics, Property 15: Await desugars to Drop`
     - Assert `await e` and `e.Drop()` resolve to the same method and result type `T` for Task/ValueTask at the semantic-model level. In-process; **spawns 0 external processes**.
 
-  - [ ] 7.15 Write test for lending retaining drop responsibility
+  - [x] 7.15 Write test for lending retaining drop responsibility
     - **Property 11: Lending does not transfer drop responsibility**
     - **Validates: Requirements 9.1, 9.2, 9.3**
     - Tag: `Feature: drop-semantics, Property 11: Lending does not transfer drop responsibility`

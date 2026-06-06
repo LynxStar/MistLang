@@ -6993,7 +6993,9 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
-    /// Emits the scope-exit await for all live (un-awaited, un-returned) tasks in a block.
+    /// Emits the scope-exit await for discarded (un-named) live tasks in a block.
+    /// Named task variables are now handled by the unified auto-drop try/finally wrapping
+    /// (task 7.3), so only synthetic <c>__task_N</c> variables are awaited here.
     /// If there is exactly one live task, emits <c>await __task_0;</c>.
     /// If there are multiple live tasks, emits <c>await Task.WhenAll(__task_0, __task_1, ...);</c>.
     /// </summary>
@@ -7003,10 +7005,12 @@ internal sealed class CSharpSourceWriter
             return;
 
         // Collect variable names for all live tasks that were not consumed.
+        // Skip named task variables — they are now auto-dropped via try/finally wrapping.
         var taskNames = new List<string>();
         foreach (var task in liveTasks)
         {
-            if (!task.IsExplicitlyAwaited && !task.IsReturned)
+            if (!task.IsExplicitlyAwaited && !task.IsReturned
+                && task.GeneratedVariableName.StartsWith("__task_", StringComparison.Ordinal))
                 taskNames.Add(task.GeneratedVariableName);
         }
 
@@ -7049,9 +7053,9 @@ internal sealed class CSharpSourceWriter
             // the declaration and then wrap the remaining statements in a try/finally so
             // the scope-exit Drop() fires even when an exception is thrown. Nesting these
             // wrappers produces reverse declaration order (last declared, first dropped).
-            if (TryGetScopeExitDropLocalName(stmt, out var dropLocalName))
+            if (TryGetScopeExitDropLocalName(stmt, out var dropLocalName, out var dropLocalIsTaskLike))
             {
-                EmitDroppableLocalWithWrapping(stmt, dropLocalName, statements, i + 1);
+                EmitDroppableLocalWithWrapping(stmt, dropLocalName, dropLocalIsTaskLike, statements, i + 1);
                 return; // Remaining statements are emitted inside the try block.
             }
 
@@ -7062,13 +7066,15 @@ internal sealed class CSharpSourceWriter
     /// <summary>
     /// Emits a variable declaration for a linear/relevant local with a <c>Drop()</c>
     /// obligation, followed by a try/finally block wrapping the remaining statements in
-    /// the scope. The <c>finally</c> clause emits the scope-exit <c>Drop()</c> call so the
-    /// obligation is satisfied even on exception (Requirement 14.3). Multiple droppable
-    /// locals nest, producing reverse declaration order (Requirements 4.5, 13.1).
+    /// the scope. The <c>finally</c> clause emits the scope-exit <c>Drop()</c> call (or
+    /// <c>await</c> for Task/ValueTask types) so the obligation is satisfied even on
+    /// exception (Requirement 14.3). Multiple droppable locals nest, producing reverse
+    /// declaration order (Requirements 4.5, 13.1).
     /// </summary>
     private void EmitDroppableLocalWithWrapping(
         StatementNode declStmt,
         string localName,
+        bool isTaskLike,
         ImmutableArray<StatementNode> statements,
         int nextIndex)
     {
@@ -7084,9 +7090,13 @@ internal sealed class CSharpSourceWriter
         AppendLine("finally");
         AppendLine("{");
         _indentLevel++;
-        // Relevant types drop idempotently for every reference; linear types drop exactly
-        // once when Live. Drop elision on move/return is layered on top in task 7.2.
-        AppendLine($"{localName}.Drop();");
+        // For Task<T>/ValueTask<T>, emit `await` instead of `.Drop()` (Requirements 7.10, 8.8, 14.5).
+        // For other types: relevant types drop idempotently for every reference; linear types
+        // drop exactly once when Live. Drop elision on move/return is layered on top in task 7.2.
+        if (isTaskLike)
+            AppendLine($"await {localName};");
+        else
+            AppendLine($"{localName}.Drop();");
         _indentLevel--;
         AppendLine("}");
     }
@@ -7096,12 +7106,14 @@ internal sealed class CSharpSourceWriter
     /// relevant type with a <c>Drop()</c> method, making it eligible for scope-exit
     /// auto-drop. Returns the C# local name through <paramref name="localName"/> when so.
     /// Affine and unrestricted locals never auto-drop at scope exit (Requirement 4.8).
-    /// <c>Task</c>/<c>ValueTask</c> are excluded here — their scope-exit await is handled
-    /// by the existing live-task machinery and refined in task 7.3.
+    /// For <c>Task</c>/<c>ValueTask</c> types, <paramref name="isTaskLike"/> is set to
+    /// <c>true</c> so the emitter knows to emit <c>await</c> instead of <c>.Drop()</c>
+    /// (Requirements 7.10, 8.8, 14.5, 14.6).
     /// </summary>
-    private bool TryGetScopeExitDropLocalName(StatementNode stmt, out string localName)
+    private bool TryGetScopeExitDropLocalName(StatementNode stmt, out string localName, out bool isTaskLike)
     {
         localName = "";
+        isTaskLike = false;
 
         if (stmt is not VariableDeclarationStatementStatementNode varDeclStmt)
             return false;
@@ -7115,6 +7127,7 @@ internal sealed class CSharpSourceWriter
                     || !ShouldAutoInsertScopeExitDrop(typedType))
                     return false;
                 localName = typed.Name.Lexeme;
+                isTaskLike = IsTaskLikeType(typedType);
                 return true;
             }
             case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
@@ -7123,6 +7136,7 @@ internal sealed class CSharpSourceWriter
                     || !ShouldAutoInsertScopeExitDrop(inferredType))
                     return false;
                 localName = inferred.Name.Lexeme;
+                isTaskLike = IsTaskLikeType(inferredType);
                 return true;
             }
             default:
@@ -7134,14 +7148,11 @@ internal sealed class CSharpSourceWriter
     /// Returns <c>true</c> when a local of the given type should have a <c>Drop()</c> call
     /// auto-inserted at scope exit: the type has a <c>Drop()</c> method and its discipline
     /// is <c>Linear</c> or <c>Relevant</c>. Affine and unrestricted types are excluded
-    /// (they only drop within <c>with</c> blocks). <c>Task</c>/<c>ValueTask</c> are excluded
-    /// (handled by the live-task await path).
+    /// (they only drop within <c>with</c> blocks). Task/ValueTask are included — the emitter
+    /// emits <c>await</c> instead of <c>.Drop()</c> for them (Requirements 7.10, 8.8, 14.5).
     /// </summary>
     private static bool ShouldAutoInsertScopeExitDrop(IType type)
     {
-        if (IsTaskLikeType(type))
-            return false;
-
         var resolved = type is ConstructedType constructed ? constructed.GenericDefinition : type;
         var (discipline, hasDrop) = resolved switch
         {
@@ -7156,8 +7167,9 @@ internal sealed class CSharpSourceWriter
 
     /// <summary>
     /// Returns <c>true</c> when the type is the standard-library <c>Task</c> or
-    /// <c>ValueTask</c> (generic or void alias). Scope-exit handling for these flows
-    /// through the existing live-task await machinery rather than a plain <c>.Drop()</c>.
+    /// <c>ValueTask</c> (generic or void alias). Used to determine whether auto-drop
+    /// and explicit <c>Drop()</c> calls should emit <c>await</c> instead of <c>.Drop()</c>
+    /// (Requirements 7.10, 8.8, 14.5, 14.6).
     /// </summary>
     private static bool IsTaskLikeType(IType type)
     {
@@ -9625,6 +9637,16 @@ internal sealed class CSharpSourceWriter
             case MethodCallSuffixPostfixSuffixNode methodCall:
             {
                 var name = methodCall.Name.Lexeme;
+
+                // Explicit .Drop() on Task<T>/ValueTask<T> emits as `await target`
+                // instead of `target.Drop()` (Requirements 7.10, 8.8, 14.5, 14.6).
+                // This also handles `T r = v.Drop()` → `T r = await v` for task types.
+                if (name == "Drop" && methodCall.Arguments is null && receiverType is not null
+                    && IsTaskLikeType(receiverType))
+                {
+                    return $"await {target}";
+                }
+
                 var typeArgs = methodCall.TypeArgs is not null
                     ? EmitTypeArgumentList(methodCall.TypeArgs)
                     : EmitInferredTypeArguments(methodCall);

@@ -37,6 +37,10 @@ A `Sneaky<string>` would violate the same invariant. The fix: generic type param
 
 This likely also applies to `owned` types — a generic field could bypass the "all fields must be owned" rule if T is unconstrained.
 
-### 3. Task<T> structured concurrency storage restriction (MIST_TC_0110)
+### 3. Remove Task<T> storage restriction (MIST_TC_0110)
 
-`Task<T>` cannot be stored in fields or properties at all — this is the structured concurrency rule preventing tasks from escaping their scope. This is separate from the substructural field check and may need revisiting depending on whether certain patterns (like a linear type holding a Task that it awaits in its Drop) should be permitted.
+`MIST_TC_0110` prevents `Task<T>` from being stored in fields or properties. This was a protective measure before drop semantics existed — without it, a task stored in a field could escape its structured scope and be silently abandoned.
+
+With drop semantics in place, this restriction is obsolete. Substructural typing already ensures that any container holding a Task has the same stack-reachability guarantee that a bare Task local has: the container can only outlive the function if it's returned (same as the Task restriction). There is always something on the stack pointing back to the live task — either a local variable or a container with equivalent constraints.
+
+**Action:** Remove the `MIST_TC_0110` diagnostic and its associated checks. Allow `Task<T>` in fields/properties when the containing type has appropriate substructural discipline. Update tests accordingly.

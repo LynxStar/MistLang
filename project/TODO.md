@@ -4,26 +4,34 @@ Tracked issues and improvements that don't belong to an active spec but should b
 
 ---
 
-## Type System Gaps
+## Substructural Type System Gaps
 
-### Task<T> not recognized as relevant when used as a field in linear types
+### 1. Variance interactions between substructural types
 
-Storing a `Task<T>` in a field of a `linear` class triggers `MIST_TC_0110` (field type does not satisfy the type's substructural discipline). The type checker doesn't recognize `Task<T>` as relevant despite it having `Drop` (via `await`) and being scope-exit-dropped by the emitter.
+The field discipline check (`MIST_TC_0110`) rejects fields whose type doesn't exactly match the containing type's discipline. But the substructural lattice has a natural variance: it should be safe to store types that are *more* restrictive than the container requires.
 
-This means you can't write:
+For example, a `linear` type requires fields that can't be silently discarded (no weakening) and can't be silently duplicated (no contraction). Both `relevant` and `affine` satisfy subsets of this, and `linear` itself satisfies all of it. The safe combinations:
+
+- `linear` container: can hold `linear` fields (both restrictions met)
+- `relevant` container: can hold `relevant` or `linear` fields (contraction restricted)
+- `affine` container: can hold `affine` or `linear` fields (weakening restricted)
+
+The current check likely demands an exact discipline match rather than checking the lattice ordering.
+
+**Concrete example:** `Task<T>` is `relevant` (must be used/awaited, but can be aliased). A `linear` class should be able to store a `relevant` field since linear is strictly more restrictive — but `MIST_TC_0110` fires.
+
+### 2. Generic fields bypass substructural and ownership field constraints
+
+The field discipline check validates concrete field types but doesn't constrain generic type parameters used as fields. This means:
 
 ```mist
-public linear class TaskBox
-{
-    Task<string> Inner;  // ERROR: MIST_TC_0110
+// Correctly rejected:
+public linear class Bad { string Value; }  // MIST_TC_0110: string is unrestricted
 
-    public TaskBox(Task<string> inner) { this.Inner = inner; }
-    public Task<string> Drop() { return Inner; }
-}
+// Incorrectly accepted:
+public linear class Sneaky<T> { T Value; }  // No error — T could be string at instantiation
 ```
 
-**Expected behavior:** `Task<T>` should be recognized as relevant (it has a Drop mechanism via `await`), allowing it to be stored in linear/relevant type fields.
+A `Sneaky<string>` would violate the same invariant that the concrete check catches. The fix: generic type parameters used as fields in substructural types need constraints (e.g., `where T : linear` or `where T : relevant`), or the instantiation site needs validation.
 
-**Workaround:** Avoid storing `Task<T>` directly in linear type fields. Use alternative patterns (e.g., return `ResourceHandle` from Drop instead of `Task<T>`).
-
-**Affected code:** Type checker's substructural field validation (likely `TypeCheckerAnalyzer` or ownership analysis).
+This likely also applies to `owned` types — a generic field could bypass the "all fields must be owned types" restriction if T is unconstrained.

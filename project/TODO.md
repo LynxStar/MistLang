@@ -4,40 +4,34 @@ Tracked issues and improvements that don't belong to an active spec but should b
 
 ---
 
-## Substructural Type System Gaps
+## Ownership System Gaps
 
-### 1. Substructural field discipline check uses wrong rules
+### 1. Field assignment provenance not enforced
 
-The field containment check (`MIST_DROP_FIELD_NOT_OWNED`) currently only asks "is the container owned?" — if yes, affine/linear fields are permitted; if no, they're rejected. But it doesn't enforce the substructural compatibility between container and field disciplines.
+Assigning to a field of an owned-type instance does not check that the source value has owned provenance. The spec (Req 4.5/4.6) defines provenance checks for owned *binding* initialization, and Req 10.3 defines them for `owned`-modifier fields, but neither is enforced at assignment sites.
 
-The correct rules (derived from each container's drop guarantees):
-
-| Container | Permitted fields |
-|-----------|-----------------|
-| **linear** (exactly once) | linear, affine, relevant, unrestricted — anything is safe |
-| **affine** (0 or 1 times) | affine, unrestricted only — relevant/linear need ≥1 drop |
-| **relevant** (1+ times) | relevant, unrestricted only — affine/linear need ≤1 drop |
-| **owned** (exactly once, like linear) | owned types only (existing rule) |
-
-Currently an affine container can hold a relevant field (wrong — if the affine is never dropped, the relevant field's "must be used" invariant is violated). Similarly a relevant container can hold an affine field (wrong — if the relevant is dropped multiple times, the affine field's "at most once" invariant is violated).
-
-### 2. Generic fields bypass substructural and ownership field constraints
-
-The field containment check validates concrete field types but doesn't constrain generic type parameters used as fields:
-
+**Broken example:**
 ```mist
-// Correctly rejected:
-public linear class Bad { string Value; }  // MIST_DROP_FIELD_NOT_OWNED
+public owned class Widget { public int Count; }
+public owned class Container { public Widget Item; }
 
-// Incorrectly accepted:
-public linear class Sneaky<T> { T Value; }  // No error — T could be string
+var foo = new Widget(5);           // shared binding
+owned var container = new Container(foo);  // no error — should reject
+container.Item = foo;              // no error — should reject
 ```
 
-A `Sneaky<string>` would violate the same invariant. The fix: generic type parameters used as fields in substructural/owned types need constraints (e.g., `where T : linear`), or the instantiation site needs validation.
+Both `new Container(foo)` and `container.Item = foo` should fail because `foo` is not an owned binding. Storing a shared reference breaks the "self-contained graph" guarantee.
 
-This likely also applies to `owned` types — a generic field could bypass the "all fields must be owned" rule if T is unconstrained.
+This also applies inside constructors:
+```mist
+public Container(Widget item) { this.Item = item; }  // item is not owned — should fail
+```
 
-### 3. Relax owned field restriction: allow deeply readonly fields
+The correct constructor signature would be `public Container(owned Widget item)`.
+
+**Scope:** This is both a requirements gap (no explicit requirement for field assignment provenance on owned-type fields without the `owned` modifier) AND an implementation gap (Req 10.3 for `owned`-modifier fields exists but isn't enforced).
+
+### 2. Relax owned field restriction: allow deeply readonly fields
 
 Currently owned types require ALL reference-type fields to be owned types. This is overly restrictive — the invariant we're actually protecting is: "if you own something and you don't touch it, its state cannot change."
 

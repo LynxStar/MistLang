@@ -1,0 +1,51 @@
+using Standard;
+
+namespace Snippets;
+
+public linear class Connection
+{
+    string Host;
+
+    public Connection(string host)
+    {
+        this.Host = host;
+    }
+
+    public void Drop()
+    {
+        Console.WriteLine($"Connection({Host}) closed");
+    }
+
+    public string GetHost()
+    {
+        return Host;
+    }
+}
+
+public class Program
+{
+    public static void Send(Connection conn)
+    {
+        Console.WriteLine($"Sending on {conn.GetHost()}");
+        // conn.Drop() fires here — callee owns it
+    }
+
+    public static Connection Upgrade(Connection conn)
+    {
+        Console.WriteLine($"Upgrading {conn.GetHost()}");
+        // no Drop() — ownership returned to caller
+        return conn;
+    }
+
+    public static void Main()
+    {
+        var c = new Connection("example.com");
+        Send(c);
+        // no Drop() here — moved to Send
+
+        var c2 = new Connection("other.com");
+        var c3 = Upgrade(c2);
+        // no Drop() on c2 — moved to Upgrade and returned as c3
+        // c3.Drop() fires here
+    }
+}

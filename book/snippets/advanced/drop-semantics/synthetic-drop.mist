@@ -1,0 +1,42 @@
+using Standard;
+
+namespace Snippets;
+
+public linear class Handle
+{
+    int Id;
+
+    public Handle(int id)
+    {
+        this.Id = id;
+    }
+
+    public void Drop()
+    {
+        Console.WriteLine($"Handle({Id}) released");
+    }
+}
+
+// Session has no explicit Drop() — the compiler synthesizes one
+// that calls Handle.Drop() then Log.Drop() in declaration order
+public linear class Session
+{
+    Handle Conn;
+    Handle Log;
+
+    public Session(int connId, int logId)
+    {
+        this.Conn = new Handle(connId);
+        this.Log = new Handle(logId);
+    }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        var session = new Session(1, 2);
+        Console.WriteLine("Session active");
+        // synthetic Drop() fires: Conn.Drop() then Log.Drop()
+    }
+}

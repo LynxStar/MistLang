@@ -1,0 +1,41 @@
+using Standard;
+
+namespace Snippets;
+
+public affine class Transaction
+{
+    string Id;
+
+    public Transaction(string id)
+    {
+        this.Id = id;
+    }
+
+    public void Drop()
+    {
+        Console.WriteLine($"Transaction({Id}) committed");
+    }
+
+    public string GetId()
+    {
+        return Id;
+    }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        // Drop only fires inside a with block
+        with(new Transaction("tx-001"))
+        {
+            Console.WriteLine("Inside transaction");
+        }
+        // Drop() fires at block exit
+
+        // Outside with, affine values can be forgotten
+        var token = new Transaction("tx-002");
+        Console.WriteLine($"Created {token.GetId()}, not dropping");
+        // no Drop() — affine allows forgetting outside with
+    }
+}

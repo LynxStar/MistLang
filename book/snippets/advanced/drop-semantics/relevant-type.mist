@@ -1,0 +1,43 @@
+using Standard;
+
+namespace Snippets;
+
+public relevant class Logger
+{
+    string Name;
+    bool Flushed;
+
+    public Logger(string name)
+    {
+        this.Name = name;
+        this.Flushed = false;
+    }
+
+    public void Drop()
+    {
+        if (Flushed)
+        {
+            return;
+        }
+        this.Flushed = true;
+        Console.WriteLine($"Logger({Name}) flushed");
+    }
+
+    public void Log(string msg)
+    {
+        Console.WriteLine($"[{Name}] {msg}");
+    }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        var logger = new Logger("app");
+        var alias = logger;
+        alias.Log("hello");
+        logger.Log("world");
+        // Drop() fires for both alias and logger at scope exit
+        // (idempotent — second call is a no-op)
+    }
+}

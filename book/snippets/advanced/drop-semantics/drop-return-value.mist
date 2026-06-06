@@ -1,0 +1,30 @@
+using Standard;
+
+namespace Snippets;
+
+public linear class SecretBox
+{
+    string Secret;
+
+    public SecretBox(string secret)
+    {
+        this.Secret = secret;
+    }
+
+    public string Drop()
+    {
+        Console.WriteLine("SecretBox consumed");
+        return Secret;
+    }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        var box = new SecretBox("password123");
+        var secret = box.Drop();
+        Console.WriteLine($"Got: {secret}");
+        // box is consumed — cannot be used after this point
+    }
+}

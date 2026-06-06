@@ -1,19 +1,26 @@
 using System;
 
-public static class UnknownExtensions_Unknown_L11
+namespace Snippet;
+
+public class DeepShadowing
 {
-    public static string ToString(this object self)
+    public static void Main(string[] args)
     {
-        return "";
+        var name = "first";
+        {
+            var name = "second";
+            {
+                var name = "third";
+                Console.WriteLine(name);
+            }
+            Console.WriteLine(name);
+        }
+        Console.WriteLine(name);
     }
 
-    public static int GetHashCode(this object self)
+    public static DeepShadowing __CreateDefault()
     {
-        return 0;
-    }
-
-    public static System.Type GetType(this object self)
-    {
-        return self.GetType();
+        var inst = new DeepShadowing();
+        return inst;
     }
 }

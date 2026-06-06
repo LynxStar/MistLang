@@ -1,19 +1,23 @@
 using System;
 
-public static class UnknownExtensions_Unknown_L11
+namespace Snippet;
+
+public class ShadowingDemo
 {
-    public static string ToString(this object self)
+    public static void Main(string[] args)
     {
-        return "";
+        var x = 10;
+        Console.WriteLine($"outer x = {x}");
+        {
+            var x = 99;
+            Console.WriteLine($"inner x = {x}");
+        }
+        Console.WriteLine($"outer x after block = {x}");
     }
 
-    public static int GetHashCode(this object self)
+    public static ShadowingDemo __CreateDefault()
     {
-        return 0;
-    }
-
-    public static System.Type GetType(this object self)
-    {
-        return self.GetType();
+        var inst = new ShadowingDemo();
+        return inst;
     }
 }

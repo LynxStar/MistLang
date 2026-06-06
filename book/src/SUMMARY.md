@@ -51,6 +51,7 @@
 
 - [First-Class Functions](functions/first-class-functions.md)
 - [Ownership](advanced/ownership.md)
+- [Drop Semantics](advanced/drop-semantics.md)
 - [Ref Parameters](advanced/ref-parameters.md)
 - [Readonly Contexts](advanced/readonly-contexts.md)
 - [Structured Context](advanced/structured-context.md)

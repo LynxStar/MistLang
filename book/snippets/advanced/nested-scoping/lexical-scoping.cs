@@ -1,19 +1,23 @@
 using System;
 
-public static class UnknownExtensions_Unknown_L11
+namespace Snippet;
+
+public class Program
 {
-    public static string ToString(this object self)
+    public static void Main(string[] args)
     {
-        return "";
+        var outer = "visible everywhere";
+        {
+            var inner = "only visible in this block";
+            Console.WriteLine(inner);
+            Console.WriteLine(outer);
+        }
+        Console.WriteLine(outer);
     }
 
-    public static int GetHashCode(this object self)
+    public static Program __CreateDefault()
     {
-        return 0;
-    }
-
-    public static System.Type GetType(this object self)
-    {
-        return self.GetType();
+        var inst = new Program();
+        return inst;
     }
 }

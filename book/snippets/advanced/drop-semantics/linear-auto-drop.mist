@@ -1,0 +1,33 @@
+using Standard;
+
+namespace Snippets;
+
+public linear class FileHandle
+{
+    int Fd;
+
+    public FileHandle(int fd)
+    {
+        this.Fd = fd;
+    }
+
+    public void Drop()
+    {
+        Console.WriteLine($"FileHandle({Fd}) closed");
+    }
+
+    public int GetFd()
+    {
+        return Fd;
+    }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        var f = new FileHandle(42);
+        Console.WriteLine($"Using handle {f.GetFd()}");
+        // compiler inserts f.Drop() here — exactly once
+    }
+}

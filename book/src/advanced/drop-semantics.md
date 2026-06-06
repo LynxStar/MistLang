@@ -1,0 +1,148 @@
+# Drop Semantics
+
+Mist provides deterministic cleanup through a unified `Drop()` method. Unlike languages that rely on garbage collection for finalization or separate patterns like `IDisposable`, Mist ties cleanup directly to a type's substructural discipline — the type declaration itself determines when and how often `Drop()` fires.
+
+The three substructural modifiers are:
+
+| Modifier | Drop called... | Owned? | Can alias? | Can forget? |
+|---|---|---|---|---|
+| `linear` | Exactly once at scope exit | Yes | No | No |
+| `relevant` | At least once at scope exit (idempotent) | No | Yes | No |
+| `affine` | At most once, only in `with` blocks | Yes | No | Yes (outside `with`) |
+
+Types without a substructural modifier can still declare `Drop()` — it only fires inside `with` blocks (zero or more times).
+
+## Linear Types
+
+A `linear` type guarantees exactly-once cleanup. The compiler inserts a `Drop()` call at scope exit for every linear local that hasn't been moved or returned. This makes resource leaks structurally impossible.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/drop-semantics/linear-auto-drop.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/drop-semantics/linear-auto-drop.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Linear types imply `owned` — they have single-holder move semantics. You cannot alias a linear value; assigning it to another variable is a move.
+
+### Drop Elision
+
+The compiler is smart about when to insert `Drop()`. If a linear value is moved to a function parameter or returned from the function, the caller's `Drop()` is elided — the new owner takes responsibility.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/drop-semantics/drop-elision.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/drop-semantics/drop-elision.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+When multiple linear variables exist in the same scope, they are dropped in reverse declaration order (last declared, first dropped). The emitted C# uses nested `try/finally` blocks to ensure drops fire even on exception.
+
+### Drop with a Return Value
+
+`Drop()` can return a value. This lets a container die while yielding something to the caller — the box is consumed, but its contents escape.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/drop-semantics/drop-return-value.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/drop-semantics/drop-return-value.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+After calling `Drop()`, the variable is consumed — any subsequent access is a compile-time error. When the compiler auto-inserts `Drop()` at scope exit, non-void return values are discarded.
+
+## Relevant Types
+
+A `relevant` type guarantees at-least-once cleanup. Unlike linear types, relevant values are aliasable — you can have multiple references to the same object. `Drop()` fires at scope exit for every reference, so the implementation must be idempotent.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/drop-semantics/relevant-type.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/drop-semantics/relevant-type.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`Task<T>` in the standard library is a relevant type — its `Drop()` performs `await`, ensuring tasks are always awaited. Since `Task<T>` is aliasable (you can pass it to multiple functions), the `await` is idempotent — awaiting a completed task is a no-op.
+
+## Affine Types
+
+An `affine` type allows at-most-once cleanup. `Drop()` only fires inside `with` blocks — outside a `with`, you can let an affine value fall out of scope without cleanup. This is useful for one-shot tokens where cleanup is optional.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/drop-semantics/affine-with-block.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/drop-semantics/affine-with-block.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Affine types imply `owned` — like linear types, they have single-holder move semantics and cannot be aliased.
+
+## Synthetic Drop
+
+When a type contains fields with `Drop()` methods but doesn't define its own, the compiler synthesizes one. The synthetic `Drop()` calls each droppable field's `Drop()` in declaration order.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/drop-semantics/synthetic-drop.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/drop-semantics/synthetic-drop.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+This inference cascades transitively — if type A contains type B which contains type C (which has `Drop()`), then both B and A get synthetic `Drop()` methods. If you provide a manual `Drop()`, the compiler appends drops for any fields you didn't explicitly handle.
+
+## Interaction with Ownership
+
+Drop semantics build on the existing ownership system:
+
+- **Lending** (`readonly ref`, `frozen`) does not transfer drop responsibility. The owner still drops at scope exit.
+- **Moving** (passing by value to a function) transfers drop responsibility to the callee.
+- **Returning** transfers drop responsibility to the caller.
+
+Linear and affine types are always owned — the substructural modifier implies `owned`. You don't need to write `owned linear class` — just `linear class`.
+
+## Discipline Summary
+
+| Feature | Linear | Relevant | Affine | Unrestricted |
+|---|---|---|---|---|
+| Auto-drop at scope exit | Yes (exactly once) | Yes (every reference) | No | No |
+| Drop in `with` blocks | Yes | Yes | Yes (only mechanism) | Yes |
+| Can be forgotten | No | No | Yes (outside `with`) | Yes |
+| Can alias | No | Yes | No | Yes |
+| Implies `owned` | Yes | No | Yes | No |
+| Drop must be idempotent | No | Yes | No | N/A |

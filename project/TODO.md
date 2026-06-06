@@ -60,3 +60,15 @@ Mutable unrestricted fields violate this (external aliases can mutate the field'
 With drop semantics in place, this restriction is obsolete. Substructural typing already ensures that any container holding a Task has the same stack-reachability guarantee that a bare Task local has: the container can only outlive the function if it's returned (same as the Task restriction). There is always something on the stack pointing back to the live task — either a local variable or a container with equivalent constraints.
 
 **Action:** Remove the `MIST_TC_0110` diagnostic and its associated checks. Allow `Task<T>` in fields/properties when the containing type has appropriate substructural discipline. Update tests accordingly.
+
+### 4. Forbid owned-type fields in non-owned containers; sunset `owned` field modifier
+
+Non-owned containers (unrestricted classes without `owned`/`affine`/`linear`) should not be allowed to hold affine/linear/owned-type fields. Multiple aliases to the container means multiple paths to the field, which fundamentally breaks exclusive ownership guarantees. The current `MIST_DROP_FIELD_NOT_OWNED` check already partially enforces this (rejecting affine/linear fields in non-owned containers), but it should be comprehensive.
+
+**Consequence:** The `owned` field modifier (Requirement 10 in deep-ownership-types spec) becomes obsolete and should be removed entirely. It existed to allow non-owned containers to exclusively own specific field instances, but this is architecturally unsound — you can't guarantee exclusive access to a field when the container itself is aliasable.
+
+**Action:**
+- Enforce: non-owned containers cannot hold fields whose type is affine, linear, or owned
+- Remove: the `owned` keyword on field declarations (parser, type checker, emitter, tests)
+- Remove: Requirement 10 acceptance criteria and related diagnostics (`MIST_OWN_FIELD_NOT_OWNED` for the modifier case)
+- Update: DeepOwnershipTypes sample to remove `owned` field modifier usage

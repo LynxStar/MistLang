@@ -8,28 +8,35 @@ Tracked issues and improvements that don't belong to an active spec but should b
 
 ### 1. Substructural field discipline check uses wrong rules
 
-The field discipline check (`MIST_TC_0110`) is too restrictive. The correct rules depend on what drop behavior the container *guarantees* for its fields:
+The field containment check (`MIST_DROP_FIELD_NOT_OWNED`) currently only asks "is the container owned?" — if yes, affine/linear fields are permitted; if no, they're rejected. But it doesn't enforce the substructural compatibility between container and field disciplines.
 
-- **Linear container** (dropped exactly once): can hold anything — linear, affine, relevant, or unrestricted fields are all safe because exactly-once satisfies all constraints.
-- **Affine container** (dropped 0 or 1 times): can only hold **affine** or **unrestricted** fields. The 0-drop case means relevant/linear fields might never get dropped, violating their "must be used" semantics.
-- **Relevant container** (dropped 1+ times): can only hold **relevant** or **unrestricted** fields. The multi-drop case means affine/linear fields could get dropped multiple times, violating their "at most once" semantics.
+The correct rules (derived from each container's drop guarantees):
 
-This differs from owned types (where all fields must also be owned). The current check likely demands an exact discipline match or uses the owned-type rule uniformly.
+| Container | Permitted fields |
+|-----------|-----------------|
+| **linear** (exactly once) | linear, affine, relevant, unrestricted — anything is safe |
+| **affine** (0 or 1 times) | affine, unrestricted only — relevant/linear need ≥1 drop |
+| **relevant** (1+ times) | relevant, unrestricted only — affine/linear need ≤1 drop |
+| **owned** (exactly once, like linear) | owned types only (existing rule) |
 
-**Concrete example:** `Task<T>` is relevant. A `linear` class can safely store it (linear guarantees exactly-once drop). But `MIST_TC_0110` fires.
+Currently an affine container can hold a relevant field (wrong — if the affine is never dropped, the relevant field's "must be used" invariant is violated). Similarly a relevant container can hold an affine field (wrong — if the relevant is dropped multiple times, the affine field's "at most once" invariant is violated).
 
 ### 2. Generic fields bypass substructural and ownership field constraints
 
-The field discipline check validates concrete field types but doesn't constrain generic type parameters used as fields. This means:
+The field containment check validates concrete field types but doesn't constrain generic type parameters used as fields:
 
 ```mist
 // Correctly rejected:
-public linear class Bad { string Value; }  // MIST_TC_0110: string is unrestricted
+public linear class Bad { string Value; }  // MIST_DROP_FIELD_NOT_OWNED
 
 // Incorrectly accepted:
-public linear class Sneaky<T> { T Value; }  // No error — T could be string at instantiation
+public linear class Sneaky<T> { T Value; }  // No error — T could be string
 ```
 
-A `Sneaky<string>` would violate the same invariant that the concrete check catches. The fix: generic type parameters used as fields in substructural types need constraints (e.g., `where T : linear` or `where T : relevant`), or the instantiation site needs validation.
+A `Sneaky<string>` would violate the same invariant. The fix: generic type parameters used as fields in substructural/owned types need constraints (e.g., `where T : linear`), or the instantiation site needs validation.
 
-This likely also applies to `owned` types — a generic field could bypass the "all fields must be owned types" restriction if T is unconstrained.
+This likely also applies to `owned` types — a generic field could bypass the "all fields must be owned" rule if T is unconstrained.
+
+### 3. Task<T> structured concurrency storage restriction (MIST_TC_0110)
+
+`Task<T>` cannot be stored in fields or properties at all — this is the structured concurrency rule preventing tasks from escaping their scope. This is separate from the substructural field check and may need revisiting depending on whether certain patterns (like a linear type holding a Task that it awaits in its Drop) should be permitted.

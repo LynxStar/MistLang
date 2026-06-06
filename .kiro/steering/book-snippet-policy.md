@@ -72,3 +72,22 @@ Inline code blocks (without `{{#include}}`) are acceptable ONLY for:
 - Pseudocode or conceptual examples explicitly marked as "not Mist syntax"
 - Features that are designed but not yet implemented (must be marked with a blockquote noting the limitation)
 - Error message examples showing compiler diagnostics
+
+## Syntax Highlighting Sync
+
+The book uses two files that define Mist syntax highlighting and they MUST be kept in sync:
+
+- `book/theme/highlight.js` — The deployed file. Contains the minified hljs core with the Mist language definition appended at the end. mdBook uses this during static site generation.
+- `book/theme/mist-lang.js` — The readable source. A standalone copy of just the Mist language definition for easier editing.
+
+**When adding new keywords or modifiers to the Mist language**, you MUST update BOTH files:
+
+1. Edit `mist-lang.js` (the readable source)
+2. Update the corresponding section at the end of `highlight.js` to match exactly
+
+The relevant variables to keep in sync are:
+- `MODIFIERS` — storage modifiers like `public`, `static`, `owned`, `linear`, `affine`, `relevant` (colored orange)
+- `RESERVED_TYPES` — type keywords like `int`, `string`, `var`, `void`, `func` (colored blue)
+- `KEYWORDS` — language keywords like `class`, `if`, `return`, `await` (colored purple)
+
+**Never edit one without the other.** If you add a keyword to `mist-lang.js`, you must also add it to `highlight.js`.

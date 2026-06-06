@@ -1,0 +1,249 @@
+// DropSemantics — Demonstrates drop semantics across all substructural disciplines.
+
+using Standard;
+
+namespace DropSemantics;
+
+// ─── Linear: exactly-once drop, returns void ─────────────────────────────────
+
+// PROOF: linear class implies owned + compiler-enforced exactly-once Drop
+public linear class FileHandle
+{
+    int Fd;
+
+    public FileHandle(int fd)
+    {
+        this.Fd = fd;
+    }
+
+    // PROOF: Drop() with void return — cleanup only
+    public void Drop()
+    {
+        Console.WriteLine($"  FileHandle({Fd}).Drop() called");
+    }
+
+    public int GetFd()
+    {
+        return Fd;
+    }
+}
+
+// ─── Linear: exactly-once drop, returns T ────────────────────────────────────
+
+// PROOF: linear type whose Drop returns a value — container dies, value escapes
+public linear class LinearBox<T>
+{
+    T Value;
+
+    public LinearBox(T value)
+    {
+        this.Value = value;
+    }
+
+    // PROOF: Drop() returns the contained value — caller can capture it
+    public T Drop()
+    {
+        Console.WriteLine($"  LinearBox.Drop() called, yielding value");
+        return Value;
+    }
+}
+
+// ─── Relevant: 1+ drops, idempotent ─────────────────────────────────────────
+
+// PROOF: relevant class — aliasable, drop fires for every reference
+public relevant class SharedResource
+{
+    string Id;
+    bool Released;
+
+    public SharedResource(string id)
+    {
+        this.Id = id;
+        this.Released = false;
+    }
+
+    // PROOF: Drop() must be idempotent for relevant types
+    public void Drop()
+    {
+        if (Released)
+        {
+            Console.WriteLine($"  SharedResource({Id}).Drop() no-op");
+            return;
+        }
+        this.Released = true;
+        Console.WriteLine($"  SharedResource({Id}).Drop() called");
+    }
+
+    public string GetId()
+    {
+        return Id;
+    }
+}
+
+// ─── Affine: at most once, only in with ──────────────────────────────────────
+
+// PROOF: affine class — owned, Drop only fires in with blocks
+public affine class AuthToken
+{
+    string Token;
+
+    public AuthToken(string token)
+    {
+        this.Token = token;
+    }
+
+    // PROOF: Drop() consumes the value when called
+    public void Drop()
+    {
+        Console.WriteLine($"  AuthToken({Token}).Drop() called — consumed");
+    }
+
+    public string GetToken()
+    {
+        return Token;
+    }
+}
+
+// ─── Containing type with synthetic drop ─────────────────────────────────────
+
+// PROOF: type containing linear field infers drop semantics
+// PROOF: synthetic Drop() calls field Drop() in declaration order
+public linear class Session
+{
+    FileHandle Handle;
+    FileHandle Log;
+
+    public Session(int handleFd, int logFd)
+    {
+        this.Handle = new FileHandle(handleFd);
+        this.Log = new FileHandle(logFd);
+    }
+    // No explicit Drop() — compiler synthesizes one that calls Handle.Drop() then Log.Drop()
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+public class Sink
+{
+    public static void ConsumeHandle(linear FileHandle h)
+    {
+        Console.WriteLine($"  Sink consumed FileHandle({h.GetFd()})");
+        // PROOF: Drop() fires here at function exit
+    }
+
+    public static linear FileHandle PassThrough(linear FileHandle h)
+    {
+        Console.WriteLine($"  PassThrough FileHandle({h.GetFd()})");
+        // PROOF: Drop() NOT called — h is returned (ownership transferred)
+        return h;
+    }
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Drop Semantics Sample ===");
+
+        // ─── 1. Linear: auto-drop at scope exit ─────────────────────────
+        Console.WriteLine("--- 1. Linear: auto-drop at scope exit ---");
+        {
+            linear FileHandle f = new FileHandle(1);
+            Console.WriteLine($"  Created FileHandle({f.GetFd()})");
+            // PROOF: compiler inserts f.Drop() here — exactly once
+        }
+
+        // ─── 2. Linear: drop elision on move ────────────────────────────
+        Console.WriteLine("--- 2. Linear: drop elision on move ---");
+        {
+            linear FileHandle f = new FileHandle(2);
+            Console.WriteLine($"  Created FileHandle({f.GetFd()})");
+            Sink.ConsumeHandle(f);
+            // PROOF: no Drop() here — moved to ConsumeHandle
+        }
+
+        // ─── 3. Linear: drop elision on return ──────────────────────────
+        Console.WriteLine("--- 3. Linear: drop elision on return ---");
+        {
+            linear FileHandle f = new FileHandle(3);
+            linear FileHandle f2 = Sink.PassThrough(f);
+            Console.WriteLine($"  Got back FileHandle({f2.GetFd()})");
+            // PROOF: f2.Drop() fires here
+        }
+
+        // ─── 4. Linear: Drop() with return value ────────────────────────
+        Console.WriteLine("--- 4. Linear: Drop with return value ---");
+        {
+            linear LinearBox<int> box = new LinearBox<int>(42);
+            int value = box.Drop();
+            // PROOF: box is consumed, value captured
+            Console.WriteLine($"  Got value: {value}");
+        }
+
+        // ─── 5. Linear: reverse drop ordering ───────────────────────────
+        Console.WriteLine("--- 5. Linear: reverse drop ordering ---");
+        {
+            linear FileHandle first = new FileHandle(10);
+            linear FileHandle second = new FileHandle(11);
+            linear FileHandle third = new FileHandle(12);
+            Console.WriteLine($"  Created: {first.GetFd()}, {second.GetFd()}, {third.GetFd()}");
+            // PROOF: drops in reverse: third, second, first
+        }
+
+        // ─── 6. Relevant: drop fires for every reference ────────────────
+        Console.WriteLine("--- 6. Relevant: drop fires for every reference ---");
+        {
+            relevant SharedResource res = new SharedResource("conn-1");
+            var alias = res;
+            Console.WriteLine($"  res={res.GetId()}, alias={alias.GetId()}");
+            // PROOF: both alias.Drop() and res.Drop() fire (one is no-op)
+        }
+
+        // ─── 7. Affine: only drops in with block ────────────────────────
+        Console.WriteLine("--- 7. Affine: only drops in with block ---");
+        with(new AuthToken("abc-123"))
+        {
+            Console.WriteLine("  Inside with-block");
+            // PROOF: Drop() fires at block exit
+        }
+
+        // ─── 8. Affine: no auto-drop outside with ───────────────────────
+        Console.WriteLine("--- 8. Affine: no auto-drop outside with ---");
+        {
+            affine AuthToken token = new AuthToken("xyz-789");
+            Console.WriteLine($"  AuthToken({token.GetToken()}) falls out of scope");
+            // PROOF: NO Drop() call — affine allows forgetting outside with
+        }
+
+        // ─── 9. Synthetic drop on containing type ────────────────────────
+        Console.WriteLine("--- 9. Synthetic drop on containing type ---");
+        {
+            linear Session session = new Session(50, 51);
+            Console.WriteLine("  Session created with handles 50 and 51");
+            // PROOF: synthetic Drop() calls Handle.Drop() then Log.Drop()
+        }
+
+        // ─── 10. Lending retains drop responsibility ─────────────────────
+        Console.WriteLine("--- 10. Lending retains drop responsibility ---");
+        {
+            linear FileHandle f = new FileHandle(30);
+            ReadFd(f);
+            Console.WriteLine($"  Owner still has FileHandle({f.GetFd()})");
+            // PROOF: Drop() fires on f here — lending did not move it
+        }
+
+        Console.WriteLine("=== Drop Semantics Done ===");
+    }
+
+    public static void ReadFd(readonly ref FileHandle f)
+    {
+        Console.WriteLine($"  ReadFd sees FileHandle({f.GetFd()})");
+    }
+}

@@ -116,12 +116,12 @@ All code is C# (the compiler) and Mist (standard library + samples), matching th
 - [x] 6. Checkpoint - foundational analysis complete
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 7. C# emitter auto-drop insertion
+- [x] 7. C# emitter auto-drop insertion
   - [x] 7.1 Emit auto-drop at scope exit for linear/relevant variables
     - In `Source/Mist/Backends/CSharpTranspiler/CSharpEmitter.cs`, for scopes containing linear/relevant locals emit `Drop()` calls at scope exit in reverse declaration order, wrapped in `try/finally` so drops fire on exception. Ensure the new `affine`/`linear`/`relevant` modifier nodes are erased (never emitted) in C#. Relevant types always drop (idempotent); linear drops exactly once when `Live`.
     - _Requirements: 4.1, 4.4, 4.5, 4.7, 13.1, 13.2, 14.1, 14.2, 14.3, 14.7_
 
-  - [ ] 7.2 Implement drop elision and conditional-move branch sensitivity
+  - [x] 7.2 Implement drop elision and conditional-move branch sensitivity
     - Skip drop insertion when a linear variable was moved (to a variable or function parameter) or returned; for a variable moved in one conditional branch but not another, insert `Drop()` only in the live branches. Loop-body variables drop at end of each iteration.
     - _Requirements: 4.2, 4.3, 4.6, 13.4, 13.5_
 
@@ -129,7 +129,7 @@ All code is C# (the compiler) and Mist (standard library + samples), matching th
     - Emit `await expr` (not a `.Drop()` call) when the dropped value's type is `Task<T>`/`ValueTask<T>`; emit a Mist-source `await expr` as C# `await`; on explicit `Drop()` of an owned non-void type allow the caller to capture the return value (`T r = v.Drop();`); discard the return value on auto-insert and in `with` contexts.
     - _Requirements: 2.5, 3.4, 3.5, 7.4, 7.10, 8.8, 14.5, 14.6_
 
-  - [ ] 7.4 Complete manual `Drop()` bodies with remaining field drops
+  - [x] 7.4 Complete manual `Drop()` bodies with remaining field drops
     - When a type provides a manual `Drop()` and has droppable fields, track which fields were explicitly dropped in the body and emit `Drop()` for the remaining droppable fields (declaration order) at the end of the method body.
     - _Requirements: 10.7, 10.8_
 
@@ -139,7 +139,7 @@ All code is C# (the compiler) and Mist (standard library + samples), matching th
     - Tag: `Feature: drop-semantics, Property 5: Linear auto-drop at scope exit`
     - Generate linear locals with random control flow (some moved/returned, some live at exit), compile once in-process, inspect emitted C# to assert `Drop()`/`await` appears exactly where expected and is elided otherwise. **Spawns 0 external processes**.
 
-  - [ ] 7.6 Write property test for reverse-declaration drop order
+  - [x] 7.6 Write property test for reverse-declaration drop order
     - **Property 10: Reverse declaration order for multiple drops**
     - **Validates: Requirements 4.5, 13.1**
     - Tag: `Feature: drop-semantics, Property 10: Reverse declaration order`
@@ -175,19 +175,19 @@ All code is C# (the compiler) and Mist (standard library + samples), matching th
     - Tag: `Feature: drop-semantics, Property 8: No auto-drop for unrestricted and affine`
     - Assert no scope-exit `Drop()` is emitted for unrestricted/affine locals outside a `with` form. In-process; **spawns 0 external processes**.
 
-  - [ ] 7.12 Write test for drop return-value capture
+  - [x] 7.12 Write test for drop return-value capture
     - **Property 20: Drop return value capture**
     - **Validates: Requirements 3.4, 7.4**
     - Tag: `Feature: drop-semantics, Property 20: Drop return value capture`
     - Assert `T r = v.Drop();` on an owned non-void Drop compiles and captures the value. In-process; **spawns 0 external processes**.
 
-  - [ ] 7.13 Write test for C# emission using await on Task/ValueTask drop
+  - [x] 7.13 Write test for C# emission using await on Task/ValueTask drop
     - **Property 16: C# emission uses await for Task/ValueTask drop**
     - **Validates: Requirements 7.10, 8.8, 14.5, 14.6**
     - Tag: `Feature: drop-semantics, Property 16: C# emission uses await for Task/ValueTask drop`
     - Assert auto-drop/explicit drop on `Task<T>`/`ValueTask<T>` emits `await`, not a `.Drop()` call. In-process; **spawns 0 external processes**.
 
-  - [ ] 7.14 Write test for await-desugars-to-drop equivalence
+  - [x] 7.14 Write test for await-desugars-to-drop equivalence
     - **Property 15: Await desugars to Drop**
     - **Validates: Requirements 7.5, 8.5**
     - Tag: `Feature: drop-semantics, Property 15: Await desugars to Drop`
@@ -199,18 +199,18 @@ All code is C# (the compiler) and Mist (standard library + samples), matching th
     - Tag: `Feature: drop-semantics, Property 11: Lending does not transfer drop responsibility`
     - Assert auto-drop still fires on the owner after lending as `readonly ref`/`frozen`/`borrowed`. In-process; **spawns 0 external processes**.
 
-- [ ] 8. With-block drop composition (Option A)
-  - [ ] 8.1 Extend existing with-block emission to compose Drop into the finally
+- [x] 8. With-block drop composition (Option A)
+  - [x] 8.1 Extend existing with-block emission to compose Drop into the finally
     - Extend `CSharpEmitter.EmitWithBlockStatement` (~line 7186) and `EmitContextDeclarationWithWrapping` so the EXISTING `finally` emits `MistContext.Pop<T>()` first, then the `Drop()` call (or `await` for Task/ValueTask) — pop before drop, in the same single `finally`. Do NOT add new scope-exit machinery. For linear values bound by `with`, the with-exit satisfies the obligation (no double drop at enclosing scope). Affine `Drop()` fires only via the `with` family. Discard non-void `Drop()` return in `with` context.
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 13.3_
 
-  - [ ] 8.2 Write property test for with-block drop composition
+  - [x] 8.2 Write property test for with-block drop composition
     - **Property 9: With-block composes drop with context pop at block exit**
     - **Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7**
     - Tag: `Feature: drop-semantics, Property 9: With-block composes drop with context pop`
     - Generate each `with`-form binding over a droppable type; assert emitted `finally` contains `Pop<T>()` before the `Drop()`/`await`. In-process; **spawns 0 external processes**.
 
-- [ ] 9. ValueTask<T> as intrinsic linear type
+- [x] 9. ValueTask<T> as intrinsic linear type
   - [x] 9.1 Declare disciplines and Drop() in the standard library
     - In `Source/Standard/Bootstrap/Task.mist`, add `relevant` to the intrinsic `Task<TResult>` and `intrinsic public TResult Drop();`; add a new `intrinsic public linear class ValueTask<TResult>` with `intrinsic public TResult Drop();`; add `type ValueTask = ValueTask<void>;`.
     - _Requirements: 7.1, 7.2, 7.7, 8.1, 8.2, 8.7_
@@ -219,38 +219,38 @@ All code is C# (the compiler) and Mist (standard library + samples), matching th
     - Expand `Source/Mist/Backends/CSharpTranspiler/CSharpAmbientTypeResolver.cs` and the assembly type provider to recognize `System.Threading.Tasks.ValueTask` and `System.Threading.Tasks.ValueTask<T>` (param/return/field types) and project them to the Mist `ValueTask`/`ValueTask<TResult>`, mirroring the existing `Task`/`Task<T>` intake.
     - _Requirements: 8.9_
 
-  - [ ] 9.3 Emit ValueTask via CSharpTypeMap and reach EmitAsyncReturnType for explicit returns
+  - [x] 9.3 Emit ValueTask via CSharpTypeMap and reach EmitAsyncReturnType for explicit returns
     - Make `CSharpTypeMap` emit `System.Threading.Tasks.ValueTask<T>` for the generic Mist `ValueTask<TResult>` and `System.Threading.Tasks.ValueTask` for the void alias. Make `EmitAsyncReturnType` emit ValueTask when the method's return type is the explicit user-written `ValueTask<TResult>` (this path is currently unreachable).
     - _Requirements: 8.10, 7.10, 14.5_
 
-  - [ ] 9.4 Reconcile explicit ValueTask with the UseValueTask optimization
+  - [x] 9.4 Reconcile explicit ValueTask with the UseValueTask optimization
     - Constrain `ValueTaskUsageAnalysisPass`/`Symbol.UseValueTask` to apply only to async methods whose return type was inferred; an explicitly written `ValueTask<TResult>` return type takes precedence and is driven by the intrinsic type (task 9.3), never by `UseValueTask`. The two notions must not compete for the same method.
     - _Requirements: 8.11, 8.12_
 
-  - [ ] 9.5 Update/supersede ValueTaskEmissionPropertyTests
+  - [x] 9.5 Update/supersede ValueTaskEmissionPropertyTests
     - Update `Test/Mist.Tests/Backend/ValueTaskEmissionPropertyTests.cs`: remove the blanket "emitted C# never contains `ValueTask<`" assertion; keep asserting inferred-return methods follow the conservative pass behavior; add assertions that an explicitly written `ValueTask<TResult>` return emits `System.Threading.Tasks.ValueTask<T>` (and `ValueTask` for the void alias) and that inbound CLR ValueTask projects to the Mist type.
     - **Validates: Requirements 8.9, 8.10, 8.11, 8.12**
     - In-process; **spawns 0 external processes**.
 
-- [ ] 10. Migrate LiveTaskInfo live-task tracking to the Drop-based model
-  - [ ] 10.1 Replace the thread-static live-task machinery in SemanticModelBuilder
+- [x] 10. Migrate LiveTaskInfo live-task tracking to the Drop-based model
+  - [x] 10.1 Replace the thread-static live-task machinery in SemanticModelBuilder
     - In `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`, replace the per-method thread-static `_liveTaskScopes`/`_liveTaskCounter`/`_liveTaskResult` `LiveTaskInfo` tracking with the Drop-based obligation recording (relevant `Task<T>`/linear `ValueTask<T>` locals are scope-exit drop obligations). Preserve recorded obligations so task awaiting at scope exit still occurs (Req 7.9.2). Note: `project/TODO.md` records that scope-exit await is currently not emitted in some paths — the Drop-based model must close this gap, not inherit it.
     - _Requirements: 7.9, 7.9.2_
 
-  - [ ] 10.2 Supersede the ISemanticModel.GetLiveTasks contract
+  - [x] 10.2 Supersede the ISemanticModel.GetLiveTasks contract
     - Update `Source/Mist/Semantics/Contracts/ISemanticModel.cs` and `SemanticModel.cs` so `GetLiveTasks(...)` is correctly superseded by the Drop-based obligation query (either reimplemented over drop obligations or replaced with the new query and all callers updated). Retire `LiveTaskInfo` where no longer needed. Ensure no semantic-model consumer regresses (Req 7.9.1).
     - _Requirements: 7.9.1_
 
-  - [ ] 10.3 Migrate EmitScopeExitAwait to drop-based await emission
+  - [x] 10.3 Migrate EmitScopeExitAwait to drop-based await emission
     - In `CSharpEmitter.cs`, route `EmitScopeExitAwait` and `_currentBlockDiscardedTasks` handling through the unified drop emission from Epic 7 so auto-dropped `Task<T>`/`ValueTask<T>` are awaited at scope exit. Remove the special-case `LiveTaskInfo` emission path once tasks flow through the generic drop mechanism.
     - _Requirements: 7.9.3, 7.3, 7.10, 14.5_
 
-  - [ ] 10.4 Migrate existing structured-concurrency tests for no regression
+  - [x] 10.4 Migrate existing structured-concurrency tests for no regression
     - Update the structured-concurrency tests that query `GetLiveTasks` / assert scope-exit await (`Test/Mist.Tests/Semantics/ScopeExitAwaitPropertyTests.cs` and related) to the Drop-based model so behavior is preserved or correctly superseded.
     - **Validates: Requirements 7.9.4**
     - In-process; **spawns 0 external processes**.
 
-- [ ] 11. Checkpoint - tasks unified under Drop
+- [x] 11. Checkpoint - tasks unified under Drop
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 12. TextMate grammar update
@@ -263,31 +263,31 @@ All code is C# (the compiler) and Mist (standard library + samples), matching th
     - _Requirements: 16.1, 16.2, 16.3, 16.4_
     - In-process; **spawns 0 external processes**.
 
-- [ ] 13. Sample application
-  - [ ] 13.1 Create the DropSemantics sample with the proof code verbatim
+- [x] 13. Sample application
+  - [x] 13.1 Create the DropSemantics sample with the proof code verbatim
     - Create `samples/DropSemantics/Program.mist` containing the Requirement 17 Proof Code VERBATIM (immutable — if it does not compile, fix the compiler, not the proof code) and a `mist.toml`. Use Allman braces. The proof code already includes `Program.Main`, `RunDemo()`, and `ReadFd`.
     - _Requirements: 17.1, 17.2, 17.3, 17.5_
 
-  - [ ] 13.2 Wire the sample into the AllFeatures orchestrator
+  - [x] 13.2 Wire the sample into the AllFeatures orchestrator
     - Add `DropSemantics.Program.RunDemo();` to `samples/AllFeatures/Program.mist` `RunDemo()`.
     - _Requirements: 17.4_
 
-  - [ ] 13.3 Write integration test for the sample's exact output
+  - [x] 13.3 Write integration test for the sample's exact output
     - Compile `samples/DropSemantics/Program.mist` once in-process via the shared `CompilerDriver`, then run the compiled output DLL and assert stdout matches the Requirement 17 Expected output exactly (line by line).
     - **Spawns at most 1 external process per test run** (one `dotnet` invocation of the output DLL; batched compile in-process).
     - _Requirements: 17.1, 17.2, 17.3, 17.5_
 
-  - [ ] 13.4 Write integration test for Task await via auto-drop
+  - [x] 13.4 Write integration test for Task await via auto-drop
     - Build one Mist program exercising `Task<T>` auto-drop/await producing labeled results, compile once in-process, run the output DLL once, compare output lines.
     - **Validates: Requirements 7.2, 7.3, 7.5, 7.6**
     - **Spawns at most 1 external process per test run.**
 
-  - [ ] 13.5 Write integration test for exception propagation through Drop()
+  - [x] 13.5 Write integration test for exception propagation through Drop()
     - Build one Mist program where a faulted `Task<T>` is dropped/awaited, compile once in-process, run the output DLL once, assert the exception is propagated.
     - **Validates: Requirements 7.8**
     - **Spawns at most 1 external process per test run.**
 
-- [ ] 14. Final checkpoint - full suite green
+- [x] 14. Final checkpoint - full suite green
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

@@ -97,11 +97,13 @@ public interface ISemanticModel
     bool IsGuardElidable(ISymbol parameterSymbol);
 
     /// <summary>
-    /// Returns the list of live (un-awaited, un-returned) tasks for the given
-    /// block scope node, or an empty list if no live tasks were recorded.
-    /// The emitter uses this to generate scope-exit await code.
+    /// Returns the list of discarded task expressions for the given block scope node,
+    /// or an empty list if none were recorded. A discarded task is a bare async method
+    /// call whose result is not assigned to a variable, awaited, or returned. The
+    /// emitter uses this to capture those expressions into synthetic variables and
+    /// emit scope-exit await code.
     /// </summary>
-    IReadOnlyList<LiveTaskInfo> GetLiveTasks(Storm.Runtime.SyntaxNode blockScopeNode);
+    IReadOnlyList<DiscardedTaskInfo> GetDiscardedTasks(Storm.Runtime.SyntaxNode blockScopeNode);
 
     /// <summary>
     /// Records the inferred type arguments for a method call node where type

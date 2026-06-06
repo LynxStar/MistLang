@@ -3555,6 +3555,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // (including assignments to readonly locals) are type-checked.
                 CheckBlock(readonlyBlockStmt.ReadonlyBlock.Body, returnType, model, diagnostics);
                 break;
+            case BlockStatementStatementNode blockStmt:
+                CheckBlock(blockStmt.BlockStatement, returnType, model, diagnostics);
+                break;
         }
     }
 
@@ -5633,6 +5636,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
                 return BlockHasReturnWithValue(readonlyBlockStmt.ReadonlyBlock.Body);
+
+            case BlockStatementStatementNode blockStmt:
+                return BlockHasReturnWithValue(blockStmt.BlockStatement);
 
             case WithBlockStatementStatementNode withBlockStmt:
                 return BlockHasReturnWithValue(withBlockStmt.WithBlockStatement.Body);

@@ -66,6 +66,7 @@ public class Program
         TuplePatternMatching.Program.RunDemo();
         ArityOverloads.Program.RunDemo();
         VoidValueLiteral.Program.RunDemo();
+        DropSemantics.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

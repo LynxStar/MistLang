@@ -535,7 +535,7 @@ public class Program {
             // Console, Math, Convert, and Task map 1:1 to their CLR equivalents
             // and the emitter resolves them through TryGetMappedName in
             // EmitPrimary — no template needed (design: Approach B).
-            if (declaringType is "Standard.Console" or "Standard.Math" or "Standard.Convert" or "Standard.Task")
+            if (declaringType is "Standard.Console" or "Standard.Math" or "Standard.Convert" or "Standard.Task" or "Standard.ValueTask")
                 continue;
 
             var name = intrinsicSymbol.Name;

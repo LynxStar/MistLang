@@ -1,5 +1,6 @@
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
+using Mist.Semantics.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler;
 
@@ -20,6 +21,15 @@ namespace Mist.Backends.CSharpTranspiler;
 /// <para>
 /// The conservative default is <c>Task&lt;T&gt;</c>. Only when the single-await pattern
 /// is proven across all call sites does the pass mark the method for <c>ValueTask&lt;T&gt;</c>.
+/// </para>
+///
+/// <para>
+/// <strong>Reconciliation with explicit ValueTask return types:</strong> This optimization
+/// applies ONLY to async methods whose return type was inferred (the compiler wrapped
+/// the declared return type in <c>Task&lt;T&gt;</c>). Methods with an explicitly-written
+/// <c>ValueTask&lt;TResult&gt;</c> return type are excluded — their emission is driven by
+/// the intrinsic type path in <c>EmitAsyncReturnType</c>, not by <see cref="Symbol.UseValueTask"/>.
+/// Use <see cref="HasExplicitValueTaskReturnType"/> to test for this condition.
 /// </para>
 ///
 /// <para>
@@ -58,5 +68,32 @@ internal static class ValueTaskUsageAnalysisPass
         // The analysis is per-method: it determines what the callee's return type
         // should be based on how callers use the returned task. A method is
         // disqualified from ValueTask if ANY call site exhibits a multi-use pattern.
+        //
+        // IMPORTANT: The UseValueTask optimization applies ONLY to async methods whose
+        // return type was inferred (i.e., the compiler wrapped the declared return type
+        // in Task<T>). Methods with an explicitly-written ValueTask<TResult> return type
+        // are excluded — their emission is driven by the intrinsic type path in
+        // EmitAsyncReturnType, not by this flag. The two notions must not compete for
+        // the same method.
+        //
+        // Guard: when the optimization is eventually enabled, skip any method whose
+        // EffectiveReturnType is already ValueTask<T> (explicit user-written return type).
+        // Such methods are identified by their EffectiveReturnType being a ConstructedType
+        // whose GenericDefinition is the Standard.ValueTask class.
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the method's return type was explicitly written as
+    /// <c>ValueTask&lt;TResult&gt;</c> (or the non-generic <c>ValueTask</c> void alias).
+    /// Such methods are driven by the intrinsic type emission path in
+    /// <see cref="CSharpEmitter"/> and must NOT have <see cref="Symbol.UseValueTask"/>
+    /// set by this optimization pass.
+    /// </summary>
+    internal static bool HasExplicitValueTaskReturnType(Symbol methodSymbol)
+    {
+        if (methodSymbol.EffectiveReturnType is not ConstructedType ct || ct.TypeArguments.Count == 0)
+            return false;
+
+        return ct.GenericDefinition is ClassType { DisplayName: "ValueTask", ContainingNamespace: "Standard" };
     }
 }

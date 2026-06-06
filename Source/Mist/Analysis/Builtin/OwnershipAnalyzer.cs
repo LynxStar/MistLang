@@ -287,6 +287,13 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 if (IsValueType(fieldType))
                     continue;
 
+                // Type parameters are exempt — we cannot know at the generic definition
+                // site whether T will be instantiated with a value type, an owned type,
+                // or a non-owned reference type. Constraint checking at instantiation
+                // sites is the correct enforcement point.
+                if (fieldType is TypeParameterType)
+                    continue;
+
                 // Reject non-storable reference tiers on fields in owned types (Requirement 13.6).
                 if (member is Symbol nonStorableSym &&
                     nonStorableSym.OwnershipTier is OwnershipTier.ReadonlyRef or OwnershipTier.Frozen or OwnershipTier.Borrowed)
@@ -487,18 +494,70 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static bool YieldsUniqueOwnership(SyntaxNode expr, ISemanticModel model)
     {
-        // Case 1: Check if it's an identifier referencing an owned binding (move).
+        // Case 1: Check if it's an identifier referencing a local/parameter binding.
+        // An identifier referencing a local/parameter yields unique ownership
+        // only when the source binding is itself owned (move semantics).
+        // A non-owned binding never yields unique ownership, even if the
+        // underlying type is an owned type.
         var referencedSymbol = TryResolveIdentifierSymbol(expr, model);
         if (referencedSymbol is Symbol refSym &&
-            refSym.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter &&
-            refSym.OwnershipTier == OwnershipTier.Owned)
+            refSym.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter)
         {
-            return true;
+            return refSym.OwnershipTier == OwnershipTier.Owned;
         }
 
         // Case 2: Check if the top-level expression is a constructor call (new T())
         // or a function/method call returning owned.
-        return IsConstructorOrOwnedCall(expr, model);
+        if (IsConstructorOrOwnedCall(expr, model))
+            return true;
+
+        // Case 3: For non-identifier, non-field-access expressions whose resolved type
+        // is an owned type — the value must have come from a valid ownership source
+        // (e.g. a method call that GetDeclaredSymbol couldn't resolve, cast, etc.).
+        // Exclude member-access expressions (field reads) since accessing a field
+        // does not transfer ownership.
+        if (referencedSymbol is null && !IsMemberAccessExpression(expr))
+        {
+            var exprType = model.GetTypeOf(expr);
+            if (exprType is not null && IsOwnedType(exprType))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Returns true if the expression is a member-access (field/property read) expression,
+    /// which does not yield unique ownership.
+    /// </summary>
+    private static bool IsMemberAccessExpression(SyntaxNode node)
+    {
+        // Walk through wrapper nodes to find the postfix expression.
+        if (node is PostfixNode postfix && postfix.Suffix.Length > 0)
+        {
+            var lastSuffix = postfix.Suffix[^1];
+            return lastSuffix is MemberAccessSuffixPostfixSuffixNode
+                or OptionalMemberAccessSuffixPostfixSuffixNode;
+        }
+
+        // Recurse through single-child wrappers.
+        SyntaxNode? singleChild = null;
+        var childCount = 0;
+        foreach (var child in node.Children())
+        {
+            if (child is not null)
+            {
+                childCount++;
+                singleChild = child;
+                if (childCount > 1)
+                    break;
+            }
+        }
+
+        if (childCount == 1 && singleChild is not null)
+            return IsMemberAccessExpression(singleChild);
+
+        return false;
     }
 
     /// <summary>
@@ -525,6 +584,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     var methodSymbol = model.GetDeclaredSymbol(methodCall);
                     if (methodSymbol is Symbol methodSym && methodSym.OwnershipTier == OwnershipTier.Owned)
                         return true;
+                    // Also check if the return type itself is an owned type (for linear/affine return).
+                    if (methodSymbol is Symbol returnSym && returnSym.DeclaredType is not null && IsOwnedType(returnSym.DeclaredType))
+                        return true;
                 }
 
                 // Direct invocation: func()
@@ -536,6 +598,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     invokedSymbol ??= model.GetDeclaredSymbol(invocation);
 
                     if (invokedSymbol is Symbol funcSym && funcSym.OwnershipTier == OwnershipTier.Owned)
+                        return true;
+                    // Also check if the return type is an owned type.
+                    if (invokedSymbol is Symbol funcRetSym && funcRetSym.DeclaredType is not null && IsOwnedType(funcRetSym.DeclaredType))
                         return true;
                 }
 
@@ -1999,7 +2064,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsOwnedType(IType type)
     {
-        return type switch
+        // For constructed generic types (e.g., LinearBox<int>), check the generic definition.
+        var resolved = type is ConstructedType constructed ? constructed.GenericDefinition : type;
+        return resolved switch
         {
             ClassType ct => ct.IsOwnedType,
             StructType st => st.IsOwnedType,

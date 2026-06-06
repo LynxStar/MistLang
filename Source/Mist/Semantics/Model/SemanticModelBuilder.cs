@@ -89,27 +89,35 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     [ThreadStatic]
     private static bool _isInAsyncContext;
 
-    // ── Live task tracking ────────────────────────────────────────────────
-    // Tracks tasks that are created but not yet awaited or returned within
-    // each block scope. At scope exit, un-consumed tasks are recorded in the
-    // semantic model for the emitter to generate scope-exit await code.
+    // ── Discarded-task tracking (Drop-based model) ──────────────────────
+    // Under the Drop-based model, named Task<T>/ValueTask<T> locals are
+    // scope-exit drop obligations handled by the emitter's auto-drop
+    // try/finally wrapping (tasks 7.1, 7.3). This tracking covers only
+    // DISCARDED task expressions — bare async method calls whose result is
+    // not assigned to a variable. The emitter still needs to intercept these,
+    // emit them as `var __task_N = expr;`, and await them at scope exit.
     //
-    // _liveTaskScopes is a stack of per-block-scope task lists. Each time a
-    // new block scope is entered, a new list is pushed. When the scope exits,
-    // the list is popped and un-consumed tasks are stored in the result map.
+    // Unlike the old system, tracking is NOT gated on _isInAsyncContext.
+    // This closes the gap (project/TODO.md) where discarded tasks in sync
+    // contexts were never awaited. The emitter is responsible for promoting
+    // the method to async when scope-exit await is needed.
     //
-    // _liveTaskCounter generates unique variable names (__task_0, __task_1, etc.)
+    // _discardedTaskScopes is a stack of per-block-scope task lists. Pushed
+    // on block entry, popped on block exit, with un-consumed entries stored
+    // in the result map.
+    //
+    // _discardedTaskCounter generates unique variable names (__task_0, etc.)
     // per method body.
     [ThreadStatic]
-    private static Stack<List<LiveTaskInfo>>? _liveTaskScopes;
+    private static Stack<List<DiscardedTaskInfo>>? _discardedTaskScopes;
 
     [ThreadStatic]
-    private static int _liveTaskCounter;
+    private static int _discardedTaskCounter;
 
     // The result map populated during resolution. Keyed by block scope node,
-    // valued by the list of live tasks that need scope-exit await.
+    // valued by the list of discarded tasks that need scope-exit await.
     [ThreadStatic]
-    private static Dictionary<Storm.Runtime.SyntaxNode, List<LiveTaskInfo>>? _liveTaskResult;
+    private static Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>>? _discardedTaskResult;
 
     // ── Intrinsic-marker diagnostic IDs (Task 9, Requirements 5.3, 5.6, 5.13, 5.15) ──
     /// <summary>
@@ -726,7 +734,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         _namespaceScopeMap = new Dictionary<string, Scope>();
 
         // Initialize live task tracking for this compilation.
-        _liveTaskResult = new Dictionary<Storm.Runtime.SyntaxNode, List<LiveTaskInfo>>();
+        _discardedTaskResult = new Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>>();
 
         // (Task 49: PrimitiveTypeRegistry and PrimitiveType have been
         // deleted. No migration-window registry reset is needed.)
@@ -1077,7 +1085,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             traitSatisfactionMap,
             extensionRegistry,
             parameterRefinements,
-            _liveTaskResult);
+            _discardedTaskResult);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -3625,9 +3633,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         return specifier switch
         {
             OwnedSpecifierOwnershipSpecifierNode => OwnershipTier.Owned,
+            LinearSpecifierOwnershipSpecifierNode => OwnershipTier.Owned,
+            AffineSpecifierOwnershipSpecifierNode => OwnershipTier.Owned,
             FrozenSpecifierOwnershipSpecifierNode => OwnershipTier.Frozen,
             ReadonlyRefSpecifierOwnershipSpecifierNode => OwnershipTier.ReadonlyRef,
             BorrowedSpecifierOwnershipSpecifierNode => OwnershipTier.Borrowed,
+            RelevantSpecifierOwnershipSpecifierNode => OwnershipTier.Unrestricted,
             RefSpecifierOwnershipSpecifierNode => OwnershipTier.Borrowed,
             _ => OwnershipTier.Unrestricted,
         };
@@ -14765,6 +14776,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 methodSymbol.OwnershipTier = OwnershipTier.Owned;
             }
+            else if (methodDecl.Modifiers.Any(m => m is LinearModifierModifierNode or AffineModifierModifierNode))
+            {
+                methodSymbol.OwnershipTier = OwnershipTier.Owned;
+            }
         }
 
         // Determine if the method is static.
@@ -14813,11 +14828,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var previousMethodReturnType = _currentMethodReturnType;
             _currentMethodReturnType = methodSymbol?.DeclaredReturnType ?? returnType;
 
-            // Initialize live task tracking for this method body.
-            var previousLiveTaskScopes = _liveTaskScopes;
-            var previousLiveTaskCounter = _liveTaskCounter;
-            _liveTaskScopes = new Stack<List<LiveTaskInfo>>();
-            _liveTaskCounter = 0;
+            // Initialize discarded-task tracking for this method body.
+            var previousDiscardedTaskScopes = _discardedTaskScopes;
+            var previousDiscardedTaskCounter = _discardedTaskCounter;
+            _discardedTaskScopes = new Stack<List<DiscardedTaskInfo>>();
+            _discardedTaskCounter = 0;
 
             try
             {
@@ -14825,8 +14840,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             finally
             {
-                _liveTaskScopes = previousLiveTaskScopes;
-                _liveTaskCounter = previousLiveTaskCounter;
+                _discardedTaskScopes = previousDiscardedTaskScopes;
+                _discardedTaskCounter = previousDiscardedTaskCounter;
                 _isInAsyncContext = previousAsyncContext;
                 _currentMethodReturnType = previousMethodReturnType;
             }
@@ -15339,32 +15354,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var blockScope = new Scope(parent: parentScope);
 
-        // Push a new live task scope for this block.
-        _liveTaskScopes?.Push(new List<LiveTaskInfo>());
+        // Push a new discarded-task scope for this block.
+        _discardedTaskScopes?.Push(new List<DiscardedTaskInfo>());
 
         foreach (var stmt in block.Statements)
         {
             ResolveStatement(stmt, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
         }
 
-        // Pop the live task scope and record un-consumed tasks.
-        if (_liveTaskScopes is not null && _liveTaskScopes.Count > 0)
+        // Pop the discarded-task scope and record un-consumed tasks.
+        if (_discardedTaskScopes is not null && _discardedTaskScopes.Count > 0)
         {
-            var scopeTasks = _liveTaskScopes.Pop();
+            var scopeTasks = _discardedTaskScopes.Pop();
 
-            // Filter to only tasks that were not explicitly awaited or returned.
-            var liveTasks = new List<LiveTaskInfo>();
-            foreach (var task in scopeTasks)
+            if (scopeTasks.Count > 0 && _discardedTaskResult is not null)
             {
-                if (!task.IsExplicitlyAwaited && !task.IsReturned)
-                {
-                    liveTasks.Add(task);
-                }
-            }
-
-            if (liveTasks.Count > 0 && _liveTaskResult is not null)
-            {
-                _liveTaskResult[block] = liveTasks;
+                _discardedTaskResult[block] = scopeTasks;
             }
         }
     }
@@ -15405,13 +15410,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     _voidLiteralTargetType = previousVoidTarget;
                     _lambdaTargetType = previousLambdaTarget;
 
-                    // Mark returned tasks as consumed (Requirement 7.1):
-                    // If the return value is a Task<T> variable, mark it as returned
-                    // so it's excluded from scope-exit await.
-                    if (IsStandardTaskType(returnValueType))
-                    {
-                        MarkTaskAsReturned(returnStmt.ReturnStatement.Value, symbolTable);
-                    }
+                    // Named Task<T> variables returned from the method transfer
+                    // ownership to the caller. The emitter's auto-drop system
+                    // handles elision for returned variables (task 7.2), so no
+                    // explicit MarkTaskAsReturned is needed.
 
                     // Top-level statements: return expressions must be integer types (exit codes).
                     // enclosingType is null only in TLS mode (passed as null! from Pass2_ResolveTypes).
@@ -15443,18 +15445,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var exprType = ResolveExpression(exprStmt.ExpressionStatement.Expression, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
-                // Track discarded tasks in async contexts (Requirement 6.1):
-                // When an async method is invoked and the result is not assigned
-                // or awaited, track it as a live task for scope-exit await.
-                if (_isInAsyncContext
-                    && _liveTaskScopes is not null
-                    && _liveTaskScopes.Count > 0
+                // Track discarded tasks for scope-exit await (Drop-based model):
+                // When an async method is invoked and the result is not assigned,
+                // track it as a discarded task for scope-exit await. Unlike the old
+                // system, this is NOT gated on _isInAsyncContext — discarded tasks
+                // in any context are tracked so the emitter can close the gap
+                // (project/TODO.md: scope-exit await not emitted in some paths).
+                if (_discardedTaskScopes is not null
+                    && _discardedTaskScopes.Count > 0
                     && IsStandardTaskType(exprType)
                     && IsDiscardedAsyncInvocation(exprStmt.ExpressionStatement.Expression))
                 {
-                    var varName = $"__task_{_liveTaskCounter++}";
-                    var taskInfo = new LiveTaskInfo(varName, exprType, exprStmt.ExpressionStatement.Expression);
-                    _liveTaskScopes.Peek().Add(taskInfo);
+                    var varName = $"__task_{_discardedTaskCounter++}";
+                    var taskInfo = new DiscardedTaskInfo(varName, exprType, exprStmt.ExpressionStatement.Expression);
+                    _discardedTaskScopes.Peek().Add(taskInfo);
                 }
                 break;
             }
@@ -15463,6 +15467,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
                 ResolveBlock(readonlyBlockStmt.ReadonlyBlock.Body, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case BlockStatementStatementNode blockStmt:
+                ResolveBlock(blockStmt.BlockStatement, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
             case WithVarDeclarationStatementStatementNode withVarStmt:
                 ResolveWithVarDeclaration(withVarStmt.WithVarDeclaration, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -15644,17 +15651,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 blockScope.AddMember(varSymbol);
                 symbolTable.Register(varSymbol, varDecl);
 
-                // Track Task<T> locals for scope-exit await (Requirements 6.4, 7.4):
-                // In an async context, if a variable is assigned the result of an async
-                // method call (Task<T>), track it as a live task. In a sync context,
-                // if a variable is assigned a Task<T> from the async functor, track it.
-                if (_liveTaskScopes is not null
-                    && _liveTaskScopes.Count > 0
-                    && IsStandardTaskType(declaredType))
-                {
-                    var taskInfo = new LiveTaskInfo(typed.Name.Lexeme, declaredType, varDecl);
-                    _liveTaskScopes.Peek().Add(taskInfo);
-                }
+                // Named Task<T>/ValueTask<T> locals are now scope-exit drop
+                // obligations handled by the emitter's auto-drop try/finally
+                // wrapping (tasks 7.1, 7.3). No DiscardedTaskInfo tracking needed.
                 break;
             }
             case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
@@ -15695,17 +15694,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 blockScope.AddMember(varSymbol);
                 symbolTable.Register(varSymbol, varDecl);
 
-                // Track Task<T> locals for scope-exit await (Requirements 6.4, 7.4):
-                // In an async context, if a variable is assigned the result of an async
-                // method call (Task<T>), track it as a live task. In a sync context,
-                // if a variable is assigned a Task<T> from the async functor, track it.
-                if (_liveTaskScopes is not null
-                    && _liveTaskScopes.Count > 0
-                    && IsStandardTaskType(initType))
-                {
-                    var taskInfo = new LiveTaskInfo(inferred.Name.Lexeme, initType, varDecl);
-                    _liveTaskScopes.Peek().Add(taskInfo);
-                }
+                // Named Task<T>/ValueTask<T> locals are now scope-exit drop
+                // obligations handled by the emitter's auto-drop try/finally
+                // wrapping (tasks 7.1, 7.3). No DiscardedTaskInfo tracking needed.
                 break;
             }
             case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
@@ -17967,118 +17958,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Marks a live task as explicitly awaited by searching the current scope's
-    /// live task list for a task whose variable name matches the awaited operand.
-    /// </summary>
-    private static void MarkTaskAsAwaited(UnaryNode operand, SymbolTable symbolTable)
-    {
-        if (_liveTaskScopes is null || _liveTaskScopes.Count == 0)
-            return;
-
-        var varName = ExtractVariableNameFromUnary(operand);
-        if (varName is null)
-            return;
-
-        // Search all scope levels (innermost first) for a matching live task.
-        foreach (var scopeTasks in _liveTaskScopes)
-        {
-            foreach (var task in scopeTasks)
-            {
-                if (task.GeneratedVariableName == varName && !task.IsExplicitlyAwaited)
-                {
-                    task.IsExplicitlyAwaited = true;
-                    return;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Marks a live task as returned by searching the current scope's live task
-    /// list for a task whose variable name matches the returned expression.
-    /// </summary>
-    private static void MarkTaskAsReturned(ExpressionNode returnValue, SymbolTable symbolTable)
-    {
-        if (_liveTaskScopes is null || _liveTaskScopes.Count == 0)
-            return;
-
-        var varName = ExtractVariableNameFromExpression(returnValue);
-        if (varName is null)
-            return;
-
-        // Search all scope levels (innermost first) for a matching live task.
-        foreach (var scopeTasks in _liveTaskScopes)
-        {
-            foreach (var task in scopeTasks)
-            {
-                if (task.GeneratedVariableName == varName && !task.IsReturned)
-                {
-                    task.IsReturned = true;
-                    return;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Extracts the variable name from a unary expression node, if it's a simple
-    /// identifier reference (e.g., <c>await myTask</c> → "myTask").
-    /// </summary>
-    private static string? ExtractVariableNameFromUnary(UnaryNode node)
-    {
-        if (node is PostfixExpressionUnaryNode postfix
-            && postfix.Primary.Suffix.Length == 0
-            && postfix.Primary.Target is IdentifierExpressionPrimaryNode identifier)
-        {
-            return identifier.Name.Lexeme;
-        }
-        return null;
-    }
-
-    /// <summary>
-    /// Extracts the variable name from an expression node, if it's a simple
-    /// identifier reference (e.g., <c>return myTask</c> → "myTask").
-    /// </summary>
-    private static string? ExtractVariableNameFromExpression(ExpressionNode expr)
-    {
-        // Walk through the expression wrapper layers to find a simple identifier.
-        var assignment = expr.AsAssignmentOrNull();
-        if (assignment is null)
-            return null; // Lambda form is not a simple identifier reference.
-        if (assignment.Value is not null)
-            return null;
-
-        var logicalOr = assignment.Target.Left;
-        if (logicalOr.Right is not null)
-            return null;
-
-        var logicalAnd = logicalOr.Left;
-        if (logicalAnd.Right is not null)
-            return null;
-
-        var equality = logicalAnd.Left;
-        if (equality.Right is not null)
-            return null;
-
-        var relational = equality.Left;
-        if (relational is not RelationalComparisonRelationalNode relComp)
-            return null;
-        if (relComp.Right is not null)
-            return null;
-
-        var additive = relComp.Left;
-        if (additive.Right is not null)
-            return null;
-
-        var multiplicative = additive.Left;
-        if (multiplicative.Right is not null)
-            return null;
-
-        var unary = multiplicative.Left;
-        return ExtractVariableNameFromUnary(unary);
-    }
-
-    /// <summary>
     /// Resolves a named type by searching the scope chain and imported namespaces.
     /// When <paramref name="typeArgumentCount"/> is &gt;= 0, the resolver disambiguates
     /// between types with the same name but different generic arities (e.g., <c>Foo</c>
@@ -19384,6 +19263,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 CollectReturnTypesFromBlock(readonlyBlockStmt.ReadonlyBlock.Body, expressionTypes, returnTypes);
                 break;
 
+            case BlockStatementStatementNode blockStmt:
+                CollectReturnTypesFromBlock(blockStmt.BlockStatement, expressionTypes, returnTypes);
+                break;
+
             case WithBlockStatementStatementNode withBlockStmt:
                 CollectReturnTypesFromBlock(withBlockStmt.WithBlockStatement.Body, expressionTypes, returnTypes);
                 break;
@@ -20471,10 +20354,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var innerType = ct.TypeArguments[0];
                     expressionTypes[node] = innerType;
 
-                    // Mark the awaited task as consumed (Requirement 6.3):
-                    // If the operand is a variable reference to a tracked live task,
-                    // mark it as explicitly awaited so it's excluded from scope-exit await.
-                    MarkTaskAsAwaited(awaitExpr.Operand, symbolTable);
+                    // Under the Drop-based model, named Task<T> variables are
+                    // auto-dropped at scope exit (tasks 7.1, 7.3). An explicit
+                    // await acts as a Drop() call, transitioning the variable to
+                    // Dropped state — the DropAnalyzer handles this flow-sensitively.
+                    // No MarkTaskAsAwaited is needed for the discarded-task tracking
+                    // since discarded tasks (synthetic __task_N) are never awaited
+                    // by name in user code.
 
                     return innerType;
                 }

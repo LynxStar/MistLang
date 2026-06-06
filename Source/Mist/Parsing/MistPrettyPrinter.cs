@@ -1138,6 +1138,9 @@ public sealed class MistPrettyPrinter
         return specifier switch
         {
             OwnedSpecifierOwnershipSpecifierNode => "owned ",
+            LinearSpecifierOwnershipSpecifierNode => "linear ",
+            AffineSpecifierOwnershipSpecifierNode => "affine ",
+            RelevantSpecifierOwnershipSpecifierNode => "relevant ",
             FrozenSpecifierOwnershipSpecifierNode => "frozen ",
             ReadonlyRefSpecifierOwnershipSpecifierNode => "readonly ref ",
             BorrowedSpecifierOwnershipSpecifierNode => "borrowed ",
@@ -1335,6 +1338,16 @@ public sealed class MistPrettyPrinter
                 AppendLine("readonly {");
                 _indentLevel++;
                 foreach (var bodyStmt in readonlyBlockStmt.ReadonlyBlock.Body.Statements)
+                {
+                    EmitStatement(bodyStmt);
+                }
+                _indentLevel--;
+                AppendLine("}");
+                break;
+            case BlockStatementStatementNode blockStmt:
+                AppendLine("{");
+                _indentLevel++;
+                foreach (var bodyStmt in blockStmt.BlockStatement.Statements)
                 {
                     EmitStatement(bodyStmt);
                 }

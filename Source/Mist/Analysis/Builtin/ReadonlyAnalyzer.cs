@@ -373,6 +373,10 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 WalkBlockForReadonlyFieldAssignments(readonlyBlockStmt.ReadonlyBlock.Body, declaringTypeScope, model, diagnostics);
                 break;
 
+            case BlockStatementStatementNode blockStmt:
+                WalkBlockForReadonlyFieldAssignments(blockStmt.BlockStatement, declaringTypeScope, model, diagnostics);
+                break;
+
             case BreakStatementStatementNode:
                 break;
 
@@ -675,6 +679,10 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
 
             case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
                 WalkBlockForReadonlyParamViolations(readonlyBlockStmt.ReadonlyBlock.Body, readonlyParamNames, model, diagnostics);
+                break;
+
+            case BlockStatementStatementNode blockStmt:
+                WalkBlockForReadonlyParamViolations(blockStmt.BlockStatement, readonlyParamNames, model, diagnostics);
                 break;
 
             case BreakStatementStatementNode:
@@ -1114,6 +1122,10 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 contextStack.Push(new ContextEntry(ContextKind.ReadonlyBlock));
                 WalkBlock(readonlyBlockStmt.ReadonlyBlock.Body, model, diagnostics, contextStack);
                 contextStack.Pop();
+                break;
+
+            case BlockStatementStatementNode blockStmt:
+                WalkBlock(blockStmt.BlockStatement, model, diagnostics, contextStack);
                 break;
 
             case BreakStatementStatementNode:
@@ -1822,6 +1834,10 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 WalkBlockForConstrainedTypeParamViolations(readonlyBlockStmt.ReadonlyBlock.Body, model, diagnostics);
                 break;
 
+            case BlockStatementStatementNode blockStmt:
+                WalkBlockForConstrainedTypeParamViolations(blockStmt.BlockStatement, model, diagnostics);
+                break;
+
             case BreakStatementStatementNode:
                 break;
 
@@ -2199,6 +2215,10 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
 
             case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
                 WalkBlockForClosedUnknownViolations(readonlyBlockStmt.ReadonlyBlock.Body, model, diagnostics);
+                break;
+
+            case BlockStatementStatementNode blockStmt:
+                WalkBlockForClosedUnknownViolations(blockStmt.BlockStatement, model, diagnostics);
                 break;
 
             case BreakStatementStatementNode:

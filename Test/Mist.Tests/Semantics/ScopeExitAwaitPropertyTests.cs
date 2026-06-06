@@ -14,14 +14,14 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Semantics;
 
 /// <summary>
-/// Property-based tests verifying that the semantic model records live tasks for
+/// Property-based tests verifying that the semantic model records discarded tasks for
 /// block scopes in async context methods containing discarded task-producing expressions.
 ///
 /// **Validates: Requirements 6.1, 6.4, 7.1, 7.2, 7.4**
 ///
 /// For any async context method body containing task-producing expressions that are
-/// neither explicitly awaited nor returned, the semantic model SHALL record live tasks
-/// for that block scope (via <c>GetLiveTasks</c>).
+/// neither explicitly awaited nor returned, the semantic model SHALL record discarded tasks
+/// for that block scope (via <c>GetDiscardedTasks</c>).
 ///
 /// All work runs in-process using compiler APIs — no external process is spawned.
 /// </summary>
@@ -142,7 +142,7 @@ public class ScopeExitAwaitPropertyTests
     /// - An async caller method that discards N calls to the target method
     ///
     /// Returns the AST and the BlockNode of the caller method so we can query
-    /// GetLiveTasks on it.
+    /// GetDiscardedTasks on it.
     /// </summary>
     private static (CompilationUnitNode Ast, BlockNode CallerBlock) BuildAst(
         ScopeExitAwaitScenario scenario)
@@ -213,7 +213,7 @@ public class ScopeExitAwaitPropertyTests
     //
     // For any async context method body containing task-producing expressions
     // that are neither explicitly awaited nor returned, the semantic model
-    // SHALL record live tasks for that block scope (via GetLiveTasks).
+    // SHALL record discarded tasks for that block scope (via GetDiscardedTasks).
     //
     // This covers:
     // - 6.1: Discarded async method calls in async context → tracked as live tasks
@@ -229,12 +229,12 @@ public class ScopeExitAwaitPropertyTests
         var (ast, callerBlock) = BuildAst(scenario);
         var (model, diagnostics) = StdlibTestHelper.BuildModelWithStdlib(ast);
 
-        // Query the semantic model for live tasks on the caller's block scope
-        var liveTasks = model.GetLiveTasks(callerBlock);
+        // Query the semantic model for discarded tasks on the caller's block scope
+        var liveTasks = model.GetDiscardedTasks(callerBlock);
 
         if (liveTasks.Count == 0)
             return false.ToProperty()
-                .Label($"GetLiveTasks returned empty for caller block with {scenario.DiscardedCallCount} " +
+                .Label($"GetDiscardedTasks returned empty for caller block with {scenario.DiscardedCallCount} " +
                        $"discarded async calls. Scenario: {scenario}");
 
         // The number of live tasks should match the number of discarded calls
@@ -250,7 +250,7 @@ public class ScopeExitAwaitPropertyTests
 
             if (task.TaskType is not ConstructedType constructedType)
                 return false.ToProperty()
-                    .Label($"Live task {i} type is not a ConstructedType. " +
+                    .Label($"Discarded task {i} type is not a ConstructedType. " +
                            $"Actual: {task.TaskType.GetType().Name} ({task.TaskType.DisplayName}). " +
                            $"Scenario: {scenario}");
 
@@ -258,25 +258,14 @@ public class ScopeExitAwaitPropertyTests
                 || taskClass.DisplayName != "Task"
                 || taskClass.ContainingNamespace != "Standard")
                 return false.ToProperty()
-                    .Label($"Live task {i} type is not Standard.Task<T>. " +
+                    .Label($"Discarded task {i} type is not Standard.Task<T>. " +
                            $"Actual: {constructedType.GenericDefinition.DisplayName}. " +
-                           $"Scenario: {scenario}");
-
-            // Verify the task is not marked as awaited or returned
-            if (task.IsExplicitlyAwaited)
-                return false.ToProperty()
-                    .Label($"Live task {i} is marked as explicitly awaited but should not be. " +
-                           $"Scenario: {scenario}");
-
-            if (task.IsReturned)
-                return false.ToProperty()
-                    .Label($"Live task {i} is marked as returned but should not be. " +
                            $"Scenario: {scenario}");
 
             // Verify the generated variable name follows the __task_N pattern
             if (!task.GeneratedVariableName.StartsWith("__task_"))
                 return false.ToProperty()
-                    .Label($"Live task {i} has unexpected variable name '{task.GeneratedVariableName}'. " +
+                    .Label($"Discarded task {i} has unexpected variable name '{task.GeneratedVariableName}'. " +
                            $"Expected pattern '__task_N'. Scenario: {scenario}");
         }
 

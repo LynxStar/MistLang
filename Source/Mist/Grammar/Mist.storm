@@ -325,6 +325,9 @@ rule OwnershipSpecifier
     | FROZEN               as FrozenSpecifier
     | READONLY REF         as ReadonlyRefSpecifier
     | BORROWED             as BorrowedSpecifier
+    | LINEAR               as LinearSpecifier
+    | AFFINE               as AffineSpecifier
+    | RELEVANT             as RelevantSpecifier
     | REF                  as RefSpecifier
     ;
 
@@ -512,6 +515,7 @@ rule Statement
     | withDiscardDeclaration:WithDiscardDeclarationStatement as WithDiscardDeclarationStatement
     | withPushStatement:WithPushStatement                    as WithPushStatement
     | withBlockStatement:WithBlockStatement                  as WithBlockStatement
+    | blockStatement:Block                                   as BlockStatement
     | expressionStatement:ExpressionStatement             as ExpressionStatement
     ;
 

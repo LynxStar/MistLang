@@ -42,6 +42,7 @@ internal static class CSharpTypeMap
         ["Standard.Math"] = "System.Math",
         ["Standard.Convert"] = "System.Convert",
         ["Standard.Task"] = "System.Threading.Tasks.Task",
+        ["Standard.ValueTask"] = "System.Threading.Tasks.ValueTask",
         ["Standard.IEnumerator"] = "System.Collections.Generic.IEnumerator",
         ["Standard.IEnumerable"] = "System.Collections.Generic.IEnumerable",
 
@@ -197,12 +198,12 @@ internal static class CSharpTypeMap
         StructType st when st.IsBackendBacked && st.ContainingNamespace == "Standard"
             => GetKeyword(st),
         ClassType ct when ct.IsBackendBacked && ct.ContainingNamespace == "Standard"
-            && ct.DisplayName != "Func" && ct.DisplayName != "Task"
+            && ct.DisplayName != "Func" && ct.DisplayName != "Task" && ct.DisplayName != "ValueTask"
             => GetKeyword(ct),
-        // Bare Func/Task class types (generic definitions without type arguments)
+        // Bare Func/Task/ValueTask class types (generic definitions without type arguments)
         // should not normally reach the type map. Emit as 'object' as a safe fallback.
         ClassType ct when ct.IsBackendBacked && ct.ContainingNamespace == "Standard"
-            && (ct.DisplayName == "Func" || ct.DisplayName == "Task")
+            && (ct.DisplayName == "Func" || ct.DisplayName == "Task" || ct.DisplayName == "ValueTask")
             => "object",
 
         // Legacy fallback void (tests without stdlib)
@@ -220,6 +221,12 @@ internal static class CSharpTypeMap
         // For the initial implementation, always emit Task<T> (ValueTask optimization comes later).
         ConstructedType ctTask when IsStandardTask(ctTask)
             => EmitTaskTypeName(ctTask, isValueContext),
+
+        // Standard.ValueTask<T> — maps to System.Threading.Tasks.ValueTask<T> or non-generic ValueTask.
+        // ValueTask<Void> always emits as non-generic "ValueTask".
+        // ValueTask<T> where T is not Void → "ValueTask<T>".
+        ConstructedType ctVTask when IsStandardValueTask(ctVTask)
+            => EmitValueTaskTypeName(ctVTask, isValueContext),
 
         // Standard.Func<...> — maps to System.Func<...> / System.Action<...> / System.Action
         // based on whether the last type argument (the return type) is Void.
@@ -362,6 +369,39 @@ internal static class CSharpTypeMap
         // Task<T> where T is not Void → Task<T>
         var innerTypeName = GetTypeName(innerType, isValueContext: true);
         return $"System.Threading.Tasks.Task<{innerTypeName}>";
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the <see cref="ConstructedType"/>'s generic definition
+    /// is the <c>Standard.ValueTask</c> class (the Mist value-type concurrency primitive).
+    /// </summary>
+    private static bool IsStandardValueTask(ConstructedType ct)
+    {
+        return ct.GenericDefinition is ClassType { DisplayName: "ValueTask", ContainingNamespace: "Standard", IsBackendBacked: true };
+    }
+
+    /// <summary>
+    /// Emits the C# type name for a <c>Standard.ValueTask&lt;T&gt;</c> constructed type.
+    /// <list type="bullet">
+    ///   <item><c>ValueTask&lt;Void&gt;</c> → <c>System.Threading.Tasks.ValueTask</c> (non-generic)</item>
+    ///   <item><c>ValueTask&lt;T&gt;</c> where T is not Void → <c>System.Threading.Tasks.ValueTask&lt;{GetTypeName(T)}&gt;</c></item>
+    /// </list>
+    /// <c>ValueTask&lt;Void&gt;</c> always emits as the non-generic <c>ValueTask</c> because C# uses
+    /// <c>ValueTask</c> (not <c>ValueTask&lt;void&gt;</c>) for async operations with no return value.
+    /// </summary>
+    private static string EmitValueTaskTypeName(ConstructedType ct, bool isValueContext)
+    {
+        var innerType = ct.TypeArguments[0];
+
+        if (innerType.IsVoid())
+        {
+            // ValueTask<Void> always emits as non-generic ValueTask.
+            return "System.Threading.Tasks.ValueTask";
+        }
+
+        // ValueTask<T> where T is not Void → ValueTask<T>
+        var innerTypeName = GetTypeName(innerType, isValueContext: true);
+        return $"System.Threading.Tasks.ValueTask<{innerTypeName}>";
     }
 
     /// <summary>

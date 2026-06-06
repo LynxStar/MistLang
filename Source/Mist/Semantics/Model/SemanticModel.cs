@@ -17,7 +17,7 @@ public sealed class SemanticModel : ISemanticModel
     private Dictionary<Storm.Runtime.SyntaxNode, ISymbol> _resolvedOperators;
     private Dictionary<ISymbol, RefinementPredicate> _parameterRefinements;
     private HashSet<ISymbol> _guardNeededParameters;
-    private Dictionary<Storm.Runtime.SyntaxNode, List<LiveTaskInfo>> _liveTasksByScope;
+    private Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>> _discardedTasksByScope;
     private readonly Dictionary<Storm.Runtime.SyntaxNode, IReadOnlyList<IType>> _inferredTypeArguments = new();
 
     internal SemanticModel(
@@ -30,7 +30,7 @@ public sealed class SemanticModel : ISemanticModel
         TraitSatisfactionMap? traitSatisfactionMap = null,
         ExtensionRegistry? extensionRegistry = null,
         Dictionary<ISymbol, RefinementPredicate>? parameterRefinements = null,
-        Dictionary<Storm.Runtime.SyntaxNode, List<LiveTaskInfo>>? liveTasksByScope = null)
+        Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>>? discardedTasksByScope = null)
     {
         Compilation = compilation;
         Units = units;
@@ -41,7 +41,7 @@ public sealed class SemanticModel : ISemanticModel
         _resolvedOperators = new Dictionary<Storm.Runtime.SyntaxNode, ISymbol>();
         _parameterRefinements = parameterRefinements ?? new Dictionary<ISymbol, RefinementPredicate>();
         _guardNeededParameters = new HashSet<ISymbol>();
-        _liveTasksByScope = liveTasksByScope ?? new Dictionary<Storm.Runtime.SyntaxNode, List<LiveTaskInfo>>();
+        _discardedTasksByScope = discardedTasksByScope ?? new Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>>();
         TraitSatisfactionMap = traitSatisfactionMap ?? new TraitSatisfactionMap();
         ExtensionRegistry = extensionRegistry ?? new ExtensionRegistry();
     }
@@ -276,21 +276,23 @@ public sealed class SemanticModel : ISemanticModel
     }
 
     /// <summary>
-    /// Returns the list of live (un-awaited, un-returned) tasks for the given
-    /// block scope node, or an empty list if no live tasks were recorded.
-    /// The emitter uses this to generate scope-exit await code.
+    /// Returns the list of discarded task expressions for the given block scope node,
+    /// or an empty list if none were recorded. A discarded task is a bare async method
+    /// call whose result is not assigned to a variable, awaited, or returned. The
+    /// emitter uses this to capture those expressions into synthetic variables and
+    /// emit scope-exit await code.
     /// </summary>
-    public IReadOnlyList<LiveTaskInfo> GetLiveTasks(Storm.Runtime.SyntaxNode blockScopeNode)
+    public IReadOnlyList<DiscardedTaskInfo> GetDiscardedTasks(Storm.Runtime.SyntaxNode blockScopeNode)
     {
-        return _liveTasksByScope.TryGetValue(blockScopeNode, out var tasks)
+        return _discardedTasksByScope.TryGetValue(blockScopeNode, out var tasks)
             ? tasks
-            : Array.Empty<LiveTaskInfo>();
+            : Array.Empty<DiscardedTaskInfo>();
     }
 
     /// <summary>
-    /// Returns all block scope nodes that have live tasks recorded.
+    /// Returns all block scope nodes that have discarded tasks recorded.
     /// </summary>
-    internal IReadOnlyDictionary<Storm.Runtime.SyntaxNode, List<LiveTaskInfo>> LiveTasksByScope => _liveTasksByScope;
+    internal IReadOnlyDictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>> DiscardedTasksByScope => _discardedTasksByScope;
 
     /// <inheritdoc />
     public void RecordInferredTypeArguments(Storm.Runtime.SyntaxNode callSiteNode, IReadOnlyList<IType> inferredTypeArgs)

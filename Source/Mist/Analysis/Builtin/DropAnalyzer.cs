@@ -515,6 +515,10 @@ public sealed class DropAnalyzer : IAnalyzer
                 WalkBlock(readonlyBlockStmt.ReadonlyBlock.Body, state, model, diagnostics, isDropMethod);
                 break;
 
+            case BlockStatementStatementNode blockStmt:
+                WalkBlock(blockStmt.BlockStatement, state, model, diagnostics, isDropMethod);
+                break;
+
             case WithBlockStatementStatementNode withBlockStmt:
                 ProcessExpression(withBlockStmt.WithBlockStatement.Expression, state, model, diagnostics, isDropMethod);
                 WalkBlock(withBlockStmt.WithBlockStatement.Body, state, model, diagnostics, isDropMethod);

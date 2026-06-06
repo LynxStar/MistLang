@@ -41,11 +41,11 @@ flowchart TD
 
 1. **Lexer/Parser** — Recognize `affine`, `linear`, `relevant` as storage modifiers. No grammar changes to `Drop()` method declarations (they're regular methods with a special name).
 
-2. **Semantic Model** — Add a `SubstructuralDiscipline` enum to `ClassType`/`StructType`. Replace `IsOwnedType` boolean with the richer discipline model (affine/linear imply owned). Run synthetic drop inference to propagate drop obligations through field containment.
+2. **Semantic Model** — Add a `SubstructuralDiscipline` enum and a `Discipline` field to `ClassType`/`StructType` (alongside the existing `IsOwnedType` field, which discipline resolution writes through to — affine/linear set `IsOwnedType = true`). Run synthetic drop inference to propagate drop obligations through field containment.
 
 3. **Analysis** — A new `DropAnalyzer` (or extension of `OwnershipAnalyzer`) performs flow-sensitive tracking of drop state. It enforces: use-after-drop errors, field-drop-outside-container errors, linear/relevant forget errors, conflicting modifier errors, and owned-field-in-non-owned-container errors.
 
-4. **Emission** — The C# emitter inserts `Drop()` calls (or `await` for task types) at scope exit points, wrapped in `try/finally` for linear/relevant types. Substructural modifiers are erased in the emitted C#.
+4. **Emission** — The C# emitter inserts `Drop()` calls (or `await` for task types) at scope exit points, wrapped in `try/finally` for linear/relevant types. For `with` forms, drop composition reuses the existing `EmitWithBlockStatement` / `EmitContextDeclarationWithWrapping` `try/finally` infrastructure (which already emits the `MistContext.Push`/`Pop` wrapper) rather than introducing new scope-exit machinery. Substructural modifiers are erased in the emitted C#.
 
 ## Components and Interfaces
 
@@ -76,12 +76,16 @@ public enum SubstructuralDiscipline
 
 ### 2. Type Model Extensions
 
-`ClassType` and `StructType` gain:
+`ClassType` and `StructType` (namespace `Mist.Semantics.Model.Types`) gain the following new members:
 
 ```csharp
+namespace Mist.Semantics.Model.Types;
+
+// (members added to the existing ClassType / StructType declarations)
+
 /// <summary>
 /// The substructural discipline declared on this type.
-/// Replaces the raw IsOwnedType boolean for affine/linear types.
+/// Drives ownership and Drop() enforcement for affine/linear/relevant types.
 /// </summary>
 public SubstructuralDiscipline Discipline { get; internal set; } = SubstructuralDiscipline.None;
 
@@ -96,7 +100,9 @@ public bool HasDrop { get; internal set; }
 public IType? DropReturnType { get; internal set; }
 ```
 
-The existing `IsOwnedType` property is retained for backward compatibility but its semantics become: `IsOwnedType => Discipline is Affine or Linear || explicitly marked owned`.
+`IsOwnedType` REMAINS the existing settable backing field — `public bool IsOwnedType { get; internal set; }` — and is NOT converted into a computed property. Multiple producers already assign to it: `OwnershipInferenceEngine.RunInference` sets `structType.IsOwnedType = true` at driver Stage 4c, and `SemanticModelBuilder` also sets it during type construction. Discipline resolution therefore *writes through* to this field rather than replacing it: when a type's `Discipline` resolves to `Affine` or `Linear`, the builder sets `IsOwnedType = true`. For `Relevant` and `None`, the builder leaves `IsOwnedType` governed by the existing `owned` modifier / inference logic. This keeps a single source of truth (`IsOwnedType`) that downstream consumers continue to read unchanged, with discipline resolution acting as one more producer that assigns into it.
+
+`Discipline`, `HasDrop`, and `DropReturnType` are the newly added members; `IsOwnedType` is unchanged in shape.
 
 ### 3. VariableDropState (Flow-Sensitive Tracking)
 
@@ -133,6 +139,8 @@ A new analyzer (or integrated into `OwnershipAnalyzer`) that:
 - Validates containment rules (affine/linear fields need owned containers)
 - Reports diagnostics for use-after-drop, forget violations, conflicting modifiers
 
+**Analyzer registration.** The `DropAnalyzer` SHALL be registered in the analyzer array constructed in `Source/Mist.CLI/Program.cs`, ordered AFTER `OwnershipAnalyzer` so that drop analysis observes the ownership state the ownership analyzer establishes. This mirrors how the existing flow-sensitive analyzers are wired into the CLI's analyzer pipeline.
+
 ### 5. SyntheticDropInferencePass
 
 A semantic model pass that runs after all types are built:
@@ -150,6 +158,8 @@ For each type T:
   This cascades: process types in dependency order (leaves first)
 ```
 
+**Pass placement.** There is NO pluggable semantic-pass registry in the compiler. Post-build inference runs as hard-coded sequential stages inside `CompilerDriver.Compile`: Stage 4b is `ReadonlyInferenceEngine.RunInference(semanticModel)` and Stage 4c is `OwnershipInferenceEngine.RunInference(semanticModel)`. The synthetic drop inference SHALL be implemented as a new engine (e.g., `SyntheticDropInferenceEngine`) exposing the same static `RunInference(semanticModel)` entry point, and invoked as a new hard-coded stage (e.g., Stage 4d) wired directly into `CompilerDriver.Compile` immediately AFTER ownership inference (Stage 4c). Ordering after ownership inference is required because synthetic drop inference reads `IsOwnedType` / `Discipline` state that ownership inference finalizes. It SHALL NOT attempt to register itself through any pass-discovery mechanism, because none exists.
+
 ### 6. CSharpEmitter Extensions
 
 The emitter is extended to:
@@ -157,9 +167,12 @@ The emitter is extended to:
 - Insert `Drop()` calls at scope exit for linear/relevant variables
 - Wrap linear/relevant scopes in `try/finally` to guarantee drop on exception
 - Emit `await` instead of `.Drop()` for `Task<T>` and `ValueTask<T>` types
+- Emit `System.Threading.Tasks.ValueTask<T>` (and non-generic `ValueTask`) for the Mist `ValueTask` type
 - Handle reverse-declaration-order drop sequencing
 - Handle conditional moves (drop only in branches where variable is live)
 - Erase substructural modifiers from emitted C#
+
+**Reuse of existing with-block infrastructure.** The drop-at-block-exit behavior for `with` forms (Requirement 5) does NOT introduce new scope-exit machinery. It extends the existing structured-context emission in `CSharpEmitter.EmitWithBlockStatement` (~line 7186) and `EmitContextDeclarationWithWrapping`, which already emit a `try { ...body... } finally { MistContext.Pop<T>(); }` wrapper around `MistContext.Push<T>(expr)`. Drop composition (see "With-Block Drop Composition" below) appends a `Drop()` call inside that same existing `finally`. The general linear/relevant auto-drop `try/finally` wrapping (Property 18) remains the mechanism for non-`with` scope exits.
 
 ### 7. Keywords and Parsing
 
@@ -177,6 +190,14 @@ These are recognized as storage modifiers in the same position as `owned` (befor
 
 - `affine`, `linear`, `relevant` added to `storage.modifier.mist` scope
 - `Drop` recognized as `entity.name.function.destructor.mist` in method declaration position
+
+### 9. ValueTask Type Provider Intake & Emission
+
+`ValueTask<T>` becomes a user-facing intrinsic linear type (see "Task Type Declarations" below). Supporting it across the inbound (CLR → Mist) and outbound (Mist → C#) boundaries requires the following:
+
+- **(a) Inbound projection (CLR/ambient type provider).** `CSharpAmbientTypeResolver` / `AssemblyTypeProvider` SHALL recognize `System.Threading.Tasks.ValueTask` and `System.Threading.Tasks.ValueTask<T>` when they appear in referenced assemblies (parameter types, return types, field types) and project them to the Mist `ValueTask` / `ValueTask<TResult>` intrinsic type. This mirrors the existing inbound recognition of `System.Threading.Tasks.Task` / `Task<T>`.
+- **(b) Outbound emission (`CSharpTypeMap` / `EmitAsyncReturnType`).** The type map SHALL emit `System.Threading.Tasks.ValueTask<T>` for the generic Mist `ValueTask<TResult>` and the non-generic `System.Threading.Tasks.ValueTask` for the `ValueTask` void alias. The `EmitAsyncReturnType` path — which already has the ability to emit `ValueTask<` but is currently never triggered — becomes reachable for methods whose return type is the explicit user-written `ValueTask<TResult>`.
+- **(c) Reconciliation with the existing optimization.** The compiler already carries a `Symbol.UseValueTask` flag and a `ValueTaskUsageAnalysisPass` that is presently a no-op (so emitted C# never contains `ValueTask<`). These remain an *internal, inference-only* optimization for async methods whose return type was inferred. The explicit user-written `ValueTask<TResult>` return type SHALL take precedence: when a method's return type is written as `ValueTask<TResult>` in source, emission is driven by the intrinsic type (path (b)), not by `Symbol.UseValueTask`. The `ValueTaskUsageAnalysisPass` optimization SHALL apply only to async methods whose return type was inferred rather than explicitly written. The two notions therefore never compete for the same method.
 
 ## Data Models
 
@@ -260,18 +281,26 @@ AnalyzeManualDrop(type T, method Drop()):
 
 ### Task Type Declarations (Standard Library)
 
+`Task<TResult>` is declared as an intrinsic class in `Source/Standard/Bootstrap/Task.mist` today (`intrinsic public class Task<TResult>`). The drop-semantics feature adds the new substructural modifiers (`linear`, `relevant`) to these intrinsic declarations. `ValueTask<TResult>` is added as a new user-facing intrinsic LINEAR type alongside `Task<TResult>`, declared in the same intrinsic style (not as an ordinary `public linear class` body):
+
 ```mist
-public relevant class Task<TResult>
+// Source/Standard/Bootstrap/Task.mist (intrinsic declarations)
+
+intrinsic public relevant class Task<TResult>
 {
     intrinsic public TResult Drop();
     // ... existing static methods ...
 }
 
-public linear class ValueTask<TResult>
+intrinsic public linear class ValueTask<TResult>
 {
     intrinsic public TResult Drop();
 }
 ```
+
+`relevant` and `linear` are the new modifiers being introduced; they attach to the existing intrinsic `Task` declaration and the new intrinsic `ValueTask` declaration respectively. Because `ValueTask<TResult>` is now a real, user-facing Mist type (and not merely an emitter optimization), the CLR/ambient type provider must project inbound `ValueTask`/`ValueTask<T>` to it and the emitter must emit `System.Threading.Tasks.ValueTask<T>` — see component "9. ValueTask Type Provider Intake & Emission".
+
+The void aliases (`type Task = Task<void>`, `type ValueTask = ValueTask<void>`) inherit the discipline and `Drop()` of their generic forms; the non-generic `ValueTask` alias emits as `System.Threading.Tasks.ValueTask`.
 
 ### Await Desugaring
 
@@ -286,6 +315,48 @@ await task;  →  task.Drop();
 ```
 
 The C# emitter reverses this: `task.Drop()` emits as `await task` in C# output.
+
+### With-Block Drop Composition
+
+The `with(expr) { ... }`, `with var x = expr;`, `with Type x = expr;`, `with Type _ = expr;`, and `with expr;` constructs ALREADY EXIST as the structured-context feature. Their emission today is, conceptually:
+
+```csharp
+MistContext.Push<T>(expr);
+try
+{
+    // ...body...
+}
+finally
+{
+    MistContext.Pop<T>();
+}
+```
+
+Drop COMPOSES with this rather than replacing it (Option A). When the bound expression's type has a `Drop()` method, the emitter extends the existing `finally` so that, AFTER `Pop<T>()`, it also emits a `Drop()` call (or `await` for `Task`/`ValueTask`):
+
+```csharp
+MistContext.Push<T>(expr);
+try
+{
+    // ...body...
+}
+finally
+{
+    MistContext.Pop<T>();   // existing context pop — emitted FIRST
+    expr.Drop();            // drop composition — emitted AFTER the pop
+                            //   (await expr; when the type is Task/ValueTask)
+}
+```
+
+Ordering within the `finally` is fixed: **context pop first, then drop.** This is the single combined `finally` produced by the existing `EmitWithBlockStatement` / `EmitContextDeclarationWithWrapping` paths — no second `try/finally` is introduced.
+
+Discipline interactions:
+
+- **Affine types:** the `with` family is the ONLY auto-trigger for `Drop()`. Outside `with`, an affine value may be forgotten and no drop is inserted.
+- **Linear types bound by `with`:** the `with` block exit satisfies the linear drop obligation. The compiler SHALL NOT also auto-drop the same value at the enclosing scope exit (no double drop).
+- **Relevant / unrestricted types bound by `with`:** the `with` exit drop fires per the existing relevant idempotence / unrestricted with-only rules.
+- **Non-void `Drop()` in a `with` context:** the return value is discarded.
+- **Types that are both a context type and have a `Drop()`:** pop and drop are emitted in the same `finally`, pop before drop.
 
 
 ## Correctness Properties
@@ -340,11 +411,11 @@ The C# emitter reverses this: `task.Drop()` emits as `await task` in C# output.
 
 **Validates: Requirements 2.6, 2.7, 4.8, 5.3**
 
-### Property 9: With-Block Triggers Drop at Block Exit
+### Property 9: With-Block Composes Drop with Context Pop at Block Exit
 
-*For any* expression used in a `with(expr) { ... }` block where `expr`'s type has a `Drop()` method, the compiler SHALL insert a `Drop()` call at the block exit point.
+*For any* `with`-form binding (`with(expr) { ... }`, `with var x = expr;`, `with Type x = expr;`, `with Type _ = expr;`, or `with expr;`) whose type has a `Drop()` method, the compiler SHALL insert a `Drop()` call at block exit IN ADDITION TO the existing ambient-context pop, with the `Pop<T>()` emitted before the `Drop()` call in the same `finally` block.
 
-**Validates: Requirements 5.1, 5.2**
+**Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7**
 
 ### Property 10: Reverse Declaration Order for Multiple Drops
 
@@ -422,14 +493,18 @@ The C# emitter reverses this: `task.Drop()` emits as `await task` in C# output.
 
 ### Compile-Time Errors
 
-| Error Code | Condition | Message Template |
+The drop diagnostics follow the convention already used by the flow-sensitive `OwnershipAnalyzer`, which defines analyzer-local descriptive diagnostic IDs (e.g. `MIST_OWN_USE_AFTER_MOVE`, `MIST_OWN_FIELD_NOT_OWNED`) rather than flat numeric codes. The drop diagnostics SHALL likewise be defined as analyzer-local descriptive IDs on the new `DropAnalyzer`, constructed through a `MakeDiagnostic` helper that mirrors the `OwnershipAnalyzer` pattern.
+
+| Error ID | Condition | Message Template |
 |---|---|---|
-| MIST_DROP_001 | Use-after-drop/move on linear type | "Use of moved/dropped value '{Name}'." |
-| MIST_DROP_002 | Use-after-drop on affine type | "Use of dropped value '{Name}'." |
-| MIST_DROP_003 | Non-owned container with affine/linear field | "Non-owned type '{TypeName}' cannot contain {modifier} field '{FieldName}'. Aliasing the container would violate the single-holder invariant of the field." |
-| MIST_DROP_004 | Field Drop() outside container's Drop() | "Cannot drop field '{FieldName}' outside of the containing type's Drop() method." |
-| MIST_DROP_005 | Conflicting modifiers | "Conflicting type modifiers." |
-| MIST_DROP_006 | Drop() with parameters | "Drop() method must not accept parameters." |
+| MIST_DROP_USE_AFTER_MOVE | Use-after-drop/move on linear type | "Use of moved/dropped value '{Name}'." |
+| MIST_DROP_USE_AFTER_DROP | Use-after-drop on affine type | "Use of dropped value '{Name}'." |
+| MIST_DROP_FIELD_NOT_OWNED | Non-owned container with affine/linear field | "Non-owned type '{TypeName}' cannot contain {modifier} field '{FieldName}'. Aliasing the container would violate the single-holder invariant of the field." |
+| MIST_DROP_FIELD_OUTSIDE_CONTAINER | Field Drop() outside container's Drop() | "Cannot drop field '{FieldName}' outside of the containing type's Drop() method." |
+| MIST_DROP_CONFLICTING_MODIFIERS | Conflicting modifiers | "Conflicting type modifiers." |
+| MIST_DROP_PARAMETERS | Drop() with parameters | "Drop() method must not accept parameters." |
+
+These IDs are owned by `DropAnalyzer` (analyzer-local), consistent with how `OwnershipAnalyzer` owns its `MIST_OWN_*` IDs. They are NOT registered as flat numeric codes in a central diagnostics table.
 
 ### Error Recovery Strategy
 
@@ -499,3 +574,11 @@ Per the test-process-spawning policy:
 - Property tests use the **batched compilation approach**: generate all N scenarios, build a single Mist program that exercises all of them, compile once (in-process via `CompilerDriver`), run the compiled DLL once, compare N output lines.
 - Each property test class spawns at most 1 external process per test run.
 - The shared `CompilerDriver` instance is reused across iterations.
+
+### Superseded Tests (ValueTask Emission)
+
+The existing `ValueTaskEmissionPropertyTests` asserts that emitted C# NEVER contains `ValueTask<` (consistent with the prior state where `ValueTask` was only a no-op emitter optimization). Because this feature makes `ValueTask<T>` a user-facing intrinsic type that is INTENTIONALLY emitted as `System.Threading.Tasks.ValueTask<T>`, that assertion is now incorrect and MUST be updated or superseded:
+
+- Tests covering async methods whose return type was *inferred* SHALL continue to assert the `ValueTaskUsageAnalysisPass` / `Symbol.UseValueTask` behavior (no user-facing `ValueTask<` unless the optimization is enabled and emits it).
+- New/updated tests SHALL assert that an *explicitly written* `ValueTask<TResult>` return type emits `System.Threading.Tasks.ValueTask<T>` (and `ValueTask` for the void alias), and that inbound `System.Threading.Tasks.ValueTask`/`ValueTask<T>` are projected to the Mist `ValueTask` type.
+- The blanket "emitted C# never contains `ValueTask<`" invariant SHALL be removed, since it now contradicts intended behavior.

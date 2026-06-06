@@ -88,15 +88,17 @@ The design unifies cleanup into a single mechanism: the `Drop()` method. The typ
 
 ### Requirement 5: Drop in With Blocks
 
-**User Story:** As a Mist developer, I want `with` blocks to invoke `Drop()` at block exit for types that have a `Drop()` method, so that I can explicitly scope the lifetime of any type with cleanup.
+**User Story:** As a Mist developer, I want `with` forms to invoke `Drop()` at scope exit for any droppable type, so that I can deterministically scope the lifetime of a type with cleanup. This composes with the existing structured-context feature: the `with(expr) { ... }`, `with var x = expr;`, `with Type x = expr;`, `with Type _ = expr;`, and `with expr;` constructs already push a value onto an ambient context stack and pop it at scope exit, and drop behavior is layered additively on top of that existing push/pop without replacing it.
 
 #### Acceptance Criteria
 
-1. WHEN a `with(expr) { ... }` block is used with an expression of a type that has a `Drop()` method, THE Compiler SHALL insert a `Drop()` call at block exit.
-2. WHEN a `with var x = expr` declaration binds a value of a type with `Drop()`, THE Compiler SHALL insert a `Drop()` call at the enclosing scope exit.
-3. FOR affine types, THE `with` block is the ONLY mechanism that triggers `Drop()`. Outside `with`, the value can be forgotten.
-4. FOR linear types in a `with` block, THE `with` block exit satisfies the linear obligation — no additional auto-drop at the enclosing scope exit.
-5. WHEN `Drop()` returns a non-void value in a `with` block, THE return value SHALL be discarded (the `with` block does not capture Drop's return value).
+1. WHEN a `with(expr) { ... }` block is used and the expression's type has a `Drop()` method, THE Compiler SHALL insert a `Drop()` call at block exit in addition to the existing ambient-context pop.
+2. WHEN a `with var x = expr` (or `with Type x = expr`) binding's type has a `Drop()` method, THE Compiler SHALL insert a `Drop()` call at the enclosing scope exit, after the context pop.
+3. THE Compiler SHALL preserve the existing ambient-context push/pop semantics unchanged for all `with` forms, applying drop behavior additively only when the bound type has a `Drop()` method.
+4. FOR affine types, THE `with` family SHALL be the only mechanism that triggers `Drop()`; outside `with`, an affine value MAY be forgotten.
+5. FOR linear types bound by a `with` form, THE `with` block exit SHALL satisfy the linear drop obligation, with no additional auto-drop at the enclosing scope exit.
+6. WHEN `Drop()` returns a non-void value in a `with` context, THE Compiler SHALL discard the return value.
+7. WHEN a type bound by `with` is both a context type and has a `Drop()` method, THE Compiler SHALL emit the context pop and then the `Drop()` call within the same `finally` block (pop before drop).
 
 ### Requirement 6: No Forget Escape Hatch (Linear and Relevant)
 
@@ -123,7 +125,11 @@ The design unifies cleanup into a single mechanism: the `Drop()` method. The typ
 6. SINCE `Task<TResult>` is relevant (non-owned, aliasable), passing a task to another function does NOT prevent auto-drop at the original scope exit. The `Drop()` implementation (await) is idempotent — awaiting a completed task is a no-op.
 7. THE `Task` type alias (`type Task = Task<void>`) SHALL inherit the relevant discipline and `Drop()` from `Task<TResult>`.
 8. IF a `Task<TResult>` faults and `Drop()` is invoked, THEN `Drop()` SHALL propagate the exception.
-9. THIS mechanism SHALL replace the existing live-task tracking system in the semantic model.
+9. THE Drop-based await mechanism SHALL replace the existing `LiveTaskInfo`-based live-task tracking system in the semantic model.
+9.1. THE migration SHALL preserve or correctly supersede the `ISemanticModel.GetLiveTasks(...)` contract method so that no consumer of the semantic model regresses.
+9.2. THE migration SHALL preserve or correctly supersede the thread-static live-task machinery in `SemanticModelBuilder` (the per-method `LiveTaskInfo` scope tracking) so that task obligations are still recorded under the Drop-based model.
+9.3. THE migration SHALL preserve or correctly supersede the emitter's scope-exit await emission (`EmitScopeExitAwait`) so that auto-dropped tasks are still awaited at scope exit.
+9.4. THE migration SHALL preserve the behavior verified by the existing structured-concurrency tests so that no regression occurs in structured-concurrency scenarios.
 10. THE CSharp_Emitter SHALL emit `await` expressions when emitting auto-drop for `Task<TResult>`.
 
 ### Requirement 8: ValueTask<T> as Linear Type
@@ -132,14 +138,18 @@ The design unifies cleanup into a single mechanism: the `Drop()` method. The typ
 
 #### Acceptance Criteria
 
-1. THE Standard_Library SHALL declare `ValueTask<TResult>` as `public linear class ValueTask<TResult>`.
+1. THE Standard_Library SHALL declare `ValueTask<TResult>` as an intrinsic linear type (`public linear class ValueTask<TResult>`, or the intrinsic equivalent matching how `Task<T>` is declared as `intrinsic public class`), with `Drop()` returning `TResult` via await.
 2. THE `Drop()` method on `ValueTask<TResult>` SHALL have signature `public TResult Drop()` and SHALL await the value task to completion, returning the result.
 3. WHEN a `ValueTask<TResult>` is moved before scope exit, THE Compiler SHALL NOT insert `Drop()` for the source variable.
 4. WHEN a `ValueTask<TResult>` reaches scope exit without being moved or explicitly dropped, THE Compiler SHALL insert `Drop()`.
 5. `await vtask` SHALL be syntactic sugar for `vtask.Drop()`.
 6. THE Compiler SHALL NOT permit aliasing a `ValueTask<TResult>` — assignment to another variable is a move.
 7. THE `ValueTask` type alias (`type ValueTask = ValueTask<void>`) SHALL inherit the linear discipline and `Drop()` from `ValueTask<TResult>`.
-8. THE CSharp_Emitter SHALL emit `await` expressions when emitting auto-drop for `ValueTask<TResult>`.
+8. WHEN emitting auto-drop for `ValueTask<TResult>`, THE CSharp_Emitter SHALL emit `await` expressions.
+9. THE C#-ambient/CLR type provider SHALL recognize inbound `System.Threading.Tasks.ValueTask` and `System.Threading.Tasks.ValueTask<T>` from referenced assemblies and project them to the Mist `ValueTask` type.
+10. THE CSharp_Emitter SHALL emit `System.Threading.Tasks.ValueTask<T>` for the generic Mist `ValueTask<TResult>` type and `System.Threading.Tasks.ValueTask` for the non-generic `ValueTask` void alias.
+11. THE linear `ValueTask<TResult>` user-facing type SHALL be reconciled with the existing `ValueTaskUsageAnalysisPass` / `Symbol.UseValueTask` async-return-type optimization so that the two notions do not conflict: the linear `ValueTask<TResult>` is an explicit user-facing type written in source, distinct from the compiler's automatic, internal choice of an async method's return type.
+12. WHEN an async method's return type is determined, THE explicit user-written `ValueTask<TResult>` return type SHALL take precedence over the `Symbol.UseValueTask` optimization, and the `ValueTaskUsageAnalysisPass` optimization SHALL apply only to async methods whose return type was inferred rather than explicitly written as `ValueTask<TResult>`.
 
 ### Requirement 9: Interaction with Ownership System
 

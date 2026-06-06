@@ -37,6 +37,22 @@ A `Sneaky<string>` would violate the same invariant. The fix: generic type param
 
 This likely also applies to `owned` types — a generic field could bypass the "all fields must be owned" rule if T is unconstrained.
 
+### 3. Relax owned field restriction: allow deeply readonly fields
+
+Currently owned types require ALL reference-type fields to be owned types. This is overly restrictive — the invariant we're actually protecting is: "if you own something and you don't touch it, its state cannot change."
+
+Mutable unrestricted fields violate this (external aliases can mutate the field's state without the owner's involvement). But *deeply immutable* fields don't — no mutation path exists through any alias.
+
+**Proposed rule change:** Owned type fields must be either:
+- Owned types (existing rule — sole ownership of mutable data)
+- Deeply readonly types (immutable through entire reachable graph — safe to alias)
+
+**Prerequisite:** Deep readonly enforcement. Currently `readonly` is shallow — it prevents reassigning the field but doesn't guarantee the referent's internal state is immutable. We need `readonly` on a type to mean the entire reachable object graph is immutable.
+
+**Solves:** The string-in-owned-type ergonomics problem. `string` is already immutable through and through — with deep readonly it would naturally qualify as an owned-type field without requiring move semantics or borrow tracking on strings.
+
+**Invariant preserved:** Owned objects never mutate without their owner's action. Deeply readonly fields can't mutate at all (no mutation path through any alias), so external sharing is harmless.
+
 ### 3. Remove Task<T> storage restriction (MIST_TC_0110)
 
 `MIST_TC_0110` prevents `Task<T>` from being stored in fields or properties. This was a protective measure before drop semantics existed — without it, a task stored in a field could escape its structured scope and be silently abandoned.

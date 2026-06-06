@@ -67,6 +67,31 @@ class Range : IEnumerable<int> {
 
 This applies to all new samples going forward. Do NOT modify pre-existing samples to change their brace style — that is a separate cleanup task.
 
+## Variable Declarations
+
+Prefer `var` over explicit type names for local variable declarations unless there is ambiguity (e.g., the type cannot be inferred, or `var` would make the code harder to understand).
+
+**Correct — use var when the type is obvious from the right-hand side:**
+```mist
+var range = new Range(3);
+var result = ComputeValue();
+var items = GetItems();
+```
+
+**Acceptable — explicit type when it adds clarity or is required:**
+```mist
+int count = 0;
+IEnumerable<int> items = GetMixed();  // interface type, not obvious from RHS
+```
+
+**Incorrect — redundant explicit type when var would suffice:**
+```mist
+Range range = new Range(3);       // type is obvious from `new Range(...)`
+FileHandle f = new FileHandle(1); // type is obvious from `new FileHandle(...)`
+```
+
+This applies to all new samples going forward. Do NOT modify pre-existing samples to change their variable declaration style.
+
 ## Applies To
 
 - All `requirements.md` files inside `.kiro/specs/*/`

@@ -6,19 +6,16 @@ Tracked issues and improvements that don't belong to an active spec but should b
 
 ## Substructural Type System Gaps
 
-### 1. Variance interactions between substructural types
+### 1. Substructural field discipline check is too restrictive
 
-The field discipline check (`MIST_TC_0110`) rejects fields whose type doesn't exactly match the containing type's discipline. But the substructural lattice has a natural variance: it should be safe to store types that are *more* restrictive than the container requires.
+The field discipline check (`MIST_TC_0110`) rejects fields whose type doesn't match the containing type's discipline. But a container's substructural discipline governs how the *container itself* is used — not what it can hold. Any type is safe to store inside any substructural container:
 
-For example, a `linear` type requires fields that can't be silently discarded (no weakening) and can't be silently duplicated (no contraction). Both `relevant` and `affine` satisfy subsets of this, and `linear` itself satisfies all of it. The safe combinations:
+- Unrestricted types (string, int, etc.) are always safe as fields — they have no usage obligations, so they don't interfere with the container's discipline.
+- The container's Drop method handles cleanup of its contents regardless of field types.
 
-- `linear` container: can hold `linear` fields (both restrictions met)
-- `relevant` container: can hold `relevant` or `linear` fields (contraction restricted)
-- `affine` container: can hold `affine` or `linear` fields (weakening restricted)
+The current check is overly conservative. The only real constraint is on the *container's usage* (enforced at use sites), not on what goes inside it.
 
-The current check likely demands an exact discipline match rather than checking the lattice ordering.
-
-**Concrete example:** `Task<T>` is `relevant` (must be used/awaited, but can be aliased). A `linear` class should be able to store a `relevant` field since linear is strictly more restrictive — but `MIST_TC_0110` fires.
+**Concrete example:** `Task<T>` is relevant. A `linear` class should be able to store it since the linear container's Drop will handle the Task's cleanup — but `MIST_TC_0110` fires.
 
 ### 2. Generic fields bypass substructural and ownership field constraints
 

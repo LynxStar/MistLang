@@ -351,6 +351,12 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private bool _insideExplicitAwait;
     /// <summary>
+    /// Set to <c>true</c> while emitting the body of an async lambda. In async context,
+    /// auto-await must NOT fire — calls to async methods or Func&lt;Task&lt;T&gt;&gt; should
+    /// return <c>Task&lt;T&gt;</c> without implicit unwrapping.
+    /// </summary>
+    private bool _insideAsyncLambda;
+    /// <summary>
     /// Set to <c>true</c> while emitting the body of a sync lambda that contains
     /// auto-await calls. In this context, auto-await emits <c>.GetAwaiter().GetResult()</c>
     /// instead of <c>await</c> because the lambda's declared return type is not <c>Task&lt;T&gt;</c>.
@@ -7237,10 +7243,13 @@ internal sealed class CSharpSourceWriter
                 AppendLine("{");
                 _indentLevel++;
                 // Guard: only drop if the variable wasn't already moved/dropped in a branch.
-                if (isTaskLike)
-                    AppendLine($"if (!{flagName}) await {localName};");
-                else
-                    AppendLine($"if (!{flagName}) {localName}.Drop();");
+                // Apply recursive drop chaining (Requirement 2.3).
+                {
+                    var chainedExpr = declType is not null
+                        ? EmitChainedDropExpression(declType, localName)
+                        : isTaskLike ? $"await {localName}" : $"{localName}.Drop()";
+                    AppendLine($"if (!{flagName}) {chainedExpr};");
+                }
                 _indentLevel--;
                 AppendLine("}");
                 _pendingBranchDrops.Remove(localName);
@@ -7249,6 +7258,7 @@ internal sealed class CSharpSourceWriter
             case DropDisposition.AlwaysLive:
             default:
                 // Standard behavior: try/finally with unconditional drop.
+                // Apply recursive drop chaining (Requirement 2.3).
                 EmitStatement(declStmt);
                 AppendLine("try");
                 AppendLine("{");
@@ -7259,10 +7269,12 @@ internal sealed class CSharpSourceWriter
                 AppendLine("finally");
                 AppendLine("{");
                 _indentLevel++;
-                if (isTaskLike)
-                    AppendLine($"await {localName};");
-                else
-                    AppendLine($"{localName}.Drop();");
+                {
+                    var chainedExpr = declType is not null
+                        ? EmitChainedDropExpression(declType, localName)
+                        : isTaskLike ? $"await {localName}" : $"{localName}.Drop()";
+                    AppendLine($"{chainedExpr};");
+                }
                 _indentLevel--;
                 AppendLine("}");
                 break;
@@ -7306,7 +7318,8 @@ internal sealed class CSharpSourceWriter
         var taskExpr = EmitExpression(exprNode);
         AppendLine($"var {taskInfo.GeneratedVariableName} = {taskExpr};");
 
-        // Wrap remaining statements in try/finally with await in the finally.
+        // Wrap remaining statements in try/finally with chained drop in the finally.
+        // Apply recursive drop chaining (Requirement 2.3).
         AppendLine("try");
         AppendLine("{");
         _indentLevel++;
@@ -7316,7 +7329,8 @@ internal sealed class CSharpSourceWriter
         AppendLine("finally");
         AppendLine("{");
         _indentLevel++;
-        AppendLine($"await {taskInfo.GeneratedVariableName};");
+        var chainedExpr = EmitChainedDropExpression(taskInfo.TaskType, taskInfo.GeneratedVariableName);
+        AppendLine($"{chainedExpr};");
         _indentLevel--;
         AppendLine("}");
     }
@@ -7483,13 +7497,19 @@ internal sealed class CSharpSourceWriter
             return;
 
         // Emit Drop() for remaining un-dropped fields in declaration order.
+        // Apply recursive drop chaining (Requirement 2.3).
         foreach (var field in remaining)
         {
             var fieldType = field.DeclaredType;
-            if (fieldType is not null && IsTaskLikeType(fieldType))
-                AppendLine($"await this.{field.Name};");
+            if (fieldType is not null)
+            {
+                var chainedExpr = EmitChainedDropExpression(fieldType, $"this.{field.Name}");
+                AppendLine($"{chainedExpr};");
+            }
             else
+            {
                 AppendLine($"this.{field.Name}.Drop();");
+            }
         }
     }
 
@@ -8381,13 +8401,127 @@ internal sealed class CSharpSourceWriter
     /// Emits the Drop() call (or <c>await</c> for Task/ValueTask) in a with-block's finally
     /// clause. The return value is always discarded in the with context (Requirement 5.6).
     /// Pop is emitted before this call (Requirement 5.7).
+    /// Applies recursive drop chaining when Drop() returns a droppable type (Requirement 2.3).
     /// </summary>
     private void EmitWithBlockDropCall(string dropTarget, IType boundType)
     {
-        if (IsTaskLikeType(boundType))
-            AppendLine($"await {dropTarget};");
+        var chainedExpr = EmitChainedDropExpression(boundType, dropTarget);
+        AppendLine($"{chainedExpr};");
+    }
+
+    /// <summary>
+    /// Builds a chained drop expression string by recursively following the drop return type.
+    /// <para>
+    /// Given a type and a base expression, determines the appropriate drop action (await for
+    /// task-like types, .Drop() for other droppable types) and then checks whether the result
+    /// of that drop is itself droppable. If so, wraps the expression further until reaching
+    /// a non-droppable type or void (Requirements 2.3, 2.4, 2.5).
+    /// </para>
+    /// <para>
+    /// Termination: recursion stops when <c>DropReturnType</c> is null (void) or the return
+    /// type is not linear/relevant with HasDrop (Requirement 3.8).
+    /// </para>
+    /// <para>
+    /// This method does NOT apply to explicit user captures (<c>var x = v.Drop()</c>) — those
+    /// go through the variable declaration path and get their own scope-exit drop (Requirement 3.7).
+    /// </para>
+    /// </summary>
+    private static string EmitChainedDropExpression(IType type, string baseExpr)
+    {
+        // Determine the first drop action based on the type itself.
+        string currentExpr;
+        IType? dropResultType;
+
+        if (IsTaskLikeType(type))
+        {
+            // Task/ValueTask: drop action is await.
+            currentExpr = $"await {baseExpr}";
+            // The drop return type of Task<T> is T (the inner type argument).
+            dropResultType = ResolveDropReturnType(type);
+        }
         else
-            AppendLine($"{dropTarget}.Drop();");
+        {
+            // Non-task droppable: drop action is .Drop().
+            currentExpr = $"{baseExpr}.Drop()";
+            dropResultType = ResolveDropReturnType(type);
+        }
+
+        // Recurse: if the drop return type is itself droppable, chain further.
+        while (dropResultType is not null && ShouldAutoInsertScopeExitDrop(dropResultType))
+        {
+            if (IsTaskLikeType(dropResultType))
+            {
+                currentExpr = $"await ({currentExpr})";
+                dropResultType = ResolveDropReturnType(dropResultType);
+            }
+            else
+            {
+                currentExpr = $"({currentExpr}).Drop()";
+                dropResultType = ResolveDropReturnType(dropResultType);
+            }
+        }
+
+        return currentExpr;
+    }
+
+    /// <summary>
+    /// Resolves the concrete <c>DropReturnType</c> for a type, handling type parameter
+    /// substitution for constructed generic types (e.g., <c>Task&lt;int&gt;</c> resolves
+    /// its <c>DropReturnType</c> from <c>TResult</c> → <c>int</c>).
+    /// Returns null when <c>Drop()</c> returns void or the type has no Drop.
+    /// </summary>
+    private static IType? ResolveDropReturnType(IType type)
+    {
+        if (type is ConstructedType constructed)
+        {
+            // Get the DropReturnType from the generic definition.
+            var rawDropReturn = constructed.GenericDefinition switch
+            {
+                ClassType ct => ct.DropReturnType,
+                StructType st => st.DropReturnType,
+                _ => null,
+            };
+
+            if (rawDropReturn is null)
+                return null;
+
+            // If the DropReturnType is a type parameter, substitute with the actual type argument.
+            if (rawDropReturn is TypeParameterType tpt)
+            {
+                var typeParams = constructed.GenericDefinition switch
+                {
+                    ClassType ct => ct.TypeParameters,
+                    StructType st => st.TypeParameters,
+                    _ => null,
+                };
+
+                if (typeParams is not null)
+                {
+                    for (var i = 0; i < typeParams.Count; i++)
+                    {
+                        if (typeParams[i] is TypeParameterType param && param.Name == tpt.Name
+                            && i < constructed.TypeArguments.Count)
+                        {
+                            return constructed.TypeArguments[i];
+                        }
+                    }
+                }
+
+                // Fallback: use ordinal if name matching didn't work.
+                if (tpt.Ordinal < constructed.TypeArguments.Count)
+                    return constructed.TypeArguments[tpt.Ordinal];
+            }
+
+            return rawDropReturn;
+        }
+
+        // Non-constructed type: DropReturnType is directly on the type.
+        return type switch
+        {
+            ClassType ct => ct.DropReturnType,
+            StructType st => st.DropReturnType,
+            _ => null,
+        };
     }
 
     private void EmitStatement(StatementNode stmt)
@@ -8840,9 +8974,13 @@ internal sealed class CSharpSourceWriter
 
         // Save and set lambda context flags for body emission.
         var previousSyncLambdaAutoAwait = _insideSyncLambdaAutoAwait;
+        var previousAsyncLambda = _insideAsyncLambda;
 
         if (needsSyncAutoAwait)
             _insideSyncLambdaAutoAwait = true;
+
+        if (hasAsync)
+            _insideAsyncLambda = true;
 
         // Emit the body.
         string result;
@@ -8861,6 +8999,7 @@ internal sealed class CSharpSourceWriter
 
         // Restore lambda context flags.
         _insideSyncLambdaAutoAwait = previousSyncLambdaAutoAwait;
+        _insideAsyncLambda = previousAsyncLambda;
 
         return result;
     }
@@ -10696,6 +10835,7 @@ internal sealed class CSharpSourceWriter
         //   of `await` to keep the lambda synchronous.
         if (!_insideAsyncFunctor
             && !_insideExplicitAwait
+            && !_insideAsyncLambda
             && (_currentMethodSymbol is null or { IsAsync: false })
             && IsPostfixAsyncMethodCall(postfix))
         {
@@ -10725,7 +10865,35 @@ internal sealed class CSharpSourceWriter
             // Check both IsAsync (declared async in Mist) and NeedsCSharpAsync
             // (propagated async due to transitive calls). A method with NeedsCSharpAsync
             // emits as async Task<T> in C#, so callers must await it.
-            return targetSymbol is Symbol { IsAsync: true } or Symbol { NeedsCSharpAsync: true };
+            if (targetSymbol is Symbol { IsAsync: true } or Symbol { NeedsCSharpAsync: true })
+                return true;
+
+            // Case 1b: Func invocation — the target is a Func variable with Task<T> return type.
+            // When a Func<..., Task<T>> is invoked in a sync context, the semantic model
+            // auto-unwraps the type to T, but the C# delegate still physically returns Task<T>.
+            // The emitter must emit `await` to match the runtime behavior.
+            var targetType = _model.GetTypeOf(postfix.Target);
+            if (targetType is not null
+                && SemanticModelBuilder.IsFuncType(targetType)
+                && targetType is ConstructedType funcCt)
+            {
+                var funcReturnType = SemanticModelBuilder.GetFuncReturnType(funcCt);
+                if (SemanticModelBuilder.IsStandardTaskType(funcReturnType))
+                    return true;
+            }
+
+            // Fallback: check the symbol's declared type (in case GetTypeOf returns
+            // the invocation result type rather than the variable's type).
+            if (targetSymbol is ISymbol { DeclaredType: { } declaredType }
+                && SemanticModelBuilder.IsFuncType(declaredType)
+                && declaredType is ConstructedType funcCtFromSym)
+            {
+                var funcReturnType = SemanticModelBuilder.GetFuncReturnType(funcCtFromSym);
+                if (SemanticModelBuilder.IsStandardTaskType(funcReturnType))
+                    return true;
+            }
+
+            return false;
         }
 
         // Case 2: Member method call — obj.Method(args)
@@ -10741,15 +10909,89 @@ internal sealed class CSharpSourceWriter
             else
                 receiverType = _model.GetTypeOf(postfix.Suffix[^2]);
 
-            if (receiverType is null)
-                return false;
+            if (receiverType is not null and not ErrorType)
+            {
+                // Look up the method symbol in the receiver type.
+                var methodSymbol = FindMethodInType(receiverType, memberName);
+                if (methodSymbol is { IsAsync: true } or { NeedsCSharpAsync: true })
+                    return true;
+            }
 
-            // Look up the method symbol in the receiver type.
-            var methodSymbol = FindMethodInType(receiverType, memberName);
-            return methodSymbol is { IsAsync: true } or { NeedsCSharpAsync: true };
+            // Fallback: for namespace-qualified calls (Namespace.Type.Method()) where
+            // the receiver type resolves to ErrorType, reconstruct the qualified type
+            // name and search for the method symbol directly.
+            var fallbackSymbol = TryResolveQualifiedMethodCallSymbol(methodCall, postfix);
+            return fallbackSymbol is { IsAsync: true } or { NeedsCSharpAsync: true };
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Fallback resolution for namespace-qualified method calls like
+    /// <c>Namespace.Type.Method()</c> where the receiver type resolves to
+    /// ErrorType. Reconstructs the qualified type name from the suffix chain
+    /// and searches the model's symbols for the method.
+    /// </summary>
+    private Symbol? TryResolveQualifiedMethodCallSymbol(
+        MethodCallSuffixPostfixSuffixNode methodCall,
+        PostfixNode postfix)
+    {
+        var methodName = methodCall.Name.Lexeme;
+
+        // Find the index of this method call in the suffix array.
+        var suffixIndex = -1;
+        for (var i = 0; i < postfix.Suffix.Length; i++)
+        {
+            if (ReferenceEquals(postfix.Suffix[i], methodCall))
+            {
+                suffixIndex = i;
+                break;
+            }
+        }
+
+        if (suffixIndex < 1)
+            return null;
+
+        if (postfix.Target is not IdentifierExpressionPrimaryNode targetId)
+            return null;
+
+        var parts = new List<string> { targetId.Name.Lexeme };
+        for (var i = 0; i < suffixIndex; i++)
+        {
+            if (postfix.Suffix[i] is MemberAccessSuffixPostfixSuffixNode memberAccess)
+                parts.Add(memberAccess.Name.Lexeme);
+            else
+                return null;
+        }
+
+        if (parts.Count < 2)
+            return null;
+
+        var typeName = parts[^1];
+        var namespaceName = string.Join(".", parts.Take(parts.Count - 1));
+
+        foreach (var symbol in _model.AllSymbols)
+        {
+            if (symbol is not Symbol sym)
+                continue;
+            if (sym.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+                continue;
+            if (sym.Name != typeName)
+                continue;
+
+            var containingNs = (sym.DeclaredType as ClassType)?.ContainingNamespace
+                             ?? (sym.DeclaredType as StructType)?.ContainingNamespace;
+            if (containingNs != namespaceName)
+                continue;
+
+            if (sym.DeclaredType is null)
+                continue;
+
+            return FindMethodInType(sym.DeclaredType, methodName);
+        }
+
+        return null;
     }
 
     /// <summary>

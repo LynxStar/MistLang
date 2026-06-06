@@ -175,6 +175,7 @@ rule Constraint
     | STRUCT                                                                   as StructConstraint
     | READONLY                                                                 as ReadonlyConstraint
     | MUTABLE                                                                  as MutableConstraint
+    | OWNED                                                                    as OwnedConstraint
     | NEW LEFT_PARENTHESIS paramTypes:ConstraintParameterTypeList? RIGHT_PARENTHESIS  as ConstructorConstraint
     | type:TypeReference                                                       as TypeConstraint
     ;

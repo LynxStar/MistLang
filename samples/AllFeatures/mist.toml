@@ -57,3 +57,4 @@ ArityOverloads = { path = "../ArityOverloads" }
 FirstClassFunctions = { path = "../FirstClassFunctions" }
 VoidValueLiteral = { path = "../VoidValueLiteral" }
 DropSemantics = { path = "../DropSemantics" }
+AsyncDropChaining = { path = "../AsyncDropChaining" }

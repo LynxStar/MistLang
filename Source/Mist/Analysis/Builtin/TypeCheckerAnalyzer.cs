@@ -764,6 +764,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId CaptureBorrowedOrFrozen = new("MIST_TC_0125");
 
+    /// <summary>
+    /// Emitted when a type argument does not satisfy the 'owned' constraint
+    /// on a type parameter. The type argument must be an owned type
+    /// (declared with the <c>owned</c>, <c>affine</c>, or <c>linear</c> modifier).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintOwnedViolation = new("MIST_TC_0127");
+
     // ── enums feature: assignability diagnostic ──────────────────────────
 
     /// <summary>
@@ -2932,6 +2939,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         foreach (var baseCtorParams in baseConstraints.ConstructorConstraints)
         {
             if (derivedConstraints is null || !HasMatchingConstructorConstraint(derivedConstraints, baseCtorParams))
+            {
+                EmitPropagationDiagnostic(derivedType, baseTypeName, derivedTypeParam.Name, node, model, diagnostics);
+                return;
+            }
+        }
+
+        // Check owned constraint propagation: if the base requires owned, derived must too.
+        if (baseConstraints.HasOwnedConstraint)
+        {
+            if (derivedConstraints is null || !derivedConstraints.HasOwnedConstraint)
             {
                 EmitPropagationDiagnostic(derivedType, baseTypeName, derivedTypeParam.Name, node, model, diagnostics);
                 return;
@@ -11141,6 +11158,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
+    /// Determines whether a type is an owned type. A type is considered owned if
+    /// it has the <c>owned</c> modifier or an implied ownership discipline
+    /// (<c>affine</c> or <c>linear</c>).
+    /// </summary>
+    private static bool IsTypeOwned(IType type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.IsOwnedType,
+            StructType st => st.IsOwnedType,
+            ConstructedType constructed => IsTypeOwned(constructed.GenericDefinition),
+            _ => false,
+        };
+    }
+
+    /// <summary>
     /// Checks that readonly types are only passed to readonly parameters at a call site.
     /// If an argument's type is readonly and the corresponding parameter is NOT marked
     /// <c>readonly</c>, emits <c>MIST_TC_0076</c>.
@@ -17450,6 +17483,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 diagnostics.Add(MakeDiagnostic(
                     ConstraintMutableViolation.Value,
                     $"Type argument '{typeArgument.DisplayName}' does not satisfy the 'mutable' constraint on type parameter '{typeParameter.Name}' (type is readonly).",
+                    node,
+                    model));
+            }
+        }
+
+        // Check owned constraint: type argument must be an owned type.
+        if (constraints.HasOwnedConstraint)
+        {
+            if (!IsTypeOwned(typeArgument))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    ConstraintOwnedViolation.Value,
+                    $"Type argument '{typeArgument.DisplayName}' does not satisfy the 'owned' constraint on type parameter '{typeParameter.Name}'.",
                     node,
                     model));
             }

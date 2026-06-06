@@ -16,6 +16,8 @@ namespace Mist.Backends.CSharpTranspiler;
 ///   <item>Seeding: methods declared <c>async</c> in Mist.</item>
 ///   <item>Seeding: sync methods that directly invoke async methods (triggering auto-unwrap).</item>
 ///   <item>Seeding: sync methods that use explicit <c>await</c>.</item>
+///   <item>Seeding: sync methods that contain async functor expressions (<c>async SyncMethod()</c>),
+///         which produce <c>Task&lt;T&gt;</c>-typed locals requiring scope-exit await.</item>
 ///   <item>Propagating transitively: if method A needs C# async, then any sync method
 ///         that calls A also needs C# async (because A's C# signature returns Task&lt;T&gt;).</item>
 /// </list>
@@ -152,6 +154,7 @@ internal static class NeedsAsyncPropagationPass
     /// Walks a method body AST looking for:
     /// <list type="bullet">
     ///   <item><c>AwaitExpressionUnaryNode</c> — the method uses explicit await (seed rule 3).</item>
+    ///   <item><c>AsyncExpressionUnaryNode</c> — the method uses an async functor expression (seed rule 4).</item>
     ///   <item>Direct invocations of async methods in sync context (seed rule 2).</item>
     ///   <item>All method invocations — recorded in <paramref name="callees"/> for the call graph.</item>
     /// </list>
@@ -170,6 +173,15 @@ internal static class NeedsAsyncPropagationPass
                 needsAsync = true;
                 // Walk the operand to collect any nested callees.
                 WalkMethodBody(awaitExpr.Operand, model, enclosingMethod, ref needsAsync, callees);
+                return;
+
+            case AsyncExpressionUnaryNode asyncExpr:
+                // Seed rule 4: async functor expressions (async SyncMethod()) produce
+                // Task<T>-typed locals that require scope-exit await in try/finally.
+                // The containing method must be emitted as C# async for that await to be valid.
+                needsAsync = true;
+                // Walk the operand to collect any nested callees.
+                WalkMethodBody(asyncExpr.Operand, model, enclosingMethod, ref needsAsync, callees);
                 return;
 
             case PostfixExpressionUnaryNode postfixExpr:
@@ -231,6 +243,15 @@ internal static class NeedsAsyncPropagationPass
                 // if the builder stored it, or we can look it up by name from
                 // the receiver type.
                 var calleeSym = TryResolveMethodCallSymbol(methodCall, postfix, model);
+
+                // Fallback: if standard resolution fails (e.g., for namespace-qualified
+                // calls like Namespace.Type.Method()), try to find the method symbol
+                // by reconstructing the qualified type name from the suffix chain.
+                if (calleeSym is null)
+                {
+                    calleeSym = TryResolveQualifiedMethodCall(methodCall, postfix, model);
+                }
+
                 if (calleeSym is not null)
                 {
                     callees.Add(calleeSym);
@@ -351,5 +372,93 @@ internal static class NeedsAsyncPropagationPass
             ConstructedType constructed => GetMemberScope(constructed.GenericDefinition),
             _ => null,
         };
+    }
+
+    /// <summary>
+    /// Fallback resolution for namespace-qualified method calls like
+    /// <c>Namespace.Type.Method()</c>. When the standard resolution via
+    /// <see cref="TryResolveMethodCallSymbol"/> fails (because namespace
+    /// identifiers resolve to ErrorType in expressions), this method
+    /// reconstructs the qualified type name from the suffix chain and
+    /// searches the model's symbols for a matching method.
+    /// </summary>
+    private static Symbol? TryResolveQualifiedMethodCall(
+        MethodCallSuffixPostfixSuffixNode methodCall,
+        PostfixNode postfix,
+        ISemanticModel model)
+    {
+        var methodName = methodCall.Name.Lexeme;
+
+        // Find the index of this method call in the suffix array.
+        var suffixIndex = -1;
+        for (var i = 0; i < postfix.Suffix.Length; i++)
+        {
+            if (ReferenceEquals(postfix.Suffix[i], methodCall))
+            {
+                suffixIndex = i;
+                break;
+            }
+        }
+
+        // Need at least one preceding MemberAccessSuffix for the type name.
+        if (suffixIndex < 1)
+            return null;
+
+        // Build the qualified name from the target identifier + member access suffixes.
+        // For "AsyncDropChaining.Program.RunDemo()", we want "AsyncDropChaining.Program".
+        if (postfix.Target is not IdentifierExpressionPrimaryNode targetId)
+            return null;
+
+        var parts = new List<string> { targetId.Name.Lexeme };
+        for (var i = 0; i < suffixIndex; i++)
+        {
+            if (postfix.Suffix[i] is MemberAccessSuffixPostfixSuffixNode memberAccess)
+            {
+                parts.Add(memberAccess.Name.Lexeme);
+            }
+            else
+            {
+                // Non-member-access suffix in the chain — can't reconstruct as qualified name.
+                return null;
+            }
+        }
+
+        // The last part is the type name, everything before is the namespace.
+        // E.g., ["AsyncDropChaining", "Program"] → namespace="AsyncDropChaining", type="Program"
+        if (parts.Count < 2)
+            return null;
+
+        var typeName = parts[^1];
+        var namespaceName = string.Join(".", parts.Take(parts.Count - 1));
+
+        // Search the model's symbols for a class/struct in the matching namespace
+        // that has the method we're looking for.
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol is not Symbol sym)
+                continue;
+
+            if (sym.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+                continue;
+
+            if (sym.Name != typeName)
+                continue;
+
+            // Check if the type is in the right namespace.
+            var containingNs = (sym.DeclaredType as ClassType)?.ContainingNamespace
+                             ?? (sym.DeclaredType as StructType)?.ContainingNamespace;
+
+            if (containingNs != namespaceName)
+                continue;
+
+            // Found the type — look for the method.
+            var typeForLookup = sym.DeclaredType;
+            if (typeForLookup is null)
+                continue;
+
+            return FindMethodInType(typeForLookup, methodName);
+        }
+
+        return null;
     }
 }

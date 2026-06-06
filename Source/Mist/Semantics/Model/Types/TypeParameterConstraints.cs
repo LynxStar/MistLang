@@ -40,4 +40,7 @@ public sealed class TypeParameterConstraints
 
     /// <summary>Whether the 'mutable' constraint is present.</summary>
     public bool HasMutableConstraint { get; init; }
+
+    /// <summary>Whether the 'owned' constraint is present. Type arguments must be owned types.</summary>
+    public bool HasOwnedConstraint { get; init; }
 }

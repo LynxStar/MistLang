@@ -1461,4 +1461,32 @@ absent ?? 42: 42
   Owner still has FileHandle(30)
   FileHandle(30).Drop() called
 === Drop Semantics Done ===
+=== AsyncDropChaining Sample ===
+--- 1. Func auto-unwrap in sync context ---
+  FetchAsync(test) executed
+  lambdaResult=result-test
+  type is string (not Task): True
+--- 2. Func auto-unwrap computed ---
+  computeResult=105
+--- 3. Async functor scope-exit ---
+  async functor produced Task, value will be: 42
+  async functor scope-exit completed
+--- 4. Recursive drop Task scope-exit ---
+  Task<int> captured via async functor
+  task scope-exit drop resolved
+--- 5. Custom recursive drop ---
+  DropChainBox created
+  DropChainBox(boxed).Drop() called, yielding ResourceHandle
+  ResourceHandle(boxed).Drop() called
+  custom recursive drop completed
+--- 6. Non-recursive drop baseline ---
+  handle created
+  ResourceHandle(baseline).Drop() called
+  non-recursive drop done
+--- 7. Explicit capture stops recursion ---
+  DropChainBox(captured).Drop() called, yielding ResourceHandle
+  DropChainBox dropped, inner handle captured
+  ResourceHandle(captured).Drop() called
+  explicit capture completed
+=== AsyncDropChaining Done ===
 === Done! ===

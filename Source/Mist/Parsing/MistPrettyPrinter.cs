@@ -2527,6 +2527,8 @@ public sealed class MistPrettyPrinter
                 return "readonly";
             case MutableConstraintConstraintNode:
                 return "mutable";
+            case OwnedConstraintConstraintNode:
+                return "owned";
             case ConstructorConstraintConstraintNode ctorConstraint:
             {
                 if (ctorConstraint.ParamTypes is null)

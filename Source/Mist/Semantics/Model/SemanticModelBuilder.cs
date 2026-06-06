@@ -89,6 +89,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     [ThreadStatic]
     private static bool _isInAsyncContext;
 
+
+
     // ── Discarded-task tracking (Drop-based model) ──────────────────────
     // Under the Drop-based model, named Task<T>/ValueTask<T> locals are
     // scope-exit drop obligations handled by the emitter's auto-drop
@@ -97,10 +99,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     // not assigned to a variable. The emitter still needs to intercept these,
     // emit them as `var __task_N = expr;`, and await them at scope exit.
     //
-    // Unlike the old system, tracking is NOT gated on _isInAsyncContext.
-    // This closes the gap (project/TODO.md) where discarded tasks in sync
-    // contexts were never awaited. The emitter is responsible for promoting
-    // the method to async when scope-exit await is needed.
+    // Tracking is NOT gated on _isInAsyncContext — discarded tasks in sync
+    // contexts are also tracked so the emitter can promote the method to
+    // async when scope-exit await is needed.
     //
     // _discardedTaskScopes is a stack of per-block-scope task lists. Pushed
     // on block entry, popped on block exit, with un-consumed entries stored
@@ -6896,6 +6897,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var hasStructConstraint = false;
         var hasReadonlyConstraint = false;
         var hasMutableConstraint = false;
+        var hasOwnedConstraint = false;
         IType? baseClassConstraint = null;
         var interfaceConstraints = new List<IType>();
         var traitConstraints = new List<IType>();
@@ -6928,6 +6930,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 case MutableConstraintConstraintNode:
                     hasMutableConstraint = true;
+                    break;
+
+                case OwnedConstraintConstraintNode:
+                    hasOwnedConstraint = true;
                     break;
 
                 case ConstructorConstraintConstraintNode ctorConstraint:
@@ -6976,6 +6982,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ConstructorConstraints = constructorConstraints,
             HasReadonlyConstraint = hasReadonlyConstraint,
             HasMutableConstraint = hasMutableConstraint,
+            HasOwnedConstraint = hasOwnedConstraint,
         };
     }
 
@@ -6999,6 +7006,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var hasStructConstraint = false;
         var hasReadonlyConstraint = false;
         var hasMutableConstraint = false;
+        var hasOwnedConstraint = false;
         IType? baseClassConstraint = null;
         var interfaceConstraints = new List<IType>();
         var traitConstraints = new List<IType>();
@@ -7030,6 +7038,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 case MutableConstraintConstraintNode:
                     hasMutableConstraint = true;
+                    break;
+
+                case OwnedConstraintConstraintNode:
+                    hasOwnedConstraint = true;
                     break;
 
                 case ConstructorConstraintConstraintNode ctorConstraint:
@@ -7071,6 +7083,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ConstructorConstraints = constructorConstraints,
             HasReadonlyConstraint = hasReadonlyConstraint,
             HasMutableConstraint = hasMutableConstraint,
+            HasOwnedConstraint = hasOwnedConstraint,
         };
     }
 
@@ -15440,10 +15453,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 // Track discarded tasks for scope-exit await (Drop-based model):
                 // When an async method is invoked and the result is not assigned,
-                // track it as a discarded task for scope-exit await. Unlike the old
-                // system, this is NOT gated on _isInAsyncContext — discarded tasks
-                // in any context are tracked so the emitter can close the gap
-                // (project/TODO.md: scope-exit await not emitted in some paths).
+                // track it as a discarded task for scope-exit await. This is NOT
+                // gated on _isInAsyncContext — discarded tasks in any context are
+                // tracked so the emitter can promote the method to async and emit
+                // scope-exit await.
                 if (_discardedTaskScopes is not null
                     && _discardedTaskScopes.Count > 0
                     && IsStandardTaskType(exprType)
@@ -20521,6 +20534,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (IsFuncType(targetType) && targetType is ConstructedType funcCt)
         {
             var returnType = GetFuncReturnType(funcCt);
+            if (!_isInAsyncContext && IsStandardTaskType(returnType))
+            {
+                returnType = UnwrapTaskType(returnType);
+            }
+
             expressionTypes[invocation] = returnType;
             return returnType;
         }
@@ -20860,6 +20878,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (IsFuncType(targetType) && targetType is ConstructedType funcCt)
                 {
                     var returnType = GetFuncReturnType(funcCt);
+                    if (!_isInAsyncContext && IsStandardTaskType(returnType))
+                    {
+                        returnType = UnwrapTaskType(returnType);
+                    }
+
                     expressionTypes[suffix] = returnType;
                     return returnType;
                 }

@@ -67,6 +67,7 @@ public class Program
         ArityOverloads.Program.RunDemo();
         VoidValueLiteral.Program.RunDemo();
         DropSemantics.Program.RunDemo();
+        AsyncDropChaining.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

@@ -1,0 +1,178 @@
+// AsyncDropChaining — Proves async Func auto-unwrap, async propagation, and recursive drop chaining.
+
+using Standard;
+
+namespace AsyncDropChaining;
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+public class Helpers
+{
+    public static async string FetchAsync(string label)
+    {
+        Console.WriteLine($"  FetchAsync({label}) executed");
+        return $"result-{label}";
+    }
+
+    public static int ComputeSync(int x)
+    {
+        return x * 2;
+    }
+
+    public static async int SlowCompute(int x)
+    {
+        return x + 100;
+    }
+}
+
+// ─── Custom linear type with value-returning Drop (non-droppable return) ─────
+
+public linear class ResourceHandle
+{
+    string Name;
+
+    public ResourceHandle(string name)
+    {
+        this.Name = name;
+    }
+
+    // Drop() returns a string — non-droppable, so recursion stops here
+    public string Drop()
+    {
+        Console.WriteLine($"  ResourceHandle({Name}).Drop() called");
+        return Name;
+    }
+}
+
+// ─── Linear wrapper whose Drop returns a droppable type (recursive drop) ─────
+
+public linear class DropChainBox
+{
+    string Label;
+
+    public DropChainBox(string label)
+    {
+        this.Label = label;
+    }
+
+    // Drop() returns ResourceHandle — which is itself droppable (linear, has Drop)
+    // The recursive drop rule means: DropChainBox.Drop() fires → returns ResourceHandle →
+    // not assigned → triggers ResourceHandle.Drop() → returns string → not droppable → done
+    public ResourceHandle Drop()
+    {
+        Console.WriteLine($"  DropChainBox({Label}).Drop() called, yielding ResourceHandle");
+        return new ResourceHandle(Label);
+    }
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== AsyncDropChaining Sample ===");
+
+        // ─── 1. Func auto-unwrap in sync context (Defect 1.1) ───────────
+        // PROOF: sync lambda calling async method, invoked in sync context → auto-awaits → returns string
+        // This exercises the Func invocation path where Task<T> must be unwrapped
+        Console.WriteLine("--- 1. Func auto-unwrap in sync context ---");
+        var syncFetch = (string label) => Helpers.FetchAsync(label);
+        var lambdaResult = syncFetch("test");
+        // lambdaResult is string because the lambda body auto-awaits the async call
+        Console.WriteLine($"  lambdaResult={lambdaResult}");
+        Console.WriteLine($"  type is string (not Task): {lambdaResult == "result-test"}");
+
+        // ─── 2. Func auto-unwrap with computed result (Defect 1.1) ────────
+        // PROOF: sync lambda calling async method, verifying the unwrapped value is usable
+        Console.WriteLine("--- 2. Func auto-unwrap computed ---");
+        var computeVia = (int x) => Helpers.SlowCompute(x);
+        var computeResult = computeVia(5);
+        // computeResult is int (auto-unwrapped from Task<int>)
+        Console.WriteLine($"  computeResult={computeResult}");
+
+        // ─── 3. Async functor in sync method (Defect 1.2) ────────────────
+        // PROOF: method containing only async functor locals gets NeedsCSharpAsync
+        // The scope-exit drop (await) in try/finally requires the method to be async
+        Console.WriteLine("--- 3. Async functor scope-exit ---");
+        DemoAsyncFunctorScopeExit();
+        Console.WriteLine("  async functor scope-exit completed");
+
+        // ─── 4. Recursive drop — Task scope-exit (Defect 1.3) ────────────
+        // PROOF: Task<int> at scope-exit is properly awaited through drop chaining
+        Console.WriteLine("--- 4. Recursive drop Task scope-exit ---");
+        DemoTaskScopeExitDrop();
+        Console.WriteLine("  task scope-exit drop resolved");
+
+        // ─── 5. Recursive drop — custom type returning droppable (Defect 1.3) ──
+        // PROOF: DropChainBox.Drop() returns ResourceHandle, which gets its own drop
+        Console.WriteLine("--- 5. Custom recursive drop ---");
+        DemoCustomRecursiveDrop();
+        Console.WriteLine("  custom recursive drop completed");
+
+        // ─── 6. Non-recursive drop — Drop() returns non-droppable (3.8) ──
+        // PROOF: ResourceHandle.Drop() returns string — no further chaining
+        Console.WriteLine("--- 6. Non-recursive drop baseline ---");
+        {
+            var handle = new ResourceHandle("baseline");
+            Console.WriteLine($"  handle created");
+            // scope-exit: handle.Drop() fires, returns string, string is not droppable, done
+        }
+        Console.WriteLine("  non-recursive drop done");
+
+        // ─── 7. Explicit capture prevents recursive drop (3.7) ───────────
+        // PROOF: user captures Drop() return value — no automatic recursive drop
+        Console.WriteLine("--- 7. Explicit capture stops recursion ---");
+        DemoExplicitCapture();
+        Console.WriteLine("  explicit capture completed");
+
+        Console.WriteLine("=== AsyncDropChaining Done ===");
+    }
+
+    // Exercises defect 1.2: sync method with only async functor expression
+    public static void DemoAsyncFunctorScopeExit()
+    {
+        var task = async Helpers.ComputeSync(21);
+        Console.WriteLine($"  async functor produced Task, value will be: 42");
+        // scope-exit: task is Task<int>, drop fires → await task → returns 42 (not droppable, done)
+    }
+
+    // Exercises defect 1.3: Task<int> at scope-exit with proper drop chaining
+    // Uses async functor on an async method to capture the raw Task<int>
+    public static void DemoTaskScopeExitDrop()
+    {
+        // async functor on an async method suppresses auto-await, capturing Task<int>
+        var task = async Helpers.SlowCompute(5);
+        Console.WriteLine("  Task<int> captured via async functor");
+        // scope-exit: task is Task<int> (relevant)
+        //   drop fires → await task → returns 105 (int, not droppable, done)
+    }
+
+    // Exercises defect 1.3: custom linear type whose Drop returns a droppable type
+    // Demonstrates recursive drop chaining: DropChainBox.Drop() → ResourceHandle → ResourceHandle.Drop()
+    public static void DemoCustomRecursiveDrop()
+    {
+        var box = new DropChainBox("boxed");
+        Console.WriteLine("  DropChainBox created");
+        // scope-exit: box is linear, drop fires
+        //   box.Drop() → returns ResourceHandle (linear, has Drop)
+        //   not assigned → recursive drop fires → ResourceHandle("boxed").Drop() → returns string (not droppable, done)
+    }
+
+    // Exercises preservation 3.7: explicit capture prevents recursive drop
+    public static void DemoExplicitCapture()
+    {
+        var box = new DropChainBox("captured");
+        var innerHandle = box.Drop();
+        // innerHandle is ResourceHandle, user owns it — no automatic recursive drop at Drop() call site
+        // innerHandle gets its own scope-exit drop as a separate local
+        Console.WriteLine($"  DropChainBox dropped, inner handle captured");
+        // scope-exit: innerHandle is ResourceHandle (linear), scope-exit drop fires
+        //   innerHandle.Drop() → returns string (not droppable, done)
+    }
+}

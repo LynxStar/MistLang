@@ -114,8 +114,7 @@ public class Program
         // PROOF: Async lambda calling async method with explicit await
         Console.WriteLine("--- Async Lambda Explicit Await ---");
         func<int, Task<string>> asyncLookup = async id => await AsyncLookup(id);
-        var lookupResult = asyncLookup(3);
-        Console.WriteLine($"asyncLookup(3)={lookupResult}");
+        Console.WriteLine($"asyncLookup(3)={asyncLookup(3)}");
 
         // PROOF: Async lambda calling async method without await — structured concurrency awaits at scope exit
         Console.WriteLine("--- Async Lambda Scope Exit ---");
@@ -129,8 +128,7 @@ public class Program
         // PROOF: Sync lambda using async functor to lift a sync call
         Console.WriteLine("--- Sync Lambda Async Lift ---");
         func<int, Task<int>> liftedSync = id => async ComputeSync(id);
-        var liftedResult = liftedSync(10);
-        Console.WriteLine($"liftedSync(10)={liftedResult}");
+        Console.WriteLine($"liftedSync(10)={liftedSync(10)}");
 
         // PROOF: Async lambda using async functor to lift a sync call
         Console.WriteLine("--- Async Lambda Async Lift ---");
@@ -141,8 +139,7 @@ public class Program
         // PROOF: Sync lambda returning a Task explicitly (not auto-awaited because it's the return value)
         Console.WriteLine("--- Sync Lambda Returns Task ---");
         func<int, Task<string>> taskReturner = id => async AsyncLookup(id);
-        var taskResult = taskReturner(5);
-        Console.WriteLine($"taskReturner(5)={taskResult}");
+        Console.WriteLine($"taskReturner(5)={taskReturner(5)}");
 
         // PROOF: Lambda passed to a Mist extension method
         Console.WriteLine("--- Mist Extension Method ---");

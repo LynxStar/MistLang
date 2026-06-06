@@ -4,23 +4,26 @@ Tracked issues and improvements that don't belong to an active spec but should b
 
 ---
 
-## Emitter Gaps
+## Type System Gaps
 
-### Func auto-await does not fire inside interpolation holes
+### Task<T> not recognized as relevant when used as a field in linear types
 
-When a Func variable with `Task<T>` return type is invoked directly inside a string interpolation expression (`$"result={asyncFunc(x)}"`), the emitter does not emit `await` for the invocation. The resulting C# calls the delegate and passes the raw `Task<T>` object to string formatting instead of the unwrapped value.
+Storing a `Task<T>` in a field of a `linear` class triggers `MIST_TC_0110` (field type does not satisfy the type's substructural discipline). The type checker doesn't recognize `Task<T>` as relevant despite it having `Drop` (via `await`) and being scope-exit-dropped by the emitter.
 
-**Workaround:** Hoist the Func invocation into a named variable before using it in interpolation.
+This means you can't write:
 
 ```mist
-// Broken — prints Task object:
-Console.WriteLine($"result={asyncFunc(x)}");
+public linear class TaskBox
+{
+    Task<string> Inner;  // ERROR: MIST_TC_0110
 
-// Works — auto-await fires on the standalone invocation:
-var result = asyncFunc(x);
-Console.WriteLine($"result={result}");
+    public TaskBox(Task<string> inner) { this.Inner = inner; }
+    public Task<string> Drop() { return Inner; }
+}
 ```
 
-**Root cause:** `IsPostfixAsyncMethodCall` detects Func invocations via `_model.GetTypeOf(postfix.Target)`, which is a node-instance-based lookup. The semantic model may not have type entries for AST nodes inside interpolation expressions (different node instances than those visited during type resolution). Direct async method calls are unaffected because they're detected via `_model.GetDeclaredSymbol` which resolves by identifier name.
+**Expected behavior:** `Task<T>` should be recognized as relevant (it has a Drop mechanism via `await`), allowing it to be stored in linear/relevant type fields.
 
-**Affected code:** `CSharpEmitter.IsPostfixAsyncMethodCall`, Case 1b (Func invocation detection).
+**Workaround:** Avoid storing `Task<T>` directly in linear type fields. Use alternative patterns (e.g., return `ResourceHandle` from Drop instead of `Task<T>`).
+
+**Affected code:** Type checker's substructural field validation (likely `TypeCheckerAnalyzer` or ownership analysis).

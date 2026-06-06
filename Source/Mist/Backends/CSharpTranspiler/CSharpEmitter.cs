@@ -6267,7 +6267,8 @@ internal sealed class CSharpSourceWriter
         // Also bypass when any argument involves an intrinsic type member access
         // (e.g., Regex.Pattern, Regex.IsFullMatch) that needs rewriting.
         if (!ArgumentContainsTypeLiteral(argExprs) && !ArgumentContainsDependentTypeParam(argExprs)
-            && !ArgumentContainsIntrinsicMemberAccess(argExprs))
+            && !ArgumentContainsIntrinsicMemberAccess(argExprs)
+            && !ArgumentContainsAutoAwaitCall(argExprs))
         {
             var span = argList.Span;
             if (span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
@@ -6375,6 +6376,69 @@ internal sealed class CSharpSourceWriter
         foreach (var child in node.Children())
         {
             if (child is not null && ExpressionContainsIntrinsicMemberAccess(child))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Returns true if any argument expression contains a Func invocation with Task&lt;T&gt;
+    /// return type that would trigger auto-await emission. When true, the source-text fast
+    /// path must be bypassed so the expression emitter can prepend <c>await</c>.
+    /// Only checks for Func invocations (not direct async method calls, which are already
+    /// handled by the existing auto-await mechanism independent of the fast path).
+    /// </summary>
+    private bool ArgumentContainsAutoAwaitCall(List<ExpressionNode> argExprs)
+    {
+        // Only relevant in sync contexts where auto-await fires.
+        if (_insideAsyncFunctor || _insideAsyncLambda
+            || (_currentMethodSymbol is not null && _currentMethodSymbol.IsAsync))
+            return false;
+
+        foreach (var expr in argExprs)
+        {
+            if (ExpressionContainsFuncAutoAwaitCall(expr))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Recursively checks if an expression tree contains a Func invocation whose return
+    /// type is Task&lt;T&gt; (requiring auto-await in the emitted C#). Only detects Func
+    /// invocations — direct async method calls are handled separately.
+    /// </summary>
+    private bool ExpressionContainsFuncAutoAwaitCall(Storm.Runtime.SyntaxNode node)
+    {
+        if (node is PostfixNode postfix && postfix.Suffix.Length > 0
+            && postfix.Suffix[^1] is InvocationSuffixPostfixSuffixNode)
+        {
+            // Check if target is a Func variable with Task<T> return type.
+            var targetType = _model.GetTypeOf(postfix.Target);
+            if (targetType is not null
+                && SemanticModelBuilder.IsFuncType(targetType)
+                && targetType is ConstructedType funcCt)
+            {
+                var funcReturnType = SemanticModelBuilder.GetFuncReturnType(funcCt);
+                if (SemanticModelBuilder.IsStandardTaskType(funcReturnType))
+                    return true;
+            }
+
+            // Fallback: check via declared symbol type.
+            var targetSymbol = _model.GetDeclaredSymbol(postfix.Target);
+            if (targetSymbol is ISymbol { DeclaredType: { } declaredType }
+                && SemanticModelBuilder.IsFuncType(declaredType)
+                && declaredType is ConstructedType funcCtFromSym)
+            {
+                var funcReturnType = SemanticModelBuilder.GetFuncReturnType(funcCtFromSym);
+                if (SemanticModelBuilder.IsStandardTaskType(funcReturnType))
+                    return true;
+            }
+        }
+
+        foreach (var child in node.Children())
+        {
+            if (child is not null && ExpressionContainsFuncAutoAwaitCall(child))
                 return true;
         }
         return false;
@@ -10844,7 +10908,6 @@ internal sealed class CSharpSourceWriter
             else
                 primaryResult = $"await {primaryResult}";
         }
-
         return primaryResult;
     }
 
@@ -10869,9 +10932,6 @@ internal sealed class CSharpSourceWriter
                 return true;
 
             // Case 1b: Func invocation — the target is a Func variable with Task<T> return type.
-            // When a Func<..., Task<T>> is invoked in a sync context, the semantic model
-            // auto-unwraps the type to T, but the C# delegate still physically returns Task<T>.
-            // The emitter must emit `await` to match the runtime behavior.
             var targetType = _model.GetTypeOf(postfix.Target);
             if (targetType is not null
                 && SemanticModelBuilder.IsFuncType(targetType)

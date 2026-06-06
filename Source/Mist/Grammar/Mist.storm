@@ -311,6 +311,9 @@ rule Modifier
     | INTRINSIC as IntrinsicModifier
     | READONLY  as ReadonlyModifier
     | OWNED     as OwnedModifier
+    | AFFINE    as AffineModifier
+    | LINEAR    as LinearModifier
+    | RELEVANT  as RelevantModifier
     | ASYNC     as AsyncModifier
     | REF       as RefModifier
     ;

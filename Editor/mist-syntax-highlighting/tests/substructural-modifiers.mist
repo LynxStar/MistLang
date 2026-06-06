@@ -1,0 +1,82 @@
+// SYNTAX TEST "source.mist"
+
+// ===== Substructural modifiers (storage.modifier.mist) =====
+// affine / linear / relevant are storage modifiers, highlighted in the same
+// position as `owned` (before class/struct).
+
+affine class AuthToken {
+// <- storage.modifier.mist
+}
+
+linear class ValueTask {
+// <- storage.modifier.mist
+}
+
+relevant class Task {
+// <- storage.modifier.mist
+}
+
+affine struct Ticket {
+// <- storage.modifier.mist
+}
+
+linear struct Frame {
+// <- storage.modifier.mist
+}
+
+relevant struct Shared {
+// <- storage.modifier.mist
+}
+
+// ===== Combined with existing modifiers =====
+// The new modifiers compose with `public`/`static` in the same position as
+// `owned`, each scoped as storage.modifier.mist.
+
+public affine class PublicToken {
+// <- storage.modifier.mist
+//     ^^^^^^ storage.modifier.mist
+}
+
+public linear class PublicValueTask {
+// <- storage.modifier.mist
+//     ^^^^^^ storage.modifier.mist
+}
+
+public relevant class PublicTask {
+// <- storage.modifier.mist
+//     ^^^^^^^^ storage.modifier.mist
+}
+
+// ===== owned regression (storage.modifier.mist) =====
+// owned class / owned struct must continue to be recognized as before.
+
+owned class OwnedResource {
+// <- storage.modifier.mist
+}
+
+owned struct OwnedValue {
+// <- storage.modifier.mist
+}
+
+// ===== Drop destructor method (entity.name.function.destructor.mist) =====
+// A `Drop` method declaration is highlighted as a destructor, distinct from a
+// regular method (entity.name.function.mist).
+
+void Drop() {
+//   ^^^^ entity.name.function.destructor.mist
+}
+
+int Drop() {
+//  ^^^^ entity.name.function.destructor.mist
+}
+
+string Drop() {
+//     ^^^^ entity.name.function.destructor.mist
+}
+
+// ===== Regular method regression (entity.name.function.mist) =====
+// A non-Drop method must still be a regular function, not a destructor.
+
+void DoSomething() {
+//   ^^^^^^^^^^^ entity.name.function.mist
+}

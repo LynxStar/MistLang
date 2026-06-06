@@ -87,6 +87,11 @@ token FROZEN   = "frozen";
 token REF      = "ref";
 token BORROWED = "borrowed";
 
+// Substructural (drop) modifier keywords
+token AFFINE   = "affine";
+token LINEAR   = "linear";
+token RELEVANT = "relevant";
+
 // Pattern matching keywords
 token IS  = "is";
 token AND = "and";

@@ -60,6 +60,31 @@ public sealed class ClassType : IType
     public bool IsOwnedType { get; internal set; }
 
     /// <summary>
+    /// The substructural discipline declared on this type.
+    /// Drives ownership and Drop() enforcement for affine/linear/relevant types.
+    /// </summary>
+    public SubstructuralDiscipline Discipline { get; internal set; } = SubstructuralDiscipline.None;
+
+    /// <summary>
+    /// Whether this type has a Drop() method (explicit or synthesized).
+    /// </summary>
+    public bool HasDrop { get; internal set; }
+
+    /// <summary>
+    /// The return type of the Drop() method, or null if Drop() returns void or is absent.
+    /// </summary>
+    public IType? DropReturnType { get; internal set; }
+
+    /// <summary>
+    /// For types whose <c>Drop()</c> was SYNTHESIZED by <c>SyntheticDropInferenceEngine</c>
+    /// (drop-semantics Stage 4d), the ordered list of droppable field symbols whose
+    /// <c>Drop()</c> the synthesized method must call, in declaration order (Req 10.2).
+    /// Null when the type has an explicit <c>Drop()</c> or no synthetic drop was generated.
+    /// Read by the C# emitter (Epic 7) to emit the synthesized field-drop body.
+    /// </summary>
+    public IReadOnlyList<ISymbol>? SyntheticDropFields { get; internal set; }
+
+    /// <summary>
     /// Indicates whether this CLR class is abstract (cannot be instantiated directly).
     /// Only set for types projected from CLR assemblies.
     /// </summary>

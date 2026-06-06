@@ -48,6 +48,25 @@ internal sealed class IntrinsicTypeMap
         ["void"] = "System.Void",
     };
 
+    /// <summary>
+    /// Additional inbound-only CLR → Mist projections that intentionally have
+    /// no entry in <see cref="CSharpTypeMap.BackingTypes"/> because their
+    /// outbound C# emission is governed separately (the Backing_Type_Map is the
+    /// single source of truth for emission). The Assembly Type Provider uses
+    /// these entries to recognize the CLR types on inbound parameter, return,
+    /// and field positions and project them to the corresponding Mist Standard
+    /// Library type, mirroring the <c>Task</c>/<c>Task&lt;T&gt;</c> intake.
+    /// </summary>
+    private static readonly Dictionary<string, string> AdditionalClrToMist = new(StringComparer.Ordinal)
+    {
+        // System.Threading.Tasks.ValueTask (non-generic) and ValueTask<T>
+        // (generic, arity stripped to "ValueTask") both share this CLR name
+        // after generic-arity stripping, so a single entry projects both to
+        // the Mist ValueTask / ValueTask<TResult> linear type — exactly as the
+        // "System.Threading.Tasks.Task" entry projects Task and Task<T>.
+        ["System.Threading.Tasks.ValueTask"] = "Standard.ValueTask",
+    };
+
     public IntrinsicTypeMap()
     {
         _clrToMist = BuildReversedMap();
@@ -223,6 +242,14 @@ internal sealed class IntrinsicTypeMap
             {
                 reversed.TryAdd(clrFullName, mistName);
             }
+        }
+
+        // Add inbound-only CLR → Mist projections that have no Backing_Type_Map
+        // entry (their outbound emission is governed elsewhere). These let the
+        // Assembly Type Provider recognize the CLR types on inbound positions.
+        foreach (var (clrName, mistName) in AdditionalClrToMist)
+        {
+            reversed.TryAdd(clrName, mistName);
         }
 
         return reversed;

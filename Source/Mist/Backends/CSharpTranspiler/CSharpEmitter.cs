@@ -7044,8 +7044,126 @@ internal sealed class CSharpSourceWriter
                 return; // Remaining statements are emitted inside the try block.
             }
 
+            // Auto-drop insertion (Requirements 4.1, 4.4, 4.5, 14.1-14.3): when this
+            // statement declares a linear/relevant local with a Drop() obligation, emit
+            // the declaration and then wrap the remaining statements in a try/finally so
+            // the scope-exit Drop() fires even when an exception is thrown. Nesting these
+            // wrappers produces reverse declaration order (last declared, first dropped).
+            if (TryGetScopeExitDropLocalName(stmt, out var dropLocalName))
+            {
+                EmitDroppableLocalWithWrapping(stmt, dropLocalName, statements, i + 1);
+                return; // Remaining statements are emitted inside the try block.
+            }
+
             EmitStatement(stmt);
         }
+    }
+
+    /// <summary>
+    /// Emits a variable declaration for a linear/relevant local with a <c>Drop()</c>
+    /// obligation, followed by a try/finally block wrapping the remaining statements in
+    /// the scope. The <c>finally</c> clause emits the scope-exit <c>Drop()</c> call so the
+    /// obligation is satisfied even on exception (Requirement 14.3). Multiple droppable
+    /// locals nest, producing reverse declaration order (Requirements 4.5, 13.1).
+    /// </summary>
+    private void EmitDroppableLocalWithWrapping(
+        StatementNode declStmt,
+        string localName,
+        ImmutableArray<StatementNode> statements,
+        int nextIndex)
+    {
+        // Emit the variable declaration itself (modifiers are erased — see EmitModifiers).
+        EmitStatement(declStmt);
+
+        AppendLine("try");
+        AppendLine("{");
+        _indentLevel++;
+        EmitStatementsFromIndex(statements, nextIndex);
+        _indentLevel--;
+        AppendLine("}");
+        AppendLine("finally");
+        AppendLine("{");
+        _indentLevel++;
+        // Relevant types drop idempotently for every reference; linear types drop exactly
+        // once when Live. Drop elision on move/return is layered on top in task 7.2.
+        AppendLine($"{localName}.Drop();");
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    /// <summary>
+    /// Determines whether the given statement declares a single local of a linear or
+    /// relevant type with a <c>Drop()</c> method, making it eligible for scope-exit
+    /// auto-drop. Returns the C# local name through <paramref name="localName"/> when so.
+    /// Affine and unrestricted locals never auto-drop at scope exit (Requirement 4.8).
+    /// <c>Task</c>/<c>ValueTask</c> are excluded here — their scope-exit await is handled
+    /// by the existing live-task machinery and refined in task 7.3.
+    /// </summary>
+    private bool TryGetScopeExitDropLocalName(StatementNode stmt, out string localName)
+    {
+        localName = "";
+
+        if (stmt is not VariableDeclarationStatementStatementNode varDeclStmt)
+            return false;
+
+        // Only simple single-name declarations participate in scope-exit auto-drop.
+        switch (varDeclStmt.VariableDeclaration)
+        {
+            case TypedVariableDeclarationVariableDeclarationStatementNode typed:
+            {
+                if ((_model.GetDeclaredSymbol(typed) as Symbol)?.DeclaredType is not { } typedType
+                    || !ShouldAutoInsertScopeExitDrop(typedType))
+                    return false;
+                localName = typed.Name.Lexeme;
+                return true;
+            }
+            case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
+            {
+                if ((_model.GetDeclaredSymbol(inferred) as Symbol)?.DeclaredType is not { } inferredType
+                    || !ShouldAutoInsertScopeExitDrop(inferredType))
+                    return false;
+                localName = inferred.Name.Lexeme;
+                return true;
+            }
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when a local of the given type should have a <c>Drop()</c> call
+    /// auto-inserted at scope exit: the type has a <c>Drop()</c> method and its discipline
+    /// is <c>Linear</c> or <c>Relevant</c>. Affine and unrestricted types are excluded
+    /// (they only drop within <c>with</c> blocks). <c>Task</c>/<c>ValueTask</c> are excluded
+    /// (handled by the live-task await path).
+    /// </summary>
+    private static bool ShouldAutoInsertScopeExitDrop(IType type)
+    {
+        if (IsTaskLikeType(type))
+            return false;
+
+        var resolved = type is ConstructedType constructed ? constructed.GenericDefinition : type;
+        var (discipline, hasDrop) = resolved switch
+        {
+            ClassType ct => (ct.Discipline, ct.HasDrop),
+            StructType st => (st.Discipline, st.HasDrop),
+            _ => (SubstructuralDiscipline.None, false),
+        };
+
+        return hasDrop
+            && discipline is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Relevant;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the type is the standard-library <c>Task</c> or
+    /// <c>ValueTask</c> (generic or void alias). Scope-exit handling for these flows
+    /// through the existing live-task await machinery rather than a plain <c>.Drop()</c>.
+    /// </summary>
+    private static bool IsTaskLikeType(IType type)
+    {
+        var resolved = type is ConstructedType constructed ? constructed.GenericDefinition : type;
+        return resolved is ClassType { ContainingNamespace: "Standard" } ct
+            && ct.DisplayName is "Task" or "ValueTask";
     }
 
     /// <summary>

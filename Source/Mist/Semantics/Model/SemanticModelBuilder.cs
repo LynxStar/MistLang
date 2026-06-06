@@ -1050,6 +1050,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // and signatures can be compared accurately.
         Pass1_CheckDuplicateSignatures(symbolTable, asts, compilation, diagnostics);
 
+        // Post-Pass 2: Recognize Drop() methods on class/struct types.
+        // This runs after method return types are resolved (Pass 2) so that the
+        // Drop() return type can be recorded. A method named "Drop" with zero
+        // parameters marks its declaring type as having a drop method
+        // (drop-semantics tasks 2.4, 3.4). The void aliases Task/ValueTask
+        // inherit this from their generic forms because discipline and drop
+        // state live on the shared generic ClassType definition.
+        RecognizeDropMethods(symbolTable, diagnostics);
+
         // Clear the thread-local stdlib provider to prevent stale references
         // to this compilation's scopes from leaking to subsequent compilations
         // on the same thread.
@@ -1576,6 +1585,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         classType.IsOwnedType = HasOwnedModifier(classDecl.Modifiers);
 
+        // Resolve the substructural discipline from the type's modifiers.
+        // affine/linear imply owned (write-through to IsOwnedType); relevant and
+        // None leave IsOwnedType governed by the existing owned-modifier logic.
+        // Conflicting combinations resolve to None here; the conflicting-modifier
+        // diagnostic is reported by DropAnalyzer (drop-semantics task 5.1).
+        var classDiscipline = ResolveDiscipline(classDecl.Modifiers);
+        classType.Discipline = classDiscipline;
+        if (classDiscipline is SubstructuralDiscipline.Affine or SubstructuralDiscipline.Linear)
+            classType.IsOwnedType = true;
+
         var classSpan = ToMistSourceSpan(classDecl.Name.Span);
         var classSymbol = new Symbol(className, SymbolKind.Class, SymbolOrigin.UserCode, parentScope, classType, classSpan);
 
@@ -1616,6 +1635,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         structType.IsRefStruct = HasRefModifier(structDecl.Modifiers);
 
         structType.IsOwnedType = HasOwnedModifier(structDecl.Modifiers);
+
+        // Resolve the substructural discipline from the type's modifiers.
+        // affine/linear imply owned (write-through to IsOwnedType); relevant and
+        // None leave IsOwnedType governed by the existing owned-modifier logic.
+        // Conflicting combinations resolve to None here; the conflicting-modifier
+        // diagnostic is reported by DropAnalyzer (drop-semantics task 5.1).
+        var structDiscipline = ResolveDiscipline(structDecl.Modifiers);
+        structType.Discipline = structDiscipline;
+        if (structDiscipline is SubstructuralDiscipline.Affine or SubstructuralDiscipline.Linear)
+            structType.IsOwnedType = true;
 
         var structSpan = ToMistSourceSpan(structDecl.Name.Span);
         var structSymbol = new Symbol(structName, SymbolKind.Struct, SymbolOrigin.UserCode, parentScope, structType, structSpan);
@@ -3439,6 +3468,151 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
         }
         return false;
+    }
+
+    private static bool HasAffineModifier(ImmutableArray<ModifierNode> modifiers)
+    {
+        foreach (var modifier in modifiers)
+        {
+            if (modifier is AffineModifierModifierNode)
+                return true;
+        }
+        return false;
+    }
+
+    private static bool HasLinearModifier(ImmutableArray<ModifierNode> modifiers)
+    {
+        foreach (var modifier in modifiers)
+        {
+            if (modifier is LinearModifierModifierNode)
+                return true;
+        }
+        return false;
+    }
+
+    private static bool HasRelevantModifier(ImmutableArray<ModifierNode> modifiers)
+    {
+        foreach (var modifier in modifiers)
+        {
+            if (modifier is RelevantModifierModifierNode)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Resolves the <see cref="SubstructuralDiscipline"/> declared on a type from its
+    /// modifier list, following the resolution table in the drop-semantics design:
+    /// <list type="bullet">
+    ///   <item><c>[affine]</c> → <see cref="SubstructuralDiscipline.Affine"/> (implies owned)</item>
+    ///   <item><c>[linear]</c> → <see cref="SubstructuralDiscipline.Linear"/> (implies owned)</item>
+    ///   <item><c>[relevant]</c> → <see cref="SubstructuralDiscipline.Relevant"/> (aliasable)</item>
+    ///   <item><c>[owned]</c> or <c>[]</c> → <see cref="SubstructuralDiscipline.None"/></item>
+    /// </list>
+    /// Conflicting combinations (more than one substructural modifier, or a substructural
+    /// modifier combined with <c>owned</c>) resolve to <see cref="SubstructuralDiscipline.None"/>.
+    /// The conflicting-modifier diagnostic itself is reported by <c>DropAnalyzer</c>, not here.
+    /// </summary>
+    private static SubstructuralDiscipline ResolveDiscipline(ImmutableArray<ModifierNode> modifiers)
+    {
+        var hasAffine = HasAffineModifier(modifiers);
+        var hasLinear = HasLinearModifier(modifiers);
+        var hasRelevant = HasRelevantModifier(modifiers);
+        var hasOwned = HasOwnedModifier(modifiers);
+
+        var substructuralCount = (hasAffine ? 1 : 0) + (hasLinear ? 1 : 0) + (hasRelevant ? 1 : 0);
+
+        // No substructural modifier — discipline is None (owned/unrestricted governed elsewhere).
+        if (substructuralCount == 0)
+            return SubstructuralDiscipline.None;
+
+        // More than one substructural modifier is a conflict — resolve to None.
+        if (substructuralCount > 1)
+            return SubstructuralDiscipline.None;
+
+        // affine/linear imply owned; combining with explicit owned is redundant (conflict).
+        // relevant must be aliasable; combining with owned is contradictory (conflict).
+        if (hasOwned)
+            return SubstructuralDiscipline.None;
+
+        if (hasAffine)
+            return SubstructuralDiscipline.Affine;
+        if (hasLinear)
+            return SubstructuralDiscipline.Linear;
+        return SubstructuralDiscipline.Relevant;
+    }
+
+    /// <summary>
+    /// Recognizes <c>Drop()</c> methods on class and struct types. A method named
+    /// <c>Drop</c> that accepts zero parameters is the type's drop method. When such a
+    /// method is found, the declaring type's <c>HasDrop</c> is set to <c>true</c> and its
+    /// <c>DropReturnType</c> is set to the method's return type (null when the return type
+    /// is <c>void</c>).
+    /// <para>
+    /// Runs after Pass 2 so method return types are resolved. The void aliases
+    /// <c>Task</c>/<c>ValueTask</c> inherit drop state from their generic forms because the
+    /// state lives on the shared generic <see cref="ClassType"/>/<see cref="StructType"/>
+    /// definition.
+    /// </para>
+    /// </summary>
+    private static void RecognizeDropMethods(SymbolTable symbolTable, DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+                continue;
+
+            var type = symbol.DeclaredType;
+            var memberScope = type switch
+            {
+                ClassType ct => ct.MemberScope,
+                StructType st => st.MemberScope,
+                _ => null,
+            };
+
+            if (memberScope is null)
+                continue;
+
+            foreach (var member in memberScope.Members)
+            {
+                if (member.Kind != SymbolKind.Method || member.Name != "Drop")
+                    continue;
+
+                // Drop() must accept zero parameters to be recognized as the type's
+                // drop method. Parameter count is taken from the declaring AST node
+                // (Mist-declared methods store parameters in the AST, not on the symbol).
+                var declaringNode = symbolTable.GetDeclaringNode(member);
+                if (declaringNode is not MethodDeclarationNode methodDecl)
+                    continue;
+
+                var parameterCount = ExtractParameterTypes(methodDecl.Parameters).Count;
+                if (parameterCount != 0)
+                    continue;
+
+                // Determine the Drop() return type. The developer-written return type is
+                // recorded on DeclaredReturnType; null DropReturnType means void.
+                var dropReturnType = (member as Symbol)?.DeclaredReturnType
+                    ?? (member as Symbol)?.DeclaredType
+                    ?? member.DeclaredType;
+
+                var isVoid = dropReturnType is null || dropReturnType.IsVoid();
+
+                switch (type)
+                {
+                    case ClassType ct:
+                        ct.HasDrop = true;
+                        ct.DropReturnType = isVoid ? null : dropReturnType;
+                        break;
+                    case StructType st:
+                        st.HasDrop = true;
+                        st.DropReturnType = isVoid ? null : dropReturnType;
+                        break;
+                }
+
+                // Only the first zero-parameter Drop() defines the drop method.
+                break;
+            }
+        }
     }
 
     /// <summary>

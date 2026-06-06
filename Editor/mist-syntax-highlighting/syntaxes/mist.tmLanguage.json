@@ -114,7 +114,7 @@
         },
         {
           "name": "storage.modifier.mist",
-          "match": "\\b(public|private|static|intrinsic|implicit|explicit|readonly|mutable|owned|frozen|ref|borrowed|async)\\b"
+          "match": "\\b(public|private|static|intrinsic|implicit|explicit|readonly|mutable|owned|affine|linear|relevant|frozen|ref|borrowed|async)\\b"
         },
         {
           "name": "keyword.other.mist",
@@ -368,6 +368,13 @@
           "captures": {
             "1": { "name": "keyword.declaration.mist" },
             "2": { "name": "entity.name.type.enum.mist" }
+          }
+        },
+        {
+          "comment": "Drop destructor method declaration: return-type Drop( -> highlight Drop as destructor",
+          "match": "\\b(?:void|int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|regex|unknown|[A-Z]\\w*)(?:\\[\\])?\\s+(Drop)\\s*(?=\\()",
+          "captures": {
+            "1": { "name": "entity.name.function.destructor.mist" }
           }
         },
         {

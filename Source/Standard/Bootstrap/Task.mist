@@ -1,7 +1,8 @@
 namespace Standard;
 
-intrinsic public class Task<TResult>
+intrinsic public relevant class Task<TResult>
 {
+    intrinsic public TResult Drop();
     intrinsic public static Task Yield();
     intrinsic public static Task Delay(Int32 milliseconds);
     intrinsic public static Task<TResult[]> WhenAll(Task<TResult>[] tasks);
@@ -9,3 +10,10 @@ intrinsic public class Task<TResult>
 }
 
 type Task = Task<void>;
+
+intrinsic public linear class ValueTask<TResult>
+{
+    intrinsic public TResult Drop();
+}
+
+type ValueTask = ValueTask<void>;

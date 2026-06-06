@@ -24,6 +24,15 @@ public sealed class MethodFlowState
     public Dictionary<ISymbol, BindingKind> BindingKinds { get; }
 
     /// <summary>
+    /// Maps each tracked droppable variable to its current <see cref="VariableDropState"/>.
+    /// Populated and consumed by the <see cref="DropAnalyzer"/> flow-sensitive walk
+    /// (independent of the ownership <see cref="VariableStates"/> tracking). Forked at
+    /// branch points and merged conservatively at join points: a variable consumed
+    /// (dropped, moved, or returned) in any branch is considered consumed at the join.
+    /// </summary>
+    public Dictionary<ISymbol, VariableDropState> DropStates { get; }
+
+    /// <summary>
     /// Records the source location where each variable was moved, for diagnostic reporting.
     /// Only populated for variables in the <see cref="VariableOwnershipState.Moved"/> state.
     /// </summary>
@@ -48,6 +57,7 @@ public sealed class MethodFlowState
     {
         VariableStates = new Dictionary<ISymbol, VariableOwnershipState>();
         BindingKinds = new Dictionary<ISymbol, BindingKind>();
+        DropStates = new Dictionary<ISymbol, VariableDropState>();
         MoveLocations = new Dictionary<ISymbol, SourceSpan>();
         ActiveBorrows = new List<BorrowEntry>();
         ScopeDepth = 0;
@@ -59,12 +69,14 @@ public sealed class MethodFlowState
     private MethodFlowState(
         Dictionary<ISymbol, VariableOwnershipState> variableStates,
         Dictionary<ISymbol, BindingKind> bindingKinds,
+        Dictionary<ISymbol, VariableDropState> dropStates,
         Dictionary<ISymbol, SourceSpan> moveLocations,
         List<BorrowEntry> activeBorrows,
         int scopeDepth)
     {
         VariableStates = variableStates;
         BindingKinds = bindingKinds;
+        DropStates = dropStates;
         MoveLocations = moveLocations;
         ActiveBorrows = activeBorrows;
         ScopeDepth = scopeDepth;
@@ -119,6 +131,7 @@ public sealed class MethodFlowState
         return new MethodFlowState(
             new Dictionary<ISymbol, VariableOwnershipState>(VariableStates),
             new Dictionary<ISymbol, BindingKind>(BindingKinds),
+            new Dictionary<ISymbol, VariableDropState>(DropStates),
             new Dictionary<ISymbol, SourceSpan>(MoveLocations),
             new List<BorrowEntry>(ActiveBorrows),
             ScopeDepth);
@@ -173,6 +186,25 @@ public sealed class MethodFlowState
 
         // Discard borrows from inner scopes (deeper than current scope depth) in the merged result.
         ActiveBorrows.RemoveAll(b => b.ScopeDepth > ScopeDepth);
+
+        // Merge drop states conservatively: a variable consumed (Dropped/Moved/Returned)
+        // in either branch is considered consumed at the join, so a use after the join is
+        // an error. Live in both branches stays Live. When the two branches disagree on
+        // WHICH consumed state applies, the specific state is not material to use-after
+        // checks, so the existing state is retained (any non-Live state blocks use).
+        foreach (var (symbol, otherDropState) in other.DropStates)
+        {
+            if (!DropStates.TryGetValue(symbol, out var thisDropState))
+            {
+                DropStates[symbol] = otherDropState;
+                continue;
+            }
+
+            if (thisDropState == VariableDropState.Live && otherDropState != VariableDropState.Live)
+            {
+                DropStates[symbol] = otherDropState;
+            }
+        }
 
         // Merge binding kinds — binding kind is immutable after declaration,
         // so we just ensure variables from the other branch are included.

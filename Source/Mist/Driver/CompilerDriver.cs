@@ -439,6 +439,13 @@ public sealed class CompilerDriver : ICompilerDriver
         // the OwnershipAnalyzer which depends on IsOwnedType being set.
         OwnershipInferenceEngine.RunInference(semanticModel);
 
+        // Stage 4d: Synthetic Drop Inference
+        // Synthesizes a void Drop() for types that have droppable fields but no
+        // explicit Drop(), cascading the obligation transitively in dependency
+        // order. Must run after ownership inference (Stage 4c) because it reads
+        // the finalized IsOwnedType / Discipline state.
+        SyntheticDropInferenceEngine.RunInference(semanticModel);
+
         // Stage 5: Analysis
         var analysisStopwatch = Stopwatch.StartNew();
         progressReporter.ReportStageStart(5, "Analysis");

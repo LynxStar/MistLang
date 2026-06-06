@@ -2302,6 +2302,15 @@ public sealed class MistPrettyPrinter
                 case OwnedModifierModifierNode:
                     parts.Add("owned");
                     break;
+                case AffineModifierModifierNode:
+                    parts.Add("affine");
+                    break;
+                case LinearModifierModifierNode:
+                    parts.Add("linear");
+                    break;
+                case RelevantModifierModifierNode:
+                    parts.Add("relevant");
+                    break;
                 case AsyncModifierModifierNode:
                     parts.Add("async");
                     break;

@@ -20,16 +20,16 @@ This does NOT restrict what fields the type can have. It signals: "this type is 
 
 When you hold a variable in an `owned var` binding:
 
-**Non-owned types (tier 3):**
+**Non-owned types (conservative):**
 - Direct field/property assignment — allowed, caller proves provenance (RHS must be owned)
 - Readonly methods — always callable
-- Mutating methods with no parameters — callable (self-mutation is fine)
-- Mutating methods WITH parameters — **NOT callable** (can't prove the method won't store the parameter into a field, breaking the graph)
+- All mutable members are hidden — the instance appears readonly when held in an owned binding
+- Future: more sophisticated analysis could selectively allow safe mutable methods
 
 **Owned types (full cooperation):**
-- All of the above, PLUS mutating methods with parameters are callable
-- The type author guarantees correctness: any method parameter that gets stored into a field is declared `owned` on the method signature
-- The compiler verifies inside the type body that field assignments come from owned sources
+- All of the above, PLUS full mutable access
+- The type author guarantees correctness: the compiler verifies all field assignments inside the type come from owned sources (parameters declared `owned`, fresh allocations)
+- Mutating methods with parameters are callable because the type opts into enforcement
 
 **In both cases:**
 - `owned.Field = expr` requires `expr` to be owned (move into the graph)

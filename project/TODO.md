@@ -4,84 +4,9 @@ Tracked issues and improvements that don't belong to an active spec but should b
 
 ---
 
-## Ownership Redesign
+## Ownership — Open Design Questions
 
-### Core Insight
-
-Ownership is a property of the *value/binding*, not purely the type. Any type can be owned at the instance level via `owned var`. The `owned` keyword on types survives but with a different meaning: a cooperation contract, not a field restriction.
-
-### Owned Types — New Meaning
-
-`owned` on a type declaration means: "I, the type author, proactively cooperate with ownership semantics. All mutations inside this type maintain ownership invariants — internal field assignments come from move operations."
-
-This does NOT restrict what fields the type can have. It signals: "this type is safe to use as an owned binding with full method access because I handle the complexity internally."
-
-### Method Call Rules on Owned Bindings
-
-When you hold a variable in an `owned var` binding:
-
-**Non-owned types (conservative):**
-- Direct field/property assignment — allowed, caller proves provenance (RHS must be owned)
-- Readonly methods — always callable
-- All mutable members are hidden — the instance appears readonly when held in an owned binding
-- Future: more sophisticated analysis could selectively allow safe mutable methods
-
-**Owned types (full cooperation):**
-- All of the above, PLUS full mutable access
-- The type author guarantees correctness: the compiler verifies all field assignments inside the type come from owned sources (parameters declared `owned`, fresh allocations)
-- Mutating methods with parameters are callable because the type opts into enforcement
-
-**In both cases:**
-- `owned.Field = expr` requires `expr` to be owned (move into the graph)
-
-### IClonable — Shared-to-Owned Bridge
-
-When assigning to an owned destination and the source isn't owned, the compiler checks if the source type implements `IClonable<T>`:
-
-```mist
-public interface IClonable<T>
-{
-    public owned T Clone();
-}
-```
-
-- If implemented: `.Clone()` is called (implicitly or explicitly) to produce a fresh owned value
-- If not implemented: compile error — can't prove the value is unique
-- Auto-derivable: for types where all fields are themselves clonable (primitives, other clonables)
-
-**Struct auto-derivation:** Structs that contain only other structs (recursively — no classes/interfaces/traits) automatically derive `IClonable<T>`. Pass-by-value already produces a fully owned object graph for pure-struct types. The compiler can optimize away the `.Clone()` call entirely since the copy is implicit in the value semantics.
-
-Structs that embed classes/interfaces/traits are NOT auto-derivable — the heap-allocated reference could be aliased, so a bitwise copy doesn't produce a unique graph.
-
-**String**: would implement `IClonable<String>` trivially (the "clone" is a no-op since strings are immutable and interned).
-
-### What Changes From Today
-
-**Remove:**
-- Owned type field restriction (all fields must be owned types) — owned types can have any fields
-- `owned` field modifier on individual fields — redundant with binding-level rules
-- `MIST_OWN_FIELD_NOT_OWNED` for the field-modifier case
-- Structural "is this type eligible for ownership" analysis
-- Struct ownership inference (not needed — any struct can be owned at binding level)
-
-**Keep:**
-- `owned` on type declarations — but with new meaning (cooperation contract, not field restriction)
-- `owned var x = ...` — instance-level ownership binding
-- `owned T param` — caller must move ownership in
-- `owned T` return — handing out a fresh owned value
-- Move semantics (`owned var y = x` makes x dead)
-- Lending system (borrowed, frozen, readonly ref from owned bindings)
-
-**Add:**
-- Field assignment provenance enforcement on owned bindings (MISSING TODAY)
-- Method call tier restrictions for non-owned types on owned bindings
-- `IClonable<T>` interface and auto-derivation
-
-### Implementation Gap (exists today)
-
-Field assignment provenance is not enforced at all. Even with today's `owned` field modifier (Req 10.3), assigning from a shared binding to an owned field compiles without error. This must be fixed as part of the redesign.
-
-### Open Design Question: Statics and Method Body Safety
+### Statics and Method Body Safety
 
 There's a gap between "owned type cooperation" and static/global state:
 
@@ -98,19 +23,11 @@ owned var a = new Sneaky();  // a.cache == StaticCache.Instance
 owned var b = new Sneaky();  // b.cache == same object — not unique!
 ```
 
-**Two concerns are tangled:**
-1. Method return annotation — "does this return an owned value?" (already have `owned T` return)
-2. Method body safety — "is this method safe to call on an owned instance?" (doesn't leak external aliases into the graph)
-
-**Options being considered:**
-- `owned` on the type = compiler verifies ALL methods are body-safe (no field assignments from statics/globals). This is what the "cooperation contract" means — the type author opts into enforcement.
-- Method-level annotation for body safety (more precise but more annotation burden)
-- Conservative fallback for non-owned types: tier 3 rules (no parameterized mutating methods callable)
-- Ban mutable static state of reference types in owned type bodies
+The cooperation contract verifier currently rejects static reads as field assignment sources (emits `MIST_OWN_CONTRACT_VIOLATION`). But the broader question remains:
 
 **Unresolved:** How to ergonomically express both "returns owned" and "body-safe for owned context" on the same method. What static field reads are safe (readonly statics? deeply immutable statics?). Whether method-level granularity is needed or type-level is sufficient.
 
-### Open Design Question: Non-Owned Type Constructors in Owned Bindings
+### Non-Owned Type Constructors in Owned Bindings
 
 `new NonOwnedType()` is accepted as a valid owned binding initializer (fresh allocation = unique root). But the constructor body of a non-owned type has no cooperation contract — it might store shared/static references into fields during construction.
 
@@ -124,7 +41,7 @@ public class Foo
 owned var foo = new Foo();  // root is unique, but foo.Item is aliased
 ```
 
-For owned types, the cooperation contract catches this (compiler verifies constructor body). For non-owned types, there's no verification — and we can't apply it because the type doesn't opt in.
+For owned types, the cooperation contract catches this. For non-owned types, there's no verification — the type doesn't opt in.
 
 **Current stance:** Accept this as a known weakness. `new NonOwnedType()` gives you a unique root. The mutable-methods-hidden rule prevents further pollution after construction. But the initial state may contain shared references from the constructor. Full graph uniqueness requires the owned type cooperation contract.
 
@@ -142,3 +59,29 @@ For owned types, the cooperation contract catches this (compiler verifies constr
 With drop semantics in place, this restriction is obsolete. Substructural typing already ensures that any container holding a Task has the same stack-reachability guarantee that a bare Task local has: the container can only outlive the function if it's returned (same as the Task restriction). There is always something on the stack pointing back to the live task — either a local variable or a container with equivalent constraints.
 
 **Action:** Remove the `MIST_TC_0110` diagnostic and its associated checks. Allow `Task<T>` in fields/properties when the containing type has appropriate substructural discipline. Update tests accordingly.
+
+
+---
+
+## Missing `defaultable` constraint on generic type parameters
+
+`default(T)` is syntactically allowed inside generic method/type bodies without any constraint on `T`. The compiler only checks defaultability for concrete types during semantic model construction — generic type definitions are skipped entirely (`ComputeDefaultability` bails out for types with unbound type parameters).
+
+This means a generic like:
+
+```mist
+class Box<T>
+{
+    T value;
+    public void Reset() { this.value = default(T); }
+}
+```
+
+compiles without error at the definition site. If someone instantiates `Box<ISignal>` (where `ISignal` is an interface with no default), the `__CreateDefault` call will fail at the concrete instantiation — but the error message won't point to the `default(T)` usage, and the failure mode may be confusing.
+
+**Options:**
+1. Add a `where T : defaultable` constraint (or make it implicit when `default(T)` appears in the body). Reject the generic definition if `default(T)` is used without the constraint.
+2. Emit a clear error at instantiation time: "Type argument 'ISignal' is not defaultable, but 'Box<T>' requires a defaultable T because it uses default(T) internally."
+3. Accept the current monomorphization-time error as sufficient (C++ template model).
+
+**Recommendation:** Option 1 is the most principled — it surfaces the error at definition time and makes the requirement visible in the type signature. Option 2 is the pragmatic middle ground if adding constraints is too noisy.

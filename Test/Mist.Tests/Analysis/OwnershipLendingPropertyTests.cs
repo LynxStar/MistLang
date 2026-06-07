@@ -90,6 +90,12 @@ public class OwnershipLendingPropertyTests
         (OwnershipTier.Borrowed, OwnershipTier.Frozen),
         (OwnershipTier.Frozen, OwnershipTier.Frozen),
         (OwnershipTier.Unrestricted, OwnershipTier.Unrestricted),
+        // v2 IClonable bridge: non-owned sources of clonable types can be implicitly
+        // cloned into owned destinations. The test classes are empty owned classes that
+        // auto-derive IClonable, so these transitions are accepted via implicit clone.
+        (OwnershipTier.Frozen, OwnershipTier.Owned),
+        (OwnershipTier.Borrowed, OwnershipTier.Owned),
+        (OwnershipTier.Unrestricted, OwnershipTier.Owned),
     };
 
     /// <summary>

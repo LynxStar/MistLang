@@ -1,0 +1,580 @@
+// ─── Owned binding of a NON-OWNED type (restricted access) ────────────────────
+
+using Standard;
+
+namespace Ownership;
+
+// Non-owned type — does NOT opt into cooperation contract
+public class Widget
+{
+    public int Value;
+    public string Label;
+
+    public Widget(int value, string label)
+    {
+        this.Value = value;
+        this.Label = label;
+    }
+
+    // Readonly method — callable from owned binding
+    public int GetValue()
+    {
+        return Value;
+    }
+
+    // Readonly method — callable from owned binding
+    public string Describe()
+    {
+        return $"Widget({Value}, {Label})";
+    }
+
+    // Mutable method — HIDDEN from owned binding (not callable)
+    public void SetValue(int v)
+    {
+        this.Value = v;
+    }
+}
+
+// PROOF: Non-owned type in owned binding has readonly-only method access
+// PROOF: Direct field assignment with provenance is permitted
+// PROOF: Field assignment accepts owned-returning method, moved local, and IClonable source
+// PROOF: The SAME type in an unrestricted binding retains full mutable access
+public class NonOwnedBindingDemo
+{
+    // Helper: returns an owned string (owned-returning function — valid provenance)
+    public static owned string MakeLabel(int n)
+    {
+        return $"label-{n}";
+    }
+
+    public static void Run()
+    {
+        owned var w = new Widget(10, "alpha");
+
+        // Readonly methods are callable
+        var val = w.GetValue();
+        Console.WriteLine($"[non-owned-binding] readonly method={val}");
+        Console.WriteLine($"[non-owned-binding] describe={w.Describe()}");
+
+        // Field assignment from an owned-returning method — provenance satisfied
+        w.Label = MakeLabel(1);
+        Console.WriteLine($"[non-owned-binding] field from method={w.Describe()}");
+
+        // Field assignment by moving a local owned string — provenance satisfied
+        owned string moved = MakeLabel(2);
+        w.Label = moved;
+        // moved is now dead
+        Console.WriteLine($"[non-owned-binding] field from move={w.Describe()}");
+
+        // Field assignment from an IClonable source (shared string auto-clones) — provenance satisfied
+        var sharedLabel = "shared-label";
+        w.Label = sharedLabel;  // string implements IClonable; compiler auto-inserts .Clone()
+        // sharedLabel is still usable — clone produced an independent value
+        Console.WriteLine($"[non-owned-binding] field from clone={w.Describe()}");
+        Console.WriteLine($"[non-owned-binding] shared still usable={sharedLabel}");
+
+        // Move to another owned binding — proves move semantics work on non-owned types
+        owned var w2 = w;
+        Console.WriteLine($"[non-owned-binding] after move={w2.Describe()}");
+
+        // Contrast: an UNRESTRICTED binding of the same type CAN call mutable methods.
+        // The restriction only applies to owned bindings — shared bindings are unaffected.
+        var shared = new Widget(50, "shared");
+        shared.SetValue(99);  // mutable method callable — not an owned binding
+        Console.WriteLine($"[non-owned-binding] unrestricted mutable call={shared.Describe()}");
+    }
+}
+
+// ─── Owned binding of an OWNED type (full mutable access) ─────────────────────
+
+// Owned type — opts into cooperation contract
+public owned class Engine
+{
+    int Rpm;
+    int Temperature;
+
+    public Engine(int rpm, int temperature)
+    {
+        this.Rpm = rpm;
+        this.Temperature = temperature;
+    }
+
+    public int GetRpm()
+    {
+        return Rpm;
+    }
+
+    public string Describe()
+    {
+        return $"Engine(Rpm={Rpm}, Temp={Temperature})";
+    }
+
+    // Mutable method — callable because Engine is an owned type
+    // Cooperation contract: field assignment from parameter is safe (value type int)
+    public void Rev(int amount)
+    {
+        this.Rpm = Rpm + amount;
+        this.Temperature = Temperature + amount / 10;
+    }
+}
+
+// PROOF: Owned type in owned binding has full mutable method access
+// PROOF: Mutable methods ARE callable (unlike non-owned types)
+// PROOF: Cooperation contract enables full access without restriction
+public class OwnedTypeBindingDemo
+{
+    public static void Run()
+    {
+        owned var engine = new Engine(1000, 80);
+        Console.WriteLine($"[owned-type-binding] initial={engine.Describe()}");
+
+        // Mutable method callable — Engine opts into cooperation contract
+        engine.Rev(500);
+        Console.WriteLine($"[owned-type-binding] after rev={engine.Describe()}");
+
+        // Another mutable call
+        engine.Rev(200);
+        Console.WriteLine($"[owned-type-binding] after second rev={engine.Describe()}");
+
+        // Readonly method also callable
+        var rpm = engine.GetRpm();
+        Console.WriteLine($"[owned-type-binding] getRpm={rpm}");
+    }
+}
+
+// ─── Field assignment provenance ──────────────────────────────────────────────
+
+public owned class Container
+{
+    Widget Inner;
+
+    // Constructor takes owned parameter — satisfies cooperation contract
+    public Container(owned Widget inner)
+    {
+        this.Inner = inner;
+    }
+
+    public string Describe()
+    {
+        return $"Container(Inner={Inner.Describe()})";
+    }
+
+    // Mutable method takes owned parameter — provenance satisfied
+    public void Replace(owned Widget replacement)
+    {
+        this.Inner = replacement;
+    }
+}
+
+// PROOF: Field assignment provenance — source must be owned
+// PROOF: Constructor call (new) satisfies provenance
+// PROOF: Move from owned binding satisfies provenance
+// PROOF: Owned-parameter move satisfies provenance inside methods
+public class ProvenanceDemo
+{
+    public static void Run()
+    {
+        // Constructor call satisfies provenance for owned binding field assignment
+        owned var c = new Container(new Widget(1, "first"));
+        Console.WriteLine($"[provenance] initial={c.Describe()}");
+
+        // Replace via method that takes owned parameter — provenance satisfied
+        owned var replacement = new Widget(2, "second");
+        c.Replace(replacement);
+        Console.WriteLine($"[provenance] after replace={c.Describe()}");
+
+        // Direct field assignment with fresh constructor call — provenance satisfied
+        owned var c2 = new Container(new Widget(3, "third"));
+        Console.WriteLine($"[provenance] c2={c2.Describe()}");
+    }
+}
+
+// ─── IClonable bridging ───────────────────────────────────────────────────────
+
+public class Config : IClonable<Config>
+{
+    public int Timeout;
+    public string Host;
+
+    public Config(int timeout, string host)
+    {
+        this.Timeout = timeout;
+        this.Host = host;
+    }
+
+    public owned Config Clone()
+    {
+        return new Config(Timeout, Host);
+    }
+
+    public string Describe()
+    {
+        return $"Config(Timeout={Timeout}, Host={Host})";
+    }
+}
+
+// PROOF: IClonable bridges shared-to-owned
+// PROOF: Clone() produces a fresh owned value from a non-owned source
+// PROOF: After clone, original and clone are independent
+// PROOF: Implicit clone — assigning a non-owned source to an owned binding auto-inserts Clone()
+// PROOF: Implicit clone fires at owned-parameter boundary and owned-field assignment
+public owned class Vault
+{
+    Config Setting;
+
+    public Vault(owned Config setting)
+    {
+        this.Setting = setting;
+    }
+
+    // Mutable method taking an owned parameter — implicit clone fires at call site
+    public void Replace(owned Config setting)
+    {
+        this.Setting = setting;
+    }
+
+    public string Describe()
+    {
+        return $"Vault(Setting={Setting.Describe()})";
+    }
+}
+
+public class ClonableDemo
+{
+    public static void Run()
+    {
+        // Non-owned source
+        var shared = new Config(30, "localhost");
+        Console.WriteLine($"[iclonable] shared={shared.Describe()}");
+
+        // Explicit clone into an owned binding — IClonable bridge
+        owned var myConfig = shared.Clone();
+        Console.WriteLine($"[iclonable] cloned={myConfig.Describe()}");
+
+        // Modify the shared original — owned clone is unaffected
+        shared.Timeout = 60;
+        Console.WriteLine($"[iclonable] shared after modify={shared.Describe()}");
+        Console.WriteLine($"[iclonable] clone unaffected={myConfig.Describe()}");
+
+        // IMPLICIT clone — assigning the non-owned `shared` directly to an owned binding.
+        // The compiler detects the source isn't owned, sees Config implements IClonable,
+        // and auto-inserts the .Clone() call. No manual .Clone() written here.
+        owned Config implicitClone = shared;
+        Console.WriteLine($"[iclonable] implicit clone={implicitClone.Describe()}");
+
+        // shared is still usable — the implicit clone produced an independent value
+        shared.Timeout = 90;
+        Console.WriteLine($"[iclonable] shared after second modify={shared.Describe()}");
+        Console.WriteLine($"[iclonable] implicit clone unaffected={implicitClone.Describe()}");
+
+        // IMPLICIT clone at the owned-PARAMETER boundary — `shared` is non-owned, but the
+        // Vault constructor takes `owned Config`. The compiler auto-inserts .Clone().
+        owned var vault = new Vault(shared);
+        Console.WriteLine($"[iclonable] vault from shared={vault.Describe()}");
+
+        // shared still usable — vault holds an independent clone
+        shared.Host = "remote";
+        Console.WriteLine($"[iclonable] shared after host change={shared.Describe()}");
+        Console.WriteLine($"[iclonable] vault unaffected={vault.Describe()}");
+
+        // IMPLICIT clone at the owned-FIELD assignment via owned-parameter method.
+        // Replace takes `owned Config`; passing non-owned `shared` auto-clones.
+        vault.Replace(shared);
+        Console.WriteLine($"[iclonable] vault after replace={vault.Describe()}");
+    }
+}
+
+// ─── Implicit clone from lent tiers (borrowed / frozen / readonly ref) ────────
+
+// PROOF: A borrowed, frozen, or readonly ref parameter can be lifted to an owned
+//        binding via implicit clone — the lent reference implements IClonable, so
+//        the compiler inserts .Clone() to produce an independent owned value.
+// PROOF: Cloning from a lent tier does NOT consume or move the underlying value —
+//        the lender retains its value after the borrow/freeze/readonly-ref returns.
+public class CloneFromLentDemo
+{
+    // Receives a borrowed Config, clones it into an owned binding
+    public static void FromBorrowed(borrowed Config c)
+    {
+        owned Config mine = c;  // implicit clone — c is borrowed, not owned
+        Console.WriteLine($"[clone-lent] from borrowed={mine.Describe()}");
+    }
+
+    // Receives a frozen Config, clones it into an owned binding
+    public static void FromFrozen(frozen Config c)
+    {
+        owned Config mine = c;  // implicit clone — c is frozen, not owned
+        Console.WriteLine($"[clone-lent] from frozen={mine.Describe()}");
+    }
+
+    // Receives a readonly ref Config, clones it into an owned binding
+    public static void FromReadonlyRef(readonly ref Config c)
+    {
+        owned Config mine = c;  // implicit clone — c is a readonly ref, not owned
+        Console.WriteLine($"[clone-lent] from readonly ref={mine.Describe()}");
+    }
+
+    public static void Run()
+    {
+        owned var original = new Config(15, "origin");
+
+        // Lend as borrowed — the callee clones it into an owned value
+        FromBorrowed(original);
+        // Lend as frozen
+        FromFrozen(original);
+        // Lend as readonly ref
+        FromReadonlyRef(original);
+
+        // The original is untouched — clones were independent copies
+        Console.WriteLine($"[clone-lent] original intact={original.Describe()}");
+    }
+}
+
+// ─── Lending tiers from owned bindings ────────────────────────────────────────
+
+// PROOF: Owned bindings participate in all lending tiers (borrowed, frozen, readonly ref)
+// PROOF: State transitions work correctly (Live → LentRef, Live → LentFrozen, etc.)
+public class LendingDemo
+{
+    public static void AcceptReadonly(readonly ref Engine e)
+    {
+        Console.WriteLine($"[lending] readonly ref={e.Describe()}");
+    }
+
+    public static void AcceptFrozen(frozen Engine e)
+    {
+        Console.WriteLine($"[lending] frozen={e.Describe()}");
+    }
+
+    public static void AcceptBorrowed(borrowed Engine e)
+    {
+        e.Rev(100);
+        Console.WriteLine($"[lending] borrowed mutated={e.Describe()}");
+    }
+
+    public static void Run()
+    {
+        owned var e = new Engine(2000, 90);
+
+        // Lend as readonly ref — owner enters LentReadonly, regains Live after
+        AcceptReadonly(e);
+        Console.WriteLine($"[lending] after readonly={e.Describe()}");
+
+        // Lend as frozen — owner enters LentFrozen, regains Live after
+        AcceptFrozen(e);
+        e.Rev(50);
+        Console.WriteLine($"[lending] after frozen+rev={e.Describe()}");
+
+        // Lend as borrowed — owner enters LentRef, regains Live after
+        AcceptBorrowed(e);
+        Console.WriteLine($"[lending] after borrowed={e.Describe()}");
+    }
+}
+
+// ─── Unrestricted aliasing ────────────────────────────────────────────────────
+
+// PROOF: Unrestricted bindings alias the same object — mutation through one is
+//        visible through the other. This is the baseline that owned bindings prevent.
+public class AliasingDemo
+{
+    public static void Run()
+    {
+        var a = new Widget(1, "aliased");
+        var b = a;            // unrestricted — a and b reference the same object
+        b.SetValue(42);       // mutate through b
+        Console.WriteLine($"[aliasing] a={a.Describe()}");   // change visible through a
+        Console.WriteLine($"[aliasing] b={b.Describe()}");
+        Console.WriteLine($"[aliasing] same object={a.GetValue() == b.GetValue()}");
+    }
+}
+
+// ─── Value types satisfy all lending tiers ────────────────────────────────────
+
+public struct Vec2
+{
+    public int X;
+    public int Y;
+
+    public Vec2(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    public string Describe()
+    {
+        return $"Vec2({X}, {Y})";
+    }
+}
+
+// PROOF: A value type (struct) satisfies readonly ref, frozen, borrowed, AND owned
+//        parameters because it is copied — passing it never aliases the original.
+public class ValueTypeTiersDemo
+{
+    public static void AcceptReadonly(readonly ref Vec2 v) { Console.WriteLine($"[value-tiers] readonly ref={v.Describe()}"); }
+    public static void AcceptFrozen(frozen Vec2 v) { Console.WriteLine($"[value-tiers] frozen={v.Describe()}"); }
+    public static void AcceptBorrowed(borrowed Vec2 v) { Console.WriteLine($"[value-tiers] borrowed={v.Describe()}"); }
+    public static void AcceptOwned(owned Vec2 v) { Console.WriteLine($"[value-tiers] owned={v.Describe()}"); }
+
+    public static void Run()
+    {
+        var v = new Vec2(3, 4);
+        AcceptReadonly(v);
+        AcceptFrozen(v);
+        AcceptBorrowed(v);
+        AcceptOwned(v);
+        // Original unaffected — value types are copied across every tier
+        Console.WriteLine($"[value-tiers] original intact={v.Describe()}");
+    }
+}
+
+// ─── Borrowed recipient can read, write, and re-lend ──────────────────────────
+
+// PROOF: A borrowed recipient has exclusive access — it can read, write, and
+//        lend the value further as readonly ref, frozen, or borrowed.
+public class BorrowedRecipientDemo
+{
+    public static void Observe(readonly ref Engine e) { Console.WriteLine($"[borrowed-recipient] re-lent readonly={e.Describe()}"); }
+    public static void Freeze(frozen Engine e) { Console.WriteLine($"[borrowed-recipient] re-lent frozen={e.Describe()}"); }
+    public static void ReBorrow(borrowed Engine e)
+    {
+        e.Rev(10);
+        Console.WriteLine($"[borrowed-recipient] re-lent borrowed mutated={e.Describe()}");
+    }
+
+    public static void UseBorrowed(borrowed Engine e)
+    {
+        // Read
+        Console.WriteLine($"[borrowed-recipient] read={e.GetRpm()}");
+        // Write
+        e.Rev(100);
+        Console.WriteLine($"[borrowed-recipient] write={e.Describe()}");
+        // Re-lend further
+        Observe(e);
+        Freeze(e);
+        ReBorrow(e);
+    }
+
+    public static void Run()
+    {
+        owned var engine = new Engine(700, 70);
+        UseBorrowed(engine);
+        // Owner regains access after the borrow returns
+        Console.WriteLine($"[borrowed-recipient] owner after return={engine.Describe()}");
+    }
+}
+
+// ─── Truth-table state demonstrations ─────────────────────────────────────────
+
+// PROOF: Live state permits read, write, live view (readonly ref), freeze, borrow, move.
+// PROOF: LentReadonly (owner has lent a readonly ref) permits read, write, live view, freeze.
+// PROOF: LentFrozen (owner has lent a frozen) permits read, live view, freeze — write is blocked
+//        only while the frozen lease is outstanding; after it returns the owner can write again.
+public class TruthTableDemo
+{
+    public static void View(readonly ref Engine e) { Console.WriteLine($"[truth-table] view={e.GetRpm()}"); }
+    public static void Freeze(frozen Engine e) { Console.WriteLine($"[truth-table] freeze={e.GetRpm()}"); }
+
+    public static void Run()
+    {
+        // Live: all actions permitted
+        owned var e = new Engine(1000, 100);
+        Console.WriteLine($"[truth-table] live read={e.GetRpm()}");  // read
+        e.Rev(100);                                                  // write
+        Console.WriteLine($"[truth-table] live write={e.Describe()}");
+        View(e);                                                     // live view (readonly ref)
+        Freeze(e);                                                   // freeze
+
+        // After the frozen lease returns, the owner is Live again and may write.
+        e.Rev(50);
+        Console.WriteLine($"[truth-table] after frozen returns, write={e.Describe()}");
+    }
+}
+
+// ─── Move semantics ──────────────────────────────────────────────────────────
+
+// PROOF: Move from owned to owned makes source dead
+// PROOF: Move from owned to unrestricted makes source dead
+// PROOF: Move into function parameter makes caller binding dead
+public class MoveDemo
+{
+    public static void ConsumeEngine(owned Engine e)
+    {
+        e.Rev(1000);
+        Console.WriteLine($"[move] consumed={e.Describe()}");
+    }
+
+    public static void Run()
+    {
+        // Move owned → owned
+        owned var e1 = new Engine(3000, 100);
+        owned var e2 = e1;
+        // e1 is now dead
+        Console.WriteLine($"[move] after owned-to-owned={e2.Describe()}");
+
+        // Move owned → unrestricted
+        owned var e3 = new Engine(4000, 110);
+        var e4 = e3;
+        // e3 is now dead, e4 holds value without ownership tracking
+        Console.WriteLine($"[move] after owned-to-unrestricted={e4.Describe()}");
+
+        // Move into function parameter
+        owned var e5 = new Engine(5000, 120);
+        ConsumeEngine(e5);
+        // e5 is now dead
+        Console.WriteLine($"[move] transfer complete");
+    }
+}
+
+// ─── default as an owned source ───────────────────────────────────────────────
+
+// PROOF: default(T) produces a fresh unique graph — valid owned source
+// PROOF: bare `default` with an explicitly-typed owned LHS also yields ownership
+// PROOF: each default produces an independent instance (no shared aliasing)
+public class DefaultDemo
+{
+    public static void Run()
+    {
+        // Explicit default(T) into an owned binding
+        owned var e1 = default(Engine);
+        Console.WriteLine($"[default] explicit default(T)={e1.Describe()}");
+
+        // Bare default with explicitly-typed owned LHS
+        owned Engine e2 = default;
+        Console.WriteLine($"[default] bare default={e2.Describe()}");
+
+        // default produces a fresh graph — e1 and e2 are independent.
+        // Mutating e1 does not affect e2 (proves no shared default instance).
+        e1.Rev(100);
+        Console.WriteLine($"[default] e1 after rev={e1.Describe()}");
+        Console.WriteLine($"[default] e2 unaffected={e2.Describe()}");
+    }
+}
+
+// ─── Main orchestrator ────────────────────────────────────────────────────────
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("--- Ownership ---");
+        NonOwnedBindingDemo.Run();
+        OwnedTypeBindingDemo.Run();
+        ProvenanceDemo.Run();
+        ClonableDemo.Run();
+        CloneFromLentDemo.Run();
+        LendingDemo.Run();
+        AliasingDemo.Run();
+        ValueTypeTiersDemo.Run();
+        BorrowedRecipientDemo.Run();
+        TruthTableDemo.Run();
+        MoveDemo.Run();
+        DefaultDemo.Run();
+        Console.WriteLine("--- Ownership V2 Done ---");
+    }
+}

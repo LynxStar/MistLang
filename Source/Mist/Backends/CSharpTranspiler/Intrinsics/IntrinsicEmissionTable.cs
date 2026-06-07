@@ -200,6 +200,24 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
         dict["Standard.Regex:IsFullMatch(Standard.String)"] = new IntrinsicEmissionTemplate(
             "System.Text.RegularExpressions.Regex.IsMatch({1}, \"^(?:\" + {0}.ToString() + \")$\")");
         dict["Standard.Regex:Pattern()"] = new IntrinsicEmissionTemplate("{0}.ToString()");
+
+        // IClonable<T>.Clone() intrinsics for bootstrap types (Req 8 AC 6, task 12.1).
+        // Value types: Clone() is an identity copy (the value is already independent).
+        // String: immutable reference, Clone() returns the same reference (observationally independent).
+        dict["Standard.Int32:Clone()"] = new IntrinsicEmissionTemplate("{0}");
+        dict["Standard.Int64:Clone()"] = new IntrinsicEmissionTemplate("{0}");
+        dict["Standard.Int16:Clone()"] = new IntrinsicEmissionTemplate("{0}");
+        dict["Standard.UInt32:Clone()"] = new IntrinsicEmissionTemplate("{0}");
+        dict["Standard.UInt64:Clone()"] = new IntrinsicEmissionTemplate("{0}");
+        dict["Standard.UInt16:Clone()"] = new IntrinsicEmissionTemplate("{0}");
+        dict["Standard.Byte:Clone()"] = new IntrinsicEmissionTemplate("{0}");
+        dict["Standard.SByte:Clone()"] = new IntrinsicEmissionTemplate("{0}");
+        dict["Standard.Single:Clone()"] = new IntrinsicEmissionTemplate("{0}");
+        dict["Standard.Double:Clone()"] = new IntrinsicEmissionTemplate("{0}");
+        dict["Standard.Decimal:Clone()"] = new IntrinsicEmissionTemplate("{0}");
+        dict["Standard.Boolean:Clone()"] = new IntrinsicEmissionTemplate("{0}");
+        dict["Standard.Char:Clone()"] = new IntrinsicEmissionTemplate("{0}");
+        dict["Standard.String:Clone()"] = new IntrinsicEmissionTemplate("{0}");
     }
 
     /// <summary>

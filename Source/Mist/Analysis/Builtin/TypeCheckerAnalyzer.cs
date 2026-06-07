@@ -12782,23 +12782,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (target is not IdentifierExpressionPrimaryNode identifier)
             return false;
 
-        var name = identifier.Name.Lexeme;
-
-        // Check if any symbol with this name is a variable, parameter, or field.
-        // If so, the identifier refers to an instance, not a type name.
-        foreach (var symbol in model.AllSymbols)
+        // Check the resolved symbol for this identifier expression. The semantic model
+        // registers usage-site bindings during name resolution, so GetDeclaredSymbol
+        // returns the symbol the identifier was bound to (field, variable, type, etc.).
+        // Fields/variables/parameters indicate an instance; class/struct/enum indicate a type name.
+        var resolvedSymbol = model.GetDeclaredSymbol(target);
+        if (resolvedSymbol is not null)
         {
-            if (symbol.Name == name)
-            {
-                if (symbol.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter or SymbolKind.Field)
-                {
-                    return false;
-                }
-                if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Enum)
-                {
-                    return true;
-                }
-            }
+            return resolvedSymbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Enum;
         }
 
         // Fallback: check the expression type for ambient types (e.g. Console)

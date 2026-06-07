@@ -412,7 +412,13 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 continue;
 
             // An owned specifier on a field declaration is a hard error under v2.
-            if (fieldDecl.OwnershipSpecifier is not OwnedSpecifierOwnershipSpecifierNode)
+            // The parser may capture 'owned' either as an OwnershipSpecifier
+            // (OwnedSpecifierOwnershipSpecifierNode) or as a Modifier
+            // (OwnedModifierModifierNode) depending on position in the source.
+            var hasOwnedSpecifier = fieldDecl.OwnershipSpecifier is OwnedSpecifierOwnershipSpecifierNode;
+            var hasOwnedModifier = fieldDecl.Modifiers.Any(m => m is OwnedModifierModifierNode);
+
+            if (!hasOwnedSpecifier && !hasOwnedModifier)
                 continue;
 
             diagnostics.Add(MakeDiagnostic(
@@ -430,15 +436,58 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// (<c>linear</c>/<c>affine</c>/<c>relevant</c>) — emitting
     /// <c>MIST_OWN_SUBSTRUCTURAL_BINDING</c> (Req 1 AC 4, Req 13 AC 8).
     /// <para>
-    /// Stub for task 8.1: the orchestrator wires the pass in; task 9.1 implements the body.
+    /// Substructural types manage their own usage discipline via drop semantics; layering
+    /// <c>owned</c> binding tracking on top is neither necessary nor sound. Non-substructural
+    /// types (unrestricted or <c>owned</c>) are accepted, subject to provenance.
     /// </para>
     /// </summary>
     private static void RejectOwnedBindingOnSubstructuralTypes(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        // TODO(task 9.1): walk owned bindings and emit MIST_OWN_SUBSTRUCTURAL_BINDING for
-        // bindings of linear/affine/relevant types.
-        _ = model;
-        _ = diagnostics;
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Origin != SymbolOrigin.UserCode)
+                continue;
+
+            if (symbol.Kind is not (SymbolKind.LocalVariable or SymbolKind.Parameter))
+                continue;
+
+            if (symbol is not Symbol sym || sym.OwnershipTier != OwnershipTier.Owned)
+                continue;
+
+            var declaredType = symbol.DeclaredType;
+            if (declaredType is null)
+                continue;
+
+            var discipline = GetDisciplineForType(declaredType);
+            if (discipline is SubstructuralDiscipline.None)
+                continue;
+
+            // The type is linear, affine, or relevant — reject the owned binding.
+            SyntaxNode declaringNode;
+            try { declaringNode = model.GetDeclaringNode(symbol); }
+            catch { continue; }
+
+            diagnostics.Add(MakeDiagnostic(
+                SubstructuralBinding,
+                SubstructuralBindingMessage(symbol.Name, declaredType.DisplayName),
+                declaringNode,
+                model));
+        }
+    }
+
+    /// <summary>
+    /// Returns the <see cref="SubstructuralDiscipline"/> of a type, resolving through
+    /// <see cref="ConstructedType"/> to its generic definition if necessary.
+    /// </summary>
+    private static SubstructuralDiscipline GetDisciplineForType(IType type)
+    {
+        var resolved = type is ConstructedType constructed ? constructed.GenericDefinition : type;
+        return resolved switch
+        {
+            ClassType ct => ct.Discipline,
+            StructType st => st.Discipline,
+            _ => SubstructuralDiscipline.None,
+        };
     }
 
     // ── Pass C support: enumerate owned types ─────────────────────────────
@@ -446,6 +495,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// <summary>
     /// Enumerates the declared types (classes and structs) in user code that are declared
     /// <c>owned</c> — the inputs to the cooperation contract verifier (Req 5).
+    /// Substructural types (linear, affine, relevant) inherit IsOwnedType for method
+    /// visibility purposes but are excluded from the cooperation contract — they manage
+    /// their own lifetime discipline independently.
     /// </summary>
     private static IEnumerable<IType> OwnedTypes(ISemanticModel model)
     {
@@ -461,9 +513,30 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             if (declaredType is null)
                 continue;
 
-            if (IsOwnedType(declaredType))
-                yield return declaredType;
+            if (!IsOwnedType(declaredType))
+                continue;
+
+            // Substructural types (linear/affine/relevant) inherit IsOwnedType but are
+            // not subject to the cooperation contract — their own discipline governs them.
+            if (IsSubstructural(declaredType))
+                continue;
+
+            yield return declaredType;
         }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the type has a substructural discipline (linear, affine, or relevant).
+    /// </summary>
+    private static bool IsSubstructural(IType type)
+    {
+        var resolved = type is ConstructedType constructed ? constructed.GenericDefinition : type;
+        return resolved switch
+        {
+            ClassType ct => ct.Discipline is not SubstructuralDiscipline.None,
+            StructType st => st.Discipline is not SubstructuralDiscipline.None,
+            _ => false
+        };
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -634,6 +707,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             {
                 // Check the initializer for use-after-move before processing the move.
                 CheckExpressionForUseAfterMove(typed.Initializer, state, model, diagnostics);
+
+                // Check the initializer for method/constructor calls that take owned parameters.
+                CheckMethodCallsForMoves(typed.Initializer, state, model, diagnostics, isLoop);
 
                 // Get the declared variable symbol.
                 var declaredSymbol = model.GetDeclaredSymbol(typed);
@@ -822,6 +898,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             {
                 // Check the initializer for use-after-move.
                 CheckExpressionForUseAfterMove(inferred.Initializer, state, model, diagnostics);
+
+                // Check the initializer for method/constructor calls that take owned parameters.
+                CheckMethodCallsForMoves(inferred.Initializer, state, model, diagnostics, isLoop);
 
                 // Get the declared variable symbol.
                 var declaredSymbol = model.GetDeclaredSymbol(inferred);
@@ -1438,6 +1517,12 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             }
         }
 
+        // Check constructor calls (new T(...)) for owned parameter passing.
+        if (node is ObjectCreationExpressionPrimaryNode objectCreation)
+        {
+            CheckConstructorArgumentsForMoves(objectCreation, state, model, diagnostics);
+        }
+
         // Recursively check children.
         foreach (var child in node.Children())
         {
@@ -1500,9 +1585,12 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         state,
                         model,
                         diagnostics);
+                    // Skip lending compatibility — the resolver fully validates owned-parameter passing
+                    // including implicit cloning for non-owned clonable sources (Req 6 AC 9).
+                    continue;
                 }
 
-                // Check lending compatibility for all tier combinations.
+                // Check lending compatibility for non-owned tier combinations.
                 CheckLendingCompatibility(argExprs[i], paramSym, state, model, diagnostics);
             }
         }
@@ -1567,15 +1655,111 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         state,
                         model,
                         diagnostics);
+                    // Skip lending compatibility — the resolver fully validates owned-parameter passing.
+                    continue;
                 }
 
-                // Check lending compatibility for all tier combinations.
+                // Check lending compatibility for non-owned tier combinations.
                 CheckLendingCompatibility(argExprs[i], paramSym, state, model, diagnostics);
             }
         }
 
         // Check ref exclusivity: same variable passed to multiple ref parameters.
         CheckRefExclusivity(argExprs, paramSymbols, model, diagnostics);
+    }
+
+    /// <summary>
+    /// Checks arguments of a constructor call (<c>new T(...)</c>) for owned parameter passing
+    /// (moves) and lending compatibility violations.
+    /// </summary>
+    private void CheckConstructorArgumentsForMoves(
+        ObjectCreationExpressionPrimaryNode objectCreation,
+        MethodFlowState state,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        if (objectCreation.Arguments is null)
+            return;
+
+        // Resolve the type being constructed and find the matching constructor.
+        var createdType = model.GetTypeOf(objectCreation);
+        if (createdType is null)
+            return;
+
+        // Unwrap constructed types to get the definition.
+        var resolvedType = createdType is ConstructedType ct ? ct.GenericDefinition : createdType;
+
+        IScope? memberScope = resolvedType switch
+        {
+            ClassType cct => cct.MemberScope,
+            StructType sst => sst.MemberScope,
+            _ => null,
+        };
+
+        if (memberScope is null)
+            return;
+
+        // Find constructor symbols.
+        var argExprs = CollectArgumentExpressions(objectCreation.Arguments);
+        var argCount = argExprs.Count;
+
+        ISymbol? matchedCtor = null;
+        foreach (var member in memberScope.Members)
+        {
+            if (member.Kind != SymbolKind.Constructor)
+                continue;
+
+            // Get the constructor's declaring node to count parameters.
+            SyntaxNode ctorDeclNode;
+            try { ctorDeclNode = model.GetDeclaringNode(member); }
+            catch { continue; }
+
+            var ctorParams = GetParameterSymbols(ctorDeclNode, model);
+            if (ctorParams is not null && ctorParams.Count == argCount)
+            {
+                matchedCtor = member;
+                break;
+            }
+        }
+
+        if (matchedCtor is null)
+            return;
+
+        // Get parameter symbols from the matched constructor.
+        SyntaxNode declNode;
+        try { declNode = model.GetDeclaringNode(matchedCtor); }
+        catch { return; }
+
+        var paramSymbols = GetParameterSymbols(declNode, model);
+        if (paramSymbols is null)
+            return;
+
+        var count = Math.Min(paramSymbols.Count, argExprs.Count);
+        for (var i = 0; i < count; i++)
+        {
+            if (paramSymbols[i] is Symbol paramSym)
+            {
+                if (paramSym.RefKind != RefKind.None)
+                    continue;
+
+                if (paramSym.OwnershipTier == OwnershipTier.Owned)
+                {
+                    // Owned parameter pass: route through the move boundary.
+                    _resolver.Resolve(
+                        argExprs[i],
+                        paramSym.DeclaredType,
+                        OwnedMoveSite.OwnedParameterPass,
+                        state,
+                        model,
+                        diagnostics);
+                    // Skip lending compatibility — the resolver fully validates owned-parameter passing.
+                    continue;
+                }
+
+                // Check lending compatibility for non-owned tier combinations.
+                CheckLendingCompatibility(argExprs[i], paramSym, state, model, diagnostics);
+            }
+        }
     }
 
     // ── Lending compatibility ────────────────────────────────────────────
@@ -2227,6 +2411,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             MethodDeclarationNode m => m.Parameters,
             InterfaceMethodDeclarationNode im => im.Parameters,
             TraitMethodDeclarationNode tm => tm.Parameters,
+            ConstructorDeclarationNode c => c.Parameters,
             _ => null,
         };
 

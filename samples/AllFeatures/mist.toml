@@ -33,8 +33,7 @@ EnumReadonlyRestriction = { path = "../EnumReadonlyRestriction" }
 RegexLiterals = { path = "../RegexLiterals" }
 StructuredContext = { path = "../StructuredContext" }
 AdhocRefinementConstraints = { path = "../AdhocRefinementConstraints" }
-OwnershipSystem = { path = "../OwnershipSystem" }
-DeepOwnershipTypes = { path = "../DeepOwnershipTypes" }
+
 RefParameters = { path = "../RefParameters" }
 NestedScoping = { path = "../NestedScoping" }
 RefinementComparison = { path = "../RefinementComparison" }
@@ -58,3 +57,4 @@ FirstClassFunctions = { path = "../FirstClassFunctions" }
 VoidValueLiteral = { path = "../VoidValueLiteral" }
 DropSemantics = { path = "../DropSemantics" }
 AsyncDropChaining = { path = "../AsyncDropChaining" }
+Ownership = { path = "../Ownership" }

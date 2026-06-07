@@ -909,101 +909,6 @@ Done!
   WeakerProcessor.Process(50) accepted (weaker constraint >= 0)
   WeakerProcessor.Process(10) accepted (weaker constraint >= 0)
 === Adhoc Refinement Constraints Done ===
---- Ownership System ---
-[unrestricted] c1=Counter(11), c2=Counter(11)
-[unrestricted] aliased=True
-[readonly-ref] pair sum=10
-[readonly-ref] after mutation=Pair(100, 7)
-[frozen] frozen sum=15
-[frozen] after thaw=Pair(50, 10)
-[borrowed] mutated=Pair(999, 2)
-[borrowed] owner after return=Pair(999, 2)
-[readonly-ref] pair sum=1001
-[borrowed] after re-lend=Pair(42, 2)
-[borrowed] owner final=Pair(42, 2)
-[owned-move] before move=Counter(1)
-[owned-move] after move to c2=Counter(2)
-[owned-move] consumed=Counter(4)
-[owned-move] transfer complete
-[owned-type] handle=UniqueHandle(Id=42, RefCount=2)
-[owned-type] container=OwnedContainer(Tag=7, Handle=UniqueHandle(Id=99, RefCount=1))
-[owned-type] consumed handle=UniqueHandle(Id=100, RefCount=2)
-[owned-type] moved handle to function
-[lending] readonly ref received=Pair(1, 1)
-[lending] frozen received=Pair(2, 2)
-[lending] borrowed received=Pair(3, 3)
-[lending] owned received=Pair(4, 4)
-[lending] readonly ref received=Pair(5, 5)
-[lending] all permitted pairs passed
-[value-type] readonly ref vec=Vec2(3, 4)
-[value-type] frozen vec=Vec2(3, 4)
-[value-type] borrowed vec=Vec2(3, 4)
-[value-type] owned vec=Vec2(3, 4)
-[value-type] original after all passes=Vec2(3, 4)
-[tier-transition] owned before downgrade=Pair(10, 20)
-[tier-transition] after downgrade=Pair(500, 20)
-[tier-transition] unrestricted received=Pair(777, 20)
-[tier-transition] after unrestricted pass=Pair(777, 20)
---- Ownership System Done ---
---- Deep Ownership Types ---
-[owned-type-fields] sensor id=1, reading=100
-[owned-type-fields] after mutation=Sensor(Id=1, Reading=200)
-[primitive-bootstrap] id=42, reading=999
-[primitive-bootstrap] sum=1041
-[nested-owned] pair=SensorPair(Label=7, Left=Sensor(Id=1, Reading=10), Right=Sensor(Id=2, Reading=20))
-[nested-owned] combined=30
-[ownership-inference] point=Point(3, 4), sum=7
-[ownership-inference] accepted owned point=Point(10, 20)
-[ownership-inference] location=Location(Position=Point(5, 6), Altitude=100)
-[owned-binding-move] before move=Sensor(Id=10, Reading=500)
-[owned-binding-move] after move to s2=Sensor(Id=10, Reading=600)
-[owned-binding-move] after move to unrestricted=Sensor(Id=10, Reading=600)
-[move-into-function] before=Sensor(Id=5, Reading=50)
-[move-into-function] consumed=Sensor(Id=5, Reading=1050)
-[move-into-function] transfer complete
-[unrestricted-owned] read=700
-[unrestricted-owned] after write=Sensor(Id=7, Reading=800)
-[unrestricted-owned] readonly ref reading=800
-[unrestricted-owned] readonly ref permitted
-[semantic-shift] unrestricted binding=Sensor(Id=8, Reading=800)
-[semantic-shift] unrestricted param received=Sensor(Id=8, Reading=999)
-[semantic-shift] after unrestricted pass=Sensor(Id=8, Reading=999)
-[semantic-shift] owned binding=Sensor(Id=9, Reading=900)
-[lending-tiers] readonly ref=Sensor(Id=20, Reading=200)
-[lending-tiers] after readonly ref=Sensor(Id=20, Reading=200)
-[lending-tiers] frozen=Sensor(Id=21, Reading=210)
-[lending-tiers] after frozen=Sensor(Id=21, Reading=220)
-[lending-tiers] borrowed mutated=Sensor(Id=22, Reading=221)
-[lending-tiers] after borrowed=Sensor(Id=22, Reading=221)
-[truth-table-live] read=300
-[truth-table-live] write=301
-[truth-table-live] live view reading=301
-[truth-table-live] freeze reading=310
-[truth-table-live] borrow reading=320
-[truth-table-live] move reading=330
-[truth-table-lentreadonly] ref view=400
-[truth-table-lentreadonly] read=400
-[truth-table-lentreadonly] write=401
-[truth-table-live] live view reading=401
-[truth-table-lentreadonly] live view permitted
-[lending-tiers] frozen=Sensor(Id=40, Reading=401)
-[truth-table-lentreadonly] freeze permitted
-[truth-table-lentfrozen] frozen view=500
-[truth-table-lentfrozen] read=500
-[truth-table-live] live view reading=500
-[truth-table-lentfrozen] live view permitted
-[lending-tiers] frozen=Sensor(Id=50, Reading=500)
-[truth-table-lentfrozen] freeze permitted
-[borrowed-recipient] read=600
-[borrowed-recipient] write=700
-[lending-tiers] readonly ref=Sensor(Id=60, Reading=700)
-[borrowed-recipient] re-lent as readonly ref
-[lending-tiers] frozen=Sensor(Id=60, Reading=700)
-[borrowed-recipient] re-lent as frozen
-[borrowed-recipient] re-lent borrowed reading=700
-[borrowed-recipient] re-lent as borrowed
-[borrowed-recipient] owner after return=Sensor(Id=60, Reading=700)
---- Deep Ownership Types Done ---
 --- Ref Parameters ---
 [ref-param-struct] before: Point(1, 2)
 [ref-param-struct] after: Point(100, 200)
@@ -1489,4 +1394,69 @@ absent ?? 42: 42
   ResourceHandle(captured).Drop() called
   explicit capture completed
 === AsyncDropChaining Done ===
+--- Ownership ---
+[non-owned-binding] readonly method=10
+[non-owned-binding] describe=Widget(10, alpha)
+[non-owned-binding] field from method=Widget(10, label-1)
+[non-owned-binding] field from move=Widget(10, label-2)
+[non-owned-binding] field from clone=Widget(10, shared-label)
+[non-owned-binding] shared still usable=shared-label
+[non-owned-binding] after move=Widget(10, shared-label)
+[non-owned-binding] unrestricted mutable call=Widget(99, shared)
+[owned-type-binding] initial=Engine(Rpm=1000, Temp=80)
+[owned-type-binding] after rev=Engine(Rpm=1500, Temp=130)
+[owned-type-binding] after second rev=Engine(Rpm=1700, Temp=150)
+[owned-type-binding] getRpm=1700
+[provenance] initial=Container(Inner=Widget(1, first))
+[provenance] after replace=Container(Inner=Widget(2, second))
+[provenance] c2=Container(Inner=Widget(3, third))
+[iclonable] shared=Config(Timeout=30, Host=localhost)
+[iclonable] cloned=Config(Timeout=30, Host=localhost)
+[iclonable] shared after modify=Config(Timeout=60, Host=localhost)
+[iclonable] clone unaffected=Config(Timeout=30, Host=localhost)
+[iclonable] implicit clone=Config(Timeout=60, Host=localhost)
+[iclonable] shared after second modify=Config(Timeout=90, Host=localhost)
+[iclonable] implicit clone unaffected=Config(Timeout=60, Host=localhost)
+[iclonable] vault from shared=Vault(Setting=Config(Timeout=90, Host=localhost))
+[iclonable] shared after host change=Config(Timeout=90, Host=remote)
+[iclonable] vault unaffected=Vault(Setting=Config(Timeout=90, Host=localhost))
+[iclonable] vault after replace=Vault(Setting=Config(Timeout=90, Host=remote))
+[clone-lent] from borrowed=Config(Timeout=15, Host=origin)
+[clone-lent] from frozen=Config(Timeout=15, Host=origin)
+[clone-lent] from readonly ref=Config(Timeout=15, Host=origin)
+[clone-lent] original intact=Config(Timeout=15, Host=origin)
+[lending] readonly ref=Engine(Rpm=2000, Temp=90)
+[lending] after readonly=Engine(Rpm=2000, Temp=90)
+[lending] frozen=Engine(Rpm=2000, Temp=90)
+[lending] after frozen+rev=Engine(Rpm=2050, Temp=95)
+[lending] borrowed mutated=Engine(Rpm=2150, Temp=105)
+[lending] after borrowed=Engine(Rpm=2150, Temp=105)
+[aliasing] a=Widget(42, aliased)
+[aliasing] b=Widget(42, aliased)
+[aliasing] same object=True
+[value-tiers] readonly ref=Vec2(3, 4)
+[value-tiers] frozen=Vec2(3, 4)
+[value-tiers] borrowed=Vec2(3, 4)
+[value-tiers] owned=Vec2(3, 4)
+[value-tiers] original intact=Vec2(3, 4)
+[borrowed-recipient] read=700
+[borrowed-recipient] write=Engine(Rpm=800, Temp=80)
+[borrowed-recipient] re-lent readonly=Engine(Rpm=800, Temp=80)
+[borrowed-recipient] re-lent frozen=Engine(Rpm=800, Temp=80)
+[borrowed-recipient] re-lent borrowed mutated=Engine(Rpm=810, Temp=81)
+[borrowed-recipient] owner after return=Engine(Rpm=810, Temp=81)
+[truth-table] live read=1000
+[truth-table] live write=Engine(Rpm=1100, Temp=110)
+[truth-table] view=1100
+[truth-table] freeze=1100
+[truth-table] after frozen returns, write=Engine(Rpm=1150, Temp=115)
+[move] after owned-to-owned=Engine(Rpm=3000, Temp=100)
+[move] after owned-to-unrestricted=Engine(Rpm=4000, Temp=110)
+[move] consumed=Engine(Rpm=6000, Temp=220)
+[move] transfer complete
+[default] explicit default(T)=Engine(Rpm=0, Temp=0)
+[default] bare default=Engine(Rpm=0, Temp=0)
+[default] e1 after rev=Engine(Rpm=100, Temp=10)
+[default] e2 unaffected=Engine(Rpm=0, Temp=0)
+--- Ownership V2 Done ---
 === Done! ===

@@ -310,8 +310,9 @@ public class OwnershipErasurePropertyTests
     }
 
     /// <summary>
-    /// Generates a program with an owned field and its equivalent without.
-    /// The field's type must be an owned type to satisfy Pass 2c validation.
+    /// Generates a program with a field of an owned type (no owned-field modifier — v2
+    /// removed it) and its equivalent without the owned type modifier. This verifies that
+    /// the <c>owned</c> type keyword is erased in emitted C# while fields remain plain.
     /// </summary>
     private static Gen<ErasureScenario> GenOwnedFieldScenario()
     {
@@ -322,7 +323,7 @@ public class OwnershipErasurePropertyTests
                        int amount;
                    }
                    class Holder {
-                       owned {{typeName}} {{fieldName}};
+                       {{typeName}} {{fieldName}};
                    }
                    class Program {
                        public static void Main() {
@@ -342,7 +343,7 @@ public class OwnershipErasurePropertyTests
                    }
                    """
                select new ErasureScenario(withOwnership, withoutOwnership,
-                   $"owned field: owned {typeName} {fieldName}");
+                   $"owned type field: owned class {typeName}, field {fieldName}");
     }
 
     /// <summary>

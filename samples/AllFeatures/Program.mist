@@ -44,8 +44,7 @@ public class Program
         RegexLiterals.Program.RunDemo();
         StructuredContext.Program.RunDemo();
         AdhocRefinementConstraints.Program.RunDemo();
-        OwnershipSystem.Program.RunDemo();
-        DeepOwnershipTypes.Program.RunDemo();
+
         RefParameters.Program.RunDemo();
         NestedScoping.Program.RunDemo();
         RefinementComparison.Program.RunDemo();
@@ -68,6 +67,7 @@ public class Program
         VoidValueLiteral.Program.RunDemo();
         DropSemantics.Program.RunDemo();
         AsyncDropChaining.Program.RunDemo();
+        Ownership.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

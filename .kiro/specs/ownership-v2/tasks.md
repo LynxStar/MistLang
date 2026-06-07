@@ -47,7 +47,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (stdlib at `Source/
     - All-clonable fields (derives), one non-clonable field (does not derive), recursive struct-of-structs, explicit declaration overrides
     - _Requirements: 8.6, 8.7_
 
-- [ ] 4. `MoveBoundaryResolver` — the single enforcement point
+- [x] 4. `MoveBoundaryResolver` — the single enforcement point
   - [x] 4.1 Implement `MoveBoundaryResolver` and its result types
     - Add `Source/Mist/Analysis/Builtin/MoveBoundaryResolver.cs` with `Resolve(source, destinationType, site, flowState, model, diagnostics)`, the `OwnedMoveSite` enum (`OwnedBindingInit`, `OwnedFieldAssignment`, `OwnedParameterPass`), the `MoveResolution` record, and the `MoveOutcome` enum (`MovedFromOwned`, `ValueCopy`, `ImplicitClone`, `DefaultGraph`, `Error`)
     - Implement the resolution algorithm in order: (1) `default(T)`/bare `default` → `DefaultGraph`; (2) value/primitive type → `ValueCopy`; (3) already-owned source (constructor call, owned-returning call, live owned binding) → `MovedFromOwned`, guarded by the truth table (reject move from LentRef/LentFrozen/LentReadonly/Moved); (4) non-owned source implementing `IClonable<T>` → `ImplicitClone` (cloning from a lent tier does NOT transition the lender's state); (5) otherwise → `Error` emitting `MIST_OWN_REQUIRES_OWNED` or `MIST_OWN_NOT_CLONABLE`
@@ -85,7 +85,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (stdlib at `Source/
     - For all owned destinations of type T, both `default(T)` and bare `default` (typed LHS) resolve as `DefaultGraph` and are accepted
     - **Validates: Requirements 6.10**
 
-  - [ ] 4.8 Write unit tests for the resolver decision matrix
+  - [x] 4.8 Write unit tests for the resolver decision matrix
     - Table-driven `[Theory]`/`[InlineData]` over (source kind × site × clonability) asserting the `MoveOutcome`
     - _Requirements: 6.9, 4.3, 4.4_
 
@@ -106,14 +106,14 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (stdlib at `Source/
     - Explicit `[Theory]`/`[InlineData]` for each row of the decision table
     - _Requirements: 2.1, 2.2, 2.4, 3.1_
 
-- [ ] 6. `CooperationContractVerifier`
+- [x] 6. `CooperationContractVerifier`
   - [x] 6.1 Implement `CooperationContractVerifier`
     - Add `Source/Mist/Analysis/Builtin/CooperationContractVerifier.cs` with `Verify(ownedType, resolver, model, diagnostics)`
     - For each method/constructor of an `owned` type, find assignments `this.Field = <source>` and route each source through `MoveBoundaryResolver.Resolve(..., OwnedFieldAssignment)`; on `Error`, emit `MIST_OWN_CONTRACT_VIOLATION` naming the method, field, and non-owned source
     - Reject static/global reads as sources (they fall through the resolver to `Error`) per design LD-2
     - _Requirements: 5.3, 5.4, 13.4, 13.5_
 
-  - [ ] 6.2 Write property test for cooperation contract soundness
+  - [x] 6.2 Write property test for cooperation contract soundness
     - **Property 8: Cooperation contract soundness**
     - For all owned types T, T compiles ⟺ every field assignment in T's methods/ctors resolves as a non-error owned move
     - In-process `CompilerDriver.Compile()`, inspect diagnostics
@@ -123,56 +123,56 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (stdlib at `Source/
     - Compliant bodies (owned params, constructor calls, clone), violating bodies (non-owned param, static read)
     - _Requirements: 5.4, 13.4, 13.5_
 
-- [ ] 7. Checkpoint - new components build and unit/property tests pass
+- [x] 7. Checkpoint - new components build and unit/property tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 8. Rewrite `OwnershipAnalyzer` orchestrator and remove v1 passes
+- [x] 8. Rewrite `OwnershipAnalyzer` orchestrator and remove v1 passes
   - [x] 8.1 Rewrite the `OwnershipAnalyzer` orchestrator
     - Rewrite `Source/Mist/Analysis/Builtin/OwnershipAnalyzer.cs` to keep `AnalyzerId => "OWNERSHIP"` and orchestrate the collaborators in passes: Pass A `RejectOwnedOnInterfacesAndTraits` (Req 5.6), Pass B `RejectOwnedFieldModifier` (Req 11), Pass B2 `RejectOwnedBindingOnSubstructuralTypes` (handled in task 9), Pass C cooperation contract over owned types, Pass D flow-sensitive analysis delegating move sites to `MoveBoundaryResolver` and method calls to `MethodTierVisibilityFilter`
     - **Delete** v1 logic in the same change: `ValidateOwnedBindingTypes` "type must be owned" check, `ValidateOwnedFieldModifiers` (Pass 2c), `ValidateNonStorability` owned-type-field application, `SatisfiesOwnedTypeFieldRestriction`, and the field-restriction loop in `ValidateOwnedTypeDeclarations` (keep the interface/trait rejection, relocated to `RejectOwnedOnInterfacesAndTraits`)
     - Retain the truth-table machinery verbatim (`TruthTable`, `MethodFlowState`, `VariableOwnershipState`, `AccessKind`)
     - _Requirements: 1.3, 2.3, 3.2, 5.6, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 7.1, 7.2, 7.3, 7.4, 7.5, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 10.1, 10.3, 10.4, 12.1, 12.2, 12.3, 12.4_
 
-  - [ ] 8.2 Remove the `MIST_OWN_FIELD_NOT_OWNED` and structural `MIST_OWN_TYPE_REQUIRES_OWNED` diagnostics
+  - [x] 8.2 Remove the `MIST_OWN_FIELD_NOT_OWNED` and structural `MIST_OWN_TYPE_REQUIRES_OWNED` diagnostics
     - Delete the `MIST_OWN_FIELD_NOT_OWNED` diagnostic id, message definition, and all references (do NOT touch `MIST_DROP_FIELD_NOT_OWNED` in `DropAnalyzer.cs` — out of scope)
     - Delete the `MIST_OWN_TYPE_REQUIRES_OWNED` structural-eligibility diagnostic id, message, and references
     - Remove any struct ownership inference engine artifacts (Req 12.1)
     - _Requirements: 10.2, 10.3, 11.3, 12.1_
 
-  - [ ] 8.3 Write property test: truth table preserved
+  - [x] 8.3 Write property test: truth table preserved
     - **Property 9: Truth table preserved**
     - For all states s and actions a, v2's permitted(s, a) == the v1 truth table value
     - In-process semantic-model inspection
     - **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5**
 
-  - [ ] 8.4 Write unit tests asserting removed diagnostics never fire
+  - [x] 8.4 Write unit tests asserting removed diagnostics never fire
     - Assert `MIST_OWN_FIELD_NOT_OWNED` and structural `MIST_OWN_TYPE_REQUIRES_OWNED` are never emitted for owned types with non-owned fields or owned bindings of non-owned types
     - _Requirements: 10.2, 10.3, 10.4_
 
-  - [ ] 8.5 Write unit tests for lending tier integration
+  - [x] 8.5 Write unit tests for lending tier integration
     - Owned binding lent as borrowed/frozen/readonly ref transitions correctly; unrestricted binding to borrowed/frozen rejected; double-lend rejected; frozen-while-frozen allowed, borrow/move rejected
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8_
 
-- [ ] 9. Substructural restriction on owned bindings
-  - [ ] 9.1 Implement `RejectOwnedBindingOnSubstructuralTypes`
+- [x] 9. Substructural restriction on owned bindings
+  - [x] 9.1 Implement `RejectOwnedBindingOnSubstructuralTypes`
     - In the `OwnershipAnalyzer` Pass B2, reject the `owned` binding specifier applied to a `linear`, `affine`, or `relevant` type, emitting `MIST_OWN_SUBSTRUCTURAL_BINDING` naming the binding and substructural type
     - Accept owned bindings of non-substructural types (unrestricted or `owned`), subject to provenance
     - _Requirements: 1.4, 13.8_
 
-  - [ ] 9.2 Write property test for substructural rejection
+  - [x] 9.2 Write property test for substructural rejection
     - **Property 13: Owned binding rejects substructural types**
     - For all `linear`/`affine`/`relevant` types T, `owned` binding of T → `MIST_OWN_SUBSTRUCTURAL_BINDING`; for all non-substructural types, permitted
     - In-process `CompilerDriver.Compile()`, inspect diagnostics
     - **Validates: Requirements 1.3, 1.4**
 
-- [ ] 10. Grammar and owned-field-modifier hard error
-  - [ ] 10.1 Remove/hard-error the `owned` field modifier
+- [x] 10. Grammar and owned-field-modifier hard error
+  - [x] 10.1 Remove/hard-error the `owned` field modifier
     - In `Source/Mist/Grammar/Mist.storm`, evaluate dropping the owned alternative from `FieldDeclaration` (preserve `frozen`/`borrowed`/`readonly ref` field tiers); if clean grammar removal is not feasible without regeneration impact, keep parsing it syntactically and reject in `RejectOwnedFieldModifier`
     - Implement `RejectOwnedFieldModifier` to emit the hard error `MIST_OWN_FIELD_MODIFIER_REMOVED` (no warning, no silent acceptance) when an `owned` specifier appears on a field declaration
     - Regenerate grammar artifacts if `Mist.storm` changed
     - _Requirements: 11.1, 11.2, 13.6, 19.1, 19.2_
 
-  - [ ] 10.2 Write unit tests for the owned-field-modifier hard error
+  - [x] 10.2 Write unit tests for the owned-field-modifier hard error
     - Assert `owned MyClass data;` as a field produces `MIST_OWN_FIELD_MODIFIER_REMOVED` (error, not warning)
     - _Requirements: 11.2, 13.6, 19.2_
 
@@ -186,52 +186,52 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (stdlib at `Source/
     - One test per diagnostic exercising the error scenario and asserting the id and key message tokens
     - _Requirements: 13.1, 13.2, 13.4, 13.7, 13.8_
 
-- [ ] 12. C# emitter: `.Clone()` insertion and ownership erasure
-  - [ ] 12.1 Emit `.Clone()` at resolver-marked clone sites and confirm erasure
+- [x] 12. C# emitter: `.Clone()` insertion and ownership erasure
+  - [x] 12.1 Emit `.Clone()` at resolver-marked clone sites and confirm erasure
     - In `Source/Mist/Backends/CSharpTranspiler/CSharpEmitter.cs`, read the `ImplicitClone` annotations recorded by `MoveBoundaryResolver` and emit an explicit `.Clone()` call at the assignment/argument site; apply pure-struct optimization (elide `.Clone()` for value types whose copy semantics already produce independence)
     - Confirm `owned` keyword erasure, no runtime tracking, no move-nulling; `IClonable<T>` emits as a standard C# interface; `__CreateDefault` reuse for `default`-as-owned-source is unchanged
     - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6, 14.7, 8.8_
 
-  - [ ] 12.2 Write property test: zero runtime ownership artifacts
+  - [x] 12.2 Write property test: zero runtime ownership artifacts
     - **Property 12: Zero runtime ownership artifacts**
     - For all compiled programs, emitted C# contains no `owned` keyword, no reference counting, no state fields, no move-nulling — only `.Clone()` at resolved clone sites
     - In-process compile, inspect emitted C# text
     - **Validates: Requirements 14.1, 14.3, 14.4**
 
-  - [ ] 12.3 Write unit tests for clone emission and pure-struct elision
+  - [x] 12.3 Write unit tests for clone emission and pure-struct elision
     - Assert `.Clone()` emitted for clonable class sources; assert elided for pure-struct value types
     - _Requirements: 14.7, 8.8_
 
-- [ ] 13. Round-trip parsing support
-  - [ ] 13.1 Write property test for ownership round-trip parsing
+- [x] 13. Round-trip parsing support
+  - [x] 13.1 Write property test for ownership round-trip parsing
     - **Property 11: Round-trip parsing**
     - For all valid owned type decls, owned bindings, and `IClonable` impls, parse → pretty-print → parse yields an equivalent tree; parse errors on reprint count as a violation
     - In-process parse/pretty-print only (no process spawn)
     - **Validates: Requirements 17.1, 17.2, 17.3**
 
-  - [ ] 13.2 Fix any pretty-printer gaps surfaced by round-trip
+  - [x] 13.2 Fix any pretty-printer gaps surfaced by round-trip
     - If the round-trip property reveals `MistPrettyPrinter` does not faithfully reproduce `owned` type modifiers, `owned` bindings, or `IClonable` impls, fix the printer to round-trip them
     - _Requirements: 17.1, 17.2, 17.3, 17.4_
 
-- [ ] 14. Checkpoint - full compiler analysis path green
+- [x] 14. Checkpoint - full compiler analysis path green
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 15. Remove v1 ownership samples and create the v2 sample
-  - [ ] 15.1 Delete old ownership samples and unwire from AllFeatures
+- [x] 15. Remove v1 ownership samples and create the v2 sample
+  - [x] 15.1 Delete old ownership samples and unwire from AllFeatures
     - Delete `samples/DeepOwnershipTypes/` and `samples/OwnershipSystem/` entirely
     - Remove their `RunDemo()` calls from `samples/AllFeatures/Program.mist` and their `[[references]]` entries from `samples/AllFeatures/mist.toml`
     - _Requirements: 16.1_
 
-  - [ ] 15.2 Create `samples/Ownership/` with the verbatim proof code
+  - [x] 15.2 Create `samples/Ownership/` with the verbatim proof code
     - Create `samples/Ownership/mist.toml` with `name = "Ownership"` and `samples/Ownership/Program.mist` containing the EXACT proof code from Requirement 16 (immutable per the sample-proof-code policy — do not simplify or alter)
     - Include all demos: `NonOwnedBindingDemo`, `OwnedTypeBindingDemo`, `ProvenanceDemo`, `ClonableDemo`, `CloneFromLentDemo`, `LendingDemo`, `AliasingDemo`, `ValueTypeTiersDemo`, `BorrowedRecipientDemo`, `TruthTableDemo`, `MoveDemo`, `DefaultDemo`, and the `Program` orchestrator with `public static void RunDemo()`
     - _Requirements: 16.2, 16.3, 16.4, 16.5_
 
-  - [ ] 15.3 Wire the Ownership sample into AllFeatures
+  - [x] 15.3 Wire the Ownership sample into AllFeatures
     - Add `Ownership.Program.RunDemo()` to `samples/AllFeatures/Program.mist` and a `[[references]]` entry with `path = "../Ownership"` to `samples/AllFeatures/mist.toml`
     - _Requirements: 16.6_
 
-  - [ ] 15.4 Compile and run the Ownership sample, verifying exact output
+  - [x] 15.4 Compile and run the Ownership sample, verifying exact output
     - Build and run `samples/Ownership` and assert stdout matches the expected full-program output in Requirement 16 byte-for-byte; if the proof code does not compile or output differs, fix the compiler (never the proof code) or stop and report the gap per the sample-proof-code policy
     - _Requirements: 16.7_
 
@@ -249,7 +249,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (stdlib at `Source/
     - Author chapter code examples as `.mist` snippets in `book/snippets/` with `.cs` files generated by the SnippetEmitter tool (Book Snippet Policy); add the `advanced/ownership.md` reference to `book/src/SUMMARY.md`
     - _Requirements: 18.3, 18.4_
 
-- [ ] 18. Final checkpoint - full suite and all samples
+- [x] 18. Final checkpoint - full suite and all samples
   - Run the full `Test/Mist.Tests` suite and the full sample run (AllFeatures plus the `samples/Ownership` sample), verify zero warnings (zero-warnings policy), and confirm the Ownership sample output matches expected byte-for-byte. Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

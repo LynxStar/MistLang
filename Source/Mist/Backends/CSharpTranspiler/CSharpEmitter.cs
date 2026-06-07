@@ -478,10 +478,15 @@ internal sealed class CSharpSourceWriter
             usings.Add("System.Text.RegularExpressions");
         }
 
-        // Remove the Mist stdlib namespace — it has no C# equivalent.
-        // All Standard.* types are mapped to their CLR counterparts (System.Console, int, etc.)
-        // via the CSharpTypeMap, so the `using Standard;` directive is never needed in emitted C#.
-        usings.Remove("Standard");
+        // Remove the Mist stdlib namespace — most Standard.* types are mapped to their
+        // CLR counterparts (System.Console, int, etc.) via the CSharpTypeMap. However,
+        // some Standard-namespace types (e.g., IClonable<T>) are emitted as-is without
+        // a CLR mapping. If the current file implements or references such a type, we
+        // must keep `using Standard;` so the emitted C# can resolve the reference.
+        if (!FileReferencesUnmappedStandardType(cu))
+        {
+            usings.Remove("Standard");
+        }
 
         // Emit using directives.
         foreach (var ns in usings.OrderBy(n => n, StringComparer.Ordinal))
@@ -5793,6 +5798,84 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
+    /// Returns <c>true</c> if any type declared in the compilation unit implements or
+    /// references a Standard-namespace interface that is NOT mapped to a CLR counterpart
+    /// via <see cref="CSharpTypeMap"/>. When true, the emitter must retain
+    /// <c>using Standard;</c> so the emitted C# can resolve the type reference.
+    /// </summary>
+    private bool FileReferencesUnmappedStandardType(CompilationUnitNode cu)
+    {
+        foreach (var item in cu.Items)
+        {
+            switch (item)
+            {
+                case TypeItemTopLevelItemNode typeItem:
+                    if (TypeImplementsUnmappedStandardInterface(typeItem.TypeDeclaration))
+                        return true;
+                    break;
+                case NamespaceItemTopLevelItemNode nsItem:
+                {
+                    var bodyItems = nsItem.NamespaceDeclaration switch
+                    {
+                        FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
+                        BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
+                        _ => System.Collections.Immutable.ImmutableArray<NamespaceBodyItemNode>.Empty,
+                    };
+
+                    foreach (var bodyItem in bodyItems)
+                    {
+                        if (bodyItem is NamespaceTypeItemNamespaceBodyItemNode typeBodyItem
+                            && TypeImplementsUnmappedStandardInterface(typeBodyItem.TypeDeclaration))
+                        {
+                            return true;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the given type declaration implements a Standard-namespace
+    /// interface that does not have a CLR mapping in <see cref="CSharpTypeMap"/>.
+    /// </summary>
+    private bool TypeImplementsUnmappedStandardInterface(TypeDeclarationNode typeDecl)
+    {
+        var symbol = typeDecl switch
+        {
+            ClassTypeTypeDeclarationNode classDecl => _model.GetDeclaredSymbol(classDecl.ClassDeclaration),
+            StructTypeTypeDeclarationNode structDecl => _model.GetDeclaredSymbol(structDecl.StructDeclaration),
+            _ => null,
+        };
+
+        IReadOnlyList<IType>? interfaces = symbol?.DeclaredType switch
+        {
+            ClassType ct => ct.Interfaces,
+            StructType st => st.Interfaces,
+            _ => null,
+        };
+
+        if (interfaces is null)
+            return false;
+
+        foreach (var iface in interfaces)
+        {
+            var definition = iface is ConstructedType ctIface ? ctIface.GenericDefinition : iface;
+            if (definition is InterfaceType ifaceType
+                && ifaceType.ContainingNamespace == "Standard"
+                && CSharpTypeMap.TryGetMappedName($"Standard.{ifaceType.DisplayName}") is null)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Returns <c>true</c> if <paramref name="source"/> contains a single <c>|</c>
     /// character that is not part of <c>||</c>. Used as a lexical fallback in
     /// <see cref="EmitParameterList"/> to detect union type annotations in
@@ -6253,6 +6336,11 @@ internal sealed class CSharpSourceWriter
                     }
                     emittedArg = $"{refKeyword} {emittedArg}";
                 }
+                else
+                {
+                    // Task 12.1 — emit .Clone() at resolver-marked implicit-clone sites (Req 14 AC 7).
+                    emittedArg = WrapWithImplicitCloneIfNeeded(argExprs[i], emittedArg);
+                }
                 emitted.Add(emittedArg);
             }
             return string.Join(", ", emitted);
@@ -6266,9 +6354,12 @@ internal sealed class CSharpSourceWriter
         // we must fall through so TN.Value substitution is applied.
         // Also bypass when any argument involves an intrinsic type member access
         // (e.g., Regex.Pattern, Regex.IsFullMatch) that needs rewriting.
+        // Task 12.1: Also bypass when any argument has an implicit-clone annotation
+        // so that .Clone() can be emitted (Req 14 AC 7).
         if (!ArgumentContainsTypeLiteral(argExprs) && !ArgumentContainsDependentTypeParam(argExprs)
             && !ArgumentContainsIntrinsicMemberAccess(argExprs)
-            && !ArgumentContainsAutoAwaitCall(argExprs))
+            && !ArgumentContainsAutoAwaitCall(argExprs)
+            && !ArgumentsContainImplicitClone(argExprs))
         {
             var span = argList.Span;
             if (span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
@@ -6304,6 +6395,8 @@ internal sealed class CSharpSourceWriter
             {
                 var emittedArg = EmitExpression(argExprs[i]);
                 emittedArg = WrapWithImplicitCastIfNeeded(argExprs[i], emittedArg);
+                // Task 12.1 — emit .Clone() at resolver-marked implicit-clone sites (Req 14 AC 7).
+                emittedArg = WrapWithImplicitCloneIfNeeded(argExprs[i], emittedArg);
                 emitted.Add(emittedArg);
             }
             return string.Join(", ", emitted);
@@ -8179,6 +8272,46 @@ internal sealed class CSharpSourceWriter
     /// <summary>
     /// Returns <c>true</c> when the type is owned (affine or linear discipline, or explicit owned flag).
     /// </summary>
+    /// <summary>
+    /// If the semantic model records an implicit-clone annotation for <paramref name="sourceNode"/>,
+    /// wraps <paramref name="emittedExpr"/> with a <c>.Clone()</c> call — unless the destination
+    /// type is a pure value type (struct/enum), in which case the clone is elided because value
+    /// semantics already produce an independent copy (Req 8 AC 8, Req 14 AC 7).
+    /// </summary>
+    private string WrapWithImplicitCloneIfNeeded(Storm.Runtime.SyntaxNode sourceNode, string emittedExpr)
+    {
+        var destinationType = _model.GetImplicitCloneDestination(sourceNode);
+        if (destinationType is null)
+            return emittedExpr;
+
+        // Pure-struct optimization: value types (structs/enums) copy by value, so
+        // .Clone() is redundant — elide it (Req 8 AC 8).
+        if (destinationType.Kind is TypeKind.Struct or TypeKind.Enum)
+            return emittedExpr;
+
+        // Also check the unwrapped type for constructed generics.
+        var unwrapped = destinationType is ConstructedType ct ? ct.GenericDefinition : destinationType;
+        if (unwrapped.Kind is TypeKind.Struct or TypeKind.Enum)
+            return emittedExpr;
+
+        return $"{emittedExpr}.Clone()";
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if any argument expression in <paramref name="argExprs"/> has an
+    /// implicit-clone annotation recorded in the semantic model. When true, the argument-list
+    /// source-text fast path must be bypassed so <c>.Clone()</c> can be emitted.
+    /// </summary>
+    private bool ArgumentsContainImplicitClone(List<ExpressionNode> argExprs)
+    {
+        foreach (var expr in argExprs)
+        {
+            if (_model.GetImplicitCloneDestination(expr) is not null)
+                return true;
+        }
+        return false;
+    }
+
     private static bool IsOwnedType(IType type)
     {
         var resolved = type is ConstructedType constructed ? constructed.GenericDefinition : type;
@@ -8666,6 +8799,8 @@ internal sealed class CSharpSourceWriter
                 _emitVoidAsNull = previousVoidAsNull;
 
                 init = WrapWithImplicitCastIfNeeded(typed.Initializer, init);
+                // Task 12.1 — emit .Clone() at resolver-marked implicit-clone sites (Req 14 AC 7).
+                init = WrapWithImplicitCloneIfNeeded(typed.Initializer, init);
                 // Task 31.1 — covariant unknown widening at the typed local
                 // declaration's assignment site. The declared type is
                 // recorded on the local variable's symbol; the initializer
@@ -8696,6 +8831,9 @@ internal sealed class CSharpSourceWriter
             {
                 var name = inferred.Name.Lexeme;
                 var init = EmitExpression(inferred.Initializer);
+
+                // Task 12.1 — emit .Clone() at resolver-marked implicit-clone sites (Req 14 AC 7).
+                init = WrapWithImplicitCloneIfNeeded(inferred.Initializer, init);
 
                 // Emit ref / ref readonly prefix for ref locals.
                 var inferredSymbol = _model.GetDeclaredSymbol(inferred) as Symbol;
@@ -9205,6 +9343,8 @@ internal sealed class CSharpSourceWriter
             _emitVoidAsNull = previousVoidAsNull;
 
             value = WrapWithImplicitCastIfNeeded(assignment, value);
+            // Task 12.1 — emit .Clone() at resolver-marked implicit-clone sites (Req 14 AC 7).
+            value = WrapWithImplicitCloneIfNeeded(assignment.Value, value);
             // Task 31.1 — covariant unknown widening at the assignment
             // site against the target's static type.
             var targetType = _model.GetTypeOf(assignment.Target);

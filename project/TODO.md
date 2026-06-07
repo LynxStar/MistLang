@@ -4,65 +4,65 @@ Tracked issues and improvements that don't belong to an active spec but should b
 
 ---
 
-## Ownership System Gaps
+## Ownership Redesign: Instance-Level Ownership
 
-### 1. Field assignment provenance not enforced
+### Core Insight
 
-Assigning to a field of an owned-type instance does not check that the source value has owned provenance. The spec (Req 4.5/4.6) defines provenance checks for owned *binding* initialization, and Req 10.3 defines them for `owned`-modifier fields, but neither is enforced at assignment sites.
+Ownership is a property of the *value/binding*, not the type. Any type can be owned at the instance level — the type doesn't need to declare anything. The rules flow from the binding state.
 
-**Broken example:**
-```mist
-public owned class Widget { public int Count; }
-public owned class Container { public Widget Item; }
+### Current State (what exists today)
 
-var foo = new Widget(5);           // shared binding
-owned var container = new Container(foo);  // no error — should reject
-container.Item = foo;              // no error — should reject
-```
+- `owned` on type declarations — requires all fields to be owned types (structural check)
+- `owned` on field declarations — requires field type to be owned, enforces provenance at assignment
+- `owned var` bindings — type must be declared `owned` or pass structural check
+- Struct ownership inference — structs with all owned-type fields are inferred as owned
 
-Both `new Container(foo)` and `container.Item = foo` should fail because `foo` is not an owned binding. Storing a shared reference breaks the "self-contained graph" guarantee.
+### Target State (what it should become)
 
-This also applies inside constructors:
-```mist
-public Container(Widget item) { this.Item = item; }  // item is not owned — should fail
-```
+- **Remove** `owned` from type declarations entirely — no type-level ownership concept
+- **Remove** `owned` from field declarations — redundant with binding-level rules
+- **Remove** structural "is this type eligible for ownership" check — any type can be owned
+- **Remove** struct ownership inference — not needed when ownership is purely instance-level
 
-The correct constructor signature would be `public Container(owned Widget item)`.
+- **Keep** `owned var x = ...` — this instance is owned, I'm the sole holder of the graph
+- **Keep** `owned T param` — caller must move ownership to me
+- **Keep** `owned T` return — I'm handing out a fresh owned value
 
-**Scope:** This is both a requirements gap (no explicit requirement for field assignment provenance on owned-type fields without the `owned` modifier) AND an implementation gap (Req 10.3 for `owned`-modifier fields exists but isn't enforced).
+### Rules (binding-level enforcement)
 
-### 2. Relax owned field restriction: allow deeply readonly fields
+1. `owned var x = new T()` — establishes ownership. `new` produces a fresh value with no aliases.
+2. All field assignments on an owned instance must come from an owned source (owned binding, constructor call, owned-returning function). Assigning a shared value into an owned instance breaks the "sole owner" guarantee.
+3. Method calls on an owned instance that store parameters into the instance's fields — same rule, parameters must have owned provenance.
+4. `var y = x` where x is owned — move semantics. x is dead, y holds the value without ownership tracking (downleveled to shared).
+5. Deeply readonly/immutable values (string, primitives) are always valid as owned sources — aliasing them doesn't matter since they can't mutate.
 
-Currently owned types require ALL reference-type fields to be owned types. This is overly restrictive — the invariant we're actually protecting is: "if you own something and you don't touch it, its state cannot change."
+### What This Solves
 
-Mutable unrestricted fields violate this (external aliases can mutate the field's state without the owner's involvement). But *deeply immutable* fields don't — no mutation path exists through any alias.
+- **No bifurcation** — any type can participate in both owned and shared contexts
+- **No structural analysis** — no need to recursively prove field types are owned
+- **String just works** — deeply readonly, always a valid source for owned assignment
+- **Simpler mental model** — "owned" describes what you're doing with a value, not what the type is
 
-**Proposed rule change:** Owned type fields must be either:
-- Owned types (existing rule — sole ownership of mutable data)
-- Deeply readonly types (immutable through entire reachable graph — safe to alias)
+### Migration Path
 
-**Prerequisite:** Deep readonly enforcement. Currently `readonly` is shallow — it prevents reassigning the field but doesn't guarantee the referent's internal state is immutable. We need `readonly` on a type to mean the entire reachable object graph is immutable.
+1. Remove `owned` keyword from type declarations (parser, semantic model, type checker)
+2. Remove `owned` keyword from field declarations
+3. Remove `MIST_OWN_FIELD_NOT_OWNED` diagnostic and structural checks
+4. Remove `MIST_OWN_TYPE_REQUIRES_OWNED` diagnostic
+5. **Add** field assignment provenance enforcement: when assigning to a field of an owned-bound instance, source must be owned or deeply readonly
+6. Update stdlib bootstrap types — remove `owned` from String, Int32, etc. declarations
+7. Update samples and tests
 
-**Solves:** The string-in-owned-type ergonomics problem. `string` is already immutable through and through — with deep readonly it would naturally qualify as an owned-type field without requiring move semantics or borrow tracking on strings.
+### Implementation Gap (exists today regardless of redesign)
 
-**Invariant preserved:** Owned objects never mutate without their owner's action. Deeply readonly fields can't mutate at all (no mutation path through any alias), so external sharing is harmless.
+Field assignment provenance is not enforced at all. Even with today's `owned` field modifier (Req 10.3), assigning from a shared binding to an owned field compiles without error. This must be fixed whether we do the redesign or not.
 
-### 3. Remove Task<T> storage restriction (MIST_TC_0110)
+---
+
+## Remove Task<T> storage restriction (MIST_TC_0110)
 
 `MIST_TC_0110` prevents `Task<T>` from being stored in fields or properties. This was a protective measure before drop semantics existed — without it, a task stored in a field could escape its structured scope and be silently abandoned.
 
 With drop semantics in place, this restriction is obsolete. Substructural typing already ensures that any container holding a Task has the same stack-reachability guarantee that a bare Task local has: the container can only outlive the function if it's returned (same as the Task restriction). There is always something on the stack pointing back to the live task — either a local variable or a container with equivalent constraints.
 
 **Action:** Remove the `MIST_TC_0110` diagnostic and its associated checks. Allow `Task<T>` in fields/properties when the containing type has appropriate substructural discipline. Update tests accordingly.
-
-### 4. Forbid owned-type fields in non-owned containers; sunset `owned` field modifier
-
-Non-owned containers (unrestricted classes without `owned`/`affine`/`linear`) should not be allowed to hold affine/linear/owned-type fields. Multiple aliases to the container means multiple paths to the field, which fundamentally breaks exclusive ownership guarantees. The current `MIST_DROP_FIELD_NOT_OWNED` check already partially enforces this (rejecting affine/linear fields in non-owned containers), but it should be comprehensive.
-
-**Consequence:** The `owned` field modifier (Requirement 10 in deep-ownership-types spec) becomes obsolete and should be removed entirely. It existed to allow non-owned containers to exclusively own specific field instances, but this is architecturally unsound — you can't guarantee exclusive access to a field when the container itself is aliasable.
-
-**Action:**
-- Enforce: non-owned containers cannot hold fields whose type is affine, linear, or owned
-- Remove: the `owned` keyword on field declarations (parser, type checker, emitter, tests)
-- Remove: Requirement 10 acceptance criteria and related diagnostics (`MIST_OWN_FIELD_NOT_OWNED` for the modifier case)
-- Update: DeepOwnershipTypes sample to remove `owned` field modifier usage

@@ -81,6 +81,35 @@ Structs that embed classes/interfaces/traits are NOT auto-derivable — the heap
 
 Field assignment provenance is not enforced at all. Even with today's `owned` field modifier (Req 10.3), assigning from a shared binding to an owned field compiles without error. This must be fixed as part of the redesign.
 
+### Open Design Question: Statics and Method Body Safety
+
+There's a gap between "owned type cooperation" and static/global state:
+
+**The problem:** An owned type's constructor or method could store a reference from a static field into an instance field. From the call site, you can't tell this happened. Multiple `owned var` instances of the same type would share state through the static, breaking the "unique graph" guarantee.
+
+```mist
+public owned class Sneaky
+{
+    Widget cache;
+    public Sneaky() { this.cache = StaticCache.Instance; }  // alias from global
+}
+
+owned var a = new Sneaky();  // a.cache == StaticCache.Instance
+owned var b = new Sneaky();  // b.cache == same object — not unique!
+```
+
+**Two concerns are tangled:**
+1. Method return annotation — "does this return an owned value?" (already have `owned T` return)
+2. Method body safety — "is this method safe to call on an owned instance?" (doesn't leak external aliases into the graph)
+
+**Options being considered:**
+- `owned` on the type = compiler verifies ALL methods are body-safe (no field assignments from statics/globals). This is what the "cooperation contract" means — the type author opts into enforcement.
+- Method-level annotation for body safety (more precise but more annotation burden)
+- Conservative fallback for non-owned types: tier 3 rules (no parameterized mutating methods callable)
+- Ban mutable static state of reference types in owned type bodies
+
+**Unresolved:** How to ergonomically express both "returns owned" and "body-safe for owned context" on the same method. What static field reads are safe (readonly statics? deeply immutable statics?). Whether method-level granularity is needed or type-level is sufficient.
+
 ---
 
 ## Remove Task<T> storage restriction (MIST_TC_0110)

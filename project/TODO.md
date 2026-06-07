@@ -49,6 +49,10 @@ public interface IClonable<T>
 - If not implemented: compile error — can't prove the value is unique
 - Auto-derivable: for types where all fields are themselves clonable (primitives, other clonables)
 
+**Struct auto-derivation:** Structs that contain only other structs (recursively — no classes/interfaces/traits) automatically derive `IClonable<T>`. Pass-by-value already produces a fully owned object graph for pure-struct types. The compiler can optimize away the `.Clone()` call entirely since the copy is implicit in the value semantics.
+
+Structs that embed classes/interfaces/traits are NOT auto-derivable — the heap-allocated reference could be aliased, so a bitwise copy doesn't produce a unique graph.
+
 **String**: would implement `IClonable<String>` trivially (the "clone" is a no-op since strings are immutable and interned).
 
 ### What Changes From Today

@@ -1,0 +1,57 @@
+using Standard;
+
+namespace Snippet;
+
+public class Payload
+{
+    public int Size;
+
+    public Payload(int size)
+    {
+        this.Size = size;
+    }
+
+    public readonly string Describe()
+    {
+        return $"Payload({Size})";
+    }
+}
+
+// An `owned` type honors the cooperation contract: every field assignment in
+// its methods and constructors comes from an owned source.
+public owned class Envelope
+{
+    Payload Body;
+    int Stamp;
+
+    public Envelope(owned Payload body)
+    {
+        // OK: `body` is an owned parameter, so the assignment moves ownership in.
+        this.Body = body;
+        // OK: a primitive source can always be copied.
+        this.Stamp = 1;
+    }
+
+    public void Reseal()
+    {
+        // OK: a constructor call is a fresh owned source.
+        this.Body = new Payload(0);
+        this.Stamp = Stamp + 1;
+    }
+
+    public readonly string Describe()
+    {
+        return $"Envelope(Body={Body.Describe()}, Stamp={Stamp})";
+    }
+}
+
+public class CooperationContractDemo
+{
+    public static void Run()
+    {
+        owned Payload body = new Payload(256);
+        owned Envelope e = new Envelope(body);
+        e.Reseal();
+        Console.WriteLine($"contract={e.Describe()}");
+    }
+}

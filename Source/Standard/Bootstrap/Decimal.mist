@@ -1,7 +1,10 @@
 namespace Standard;
 
-intrinsic public readonly owned struct Decimal
+intrinsic public readonly owned struct Decimal : IClonable<Decimal>
 {
+    // IClonable base case — value-type identity copy (Requirement 8.6)
+    intrinsic public owned Decimal Clone();
+
     // Binary arithmetic operators — Requirement 3.1
     intrinsic public static Decimal operator +(Decimal a, Decimal b);
     intrinsic public static Decimal operator -(Decimal a, Decimal b);

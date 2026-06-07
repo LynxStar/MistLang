@@ -1,0 +1,41 @@
+using Standard;
+
+namespace Snippet;
+
+// An `owned` type opts into the cooperation contract the compiler verifies.
+// In return, all of its methods — readonly and mutable — are callable on an
+// owned binding.
+public owned class Accumulator
+{
+    int Total;
+
+    public Accumulator(int seed)
+    {
+        this.Total = seed;
+    }
+
+    // A mutable method. Available on an owned binding because the type is owned.
+    public void Add(int amount)
+    {
+        this.Total = Total + amount;
+    }
+
+    public readonly string Describe()
+    {
+        return $"Accumulator(Total={Total})";
+    }
+}
+
+public class OwnedTypeFullAccessDemo
+{
+    public static void Run()
+    {
+        owned Accumulator a = new Accumulator(100);
+
+        // Full mutable surface is available on an owned type.
+        a.Add(5);
+        a.Add(20);
+
+        Console.WriteLine($"owned type={a.Describe()}");
+    }
+}

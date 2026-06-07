@@ -9,10 +9,9 @@ namespace Mist.Semantics;
 /// droppable fields but do not explicitly define their own <c>Drop()</c>
 /// (drop-semantics Requirement 10, Property 12).
 /// <para>
-/// Runs as Stage 4d of <c>CompilerDriver.Compile</c>, immediately after
-/// <see cref="OwnershipInferenceEngine"/> (Stage 4c), because it reads the finalized
-/// <c>IsOwnedType</c> / <c>Discipline</c> state. Like <see cref="OwnershipInferenceEngine"/>
-/// it exposes a single static <see cref="RunInference"/> entry point and is invoked as a
+/// Runs as Stage 4d of <c>CompilerDriver.Compile</c>, after the semantic model is
+/// built, because it reads the finalized <c>IsOwnedType</c> / <c>Discipline</c> state.
+/// It exposes a single static <see cref="RunInference"/> entry point and is invoked as a
 /// hard-coded sequential stage (there is no pluggable pass registry).
 /// </para>
 /// <para>
@@ -27,7 +26,7 @@ namespace Mist.Semantics;
 /// Resolution is recursive so the obligation cascades transitively (Req 10.5): a field's
 /// type is resolved (and possibly synthesized) before the containing type is decided, which
 /// means dependency order / leaves-first processing falls out naturally. A three-state
-/// visited map provides cycle detection, mirroring <see cref="OwnershipInferenceEngine"/>.
+/// visited map provides cycle detection.
 /// </para>
 /// </summary>
 public static class SyntheticDropInferenceEngine
@@ -122,7 +121,7 @@ public static class SyntheticDropInferenceEngine
         stateMap[type] = InferenceState.InProgress;
 
         // Collect droppable fields in declaration order. Member ordering preserves
-        // declaration order, matching how OwnershipInferenceEngine walks fields.
+        // declaration order (Req 10.2).
         var droppableFields = new List<ISymbol>();
         foreach (var member in memberScope.Members)
         {

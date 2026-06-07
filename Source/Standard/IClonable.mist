@@ -1,0 +1,6 @@
+namespace Standard;
+
+interface IClonable<T>
+{
+    owned T Clone();
+}

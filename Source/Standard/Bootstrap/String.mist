@@ -1,7 +1,11 @@
 namespace Standard;
 
-intrinsic public readonly owned class String
+intrinsic public readonly owned class String : IClonable<String>
 {
+    // IClonable base case — String is immutable, so Clone() returns the same
+    // reference (observationally independent) (Requirement 8.6)
+    intrinsic public owned String Clone();
+
     // Concatenation — Requirement 3.8
     intrinsic public static String operator +(String a, String b);
 

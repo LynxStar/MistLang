@@ -116,4 +116,22 @@ public interface ISemanticModel
     /// type arguments were not inferred (either explicit or inference not attempted).
     /// </summary>
     IReadOnlyList<IType>? GetInferredTypeArguments(Storm.Runtime.SyntaxNode callSiteNode);
+
+    /// <summary>
+    /// Records that an implicit <c>.Clone()</c> must be inserted at the given source
+    /// expression because it is a non-owned source bridged into an owned destination via
+    /// <c>IClonable&lt;T&gt;</c> (Ownership v2, Req 6 AC 9, Req 8, Req 14 AC 7).
+    /// The <c>MoveBoundaryResolver</c> records these annotations during ownership analysis;
+    /// the C# emitter (task 12.1) reads them to emit the <c>.Clone()</c> call (or elide it
+    /// for pure-struct value types). <paramref name="destinationType"/> is the owned
+    /// destination's type, retained so the emitter can apply the pure-struct optimization.
+    /// </summary>
+    void RecordImplicitClone(Storm.Runtime.SyntaxNode source, IType destinationType);
+
+    /// <summary>
+    /// Returns the owned destination type recorded for an implicit-clone site by
+    /// <see cref="RecordImplicitClone"/>, or <c>null</c> if the given source expression was
+    /// not marked as an implicit-clone site.
+    /// </summary>
+    IType? GetImplicitCloneDestination(Storm.Runtime.SyntaxNode source);
 }

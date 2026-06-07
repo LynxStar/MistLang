@@ -240,9 +240,8 @@ public class OwnedTypeConstraintPropertyTests
         GenTypeRequiresOwnedScenario().ToArbitrary();
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 7a: Non-owned reference-type fields in owned types produce
-    // MIST_OWN_FIELD_NOT_OWNED
-    // **Validates: Requirements 8.3, 16.5**
+    // Ownership v2: owned types may declare non-owned reference-type fields — the
+    // v1 field restriction (MIST_OWN_FIELD_NOT_OWNED) is removed (Req 10 AC 1–3).
     // ═══════════════════════════════════════════════════════════════════════
 
     [Property(
@@ -252,7 +251,9 @@ public class OwnedTypeConstraintPropertyTests
     {
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
 
-        return diagnostics.Any(d => d.Id.Value == "MIST_OWN_FIELD_NOT_OWNED");
+        // v2: the owned-type field restriction is removed — a non-owned ref field in an
+        // owned type is permitted and MIST_OWN_FIELD_NOT_OWNED is never emitted (Req 10).
+        return !diagnostics.Any(d => d.Id.Value == "MIST_OWN_FIELD_NOT_OWNED");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -272,9 +273,10 @@ public class OwnedTypeConstraintPropertyTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 7c: Owned types implementing interfaces produce
-    // MIST_OWN_INTERFACE_FORBIDDEN
-    // **Validates: Requirements 8.8**
+    // Ownership v2: owned types MAY implement interfaces — the v1 "owned types
+    // cannot implement interfaces" rejection is removed (Req 5 AC 6 narrows
+    // MIST_OWN_INTERFACE_FORBIDDEN to owned interface/trait DECLARATIONS only).
+    // An owned class implementing an interface (e.g. IClonable) is now valid.
     // ═══════════════════════════════════════════════════════════════════════
 
     [Property(
@@ -284,7 +286,9 @@ public class OwnedTypeConstraintPropertyTests
     {
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
 
-        return diagnostics.Any(d => d.Id.Value == "MIST_OWN_INTERFACE_FORBIDDEN");
+        // v2: an owned class implementing an interface is permitted; the rejection
+        // applies only to `owned interface`/`owned trait` declarations (Req 5 AC 6).
+        return !diagnostics.Any(d => d.Id.Value == "MIST_OWN_INTERFACE_FORBIDDEN");
     }
 
     // ═══════════════════════════════════════════════════════════════════════

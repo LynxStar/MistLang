@@ -1,7 +1,10 @@
 namespace Standard;
 
-intrinsic public readonly owned struct Int64
+intrinsic public readonly owned struct Int64 : IClonable<Int64>
 {
+    // IClonable base case — value-type identity copy (Requirement 8.6)
+    intrinsic public owned Int64 Clone();
+
     // Binary arithmetic operators — Requirement 3.1
     intrinsic public static Int64 operator +(Int64 a, Int64 b);
     intrinsic public static Int64 operator -(Int64 a, Int64 b);

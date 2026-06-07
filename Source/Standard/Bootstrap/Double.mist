@@ -1,7 +1,10 @@
 namespace Standard;
 
-intrinsic public readonly owned struct Double
+intrinsic public readonly owned struct Double : IClonable<Double>
 {
+    // IClonable base case — value-type identity copy (Requirement 8.6)
+    intrinsic public owned Double Clone();
+
     // Binary arithmetic operators — Requirement 3.1
     intrinsic public static Double operator +(Double a, Double b);
     intrinsic public static Double operator -(Double a, Double b);

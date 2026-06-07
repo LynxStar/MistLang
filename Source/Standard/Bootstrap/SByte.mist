@@ -1,7 +1,10 @@
 namespace Standard;
 
-intrinsic public readonly owned struct SByte
+intrinsic public readonly owned struct SByte : IClonable<SByte>
 {
+    // IClonable base case — value-type identity copy (Requirement 8.6)
+    intrinsic public owned SByte Clone();
+
     // Binary arithmetic operators — Requirement 3.1
     intrinsic public static SByte operator +(SByte a, SByte b);
     intrinsic public static SByte operator -(SByte a, SByte b);

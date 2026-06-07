@@ -433,16 +433,18 @@ public sealed class CompilerDriver : ICompilerDriver
         // analyzers. This classifies members as InferredReadonly or Mutable.
         ReadonlyInferenceEngine.RunInference(semanticModel);
 
-        // Stage 4c: Ownership Inference
-        // Infers IsOwnedType for structs whose fields are all owned types,
-        // without requiring an explicit 'owned' modifier. Must run before
-        // the OwnershipAnalyzer which depends on IsOwnedType being set.
-        OwnershipInferenceEngine.RunInference(semanticModel);
+        // Stage 4c.5: IClonable Derivation (Ownership v2, Phase 2.5)
+        // Computes ImplementsIClonable for every user and bootstrap class/struct
+        // type — true if the type explicitly declares IClonable<T> or every field's
+        // type implements IClonable<T> (recursive, cycle-safe greatest fixpoint).
+        // Must run after the semantic model is built and before the OwnershipAnalyzer
+        // (Stage 5) which consults the cached result via MoveBoundaryResolver.
+        IClonableDerivationEngine.RunInference(semanticModel);
 
         // Stage 4d: Synthetic Drop Inference
         // Synthesizes a void Drop() for types that have droppable fields but no
         // explicit Drop(), cascading the obligation transitively in dependency
-        // order. Must run after ownership inference (Stage 4c) because it reads
+        // order. Runs after the semantic model is built because it reads
         // the finalized IsOwnedType / Discipline state.
         SyntheticDropInferenceEngine.RunInference(semanticModel);
 

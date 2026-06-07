@@ -1,23 +1,43 @@
+using Standard;
+
+namespace Snippet;
+
+public class Handle
+{
+    public int Id;
+
+    public Handle(int id)
+    {
+        this.Id = id;
+    }
+
+    public readonly string Describe()
+    {
+        return $"Handle({Id})";
+    }
+}
+
 public class MoveDemo
 {
-    public static void ConsumeHandle(owned UniqueHandle h)
+    public static void Consume(owned Handle h)
     {
-        h.Touch();
+        // Ownership moved into the parameter; the caller's binding is now dead.
         Console.WriteLine($"consumed={h.Describe()}");
     }
 
     public static void Run()
     {
-        owned UniqueHandle h1 = new UniqueHandle(10);
+        owned Handle h1 = new Handle(10);
         Console.WriteLine($"before move={h1.Describe()}");
 
-        // Move ownership to h2 — h1 is now inaccessible
-        owned UniqueHandle h2 = h1;
-        h2.Touch();
+        // Assigning an owned binding moves ownership; h1 is now dead.
+        owned Handle h2 = h1;
         Console.WriteLine($"after move to h2={h2.Describe()}");
 
-        // Move ownership into a function parameter — h2 is now inaccessible
-        ConsumeHandle(h2);
+        // Passing to an owned parameter moves ownership into the callee.
+        Consume(h2);
+
+        // Any use of h1 or h2 here would be a use-after-move error.
         Console.WriteLine($"transfer complete");
     }
 }

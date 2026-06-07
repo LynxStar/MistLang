@@ -1,0 +1,54 @@
+using Standard;
+
+namespace Snippet;
+
+public class Node
+{
+    public int Id;
+
+    public Node(int id)
+    {
+        this.Id = id;
+    }
+
+    public readonly string Describe()
+    {
+        return $"Node({Id})";
+    }
+}
+
+// A plain, non-owned container. Even so, its fields can be updated through an
+// owned binding as long as each assignment's source is itself owned.
+public class Slot
+{
+    public Node Current;
+    public int Count;
+
+    public Slot(owned Node first)
+    {
+        this.Current = first;
+        this.Count = 1;
+    }
+
+    public readonly string Describe()
+    {
+        return $"Slot(Current={Current.Describe()}, Count={Count})";
+    }
+}
+
+public class FieldProvenanceDemo
+{
+    public static void Run()
+    {
+        owned Slot s = new Slot(new Node(1));
+
+        // Provenance rule: the source of a field assignment on an owned binding
+        // must be owned. A constructor call qualifies.
+        s.Current = new Node(2);
+
+        // A primitive source is always accepted — copying it cannot alias.
+        s.Count = 2;
+
+        Console.WriteLine($"provenance={s.Describe()}");
+    }
+}

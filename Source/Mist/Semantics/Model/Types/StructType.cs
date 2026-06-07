@@ -60,10 +60,21 @@ public sealed class StructType : IType
 
     /// <summary>
     /// Whether this type is declared as an owned type (owned struct).
-    /// When true, instances must always be held as owned and all reference-type
-    /// fields must themselves be owned.
+    /// In v2 this signals that the type opts into the ownership cooperation
+    /// contract: the type author guarantees that every field assignment inside
+    /// the type's methods and constructors comes from an owned source (a move,
+    /// constructor call, owned-returning call, or implicit clone). It is a
+    /// behavioral contract verified at the type definition site — not a
+    /// structural requirement that the type's fields must themselves be owned.
     /// </summary>
     public bool IsOwnedType { get; internal set; }
+
+    /// <summary>
+    /// Whether this type implements IClonable&lt;T&gt; — either declared explicitly or
+    /// auto-derived because all of its fields' types implement IClonable (Req 8 AC 6-7).
+    /// Computed by the IClonable derivation pass; consumed by MoveBoundaryResolver.
+    /// </summary>
+    public bool ImplementsIClonable { get; internal set; }
 
     /// <summary>
     /// The substructural discipline declared on this type.

@@ -58,6 +58,25 @@ owned struct OwnedValue {
 // <- storage.modifier.mist
 }
 
+// ===== owned binding-level modifier (storage.modifier.mist) =====
+// Ownership v2: `owned` is also a binding-level specifier before `var` or a
+// type. In both positions it must be scoped storage.modifier.mist, and `var`
+// remains keyword.other.mist.
+
+owned var resource = new OwnedResource();
+// <- storage.modifier.mist
+//    ^^^ keyword.other.mist
+
+owned OwnedResource handle = default;
+// <- storage.modifier.mist
+
+// ===== owned word-boundary regression =====
+// `owned` must only match at word boundaries — it must NOT highlight when it
+// appears as a substring of a larger identifier.
+
+var ownedCount = 0;
+//  ^^^^^^^^^^ variable.other.property.mist
+
 // ===== Drop destructor method (entity.name.function.destructor.mist) =====
 // A `Drop` method declaration is highlighted as a destructor, distinct from a
 // regular method (entity.name.function.mist).

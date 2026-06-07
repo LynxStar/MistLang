@@ -1,0 +1,40 @@
+using Standard;
+
+namespace Snippet;
+
+// A type that bridges shared values to owned ones by implementing IClonable<T>.
+// Clone() returns an `owned Tag` — a fresh, independent value.
+public class Tag : IClonable<Tag>
+{
+    public int Code;
+
+    public Tag(int code)
+    {
+        this.Code = code;
+    }
+
+    public owned Tag Clone()
+    {
+        return new Tag(Code);
+    }
+
+    public readonly string Describe()
+    {
+        return $"Tag({Code})";
+    }
+}
+
+public class IClonableDemo
+{
+    public static void Run()
+    {
+        // A plain (non-owned) binding — shared, not uniquely owned.
+        var shared = new Tag(7);
+
+        // Moving a non-owned source into an owned destination: because Tag
+        // implements IClonable<T>, the compiler inserts an implicit .Clone().
+        owned Tag fresh = shared;
+
+        Console.WriteLine($"source={shared.Describe()}, owned clone={fresh.Describe()}");
+    }
+}

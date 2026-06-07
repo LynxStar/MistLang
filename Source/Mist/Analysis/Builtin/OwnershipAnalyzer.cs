@@ -19,6 +19,14 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 {
     public string AnalyzerId => "OWNERSHIP";
 
+    // ── Ownership v2 collaborators ────────────────────────────────────────
+    // The orchestrator delegates every owned-move site to the single
+    // MoveBoundaryResolver (Req 6 AC 9). Method-call-visibility queries on owned-bound
+    // receivers go through the stateless MethodTierVisibilityFilter (Req 2, 3), whose
+    // Resolve is a static decision and needs no instance.
+
+    private MoveBoundaryResolver _resolver = new();
+
     // ── Diagnostic IDs ───────────────────────────────────────────────────
 
     /// <summary>Access to a variable after it has been moved.</summary>
@@ -38,12 +46,6 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
     /// <summary>Lending from a tier that cannot provide the requested tier.</summary>
     internal static readonly DiagnosticId IncompatibleLend = new("MIST_OWN_INCOMPATIBLE_LEND");
-
-    /// <summary>Reference-type field in owned type is not owned.</summary>
-    internal static readonly DiagnosticId FieldNotOwned = new("MIST_OWN_FIELD_NOT_OWNED");
-
-    /// <summary>Owned binding declared with a type that is not an owned type (repurposed for Pass 2b).</summary>
-    internal static readonly DiagnosticId TypeRequiresOwned = new("MIST_OWN_TYPE_REQUIRES_OWNED");
 
     /// <summary>Owned type attempts to implement interface/trait.</summary>
     internal static readonly DiagnosticId InterfaceForbidden = new("MIST_OWN_INTERFACE_FORBIDDEN");
@@ -65,6 +67,88 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
     /// <summary>Multiple ownership specifiers on same declaration.</summary>
     internal static readonly DiagnosticId DuplicateSpecifier = new("MIST_OWN_DUPLICATE_SPECIFIER");
+
+    // ── Ownership v2 Diagnostic IDs ───────────────────────────────────────
+
+    /// <summary>Mutable method called on a non-owned type held in an owned binding (Req 2 AC 4, Req 13 AC 1).</summary>
+    internal static readonly DiagnosticId MutableHidden = new("MIST_OWN_MUTABLE_HIDDEN");
+
+    /// <summary>Owned destination assigned a non-owned, non-clonable source (Req 1 AC 5, Req 4 AC 2, Req 13 AC 2).</summary>
+    internal static readonly DiagnosticId RequiresOwned = new("MIST_OWN_REQUIRES_OWNED");
+
+    /// <summary>An implicit clone is needed but the source type does not implement <c>IClonable&lt;T&gt;</c> (Req 8 AC 4, Req 13 AC 7).</summary>
+    internal static readonly DiagnosticId NotClonable = new("MIST_OWN_NOT_CLONABLE");
+
+    /// <summary>An owned type's method/constructor assigns a field from a non-owned source (Req 5 AC 4, Req 13 AC 4–5).</summary>
+    internal static readonly DiagnosticId ContractViolation = new("MIST_OWN_CONTRACT_VIOLATION");
+
+    /// <summary>The <c>owned</c> modifier is used on a field declaration — no longer supported (Req 11 AC 2, Req 13 AC 6).</summary>
+    internal static readonly DiagnosticId FieldModifierRemoved = new("MIST_OWN_FIELD_MODIFIER_REMOVED");
+
+    /// <summary>The <c>owned</c> binding specifier is applied to a substructural (<c>linear</c>/<c>affine</c>/<c>relevant</c>) type (Req 1 AC 4, Req 13 AC 8).</summary>
+    internal static readonly DiagnosticId SubstructuralBinding = new("MIST_OWN_SUBSTRUCTURAL_BINDING");
+
+    // ── Ownership v2 Diagnostic Messages ──────────────────────────────────
+    // Centralized message builders for the v2 diagnostics. Emission sites
+    // (MethodTierVisibilityFilter, MoveBoundaryResolver, CooperationContractVerifier,
+    // RejectOwnedFieldModifier, RejectOwnedBindingOnSubstructuralTypes) call these so the
+    // message content — names and remediation hints — stays consistent (Req 13).
+
+    /// <summary>
+    /// Message for <c>MIST_OWN_MUTABLE_HIDDEN</c>: a mutable method was called on a
+    /// non-owned type held in an owned binding (Req 13 AC 1).
+    /// </summary>
+    internal static string MutableHiddenMessage(string methodName, string typeName) =>
+        $"Cannot call mutable method '{methodName}' on '{typeName}': non-owned types appear readonly when held in an " +
+        $"owned binding, so only readonly methods are visible. Declare '{typeName}' as 'owned', or assign the field " +
+        $"directly from an owned source.";
+
+    /// <summary>
+    /// Message for <c>MIST_OWN_REQUIRES_OWNED</c>: an owned destination was assigned a
+    /// non-owned, non-clonable source (Req 13 AC 2).
+    /// </summary>
+    internal static string RequiresOwnedMessage(string destinationName, string sourceExpression) =>
+        $"Owned destination '{destinationName}' cannot be assigned from '{sourceExpression}': an owned destination " +
+        $"requires a uniquely-owned source — a constructor call, an owned-returning call, a move from an existing " +
+        $"owned binding, or a clonable source. Move an owned value, construct a fresh value, or make the source type " +
+        $"implement 'IClonable<T>'.";
+
+    /// <summary>
+    /// Message for <c>MIST_OWN_NOT_CLONABLE</c>: a clone was needed but the source type
+    /// does not implement <c>IClonable&lt;T&gt;</c> (Req 13 AC 7).
+    /// </summary>
+    internal static string NotClonableMessage(string typeName) =>
+        $"Cannot implicitly clone source of type '{typeName}' into an owned destination because '{typeName}' does not " +
+        $"implement 'IClonable<{typeName}>'. Make '{typeName}' implement 'IClonable<T>' so it can be cloned, or supply " +
+        $"a uniquely-owned source instead.";
+
+    /// <summary>
+    /// Message for <c>MIST_OWN_CONTRACT_VIOLATION</c>: an owned type's method/constructor
+    /// assigned a field from a non-owned source (Req 13 AC 4–5).
+    /// </summary>
+    internal static string ContractViolationMessage(string methodName, string fieldName, string sourceExpression) =>
+        $"Method '{methodName}' violates the owned-type cooperation contract: it assigns field '{fieldName}' from the " +
+        $"non-owned source '{sourceExpression}'. Owned types may only populate fields from owned sources — make the " +
+        $"parameter 'owned', clone the source, or construct a fresh value.";
+
+    /// <summary>
+    /// Message for <c>MIST_OWN_FIELD_MODIFIER_REMOVED</c>: the <c>owned</c> field modifier
+    /// is no longer supported (Req 13 AC 6).
+    /// </summary>
+    internal static string FieldModifierRemovedMessage(string fieldName) =>
+        $"The 'owned' modifier on field '{fieldName}' is no longer supported. Ownership is a property of a binding, " +
+        $"not a field — remove the 'owned' modifier. Owned types guarantee their fields' provenance through the " +
+        $"cooperation contract instead.";
+
+    /// <summary>
+    /// Message for <c>MIST_OWN_SUBSTRUCTURAL_BINDING</c>: the <c>owned</c> binding specifier
+    /// was applied to a substructural type (Req 13 AC 8).
+    /// </summary>
+    internal static string SubstructuralBindingMessage(string bindingName, string typeName) =>
+        $"The 'owned' binding specifier cannot be applied to binding '{bindingName}' of substructural type " +
+        $"'{typeName}': substructural ('linear'/'affine'/'relevant') types manage their own usage discipline via drop " +
+        $"semantics and cannot be combined with 'owned' binding tracking. Remove the 'owned' specifier and rely on the " +
+        $"type's substructural discipline.";
 
     // ── Truth Table ──────────────────────────────────────────────────────
 
@@ -185,34 +269,55 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
     public void Analyze(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        // Pass 1: Owned type declaration validation.
-        ValidateOwnedTypeDeclarations(model, diagnostics);
+        // Ownership v2 orchestration (design Component 5). The analyzer keeps its
+        // IAnalyzer identity ("OWNERSHIP") and delegates to the three collaborators.
+        // A fresh MoveBoundaryResolver per Analyze() keeps the analyzer reusable.
+        _resolver = new MoveBoundaryResolver();
 
-        // Pass 2b: Owned binding type validation.
-        ValidateOwnedBindingTypes(model, diagnostics);
+        // Pass A: declaration validation — reject the 'owned' modifier on interface/trait
+        // declarations ONLY (Req 5 AC 6). The v1 owned-type field restriction and the
+        // "owned types cannot implement interfaces/satisfy traits" checks are deleted
+        // (Req 10): owned types are now free to implement interfaces (e.g. IClonable).
+        RejectOwnedOnInterfacesAndTraits(model, diagnostics);
 
-        // Pass 2: Non-storability enforcement on declarations.
+        // Pass B: hard-error any leftover 'owned' field modifier (Req 11, Req 13 AC 6).
+        RejectOwnedFieldModifier(model, diagnostics);
+
+        // Pass B2: reject the 'owned' binding specifier on substructural types
+        // (Req 1 AC 4, Req 13 AC 8). Body implemented in task 9.1.
+        RejectOwnedBindingOnSubstructuralTypes(model, diagnostics);
+
+        // Pass 2: general non-storability enforcement on declarations (ref/frozen/borrowed
+        // tiers cannot be stored as fields). This is NOT the deleted owned-type-specific
+        // rule — it applies to all types and is retained unchanged.
         ValidateNonStorability(model, diagnostics);
 
-        // Pass 2c: Owned field modifier validation.
-        ValidateOwnedFieldModifiers(model, diagnostics);
+        // Pass C: cooperation contract verification for owned types (Req 5). Every
+        // field assignment inside an owned type's methods/constructors must resolve as a
+        // non-error owned move via the shared MoveBoundaryResolver.
+        foreach (var ownedType in OwnedTypes(model))
+            CooperationContractVerifier.Verify(ownedType, _resolver, model, diagnostics);
 
-        // Pass 3: Ownership signature matching validation.
+        // Pass 3: ownership signature matching validation (interface/trait satisfaction).
+        // Retained unchanged from v1.
         ValidateSignatureMatching(model, diagnostics);
 
-        // Pass 4: Flow-sensitive analysis (move tracking, borrow checking, etc.).
+        // Pass D: flow-sensitive analysis (truth table retained verbatim from v1; Req 6, 7, 9).
+        //   - owned move sites delegate to the MoveBoundaryResolver (Req 6 AC 9)
+        //   - method calls on owned-bound receivers consult the MethodTierVisibilityFilter (Req 2, 3)
         AnalyzeFlowSensitive(model, diagnostics);
     }
 
-    // ── Pass 1: Owned type declaration validation ────────────────────────
+    // ── Pass A: owned-on-interface/trait rejection (Req 5 AC 6) ───────────
 
     /// <summary>
-    /// Validates owned type declarations:
-    /// - All reference-type fields in an owned type must be owned or of an owned type.
-    /// - Owned types must not implement interfaces or satisfy traits.
-    /// - The <c>owned</c> modifier is rejected on interface/trait declarations.
+    /// Rejects the <c>owned</c> modifier on interface and trait declarations only
+    /// (Req 5 AC 6). This is the sole surviving piece of v1's owned-type declaration
+    /// validation; the field-type restriction and the "owned types cannot implement
+    /// interfaces / satisfy traits" checks are deleted under v2 (Req 10) — an owned
+    /// class implementing an interface (e.g. <c>IClonable&lt;Self&gt;</c>) is now valid.
     /// </summary>
-    private static void ValidateOwnedTypeDeclarations(ISemanticModel model, DiagnosticBag diagnostics)
+    private static void RejectOwnedOnInterfacesAndTraits(ISemanticModel model, DiagnosticBag diagnostics)
     {
         foreach (var symbol in model.AllSymbols)
         {
@@ -221,11 +326,6 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
             switch (symbol.Kind)
             {
-                case SymbolKind.Class:
-                case SymbolKind.Struct:
-                    ValidateOwnedClassOrStruct(symbol, model, diagnostics);
-                    break;
-
                 case SymbolKind.Interface:
                     RejectOwnedOnInterface(symbol, model, diagnostics);
                     break;
@@ -238,139 +338,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// For a class or struct declared as owned, validates:
-    /// 1. All reference-type fields are owned or of an owned type.
-    /// 2. The type does not implement any interfaces.
-    /// 3. The type does not satisfy any traits.
-    /// </summary>
-    private static void ValidateOwnedClassOrStruct(ISymbol symbol, ISemanticModel model, DiagnosticBag diagnostics)
-    {
-        var declaredType = symbol.DeclaredType;
-        if (declaredType is null)
-            return;
-
-        var isOwnedType = declaredType switch
-        {
-            ClassType ct => ct.IsOwnedType,
-            StructType st => st.IsOwnedType,
-            _ => false
-        };
-
-        if (!isOwnedType)
-            return;
-
-        // Get the declaring node for diagnostic location.
-        SyntaxNode declaringNode;
-        try { declaringNode = model.GetDeclaringNode(symbol); }
-        catch { return; }
-
-        // Check 1: All reference-type fields must be owned or of an owned type.
-        var memberScope = declaredType switch
-        {
-            ClassType ct => ct.MemberScope,
-            StructType st => st.MemberScope,
-            _ => null
-        };
-
-        if (memberScope is not null)
-        {
-            foreach (var member in memberScope.Members)
-            {
-                if (member.Kind != SymbolKind.Field)
-                    continue;
-
-                var fieldType = member.DeclaredType;
-                if (fieldType is null)
-                    continue;
-
-                // Value types are always permitted (Requirement 1.5).
-                if (IsValueType(fieldType))
-                    continue;
-
-                // Type parameters are exempt — we cannot know at the generic definition
-                // site whether T will be instantiated with a value type, an owned type,
-                // or a non-owned reference type. Constraint checking at instantiation
-                // sites is the correct enforcement point.
-                if (fieldType is TypeParameterType)
-                    continue;
-
-                // Reject non-storable reference tiers on fields in owned types (Requirement 13.6).
-                if (member is Symbol nonStorableSym &&
-                    nonStorableSym.OwnershipTier is OwnershipTier.ReadonlyRef or OwnershipTier.Frozen or OwnershipTier.Borrowed)
-                {
-                    SyntaxNode fieldNode;
-                    try { fieldNode = model.GetDeclaringNode(member); }
-                    catch { fieldNode = declaringNode; }
-
-                    var tierName = FormatOwnershipTier(nonStorableSym.OwnershipTier);
-                    diagnostics.Add(MakeDiagnostic(
-                        NotStorable,
-                        $"Field '{member.Name}' in owned type '{symbol.Name}' cannot be declared as '{tierName}' because non-storable reference tiers cannot appear as fields in an owned type",
-                        fieldNode,
-                        model));
-                    continue;
-                }
-
-                // Reference-type field: must be owned or of an owned type (Requirement 1.3).
-                if (member is Symbol fieldSymbol && fieldSymbol.OwnershipTier == OwnershipTier.Owned)
-                    continue;
-
-                if (IsOwnedType(fieldType))
-                    continue;
-
-                // Emit MIST_OWN_FIELD_NOT_OWNED (Requirement 1.4).
-                {
-                    SyntaxNode fieldNode;
-                    try { fieldNode = model.GetDeclaringNode(member); }
-                    catch { fieldNode = declaringNode; }
-
-                    diagnostics.Add(MakeDiagnostic(
-                        FieldNotOwned,
-                        $"Reference-type field '{member.Name}' in owned type '{symbol.Name}' must be declared as 'owned' or be of an owned type",
-                        fieldNode,
-                        model));
-                }
-            }
-        }
-
-        // Check 2: Owned types must not implement interfaces.
-        var interfaces = declaredType switch
-        {
-            ClassType ct => ct.Interfaces,
-            StructType st => st.Interfaces,
-            _ => Array.Empty<IType>()
-        };
-
-        if (interfaces.Count > 0)
-        {
-            diagnostics.Add(MakeDiagnostic(
-                InterfaceForbidden,
-                $"Owned type '{symbol.Name}' cannot implement interfaces",
-                declaringNode,
-                model));
-        }
-
-        // Check 3: Owned types must not satisfy traits.
-        if (declaredType is ClassType classType && classType.SatisfiedTraits.Count > 0)
-        {
-            diagnostics.Add(MakeDiagnostic(
-                InterfaceForbidden,
-                $"Owned type '{symbol.Name}' cannot satisfy traits",
-                declaringNode,
-                model));
-        }
-        else if (declaredType is StructType structType && structType.SatisfiedTraits.Count > 0)
-        {
-            diagnostics.Add(MakeDiagnostic(
-                InterfaceForbidden,
-                $"Owned type '{symbol.Name}' cannot satisfy traits",
-                declaringNode,
-                model));
-        }
-    }
-
-    /// <summary>
-    /// Rejects the <c>owned</c> modifier on interface declarations.
+    /// Rejects the <c>owned</c> modifier on interface declarations (Req 5 AC 6).
     /// </summary>
     private static void RejectOwnedOnInterface(ISymbol symbol, ISemanticModel model, DiagnosticBag diagnostics)
     {
@@ -392,7 +360,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Rejects the <c>owned</c> modifier on trait declarations.
+    /// Rejects the <c>owned</c> modifier on trait declarations (Req 5 AC 6).
     /// </summary>
     private static void RejectOwnedOnTrait(ISymbol symbol, ISemanticModel model, DiagnosticBag diagnostics)
     {
@@ -413,242 +381,20 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             model));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Pass 2b: Owned binding type validation (Task 6.1)
-    // Requirements: 4.3, 4.4, 4.5, 4.6
-    // ═══════════════════════════════════════════════════════════════════════
+    // ── Pass B: owned field modifier hard error (Req 11, Req 13 AC 6) ─────
 
     /// <summary>
-    /// Validates owned binding declarations:
-    /// - The binding's type must be an owned type (report MIST_OWN_TYPE_REQUIRES_OWNED if not).
-    /// - The initializer must yield unique ownership: constructor call (new), call to an
-    ///   owned-returning function, or move from another owned binding.
+    /// Emits the hard error <c>MIST_OWN_FIELD_MODIFIER_REMOVED</c> for every field
+    /// declaration that carries an <c>owned</c> ownership specifier (Req 11 AC 1–2,
+    /// Req 13 AC 6). The <c>owned</c> field modifier is no longer supported: ownership
+    /// is a property of a binding, not a field. There is no warning and no silent
+    /// acceptance.
+    /// <para>
+    /// Task 10.1 owns the final form (including any grammar-level removal); this pass
+    /// provides the functional analyzer-level hard error so the diagnostic fires today.
+    /// </para>
     /// </summary>
-    private static void ValidateOwnedBindingTypes(ISemanticModel model, DiagnosticBag diagnostics)
-    {
-        foreach (var symbol in model.AllSymbols)
-        {
-            if (symbol.Origin != SymbolOrigin.UserCode)
-                continue;
-
-            if (symbol.Kind != SymbolKind.LocalVariable)
-                continue;
-
-            if (symbol is not Symbol varSymbol)
-                continue;
-
-            // Only check variables declared with the 'owned' specifier.
-            if (varSymbol.OwnershipTier != OwnershipTier.Owned)
-                continue;
-
-            SyntaxNode declaringNode;
-            try { declaringNode = model.GetDeclaringNode(symbol); }
-            catch { continue; }
-
-            // Check 1: The variable's type must be an owned type.
-            var varType = varSymbol.DeclaredType;
-            if (varType is not null && !IsValueType(varType) && !IsOwnedType(varType) && !SatisfiesOwnedTypeFieldRestriction(varType))
-            {
-                diagnostics.Add(MakeDiagnostic(
-                    TypeRequiresOwned,
-                    $"Variable '{symbol.Name}' declared as 'owned' requires a type declared with the 'owned' modifier, " +
-                    $"but '{varType.DisplayName}' is not an owned type",
-                    declaringNode,
-                    model));
-            }
-
-            // Check 2: The initializer must yield unique ownership.
-            var initializer = GetInitializerExpression(declaringNode);
-            if (initializer is not null && !YieldsUniqueOwnership(initializer, model))
-            {
-                diagnostics.Add(MakeDiagnostic(
-                    TypeRequiresOwned,
-                    $"Owned binding '{symbol.Name}' requires a uniquely-owned value from a constructor call, " +
-                    $"an owned-returning function, or a move from an existing owned binding",
-                    declaringNode,
-                    model));
-            }
-        }
-    }
-
-    /// <summary>
-    /// Extracts the initializer expression from a variable declaration node.
-    /// Returns null if the declaration has no initializer.
-    /// </summary>
-    private static SyntaxNode? GetInitializerExpression(SyntaxNode declaringNode)
-    {
-        return declaringNode switch
-        {
-            TypedVariableDeclarationVariableDeclarationStatementNode typed => typed.Initializer,
-            InferredVariableDeclarationVariableDeclarationStatementNode inferred => inferred.Initializer,
-            _ => null,
-        };
-    }
-
-    /// <summary>
-    /// Determines whether an initializer expression yields unique ownership.
-    /// Valid sources of unique ownership:
-    /// - Constructor call (new T())
-    /// - Call to a function/method that returns an owned value
-    /// - Move from another owned binding (identifier referencing an owned variable)
-    /// </summary>
-    private static bool YieldsUniqueOwnership(SyntaxNode expr, ISemanticModel model)
-    {
-        // Case 1: Check if it's an identifier referencing a local/parameter binding.
-        // An identifier referencing a local/parameter yields unique ownership
-        // only when the source binding is itself owned (move semantics).
-        // A non-owned binding never yields unique ownership, even if the
-        // underlying type is an owned type.
-        var referencedSymbol = TryResolveIdentifierSymbol(expr, model);
-        if (referencedSymbol is Symbol refSym &&
-            refSym.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter)
-        {
-            return refSym.OwnershipTier == OwnershipTier.Owned;
-        }
-
-        // Case 2: Check if the top-level expression is a constructor call (new T())
-        // or a function/method call returning owned.
-        if (IsConstructorOrOwnedCall(expr, model))
-            return true;
-
-        // Case 3: For non-identifier, non-field-access expressions whose resolved type
-        // is an owned type — the value must have come from a valid ownership source
-        // (e.g. a method call that GetDeclaredSymbol couldn't resolve, cast, etc.).
-        // Exclude member-access expressions (field reads) since accessing a field
-        // does not transfer ownership.
-        if (referencedSymbol is null && !IsMemberAccessExpression(expr))
-        {
-            var exprType = model.GetTypeOf(expr);
-            if (exprType is not null && IsOwnedType(exprType))
-                return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Returns true if the expression is a member-access (field/property read) expression,
-    /// which does not yield unique ownership.
-    /// </summary>
-    private static bool IsMemberAccessExpression(SyntaxNode node)
-    {
-        // Walk through wrapper nodes to find the postfix expression.
-        if (node is PostfixNode postfix && postfix.Suffix.Length > 0)
-        {
-            var lastSuffix = postfix.Suffix[^1];
-            return lastSuffix is MemberAccessSuffixPostfixSuffixNode
-                or OptionalMemberAccessSuffixPostfixSuffixNode;
-        }
-
-        // Recurse through single-child wrappers.
-        SyntaxNode? singleChild = null;
-        var childCount = 0;
-        foreach (var child in node.Children())
-        {
-            if (child is not null)
-            {
-                childCount++;
-                singleChild = child;
-                if (childCount > 1)
-                    break;
-            }
-        }
-
-        if (childCount == 1 && singleChild is not null)
-            return IsMemberAccessExpression(singleChild);
-
-        return false;
-    }
-
-    /// <summary>
-    /// Checks whether an expression is a constructor call (new T()) or a function/method
-    /// call that returns an owned value. Walks through expression wrappers to find the
-    /// primary expression.
-    /// </summary>
-    private static bool IsConstructorOrOwnedCall(SyntaxNode node, ISemanticModel model)
-    {
-        // Direct match on primary nodes.
-        if (node is ObjectCreationExpressionPrimaryNode)
-            return true;
-
-        // PostfixNode with suffixes — check for method call or invocation returning owned.
-        if (node is PostfixNode postfix)
-        {
-            if (postfix.Suffix.Length > 0)
-            {
-                var lastSuffix = postfix.Suffix[^1];
-
-                // Method call: receiver.Method()
-                if (lastSuffix is MethodCallSuffixPostfixSuffixNode methodCall)
-                {
-                    var methodSymbol = model.GetDeclaredSymbol(methodCall);
-                    if (methodSymbol is Symbol methodSym && methodSym.OwnershipTier == OwnershipTier.Owned)
-                        return true;
-                    // Also check if the return type itself is an owned type (for linear/affine return).
-                    if (methodSymbol is Symbol returnSym && returnSym.DeclaredType is not null && IsOwnedType(returnSym.DeclaredType))
-                        return true;
-                }
-
-                // Direct invocation: func()
-                if (lastSuffix is InvocationSuffixPostfixSuffixNode invocation)
-                {
-                    ISymbol? invokedSymbol = null;
-                    if (postfix.Target is IdentifierExpressionPrimaryNode targetId)
-                        invokedSymbol = model.GetDeclaredSymbol(targetId);
-                    invokedSymbol ??= model.GetDeclaredSymbol(invocation);
-
-                    if (invokedSymbol is Symbol funcSym && funcSym.OwnershipTier == OwnershipTier.Owned)
-                        return true;
-                    // Also check if the return type is an owned type.
-                    if (invokedSymbol is Symbol funcRetSym && funcRetSym.DeclaredType is not null && IsOwnedType(funcRetSym.DeclaredType))
-                        return true;
-                }
-
-                return false;
-            }
-
-            // No suffixes — check if the target is a constructor call.
-            if (postfix.Target is ObjectCreationExpressionPrimaryNode)
-                return true;
-
-            return false;
-        }
-
-        // Walk through single-child wrapper nodes (ExpressionNode → AssignmentNode → etc.)
-        SyntaxNode? singleChild = null;
-        var childCount = 0;
-        foreach (var child in node.Children())
-        {
-            if (child is not null)
-            {
-                childCount++;
-                singleChild = child;
-                if (childCount > 1)
-                    break;
-            }
-        }
-
-        if (childCount == 1 && singleChild is not null)
-            return IsConstructorOrOwnedCall(singleChild, model);
-
-        return false;
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Pass 2c: Owned field modifier validation (Task 7.1)
-    // Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Validates fields declared with the <c>owned</c> modifier:
-    /// - The field's type must be an owned type (explicitly declared or inferred).
-    /// - If not, reports <c>MIST_OWN_FIELD_NOT_OWNED</c>.
-    ///
-    /// Note: Assignment restrictions (source must be from owned binding, constructor call,
-    /// or owned-returning function) and access restrictions (borrowed/frozen based on
-    /// containing instance's binding kind) are flow-sensitive and enforced in Pass 4.
-    /// </summary>
-    private static void ValidateOwnedFieldModifiers(ISemanticModel model, DiagnosticBag diagnostics)
+    private static void RejectOwnedFieldModifier(ISemanticModel model, DiagnosticBag diagnostics)
     {
         foreach (var symbol in model.AllSymbols)
         {
@@ -658,42 +404,71 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             if (symbol.Kind != SymbolKind.Field)
                 continue;
 
-            if (symbol is not Symbol fieldSymbol)
-                continue;
-
-            // Only check fields with the 'owned' modifier.
-            if (fieldSymbol.OwnershipTier != OwnershipTier.Owned)
-                continue;
-
-            var fieldType = fieldSymbol.DeclaredType;
-            if (fieldType is null)
-                continue;
-
-            // Value types are always permitted (they are trivially owned).
-            if (IsValueType(fieldType))
-                continue;
-
-            // The field's type must be an owned type.
-            if (IsOwnedType(fieldType))
-                continue;
-
-            // The field is marked 'owned' but its type is not an owned type — report error.
-            SyntaxNode fieldNode;
-            try { fieldNode = model.GetDeclaringNode(symbol); }
+            SyntaxNode declaringNode;
+            try { declaringNode = model.GetDeclaringNode(symbol); }
             catch { continue; }
 
+            if (declaringNode is not FieldDeclarationNode fieldDecl)
+                continue;
+
+            // An owned specifier on a field declaration is a hard error under v2.
+            if (fieldDecl.OwnershipSpecifier is not OwnedSpecifierOwnershipSpecifierNode)
+                continue;
+
             diagnostics.Add(MakeDiagnostic(
-                FieldNotOwned,
-                $"Field '{symbol.Name}' is declared as 'owned' but its type '{fieldType.DisplayName}' is not an owned type. " +
-                $"The 'owned' field modifier requires the field's type to be an owned type.",
-                fieldNode,
+                FieldModifierRemoved,
+                FieldModifierRemovedMessage(symbol.Name),
+                declaringNode,
                 model));
         }
     }
 
+    // ── Pass B2: substructural owned-binding rejection (Req 1 AC 4) ───────
+
+    /// <summary>
+    /// Rejects the <c>owned</c> binding specifier on bindings whose type is substructural
+    /// (<c>linear</c>/<c>affine</c>/<c>relevant</c>) — emitting
+    /// <c>MIST_OWN_SUBSTRUCTURAL_BINDING</c> (Req 1 AC 4, Req 13 AC 8).
+    /// <para>
+    /// Stub for task 8.1: the orchestrator wires the pass in; task 9.1 implements the body.
+    /// </para>
+    /// </summary>
+    private static void RejectOwnedBindingOnSubstructuralTypes(ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        // TODO(task 9.1): walk owned bindings and emit MIST_OWN_SUBSTRUCTURAL_BINDING for
+        // bindings of linear/affine/relevant types.
+        _ = model;
+        _ = diagnostics;
+    }
+
+    // ── Pass C support: enumerate owned types ─────────────────────────────
+
+    /// <summary>
+    /// Enumerates the declared types (classes and structs) in user code that are declared
+    /// <c>owned</c> — the inputs to the cooperation contract verifier (Req 5).
+    /// </summary>
+    private static IEnumerable<IType> OwnedTypes(ISemanticModel model)
+    {
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Origin != SymbolOrigin.UserCode)
+                continue;
+
+            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+                continue;
+
+            var declaredType = symbol.DeclaredType;
+            if (declaredType is null)
+                continue;
+
+            if (IsOwnedType(declaredType))
+                yield return declaredType;
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
-    // Pass 4: Flow-sensitive analysis (Task 6.2+)
-    // Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 7.4, 7.5, 7.9
+    // Pass D: Flow-sensitive analysis (truth table retained verbatim from v1)
+    // Requirements: 6.*, 7.*, 9.*
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
@@ -701,7 +476,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// Walks statements in control-flow order, tracking ownership state transitions
     /// (moves, borrows) and emitting diagnostics for violations.
     /// </summary>
-    private static void AnalyzeFlowSensitive(ISemanticModel model, DiagnosticBag diagnostics)
+    private void AnalyzeFlowSensitive(ISemanticModel model, DiagnosticBag diagnostics)
     {
         foreach (var symbol in model.AllSymbols)
         {
@@ -722,7 +497,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// Analyzes a single method or constructor body for ownership violations.
     /// Creates a fresh <see cref="MethodFlowState"/> and walks the body block.
     /// </summary>
-    private static void AnalyzeMethodBody(ISymbol methodSymbol, ISemanticModel model, DiagnosticBag diagnostics)
+    private void AnalyzeMethodBody(ISymbol methodSymbol, ISemanticModel model, DiagnosticBag diagnostics)
     {
         SyntaxNode declaringNode;
         try { declaringNode = model.GetDeclaringNode(methodSymbol); }
@@ -778,7 +553,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// <summary>
     /// Walks a block of statements, updating the flow state for each statement.
     /// </summary>
-    private static void WalkBlock(
+    private void WalkBlock(
         BlockNode block,
         MethodFlowState state,
         ISemanticModel model,
@@ -796,7 +571,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// statement type. This is the main extensibility point — future tasks (6.4, 6.6,
     /// 6.8, 6.10) will add additional checks per statement type here.
     /// </summary>
-    private static void WalkStatement(
+    private void WalkStatement(
         StatementNode stmt,
         MethodFlowState state,
         ISemanticModel model,
@@ -846,7 +621,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// is owned, it is registered as Live. If the initializer is an owned variable,
     /// the source is marked as Moved.
     /// </summary>
-    private static void AnalyzeVariableDeclaration(
+    private void AnalyzeVariableDeclaration(
         VariableDeclarationStatementNode varDecl,
         MethodFlowState state,
         ISemanticModel model,
@@ -868,12 +643,12 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     state.VariableStates[declaredSymbol] = VariableOwnershipState.Live;
                     state.BindingKinds[declaredSymbol] = BindingKind.Owned;
 
-                    // If the initializer is an owned variable, this is a move.
-                    var sourceSymbol = TryResolveIdentifierSymbol(typed.Initializer, model);
-                    if (sourceSymbol is not null && IsOwnedVariable(sourceSymbol))
-                    {
-                        PerformMove(sourceSymbol, typed.Initializer, state, model, diagnostics);
-                    }
+                    // Route the initializer through the single move boundary (Req 6 AC 9):
+                    // it resolves provenance (owned move / value copy / clone / default),
+                    // marks a consumed owned source Moved, records implicit-clone
+                    // annotations, and emits MIST_OWN_REQUIRES_OWNED / MIST_OWN_NOT_CLONABLE
+                    // for a non-owned, non-clonable source.
+                    ResolveOwnedBindingInit(typed.Initializer, sym, state, model, diagnostics);
                 }
                 else if (declaredSymbol is Symbol refSym &&
                          refSym.OwnershipTier is OwnershipTier.Frozen or OwnershipTier.Borrowed or OwnershipTier.ReadonlyRef)
@@ -1056,12 +831,8 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     state.VariableStates[declaredSymbol] = VariableOwnershipState.Live;
                     state.BindingKinds[declaredSymbol] = BindingKind.Owned;
 
-                    // If the initializer is an owned variable, this is a move.
-                    var sourceSymbol = TryResolveIdentifierSymbol(inferred.Initializer, model);
-                    if (sourceSymbol is not null && IsOwnedVariable(sourceSymbol))
-                    {
-                        PerformMove(sourceSymbol, inferred.Initializer, state, model, diagnostics);
-                    }
+                    // Route the initializer through the single move boundary (Req 6 AC 9).
+                    ResolveOwnedBindingInit(inferred.Initializer, sym, state, model, diagnostics);
                 }
                 else if (declaredSymbol is not null)
                 {
@@ -1081,6 +852,33 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         }
     }
 
+    // ── Owned move-site delegation to MoveBoundaryResolver (Req 6 AC 9) ───
+
+    /// <summary>
+    /// Resolves an owned-binding initializer through the single <see cref="MoveBoundaryResolver"/>
+    /// (site <see cref="OwnedMoveSite.OwnedBindingInit"/>, Req 1, Req 6). The resolver decides
+    /// provenance and clone insertion, marks a consumed owned source <c>Moved</c> in
+    /// <paramref name="state"/>, records implicit-clone annotations for the emitter, and emits
+    /// <c>MIST_OWN_REQUIRES_OWNED</c> / <c>MIST_OWN_NOT_CLONABLE</c> for a non-owned,
+    /// non-clonable source. This replaces v1's bespoke <c>YieldsUniqueOwnership</c> /
+    /// <c>PerformMove</c> pairing at this site.
+    /// </summary>
+    private void ResolveOwnedBindingInit(
+        SyntaxNode initializer,
+        Symbol destination,
+        MethodFlowState state,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        _resolver.Resolve(
+            initializer,
+            destination.DeclaredType,
+            OwnedMoveSite.OwnedBindingInit,
+            state,
+            model,
+            diagnostics);
+    }
+
     // ── Expression analysis ──────────────────────────────────────────────
 
     /// <summary>
@@ -1088,7 +886,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// Handles assignments (which may be moves) and method calls (which may
     /// pass owned arguments).
     /// </summary>
-    private static void AnalyzeExpression(
+    private void AnalyzeExpression(
         ExpressionNode expr,
         MethodFlowState state,
         ISemanticModel model,
@@ -1105,7 +903,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// Analyzes an assignment node. If this is a reassignment to an owned variable,
     /// it may be a move (from the RHS) and/or a re-assignment (restoring the LHS).
     /// </summary>
-    private static void AnalyzeAssignment(
+    private void AnalyzeAssignment(
         AssignmentNode assignment,
         MethodFlowState state,
         ISemanticModel model,
@@ -1168,6 +966,25 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 }
             }
 
+            // Field assignment provenance (Req 4): assigning to a field of an instance held
+            // in an owned binding requires the source to yield an owned value. Route the RHS
+            // through the single move boundary (site OwnedFieldAssignment). The resolver emits
+            // MIST_OWN_REQUIRES_OWNED / MIST_OWN_NOT_CLONABLE for a non-owned, non-clonable
+            // source, records implicit-clone annotations, and consumes an owned source.
+            if (assignment.Value is not null &&
+                receiverOfFieldAssign is not null &&
+                IsOwnedVariable(receiverOfFieldAssign))
+            {
+                var targetField = TryResolveFieldTarget(assignment.Target, model);
+                _resolver.Resolve(
+                    assignment.Value,
+                    targetField?.DeclaredType,
+                    OwnedMoveSite.OwnedFieldAssignment,
+                    state,
+                    model,
+                    diagnostics);
+            }
+
             // If the RHS is an owned variable being assigned to an owned or unrestricted LHS, it's a move.
             // Owned → owned: ownership transfers. Owned → unrestricted: source becomes dead.
             if (rhsSymbol is not null && IsOwnedVariable(rhsSymbol) && lhsSymbol is not null)
@@ -1199,7 +1016,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// at the join. If a variable is moved in one branch but not the other, the
     /// merged state marks it as Moved (conservative).
     /// </summary>
-    private static void AnalyzeIfStatement(
+    private void AnalyzeIfStatement(
         IfStatementNode ifStmt,
         MethodFlowState state,
         ISemanticModel model,
@@ -1255,7 +1072,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// Analyzes a while loop. Moves inside the loop body without re-assignment
     /// emit <c>MIST_OWN_LOOP_MOVE</c>.
     /// </summary>
-    private static void AnalyzeWhileStatement(
+    private void AnalyzeWhileStatement(
         WhileStatementNode whileStmt,
         MethodFlowState state,
         ISemanticModel model,
@@ -1288,7 +1105,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// Analyzes a for loop. Moves inside the loop body without re-assignment
     /// emit <c>MIST_OWN_LOOP_MOVE</c>.
     /// </summary>
-    private static void AnalyzeForStatement(
+    private void AnalyzeForStatement(
         ForStatementNode forStmt,
         MethodFlowState state,
         ISemanticModel model,
@@ -1336,7 +1153,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// Analyzes a foreach loop. Moves inside the loop body without re-assignment
     /// emit <c>MIST_OWN_LOOP_MOVE</c>.
     /// </summary>
-    private static void AnalyzeForeachStatement(
+    private void AnalyzeForeachStatement(
         ForeachStatementNode foreachStmt,
         MethodFlowState state,
         ISemanticModel model,
@@ -1520,7 +1337,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// Checks method calls in an expression for owned argument passing (moves).
     /// When an owned variable is passed to an owned parameter, it is moved.
     /// </summary>
-    private static void CheckMethodCallsForMoves(
+    private void CheckMethodCallsForMoves(
         SyntaxNode node,
         MethodFlowState state,
         ISemanticModel model,
@@ -1535,6 +1352,36 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             if (postfix.Suffix.Length > 0 && postfix.Suffix[0] is MethodCallSuffixPostfixSuffixNode firstMethodCall)
             {
                 var receiverSymbol = model.GetDeclaredSymbol(postfix.Target);
+
+                // Method-tier visibility (Req 2, 3): when the receiver is held in an owned
+                // binding, the MethodTierVisibilityFilter decides whether the called method
+                // is visible. A mutable method on a non-owned type held in an owned binding is
+                // hidden → MIST_OWN_MUTABLE_HIDDEN. Owned types and value types expose all
+                // methods; non-owned-binding receivers are unaffected.
+                if (receiverSymbol is not null &&
+                    state.BindingKinds.TryGetValue(receiverSymbol, out var receiverBinding) &&
+                    receiverBinding == BindingKind.Owned)
+                {
+                    var receiverType = receiverSymbol.DeclaredType;
+                    if (receiverType is not null)
+                    {
+                        var calledMethod = LookupMemberByName(receiverType, firstMethodCall.Name.Lexeme);
+                        if (calledMethod is not null)
+                        {
+                            var visibility = MethodTierVisibilityFilter.Resolve(
+                                calledMethod, receiverType, receiverIsOwnedBinding: true, model);
+                            if (visibility == MethodVisibility.HiddenMutable)
+                            {
+                                diagnostics.Add(MakeDiagnostic(
+                                    MutableHidden,
+                                    MutableHiddenMessage(calledMethod.Name, receiverType.DisplayName),
+                                    firstMethodCall,
+                                    model));
+                            }
+                        }
+                    }
+                }
+
                 if (receiverSymbol is not null &&
                     state.VariableStates.TryGetValue(receiverSymbol, out var receiverState))
                 {
@@ -1605,7 +1452,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// Checks arguments of a method call for owned parameter passing (moves) and
     /// lending compatibility violations.
     /// </summary>
-    private static void CheckMethodCallArgumentsForMoves(
+    private void CheckMethodCallArgumentsForMoves(
         MethodCallSuffixPostfixSuffixNode methodCall,
         MethodFlowState state,
         ISemanticModel model,
@@ -1641,12 +1488,18 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
                 if (paramSym.OwnershipTier == OwnershipTier.Owned)
                 {
-                    // This parameter is owned — passing an owned variable here is a move.
-                    var argSymbol = TryResolveIdentifierSymbol(argExprs[i], model);
-                    if (argSymbol is not null && IsOwnedVariable(argSymbol))
-                    {
-                        PerformMove(argSymbol, argExprs[i], state, model, diagnostics);
-                    }
+                    // Owned parameter pass is an owned-move site (Req 6 AC 3, Req 9 AC 4):
+                    // route the argument through the single move boundary. The resolver
+                    // consumes an owned source (marking it Moved), copies value types,
+                    // clones a non-owned clonable source, and emits MIST_OWN_REQUIRES_OWNED /
+                    // MIST_OWN_NOT_CLONABLE for a non-owned, non-clonable source.
+                    _resolver.Resolve(
+                        argExprs[i],
+                        paramSym.DeclaredType,
+                        OwnedMoveSite.OwnedParameterPass,
+                        state,
+                        model,
+                        diagnostics);
                 }
 
                 // Check lending compatibility for all tier combinations.
@@ -1662,7 +1515,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// Checks arguments of a direct invocation for owned parameter passing (moves) and
     /// lending compatibility violations.
     /// </summary>
-    private static void CheckInvocationArgumentsForMoves(
+    private void CheckInvocationArgumentsForMoves(
         InvocationSuffixPostfixSuffixNode invocation,
         PrimaryNode target,
         MethodFlowState state,
@@ -1705,11 +1558,15 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
                 if (paramSym.OwnershipTier == OwnershipTier.Owned)
                 {
-                    var argSymbol = TryResolveIdentifierSymbol(argExprs[i], model);
-                    if (argSymbol is not null && IsOwnedVariable(argSymbol))
-                    {
-                        PerformMove(argSymbol, argExprs[i], state, model, diagnostics);
-                    }
+                    // Owned parameter pass is an owned-move site (Req 6 AC 3, Req 9 AC 4):
+                    // route the argument through the single move boundary.
+                    _resolver.Resolve(
+                        argExprs[i],
+                        paramSym.DeclaredType,
+                        OwnedMoveSite.OwnedParameterPass,
+                        state,
+                        model,
+                        diagnostics);
                 }
 
                 // Check lending compatibility for all tier combinations.
@@ -2072,45 +1929,6 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             StructType st => st.IsOwnedType,
             _ => false
         };
-    }
-
-    /// <summary>
-    /// Returns <c>true</c> if the given type structurally satisfies the owned-type field
-    /// restriction — all reference-type fields are themselves owned types. This allows
-    /// classes that are not explicitly declared as <c>owned</c> but have only value-type
-    /// or owned-type fields to be used in owned bindings.
-    /// </summary>
-    private static bool SatisfiesOwnedTypeFieldRestriction(IType type)
-    {
-        IScope? memberScope = type switch
-        {
-            ClassType ct => ct.MemberScope,
-            StructType st => st.MemberScope,
-            _ => null,
-        };
-
-        if (memberScope is null)
-            return false;
-
-        foreach (var member in memberScope.Members)
-        {
-            if (member.Kind != SymbolKind.Field)
-                continue;
-
-            var fieldType = member.DeclaredType;
-            if (fieldType is null)
-                continue;
-
-            // Value types are always fine.
-            if (IsValueType(fieldType))
-                continue;
-
-            // Reference-type field must be an owned type.
-            if (!IsOwnedType(fieldType))
-                return false;
-        }
-
-        return true;
     }
 
     /// <summary>

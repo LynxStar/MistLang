@@ -1,7 +1,10 @@
 namespace Standard;
 
-intrinsic public readonly owned struct UInt32
+intrinsic public readonly owned struct UInt32 : IClonable<UInt32>
 {
+    // IClonable base case — value-type identity copy (Requirement 8.6)
+    intrinsic public owned UInt32 Clone();
+
     // Binary arithmetic operators — Requirement 3.1
     intrinsic public static UInt32 operator +(UInt32 a, UInt32 b);
     intrinsic public static UInt32 operator -(UInt32 a, UInt32 b);

@@ -1,0 +1,40 @@
+using Standard;
+
+namespace Snippet;
+
+// An ordinary (non-owned) type. It makes no ownership promise.
+public class Counter
+{
+    public int Value;
+
+    public Counter(int value)
+    {
+        this.Value = value;
+    }
+
+    // A readonly method touches no field — safe to call on an owned binding.
+    public readonly string Describe()
+    {
+        return $"Counter({Value})";
+    }
+
+    // A mutable method. Hidden when the value is held in an owned binding.
+    public void Increment()
+    {
+        this.Value = Value + 1;
+    }
+}
+
+public class NonOwnedReadonlyDemo
+{
+    public static void Run()
+    {
+        owned Counter c = new Counter(10);
+
+        // Allowed: Describe() is readonly, so it stays visible.
+        Console.WriteLine($"readonly view={c.Describe()}");
+
+        // Not allowed while held in an owned binding:
+        //   c.Increment();   // mutable method hidden on a non-owned type
+    }
+}

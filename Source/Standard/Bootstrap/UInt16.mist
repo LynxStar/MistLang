@@ -1,7 +1,10 @@
 namespace Standard;
 
-intrinsic public readonly owned struct UInt16
+intrinsic public readonly owned struct UInt16 : IClonable<UInt16>
 {
+    // IClonable base case — value-type identity copy (Requirement 8.6)
+    intrinsic public owned UInt16 Clone();
+
     // Binary arithmetic operators — Requirement 3.1
     intrinsic public static UInt16 operator +(UInt16 a, UInt16 b);
     intrinsic public static UInt16 operator -(UInt16 a, UInt16 b);

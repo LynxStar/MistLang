@@ -1,0 +1,30 @@
+using Standard;
+
+namespace Snippet;
+
+public class Point
+{
+    public int X;
+    public int Y;
+
+    public Point(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    public readonly string Describe()
+    {
+        return $"Point({X}, {Y})";
+    }
+}
+
+public class OwnedBindingDemo
+{
+    public static void Run()
+    {
+        // An owned binding is the unique owner of a freshly allocated value.
+        owned Point p = new Point(3, 7);
+        Console.WriteLine($"owned binding={p.Describe()}");
+    }
+}

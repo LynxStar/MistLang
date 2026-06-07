@@ -1,7 +1,10 @@
 namespace Standard;
 
-intrinsic public readonly owned struct Char
+intrinsic public readonly owned struct Char : IClonable<Char>
 {
+    // IClonable base case — value-type identity copy (Requirement 8.6)
+    intrinsic public owned Char Clone();
+
     // Comparison and equality operators — Requirement 3.7
     intrinsic public static Boolean operator ==(Char a, Char b);
     intrinsic public static Boolean operator !=(Char a, Char b);

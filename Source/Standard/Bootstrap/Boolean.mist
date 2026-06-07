@@ -1,7 +1,10 @@
 namespace Standard;
 
-intrinsic public readonly owned struct Boolean
+intrinsic public readonly owned struct Boolean : IClonable<Boolean>
 {
+    // IClonable base case — value-type identity copy (Requirement 8.6)
+    intrinsic public owned Boolean Clone();
+
     // Logical operators — Requirement 3.5
     intrinsic public static Boolean operator &&(Boolean a, Boolean b);
     intrinsic public static Boolean operator ||(Boolean a, Boolean b);

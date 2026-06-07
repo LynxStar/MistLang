@@ -19,6 +19,7 @@ public sealed class SemanticModel : ISemanticModel
     private HashSet<ISymbol> _guardNeededParameters;
     private Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>> _discardedTasksByScope;
     private readonly Dictionary<Storm.Runtime.SyntaxNode, IReadOnlyList<IType>> _inferredTypeArguments = new();
+    private readonly Dictionary<Storm.Runtime.SyntaxNode, IType> _implicitCloneSites = new();
 
     internal SemanticModel(
         MistCompilation compilation,
@@ -304,5 +305,17 @@ public sealed class SemanticModel : ISemanticModel
     public IReadOnlyList<IType>? GetInferredTypeArguments(Storm.Runtime.SyntaxNode callSiteNode)
     {
         return _inferredTypeArguments.TryGetValue(callSiteNode, out var args) ? args : null;
+    }
+
+    /// <inheritdoc />
+    public void RecordImplicitClone(Storm.Runtime.SyntaxNode source, IType destinationType)
+    {
+        _implicitCloneSites[source] = destinationType;
+    }
+
+    /// <inheritdoc />
+    public IType? GetImplicitCloneDestination(Storm.Runtime.SyntaxNode source)
+    {
+        return _implicitCloneSites.TryGetValue(source, out var destinationType) ? destinationType : null;
     }
 }

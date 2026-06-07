@@ -33,7 +33,6 @@ When you hold a variable in an `owned var` binding:
 
 **In both cases:**
 - `owned.Field = expr` requires `expr` to be owned (move into the graph)
-- Deeply readonly/immutable values (string, primitives) always qualify — aliasing is harmless
 
 ### IClonable — Shared-to-Owned Bridge
 
@@ -48,9 +47,9 @@ public interface IClonable<T>
 
 - If implemented: `.Clone()` is called (implicitly or explicitly) to produce a fresh owned value
 - If not implemented: compile error — can't prove the value is unique
-- Auto-derivable: for types where all fields are themselves clonable (primitives, other clonables, deeply readonly)
+- Auto-derivable: for types where all fields are themselves clonable (primitives, other clonables)
 
-**String**: would implement `IClonable<String>` trivially (or bypass it entirely via deep readonly — aliasing an immutable value is provably harmless, the "clone" is a no-op).
+**String**: would implement `IClonable<String>` trivially (the "clone" is a no-op since strings are immutable and interned).
 
 ### What Changes From Today
 
@@ -73,7 +72,6 @@ public interface IClonable<T>
 - Field assignment provenance enforcement on owned bindings (MISSING TODAY)
 - Method call tier restrictions for non-owned types on owned bindings
 - `IClonable<T>` interface and auto-derivation
-- Deep readonly bypass (immutable types always qualify as owned sources)
 
 ### Implementation Gap (exists today)
 

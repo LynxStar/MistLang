@@ -4,58 +4,80 @@ Tracked issues and improvements that don't belong to an active spec but should b
 
 ---
 
-## Ownership Redesign: Instance-Level Ownership
+## Ownership Redesign
 
 ### Core Insight
 
-Ownership is a property of the *value/binding*, not the type. Any type can be owned at the instance level — the type doesn't need to declare anything. The rules flow from the binding state.
+Ownership is a property of the *value/binding*, not purely the type. Any type can be owned at the instance level via `owned var`. The `owned` keyword on types survives but with a different meaning: a cooperation contract, not a field restriction.
 
-### Current State (what exists today)
+### Owned Types — New Meaning
 
-- `owned` on type declarations — requires all fields to be owned types (structural check)
-- `owned` on field declarations — requires field type to be owned, enforces provenance at assignment
-- `owned var` bindings — type must be declared `owned` or pass structural check
-- Struct ownership inference — structs with all owned-type fields are inferred as owned
+`owned` on a type declaration means: "I, the type author, proactively cooperate with ownership semantics. All mutations inside this type maintain ownership invariants — internal field assignments come from move operations."
 
-### Target State (what it should become)
+This does NOT restrict what fields the type can have. It signals: "this type is safe to use as an owned binding with full method access because I handle the complexity internally."
 
-- **Remove** `owned` from type declarations entirely — no type-level ownership concept
-- **Remove** `owned` from field declarations — redundant with binding-level rules
-- **Remove** structural "is this type eligible for ownership" check — any type can be owned
-- **Remove** struct ownership inference — not needed when ownership is purely instance-level
+### Method Call Rules on Owned Bindings
 
-- **Keep** `owned var x = ...` — this instance is owned, I'm the sole holder of the graph
-- **Keep** `owned T param` — caller must move ownership to me
-- **Keep** `owned T` return — I'm handing out a fresh owned value
+When you hold a variable in an `owned var` binding:
 
-### Rules (binding-level enforcement)
+**Non-owned types (tier 3):**
+- Direct field/property assignment — allowed, caller proves provenance (RHS must be owned)
+- Readonly methods — always callable
+- Mutating methods with no parameters — callable (self-mutation is fine)
+- Mutating methods WITH parameters — **NOT callable** (can't prove the method won't store the parameter into a field, breaking the graph)
 
-1. `owned var x = new T()` — establishes ownership. `new` produces a fresh value with no aliases.
-2. All field assignments on an owned instance must come from an owned source (owned binding, constructor call, owned-returning function). Assigning a shared value into an owned instance breaks the "sole owner" guarantee.
-3. Method calls on an owned instance that store parameters into the instance's fields — same rule, parameters must have owned provenance.
-4. `var y = x` where x is owned — move semantics. x is dead, y holds the value without ownership tracking (downleveled to shared).
-5. Deeply readonly/immutable values (string, primitives) are always valid as owned sources — aliasing them doesn't matter since they can't mutate.
+**Owned types (full cooperation):**
+- All of the above, PLUS mutating methods with parameters are callable
+- The type author guarantees correctness: any method parameter that gets stored into a field is declared `owned` on the method signature
+- The compiler verifies inside the type body that field assignments come from owned sources
 
-### What This Solves
+**In both cases:**
+- `owned.Field = expr` requires `expr` to be owned (move into the graph)
+- Deeply readonly/immutable values (string, primitives) always qualify — aliasing is harmless
 
-- **No bifurcation** — any type can participate in both owned and shared contexts
-- **No structural analysis** — no need to recursively prove field types are owned
-- **String just works** — deeply readonly, always a valid source for owned assignment
-- **Simpler mental model** — "owned" describes what you're doing with a value, not what the type is
+### IClonable — Shared-to-Owned Bridge
 
-### Migration Path
+When assigning to an owned destination and the source isn't owned, the compiler checks if the source type implements `IClonable<T>`:
 
-1. Remove `owned` keyword from type declarations (parser, semantic model, type checker)
-2. Remove `owned` keyword from field declarations
-3. Remove `MIST_OWN_FIELD_NOT_OWNED` diagnostic and structural checks
-4. Remove `MIST_OWN_TYPE_REQUIRES_OWNED` diagnostic
-5. **Add** field assignment provenance enforcement: when assigning to a field of an owned-bound instance, source must be owned or deeply readonly
-6. Update stdlib bootstrap types — remove `owned` from String, Int32, etc. declarations
-7. Update samples and tests
+```mist
+public interface IClonable<T>
+{
+    public owned T Clone();
+}
+```
 
-### Implementation Gap (exists today regardless of redesign)
+- If implemented: `.Clone()` is called (implicitly or explicitly) to produce a fresh owned value
+- If not implemented: compile error — can't prove the value is unique
+- Auto-derivable: for types where all fields are themselves clonable (primitives, other clonables, deeply readonly)
 
-Field assignment provenance is not enforced at all. Even with today's `owned` field modifier (Req 10.3), assigning from a shared binding to an owned field compiles without error. This must be fixed whether we do the redesign or not.
+**String**: would implement `IClonable<String>` trivially (or bypass it entirely via deep readonly — aliasing an immutable value is provably harmless, the "clone" is a no-op).
+
+### What Changes From Today
+
+**Remove:**
+- Owned type field restriction (all fields must be owned types) — owned types can have any fields
+- `owned` field modifier on individual fields — redundant with binding-level rules
+- `MIST_OWN_FIELD_NOT_OWNED` for the field-modifier case
+- Structural "is this type eligible for ownership" analysis
+- Struct ownership inference (not needed — any struct can be owned at binding level)
+
+**Keep:**
+- `owned` on type declarations — but with new meaning (cooperation contract, not field restriction)
+- `owned var x = ...` — instance-level ownership binding
+- `owned T param` — caller must move ownership in
+- `owned T` return — handing out a fresh owned value
+- Move semantics (`owned var y = x` makes x dead)
+- Lending system (borrowed, frozen, readonly ref from owned bindings)
+
+**Add:**
+- Field assignment provenance enforcement on owned bindings (MISSING TODAY)
+- Method call tier restrictions for non-owned types on owned bindings
+- `IClonable<T>` interface and auto-derivation
+- Deep readonly bypass (immutable types always qualify as owned sources)
+
+### Implementation Gap (exists today)
+
+Field assignment provenance is not enforced at all. Even with today's `owned` field modifier (Req 10.3), assigning from a shared binding to an owned field compiles without error. This must be fixed as part of the redesign.
 
 ---
 

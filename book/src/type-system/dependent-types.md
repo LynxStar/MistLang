@@ -1,5 +1,7 @@
 # Dependent Types
 
+> **⚠️ Unvetted Content:** From this chapter onward, the book content is auto-generated from spec documents and sample code using Opus and has not been manually reviewed for accuracy. Descriptions may be incorrect or misleading. All code snippets are at least valid compilable Mist, and the `samples/` directory in the repository contains working programs that fully demonstrate each feature end-to-end — trust the code over the prose when in doubt.
+
 Dependent types let you parameterize a type by a compile-time constant value rather than another type. Where generics say "this works for any type T," dependent types say "this is specifically sized to 5" or "this has exactly 3 rows." The value becomes part of the type's identity, giving you stronger compile-time guarantees about dimensions, capacities, and configurations without runtime overhead.
 
 Mist dependent types are related to but distinct from refinement types. Refinement types constrain the *range* of values an existing type can hold (e.g., "an int that is positive"). Dependent types parameterize the *type itself* by a constant value, creating a family of distinct types indexed by that value.

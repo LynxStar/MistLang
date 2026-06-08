@@ -8,6 +8,7 @@ public class Program
     {
         int age = 25;
         int count = 1;
+        int fromAdult = age;
     }
 
     public static Program __CreateDefault()

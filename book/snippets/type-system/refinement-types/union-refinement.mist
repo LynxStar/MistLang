@@ -1,0 +1,17 @@
+// Union type where each constituent has its own refinement predicate
+type AgeRange = int >= 3 and <= 8 | byte >= 0 and < 64;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // int constituent: must be >= 3 and <= 8
+        AgeRange childAge = 5;
+
+        // byte constituent: must be >= 0 and < 64
+        AgeRange byteVal = 50;
+
+        Console.WriteLine($"childAge = {childAge}");
+        Console.WriteLine($"byteVal = {byteVal}");
+    }
+}

@@ -2,7 +2,9 @@
 
 > **⚠️ Unvetted Content:** From this chapter onward, the book content is auto-generated from spec documents and sample code using Opus and has not been manually reviewed for accuracy. Descriptions may be incorrect or misleading. All code snippets are at least valid compilable Mist, and the `samples/` directory in the repository contains working programs that fully demonstrate each feature end-to-end — trust the code over the prose when in doubt.
 
-Cast operators let you define custom conversions between types. Mist supports two kinds: **implicit** operators that the compiler applies automatically, and **explicit** operators that require the programmer to write a cast expression. Both are declared as static methods on the source type and emit directly to C#'s `implicit operator` and `explicit operator` syntax.
+Unlike many languages that support a hard cast via `(DestinationType)expression` and defer validation to runtime, Mist verifies at compile time that a conversion operator actually exists between the source and target types. If the compiler cannot prove the cast is valid, the code does not compile. You can never get a runtime invalid cast exception in Mist.
+
+Cast operators let you define custom conversions between types. Mist supports two kinds: **implicit** operators that the compiler applies automatically, and **explicit** operators that require the programmer to write a cast expression. Both are declared as static methods on the source type.
 
 ## Implicit Operator
 
@@ -21,7 +23,7 @@ An implicit cast operator is declared with `public static implicit operator Targ
 {{#endtab }}
 {{#endtabs }}
 
-The declaration syntax mirrors C# exactly. The implicit operator is a static method on `Celsius` that takes a `Celsius` parameter and returns a `Fahrenheit`. Because it's implicit, the compiler inserts the conversion call wherever needed.
+The implicit operator is a static method on `Celsius` that takes a `Celsius` parameter and returns a `Fahrenheit`. Because it's implicit, the compiler inserts the conversion call wherever needed.
 
 ### Automatic Conversion at Assignment
 
@@ -40,7 +42,7 @@ When you assign a `Celsius` value to a variable typed as `Fahrenheit`, the impli
 {{#endtab }}
 {{#endtabs }}
 
-In the Mist source, no cast syntax is needed — the assignment `Fahrenheit boilingF = boiling;` is valid because the implicit operator exists. In the emitted C#, the compiler inserts an explicit cast expression `((Fahrenheit)boiling)` to invoke the operator. The programmer never writes this cast; the compiler handles it.
+No cast syntax is needed — the assignment `Fahrenheit boilingF = boiling;` is valid because the implicit operator exists. The programmer never writes this cast; the compiler handles it.
 
 ### Automatic Conversion at Argument Sites
 
@@ -78,7 +80,7 @@ An explicit cast operator is declared with `public static explicit operator Targ
 {{#endtab }}
 {{#endtabs }}
 
-The explicit operator emits identically to C#'s `explicit operator` syntax. The difference from implicit is purely in how the compiler treats call sites.
+The difference from implicit is purely in how the compiler treats call sites — explicit operators are never applied automatically.
 
 ### Cast Expression Syntax
 
@@ -97,7 +99,7 @@ To invoke an explicit operator, you write `(TargetType)expression`:
 {{#endtab }}
 {{#endtabs }}
 
-Without the `(Kelvin)` cast, this code would not compile — the compiler does not apply explicit operators automatically. The emitted C# wraps the cast in an extra set of parentheses, but the semantics are identical.
+Without the `(Kelvin)` cast, this code would not compile — the compiler does not apply explicit operators automatically.
 
 ## Compile-Time Type Resolution
 
@@ -139,4 +141,4 @@ Even though `m` holds a `Weight` at runtime, the compiler only sees `Measurement
 | **Compiler behavior** | Inserts conversion at assignment, argument, and return sites | Only applies when the programmer writes the cast |
 | **Example** | Celsius → Fahrenheit (linear transform, no data loss) | Celsius → Kelvin (different scale, programmer should be aware) |
 
-Both kinds emit as standard C# cast operators, so the .NET runtime handles them identically. The distinction is purely about what the Mist compiler allows without explicit syntax.
+The distinction between the two kinds is purely about what the Mist compiler allows without explicit syntax at the call site.

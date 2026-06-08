@@ -1,0 +1,30 @@
+type AdultAge = int >= 18;
+type DrinkingAge = int >= 21;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        int x = 25;
+
+        // Narrowing: if the condition implies the predicate, the variable is narrowed
+        if (x >= 18)
+        {
+            // x is now narrowed to AdultAge within this branch
+            AdultAge narrowed = x;
+            Console.WriteLine($"Narrowed to AdultAge: {narrowed}");
+        }
+
+        // Pattern matching with `is` to validate at runtime
+        int userInput = 21;
+        if (userInput is DrinkingAge validAge)
+        {
+            Console.WriteLine($"Valid drinking age: {validAge}");
+        }
+
+        // Widening: refinement types widen to base type implicitly
+        AdultAge age = 30;
+        int baseValue = age;  // always valid — AdultAge is a subset of int
+        Console.WriteLine($"Widened to int: {baseValue}");
+    }
+}

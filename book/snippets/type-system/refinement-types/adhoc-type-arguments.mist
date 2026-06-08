@@ -1,0 +1,30 @@
+// Dependent type parameter with ad-hoc refinement constraint
+public class FixedArray<TValue, Size:int> where Size >= 0
+{
+    public int GetSize() { return Size; }
+    public string Describe() { return $"FixedArray<Size={Size}>"; }
+}
+
+public class Matrix<Rows:int, Cols:int> where Rows >= 1 where Cols >= 1
+{
+    public int GetRows() { return Rows; }
+    public int GetCols() { return Cols; }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Valid: 5 satisfies >= 0
+        var arr = new FixedArray<int, 5>();
+        Console.WriteLine(arr.Describe());
+
+        // Valid: 3 satisfies >= 1, 4 satisfies >= 1
+        var mat = new Matrix<3, 4>();
+        Console.WriteLine($"Matrix<{mat.GetRows()}x{mat.GetCols()}>");
+
+        // Invalid — rejected at compile time:
+        // var bad = new FixedArray<int, -1>();  // ERROR: -1 does not satisfy >= 0
+        // var bad2 = new Matrix<0, 4>();        // ERROR: 0 does not satisfy >= 1
+    }
+}

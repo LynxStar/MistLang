@@ -5,7 +5,21 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        // Valid assignments — literals satisfy the predicates
         AdultAge age = 25;
         Positive count = 1;
+
+        // AdultAge (>= 18) implies Positive (> 0), so this is valid
+        Positive fromAdult = age;
+
+        // The reverse is NOT valid — Positive does not imply AdultAge:
+        // AdultAge fromPositive = count; // ERROR: Positive (> 0) does not satisfy >= 18
+
+        // Neither type accepts 0:
+        // AdultAge zeroAge = 0;    // ERROR: 0 does not satisfy >= 18
+        // Positive zeroCount = 0;  // ERROR: 0 does not satisfy > 0
+
+        // AdultAge rejects values below 18:
+        // AdultAge tooYoung = 10;  // ERROR: 10 does not satisfy >= 18
     }
 }

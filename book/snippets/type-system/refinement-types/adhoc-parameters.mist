@@ -1,0 +1,32 @@
+public class Validator
+{
+    // Ad-hoc refinement on a method parameter
+    public static string Process(int x) where x >= 10 and <= 100
+    {
+        return $"Process({x}) accepted";
+    }
+
+    // Multiple parameter refinements
+    public static string Range(int min, int max) where min >= 0 where max <= 1000
+    {
+        return $"Range({min}, {max}) accepted";
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Valid: 42 satisfies >= 10 and <= 100
+        var result = Validator.Process(42);
+        Console.WriteLine(result);
+
+        // Valid: 5 satisfies >= 0, 500 satisfies <= 1000
+        var range = Validator.Range(5, 500);
+        Console.WriteLine(range);
+
+        // Invalid — rejected at compile time:
+        // Validator.Process(5);    // ERROR: 5 does not satisfy >= 10
+        // Validator.Process(200);  // ERROR: 200 does not satisfy <= 100
+    }
+}

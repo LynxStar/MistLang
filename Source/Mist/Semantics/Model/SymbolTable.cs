@@ -186,6 +186,13 @@ public sealed class Symbol : ISymbol
     /// is the same as <see cref="DeclaredType"/>. Null for non-method symbols.
     /// </summary>
     public IType? EffectiveReturnType { get; internal set; }
+
+    /// <summary>
+    /// Whether this field is declared with the <c>owned</c> ownership specifier (Req 1 AC 1)
+    /// or implicitly owned because the containing type is an <c>owned type</c> (Req 3 AC 1).
+    /// Only meaningful for field symbols.
+    /// </summary>
+    public bool IsOwnedField { get; internal set; }
 }
 
 /// <summary>

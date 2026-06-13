@@ -1045,23 +1045,52 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 }
             }
 
-            // Field assignment provenance (Req 4): assigning to a field of an instance held
-            // in an owned binding requires the source to yield an owned value. Route the RHS
-            // through the single move boundary (site OwnedFieldAssignment). The resolver emits
-            // MIST_OWN_REQUIRES_OWNED / MIST_OWN_NOT_CLONABLE for a non-owned, non-clonable
-            // source, records implicit-clone annotations, and consumes an owned source.
+            // Field assignment provenance (Req 4, Req 2 AC 2): assigning to an owned field
+            // requires the source to yield an owned value. This applies regardless of whether
+            // the parent binding is owned or shared (Req 2 AC 2 — shared parent can write with
+            // provenance). Route the RHS through the single move boundary (site
+            // OwnedFieldAssignment). The resolver emits MIST_OWN_REQUIRES_OWNED /
+            // MIST_OWN_NOT_CLONABLE for a non-owned, non-clonable source, records
+            // implicit-clone annotations, and consumes an owned source.
             if (assignment.Value is not null &&
-                receiverOfFieldAssign is not null &&
-                IsOwnedVariable(receiverOfFieldAssign))
+                receiverOfFieldAssign is not null)
             {
                 var targetField = TryResolveFieldTarget(assignment.Target, model);
-                _resolver.Resolve(
-                    assignment.Value,
-                    targetField?.DeclaredType,
-                    OwnedMoveSite.OwnedFieldAssignment,
-                    state,
-                    model,
-                    diagnostics);
+                var isOwnedParent = IsOwnedVariable(receiverOfFieldAssign);
+                var isOwnedField = targetField is Symbol tfCheck && tfCheck.IsOwnedField;
+
+                if (isOwnedParent || isOwnedField)
+                {
+                    // Per-field write state check (Req 16 AC 3–5, Req 2 AC 1):
+                    // Fields in LentRef or LentFrozen cannot be written to (outstanding borrow blocks mutation).
+                    // Fields in Moved CAN be written to — that's the restoration mechanism (Req 16 AC 6).
+                    if (targetField is Symbol tfs && tfs.IsOwnedField && isOwnedParent)
+                    {
+                        var currentFieldState = state.GetFieldState(receiverOfFieldAssign, targetField);
+                        if (currentFieldState is VariableOwnershipState.LentRef or VariableOwnershipState.LentFrozen)
+                        {
+                            ReportFieldStateViolation(receiverOfFieldAssign, targetField, currentFieldState.Value,
+                                AccessKind.Write, assignment, state, model, diagnostics);
+                        }
+                    }
+
+                    var resolution = _resolver.Resolve(
+                        assignment.Value,
+                        targetField?.DeclaredType,
+                        OwnedMoveSite.OwnedFieldAssignment,
+                        state,
+                        model,
+                        diagnostics);
+
+                    // Per-field state restoration (Req 16 AC 6, Req 2 AC 1):
+                    // After the resolver approves a write to an owned field through an owned parent,
+                    // restore the field from Moved to Live (if it was Moved).
+                    if (isOwnedParent && targetField is Symbol restoredField && restoredField.IsOwnedField &&
+                        resolution.Outcome != MoveOutcome.Error)
+                    {
+                        state.RestoreField(receiverOfFieldAssign, targetField);
+                    }
+                }
             }
 
             // If the RHS is an owned variable being assigned to an owned or unrestricted LHS, it's a move.
@@ -1499,6 +1528,47 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         if (!IsActionPermitted(receiverState, AccessKind.Read))
                         {
                             ReportTruthTableViolation(receiverSymbol, receiverState, AccessKind.Read, firstMethodCall, state, model, diagnostics);
+                        }
+                    }
+                }
+
+                // ── Per-field state check for method calls (Req 16 AC 23–24) ──────────
+                // When the receiver has per-field state tracking active and at least one
+                // field is non-Live, check whether the called method accesses any field
+                // whose current state does not permit the required action. A method that
+                // only touches Live fields is permitted.
+                if (receiverSymbol is not null &&
+                    state.FieldStates.TryGetValue(receiverSymbol, out var receiverFieldStates) &&
+                    HasNonLiveField(receiverFieldStates))
+                {
+                    var receiverType = receiverSymbol.DeclaredType;
+                    if (receiverType is not null)
+                    {
+                        var calledMethodSym = LookupMemberByName(receiverType, firstMethodCall.Name.Lexeme);
+                        if (calledMethodSym is not null)
+                        {
+                            // Use ThisTierInferencePass to determine which owned fields the method accesses.
+                            var accessedFields = ThisTierInferencePass.GetAccessedFields(calledMethodSym, model);
+
+                            foreach (var (fieldSym, accessKind) in accessedFields)
+                            {
+                                var fieldState = state.GetFieldState(receiverSymbol, fieldSym);
+                                if (fieldState is null || fieldState == VariableOwnershipState.Live)
+                                    continue;
+
+                                // Map FieldAccessKind to AccessKind for truth table lookup.
+                                var requiredAction = accessKind == FieldAccessKind.Write
+                                    ? AccessKind.Write
+                                    : AccessKind.Read;
+
+                                if (!IsActionPermitted(fieldState.Value, requiredAction))
+                                {
+                                    ReportFieldStateViolation(
+                                        receiverSymbol, fieldSym, fieldState.Value, requiredAction,
+                                        firstMethodCall, state, model, diagnostics);
+                                    break; // Report the first violation and stop.
+                                }
+                            }
                         }
                     }
                 }
@@ -2034,6 +2104,20 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         if (symbol is not Symbol sym)
             return false;
         return sym.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly or ReadonlyStatus.InferredReadonly;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if any field in the given per-field state map is in a non-Live state.
+    /// Used to short-circuit the per-field method call check (Req 16 AC 23–24).
+    /// </summary>
+    private static bool HasNonLiveField(Dictionary<ISymbol, VariableOwnershipState> fieldStates)
+    {
+        foreach (var (_, fieldState) in fieldStates)
+        {
+            if (fieldState != VariableOwnershipState.Live)
+                return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -2584,6 +2668,139 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     }
                 }
             }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // Owned field access helpers (Req 2, Req 16)
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Returns <c>true</c> if <paramref name="node"/> is a field access on an owned field
+    /// through an owned parent binding. If true, outputs the field and receiver symbols for
+    /// per-field state tracking.
+    /// </summary>
+    private static bool IsOwnedFieldAccessOnOwnedParent(
+        SyntaxNode node,
+        MethodFlowState state,
+        ISemanticModel model,
+        out ISymbol? fieldSymbol,
+        out ISymbol? receiverSymbol)
+    {
+        fieldSymbol = null;
+        receiverSymbol = null;
+
+        var receiver = TryResolveFieldAccessReceiver(node, model);
+        if (receiver is null)
+            return false;
+
+        var field = TryResolveFieldTarget(node, model);
+        if (field is null || field.Kind != SymbolKind.Field)
+            return false;
+
+        if (field is not Symbol fieldSym || !fieldSym.IsOwnedField)
+            return false;
+
+        if (!state.BindingKinds.TryGetValue(receiver, out var parentKind) || parentKind != BindingKind.Owned)
+            return false;
+
+        fieldSymbol = field;
+        receiverSymbol = receiver;
+        return true;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if <paramref name="node"/> is a field access on an owned field
+    /// through a shared (non-owned) parent binding. If true, outputs the field and receiver
+    /// symbols for diagnostics.
+    /// </summary>
+    private static bool IsOwnedFieldAccessOnSharedParent(
+        SyntaxNode node,
+        MethodFlowState state,
+        ISemanticModel model,
+        out ISymbol? fieldSymbol,
+        out ISymbol? receiverSymbol)
+    {
+        fieldSymbol = null;
+        receiverSymbol = null;
+
+        var receiver = TryResolveFieldAccessReceiver(node, model);
+        if (receiver is null)
+            return false;
+
+        var field = TryResolveFieldTarget(node, model);
+        if (field is null || field.Kind != SymbolKind.Field)
+            return false;
+
+        if (field is not Symbol fieldSym || !fieldSym.IsOwnedField)
+            return false;
+
+        // The parent is "shared" if it's not an owned binding (unrestricted or not tracked).
+        if (state.BindingKinds.TryGetValue(receiver, out var parentKind) && parentKind == BindingKind.Owned)
+            return false;
+
+        fieldSymbol = field;
+        receiverSymbol = receiver;
+        return true;
+    }
+
+    /// <summary>
+    /// Reports a diagnostic when a field operation is blocked by the field's per-field state.
+    /// </summary>
+    private static void ReportFieldStateViolation(
+        ISymbol receiverSymbol,
+        ISymbol fieldSymbol,
+        VariableOwnershipState fieldState,
+        AccessKind action,
+        SyntaxNode node,
+        MethodFlowState state,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var fieldName = $"{receiverSymbol.Name}.{fieldSymbol.Name}";
+        var actionName = action switch
+        {
+            AccessKind.Move => "move out of",
+            AccessKind.Borrow => "borrow",
+            AccessKind.Freeze => "freeze",
+            AccessKind.LiveView => "take a readonly ref of",
+            AccessKind.Write => "write to",
+            AccessKind.Read => "read",
+            _ => "access"
+        };
+
+        if (fieldState == VariableOwnershipState.Moved)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                UseAfterMove,
+                $"Cannot {actionName} field '{fieldName}' — the field has been moved out. " +
+                $"Assign a new owned value to restore it before use.",
+                node,
+                model));
+        }
+        else if (fieldState == VariableOwnershipState.LentRef)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                ExclusiveViolation,
+                $"Cannot {actionName} field '{fieldName}' — the field is currently borrowed (lent as a mutable reference).",
+                node,
+                model));
+        }
+        else if (fieldState == VariableOwnershipState.LentFrozen)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                MutationBlocked,
+                $"Cannot {actionName} field '{fieldName}' — the field is currently frozen (a frozen reference is outstanding).",
+                node,
+                model));
+        }
+        else if (fieldState == VariableOwnershipState.LentReadonly)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                MutationBlocked,
+                $"Cannot {actionName} field '{fieldName}' — the field has an outstanding readonly reference that prevents this operation.",
+                node,
+                model));
         }
     }
 }

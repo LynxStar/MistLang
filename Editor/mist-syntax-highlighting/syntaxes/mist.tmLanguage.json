@@ -117,6 +117,13 @@
           "match": "\\b(public|private|static|intrinsic|implicit|explicit|readonly|mutable|owned|affine|linear|relevant|frozen|ref|borrowed|async)\\b"
         },
         {
+          "comment": "default modifier on enum variant: default VariantName",
+          "match": "\\b(default)\\s+(?=[A-Z]\\w*\\s*[:,}])",
+          "captures": {
+            "1": { "name": "storage.modifier.mist" }
+          }
+        },
+        {
           "name": "keyword.other.mist",
           "match": "\\b(new|var|this|get|set|init|field|operator|with|as|default|where)\\b"
         },
@@ -143,8 +150,8 @@
           }
         },
         {
-          "comment": "class/struct within constraint clauses (after colon in where clause)",
-          "match": "(?<=where\\s+[a-zA-Z_]\\w*\\s*:[^{]*?)\\b(class|struct)\\b",
+          "comment": "class/struct/default within constraint clauses (after colon in where clause)",
+          "match": "(?<=where\\s+[a-zA-Z_]\\w*\\s*:[^{]*?)\\b(class|struct|default)\\b",
           "captures": {
             "1": { "name": "storage.type.mist" }
           }

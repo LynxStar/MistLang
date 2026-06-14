@@ -34,16 +34,4 @@ public class Counter
         c.Increment();
         Console.WriteLine(c.Describe());
     }
-
-    protected Counter()
-    {
-        this.name = "";
-        this.value = 0;
-    }
-
-    public static Counter __CreateDefault()
-    {
-        var inst = new Counter();
-        return inst;
-    }
 }

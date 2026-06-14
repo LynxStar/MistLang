@@ -22,17 +22,6 @@ public class Tag : IClonable<Tag>
     {
         return $"Tag({Code})";
     }
-
-    protected Tag()
-    {
-        this.Code = 0;
-    }
-
-    public static Tag __CreateDefault()
-    {
-        var inst = new Tag();
-        return inst;
-    }
 }
 public class IClonableDemo
 {

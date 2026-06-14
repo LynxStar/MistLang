@@ -21,16 +21,4 @@ public class PrivilegeRemovalDemo
     {
         return $"PrivilegeRemovalDemo(X={X}, Y={Y})";
     }
-
-    protected PrivilegeRemovalDemo()
-    {
-        this.X = 0;
-        this.Y = 0;
-    }
-
-    public static PrivilegeRemovalDemo __CreateDefault()
-    {
-        var inst = new PrivilegeRemovalDemo();
-        return inst;
-    }
 }

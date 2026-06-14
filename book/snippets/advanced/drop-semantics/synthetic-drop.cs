@@ -15,17 +15,6 @@ public class Handle
     {
         System.Console.WriteLine($"Handle({Id}) released");
     }
-
-    protected Handle()
-    {
-        this.Id = 0;
-    }
-
-    public static Handle __CreateDefault()
-    {
-        var inst = new Handle();
-        return inst;
-    }
 }
 public class Session
 {
@@ -37,18 +26,6 @@ public class Session
     {
         this.Conn = new Handle(connId);
         this.Log = new Handle(logId);
-    }
-
-    protected Session()
-    {
-        this.Conn = Handle.__CreateDefault();
-        this.Log = Handle.__CreateDefault();
-    }
-
-    public static Session __CreateDefault()
-    {
-        var inst = new Session();
-        return inst;
     }
 
     public void Drop()

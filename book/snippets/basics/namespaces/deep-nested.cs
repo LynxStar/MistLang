@@ -18,16 +18,4 @@ public class GameState
     {
         return $"Level: {level}, Active: {active}";
     }
-
-    protected GameState()
-    {
-        this.level = 0;
-        this.active = false;
-    }
-
-    public static GameState __CreateDefault()
-    {
-        var inst = new GameState();
-        return inst;
-    }
 }

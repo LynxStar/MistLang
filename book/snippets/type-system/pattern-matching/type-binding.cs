@@ -10,17 +10,6 @@ public class Shape
     {
         this.Kind = kind;
     }
-
-    protected Shape()
-    {
-        this.Kind = "";
-    }
-
-    public static Shape __CreateDefault()
-    {
-        var inst = new Shape();
-        return inst;
-    }
 }
 public class Circle : Shape
 {
@@ -29,17 +18,6 @@ public class Circle : Shape
     public Circle(int radius) : base("circle")
     {
         this.Radius = radius;
-    }
-
-    protected Circle()
-    {
-        this.Radius = 0;
-    }
-
-    public static Circle __CreateDefault()
-    {
-        var inst = new Circle();
-        return inst;
     }
 }
 public class Program

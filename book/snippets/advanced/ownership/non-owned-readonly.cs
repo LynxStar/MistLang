@@ -20,17 +20,6 @@ public class Counter
     {
         this.Value = Value + 1;
     }
-
-    protected Counter()
-    {
-        this.Value = 0;
-    }
-
-    public static Counter __CreateDefault()
-    {
-        var inst = new Counter();
-        return inst;
-    }
 }
 public class NonOwnedReadonlyDemo
 {

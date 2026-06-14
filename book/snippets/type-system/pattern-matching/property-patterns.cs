@@ -10,17 +10,6 @@ public class Circle
     {
         this.Radius = radius;
     }
-
-    protected Circle()
-    {
-        this.Radius = 0;
-    }
-
-    public static Circle __CreateDefault()
-    {
-        var inst = new Circle();
-        return inst;
-    }
 }
 public class Program
 {

@@ -28,18 +28,6 @@ public class UniqueHandle
     {
         return $"UniqueHandle(Id={Id}, RefCount={RefCount})";
     }
-
-    protected UniqueHandle()
-    {
-        this.Id = 0;
-        this.RefCount = 0;
-    }
-
-    public static UniqueHandle __CreateDefault()
-    {
-        var inst = new UniqueHandle();
-        return inst;
-    }
 }
 public class OwnedTypeDemo
 {

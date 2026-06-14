@@ -11,7 +11,7 @@ public class AppState
     public string Status;
 
 
-    protected AppState()
+    public AppState()
     {
         this.ErrorCount = 5;
         this.Ready = true;

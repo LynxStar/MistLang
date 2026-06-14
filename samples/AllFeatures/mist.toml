@@ -58,3 +58,4 @@ VoidValueLiteral = { path = "../VoidValueLiteral" }
 DropSemantics = { path = "../DropSemantics" }
 AsyncDropChaining = { path = "../AsyncDropChaining" }
 Ownership = { path = "../Ownership" }
+OptionalDefaultability = { path = "../OptionalDefaultability" }

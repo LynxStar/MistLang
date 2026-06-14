@@ -28,18 +28,6 @@ public class Entity
     {
         return $"Entity({this.name}, {this.id})";
     }
-
-    protected Entity()
-    {
-        this.name = "";
-        this.id = 0;
-    }
-
-    public static Entity __CreateDefault()
-    {
-        var inst = new Entity();
-        return inst;
-    }
 }
 public class Actor
 {

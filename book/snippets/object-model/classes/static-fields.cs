@@ -25,15 +25,4 @@ public class Counter
         var b = new Counter("Beta");
         Console.WriteLine($"Total created: {Counter.GetTotalCreated()}");
     }
-
-    protected Counter()
-    {
-        this.name = "";
-    }
-
-    public static Counter __CreateDefault()
-    {
-        var inst = new Counter();
-        return inst;
-    }
 }

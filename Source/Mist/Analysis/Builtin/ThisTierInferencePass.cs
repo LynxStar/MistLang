@@ -137,7 +137,7 @@ public sealed class ThisTierInferencePass
     public static ThisTier GetThisTier(ISymbol methodSymbol)
     {
         if (methodSymbol is Symbol sym)
-            return sym.InferredThisTier;
+            return sym.InferredThisTier ?? ThisTier.None;
         return ThisTier.None;
     }
 

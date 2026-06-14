@@ -1459,4 +1459,23 @@ absent ?? 42: 42
 [default] e1 after rev=Engine(Rpm=100, Temp=10)
 [default] e2 unaffected=Engine(Rpm=0, Temp=0)
 --- Ownership V2 Done ---
+=== Optional Defaultability Sample ===
+--- Non-Defaultable Type ---
+  conn=Server=localhost timeout=30
+--- Constructor + Default Block ---
+  prod: env=production retries=3
+  dev: env=development retries=1
+--- Implicitly Defaultable ---
+  default: x=0 y=0
+  new: x=0 y=0
+--- Enum Default Variant ---
+  direction=North
+--- Generic Default Constraint ---
+  factory point: x=0 y=0
+--- Optional Defaultability ---
+  maybeValue=Void
+--- Array Defaultability ---
+  ints[0]=0 ints[1]=0 ints[2]=0
+  points[0].X=0 points[0].Y=0
+Done!
 === Done! ===

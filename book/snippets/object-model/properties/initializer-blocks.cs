@@ -16,15 +16,6 @@ public class Config
         this.Verbose = false;
         this.Name = "";
     }
-
-    public static Config __CreateDefault()
-    {
-        var inst = new Config();
-        inst.Timeout = 0;
-        inst.Verbose = false;
-        inst.Name = "";
-        return inst;
-    }
 }
 public class Program
 {

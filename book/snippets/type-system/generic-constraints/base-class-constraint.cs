@@ -15,17 +15,6 @@ class Animal
     {
         return Species;
     }
-
-    protected Animal()
-    {
-        this.Species = "";
-    }
-
-    public static Animal __CreateDefault()
-    {
-        var inst = new Animal();
-        return inst;
-    }
 }
 class AnimalHandler<T>
     where T : Animal

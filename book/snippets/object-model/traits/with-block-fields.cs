@@ -23,16 +23,4 @@ public class Product : Printable
     string Printable.Name => this.Title;
 
     int Printable.Id => this.Sku;
-
-    protected Product()
-    {
-        this.Title = "";
-        this.Sku = 0;
-    }
-
-    public static Product __CreateDefault()
-    {
-        var inst = new Product();
-        return inst;
-    }
 }

@@ -1,0 +1,16 @@
+public class Point
+{
+    public int X;
+    public int Y;
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var p1 = new Point();
+        Point p2 = default(Point);
+        Console.WriteLine($"new: X={p1.X} Y={p1.Y}");
+        Console.WriteLine($"default: X={p2.X} Y={p2.Y}");
+    }
+}

@@ -21,17 +21,6 @@ public class Accumulator
     {
         return $"Accumulator(Total={Total})";
     }
-
-    protected Accumulator()
-    {
-        this.Total = 0;
-    }
-
-    public static Accumulator __CreateDefault()
-    {
-        var inst = new Accumulator();
-        return inst;
-    }
 }
 public class OwnedTypeFullAccessDemo
 {

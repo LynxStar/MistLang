@@ -13,18 +13,6 @@ public class Range
         this.Start = start;
         this.End = end;
     }
-
-    protected Range()
-    {
-        this.Start = 0;
-        this.End = 0;
-    }
-
-    public static Range __CreateDefault()
-    {
-        var inst = new Range();
-        return inst;
-    }
 }
 public class Program
 {

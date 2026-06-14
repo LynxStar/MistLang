@@ -28,18 +28,6 @@ public class Pair
     {
         this.X = x;
     }
-
-    protected Pair()
-    {
-        this.X = 0;
-        this.Y = 0;
-    }
-
-    public static Pair __CreateDefault()
-    {
-        var inst = new Pair();
-        return inst;
-    }
 }
 public class FrozenDemo
 {

@@ -1,3 +1,4 @@
+using Mist.Analysis.Builtin;
 using Mist.Common.Text;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model.Types;
@@ -193,6 +194,18 @@ public sealed class Symbol : ISymbol
     /// Only meaningful for field symbols.
     /// </summary>
     public bool IsOwnedField { get; internal set; }
+
+    /// <summary>
+    /// The this-tier declared via <c>with {tier}</c> on a method symbol.
+    /// Null when no explicit tier annotation is present.
+    /// </summary>
+    public ThisTier? DeclaredThisTier { get; internal set; }
+
+    /// <summary>
+    /// The this-tier inferred by the ownership inference pass.
+    /// Null when inference has not run or the symbol is not eligible.
+    /// </summary>
+    public ThisTier? InferredThisTier { get; internal set; }
 }
 
 /// <summary>

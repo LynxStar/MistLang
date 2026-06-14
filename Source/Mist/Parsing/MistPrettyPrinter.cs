@@ -1030,14 +1030,15 @@ public sealed class MistPrettyPrinter
 
     private string EmitEnumMember(EnumMemberNode member)
     {
+        var prefix = member.IsDefault is not null ? "default " : "";
         var name = member.Name.Lexeme;
 
         if (member.Value is not null)
         {
-            return $"{name}: {EmitExpression(member.Value)}";
+            return $"{prefix}{name}: {EmitExpression(member.Value)}";
         }
 
-        return name;
+        return $"{prefix}{name}";
     }
 
     // ─── With Declarations ──────────────────────────────────────────────
@@ -2529,6 +2530,8 @@ public sealed class MistPrettyPrinter
                 return "mutable";
             case OwnedConstraintConstraintNode:
                 return "owned";
+            case DefaultConstraintConstraintNode:
+                return "default";
             case ConstructorConstraintConstraintNode ctorConstraint:
             {
                 if (ctorConstraint.ParamTypes is null)

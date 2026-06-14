@@ -18,12 +18,4 @@ public ref struct IntBuffer
     {
         return this.capacity - this.value;
     }
-
-    public static IntBuffer __CreateDefault()
-    {
-        var inst = new IntBuffer();
-        inst.value = 0;
-        inst.capacity = 0;
-        return inst;
-    }
 }

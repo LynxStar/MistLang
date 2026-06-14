@@ -93,6 +93,8 @@ public owned class Engine
     int Rpm;
     int Temperature;
 
+    default {}
+
     public Engine(int rpm, int temperature)
     {
         this.Rpm = rpm;

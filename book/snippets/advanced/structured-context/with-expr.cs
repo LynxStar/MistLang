@@ -10,13 +10,6 @@ public struct Locale
     {
         this.Language = language;
     }
-
-    public static Locale __CreateDefault()
-    {
-        var inst = new Locale();
-        inst.Language = "";
-        return inst;
-    }
 }
 public class Consumers
 {

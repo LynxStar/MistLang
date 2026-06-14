@@ -18,18 +18,6 @@ public class Label
     {
         return $"Label({this.text}, {this.code})";
     }
-
-    protected Label()
-    {
-        this.text = "";
-        this.code = 0;
-    }
-
-    public static Label __CreateDefault()
-    {
-        var inst = new Label();
-        return inst;
-    }
 }
 public record class Severity(Label Value)
 {
@@ -38,4 +26,12 @@ public record class Severity(Label Value)
     public static readonly Severity Info = new Severity(new Label("INFO", 3));
 
     public static implicit operator Label(Severity e) => e.Value;
+
+    public override string ToString()
+    {
+        if (ReferenceEquals(this, Critical)) return "Critical";
+        else if (ReferenceEquals(this, Warning)) return "Warning";
+        else if (ReferenceEquals(this, Info)) return "Info";
+        return Value.ToString();
+    }
 }

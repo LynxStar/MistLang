@@ -20,17 +20,6 @@ public class Connection
     {
         return Host;
     }
-
-    protected Connection()
-    {
-        this.Host = "";
-    }
-
-    public static Connection __CreateDefault()
-    {
-        var inst = new Connection();
-        return inst;
-    }
 }
 public class Program
 {

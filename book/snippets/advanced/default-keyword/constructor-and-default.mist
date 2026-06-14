@@ -1,0 +1,28 @@
+public class Config
+{
+    public string Environment;
+    public int MaxRetries;
+
+    public Config(string env)
+    {
+        this.Environment = env;
+        this.MaxRetries = 3;
+    }
+
+    default
+    {
+        Environment = "development"
+        MaxRetries = 1
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var prod = new Config("production");
+        Config dev = default(Config);
+        Console.WriteLine($"new: env={prod.Environment} retries={prod.MaxRetries}");
+        Console.WriteLine($"default: env={dev.Environment} retries={dev.MaxRetries}");
+    }
+}

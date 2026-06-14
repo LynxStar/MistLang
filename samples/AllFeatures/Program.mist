@@ -68,6 +68,7 @@ public class Program
         DropSemantics.Program.RunDemo();
         AsyncDropChaining.Program.RunDemo();
         Ownership.Program.RunDemo();
+        OptionalDefaultability.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

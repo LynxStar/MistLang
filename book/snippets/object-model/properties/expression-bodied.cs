@@ -17,15 +17,4 @@ public class Rectangle
 
     private int _Height_k__BackingField;
     public int Height { get => _Height_k__BackingField; set => _Height_k__BackingField = value; }
-
-    protected Rectangle()
-    {
-        this.Height = 0;
-    }
-
-    public static Rectangle __CreateDefault()
-    {
-        var inst = new Rectangle();
-        return inst;
-    }
 }

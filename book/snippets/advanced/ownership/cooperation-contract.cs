@@ -16,17 +16,6 @@ public class Payload
     {
         return $"Payload({Size})";
     }
-
-    protected Payload()
-    {
-        this.Size = 0;
-    }
-
-    public static Payload __CreateDefault()
-    {
-        var inst = new Payload();
-        return inst;
-    }
 }
 public class Envelope
 {
@@ -49,18 +38,6 @@ public class Envelope
     public string Describe()
     {
         return $"Envelope(Body={Body.Describe()}, Stamp={Stamp})";
-    }
-
-    protected Envelope()
-    {
-        this.Body = Payload.__CreateDefault();
-        this.Stamp = 0;
-    }
-
-    public static Envelope __CreateDefault()
-    {
-        var inst = new Envelope();
-        return inst;
     }
 }
 public class CooperationContractDemo

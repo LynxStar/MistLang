@@ -15,17 +15,6 @@ public class Node
     {
         return $"Node({Id})";
     }
-
-    protected Node()
-    {
-        this.Id = 0;
-    }
-
-    public static Node __CreateDefault()
-    {
-        var inst = new Node();
-        return inst;
-    }
 }
 public class Slot
 {
@@ -42,18 +31,6 @@ public class Slot
     public string Describe()
     {
         return $"Slot(Current={Current.Describe()}, Count={Count})";
-    }
-
-    protected Slot()
-    {
-        this.Current = Node.__CreateDefault();
-        this.Count = 0;
-    }
-
-    public static Slot __CreateDefault()
-    {
-        var inst = new Slot();
-        return inst;
     }
 }
 public class FieldProvenanceDemo

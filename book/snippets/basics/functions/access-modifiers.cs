@@ -32,15 +32,4 @@ public class Account
         acct.Deposit(50);
         Console.WriteLine($"Balance: {acct.GetBalance()}");
     }
-
-    protected Account()
-    {
-        this.balance = 0;
-    }
-
-    public static Account __CreateDefault()
-    {
-        var inst = new Account();
-        return inst;
-    }
 }

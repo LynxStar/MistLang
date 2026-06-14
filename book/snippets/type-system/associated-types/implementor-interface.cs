@@ -26,17 +26,6 @@ class MessageProducer : IProducer<MessageProducer.Output>
         {
             return $"Output({Value})";
         }
-
-        protected Output()
-        {
-            this.Value = "";
-        }
-
-        public static Output __CreateDefault()
-        {
-            var inst = new Output();
-            return inst;
-        }
     }
 
     public Output CreateOutput(string msg)

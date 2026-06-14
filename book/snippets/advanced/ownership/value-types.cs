@@ -18,14 +18,6 @@ public struct Vec2
     {
         return $"Vec2({X}, {Y})";
     }
-
-    public static Vec2 __CreateDefault()
-    {
-        var inst = new Vec2();
-        inst.X = 0;
-        inst.Y = 0;
-        return inst;
-    }
 }
 public class ValueTypeDemo
 {

@@ -88,11 +88,11 @@ public sealed class SamplesCompileAndMatchBaselineTest
         Assert.Contains("--- Pattern matching with readonly-base enums ---", output);
 
         // Verify specific output values for key patterns
-        Assert.Contains("StatusCode.Ok = StatusCode { Value = 200 }", output);
-        Assert.Contains("Planet.Earth = Planet { Value = Earth }", output);
-        Assert.Contains("Rank.Sergeant = Rank { Value = 3 }", output);
-        Assert.Contains("Suit.Spades = Suit { Value = 3 }", output);
-        Assert.Contains("Token.NumericId = Token { Value = Union_Int32_String }", output);
+        Assert.Contains("StatusCode.Ok = Ok", output);
+        Assert.Contains("Planet.Earth = Earth", output);
+        Assert.Contains("Rank.Sergeant = Sergeant", output);
+        Assert.Contains("Suit.Spades = Spades", output);
+        Assert.Contains("Token.NumericId = NumericId", output);
         Assert.Contains("Palette.Red.Describe() = Color(255, 0, 0)", output);
         Assert.Contains("StatusCode.Ok as int = 200", output);
         Assert.Contains("Planet.Earth as string = Earth", output);

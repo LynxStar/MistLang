@@ -134,6 +134,15 @@ public readonly record struct DiagnosticId(string Value)
     /// <summary>Derived type's base class is not defaultable.</summary>
     public static readonly DiagnosticId DefaultBaseNotDefaultable = new("MIST_DEFAULT_BASE_NOT_DEFAULTABLE");
 
+    /// <summary>More than one enum variant has the <c>default</c> modifier.</summary>
+    public static readonly DiagnosticId EnumMultipleDefaults = new("MIST_ENUM_MULTIPLE_DEFAULTS");
+
+    /// <summary>A constructor body does not definitely assign a non-defaultable field.</summary>
+    public static readonly DiagnosticId FieldNotDefinitelyAssigned = new("MIST_FIELD_NOT_DEFINITELY_ASSIGNED");
+
+    /// <summary>Type argument does not satisfy the <c>where T : default</c> constraint.</summary>
+    public static readonly DiagnosticId DefaultConstraintNotSatisfied = new("MIST_DEFAULT_CONSTRAINT_NOT_SATISFIED");
+
     // ── Trait inheritance diagnostics ────────────────────────────────────
 
     /// <summary>A parent reference in a trait's inheritance clause does not resolve to a trait.</summary>

@@ -23,16 +23,4 @@ public class Point
     {
         return $"Point({this.x}, {this.y})";
     }
-
-    protected Point()
-    {
-        this.x = 0;
-        this.y = 0;
-    }
-
-    public static Point __CreateDefault()
-    {
-        var inst = new Point();
-        return inst;
-    }
 }

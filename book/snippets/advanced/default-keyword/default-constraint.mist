@@ -1,0 +1,22 @@
+public class Pair
+{
+    public int X;
+    public int Y;
+}
+
+public class Factory
+{
+    public static T Create<T>() where T : default
+    {
+        return default(T);
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var p = Factory.Create<Pair>();
+        Console.WriteLine($"X={p.X} Y={p.Y}");
+    }
+}

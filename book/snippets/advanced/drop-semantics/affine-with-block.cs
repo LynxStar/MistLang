@@ -20,17 +20,6 @@ public class Transaction
     {
         return Id;
     }
-
-    protected Transaction()
-    {
-        this.Id = "";
-    }
-
-    public static Transaction __CreateDefault()
-    {
-        var inst = new Transaction();
-        return inst;
-    }
 }
 public class Program
 {

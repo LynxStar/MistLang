@@ -20,17 +20,6 @@ public class Counter
     {
         return $"Counter({Value})";
     }
-
-    protected Counter()
-    {
-        this.Value = 0;
-    }
-
-    public static Counter __CreateDefault()
-    {
-        var inst = new Counter();
-        return inst;
-    }
 }
 public class UnrestrictedDemo
 {

@@ -15,17 +15,6 @@ public class Container
     {
         return $"Container({Value})";
     }
-
-    protected Container()
-    {
-        this.Value = 0;
-    }
-
-    public static Container __CreateDefault()
-    {
-        var inst = new Container();
-        return inst;
-    }
 }
 public class Program
 {

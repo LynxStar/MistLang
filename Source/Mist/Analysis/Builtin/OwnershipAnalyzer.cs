@@ -88,6 +88,12 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// <summary>The <c>owned</c> binding specifier is applied to a substructural (<c>linear</c>/<c>affine</c>/<c>relevant</c>) type (Req 1 AC 4, Req 13 AC 8).</summary>
     internal static readonly DiagnosticId SubstructuralBinding = new("MIST_OWN_SUBSTRUCTURAL_BINDING");
 
+    /// <summary>Ownership inference failed — conflicting usage of a binding (owned-fields).</summary>
+    internal static readonly DiagnosticId InferenceFailure = new("MIST_OWN_INFERENCE_FAILURE");
+
+    /// <summary>The inferred this-tier is insufficient for the method's declared tier (owned-fields).</summary>
+    internal static readonly DiagnosticId ThisTierInsufficient = new("MIST_OWN_THIS_TIER_INSUFFICIENT");
+
     // ── Ownership v2 Diagnostic Messages ──────────────────────────────────
     // Centralized message builders for the v2 diagnostics. Emission sites
     // (MethodTierVisibilityFilter, MoveBoundaryResolver, CooperationContractVerifier,
@@ -149,6 +155,16 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         $"'{typeName}': substructural ('linear'/'affine'/'relevant') types manage their own usage discipline via drop " +
         $"semantics and cannot be combined with 'owned' binding tracking. Remove the 'owned' specifier and rely on the " +
         $"type's substructural discipline.";
+
+    /// <summary>
+    /// Message for <c>MIST_OWN_INFERENCE_FAILURE</c>: ownership inference could not
+    /// resolve a binding's tier due to conflicting usage.
+    /// </summary>
+    internal static string InferenceFailureMessage(
+        string bindingName, string conflictTier, string conflictUse, string requiredTier) =>
+        $"Ownership inference failed for '{bindingName}': conflicting usage requires tier '{conflictTier}' " +
+        $"(from '{conflictUse}') but another constraint requires '{requiredTier}'. Add an explicit ownership " +
+        $"specifier to resolve the conflict.";
 
     // ── Truth Table ──────────────────────────────────────────────────────
 
@@ -1069,7 +1085,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         var currentFieldState = state.GetFieldState(receiverOfFieldAssign, targetField);
                         if (currentFieldState is VariableOwnershipState.LentRef or VariableOwnershipState.LentFrozen)
                         {
-                            ReportFieldStateViolation(receiverOfFieldAssign, targetField, currentFieldState.Value,
+                            ReportFieldStateViolation(receiverOfFieldAssign, targetField, currentFieldState.GetValueOrDefault(),
                                 AccessKind.Write, assignment, state, model, diagnostics);
                         }
                     }
@@ -1561,10 +1577,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                     ? AccessKind.Write
                                     : AccessKind.Read;
 
-                                if (!IsActionPermitted(fieldState.Value, requiredAction))
+                                if (!IsActionPermitted(fieldState.GetValueOrDefault(), requiredAction))
                                 {
                                     ReportFieldStateViolation(
-                                        receiverSymbol, fieldSym, fieldState.Value, requiredAction,
+                                        receiverSymbol, fieldSym, fieldState.GetValueOrDefault(), requiredAction,
                                         firstMethodCall, state, model, diagnostics);
                                     break; // Report the first violation and stop.
                                 }

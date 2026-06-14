@@ -2,6 +2,7 @@ using Mist.Common.Text;
 using Mist.Semantics;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
+using Mist.Semantics.Model.Types;
 
 namespace Mist.Analysis.Builtin;
 
@@ -302,5 +303,150 @@ public sealed class MethodFlowState
             }
         }
         return false;
+    }
+
+    // ─── Per-field state tracking (owned-fields) ─────────────────────────
+
+    /// <summary>
+    /// Per-field ownership states, keyed by parent symbol → field symbol → state.
+    /// Used by the owned-fields analysis to track individual field states independently.
+    /// </summary>
+    public Dictionary<ISymbol, Dictionary<ISymbol, VariableOwnershipState>> FieldStates { get; }
+        = new();
+
+    /// <summary>
+    /// Gets the current ownership state of a specific field on a parent variable.
+    /// Returns null if no specific state is recorded for the field.
+    /// </summary>
+    public VariableOwnershipState? GetFieldState(ISymbol parent, ISymbol? field)
+    {
+        if (field is null) return null;
+        if (FieldStates.TryGetValue(parent, out var fieldMap) &&
+            fieldMap.TryGetValue(field, out var state))
+            return state;
+        return null;
+    }
+
+    /// <summary>
+    /// Restores a field from Moved state back to Live after a valid reassignment.
+    /// </summary>
+    public void RestoreField(ISymbol parent, ISymbol? field)
+    {
+        if (field is null) return;
+        if (!FieldStates.TryGetValue(parent, out var fieldMap))
+        {
+            fieldMap = new Dictionary<ISymbol, VariableOwnershipState>();
+            FieldStates[parent] = fieldMap;
+        }
+        fieldMap[field] = VariableOwnershipState.Live;
+    }
+
+    /// <summary>
+    /// Initializes per-field state tracking for a parent binding. Only owned, non-static
+    /// instance fields are tracked (Req 16 AC 1).
+    /// </summary>
+    public void InitializeFieldStates(ISymbol parent, IType type)
+    {
+        var scope = type switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            _ => null,
+        };
+        if (scope is null) return;
+
+        var fieldMap = new Dictionary<ISymbol, VariableOwnershipState>();
+        foreach (var member in scope.Members)
+        {
+            if (member.Kind == SymbolKind.Field &&
+                member is Symbol sym &&
+                sym.IsOwnedField && !sym.IsStatic)
+            {
+                fieldMap[member] = VariableOwnershipState.Live;
+            }
+        }
+        if (fieldMap.Count > 0)
+            FieldStates[parent] = fieldMap;
+    }
+
+    /// <summary>
+    /// Borrows a field (exclusive mutable) — transitions it to LentRef and registers a borrow entry.
+    /// </summary>
+    public void BorrowField(ISymbol parent, ISymbol field, ISymbol borrower)
+    {
+        if (!FieldStates.TryGetValue(parent, out var fieldMap))
+        {
+            fieldMap = new Dictionary<ISymbol, VariableOwnershipState>();
+            FieldStates[parent] = fieldMap;
+        }
+        fieldMap[field] = VariableOwnershipState.LentRef;
+        ActiveBorrows.Add(new BorrowEntry(field, borrower, OwnershipTier.Borrowed, ScopeDepth));
+    }
+
+    /// <summary>
+    /// Freezes a field — transitions it to LentFrozen and registers a borrow entry.
+    /// </summary>
+    public void FreezeField(ISymbol parent, ISymbol field, ISymbol borrower)
+    {
+        if (!FieldStates.TryGetValue(parent, out var fieldMap))
+        {
+            fieldMap = new Dictionary<ISymbol, VariableOwnershipState>();
+            FieldStates[parent] = fieldMap;
+        }
+        fieldMap[field] = VariableOwnershipState.LentFrozen;
+        ActiveBorrows.Add(new BorrowEntry(field, borrower, OwnershipTier.Frozen, ScopeDepth));
+    }
+
+    /// <summary>
+    /// Readonly-refs a field — transitions it to LentReadonly and registers a borrow entry.
+    /// </summary>
+    public void ReadonlyRefField(ISymbol parent, ISymbol field, ISymbol borrower)
+    {
+        if (!FieldStates.TryGetValue(parent, out var fieldMap))
+        {
+            fieldMap = new Dictionary<ISymbol, VariableOwnershipState>();
+            FieldStates[parent] = fieldMap;
+        }
+        fieldMap[field] = VariableOwnershipState.LentReadonly;
+        ActiveBorrows.Add(new BorrowEntry(field, borrower, OwnershipTier.ReadonlyRef, ScopeDepth));
+    }
+
+    /// <summary>
+    /// Computes the composite (most restrictive) ownership state across all tracked fields
+    /// for a parent binding (Req 16 AC 9).
+    /// </summary>
+    public VariableOwnershipState CompositeState(ISymbol parent)
+    {
+        if (!FieldStates.TryGetValue(parent, out var fieldMap))
+            return VariableOwnershipState.Live;
+
+        var result = VariableOwnershipState.Live;
+        foreach (var (_, fieldState) in fieldMap)
+        {
+            if ((int)fieldState > (int)result)
+                result = fieldState;
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Per-field move locations for diagnostic reporting.
+    /// Keyed by (parent symbol, field symbol) → source span where the move occurred.
+    /// </summary>
+    public Dictionary<(ISymbol Parent, ISymbol Field), SourceSpan> FieldMoveLocations { get; }
+        = new();
+
+    /// <summary>
+    /// Moves a field — transitions it to Moved and records the move location.
+    /// </summary>
+    public void MoveField(ISymbol parent, ISymbol field, SourceSpan moveLocation)
+    {
+        if (!FieldStates.TryGetValue(parent, out var fieldMap))
+        {
+            fieldMap = new Dictionary<ISymbol, VariableOwnershipState>();
+            FieldStates[parent] = fieldMap;
+        }
+        fieldMap[field] = VariableOwnershipState.Moved;
+        FieldMoveLocations[(parent, field)] = moveLocation;
     }
 }

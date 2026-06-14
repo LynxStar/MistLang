@@ -177,6 +177,7 @@ rule Constraint
     | MUTABLE                                                                  as MutableConstraint
     | OWNED                                                                    as OwnedConstraint
     | NEW LEFT_PARENTHESIS paramTypes:ConstraintParameterTypeList? RIGHT_PARENTHESIS  as ConstructorConstraint
+    | DEFAULT                                                                  as DefaultConstraint
     | type:TypeReference                                                       as TypeConstraint
     ;
 
@@ -283,7 +284,7 @@ rule EnumDeclaration = modifiers:Modifier* ENUM name:IDENTIFIER
 
 rule EnumMemberList = EnumMember (COMMA EnumMember)* COMMA?;
 
-rule EnumMember = name:IDENTIFIER value:(COLON Expression)?;
+rule EnumMember = isDefault:DEFAULT? name:IDENTIFIER value:(COLON Expression)?;
 
 // ─── Parser Rules — With Declarations ────────────────────────────────────────
 

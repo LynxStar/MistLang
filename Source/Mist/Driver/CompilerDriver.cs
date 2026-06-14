@@ -332,6 +332,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
             if(parseResult.Root is not null && !parseBag.HasErrors)
             {
+                parseResult.Root.SetParentLinks();
                 asts.Add(parseResult.Root);
                 if (unit.IsStdlib)
                     stdlibAstsForCache?.Add(parseResult.Root);

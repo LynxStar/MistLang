@@ -176,11 +176,28 @@ public static class AstEmitter
             writer.WriteBlock("public abstract class SyntaxNode", () =>
             {
                 writer.WriteLine("public SourceSpan Span { get; set; }");
+                writer.WriteLine("public SyntaxNode? Parent { get; set; }");
                 writer.WriteLine("public Mist.Common.Text.NodeOrigin? Origin { get; set; }");
                 writer.WriteLine("public ImmutableArray<Token> LeadingHiddenTokens { get; set; } = ImmutableArray<Token>.Empty;");
                 writer.WriteLine("public ImmutableArray<Token> TrailingHiddenTokens { get; set; } = ImmutableArray<Token>.Empty;");
                 writer.WriteEmptyLine();
                 writer.WriteLine("public abstract IEnumerable<SyntaxNode> Children();");
+                writer.WriteEmptyLine();
+                writer.WriteLine("/// <summary>");
+                writer.WriteLine("/// Walks the tree rooted at this node and sets the Parent property on all descendants.");
+                writer.WriteLine("/// Call once after parsing to enable upward traversal.");
+                writer.WriteLine("/// </summary>");
+                writer.WriteBlock("public void SetParentLinks()", () =>
+                {
+                    writer.WriteBlock("foreach (var child in Children())", () =>
+                    {
+                        writer.WriteBlock("if (child is not null)", () =>
+                        {
+                            writer.WriteLine("child.Parent = this;");
+                            writer.WriteLine("child.SetParentLinks();");
+                        });
+                    });
+                });
             });
         });
 

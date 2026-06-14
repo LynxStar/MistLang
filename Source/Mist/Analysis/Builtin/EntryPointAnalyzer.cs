@@ -259,6 +259,8 @@ public sealed class EntryPointAnalyzer : IAnalyzer
 
     /// <summary>
     /// Determines whether a symbol belongs to a referenced project (not the root project).
+    /// Walks up the declaring node's Parent chain to find the root CompilationUnitNode,
+    /// then matches it against the model's ASTs to find the corresponding compilation unit.
     /// </summary>
     private static bool IsFromReferencedProject(
         ISymbol symbol,
@@ -268,38 +270,20 @@ public sealed class EntryPointAnalyzer : IAnalyzer
         if (referencedSourcePaths.Count == 0)
             return false;
 
-        // Find the declaring node and check which AST (and thus which unit) it belongs to.
+        // Find the declaring node and walk up to the root.
         Storm.Runtime.SyntaxNode declaringNode;
         try { declaringNode = model.GetDeclaringNode(symbol); }
         catch { return false; }
 
+        var node = declaringNode;
+        while (node.Parent is not null)
+            node = node.Parent;
+
+        // Match the root node against the model's AST array to find its unit index.
         for (var i = 0; i < model.Asts.Length && i < model.Units.Count; i++)
         {
-            if (!referencedSourcePaths.Contains(model.Units[i].Source.Path))
-                continue;
-
-            if (IsNodeInAst(declaringNode, model.Asts[i]))
-                return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Checks if a node is contained within an AST root by walking the AST's children.
-    /// </summary>
-    private static bool IsNodeInAst(Storm.Runtime.SyntaxNode target, Storm.Runtime.SyntaxNode root)
-    {
-        if (ReferenceEquals(target, root))
-            return true;
-
-        foreach (var child in root.Children())
-        {
-            if (child is null)
-                continue;
-
-            if (IsNodeInAst(target, child))
-                return true;
+            if (ReferenceEquals(model.Asts[i], node))
+                return referencedSourcePaths.Contains(model.Units[i].Source.Path);
         }
 
         return false;

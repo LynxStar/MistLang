@@ -1,0 +1,43 @@
+using Standard;
+
+namespace Snippet;
+
+// Non-owned type with selective ownership protection
+public class Connection
+{
+    // Protected — only mutated through ownership semantics
+    public owned string Handle;
+
+    // Freely shared — no ownership tracking
+    public string Label;
+    public int RetryCount;
+
+    public Connection(owned string handle, string label)
+    {
+        this.Handle = handle;
+        this.Label = label;
+        this.RetryCount = 0;
+    }
+
+    public string Describe()
+    {
+        return $"Connection(handle={Handle}, label={Label}, retries={RetryCount})";
+    }
+}
+
+public class JaggedOwnershipDemo
+{
+    public static void Run()
+    {
+        owned var conn = new Connection("socket-1", "primary");
+
+        // Non-owned fields are freely writable
+        conn.Label = "renamed";
+        conn.RetryCount = 3;
+
+        // Owned field requires provenance on write
+        conn.Handle = "socket-2";
+
+        Console.WriteLine($"jagged={conn.Describe()}");
+    }
+}

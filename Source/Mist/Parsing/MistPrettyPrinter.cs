@@ -1424,10 +1424,19 @@ public sealed class MistPrettyPrinter
         var sb = new StringBuilder();
         foreach (var clause in withClauses)
         {
-            sb.Append(" with ");
-            sb.Append(EmitTypeReference(clause.Type));
-            sb.Append(' ');
-            sb.Append(clause.Name.Lexeme);
+            switch (clause)
+            {
+                case ThisTierWithClauseWithClauseNode tierClause:
+                    sb.Append(" with ");
+                    sb.Append(EmitOwnershipSpecifier(tierClause.Tier));
+                    break;
+                case ContextWithClauseWithClauseNode contextClause:
+                    sb.Append(" with ");
+                    sb.Append(EmitTypeReference(contextClause.Type));
+                    sb.Append(' ');
+                    sb.Append(contextClause.Name.Lexeme);
+                    break;
+            }
         }
         return sb.ToString();
     }

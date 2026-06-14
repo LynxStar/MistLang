@@ -1,0 +1,49 @@
+using System;
+
+namespace Snippet;
+
+public class Document
+{
+    public string Content;
+
+    public int Version;
+
+    public Document(string content, int version)
+    {
+        this.Content = content;
+        this.Version = version;
+    }
+
+    public string Describe()
+    {
+        return $"Document(v{Version}: {Content})";
+    }
+
+    protected Document()
+    {
+        this.Content = "";
+        this.Version = 0;
+    }
+
+    public static Document __CreateDefault()
+    {
+        var inst = new Document();
+        return inst;
+    }
+}
+public class OwnedFieldDeclarationDemo
+{
+    public static void Run()
+    {
+        var doc = new Document("Hello", 1);
+        System.Console.WriteLine($"initial={doc.Describe()}");
+        doc.Content = "Updated";
+        System.Console.WriteLine($"updated={doc.Describe()}");
+    }
+
+    public static OwnedFieldDeclarationDemo __CreateDefault()
+    {
+        var inst = new OwnedFieldDeclarationDemo();
+        return inst;
+    }
+}

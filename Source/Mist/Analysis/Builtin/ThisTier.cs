@@ -1,6 +1,4 @@
-using Mist.Semantics.Model;
-
-namespace Mist.Analysis.Builtin;
+namespace Mist.Semantics.Model;
 
 /// <summary>
 /// The ownership tier required on 'this' for a method to execute safely.

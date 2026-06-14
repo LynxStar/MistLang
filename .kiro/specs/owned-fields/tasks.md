@@ -102,7 +102,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
 - [x] 9. Checkpoint — Wave 1 removals build coherently
   - Ensure the build compiles after all three deletions. The owned-field-modifier error no longer fires, mutable method hiding is gone, and the behavioral cooperation contract is removed. Tests that asserted those old behaviors are deleted. Ask the user if questions arise.
 
-- [ ] 10. `ThisTierInferencePass` — infer this-tier per method
+- [x] 10. `ThisTierInferencePass` — infer this-tier per method
   - [x] 10.1 Implement `ThisTierInferencePass`
     - Add `Source/Mist/Analysis/Builtin/ThisTierInferencePass.cs` with `void Analyze(ISemanticModel model, DiagnosticBag diagnostics)` and `static ThisTier GetThisTier(ISymbol methodSymbol)`
     - Implement the inference algorithm: for each method, scan owned-field accesses in the body; move/write → `Borrowed`, freeze/frozenRef → `Frozen`, read → `ReadonlyRef`, no access → `None`; compose transitively through helper calls on `this` (Req 17 AC 7)
@@ -110,7 +110,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - Record the inferred/declared `ThisTier` on each method symbol for consumption by the flow-sensitive pass
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.10, 17.11, 17.12, 17.13, 17.14, 17.17_
 
-  - [ ] 10.2 Write unit tests for `ThisTierInferencePass`
+  - [x] 10.2 Write unit tests for `ThisTierInferencePass`
     - Method that only reads owned fields → inferred `ReadonlyRef`
     - Method that freezes an owned field → inferred `Frozen`
     - Method that writes to an owned field → inferred `Borrowed`
@@ -123,7 +123,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - Explicit `with owned` but body only reads → accepted (over-constraining is valid)
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.11, 17.12_
 
-- [ ] 11. `OwnershipInferencePass` — infer binding tiers for var declarations
+- [x] 11. `OwnershipInferencePass` — infer binding tiers for var declarations
   - [x] 11.1 Implement `OwnershipInferencePass`
     - Add `Source/Mist/Analysis/Builtin/OwnershipInferencePass.cs` with `IReadOnlyDictionary<ISymbol, InferredBinding> InferBindings(SyntaxNode functionBody, ISemanticModel model, DiagnosticBag diagnostics)`
     - Implement the fixed-point algorithm: collect `var` declarations, initialize candidates optimistically (`Owned` for constructor/owned-returning inits), iterate downgrading on conflicts (`Owned → Borrowed → Frozen → ReadonlyRef → Shared`), `Shared` as ultimate fallback (never conflicts)
@@ -131,7 +131,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - Does not apply to variables with explicit specifiers — those are validated directly
     - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.5, 18.6, 18.7, 18.8, 18.11, 18.12_
 
-  - [ ] 11.2 Write unit tests for `OwnershipInferencePass`
+  - [x] 11.2 Write unit tests for `OwnershipInferencePass`
     - `var x = new T()` where x used for ownership ops → inferred `Owned`
     - `var x = new T()` where x only used for reads → inferred `Shared` (downgraded)
     - `var y = x` where x used later → y cannot be `Owned` (would move x), downgrades
@@ -141,25 +141,25 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - Conflicting usage that cannot be resolved → `MIST_OWN_INFERENCE_FAILURE`
     - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.5, 18.6, 18.7, 18.12_
 
-- [ ] 12. Per-field state tracking in `MethodFlowState`
+- [x] 12. Per-field state tracking in `MethodFlowState`
   - [x] 12.1 Extend `MethodFlowState` with per-field state
     - In `Source/Mist/Analysis/Builtin/MethodFlowState.cs`, add `Dictionary<ISymbol, Dictionary<ISymbol, VariableOwnershipState>> FieldStates` and `Dictionary<(ISymbol Parent, ISymbol Field), SourceSpan> FieldMoveLocations`
     - Initialize: when an owned binding is registered for a type with owned fields, all owned fields start at `Live`
     - Implement state transitions: field moved out → `Moved`; field borrowed → `LentRef`; field frozen → `LentFrozen`; field readonly-ref'd → `LentReadonly`; new owned value written to Moved field → `Live` (restoration); borrow scope ends → `Live`
     - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 16.7, 16.8_
 
-  - [ ] 12.2 Implement composite state computation
+  - [x] 12.2 Implement composite state computation
     - Add `CompositeState(ISymbol parentSymbol)` method: returns the most restrictive state among all owned fields using ordering `Live < LentReadonly < LentFrozen < LentRef = Moved`
     - The parent's actual state does NOT transition due to child moves/borrows (Req 16 AC 15) — composite state is a restriction on whole-object operations only
     - Field restoration permitted on a parent with composite Moved (parent is actually Live, Req 16 AC 16)
     - _Requirements: 16.9, 16.10, 16.11, 16.12, 16.13, 16.14, 16.15, 16.16, 16.17, 16.18_
 
-  - [ ] 12.3 Extend `Fork()`/`Merge()` for per-field state
+  - [x] 12.3 Extend `Fork()`/`Merge()` for per-field state
     - In `Fork()`: deep-clone `FieldStates` and `FieldMoveLocations`
     - In `Merge()`: for each parent, for each field, take `MoreRestrictiveState`
     - _Requirements: 16.1_
 
-  - [ ] 12.4 Write unit tests for per-field state tracking
+  - [x] 12.4 Write unit tests for per-field state tracking
     - Move one field → field is Moved, sibling is Live, parent is actually Live
     - Composite state after one field moved → `Moved`
     - Composite state after one field frozen → `LentFrozen`
@@ -169,23 +169,23 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - Fork/merge preserves per-field state correctly
     - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 16.9, 16.11, 16.15, 16.16, 16.19, 16.20, 16.21, 16.22_
 
-- [ ] 13. Shared vs owned parent access enforcement
-  - [ ] 13.1 Implement shared parent extraction blocking
+- [x] 13. Shared vs owned parent access enforcement
+  - [x] 13.1 Implement shared parent extraction blocking
     - In the flow-sensitive analysis, when an owned field is accessed through a shared (non-owned) parent binding: permit write with provenance (Req 2 AC 2), permit clone-read if IClonable (Req 2 AC 3), reject move/borrow/freeze/readonly-ref with `MIST_OWN_SHARED_EXTRACT` (Req 2 AC 4–5)
     - When reading through shared parent and type is NOT IClonable → emit `MIST_OWN_SHARED_READ_NOT_CLONABLE` (Req 2 AC 6)
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 11.1, 11.7_
 
-  - [ ] 13.2 Implement owned parent field access with per-field state
+  - [x] 13.2 Implement owned parent field access with per-field state
     - When an owned field is accessed through an owned parent: all operations permitted (move, borrow, freeze, readonly ref, write with provenance) subject to per-field state tracking
     - Connect to `MoveBoundaryResolver` for provenance on writes
     - After resolver approves a move-out, update per-field state to `Moved`
     - _Requirements: 2.1, 8.1, 8.2, 8.3, 8.4, 16.2_
 
-  - [ ] 13.3 Implement method calls with partial field states
+  - [x] 13.3 Implement method calls with partial field states
     - When a method call is attempted on an instance with non-Live owned fields, use `ThisTierInferencePass.GetThisTier()` + field-read analysis to determine which fields the method accesses; reject if any accessed field's state does not permit the required action
     - _Requirements: 16.23, 16.24_
 
-  - [ ] 13.4 Write unit tests for shared/owned parent access rules
+  - [x] 13.4 Write unit tests for shared/owned parent access rules
     - Shared parent → write with owned source succeeds
     - Shared parent → clone-read of IClonable field succeeds
     - Shared parent → move out of owned field → `MIST_OWN_SHARED_EXTRACT`
@@ -196,11 +196,11 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - Method call on instance with partial field state (accessed field is Moved) → rejected
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 8.1, 8.4, 11.1, 11.7, 16.23_
 
-- [ ] 14. Checkpoint — Wave 2 new passes build and unit tests pass
+- [x] 14. Checkpoint — Wave 2 new passes build and unit tests pass
   - Ensure `ThisTierInferencePass`, `OwnershipInferencePass`, per-field state tracking, and shared/owned enforcement compile and all unit tests pass. Ask the user if questions arise.
 
-- [ ] 15. Rewrite `OwnershipAnalyzer` orchestrator to wire new passes
-  - [ ] 15.1 Rewrite the `OwnershipAnalyzer` orchestrator
+- [x] 15. Rewrite `OwnershipAnalyzer` orchestrator to wire new passes
+  - [x] 15.1 Rewrite the `OwnershipAnalyzer` orchestrator
     - Rewrite `Source/Mist/Analysis/Builtin/OwnershipAnalyzer.cs` `Analyze()` method:
       - Pass A: `RejectOwnedOnInterfacesAndTraits` (unchanged)
       - Pass B: **DELETED** (already removed in Wave 1)
@@ -210,14 +210,14 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
       - Pass D: `AnalyzeFlowSensitive()` extended with `OwnershipInferencePass`, per-field state, this-tier call-site checking
     - _Requirements: 5.4, 7.2, 6.4, 17.15, 17.16, 18.1_
 
-  - [ ] 15.2 Extend `AnalyzeFlowSensitive` for per-field state + this-tier call-site checking
+  - [x] 15.2 Extend `AnalyzeFlowSensitive` for per-field state + this-tier call-site checking
     - Initialize per-field state for owned bindings of types with owned fields
     - At each field access site: determine parent tier, apply shared/owned rules (task 13)
     - At each method call site: query `ThisTierInferencePass.GetThisTier(method)` and verify caller's binding tier satisfies it; if insufficient, emit `MIST_OWN_THIS_TIER_MISMATCH`
     - Integrate `OwnershipInferencePass.InferBindings()` to determine var binding tiers before flow analysis
     - _Requirements: 2.1, 2.4, 16.1, 16.9, 17.15, 17.16, 18.1_
 
-  - [ ] 15.3 Write unit tests for orchestrator integration
+  - [x] 15.3 Write unit tests for orchestrator integration
     - End-to-end: owned type with valid fields compiles cleanly
     - End-to-end: owned type with violating field → `MIST_OWN_FIELD_TYPE_VIOLATION`
     - End-to-end: method call through shared binding where method requires `borrowed` → `MIST_OWN_THIS_TIER_MISMATCH`
@@ -225,10 +225,10 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - End-to-end: `var x = new T(); x.MutateTier();` → inference gives `Owned`, call succeeds
     - _Requirements: 4.4, 5.1, 6.3, 16.2, 17.16, 18.1_
 
-- [ ] 16. Checkpoint — Wave 3 orchestrator wired, build green
+- [x] 16. Checkpoint — Wave 3 orchestrator wired, build green
   - Ensure the rewritten orchestrator correctly delegates to all new passes and the build is green with all existing + new tests passing. Ask the user if questions arise.
 
-- [ ] 17. Define new diagnostics
+- [x] 17. Define new diagnostics
   - [x] 17.1 Define diagnostic IDs and message builders
     - Add diagnostic ID definitions and message builders for:
       - `MIST_OWN_SHARED_EXTRACT` — move/borrow/freeze/readonly-ref of owned field through shared parent (Req 2 AC 5, Req 11 AC 1)
@@ -241,67 +241,67 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - Confirm removed diagnostics (`MIST_OWN_FIELD_MODIFIER_REMOVED`, `MIST_OWN_MUTABLE_HIDDEN`, `MIST_OWN_CONTRACT_VIOLATION`) are no longer defined
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7_
 
-  - [ ] 17.2 Write unit tests for each new diagnostic's trigger and message
+  - [x] 17.2 Write unit tests for each new diagnostic's trigger and message
     - One test per diagnostic exercising the error scenario and asserting the ID and key message tokens
     - Assert removed diagnostics never fire for any input
     - Assert multiple violations in same compilation unit are all reported independently (Req 11 AC 6)
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7_
 
-- [ ] 18. Property tests — 9 properties from the design
-  - [ ] 18.1 Property 1: This-tier inference soundness (Req 17 AC 1–6)
+- [x] 18. Property tests — 9 properties from the design
+  - [x] 18.1 Property 1: This-tier inference soundness (Req 17 AC 1–6)
     - For all methods m with owned-field accesses, the inferred this-tier is the minimum tier that satisfies all field operations in the body: `inferred == MaxTierFromFieldOps(m.Body)`
     - In-process `CompilerDriver.Compile()`, inspect semantic model
     - **Validates: Requirements 17.1, 17.2, 17.3, 17.4, 17.5, 17.6**
 
-  - [ ] 18.2 Property 2: Ownership inference soundness (Req 18 AC 1–5)
+  - [x] 18.2 Property 2: Ownership inference soundness (Req 18 AC 1–5)
     - For all `var` bindings b in a function, the inferred tier satisfies all uses of b. If downgraded one step, at least one use would produce an error: `AllUsesSatisfied(b, tier) ∧ (tier == Shared ∨ ¬AllUsesSatisfied(b, Downgrade(tier)))`
     - In-process `CompilerDriver.Compile()`, inspect diagnostics
     - **Validates: Requirements 18.1, 18.2, 18.3, 18.4, 18.5**
 
-  - [ ] 18.3 Property 3: Composite state is max(child states) (Req 16 AC 9–14)
+  - [x] 18.3 Property 3: Composite state is max(child states) (Req 16 AC 9–14)
     - For all owned bindings with per-field state, `CompositeState(p) == Max(State(f₁), ..., State(fₙ))`
     - In-process semantic-model inspection
     - **Validates: Requirements 16.9, 16.10, 16.11, 16.12, 16.13, 16.14**
 
-  - [ ] 18.4 Property 4: Shared parent blocks extraction (Req 2 AC 4–5)
+  - [x] 18.4 Property 4: Shared parent blocks extraction (Req 2 AC 4–5)
     - For all shared parent bindings and owned fields: extract → `MIST_OWN_SHARED_EXTRACT`, write with provenance → succeeds, clone-read → succeeds iff IClonable
     - In-process `CompilerDriver.Compile()`, inspect diagnostics
     - **Validates: Requirements 2.2, 2.3, 2.4, 2.5, 2.6**
 
-  - [ ] 18.5 Property 5: Siblings are independent (Req 16 AC 22)
+  - [x] 18.5 Property 5: Siblings are independent (Req 16 AC 22)
     - For all owned bindings with multiple owned fields where field A is in a non-Live state, operations on sibling field B are unaffected
     - In-process `CompilerDriver.Compile()`, inspect diagnostics
     - **Validates: Requirements 16.22**
 
-  - [ ] 18.6 Property 6: Field-type restriction correctness (Req 4)
+  - [x] 18.6 Property 6: Field-type restriction correctness (Req 4)
     - For all owned types T: `Compiles(T) ⟺ ∀ field f: IsOwnedType(typeof(f)) ∨ ImplementsIClonable(typeof(f)) ∨ IsValueType(typeof(f))`
     - In-process `CompilerDriver.Compile()`, inspect diagnostics
     - **Validates: Requirements 4.1, 4.2, 4.3, 4.4**
 
-  - [ ] 18.7 Property 7: Provenance on owned fields (Req 8)
+  - [x] 18.7 Property 7: Provenance on owned fields (Req 8)
     - For all owned-field assignments, accepted ⟺ `MoveBoundaryResolver.Resolve(source, OwnedFieldAssignment) ∉ {Error}`
     - In-process `CompilerDriver.Compile()`, inspect diagnostics
     - **Validates: Requirements 8.1, 8.2, 8.3, 8.4**
 
-  - [ ] 18.8 Property 8: With-annotation validation (Req 17 AC 10–12)
+  - [x] 18.8 Property 8: With-annotation validation (Req 17 AC 10–12)
     - For all methods with explicit `with declared`: `Compiles(m) ⟺ declared >= InferredMinimum(m.Body)`
     - In-process `CompilerDriver.Compile()`, inspect diagnostics
     - **Validates: Requirements 17.10, 17.11, 17.12**
 
-  - [ ] 18.9 Property 9: Existing truth table preserved (ownership-v2 Req 7)
+  - [x] 18.9 Property 9: Existing truth table preserved (ownership-v2 Req 7)
     - For all states s and actions a applied to a parent binding's composite state, permissions equal the v2 truth table
     - In-process semantic-model inspection
     - **Validates: Requirements 16.9, 16.10, 16.11, 16.12, 16.13, 16.14**
 
-- [ ] 19. Unit tests for each component
-  - [ ] 19.1 Write comprehensive diagnostic removal tests
+- [x] 19. Unit tests for each component
+  - [x] 19.1 Write comprehensive diagnostic removal tests
     - Assert `MIST_OWN_FIELD_MODIFIER_REMOVED` is never emitted for any `owned` field declaration
     - Assert `MIST_OWN_MUTABLE_HIDDEN` is never emitted for any method call through owned binding
     - Assert `MIST_OWN_CONTRACT_VIOLATION` is never emitted for any owned-type method
     - Test programs that previously triggered these diagnostics now compile cleanly
     - _Requirements: 6.2, 7.1, 7.3, 7.4_
 
-  - [ ] 19.2 Write owned field provenance tests
+  - [x] 19.2 Write owned field provenance tests
     - Constructor assigns owned field from owned parameter → succeeds
     - Constructor assigns owned field from non-owned non-clonable param → error
     - Constructor assigns owned field from IClonable source → `.Clone()` inserted, succeeds
@@ -309,7 +309,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - Method assigns owned field from value-type expression → succeeds (value copy exempt)
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 12.1, 12.2, 12.3, 12.4_
 
-  - [ ] 19.3 Write this-tier call-site checking tests
+  - [x] 19.3 Write this-tier call-site checking tests
     - Owned binding calls method requiring `Borrowed` → succeeds
     - Borrowed binding calls method requiring `Borrowed` → succeeds
     - Frozen binding calls method requiring `Borrowed` → `MIST_OWN_THIS_TIER_MISMATCH`
@@ -318,39 +318,39 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - `with owned` method consumes receiver, subsequent access → `MIST_OWN_USE_AFTER_MOVE`
     - _Requirements: 17.13, 17.14, 17.15, 17.16_
 
-- [ ] 20. Checkpoint — Wave 4+5 diagnostics and tests pass
+- [x] 20. Checkpoint — Wave 4+5 diagnostics and tests pass
   - Ensure all new diagnostics are defined, all 9 property tests pass, all unit tests pass. Ask the user if questions arise.
 
-- [ ] 21. Update `samples/Ownership/Program.mist` with owned-field proof code
-  - [ ] 21.1 Add owned-field demonstrations to the sample
+- [x] 21. Update `samples/Ownership/Program.mist` with owned-field proof code
+  - [x] 21.1 Add owned-field demonstrations to the sample
     - Update `samples/Ownership/Program.mist` with the verbatim proof code from Requirement 14 (immutable per sample-proof-code policy): `OwnedFieldDemo`, `OwnedTypeFieldRestrictionDemo`, `PartialMoveDemo`, `FieldLendingDemo`, `ThisTierDemo`, `OwnershipInferenceDemo`
     - Add `RunDemo()` calls for each new demo class in the `Program` orchestrator
     - Preserve ALL existing demonstrations from ownership-v2 (`NonOwnedBindingDemo`, `OwnedTypeBindingDemo`, `ProvenanceDemo`, `ClonableDemo`, `CloneFromLentDemo`, `LendingDemo`, `AliasingDemo`, `ValueTypeTiersDemo`, `BorrowedRecipientDemo`, `TruthTableDemo`, `MoveDemo`, `DefaultDemo`)
     - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5_
 
-  - [ ] 21.2 Compile and run the Ownership sample, verifying exact output
+  - [x] 21.2 Compile and run the Ownership sample, verifying exact output
     - Build and run `samples/Ownership` and assert stdout matches the expected full-program output byte-for-byte
     - If the proof code does not compile or output differs, fix the compiler (never the proof code) or stop and report the gap per the sample-proof-code policy
     - _Requirements: 14.5_
 
-- [ ] 22. TextMate grammar verification
-  - [ ] 22.1 Verify/extend TextMate grammar for `owned` fields and `with` keyword
+- [x] 22. TextMate grammar verification
+  - [x] 22.1 Verify/extend TextMate grammar for `owned` fields and `with` keyword
     - In `Editor/mist-syntax-highlighting/syntaxes/mist.tmLanguage.json`, ensure `owned` before a field type annotation scopes as `storage.modifier.mist` at word boundaries
     - Add `with` keyword highlighting in method declarations: scope as `keyword.other.mist` when followed by a tier keyword (`owned`, `borrowed`, `frozen`, `readonly ref`)
     - Verify existing `storage.modifier.mist` pattern covers `owned` in the field-modifier position (Req 13 AC 3)
     - Add test cases: `owned int count` in a class body → `owned` gets `storage.modifier.mist`; `void Foo() with borrowed` → `with` highlighted
     - _Requirements: 13.1, 13.2, 13.3, 13.4_
 
-- [ ] 23. Book chapter update
-  - [ ] 23.1 Update ownership chapter with owned-fields section
+- [x] 23. Book chapter update
+  - [x] 23.1 Update ownership chapter with owned-fields section
     - In `book/src/advanced/ownership.md`, add a section on owned fields placed after "Field Assignment Provenance" covering: (a) owned field declaration syntax, (b) this-tier system (inference + `with`), (c) jagged ownership patterns, (d) `owned type` field-type restriction, (e) static-aliasing and non-owned-constructor problems solved, (f) per-field state tracking and partial moves, (g) ownership inference on local bindings
     - _Requirements: 19.1, 19.2_
 
-  - [ ] 23.2 Add compiled snippets for owned-fields section
+  - [x] 23.2 Add compiled snippets for owned-fields section
     - Create 5–12 snippet pairs (`.mist` + `.cs`) in `book/snippets/advanced/ownership/` demonstrating each sub-topic from 23.1, generated by the SnippetEmitter tool following the Book Snippet Policy
     - _Requirements: 19.3, 19.5_
 
-- [ ] 24. Final checkpoint — full suite and all samples
+- [x] 24. Final checkpoint — full suite and all samples
   - Run the full `Test/Mist.Tests` suite and the full sample run (AllFeatures plus `samples/Ownership`), verify zero warnings (zero-warnings policy), and confirm the Ownership sample output matches expected byte-for-byte. Ensure all tests pass, ask the user if questions arise.
   - _Requirements: 14.5, 19.4_
 

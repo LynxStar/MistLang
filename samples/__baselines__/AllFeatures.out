@@ -1458,5 +1458,38 @@ absent ?? 42: 42
 [default] bare default=Engine(Rpm=0, Temp=0)
 [default] e1 after rev=Engine(Rpm=100, Temp=10)
 [default] e2 unaffected=Engine(Rpm=0, Temp=0)
---- Ownership V2 Done ---
+[owned-field] initial=Document(v1: Hello, world)
+[owned-field] after update=Document(v2: Updated content)
+[owned-field] after bump=Document(v3: Updated content)
+[owned-field] direct assign=Document(v3: Direct assignment)
+[owned-field] cloned=Document(v3: Cloned content)
+[owned-field] shared still alive=Cloned content
+[owned-field] version set=Document(v99: Cloned content)
+[owned-field] shared write=Document(v2: shared-updated)
+[owned-field] shared clone-read=shared-updated
+[owned-type-restrict] initial=Vault(accesses=0, secret=top-secret-123)
+[owned-type-restrict] rotated=Vault(accesses=1, secret=new-secret-456)
+[owned-type-restrict] replaced=Vault(accesses=1, secret=replaced-789)
+[partial-move] extracted=alpha
+[partial-move] right still live=beta
+[partial-move] cloned from right=beta
+[partial-move] right after clone=beta
+[partial-move] left restored=restored
+[partial-move] both live, left=restored, right=beta
+[field-lending] frozen left=alpha
+[field-lending] right during freeze=beta
+[field-lending] right after write=modified-during-freeze
+[field-lending] left after freeze ends=alpha
+[field-lending] both live again, left=alpha, right=modified-during-freeze
+[this-tier] summary=Account(Alice, balance=100)
+[this-tier] after deposit=Account(Alice, balance=150)
+[this-tier] peek=Alice
+[this-tier] shared summary=Account(Bob, balance=200)
+[this-tier] closed=Closed account: Charlie with balance 300
+[inference] inferred owned=Account(Inferred, balance=75)
+[inference] original still live=Account(Original, balance=100)
+[inference] copy=Account(Original, balance=100)
+[inference] simple=just a string
+[inference] alias=just a string
+--- Ownership Done ---
 === Done! ===

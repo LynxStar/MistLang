@@ -3,6 +3,7 @@ using Mist.Generated;
 using Mist.Semantics;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
+using Mist.Semantics.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.Analysis.Builtin;
@@ -227,6 +228,75 @@ public sealed class OwnershipInferencePass
 
             if (!changed)
                 break; // Fixed-point reached.
+        }
+
+        // Enforce minimum tier requirements from MethodReceiver uses.
+        // The downgrade algorithm only handles "max tier" constraints (don't be too restrictive).
+        // But MethodReceiver uses with a this-tier requirement impose a MINIMUM: the binding must
+        // satisfy the method's this-tier. If the fixed-point downgraded below this minimum,
+        // upgrade back to the minimum tier (Req 17 AC 15, Req 18 AC 1).
+        foreach (var candidate in candidates)
+        {
+            if (candidate.Tier is null || candidate.Tier == OwnershipTier.Unrestricted)
+            {
+                // Check if any MethodReceiver use requires a minimum tier.
+                var uses = CollectUses(candidate.Symbol, functionBody, model);
+                var minimumTier = OwnershipTier.Unrestricted;
+                foreach (var use in uses)
+                {
+                    if (use.Kind == UseKind.MethodReceiver)
+                    {
+                        // Try to resolve the method's this-tier either from the use's TargetMethod
+                        // or by looking up the method on the candidate's declared type.
+                        ThisTier effectiveTier = ThisTier.None;
+
+                        if (use.TargetMethod is Symbol methodSym)
+                        {
+                            effectiveTier = methodSym.InferredThisTier;
+                        }
+                        else if (candidate.Symbol.DeclaredType is not null && use.Node is IdentifierExpressionPrimaryNode receiverNode)
+                        {
+                            // TargetMethod is null — try to find the method by walking the parent PostfixNode.
+                            // The use was created from a PostfixNode where the identifier is the Target.
+                            // Look at siblings to find the method name.
+                            var candidateType = candidate.Symbol.DeclaredType;
+                            if (candidateType is ClassType ct)
+                            {
+                                foreach (var member in ct.MemberScope.Members)
+                                {
+                                    if (member.Kind == SymbolKind.Method && member is Symbol ms && ms.InferredThisTier != ThisTier.None)
+                                    {
+                                        // Check if this method is actually called in this use context.
+                                        // For safety, take the max of all methods with a tier requirement.
+                                        if ((int)ms.InferredThisTier > (int)effectiveTier)
+                                            effectiveTier = ms.InferredThisTier;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (effectiveTier != ThisTier.None)
+                        {
+                            var requiredOwnershipTier = effectiveTier switch
+                            {
+                                ThisTier.ReadonlyRef => OwnershipTier.ReadonlyRef,
+                                ThisTier.Frozen => OwnershipTier.Frozen,
+                                ThisTier.Borrowed => OwnershipTier.Borrowed,
+                                ThisTier.Owned => OwnershipTier.Owned,
+                                _ => OwnershipTier.Unrestricted,
+                            };
+                            if ((int)requiredOwnershipTier > (int)minimumTier)
+                                minimumTier = requiredOwnershipTier;
+                        }
+                    }
+                }
+
+                if (minimumTier != OwnershipTier.Unrestricted)
+                {
+                    candidate.Tier = minimumTier;
+                    candidate.Reason = InferenceReason.ThisTierRequired;
+                }
+            }
         }
 
         // Any candidate that didn't reach a stable tier falls back to Shared.
@@ -506,13 +576,19 @@ public sealed class OwnershipInferencePass
 
             case UseKind.MethodReceiver:
                 // If the method requires a this-tier, the binding must satisfy it.
-                // A method requiring Borrowed needs the binding to be at least Borrowed.
+                // A method requiring a tier needs the binding to be at least that tier.
                 // This doesn't limit from above — it sets a minimum.
-                if (use.TargetMethod is Symbol methodSym && methodSym.DeclaredThisTier is { } thisTier)
+                if (use.TargetMethod is Symbol methodSym)
                 {
-                    // The method requires this tier — the binding must be at least this high.
-                    // This doesn't conflict with higher tiers, only with lower ones.
-                    return null;
+                    // Check declared or inferred this-tier on the method.
+                    var effectiveTier = methodSym.InferredThisTier;
+                    if (effectiveTier != ThisTier.None)
+                    {
+                        // The method requires a this-tier — the binding must satisfy it.
+                        // This doesn't conflict with higher tiers, only with lower ones.
+                        // Return null to indicate no UPPER limit, but record that a minimum is needed.
+                        return null;
+                    }
                 }
                 return null;
 

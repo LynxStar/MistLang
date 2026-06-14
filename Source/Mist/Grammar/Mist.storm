@@ -566,9 +566,12 @@ rule WithDiscardDeclarationStatement = WITH type:TypeReference DISCARD EQUAL ini
 rule WithPushStatement = WITH value:Expression SEMICOLON;
 rule WithBlockStatement = WITH LEFT_PARENTHESIS expression:Expression RIGHT_PARENTHESIS body:Block;
 
-// ─── Parser Rules — With Clause (Method Signature Context Bindings) ─────────
+// ─── Parser Rules — With Clause (Method Signature Context Bindings + This-Tier) ─
 
-rule WithClause = WITH type:TypeReference name:IDENTIFIER;
+rule WithClause
+    = WITH tier:OwnershipSpecifier  as ThisTierWithClause
+    | WITH type:TypeReference name:IDENTIFIER as ContextWithClause
+    ;
 
 // ─── Parser Rules — Expressions (Precedence Climbing) ───────────────────────
 // Operator precedence is encoded structurally via a chain of rules, from

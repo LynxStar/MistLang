@@ -1,0 +1,42 @@
+using Standard;
+
+namespace Snippet;
+
+// Valid owned type: all fields satisfy the restriction
+public owned class Vault
+{
+    // String implements IClonable — accepted
+    public owned string Secret;
+
+    // Int is a value type — accepted
+    public int AccessCount;
+
+    public Vault(owned string secret)
+    {
+        this.Secret = secret;
+        this.AccessCount = 0;
+    }
+
+    public void RotateSecret(owned string newSecret)
+    {
+        this.Secret = newSecret;
+        this.AccessCount = this.AccessCount + 1;
+    }
+
+    public string Describe()
+    {
+        return $"Vault(accesses={AccessCount}, secret={Secret})";
+    }
+}
+
+public class FieldTypeRestrictionDemo
+{
+    public static void Run()
+    {
+        owned var vault = new Vault("top-secret");
+        Console.WriteLine($"initial={vault.Describe()}");
+
+        vault.RotateSecret("new-secret");
+        Console.WriteLine($"rotated={vault.Describe()}");
+    }
+}

@@ -99,13 +99,18 @@ public sealed class OwnershipV2DiagnosticTests
         diagnostics.FirstOrDefault(d => d.Id.Value == id);
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 1. MIST_OWN_MUTABLE_HIDDEN — mutable method on a non-owned type held in an
-    //    owned binding (Req 13 AC 1, design Error Scenario 1).
+    // 1. MIST_OWN_MUTABLE_HIDDEN — replaced by this-tier call-site checking
+    //    (Req 6 AC 1–4, Req 17 AC 15–16). Mutable methods on non-owned types
+    //    held in owned bindings are NO LONGER hidden; they are only blocked if
+    //    their inferred this-tier exceeds the caller's tier.
     // ═══════════════════════════════════════════════════════════════════════
 
-    // Requires MethodTierVisibilityFilter wiring (task 8.1) — now complete.
+    // The old MethodTierVisibilityFilter blanket hiding is removed (Req 6).
+    // Calling a mutable method on a non-owned type with no owned fields through
+    // an owned binding now SUCCEEDS — no diagnostic fires because the method's
+    // inferred ThisTier is None (it accesses no owned fields).
     [Fact]
-    public void MutableHidden_Trigger_EmitsDiagnostic()
+    public void MutableHidden_NoLongerFires_ForNonOwnedTypeWithoutOwnedFields()
     {
         const string source = """
             class Widget
@@ -137,10 +142,8 @@ public sealed class OwnershipV2DiagnosticTests
         var diagnostics = CompileAndGetDiagnostics(source);
         var diag = FindById(diagnostics, "MIST_OWN_MUTABLE_HIDDEN");
 
-        Assert.NotNull(diag);
-        Assert.Contains("SetValue", diag!.Message, StringComparison.Ordinal);
-        Assert.Contains("Widget", diag.Message, StringComparison.Ordinal);
-        Assert.Contains("readonly", diag.Message, StringComparison.OrdinalIgnoreCase);
+        // The old diagnostic should NOT fire — blanket hiding is removed (Req 6).
+        Assert.Null(diag);
     }
 
     [Fact]
@@ -267,10 +270,10 @@ public sealed class OwnershipV2DiagnosticTests
     [Fact]
     public void ContractViolation_Trigger_EmitsDiagnostic()
     {
-        // 'owned class Vault' has a method that assigns field 'setting' from a
-        // non-owned parameter 'input'. Gadget is non-clonable (array field blocks
-        // auto-derivation). The cooperation contract requires owned sources →
-        // MIST_OWN_CONTRACT_VIOLATION.
+        // Under owned-fields, the cooperation contract is subsumed by provenance enforcement
+        // on owned fields (Req 8 + Req 3). The field-type restriction (Req 4) now enforces
+        // that fields of owned types have owned/IClonable/value types. This test verifies
+        // that the field-type restriction fires instead of the old contract violation.
         const string source = """
             class Gadget
             {
@@ -293,12 +296,14 @@ public sealed class OwnershipV2DiagnosticTests
             """;
 
         var diagnostics = CompileAndGetDiagnostics(source);
-        var diag = FindById(diagnostics, "MIST_OWN_CONTRACT_VIOLATION");
 
-        Assert.NotNull(diag);
-        Assert.Contains("Configure", diag!.Message, StringComparison.Ordinal);
-        Assert.Contains("setting", diag.Message, StringComparison.Ordinal);
-        Assert.Contains("input", diag.Message, StringComparison.Ordinal);
+        // MIST_OWN_CONTRACT_VIOLATION should NOT fire (cooperation contract removed)
+        var contractDiag = FindById(diagnostics, "MIST_OWN_CONTRACT_VIOLATION");
+        Assert.Null(contractDiag);
+
+        // MIST_OWN_FIELD_TYPE_VIOLATION fires instead (field-type restriction)
+        var fieldTypeDiag = FindById(diagnostics, "MIST_OWN_FIELD_TYPE_VIOLATION");
+        Assert.NotNull(fieldTypeDiag);
     }
 
     [Fact]
@@ -320,6 +325,8 @@ public sealed class OwnershipV2DiagnosticTests
     [Fact]
     public void FieldModifierRemoved_Trigger_EmitsHardError()
     {
+        // Under owned-fields (Req 7 AC 3), the 'owned' field modifier is now VALID syntax
+        // with new semantics. The MIST_OWN_FIELD_MODIFIER_REMOVED diagnostic is removed.
         const string source = """
             class Payload
             {
@@ -340,29 +347,18 @@ public sealed class OwnershipV2DiagnosticTests
         var diagnostics = CompileAndGetDiagnostics(source);
         var diag = FindById(diagnostics, "MIST_OWN_FIELD_MODIFIER_REMOVED");
 
-        Assert.NotNull(diag);
-        // Must be a hard error, not a warning (Req 11 AC 2 / Req 13 AC 6).
-        Assert.Equal(DiagnosticSeverity.Error, diag!.Severity);
-        Assert.Contains("data", diag.Message, StringComparison.Ordinal);
-        Assert.Contains("owned", diag.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void FieldModifierRemoved_Message_ContainsFieldAndRemovalHint()
-    {
-        var message = OwnershipAnalyzer.FieldModifierRemovedMessage("data");
-
-        Assert.Contains("data", message, StringComparison.Ordinal);
-        Assert.Contains("owned", message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("no longer supported", message, StringComparison.OrdinalIgnoreCase);
+        // The diagnostic is removed — owned field declarations are now accepted (Req 7 AC 1, 3).
+        Assert.Null(diag);
     }
 
     // ─── Task 10.2: Additional owned-field-modifier hard error tests ─────
     // Validates: Requirements 11.2, 13.6, 19.2
+    // NOTE: Tests for MIST_OWN_FIELD_MODIFIER_REMOVED have been removed per Req 7 AC 4 —
+    // the owned field modifier is now valid syntax with new semantics.
 
     /// <summary>
     /// The exact pattern from the task description: <c>owned MyClass data;</c> as a field
-    /// produces <c>MIST_OWN_FIELD_MODIFIER_REMOVED</c> (error, not warning).
+    /// is now accepted without error (Req 7 AC 3).
     /// </summary>
     [Fact]
     public void FieldModifierRemoved_OwnedMyClassData_IsErrorNotWarning()
@@ -387,17 +383,13 @@ public sealed class OwnershipV2DiagnosticTests
         var diagnostics = CompileAndGetDiagnostics(source);
         var diag = FindById(diagnostics, "MIST_OWN_FIELD_MODIFIER_REMOVED");
 
-        Assert.NotNull(diag);
-        // Req 11 AC 2: hard compile error — NOT a warning, NOT silent acceptance (Req 19 AC 2).
-        Assert.Equal(DiagnosticSeverity.Error, diag!.Severity);
-        Assert.NotEqual(DiagnosticSeverity.Warning, diag.Severity);
-        // Message names the field (Req 13 AC 6).
-        Assert.Contains("data", diag.Message, StringComparison.Ordinal);
+        // The diagnostic is removed — owned field modifier is now valid (Req 7 AC 1, 3).
+        Assert.Null(diag);
     }
 
     /// <summary>
-    /// An <c>owned</c> field modifier with a different field name emits the error
-    /// referencing that specific name in the message.
+    /// An <c>owned</c> field modifier with a different field name is now accepted
+    /// without error (Req 7 AC 3).
     /// </summary>
     [Fact]
     public void FieldModifierRemoved_DifferentFieldName_MessageNamesField()
@@ -422,9 +414,8 @@ public sealed class OwnershipV2DiagnosticTests
         var diagnostics = CompileAndGetDiagnostics(source);
         var diag = FindById(diagnostics, "MIST_OWN_FIELD_MODIFIER_REMOVED");
 
-        Assert.NotNull(diag);
-        Assert.Equal(DiagnosticSeverity.Error, diag!.Severity);
-        Assert.Contains("component", diag.Message, StringComparison.Ordinal);
+        // The diagnostic is removed — owned field modifier is now valid (Req 7 AC 1, 3).
+        Assert.Null(diag);
     }
 
     /// <summary>

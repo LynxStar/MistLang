@@ -1,0 +1,45 @@
+using Standard;
+
+namespace Snippet;
+
+public class Resource
+{
+    public owned int Id;
+    public owned int Priority;
+
+    public Resource(owned int id, owned int priority)
+    {
+        this.Id = id;
+        this.Priority = priority;
+    }
+
+    // This method reads owned fields → inferred this-tier: readonly ref
+    public int PeekId()
+    {
+        return this.Id;
+    }
+
+    // This method writes to an owned field → inferred this-tier: borrowed
+    public void Upgrade()
+    {
+        this.Priority = this.Priority + 1;
+    }
+}
+
+// Demonstrates explicit this-tier annotation syntax:
+//   public int PeekId() with frozen { ... }
+//   public void Upgrade() with borrowed { ... }
+//   public int Consume() with owned { ... }
+// The 'with' clause overrides inference and declares the tier explicitly.
+// Over-constraining is valid; under-constraining produces MIST_OWN_THIS_TIER_INSUFFICIENT.
+
+public class WithAnnotationDemo
+{
+    public static void Run()
+    {
+        owned var res = new Resource(42, 1);
+        Console.WriteLine($"peek={res.PeekId()}");
+        res.Upgrade();
+        Console.WriteLine($"after upgrade={res.PeekId()}");
+    }
+}

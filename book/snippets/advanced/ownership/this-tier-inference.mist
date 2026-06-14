@@ -1,0 +1,46 @@
+using Standard;
+
+namespace Snippet;
+
+public class Account
+{
+    public owned string Name;
+    public owned int Balance;
+
+    public Account(owned string name, owned int balance)
+    {
+        this.Name = name;
+        this.Balance = balance;
+    }
+
+    // Inferred this-tier: borrowed (writes to owned field)
+    public void Deposit(owned int amount)
+    {
+        this.Balance = this.Balance + amount;
+    }
+
+    // Inferred this-tier: readonly ref (only reads owned fields)
+    public string Summary()
+    {
+        return $"Account({Name}, balance={Balance})";
+    }
+}
+
+public class ThisTierInferenceDemo
+{
+    public static void Run()
+    {
+        owned var acct = new Account("Alice", 100);
+
+        // Summary() only reads → callable from any binding tier
+        Console.WriteLine($"summary={acct.Summary()}");
+
+        // Deposit() writes → requires borrowed; owned satisfies borrowed
+        acct.Deposit(50);
+        Console.WriteLine($"after deposit={acct.Summary()}");
+
+        // Shared binding can call Summary() but not Deposit()
+        var shared = new Account("Bob", 200);
+        Console.WriteLine($"shared summary={shared.Summary()}");
+    }
+}

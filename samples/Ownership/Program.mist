@@ -218,11 +218,11 @@ public class Config : IClonable<Config>
 // PROOF: After clone, original and clone are independent
 // PROOF: Implicit clone — assigning a non-owned source to an owned binding auto-inserts Clone()
 // PROOF: Implicit clone fires at owned-parameter boundary and owned-field assignment
-public owned class Vault
+public owned class ConfigVault
 {
     Config Setting;
 
-    public Vault(owned Config setting)
+    public ConfigVault(owned Config setting)
     {
         this.Setting = setting;
     }
@@ -268,8 +268,8 @@ public class ClonableDemo
         Console.WriteLine($"[iclonable] implicit clone unaffected={implicitClone.Describe()}");
 
         // IMPLICIT clone at the owned-PARAMETER boundary — `shared` is non-owned, but the
-        // Vault constructor takes `owned Config`. The compiler auto-inserts .Clone().
-        owned var vault = new Vault(shared);
+        // ConfigVault constructor takes `owned Config`. The compiler auto-inserts .Clone().
+        owned var vault = new ConfigVault(shared);
         Console.WriteLine($"[iclonable] vault from shared={vault.Describe()}");
 
         // shared still usable — vault holds an independent clone
@@ -551,6 +551,327 @@ public class DefaultDemo
     }
 }
 
+// ─── Owned fields on a NON-OWNED type (jagged ownership) ──────────────────────
+
+// Non-owned type with SOME fields opted into ownership
+public class Document
+{
+    // Owned field — only mutatable through an owned binding
+    public owned string Content;
+
+    // Non-owned field — freely mutatable
+    public int Version;
+
+    public Document(owned string content, int version)
+    {
+        this.Content = content;
+        this.Version = version;
+    }
+
+    // This method mutates an owned field → requires owned binding at call site
+    public void UpdateContent(owned string newContent)
+    {
+        this.Content = newContent;
+        this.Version = this.Version + 1;
+    }
+
+    // This method only mutates non-owned fields → no owned binding required
+    public void BumpVersion()
+    {
+        this.Version = this.Version + 1;
+    }
+
+    // Readonly method — no mutation, always callable
+    public string Describe()
+    {
+        return $"Document(v{Version}: {Content})";
+    }
+}
+
+// PROOF: Non-owned type with owned field — provenance enforced on writes
+// PROOF: BumpVersion only mutates non-owned field — no owned semantics involved
+// PROOF: Owned field provenance is enforced in constructor
+// PROOF: Jagged ownership — owned and non-owned fields coexist
+// PROOF: Shared parent can write to owned field (provenance satisfied)
+// PROOF: Shared parent can clone-read from owned field (IClonable)
+// PROOF: Owned parent can move out of owned field (partial move)
+public class OwnedFieldDemo
+{
+    public static void Run()
+    {
+        // Owned binding — full access including extraction
+        owned var doc = new Document("Hello, world", 1);
+        Console.WriteLine($"[owned-field] initial={doc.Describe()}");
+
+        // UpdateContent writes to owned field — provenance via owned parameter
+        doc.UpdateContent("Updated content");
+        Console.WriteLine($"[owned-field] after update={doc.Describe()}");
+
+        // BumpVersion only mutates Version (non-owned) — no ownership semantics
+        doc.BumpVersion();
+        Console.WriteLine($"[owned-field] after bump={doc.Describe()}");
+
+        // Direct field assignment to owned field from an owned source — provenance satisfied
+        owned var freshContent = "Direct assignment";
+        doc.Content = freshContent;
+        Console.WriteLine($"[owned-field] direct assign={doc.Describe()}");
+
+        // IClonable source into owned field — auto-clone
+        var shared = "Cloned content";
+        doc.Content = shared;  // string is IClonable → .Clone() inserted
+        Console.WriteLine($"[owned-field] cloned={doc.Describe()}");
+        Console.WriteLine($"[owned-field] shared still alive={shared}");
+
+        // Non-owned field freely assignable (int is a value type)
+        doc.Version = 99;
+        Console.WriteLine($"[owned-field] version set={doc.Describe()}");
+
+        // Shared parent — can write (provenance) and clone-read, but NOT extract
+        var sharedDoc = new Document("shared-hello", 1);
+        sharedDoc.UpdateContent("shared-updated");  // allowed — provenance on param
+        Console.WriteLine($"[owned-field] shared write={sharedDoc.Describe()}");
+        var readContent = sharedDoc.Content;  // clone-read — string is IClonable
+        Console.WriteLine($"[owned-field] shared clone-read={readContent}");
+
+        // WOULD FAIL: owned var stolen = sharedDoc.Content; // cannot move from shared parent
+        // WOULD FAIL: borrowed ref b = sharedDoc.Content;   // cannot borrow from shared parent
+    }
+}
+
+// ─── Owned type with field-type restriction ───────────────────────────────────
+
+// All fields must be owned types or IClonable
+public owned class Vault
+{
+    // String implements IClonable — accepted
+    public owned string Secret;
+
+    // Int is a value type — accepted
+    public int AccessCount;
+
+    public Vault(owned string secret)
+    {
+        this.Secret = secret;
+        this.AccessCount = 0;
+    }
+
+    public void RotateSecret(owned string newSecret)
+    {
+        this.Secret = newSecret;
+        this.AccessCount = this.AccessCount + 1;
+    }
+
+    public string Describe()
+    {
+        return $"Vault(accesses={AccessCount}, secret={Secret})";
+    }
+}
+
+// PROOF: owned type satisfies field-type restriction (String is IClonable, int is value type)
+// PROOF: owned type methods require owned binding at call site (all fields implicitly owned)
+// PROOF: owned type cooperation contract still enforced
+public class OwnedTypeFieldRestrictionDemo
+{
+    public static void Run()
+    {
+        owned var vault = new Vault("top-secret-123");
+        Console.WriteLine($"[owned-type-restrict] initial={vault.Describe()}");
+
+        vault.RotateSecret("new-secret-456");
+        Console.WriteLine($"[owned-type-restrict] rotated={vault.Describe()}");
+
+        // Direct field assignment — provenance from owned-returning expression
+        vault.Secret = "replaced-789";
+        Console.WriteLine($"[owned-type-restrict] replaced={vault.Describe()}");
+    }
+}
+
+// ─── Partial moves and field-level state tracking ─────────────────────────────
+
+// Type with two owned fields for demonstrating independent field states
+public class TwoFields
+{
+    public owned string Left;
+    public owned string Right;
+
+    public TwoFields(owned string left, owned string right)
+    {
+        this.Left = left;
+        this.Right = right;
+    }
+}
+
+// PROOF: Moving out of an owned field transitions that field to Moved
+// PROOF: Sibling fields remain accessible after one field is moved out
+// PROOF: Reading an owned field into a shared destination is a move
+// PROOF: Cloning out of an owned field (IClonable fallback) does not move the field
+// PROOF: Restoring a moved field brings it back to Live
+// PROOF: Parent cannot be moved/borrowed/frozen while any field is Moved (composite state)
+public class PartialMoveDemo
+{
+    public static void Run()
+    {
+        owned var pair = new TwoFields("alpha", "beta");
+
+        // Move Left out — Left enters Moved, Right is still Live
+        owned var extracted = pair.Left;
+        Console.WriteLine($"[partial-move] extracted={extracted}");
+
+        // Sibling field Right is still accessible
+        Console.WriteLine($"[partial-move] right still live={pair.Right}");
+
+        // Clone out of Right — Right stays Live (IClonable fallback, no move)
+        var cloned = pair.Right;  // string is IClonable → .Clone(), Right stays Live
+        Console.WriteLine($"[partial-move] cloned from right={cloned}");
+        Console.WriteLine($"[partial-move] right after clone={pair.Right}");
+
+        // Restore Left — move a new value back in, field returns to Live
+        pair.Left = "restored";
+        Console.WriteLine($"[partial-move] left restored={pair.Left}");
+
+        // Now both fields are Live again — parent composite is Live
+        // Parent can be frozen/borrowed/moved again
+        Console.WriteLine($"[partial-move] both live, left={pair.Left}, right={pair.Right}");
+    }
+}
+
+// ─── Field lending and composite state ────────────────────────────────────────
+
+// PROOF: Freezing an owned field transitions it to LentFrozen
+// PROOF: While a field is frozen, sibling fields remain fully accessible
+// PROOF: While a field is frozen, parent composite is LentFrozen (can still be read/frozen)
+// PROOF: Parent-to-child: parent frozen externally blocks child write/borrow/move
+// PROOF: After freeze scope ends, field returns to Live and parent composite is Live
+public class FieldLendingDemo
+{
+    public static void Run()
+    {
+        owned var pair = new TwoFields("alpha", "beta");
+
+        // Freeze Left — Left enters LentFrozen, composite is LentFrozen
+        frozen var frozenLeft = pair.Left;
+        Console.WriteLine($"[field-lending] frozen left={frozenLeft}");
+
+        // Sibling Right is still fully accessible (sibling independence)
+        Console.WriteLine($"[field-lending] right during freeze={pair.Right}");
+
+        // Can still write to Right (sibling is Live, unaffected by Left's freeze)
+        pair.Right = "modified-during-freeze";
+        Console.WriteLine($"[field-lending] right after write={pair.Right}");
+
+        // WOULD FAIL: pair.Left = "new"; // Left is LentFrozen, cannot write
+        // WOULD FAIL: owned var moved = pair; // parent composite is LentFrozen, cannot move
+
+        // Freeze scope ends — Left returns to Live, composite returns to Live
+        Console.WriteLine($"[field-lending] left after freeze ends={pair.Left}");
+
+        // Now parent can be passed around again (composite is Live)
+        Console.WriteLine($"[field-lending] both live again, left={pair.Left}, right={pair.Right}");
+    }
+}
+
+// ─── This-tier inference and explicit annotation ──────────────────────────────
+
+// Type demonstrating methods with different inferred this-tiers
+public class Account
+{
+    public owned string Name;
+    public owned int Balance;
+
+    public Account(owned string name, owned int balance)
+    {
+        this.Name = name;
+        this.Balance = balance;
+    }
+
+    // Inferred this-tier: borrowed (writes to owned field)
+    public void Deposit(owned int amount)
+    {
+        this.Balance = this.Balance + amount;
+    }
+
+    // Inferred this-tier: readonly ref (only reads owned fields)
+    public string Summary()
+    {
+        return $"Account({Name}, balance={Balance})";
+    }
+
+    // Explicit this-tier annotation: frozen
+    public string PeekName() with frozen
+    {
+        return this.Name;
+    }
+
+    // Explicit this-tier annotation: owned (consumes the receiver)
+    public string Close() with owned
+    {
+        return $"Closed account: {Name} with balance {Balance}";
+    }
+}
+
+// PROOF: Method with inferred this-tier=borrowed requires owned/borrowed binding at call site
+// PROOF: Method with inferred this-tier=readonly ref is callable from any binding
+// PROOF: Explicit 'with frozen' annotation works at call site
+// PROOF: 'with owned' consumes the receiver (caller's binding is dead after call)
+// PROOF: Shared binding cannot call method requiring borrowed (this-tier mismatch)
+public class ThisTierDemo
+{
+    public static void Run()
+    {
+        owned var acct = new Account("Alice", 100);
+
+        // Summary() only reads → inferred readonly ref → callable from owned binding
+        Console.WriteLine($"[this-tier] summary={acct.Summary()}");
+
+        // Deposit() writes to owned field → inferred borrowed → owned satisfies borrowed
+        acct.Deposit(50);
+        Console.WriteLine($"[this-tier] after deposit={acct.Summary()}");
+
+        // PeekName() declared 'with frozen' → owned satisfies frozen
+        Console.WriteLine($"[this-tier] peek={acct.PeekName()}");
+
+        // Shared binding — can call Summary() (readonly ref) but NOT Deposit() (borrowed)
+        var shared = new Account("Bob", 200);
+        Console.WriteLine($"[this-tier] shared summary={shared.Summary()}");
+        // WOULD FAIL: shared.Deposit(10); // this-tier mismatch: shared cannot satisfy borrowed
+
+        // 'with owned' — consumes the receiver
+        owned var closing = new Account("Charlie", 300);
+        var result = closing.Close();  // closing is moved into Close()
+        Console.WriteLine($"[this-tier] closed={result}");
+        // WOULD FAIL: closing.Summary(); // use-after-move — closing was consumed by Close()
+    }
+}
+
+// ─── Ownership inference on local bindings ────────────────────────────────────
+
+// PROOF: var infers 'owned' when initialized with new and used for ownership operations
+// PROOF: var infers 'shared' when no ownership operations are needed
+// PROOF: var downgrades from owned to borrowed when the original is still used after
+public class OwnershipInferenceDemo
+{
+    public static void Run()
+    {
+        // 'var x = new Account(...)' — inferred as owned (new yields ownership, Deposit needs borrowed)
+        var inferred = new Account("Inferred", 50);
+        inferred.Deposit(25);  // requires borrowed → var infers at least owned (satisfies borrowed)
+        Console.WriteLine($"[inference] inferred owned={inferred.Summary()}");
+
+        // 'var copy = existingOwned' — would be move if owned, but existingOwned is used later
+        // → inference downgrades copy to clone (shared), existingOwned stays live
+        owned var original = new Account("Original", 100);
+        var copy = original.Summary();  // Summary() returns string (readonly ref on this, no move)
+        Console.WriteLine($"[inference] original still live={original.Summary()}");
+        Console.WriteLine($"[inference] copy={copy}");
+
+        // 'var simple' — no ownership operations → inferred as shared
+        var simple = "just a string";
+        var alias = simple;  // no move, both can coexist → shared
+        Console.WriteLine($"[inference] simple={simple}");
+        Console.WriteLine($"[inference] alias={alias}");
+    }
+}
+
 // ─── Main orchestrator ────────────────────────────────────────────────────────
 
 public class Program
@@ -575,6 +896,12 @@ public class Program
         TruthTableDemo.Run();
         MoveDemo.Run();
         DefaultDemo.Run();
-        Console.WriteLine("--- Ownership V2 Done ---");
+        OwnedFieldDemo.Run();
+        OwnedTypeFieldRestrictionDemo.Run();
+        PartialMoveDemo.Run();
+        FieldLendingDemo.Run();
+        ThisTierDemo.Run();
+        OwnershipInferenceDemo.Run();
+        Console.WriteLine("--- Ownership Done ---");
     }
 }

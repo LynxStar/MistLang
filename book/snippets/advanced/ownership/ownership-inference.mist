@@ -1,0 +1,41 @@
+using Standard;
+
+namespace Snippet;
+
+public class Counter
+{
+    public owned int Value;
+
+    public Counter(owned int value)
+    {
+        this.Value = value;
+    }
+
+    // Requires borrowed (writes to owned field)
+    public void Increment()
+    {
+        this.Value = this.Value + 1;
+    }
+
+    public string Describe()
+    {
+        return $"Counter({Value})";
+    }
+}
+
+public class OwnershipInferenceDemo
+{
+    public static void Run()
+    {
+        // var infers 'owned' — new yields ownership, Increment requires borrowed
+        var counter = new Counter(0);
+        counter.Increment();
+        Console.WriteLine($"inferred owned={counter.Describe()}");
+
+        // var infers 'shared' — no ownership operations needed
+        var label = "hello";
+        var alias = label;
+        Console.WriteLine($"label={label}");
+        Console.WriteLine($"alias={alias}");
+    }
+}

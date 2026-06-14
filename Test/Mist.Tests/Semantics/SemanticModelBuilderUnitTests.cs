@@ -1263,7 +1263,7 @@ public class SemanticModelBuilderUnitTests
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            WithClauses = ImmutableArray.Create(new WithClauseNode
+            WithClauses = ImmutableArray.Create<WithClauseNode>(new ContextWithClauseWithClauseNode
             {
                 Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
@@ -1319,7 +1319,7 @@ public class SemanticModelBuilderUnitTests
         var ctorDecl = new ConstructorDeclarationNode
         {
             Name = MakeToken("C"),
-            WithClauses = ImmutableArray.Create(new WithClauseNode
+            WithClauses = ImmutableArray.Create<WithClauseNode>(new ContextWithClauseWithClauseNode
             {
                 Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
@@ -1377,7 +1377,7 @@ public class SemanticModelBuilderUnitTests
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            WithClauses = ImmutableArray.Create(new WithClauseNode
+            WithClauses = ImmutableArray.Create<WithClauseNode>(new ContextWithClauseWithClauseNode
             {
                 Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
@@ -1434,7 +1434,7 @@ public class SemanticModelBuilderUnitTests
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            WithClauses = ImmutableArray.Create(new WithClauseNode
+            WithClauses = ImmutableArray.Create<WithClauseNode>(new ContextWithClauseWithClauseNode
             {
                 Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {
@@ -1497,8 +1497,8 @@ public class SemanticModelBuilderUnitTests
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            WithClauses = ImmutableArray.Create(
-                new WithClauseNode
+            WithClauses = ImmutableArray.Create<WithClauseNode>(
+                new ContextWithClauseWithClauseNode
                 {
                     Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                     {
@@ -1510,7 +1510,7 @@ public class SemanticModelBuilderUnitTests
                     } },
                     Name = MakeToken("a"),
                 },
-                new WithClauseNode
+                new ContextWithClauseWithClauseNode
                 {
                     Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                     {
@@ -1564,7 +1564,7 @@ public class SemanticModelBuilderUnitTests
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            WithClauses = ImmutableArray.Create(new WithClauseNode
+            WithClauses = ImmutableArray.Create<WithClauseNode>(new ContextWithClauseWithClauseNode
             {
                 Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
                 {

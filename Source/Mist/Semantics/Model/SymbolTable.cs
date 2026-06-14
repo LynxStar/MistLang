@@ -193,6 +193,21 @@ public sealed class Symbol : ISymbol
     /// Only meaningful for field symbols.
     /// </summary>
     public bool IsOwnedField { get; internal set; }
+
+    /// <summary>
+    /// The explicitly declared this-tier from a <c>with {tier}</c> annotation on a method.
+    /// Null when no explicit annotation is present (tier will be inferred).
+    /// Only meaningful for method symbols.
+    /// </summary>
+    public ThisTier? DeclaredThisTier { get; internal set; }
+
+    /// <summary>
+    /// The inferred (or declared) this-tier for a method, set by <c>ThisTierInferencePass</c>.
+    /// Represents the minimum ownership tier required on <c>this</c> for the method to
+    /// execute safely. Defaults to <see cref="ThisTier.None"/>.
+    /// Only meaningful for method symbols.
+    /// </summary>
+    public ThisTier InferredThisTier { get; internal set; } = ThisTier.None;
 }
 
 /// <summary>

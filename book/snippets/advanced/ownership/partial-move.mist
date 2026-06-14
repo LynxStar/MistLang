@@ -1,0 +1,30 @@
+using Standard;
+
+namespace Snippet;
+
+public class Pair
+{
+    public owned string Left;
+    public owned string Right;
+
+    public Pair(owned string left, owned string right)
+    {
+        this.Left = left;
+        this.Right = right;
+    }
+}
+
+public class PartialMoveDemo
+{
+    public static void Run()
+    {
+        owned var p = new Pair("alpha", "beta");
+
+        // Move Left out — Left enters Moved state, Right remains Live
+        owned var extracted = p.Left;
+        Console.WriteLine($"extracted={extracted}");
+
+        // Sibling field is unaffected
+        Console.WriteLine($"right still live={p.Right}");
+    }
+}

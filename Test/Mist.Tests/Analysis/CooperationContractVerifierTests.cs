@@ -305,103 +305,12 @@ public sealed class CooperationContractVerifierTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // VIOLATING bodies — MIST_OWN_CONTRACT_VIOLATION naming method/field/source.
+    // VIOLATING bodies — formerly emitted MIST_OWN_CONTRACT_VIOLATION.
+    // The CooperationContractVerifier was removed in owned-fields Wave 1
+    // (Task 8). These scenarios are now handled by the MoveBoundaryResolver
+    // provenance system (MIST_OWN_REQUIRES_OWNED / MIST_OWN_NOT_CLONABLE)
+    // and the FieldTypeRestrictionVerifier (MIST_OWN_FIELD_TYPE_VIOLATION).
+    // The old diagnostic no longer fires. Tests for the new enforcement
+    // live in OwnedFieldProvenanceTests and FieldTypeRestrictionVerifierTests.
     // ═══════════════════════════════════════════════════════════════════════
-
-    // 6. Field assigned from a NON-OWNED REFERENCE PARAMETER (Req 13 AC 4).
-    //    'Gadget' is non-clonable (an array field blocks IClonable auto-derivation),
-    //    so a non-owned 'Gadget' parameter cannot be moved or cloned into the field —
-    //    the contract is violated.
-    [Fact]
-    public void Violating_NonOwnedReferenceParameter_EmitsViolationNamingMethodFieldSource()
-    {
-        const string source = """
-            namespace TestProgram;
-
-            class Gadget
-            {
-                public int[] data;
-            }
-
-            owned class Vault
-            {
-                public Gadget setting;
-
-                public void Configure(Gadget input)
-                {
-                    this.setting = input;
-                }
-            }
-
-            class Program
-            {
-                public static void Main()
-                {
-                }
-            }
-            """;
-
-        var diagnostics = CompileAndGetDiagnostics(source);
-        var diag = FindContractViolation(diagnostics);
-
-        Assert.NotNull(diag);
-        Assert.Equal(DiagnosticSeverity.Error, diag!.Severity);
-        // Names the method, the field, and the non-owned source expression.
-        Assert.Contains("Configure", diag.Message, StringComparison.Ordinal);
-        Assert.Contains("setting", diag.Message, StringComparison.Ordinal);
-        Assert.Contains("input", diag.Message, StringComparison.Ordinal);
-    }
-
-    // 7. Field assigned from a STATIC/GLOBAL READ (design LD-2).
-    //    A static read yields neither an owned value nor a fresh graph; treating it as
-    //    clonable would silently duplicate global state. Even though 'Config' is
-    //    clonable, the static read is rejected directly as a contract violation.
-    [Fact]
-    public void Violating_StaticGlobalRead_EmitsViolationNamingMethodFieldSource()
-    {
-        const string source = """
-            namespace TestProgram;
-
-            class Config
-            {
-                public int Timeout;
-                public Config(int timeout)
-                {
-                    this.Timeout = timeout;
-                }
-            }
-
-            class Registry
-            {
-                public static Config Shared { get; set; }
-            }
-
-            owned class Vault
-            {
-                public Config setting;
-
-                public void LoadShared()
-                {
-                    this.setting = Registry.Shared;
-                }
-            }
-
-            class Program
-            {
-                public static void Main()
-                {
-                }
-            }
-            """;
-
-        var diagnostics = CompileAndGetDiagnostics(source);
-        var diag = FindContractViolation(diagnostics);
-
-        Assert.NotNull(diag);
-        Assert.Equal(DiagnosticSeverity.Error, diag!.Severity);
-        // Names the method and the field; the source names the static read.
-        Assert.Contains("LoadShared", diag.Message, StringComparison.Ordinal);
-        Assert.Contains("setting", diag.Message, StringComparison.Ordinal);
-        Assert.Contains("Shared", diag.Message, StringComparison.Ordinal);
-    }
 }

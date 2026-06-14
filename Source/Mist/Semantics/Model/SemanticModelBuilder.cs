@@ -1068,6 +1068,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // state live on the shared generic ClassType definition.
         RecognizeDropMethods(symbolTable, diagnostics);
 
+        // Post-Pass 3: Propagate IsOwnedField for owned types (Req 3 AC 1).
+        // All instance fields of an owned type are implicitly owned.
+        PropagateOwnedFieldsForOwnedTypes(symbolTable);
+
         // Clear the thread-local stdlib provider to prevent stale references
         // to this compilation's scopes from leaking to subsequent compilations
         // on the same thread.
@@ -3249,6 +3253,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 fieldSymbol.OwnershipTier = MapOwnershipSpecifier(fieldDecl.OwnershipSpecifier);
             }
+
+            // Mark as owned field when the specifier is 'owned' (Req 1.1, 1.2).
+            if (fieldDecl.OwnershipSpecifier is OwnedSpecifierOwnershipSpecifierNode)
+            {
+                fieldSymbol.IsOwnedField = true;
+            }
         }
         else if (HasRefModifier(fieldDecl.Modifiers))
         {
@@ -3262,6 +3272,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         else if (fieldDecl.Modifiers.Any(m => m is OwnedModifierModifierNode))
         {
             fieldSymbol.OwnershipTier = OwnershipTier.Owned;
+            fieldSymbol.IsOwnedField = true;
         }
 
         typeScope.AddMember(fieldSymbol);
@@ -3620,6 +3631,59 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 // Only the first zero-parameter Drop() defines the drop method.
                 break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Propagates <see cref="Symbol.IsOwnedField"/> for all instance fields of owned types.
+    /// When a type is declared <c>owned</c>, all its instance fields are implicitly owned
+    /// (Req 3 AC 1), regardless of whether they carry an explicit <c>owned</c> annotation.
+    /// </summary>
+    private static void PropagateOwnedFieldsForOwnedTypes(SymbolTable symbolTable)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+                continue;
+
+            var type = symbol.DeclaredType;
+            var isOwnedType = type switch
+            {
+                ClassType ct => ct.IsOwnedType,
+                StructType st => st.IsOwnedType,
+                _ => false,
+            };
+
+            if (!isOwnedType)
+                continue;
+
+            var memberScope = type switch
+            {
+                ClassType ct => ct.MemberScope,
+                StructType st => st.MemberScope,
+                _ => null,
+            };
+
+            if (memberScope is null)
+                continue;
+
+            foreach (var member in memberScope.Members)
+            {
+                if (member.Kind != SymbolKind.Field)
+                    continue;
+                if (member is not Symbol fieldSym)
+                    continue;
+
+                // Skip static fields — check via the declaring AST node since
+                // Symbol.IsStatic is not set during field registration.
+                var declaringNode = symbolTable.GetDeclaringNode(member);
+                if (declaringNode is FieldDeclarationNode fieldDecl
+                    && fieldDecl.Modifiers.Any(m => m is StaticModifierModifierNode))
+                    continue;
+
+                // Mark all instance fields of owned types as owned (Req 3 AC 1).
+                fieldSym.IsOwnedField = true;
             }
         }
     }
@@ -7539,8 +7603,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             foreach (var clause in withClauseNodes.Value)
             {
+                // Handle this-tier annotation: `with owned`, `with borrowed`, `with frozen`, `with readonly ref`
+                if (clause is ThisTierWithClauseWithClauseNode tierClause)
+                {
+                    mutableSymbol.DeclaredThisTier = MapOwnershipSpecifierToThisTier(tierClause.Tier);
+                    continue;
+                }
+
+                // Handle context binding: `with Logger log`
+                if (clause is not ContextWithClauseWithClauseNode contextClause)
+                    continue;
+
                 var resolvedType = ResolveWithClauseType(
-                    clause.Type, scope, symbolTable, declaringNode, asts, compilation, diagnostics, sourceText);
+                    contextClause.Type, scope, symbolTable, declaringNode, asts, compilation, diagnostics, sourceText);
 
                 if (resolvedType is null || resolvedType is ErrorType)
                     continue;
@@ -7548,8 +7623,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 clauses.Add(new ContextClauseInfo
                 {
                     ContextType = resolvedType,
-                    Identifier = clause.Name.Lexeme,
-                    Span = ToMistSourceSpan(clause.Span),
+                    Identifier = contextClause.Name.Lexeme,
+                    Span = ToMistSourceSpan(contextClause.Span),
                 });
             }
 
@@ -7559,6 +7634,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
     }
+
+    /// <summary>
+    /// Maps an <see cref="OwnershipSpecifierNode"/> to the corresponding <see cref="ThisTier"/> value.
+    /// </summary>
+    private static ThisTier MapOwnershipSpecifierToThisTier(OwnershipSpecifierNode specifier) =>
+        specifier switch
+        {
+            OwnedSpecifierOwnershipSpecifierNode => ThisTier.Owned,
+            BorrowedSpecifierOwnershipSpecifierNode => ThisTier.Borrowed,
+            FrozenSpecifierOwnershipSpecifierNode => ThisTier.Frozen,
+            ReadonlyRefSpecifierOwnershipSpecifierNode => ThisTier.ReadonlyRef,
+            _ => ThisTier.None,
+        };
 
     /// <summary>
     /// Extracts the <see cref="ImmutableArray{WithClauseNode}"/> from a method-like
@@ -14598,9 +14686,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Register with-clause bindings as local variables in the constructor scope.
         foreach (var withClause in ctorDecl.WithClauses)
         {
-            var contextType = ResolveTypeReference(withClause.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-            var clauseName = withClause.Name.Lexeme;
-            var clauseSpan = ToMistSourceSpan(withClause.Name.Span);
+            // Skip this-tier annotations — they don't introduce local bindings.
+            if (withClause is not ContextWithClauseWithClauseNode contextClause)
+                continue;
+
+            var contextType = ResolveTypeReference(contextClause.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            var clauseName = contextClause.Name.Lexeme;
+            var clauseSpan = ToMistSourceSpan(contextClause.Name.Span);
 
             CheckDuplicateLocal(clauseName, methodScope, sourceText, diagnostics);
 
@@ -14809,9 +14901,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Register with-clause bindings as local variables in the method scope.
         foreach (var withClause in methodDecl.WithClauses)
         {
-            var contextType = ResolveTypeReference(withClause.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-            var clauseName = withClause.Name.Lexeme;
-            var clauseSpan = ToMistSourceSpan(withClause.Name.Span);
+            // Skip this-tier annotations — they don't introduce local bindings.
+            if (withClause is not ContextWithClauseWithClauseNode contextClause)
+                continue;
+
+            var contextType = ResolveTypeReference(contextClause.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            var clauseName = contextClause.Name.Lexeme;
+            var clauseSpan = ToMistSourceSpan(contextClause.Name.Span);
 
             CheckDuplicateLocal(clauseName, methodScope, sourceText, diagnostics);
 

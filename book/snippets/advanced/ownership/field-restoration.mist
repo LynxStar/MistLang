@@ -1,0 +1,34 @@
+using Standard;
+
+namespace Snippet;
+
+public class Pair
+{
+    public owned string Left;
+    public owned string Right;
+
+    public Pair(owned string left, owned string right)
+    {
+        this.Left = left;
+        this.Right = right;
+    }
+}
+
+public class FieldRestorationDemo
+{
+    public static void Run()
+    {
+        owned var p = new Pair("alpha", "beta");
+
+        // Move Left out — field enters Moved state
+        owned var extracted = p.Left;
+        Console.WriteLine($"extracted={extracted}");
+
+        // Restore Left by writing a new owned value — field returns to Live
+        p.Left = "restored";
+        Console.WriteLine($"left after restore={p.Left}");
+
+        // Both fields now Live — parent is fully functional again
+        Console.WriteLine($"right={p.Right}");
+    }
+}

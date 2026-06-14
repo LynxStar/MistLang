@@ -1,38 +1,33 @@
-// Feature: ownership-v2, Task 6.2 — Property 8: Cooperation contract soundness
-// (design Component 3, CooperationContractVerifier).
+// Feature: owned-fields, updated from ownership-v2 Task 6.2
+// Originally tested the CooperationContractVerifier (MIST_OWN_CONTRACT_VIOLATION).
+// That verifier was removed in owned-fields Wave 1 (Task 8). The behavioral contract
+// is now subsumed by:
+//   - FieldTypeRestrictionVerifier: MIST_OWN_FIELD_TYPE_VIOLATION for owned types whose
+//     fields are not owned/IClonable/value (Req 4).
+//   - MoveBoundaryResolver: MIST_OWN_REQUIRES_OWNED / MIST_OWN_NOT_CLONABLE for
+//     provenance violations at assignment sites (Req 8).
 //
-// Property 8 (design.md):
+// This property test is updated to verify the new biconditional:
+//
 //   For all owned types T:
-//       T compiles  ⟺  every field assignment in T's methods/constructors
-//                       resolves as a non-error owned move.
+//       T compiles without field-type or provenance errors  ⟺  every field type is
+//       owned/IClonable/value AND every assignment source resolves as a non-error move.
 //
-// Operationally, "T compiles" is read as "T compiles without
-// MIST_OWN_CONTRACT_VIOLATION" — that diagnostic is precisely the verifier's report
-// that a `this.Field = <source>` assignment in an owned type's body did NOT resolve
-// as a non-error owned move (design LD-2, Req 5 AC 3–4, Req 13 AC 4–5).
+// The generator builds an `owned class Vault` with 1..4 fields. Each field's type +
+// assignment source is drawn from a mix of compliant and violating combinations.
 //
-// The generator builds an `owned class Vault` whose single mutable method `Configure`
-// performs 1..4 field assignments, each `this.Field = <source>` drawn from a mix of:
+// COMPLIANT (no errors expected):
+//   • Widget field + owned param      — Widget is owned-type, move from Live
+//   • Config field + clonable param   — Config is IClonable, auto-clone
+//   • Config field + constructor call — Config is IClonable, new T() is owned
+//   • int field + value primitive     — value type field, value copy
+//   • Config field + default          — IClonable + default yields owned
 //
-//   COMPLIANT sources (resolve as a non-error owned move):
-//     • owned parameter        — move from a Live owned binding (Req 6 AC 3)
-//     • constructor call new T — fresh owned graph                (Req 6 AC 9)
-//     • default                — fresh owned graph                (Req 6 AC 10)
-//     • clonable param         — non-owned src auto-deriving IClonable → ImplicitClone
-//                                (Req 8 AC 2–3, AC 6)
-//     • value/primitive        — value copy, no provenance gate   (Req 4 AC 3)
+// VIOLATING (errors expected — MIST_OWN_FIELD_TYPE_VIOLATION):
+//   • Gadget field (int[] blocks IClonable) — field type restriction fails
 //
-//   VIOLATING sources (resolve as Error):
-//     • non-owned reference param (non-clonable: an int[] field blocks auto-derivation)
-//                                (Req 13 AC 4)
-//     • static/global read        — global state is never owned   (design LD-2)
-//
-// The EXPECTED side of the biconditional is computed independently of the compiler:
-// a generated program contains a contract violation ⟺ at least one of its assignment
-// sources is a VIOLATING kind. The program is then compiled in-process via a single
-// shared CompilerDriver (test-process-spawning policy: 0 external process spawns,
-// EmitToDisk:false), and the presence/absence of MIST_OWN_CONTRACT_VIOLATION is
-// asserted to match the expectation exactly.
+// The expected side of the biconditional: a violation occurs ⟺ at least one field
+// uses a type that is not owned/IClonable/value (i.e., Gadget).
 
 using System.Collections.Immutable;
 using FsCheck;
@@ -50,17 +45,17 @@ using Mist.Semantics.Model;
 namespace Mist.Tests.Analysis;
 
 /// <summary>
-/// Property-based test for the <see cref="CooperationContractVerifier"/> — Property 8
-/// (ownership-v2 design Component 3, Task 6.2).
+/// Property-based test for owned-field enforcement — updated from the old
+/// CooperationContractVerifier property (ownership-v2 Task 6.2).
 ///
-/// **Validates: Requirements 5.3, 5.4**
+/// **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 5.3, 5.4, 8.1**
 ///
-/// For all owned types T, T compiles (no <c>MIST_OWN_CONTRACT_VIOLATION</c>) ⟺ every
-/// field assignment in T's methods/constructors resolves as a non-error owned move.
+/// For all owned types T, T compiles without field-type errors ⟺ every field's type
+/// is an owned type, implements IClonable, or is a value type.
 /// </summary>
 public sealed class CooperationContractSoundnessPropertyTests
 {
-    private const string ContractViolationId = "MIST_OWN_CONTRACT_VIOLATION";
+    private const string FieldTypeViolationId = "MIST_OWN_FIELD_TYPE_VIOLATION";
 
     // ─── Shared infrastructure (in-process compile, 0 process spawns) ─────
 
@@ -107,27 +102,26 @@ public sealed class CooperationContractSoundnessPropertyTests
 #pragma warning disable CA1034 // nested types are the FsCheck-friendly way to surface a scenario
 
     /// <summary>
-    /// The kinds of field-assignment source an owned type's method body can use, split
-    /// into those that resolve as a non-error owned move (compliant) and those that
-    /// resolve as <see cref="MoveOutcome.Error"/> (violating).
+    /// The kinds of field-assignment source an owned type's method body can use.
+    /// With the CooperationContractVerifier removed, the key distinction is now
+    /// field TYPE compliance (FieldTypeRestrictionVerifier) rather than source compliance.
     /// </summary>
     public enum AssignmentSourceKind
     {
-        // ── compliant ──
-        OwnedParam,        // this.f = ownedWidgetParam;     (move from Live owned binding)
-        ConstructorCall,   // this.f = new Widget(1);        (fresh owned graph)
-        DefaultSource,     // this.f = default;              (fresh owned graph)
-        ClonableParam,     // this.f = configParam;          (non-owned, auto-IClonable → clone)
-        ValuePrimitive,    // this.f = intParam;             (value copy)
+        // ── field type compliant (owned/IClonable/value) ──
+        OwnedParam,        // Widget field, this.f = ownedWidgetParam;
+        ConstructorCall,   // Config field, this.f = new Config(1);
+        DefaultSource,     // Config field, this.f = default;
+        ClonableParam,     // Config field, this.f = configParam;
+        ValuePrimitive,    // int field, this.f = intParam;
 
-        // ── violating ──
-        NonOwnedRefParam,  // this.f = gadgetParam;          (non-owned, non-clonable → Error)
-        StaticRead,        // this.f = Registry.Shared;      (global state → Error)
+        // ── field type violating (non-owned, non-IClonable, non-value) ──
+        NonOwnedRefParam,  // Gadget field (int[] blocks IClonable auto-derivation)
     }
 
     /// <summary>
     /// A generated owned-type program plus the independently-computed expectation of
-    /// whether it should emit <c>MIST_OWN_CONTRACT_VIOLATION</c>.
+    /// whether it should emit <c>MIST_OWN_FIELD_TYPE_VIOLATION</c>.
     /// </summary>
     public sealed record ContractScenario(string Source, bool ExpectViolation, string Label)
     {
@@ -137,14 +131,10 @@ public sealed class CooperationContractSoundnessPropertyTests
 #pragma warning restore CA1034
 
     private static bool IsViolating(AssignmentSourceKind kind) =>
-        kind is AssignmentSourceKind.NonOwnedRefParam or AssignmentSourceKind.StaticRead;
+        kind is AssignmentSourceKind.NonOwnedRefParam;
 
     // ─── Per-assignment fragment construction ─────────────────────────────
 
-    /// <summary>
-    /// The Mist fragments contributed by a single field assignment: its field
-    /// declaration, an optional method parameter, and the assignment statement.
-    /// </summary>
     private readonly record struct AssignmentFragments(
         string FieldDecl,
         string? Param,
@@ -163,12 +153,12 @@ public sealed class CooperationContractSoundnessPropertyTests
                 Statement: $"        this.{field} = {param};"),
 
             AssignmentSourceKind.ConstructorCall => new AssignmentFragments(
-                FieldDecl: $"    public Widget {field};",
+                FieldDecl: $"    public Config {field};",
                 Param: null,
-                Statement: $"        this.{field} = new Widget(1);"),
+                Statement: $"        this.{field} = new Config(1);"),
 
             AssignmentSourceKind.DefaultSource => new AssignmentFragments(
-                FieldDecl: $"    public Widget {field};",
+                FieldDecl: $"    public Config {field};",
                 Param: null,
                 Statement: $"        this.{field} = default;"),
 
@@ -187,11 +177,6 @@ public sealed class CooperationContractSoundnessPropertyTests
                 Param: $"Gadget {param}",
                 Statement: $"        this.{field} = {param};"),
 
-            AssignmentSourceKind.StaticRead => new AssignmentFragments(
-                FieldDecl: $"    public Config {field};",
-                Param: null,
-                Statement: $"        this.{field} = Registry.Shared;"),
-
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
         };
     }
@@ -204,11 +189,6 @@ public sealed class CooperationContractSoundnessPropertyTests
         var parameters = string.Join(", ", fragments.Where(f => f.Param is not null).Select(f => f.Param));
         var statements = string.Join("\n", fragments.Select(f => f.Statement));
 
-        // Supporting types (declared unconditionally; unused ones are harmless):
-        //   Widget  — plain owned-movable / constructable class
-        //   Config  — auto-derives IClonable<Config> (only a primitive field)
-        //   Gadget  — NON-clonable (int[] field blocks auto-derivation)
-        //   Registry — exposes a static Config for the global-read violation
         var source = $$"""
             namespace TestProgram;
 
@@ -233,11 +213,6 @@ public sealed class CooperationContractSoundnessPropertyTests
             class Gadget
             {
                 public int[] data;
-            }
-
-            class Registry
-            {
-                public static Config Shared { get; set; }
             }
 
             owned class Vault
@@ -273,7 +248,6 @@ public sealed class CooperationContractSoundnessPropertyTests
         AssignmentSourceKind.ClonableParam,
         AssignmentSourceKind.ValuePrimitive,
         AssignmentSourceKind.NonOwnedRefParam,
-        AssignmentSourceKind.StaticRead,
     ];
 
     private static Gen<ContractScenario> GenScenario()
@@ -287,19 +261,19 @@ public sealed class CooperationContractSoundnessPropertyTests
         GenScenario().ToArbitrary();
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 8: cooperation contract soundness — the biconditional.
+    // Updated property: field-type restriction soundness — the biconditional.
     //
-    //   no MIST_OWN_CONTRACT_VIOLATION  ⟺  every field assignment source is a
-    //                                       non-error owned move (no VIOLATING kind).
+    //   no MIST_OWN_FIELD_TYPE_VIOLATION  ⟺  every field's type is owned/IClonable/value
+    //                                         (no NonOwnedRefParam kind).
     //
-    // **Validates: Requirements 5.3, 5.4**
+    // **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 5.3, 5.4**
     // ═══════════════════════════════════════════════════════════════════════
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(CooperationContractSoundnessPropertyTests) })]
     public Property CooperationContract_CompilesIffEveryAssignmentResolvesAsOwnedMove(ContractScenario scenario)
     {
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
-        var hasViolation = diagnostics.Any(d => d.Id.Value == ContractViolationId);
+        var hasViolation = diagnostics.Any(d => d.Id.Value == FieldTypeViolationId);
 
         if (hasViolation != scenario.ExpectViolation)
         {

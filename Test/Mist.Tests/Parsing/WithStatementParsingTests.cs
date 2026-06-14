@@ -190,7 +190,7 @@ public class WithStatementParsingTests
             var method = methodMember.Method;
 
             Assert.Single(method.WithClauses);
-            var clause = method.WithClauses[0];
+            var clause = Assert.IsType<ContextWithClauseWithClauseNode>(method.WithClauses[0]);
             Assert.NotNull(clause.Type);
             Assert.Equal("ctx", clause.Name.Lexeme);
         }
@@ -210,8 +210,8 @@ public class WithStatementParsingTests
             var method = methodMember.Method;
 
             Assert.Equal(2, method.WithClauses.Length);
-            Assert.Equal("ctx", method.WithClauses[0].Name.Lexeme);
-            Assert.Equal("other", method.WithClauses[1].Name.Lexeme);
+            Assert.Equal("ctx", method.WithClauses[0] is ContextWithClauseWithClauseNode ctx0 ? ctx0.Name.Lexeme : "");
+            Assert.Equal("other", method.WithClauses[1] is ContextWithClauseWithClauseNode ctx1 ? ctx1.Name.Lexeme : "");
         }
     }
 
@@ -230,7 +230,7 @@ public class WithStatementParsingTests
             var method = methodMember.Method;
 
             Assert.Single(method.WithClauses);
-            Assert.Equal("ctx", method.WithClauses[0].Name.Lexeme);
+            Assert.Equal("ctx", method.WithClauses[0] is ContextWithClauseWithClauseNode ctx0 ? ctx0.Name.Lexeme : "");
         }
     }
 
@@ -249,7 +249,7 @@ public class WithStatementParsingTests
             var method = methodMember.Method;
 
             Assert.Single(method.WithClauses);
-            Assert.Equal("ctx", method.WithClauses[0].Name.Lexeme);
+            Assert.Equal("ctx", method.WithClauses[0] is ContextWithClauseWithClauseNode ctx0 ? ctx0.Name.Lexeme : "");
         }
     }
 
@@ -268,7 +268,7 @@ public class WithStatementParsingTests
             var ctor = ctorMember.Constructor;
 
             Assert.Single(ctor.WithClauses);
-            Assert.Equal("ctx", ctor.WithClauses[0].Name.Lexeme);
+            Assert.Equal("ctx", ctor.WithClauses[0] is ContextWithClauseWithClauseNode ctx0 ? ctx0.Name.Lexeme : "");
         }
     }
 

@@ -1,0 +1,59 @@
+// SYNTAX TEST "source.mist"
+
+// ===== Owned field modifier (storage.modifier.mist) =====
+// `owned` before a field type annotation in a class/struct body must get
+// storage.modifier.mist scope (Req 13 AC 1, AC 3).
+
+class Document {
+    owned int count;
+//  ^^^^^ storage.modifier.mist
+//        ^^^ storage.type.primitive.mist
+
+    owned string name;
+//  ^^^^^ storage.modifier.mist
+//        ^^^^^^ storage.type.primitive.mist
+
+    public owned Widget handle;
+//  ^^^^^^ storage.modifier.mist
+//         ^^^^^ storage.modifier.mist
+}
+
+// ===== Owned field word-boundary (Req 13 AC 2) =====
+// Identifiers containing "owned" must NOT get storage.modifier.mist scope.
+
+var ownedCount = 0;
+//  ^^^^^^^^^^ variable.other.property.mist
+
+var preowned = 0;
+//  ^^^^^^^^ variable.other.property.mist
+
+// ===== Method with-clause tier annotation (keyword.other.mist) =====
+// `with` followed by a tier keyword in a method declaration must highlight
+// `with` as keyword.other.mist and the tier as storage.modifier.mist.
+
+void Foo() with borrowed {
+//         ^^^^ keyword.other.mist
+//              ^^^^^^^^ storage.modifier.mist
+}
+
+void Bar() with owned {
+//         ^^^^ keyword.other.mist
+//              ^^^^^ storage.modifier.mist
+}
+
+void Baz() with frozen {
+//         ^^^^ keyword.other.mist
+//              ^^^^^^ storage.modifier.mist
+}
+
+void Qux() with readonly ref {
+//         ^^^^ keyword.other.mist
+//              ^^^^^^^^^^^^ storage.modifier.mist
+}
+
+// ===== with NOT followed by tier keyword (context declarations) =====
+// `with` used in context declarations must still work as before.
+
+with var ctx = CreateContext();
+// <- keyword.other.mist
+//   ^^^ keyword.other.mist

@@ -201,6 +201,14 @@
     "declaration-names": {
       "patterns": [
         {
+          "comment": "Method this-tier clause: with owned/borrowed/frozen/readonly ref (after parameter list)",
+          "match": "\\b(with)\\s+(owned|borrowed|frozen|readonly\\s+ref)\\b",
+          "captures": {
+            "1": { "name": "keyword.other.mist" },
+            "2": { "name": "storage.modifier.mist" }
+          }
+        },
+        {
           "comment": "Context discard declaration: with TypeReference _ = expression;",
           "match": "\\b(with)\\s+(?:(int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|regex|unknown)|([A-Z]\\w*))\\s+(_)\\s*(?==(?!=))",
           "captures": {

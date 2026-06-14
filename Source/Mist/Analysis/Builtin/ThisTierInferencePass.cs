@@ -755,7 +755,7 @@ public sealed class ThisTierInferencePass
     /// <summary>
     /// Formats a <see cref="ThisTier"/> value for diagnostic messages.
     /// </summary>
-    private static string FormatTier(ThisTier tier) => tier switch
+    internal static string FormatTier(ThisTier tier) => tier switch
     {
         ThisTier.None => "none",
         ThisTier.ReadonlyRef => "readonly ref",

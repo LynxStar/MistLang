@@ -1,0 +1,36 @@
+using Standard;
+
+namespace Snippet;
+
+public class Document
+{
+    // Owned field — provenance-checked on writes, extraction requires owned parent
+    public owned string Content;
+
+    // Non-owned field — freely readable and writable
+    public int Version;
+
+    public Document(owned string content, int version)
+    {
+        this.Content = content;
+        this.Version = version;
+    }
+
+    public string Describe()
+    {
+        return $"Document(v{Version}: {Content})";
+    }
+}
+
+public class OwnedFieldDeclarationDemo
+{
+    public static void Run()
+    {
+        owned var doc = new Document("Hello", 1);
+        Console.WriteLine($"initial={doc.Describe()}");
+
+        // Writing to an owned field requires an owned source (provenance)
+        doc.Content = "Updated";
+        Console.WriteLine($"updated={doc.Describe()}");
+    }
+}

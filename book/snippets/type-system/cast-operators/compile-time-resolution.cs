@@ -10,17 +10,6 @@ public class Measurement
     {
         this.unit = unit;
     }
-
-    protected Measurement()
-    {
-        this.unit = "";
-    }
-
-    public static Measurement __CreateDefault()
-    {
-        var inst = new Measurement();
-        return inst;
-    }
 }
 public class Weight : Measurement
 {
@@ -39,16 +28,5 @@ public class Weight : Measurement
     public static explicit operator Kelvin(Weight w)
     {
         return new Kelvin(w.GetValue());
-    }
-
-    protected Weight()
-    {
-        this.value = 0;
-    }
-
-    public static Weight __CreateDefault()
-    {
-        var inst = new Weight();
-        return inst;
     }
 }

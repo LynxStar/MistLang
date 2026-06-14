@@ -43,4 +43,7 @@ public sealed class TypeParameterConstraints
 
     /// <summary>Whether the 'owned' constraint is present. Type arguments must be owned types.</summary>
     public bool HasOwnedConstraint { get; init; }
+
+    /// <summary>Whether the 'default' constraint is present. Type arguments must be defaultable types.</summary>
+    public bool HasDefaultConstraint { get; init; }
 }

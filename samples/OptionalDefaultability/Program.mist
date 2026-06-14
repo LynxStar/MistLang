@@ -1,0 +1,163 @@
+// OptionalDefaultability — Demonstrates the optional defaultability system.
+
+using Standard;
+
+namespace OptionalDefaultability;
+
+// ─── Non-defaultable type: has constructor, no default block ─────────────────
+// PROOF: Compiler does NOT generate __CreateDefault for this type
+// PROOF: Definite assignment passes because constructor assigns all fields
+public class DatabaseConnection
+{
+    public string ConnectionString;
+    public int Timeout;
+
+    public DatabaseConnection(string connStr, int timeout)
+    {
+        this.ConnectionString = connStr;
+        this.Timeout = timeout;
+    }
+}
+
+// ─── Type with both constructor AND default block ────────────────────────────
+// PROOF: default(Config) uses the default block values
+// PROOF: new Config("prod") uses the constructor
+// PROOF: Both paths produce fully initialized instances
+public class Config
+{
+    public string Environment;
+    public int MaxRetries;
+
+    public Config(string env)
+    {
+        this.Environment = env;
+        this.MaxRetries = 3;
+    }
+
+    default
+    {
+        Environment = "development"
+        MaxRetries = 1
+    }
+}
+
+// ─── Type with no constructor: implicitly defaultable ────────────────────────
+// PROOF: Has implicit parameterless constructor
+// PROOF: default(Point) produces zero-initialized fields
+// PROOF: new Point() also produces zero-initialized fields (same as default)
+public class Point
+{
+    public int X;
+    public int Y;
+}
+
+// ─── Enum with explicit default variant modifier ─────────────────────────────
+// PROOF: default(Direction) returns North because it has the default modifier
+// PROOF: The default modifier is a variant-level annotation, not a separate block
+public enum Direction : string
+{
+    default North: "N",
+    South: "S",
+    East: "E",
+    West: "W"
+}
+
+// ─── Enum without default variant: non-defaultable ───────────────────────────
+// PROOF: This enum cannot be used with default(Priority)
+// PROOF: Must be explicitly constructed by naming a variant
+public enum Priority : int
+{
+    Low: 1,
+    Medium: 2,
+    High: 3
+}
+
+// ─── Generic function with default constraint ────────────────────────────────
+// PROOF: where T : default allows default(T) inside the body
+// PROOF: Can only be called with defaultable type arguments
+public class Factory
+{
+    public static T Create<T>() where T : default
+    {
+        return default(T);
+    }
+}
+
+// ─── Union with void is defaultable (T? sugar) ──────────────────────────────
+// PROOF: int? is defaultable because it contains void
+// PROOF: default(int?) produces the void value
+public class OptionalHolder
+{
+    public int? MaybeValue;
+}
+
+// ─── Array requires TValue : default ─────────────────────────────────────────
+// PROOF: int[] works because int is defaultable
+// PROOF: Point[] works because Point is defaultable (no constructor, all fields defaultable)
+// PROOF: DatabaseConnection?[] works because DatabaseConnection? includes void
+public class ArrayDemo
+{
+    public static void ShowArrays()
+    {
+        var ints = new int[3];
+        Console.WriteLine($"  ints[0]={ints[0]} ints[1]={ints[1]} ints[2]={ints[2]}");
+
+        var points = new Point[2];
+        Console.WriteLine($"  points[0].X={points[0].X} points[0].Y={points[0].Y}");
+    }
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Optional Defaultability Sample ===");
+
+        // 1. Non-defaultable type requires constructor
+        Console.WriteLine("--- Non-Defaultable Type ---");
+        var db = new DatabaseConnection("Server=localhost", 30);
+        Console.WriteLine($"  conn={db.ConnectionString} timeout={db.Timeout}");
+
+        // 2. Type with both constructor and default block
+        Console.WriteLine("--- Constructor + Default Block ---");
+        var prodCfg = new Config("production");
+        Config devCfg = default(Config);
+        Console.WriteLine($"  prod: env={prodCfg.Environment} retries={prodCfg.MaxRetries}");
+        Console.WriteLine($"  dev: env={devCfg.Environment} retries={devCfg.MaxRetries}");
+
+        // 3. Implicitly defaultable type (no constructor)
+        Console.WriteLine("--- Implicitly Defaultable ---");
+        Point p = default(Point);
+        var p2 = new Point();
+        Console.WriteLine($"  default: x={p.X} y={p.Y}");
+        Console.WriteLine($"  new: x={p2.X} y={p2.Y}");
+
+        // 4. Enum with explicit default variant
+        Console.WriteLine("--- Enum Default Variant ---");
+        Direction dir = default(Direction);
+        Console.WriteLine($"  direction={dir}");
+
+        // 5. Generic default constraint
+        Console.WriteLine("--- Generic Default Constraint ---");
+        var pt = Factory.Create<Point>();
+        Console.WriteLine($"  factory point: x={pt.X} y={pt.Y}");
+
+        // 6. Optional (T?) is defaultable via void constituent
+        Console.WriteLine("--- Optional Defaultability ---");
+        OptionalHolder holder = default(OptionalHolder);
+        Console.WriteLine($"  maybeValue={holder.MaybeValue}");
+
+        // 7. Arrays of defaultable types
+        Console.WriteLine("--- Array Defaultability ---");
+        ArrayDemo.ShowArrays();
+
+        Console.WriteLine("Done!");
+    }
+}

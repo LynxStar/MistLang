@@ -15,17 +15,6 @@ public class Item
     {
         return this.value;
     }
-
-    protected Item()
-    {
-        this.value = 0;
-    }
-
-    public static Item __CreateDefault()
-    {
-        var inst = new Item();
-        return inst;
-    }
 }
 public class Program
 {
@@ -35,8 +24,8 @@ public class Program
         Item absent = null;
         int? result1 = present?.GetValue();
         int? result2 = absent?.GetValue();
-        Console.WriteLine($"present?.GetValue()={result1}");
-        Console.WriteLine($"absent?.GetValue()={result2}");
+        Console.WriteLine($"present?.GetValue()={(object?)result1 ?? "Void"}");
+        Console.WriteLine($"absent?.GetValue()={(object?)result2 ?? "Void"}");
     }
 
     public static Program __CreateDefault()

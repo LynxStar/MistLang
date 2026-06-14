@@ -17,10 +17,4 @@ public class Logger : Writable
     }
 
     void Writable.Write(string data) => this.Log(data);
-
-    public static Logger __CreateDefault()
-    {
-        var inst = new Logger();
-        return inst;
-    }
 }

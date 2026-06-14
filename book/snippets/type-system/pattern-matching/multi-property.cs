@@ -13,18 +13,6 @@ public class Rectangle
         this.Width = width;
         this.Height = height;
     }
-
-    protected Rectangle()
-    {
-        this.Width = 0;
-        this.Height = 0;
-    }
-
-    public static Rectangle __CreateDefault()
-    {
-        var inst = new Rectangle();
-        return inst;
-    }
 }
 public class Program
 {

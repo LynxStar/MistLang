@@ -10,7 +10,7 @@ public class Config
 
     public string Label;
 
-    protected Config()
+    public Config()
     {
         this.MaxRetries = 0;
         this.Verbose = false;

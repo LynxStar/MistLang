@@ -15,6 +15,12 @@ public sealed class EnumType : IType
     public IScope MemberScope { get; }
     public string? ContainingNamespace { get; }
 
+    /// <summary>The defaultability status of this enum type.</summary>
+    public DefaultabilityStatus Defaultability { get; internal set; } = DefaultabilityStatus.Unknown;
+
+    /// <summary>The designated default variant, if any.</summary>
+    public EnumMemberInfo? DefaultMember { get; internal set; }
+
     public EnumType(
         string displayName,
         IScope memberScope,
@@ -36,6 +42,9 @@ public sealed class EnumMemberInfo
     public string Name { get; }
     public object? ResolvedValue { get; internal set; }
     public IType? ValueType { get; internal set; }
+
+    /// <summary>Whether this member is designated as the enum's default variant.</summary>
+    public bool IsDefault { get; internal set; }
 
     public EnumMemberInfo(string name)
     {

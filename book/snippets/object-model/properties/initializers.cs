@@ -10,7 +10,7 @@ public class Config
 
     public string Name { get; set; } = "default";
 
-    protected Config()
+    public Config()
     {
         this.Timeout = 0;
         this.Verbose = false;

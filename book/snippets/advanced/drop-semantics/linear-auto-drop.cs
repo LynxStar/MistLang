@@ -20,17 +20,6 @@ public class FileHandle
     {
         return Fd;
     }
-
-    protected FileHandle()
-    {
-        this.Fd = 0;
-    }
-
-    public static FileHandle __CreateDefault()
-    {
-        var inst = new FileHandle();
-        return inst;
-    }
 }
 public class Program
 {

@@ -23,18 +23,6 @@ public class Pair
     {
         return $"Pair({X}, {Y})";
     }
-
-    protected Pair()
-    {
-        this.X = 0;
-        this.Y = 0;
-    }
-
-    public static Pair __CreateDefault()
-    {
-        var inst = new Pair();
-        return inst;
-    }
 }
 public class OwnedDemo
 {

@@ -30,15 +30,4 @@ public class Printer
     {
         return $"{_prefix} string={value}";
     }
-
-    protected Printer()
-    {
-        this._prefix = "";
-    }
-
-    public static Printer __CreateDefault()
-    {
-        var inst = new Printer();
-        return inst;
-    }
 }

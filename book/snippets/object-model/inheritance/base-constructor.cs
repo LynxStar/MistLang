@@ -15,15 +15,4 @@ public class GuideDog : Dog
     {
         return handler;
     }
-
-    protected GuideDog()
-    {
-        this.handler = "";
-    }
-
-    public static GuideDog __CreateDefault()
-    {
-        var inst = new GuideDog();
-        return inst;
-    }
 }

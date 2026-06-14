@@ -10,4 +10,13 @@ public record class Direction(string Value)
     public static readonly Direction West = new Direction("W");
 
     public static implicit operator string(Direction e) => e.Value;
+
+    public override string ToString()
+    {
+        if (ReferenceEquals(this, North)) return "North";
+        else if (ReferenceEquals(this, South)) return "South";
+        else if (ReferenceEquals(this, East)) return "East";
+        else if (ReferenceEquals(this, West)) return "West";
+        return Value.ToString();
+    }
 }

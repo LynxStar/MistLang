@@ -1,0 +1,16 @@
+public enum Direction : string
+{
+    default North: "N",
+    South: "S",
+    East: "E",
+    West: "W"
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Direction dir = default(Direction);
+        Console.WriteLine($"direction={dir}");
+    }
+}

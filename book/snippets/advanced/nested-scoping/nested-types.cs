@@ -24,6 +24,13 @@ public class Outer
         public static readonly Status Inactive = new Status("inactive");
 
         public static implicit operator string(Status e) => e.Value;
+
+        public override string ToString()
+        {
+            if (ReferenceEquals(this, Active)) return "Active";
+            else if (ReferenceEquals(this, Inactive)) return "Inactive";
+            return Value.ToString();
+        }
     }
 
     public static void Demo()

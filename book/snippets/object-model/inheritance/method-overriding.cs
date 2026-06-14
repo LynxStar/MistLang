@@ -15,17 +15,6 @@ public class Dog : Animal
     {
         return $"{GetName()} is a {breed}, age {GetAge()}";
     }
-
-    protected Dog()
-    {
-        this.breed = "";
-    }
-
-    public static Dog __CreateDefault()
-    {
-        var inst = new Dog();
-        return inst;
-    }
 }
 public class GuideDog : Dog
 {
@@ -39,16 +28,5 @@ public class GuideDog : Dog
     public string DescribeGuideDog()
     {
         return $"{GetName()} is a {GetBreed()} guide dog, age {GetAge()}, handler: {handler}";
-    }
-
-    protected GuideDog()
-    {
-        this.handler = "";
-    }
-
-    public static GuideDog __CreateDefault()
-    {
-        var inst = new GuideDog();
-        return inst;
     }
 }

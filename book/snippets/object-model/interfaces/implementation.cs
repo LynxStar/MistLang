@@ -22,16 +22,4 @@ public class Person : IDescribable
     {
         return $"Person: {name}, age {age}";
     }
-
-    protected Person()
-    {
-        this.name = "";
-        this.age = 0;
-    }
-
-    public static Person __CreateDefault()
-    {
-        var inst = new Person();
-        return inst;
-    }
 }

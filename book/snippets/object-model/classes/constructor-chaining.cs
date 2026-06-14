@@ -17,12 +17,4 @@ public class Point
     public Point() : this(0, 0)
     {
     }
-
-    public static Point __CreateDefault()
-    {
-        var inst = new Point();
-        inst.x = 0;
-        inst.y = 0;
-        return inst;
-    }
 }

@@ -18,18 +18,6 @@ public class Point
     {
         return $"Point({X}, {Y})";
     }
-
-    protected Point()
-    {
-        this.X = 0;
-        this.Y = 0;
-    }
-
-    public static Point __CreateDefault()
-    {
-        var inst = new Point();
-        return inst;
-    }
 }
 public class OwnedBindingDemo
 {

@@ -10,17 +10,6 @@ public class Config
     {
         this.Value = value;
     }
-
-    protected Config()
-    {
-        this.Value = "";
-    }
-
-    public static Config __CreateDefault()
-    {
-        var inst = new Config();
-        return inst;
-    }
 }
 public class Consumers
 {

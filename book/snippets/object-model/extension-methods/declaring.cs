@@ -10,17 +10,6 @@ public class Greeting
     {
         Message = message;
     }
-
-    protected Greeting()
-    {
-        this.Message = "";
-    }
-
-    public static Greeting __CreateDefault()
-    {
-        var inst = new Greeting();
-        return inst;
-    }
 }
 public static class GreetingExtensions_declaring_L11
 {

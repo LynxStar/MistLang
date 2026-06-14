@@ -28,18 +28,6 @@ public class Logger
     {
         System.Console.WriteLine($"[{Name}] {msg}");
     }
-
-    protected Logger()
-    {
-        this.Name = "";
-        this.Flushed = false;
-    }
-
-    public static Logger __CreateDefault()
-    {
-        var inst = new Logger();
-        return inst;
-    }
 }
 public class Program
 {

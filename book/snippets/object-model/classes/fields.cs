@@ -8,7 +8,7 @@ public class Point
 
     private int y;
 
-    protected Point()
+    public Point()
     {
         this.x = 0;
         this.y = 0;

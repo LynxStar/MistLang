@@ -18,16 +18,4 @@ public class Player
     {
         return $"Player: {name}, HP: {health}";
     }
-
-    protected Player()
-    {
-        this.name = "";
-        this.health = 0;
-    }
-
-    public static Player __CreateDefault()
-    {
-        var inst = new Player();
-        return inst;
-    }
 }

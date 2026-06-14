@@ -15,17 +15,4 @@ public class Person
         this.Name = name;
         this.Id = id;
     }
-
-    protected Person()
-    {
-        this.Name = "";
-        this.Id = "";
-        this.Age = 0;
-    }
-
-    public static Person __CreateDefault()
-    {
-        var inst = new Person();
-        return inst;
-    }
 }

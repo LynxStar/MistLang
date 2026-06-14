@@ -4202,6 +4202,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var backingFieldName = $"_{propName}_k__BackingField";
             var backingFieldSpan = propSpan; // Use property span for the backing field.
             backingFieldSymbol = new Symbol(backingFieldName, SymbolKind.Field, SymbolOrigin.UserCode, typeScope, declaredType: null, backingFieldSpan);
+            backingFieldSymbol.IsStatic = isStatic;
             typeScope.AddMember(backingFieldSymbol);
             symbolTable.Register(backingFieldSymbol, blockProp);
         }
@@ -6962,6 +6963,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var hasReadonlyConstraint = false;
         var hasMutableConstraint = false;
         var hasOwnedConstraint = false;
+        var hasDefaultConstraint = false;
         IType? baseClassConstraint = null;
         var interfaceConstraints = new List<IType>();
         var traitConstraints = new List<IType>();
@@ -6998,6 +7000,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 case OwnedConstraintConstraintNode:
                     hasOwnedConstraint = true;
+                    break;
+
+                case DefaultConstraintConstraintNode:
+                    hasDefaultConstraint = true;
                     break;
 
                 case ConstructorConstraintConstraintNode ctorConstraint:
@@ -7047,6 +7053,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             HasReadonlyConstraint = hasReadonlyConstraint,
             HasMutableConstraint = hasMutableConstraint,
             HasOwnedConstraint = hasOwnedConstraint,
+            HasDefaultConstraint = hasDefaultConstraint,
         };
     }
 
@@ -7071,6 +7078,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var hasReadonlyConstraint = false;
         var hasMutableConstraint = false;
         var hasOwnedConstraint = false;
+        var hasDefaultConstraint = false;
         IType? baseClassConstraint = null;
         var interfaceConstraints = new List<IType>();
         var traitConstraints = new List<IType>();
@@ -7106,6 +7114,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 case OwnedConstraintConstraintNode:
                     hasOwnedConstraint = true;
+                    break;
+
+                case DefaultConstraintConstraintNode:
+                    hasDefaultConstraint = true;
                     break;
 
                 case ConstructorConstraintConstraintNode ctorConstraint:
@@ -7148,6 +7160,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             HasReadonlyConstraint = hasReadonlyConstraint,
             HasMutableConstraint = hasMutableConstraint,
             HasOwnedConstraint = hasOwnedConstraint,
+            HasDefaultConstraint = hasDefaultConstraint,
         };
     }
 
@@ -13886,7 +13899,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 // Cannot resolve the annotated type — assign ErrorType and skip member validation.
                 enumType.UnderlyingType = ErrorType.Instance;
-                enumType.Members = memberNodes.Select(m => new EnumMemberInfo(m.Name.Lexeme)).ToList();
+                enumType.Members = memberNodes.Select(m => new EnumMemberInfo(m.Name.Lexeme) { IsDefault = m.IsDefault is not null }).ToList();
                 return;
             }
         }
@@ -13954,6 +13967,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach (var memberNode in memberNodes)
         {
             var memberInfo = new EnumMemberInfo(memberNode.Name.Lexeme);
+            memberInfo.IsDefault = memberNode.IsDefault is not null;
 
             if (memberNode.Value is not null)
             {
@@ -23780,6 +23794,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             ClassType ct => ct.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit,
             StructType st => st.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit,
+            UnionType ut => ut.Constituents.Any(c => c.IsVoid()),
             _ => false,
         };
     }
@@ -23929,6 +23944,60 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
             }
         }
+
+        // Step 5: Process enum types (no topological ordering needed — enum
+        // defaultability depends only on the IsDefault modifier of its own members).
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind == SymbolKind.Enum && symbol.DeclaredType is EnumType enumType)
+            {
+                ComputeDefaultabilityForEnum(enumType, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Computes defaultability for a single <see cref="EnumType"/>.
+    /// An enum is defaultable if exactly one member has the <c>default</c> modifier.
+    /// If zero members have the modifier, the enum is <see cref="DefaultabilityStatus.NotDefaultable"/>.
+    /// If more than one member has the modifier, a <c>MIST_ENUM_MULTIPLE_DEFAULTS</c> diagnostic is emitted.
+    /// </summary>
+    private static void ComputeDefaultabilityForEnum(
+        EnumType enumType,
+        DiagnosticBag diagnostics)
+    {
+        var defaultMembers = new List<EnumMemberInfo>();
+
+        foreach (var member in enumType.Members)
+        {
+            if (member.IsDefault)
+            {
+                defaultMembers.Add(member);
+            }
+        }
+
+        if (defaultMembers.Count == 1)
+        {
+            enumType.Defaultability = DefaultabilityStatus.Explicit;
+            enumType.DefaultMember = defaultMembers[0];
+        }
+        else if (defaultMembers.Count == 0)
+        {
+            enumType.Defaultability = DefaultabilityStatus.NotDefaultable;
+        }
+        else
+        {
+            // Multiple members have the default modifier — emit an error.
+            enumType.Defaultability = DefaultabilityStatus.NotDefaultable;
+            diagnostics.Add(new Diagnostic(
+                DiagnosticId.EnumMultipleDefaults,
+                DiagnosticSeverity.Error,
+                PipelineStage.SemanticModelConstruction,
+                $"Enum '{enumType.DisplayName}' has multiple variants with the 'default' modifier. Only one variant may be designated as default.",
+                Location: default,
+                CompilationUnitPath: "<unknown>",
+                AnalyzerName: null));
+        }
     }
 
     /// <summary>
@@ -23945,12 +24014,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // We still need to compute DefaultValues.
         var hasExplicitBlock = classType.Defaultability == DefaultabilityStatus.Explicit;
 
+        // Determine if the type has user-defined constructors.
+        var hasConstructors = classType.MemberScope.Members.Any(m => m.Kind == SymbolKind.Constructor);
+
         // Check base class defaultability.
         if (classType.BaseType is ClassType baseClass)
         {
             if (!IsIntrinsicallyDefaultable(baseClass) &&
                 baseClass.Defaultability is not (DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit))
             {
+                // If the type has constructors and no default block, it's simply
+                // NotDefaultable — the constructors handle initialization directly.
+                // No diagnostic needed because the type isn't trying to be defaultable.
+                if (hasConstructors && !hasExplicitBlock)
+                {
+                    classType.Defaultability = DefaultabilityStatus.NotDefaultable;
+                    return;
+                }
+
+                // Otherwise (no constructors, or has an explicit default block with
+                // non-defaultable base), emit the diagnostic.
                 classType.Defaultability = DefaultabilityStatus.NotDefaultable;
                 diagnostics.Add(new Diagnostic(
                     DiagnosticId.DefaultBaseNotDefaultable,
@@ -23964,6 +24047,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
+        // If the type has constructors and no explicit default block, it is
+        // NotDefaultable — constructors handle initialization. No diagnostic.
+        if (hasConstructors && !hasExplicitBlock)
+        {
+            classType.Defaultability = DefaultabilityStatus.NotDefaultable;
+            return;
+        }
+
         // Collect fields from this type's member scope.
         var fields = new List<ISymbol>();
         foreach (var member in classType.MemberScope.Members)
@@ -23975,7 +24066,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Check if all fields are defaultable (considering the explicit default block for type bindings).
         if (!hasExplicitBlock)
         {
-            // No explicit block — check if all fields have defaultable types.
+            // No explicit block, no constructors — check if all fields have defaultable types.
             foreach (var field in fields)
             {
                 if (field.DeclaredType is null)
@@ -23994,7 +24085,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             DiagnosticId.DefaultRequiresTypeBinding,
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
-                            $"Field '{field.Name}' on type '{classType.DisplayName}' has type '{field.DeclaredType.DisplayName}' which is not defaultable. Add a default block with a type binding for this field.",
+                            $"Field '{field.Name}' on type '{classType.DisplayName}' has type '{field.DeclaredType.DisplayName}' which is not defaultable. Either add a constructor to explicitly assign this field, or add a `default {{}}` block with a type binding.",
                             Location: default,
                             CompilationUnitPath: "<unknown>",
                             AnalyzerName: null));
@@ -24026,7 +24117,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // If already set to Explicit by Pass 1 (has a default block), keep it.
         var hasExplicitBlock = structType.Defaultability == DefaultabilityStatus.Explicit;
 
+        // Determine if the type has user-defined constructors.
+        var hasConstructors = structType.MemberScope.Members.Any(m => m.Kind == SymbolKind.Constructor);
+
         // Structs don't have base types in Mist, so no base class check needed.
+
+        // If the type has constructors and no explicit default block, it is
+        // NotDefaultable — constructors handle initialization. No diagnostic.
+        if (hasConstructors && !hasExplicitBlock)
+        {
+            structType.Defaultability = DefaultabilityStatus.NotDefaultable;
+            return;
+        }
 
         // Collect fields from this type's member scope.
         var fields = new List<ISymbol>();
@@ -24039,6 +24141,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Check if all fields are defaultable.
         if (!hasExplicitBlock)
         {
+            // No explicit block, no constructors — check if all fields have defaultable types.
             foreach (var field in fields)
             {
                 if (field.DeclaredType is null)
@@ -24057,7 +24160,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             DiagnosticId.DefaultRequiresTypeBinding,
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
-                            $"Field '{field.Name}' on type '{structType.DisplayName}' has type '{field.DeclaredType.DisplayName}' which is not defaultable. Add a default block with a type binding for this field.",
+                            $"Field '{field.Name}' on type '{structType.DisplayName}' has type '{field.DeclaredType.DisplayName}' which is not defaultable. Either add a constructor to explicitly assign this field, or add a `default {{}}` block with a type binding.",
                             Location: default,
                             CompilationUnitPath: "<unknown>",
                             AnalyzerName: null));

@@ -9,7 +9,7 @@ public class Program
         int? x = null;
         x ??= 100;
         int narrowed = x;
-        Console.WriteLine($"x={x}");
+        Console.WriteLine($"x={(object?)x ?? "Void"}");
         Console.WriteLine($"narrowed={narrowed}");
     }
 

@@ -20,17 +20,6 @@ public class Resource
     {
         this.Id = id;
     }
-
-    protected Resource()
-    {
-        this.Id = 0;
-    }
-
-    public static Resource __CreateDefault()
-    {
-        var inst = new Resource();
-        return inst;
-    }
 }
 public class OwnershipScopeDemo
 {

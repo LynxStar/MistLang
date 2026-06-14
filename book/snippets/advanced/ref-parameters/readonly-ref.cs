@@ -15,17 +15,6 @@ public class Sensor
     {
         return $"Sensor({Reading})";
     }
-
-    protected Sensor()
-    {
-        this.Reading = 0;
-    }
-
-    public static Sensor __CreateDefault()
-    {
-        var inst = new Sensor();
-        return inst;
-    }
 }
 public class Program
 {

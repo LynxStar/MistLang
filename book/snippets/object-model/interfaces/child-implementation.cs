@@ -23,16 +23,4 @@ public class Robot : IFullyDescribable
     {
         return $"Robot model {model}, version {version}, fully operational";
     }
-
-    protected Robot()
-    {
-        this.model = "";
-        this.version = 0;
-    }
-
-    public static Robot __CreateDefault()
-    {
-        var inst = new Robot();
-        return inst;
-    }
 }

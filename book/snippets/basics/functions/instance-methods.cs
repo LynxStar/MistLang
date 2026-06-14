@@ -31,16 +31,4 @@ public class Point
         var moved = p.Translate(10, 20);
         Console.WriteLine(moved.Describe());
     }
-
-    protected Point()
-    {
-        this.x = 0;
-        this.y = 0;
-    }
-
-    public static Point __CreateDefault()
-    {
-        var inst = new Point();
-        return inst;
-    }
 }

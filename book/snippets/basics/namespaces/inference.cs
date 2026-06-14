@@ -18,16 +18,4 @@ public class AppConfig
     {
         return $"App: {appName} v{version}";
     }
-
-    protected AppConfig()
-    {
-        this.appName = "";
-        this.version = "";
-    }
-
-    public static AppConfig __CreateDefault()
-    {
-        var inst = new AppConfig();
-        return inst;
-    }
 }

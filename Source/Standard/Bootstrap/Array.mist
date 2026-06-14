@@ -3,6 +3,7 @@ namespace Standard;
 type ZeroOrPositiveInt = int >= 0;
 
 intrinsic public class Array<TValue, Length:ZeroOrPositiveInt> : IEnumerable<TValue>
+    where TValue : default
 {
     public type ArrayBounds = ZeroOrPositiveInt and < Length;
 

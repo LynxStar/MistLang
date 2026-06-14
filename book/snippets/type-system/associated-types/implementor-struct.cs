@@ -17,13 +17,6 @@ class RangeIterator : IIterator<RangeIterator.Cursor>
         {
             Position = pos;
         }
-
-        public static Cursor __CreateDefault()
-        {
-            var inst = new Cursor();
-            inst.Position = 0;
-            return inst;
-        }
     }
 
     public Cursor CreateCursor(int pos)

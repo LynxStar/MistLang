@@ -28,18 +28,6 @@ public class Sensor
     {
         return $"Sensor({Id}, {Reading})";
     }
-
-    protected Sensor()
-    {
-        this.Id = 0;
-        this.Reading = 0;
-    }
-
-    public static Sensor __CreateDefault()
-    {
-        var inst = new Sensor();
-        return inst;
-    }
 }
 public class LentFrozenDemo
 {

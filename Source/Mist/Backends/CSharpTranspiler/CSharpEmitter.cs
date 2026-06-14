@@ -2162,6 +2162,32 @@ internal sealed class CSharpSourceWriter
         // Emit implicit conversion operator to the underlying type.
         AppendLine($"public static implicit operator {underlyingTypeName}({name} e) => e.Value;");
 
+        // Emit ToString() override that returns the variant name.
+        // This makes string interpolation of enum values produce the variant name
+        // (e.g., "North") rather than the default record ToString format.
+        // Uses ReferenceEquals to compare against static readonly fields since
+        // record structural equality may not work correctly for all underlying types.
+        AppendLine();
+        AppendLine($"public override string ToString()");
+        AppendLine("{");
+        _indentLevel++;
+        for (var i = 0; i < memberNodes.Count; i++)
+        {
+            var memberName = memberNodes[i].Name.Lexeme;
+            var prefix = i == 0 ? "if" : "else if";
+            AppendLine($"{prefix} (ReferenceEquals(this, {memberName})) return \"{memberName}\";");
+        }
+        AppendLine($"return Value.ToString();");
+        _indentLevel--;
+        AppendLine("}");
+
+        // Emit __CreateDefault() factory method for enums with a designated default variant.
+        if (enumType.Defaultability is DefaultabilityStatus.Explicit && enumType.DefaultMember is not null)
+        {
+            AppendLine();
+            AppendLine($"public static {name} __CreateDefault() => {enumType.DefaultMember.Name};");
+        }
+
         _indentLevel--;
         AppendLine("}");
     }
@@ -2872,13 +2898,15 @@ internal sealed class CSharpSourceWriter
                 classTypeForParamSlots, classDecl, interfaceTypeParamSubstitutions);
         }
 
-        // Emit protected parameterless constructor for defaultable classes if one doesn't already exist.
+        // Emit parameterless constructor for defaultable classes if one doesn't already exist.
         // This is needed so __CreateDefault() can instantiate the class via `new ClassName()`.
         // The constructor sets the class's own default field values (not inherited ones).
         // When a derived class calls `new Derived()`, the chain `Derived() → base() → Base()`
         // ensures each level initializes its own fields. This avoids accessibility issues
         // with private base fields.
-        // Using `protected` (not `private`) so derived classes can call `base()`.
+        // Accessibility:
+        //   - public when the class has NO user-defined constructors (implicit constructor for `new T()`)
+        //   - protected when the class HAS user-defined constructors (only __CreateDefault needs it)
         // Structs don't need this because C# allows `new MyStruct()` without an explicit
         // parameterless constructor.
         var isDefaultableClass = symbol?.DeclaredType is ClassType defaultableClassForCtor
@@ -2899,7 +2927,7 @@ internal sealed class CSharpSourceWriter
                     .Where(kvp => kvp.Value.ValueKind != DefaultValueKind.InheritedDefault)
                     .ToList();
 
-                // Only emit a protected parameterless constructor if there are own fields
+                // Only emit a parameterless constructor if there are own fields
                 // to initialize. Zero-field classes can rely on the implicit public
                 // parameterless constructor — emitting a protected one would suppress it
                 // and make the class unconstructable from outside.
@@ -2912,7 +2940,15 @@ internal sealed class CSharpSourceWriter
                         AppendLine();
                     }
 
-                    AppendLine($"protected {classDecl.Name.Lexeme}()");
+                    // If the class has no user-defined constructors, the synthesized
+                    // parameterless constructor must be public — it serves as the implicit
+                    // constructor that allows `new ClassName()`. When the class has user-defined
+                    // constructors, keep it protected (only __CreateDefault needs it).
+                    var hasAnyUserConstructor = classDecl.Members.Any(m =>
+                        m is ConstructorMemberMemberDeclarationNode);
+                    var ctorAccessibility = hasAnyUserConstructor ? "protected" : "public";
+
+                    AppendLine($"{ctorAccessibility} {classDecl.Name.Lexeme}()");
                     AppendLine("{");
                     _indentLevel++;
                     foreach (var (fieldName, fieldValue) in ownFields)
@@ -6387,7 +6423,8 @@ internal sealed class CSharpSourceWriter
         if (!ArgumentContainsTypeLiteral(argExprs) && !ArgumentContainsDependentTypeParam(argExprs)
             && !ArgumentContainsIntrinsicMemberAccess(argExprs)
             && !ArgumentContainsAutoAwaitCall(argExprs)
-            && !ArgumentsContainImplicitClone(argExprs))
+            && !ArgumentsContainImplicitClone(argExprs)
+            && !ArgumentContainsOptionalInterpolation(argExprs))
         {
             var span = argList.Span;
             if (span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
@@ -8340,6 +8377,49 @@ internal sealed class CSharpSourceWriter
         return false;
     }
 
+    /// <summary>
+    /// Returns true if any argument expression contains an interpolated string with
+    /// an expression whose type is an optional union (T | void). When true, the
+    /// source-text fast path must be bypassed so the interpolation emitter can wrap
+    /// nullable expressions to display "Void" for the null/void case.
+    /// </summary>
+    private bool ArgumentContainsOptionalInterpolation(List<ExpressionNode> argExprs)
+    {
+        foreach (var expr in argExprs)
+        {
+            if (ExpressionContainsOptionalInterpolation(expr))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Recursively checks if an expression tree contains an interpolated string
+    /// with an interpolation expression whose type is an optional union (T | void).
+    /// </summary>
+    private bool ExpressionContainsOptionalInterpolation(Storm.Runtime.SyntaxNode node)
+    {
+        if (node is InterpolatedStringExpressionPrimaryNode interpolated)
+        {
+            foreach (var part in interpolated.InterpolatedString.Parts)
+            {
+                if (part is ExpressionPartInterpolatedPartNode exprPart)
+                {
+                    var exprType = _model.GetTypeOf(exprPart.Expression);
+                    if (IsOptionalUnionType(exprType))
+                        return true;
+                }
+            }
+        }
+
+        foreach (var child in node.Children())
+        {
+            if (child is not null && ExpressionContainsOptionalInterpolation(child))
+                return true;
+        }
+        return false;
+    }
+
     private static bool IsOwnedType(IType type)
     {
         var resolved = type is ConstructedType constructed ? constructed.GenericDefinition : type;
@@ -8879,6 +8959,22 @@ internal sealed class CSharpSourceWriter
                     _ => "",
                 };
                 AppendLine($"{refPrefix}var {name} = {refInitPrefix}{init};");
+
+                // For array creations of reference types with __CreateDefault(),
+                // emit a fill loop to initialize elements with their default value.
+                // C# arrays of reference types default to null, but Mist semantics
+                // require TValue : default, so all slots must hold a valid default.
+                var inferredType = _model.GetTypeOf(inferred.Initializer);
+                if (inferredType is ArrayType arrayType)
+                {
+                    var elemType = arrayType.ElementType;
+                    if (elemType is ClassType ct && !ct.IsBackendBacked &&
+                        ct.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit)
+                    {
+                        var elemTypeName = CSharpTypeMap.GetTypeName(elemType);
+                        AppendLine($"for (int __i = 0; __i < {name}.Length; __i++) {name}[__i] = {elemTypeName}.__CreateDefault();");
+                    }
+                }
                 break;
             }
             case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
@@ -11983,9 +12079,17 @@ internal sealed class CSharpSourceWriter
     /// primitives), emits <c>TypeName.__CreateDefault()</c>.
     /// For primitive types, emits <c>default(csharpKeyword)</c>.
     /// For string, emits <c>""</c>.
+    /// For type parameters with a default constraint, emits the factory delegate invocation.
     /// </summary>
     private static string EmitDefaultValueForType(IType type)
     {
+        // Type parameter with default constraint → invoke the factory delegate parameter.
+        if (type is TypeParameterType typeParamType &&
+            typeParamType.Constraints?.HasDefaultConstraint == true)
+        {
+            return $"__default{typeParamType.Name}()";
+        }
+
         // Check if this is a backend-backed type (primitive or string).
         var isBackendBacked = type switch
         {
@@ -12013,6 +12117,13 @@ internal sealed class CSharpSourceWriter
             return $"{typeName}.__CreateDefault()";
         }
 
+        // Enum type with a designated default variant — use the factory method.
+        if (type is EnumType enumType && enumType.Defaultability is DefaultabilityStatus.Explicit)
+        {
+            var typeName = CSharpTypeMap.GetTypeName(type);
+            return $"{typeName}.__CreateDefault()";
+        }
+
         // Fallback for other types (should not normally reach here).
         return "default";
     }
@@ -12031,7 +12142,18 @@ internal sealed class CSharpSourceWriter
                     break;
                 case ExpressionPartInterpolatedPartNode exprPart:
                     sb.Append('{');
-                    sb.Append(EmitExpression(exprPart.Expression));
+                    var interpolatedExpr = EmitExpression(exprPart.Expression);
+                    // When the expression's Mist type is an optional union (T | void),
+                    // wrap the emission so null (void) displays as "Void" instead of empty.
+                    var interpolatedExprType = _model.GetTypeOf(exprPart.Expression);
+                    if (IsOptionalUnionType(interpolatedExprType))
+                    {
+                        sb.Append($"(object?){interpolatedExpr} ?? \"Void\"");
+                    }
+                    else
+                    {
+                        sb.Append(interpolatedExpr);
+                    }
                     sb.Append('}');
                     break;
             }
@@ -12197,6 +12319,19 @@ internal sealed class CSharpSourceWriter
     private string EmitSingleTypeArgument(TypeArgumentNode arg)
     {
         return EmitSingleTypeArgument(arg, expectedKeyword: null);
+    }
+
+    /// <summary>
+    /// Resolves the IType for a type argument node using the semantic model.
+    /// Returns null if the type cannot be resolved (e.g., literal type arguments).
+    /// </summary>
+    private IType? ResolveTypeFromTypeArgument(TypeArgumentNode arg)
+    {
+        if (arg is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg)
+        {
+            return _model.GetTypeOf(typeRefArg.Type);
+        }
+        return null;
     }
 
     /// <summary>
@@ -12575,6 +12710,12 @@ internal sealed class CSharpSourceWriter
             {
                 AppendLine($"    where {tpt.Name} : {string.Join(", ", parts)}");
             }
+
+            // 5. Emit a comment for the default constraint (no C# equivalent)
+            if (constraints.HasDefaultConstraint)
+            {
+                AppendLine($"    // where {tpt.Name} : default (Mist constraint \u2014 enforced at compile time)");
+            }
         }
     }
 
@@ -12711,6 +12852,12 @@ internal sealed class CSharpSourceWriter
             {
                 AppendLine($"    where {tpt.Name} : {string.Join(", ", parts)}");
             }
+
+            // 5. Emit a comment for the default constraint (no C# equivalent)
+            if (constraints.HasDefaultConstraint)
+            {
+                AppendLine($"    // where {tpt.Name} : default (Mist constraint \u2014 enforced at compile time)");
+            }
         }
     }
     /// <summary>
@@ -12785,13 +12932,14 @@ internal sealed class CSharpSourceWriter
 
     /// <summary>
     /// Checks whether any type parameter has parameterized constructor constraints
-    /// that require factory delegate lowering.
+    /// or default constraints that require factory delegate lowering.
     /// </summary>
     private static bool HasParameterizedConstructorConstraints(IReadOnlyList<IType> typeParameters)
     {
         return typeParameters.Any(tp =>
             tp is TypeParameterType tpt && tpt.Constraints is not null &&
-            tpt.Constraints.ConstructorConstraints.Any(c => c.Count > 0));
+            (tpt.Constraints.ConstructorConstraints.Any(c => c.Count > 0) ||
+             tpt.Constraints.HasDefaultConstraint));
     }
 
     /// <summary>
@@ -12851,7 +12999,7 @@ internal sealed class CSharpSourceWriter
 
     /// <summary>
     /// Gets the additional factory delegate parameters that should be appended to a method signature
-    /// for generic methods with parameterized constructor constraints.
+    /// for generic methods with parameterized constructor constraints or default constraints.
     /// </summary>
     private static string GetFactoryDelegateMethodParams(IReadOnlyList<IType> typeParameters)
     {
@@ -12865,6 +13013,13 @@ internal sealed class CSharpSourceWriter
                 var paramName = GetFactoryParamName(typeParam, paramTypes);
                 var delegateType = GetFactoryDelegateType(typeParam, paramTypes);
                 parameters.Add($"{delegateType} {paramName}");
+            }
+
+            // Add a Func<T> parameter for default-constrained type parameters.
+            // This enables default(T) to produce the correct default value at runtime.
+            if (typeParam.Constraints?.HasDefaultConstraint == true)
+            {
+                parameters.Add($"Func<{typeParam.Name}> __default{typeParam.Name}");
             }
         }
         return parameters.Count > 0 ? string.Join(", ", parameters) : "";
@@ -12920,6 +13075,7 @@ internal sealed class CSharpSourceWriter
     /// When constructing a type with parameterized constructor constraints,
     /// the caller must supply lambda expressions that create instances.
     /// E.g., for new(int) on T with type arg MyClass → "(arg0) => new MyClass(arg0)"
+    /// Also generates default factory lambdas for default-constrained type parameters.
     /// </summary>
     private string GenerateFactoryLambdas(IReadOnlyList<IType> typeParameters, TypeArgumentListNode? typeArgs)
     {
@@ -12936,11 +13092,21 @@ internal sealed class CSharpSourceWriter
             }
         }
 
+        // Also resolve IType instances for the type arguments (needed for default factory emission).
+        var resolvedITypes = new List<IType?>();
+        if (typeArgs is not null)
+        {
+            resolvedITypes.Add(ResolveTypeFromTypeArgument(typeArgs.TypeArgument));
+            foreach (var arg in typeArgs.TypeArguments)
+            {
+                resolvedITypes.Add(ResolveTypeFromTypeArgument(arg));
+            }
+        }
+
         for (var i = 0; i < typeParameters.Count; i++)
         {
             if (typeParameters[i] is not TypeParameterType typeParam) continue;
             var parameterizedConstraints = GetParameterizedConstructorConstraints(typeParam.Constraints);
-            if (parameterizedConstraints.Count == 0) continue;
 
             // Get the concrete type argument for this type parameter.
             var concreteType = i < resolvedTypeArgs.Count ? resolvedTypeArgs[i] : typeParam.Name;
@@ -12953,6 +13119,21 @@ internal sealed class CSharpSourceWriter
                     .ToList();
                 var argList = string.Join(", ", argNames);
                 lambdas.Add($"({argList}) => new {concreteType}({argList})");
+            }
+
+            // Generate default factory lambda for default-constrained type parameters.
+            if (typeParam.Constraints?.HasDefaultConstraint == true)
+            {
+                var resolvedType = i < resolvedITypes.Count ? resolvedITypes[i] : null;
+                if (resolvedType is not null)
+                {
+                    var defaultExpr = EmitDefaultValueForType(resolvedType);
+                    lambdas.Add($"() => {defaultExpr}");
+                }
+                else
+                {
+                    lambdas.Add($"() => {concreteType}.__CreateDefault()");
+                }
             }
         }
 

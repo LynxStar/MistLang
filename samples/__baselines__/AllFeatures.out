@@ -286,37 +286,37 @@ widened value: 99
 narrowed-back value: 42
 === Enums Sample ===
 --- Explicit type annotation ---
-  Direction.North = Direction { Value = N }
-  Direction.South = Direction { Value = S }
-  Direction.East = Direction { Value = E }
-  Direction.West = Direction { Value = W }
+  Direction.North = North
+  Direction.South = South
+  Direction.East = East
+  Direction.West = West
 --- Inferred type (int) ---
-  Priority.High = Priority { Value = 1 }
-  Priority.Medium = Priority { Value = 2 }
-  Priority.Low = Priority { Value = 3 }
+  Priority.High = High
+  Priority.Medium = Medium
+  Priority.Low = Low
 --- Name-only enum (byte) ---
-  Color.Red = Color { Value = 0 }
-  Color.Green = Color { Value = 1 }
-  Color.Blue = Color { Value = 2 }
+  Color.Red = Red
+  Color.Green = Green
+  Color.Blue = Blue
 --- Mixed explicit/implicit ---
-  HttpStatus.Ok = HttpStatus { Value = 200 }
-  HttpStatus.Created = HttpStatus { Value = 201 }
-  HttpStatus.BadRequest = HttpStatus { Value = 400 }
-  HttpStatus.NotFound = HttpStatus { Value = 401 }
-  HttpStatus.InternalError = HttpStatus { Value = 500 }
+  HttpStatus.Ok = Ok
+  HttpStatus.Created = Created
+  HttpStatus.BadRequest = BadRequest
+  HttpStatus.NotFound = NotFound
+  HttpStatus.InternalError = InternalError
 --- Union underlying type ---
-  MixedResult.Success = MixedResult { Value = Union_Int32_String }
-  MixedResult.ErrorMsg = MixedResult { Value = Union_Int32_String }
+  MixedResult.Success = Success
+  MixedResult.ErrorMsg = ErrorMsg
 --- Member access (dot notation) ---
-  north = Direction { Value = N }
+  north = North
 --- Enum as variable type ---
-  favorite = Color { Value = 2 }
+  favorite = Blue
 --- Enum as parameter type ---
-  Direction value: Direction { Value = E }
+  Direction value: East
 --- Enum as return type ---
-  default priority = Priority { Value = 2 }
+  default priority = Medium
 --- Enum as field type ---
-  config level = LogLevel { Value = 1 }
+  config level = Warn
 --- Implicit conversion ---
   Priority.High as int = 1
   Direction.North as string = N
@@ -327,28 +327,28 @@ narrowed-back value: 42
   c is Color.Green = True
   c is Color.Red = False
 --- Public visibility ---
-  Public enum Direction.North = Direction { Value = N }
+  Public enum Direction.North = North
 --- Default visibility ---
-  Default enum LogLevel.Info = LogLevel { Value = 0 }
-  Default enum LogLevel.Error = LogLevel { Value = 2 }
+  Default enum LogLevel.Info = Info
+  Default enum LogLevel.Error = Error
 --- Trailing comma ---
-  Season.Spring = Season { Value = 1 }
-  Season.Winter = Season { Value = 4 }
+  Season.Spring = Spring
+  Season.Winter = Winter
 --- Struct underlying type ---
-  CardinalDir.Up = CardinalDir { Value = Enums.Vec2 }
-  CardinalDir.Down = CardinalDir { Value = Enums.Vec2 }
-  CardinalDir.Left = CardinalDir { Value = Enums.Vec2 }
-  CardinalDir.Right = CardinalDir { Value = Enums.Vec2 }
+  CardinalDir.Up = Up
+  CardinalDir.Down = Down
+  CardinalDir.Left = Left
+  CardinalDir.Right = Right
   CardinalDir.Up as Vec2 = (0, 1)
 --- Class underlying type ---
-  Severity.Critical = Severity { Value = Enums.Label }
-  Severity.Warning = Severity { Value = Enums.Label }
-  Severity.Info = Severity { Value = Enums.Label }
+  Severity.Critical = Critical
+  Severity.Warning = Warning
+  Severity.Info = Info
   Severity.Critical as Label = Label(CRITICAL, 1)
 --- Interface/Trait underlying types ---
-  Pet.Dog = Pet { Value = Enums.Animal }
-  Pet.Cat = Pet { Value = Enums.Animal }
-  Pet.Fish = Pet { Value = Enums.Animal }
+  Pet.Dog = Dog
+  Pet.Cat = Cat
+  Pet.Fish = Fish
   Pet.Dog as Animal = Animal(Dog)
 Done!
 === Single-level inheritance ===
@@ -707,35 +707,35 @@ castBack=99
 Done!
 === Enum Readonly Restriction Sample ===
 --- Enum with int base type ---
-  StatusCode.Ok = StatusCode { Value = 200 }
-  StatusCode.NotFound = StatusCode { Value = 404 }
-  StatusCode.ServerError = StatusCode { Value = 500 }
+  StatusCode.Ok = Ok
+  StatusCode.NotFound = NotFound
+  StatusCode.ServerError = ServerError
 --- Enum with string base type ---
-  Planet.Mercury = Planet { Value = Mercury }
-  Planet.Venus = Planet { Value = Venus }
-  Planet.Earth = Planet { Value = Earth }
-  Planet.Mars = Planet { Value = Mars }
+  Planet.Mercury = Mercury
+  Planet.Venus = Venus
+  Planet.Earth = Earth
+  Planet.Mars = Mars
 --- Enum with byte base type ---
-  Rank.Private = Rank { Value = 1 }
-  Rank.Corporal = Rank { Value = 2 }
-  Rank.Sergeant = Rank { Value = 3 }
+  Rank.Private = Private
+  Rank.Corporal = Corporal
+  Rank.Sergeant = Sergeant
 --- Enum with readonly struct base type ---
-  Corner.TopLeft = Corner { Value = EnumReadonlyRestriction.Coordinate }
-  Corner.TopRight = Corner { Value = EnumReadonlyRestriction.Coordinate }
-  Corner.BottomLeft = Corner { Value = EnumReadonlyRestriction.Coordinate }
-  Corner.BottomRight = Corner { Value = EnumReadonlyRestriction.Coordinate }
+  Corner.TopLeft = TopLeft
+  Corner.TopRight = TopRight
+  Corner.BottomLeft = BottomLeft
+  Corner.BottomRight = BottomRight
 --- Enum with readonly class base type ---
-  Palette.Red = Palette { Value = EnumReadonlyRestriction.Color }
-  Palette.Green = Palette { Value = EnumReadonlyRestriction.Color }
-  Palette.Blue = Palette { Value = EnumReadonlyRestriction.Color }
+  Palette.Red = Red
+  Palette.Green = Green
+  Palette.Blue = Blue
 --- Name-only enum (inferred byte) ---
-  Suit.Hearts = Suit { Value = 0 }
-  Suit.Diamonds = Suit { Value = 1 }
-  Suit.Clubs = Suit { Value = 2 }
-  Suit.Spades = Suit { Value = 3 }
+  Suit.Hearts = Hearts
+  Suit.Diamonds = Diamonds
+  Suit.Clubs = Clubs
+  Suit.Spades = Spades
 --- Enum with union of readonly types ---
-  Token.NumericId = Token { Value = Union_Int32_String }
-  Token.TextId = Token { Value = Union_Int32_String }
+  Token.NumericId = NumericId
+  Token.TextId = TextId
 --- Member access on readonly-base enums ---
   Corner.TopRight.Describe() = Coordinate
   Palette.Red.Describe() = Color(255, 0, 0)
@@ -933,7 +933,7 @@ Done!
 --- 4. Trait in class ---
   Outer.Describable trait nested in class
 --- 5. Enum in class ---
-  Outer.Status: Active=Status { Value = active }, Inactive=Status { Value = inactive }, Pending=Status { Value = pending }
+  Outer.Status: Active=Active, Inactive=Inactive, Pending=Pending
 --- 6. Class in struct ---
   ContainerStruct.Item declared (see NestedInStruct.mist, readonly emitter limitation)
 --- 7. Class in interface ---
@@ -945,7 +945,7 @@ Done!
 --- 10. Generic parent type parameter access ---
   Box<T>.Wrapper nested in generic parent (exercised internally via DemoWrapper)
 --- 11. Multiple sibling nested types ---
-  Entry=Registry.Entry, Metadata=Registry.Metadata, Category.System=Category { Value = system }, Category.User=Category { Value = user }, Category.Plugin=Category { Value = plugin }
+  Entry=Registry.Entry, Metadata=Registry.Metadata, Category.System=System, Category.User=User, Category.Plugin=Plugin
 --- 12. Nested block namespaces ---
   Networking.Protocol.TcpHandler (nested block namespace)
 --- 13. Repeated block namespaces ---
@@ -1198,9 +1198,9 @@ maybeInt=42
 maybeInner=10
 optInt=99 fromOpt=99
 present?.GetValue()=5
-absent?.GetValue()=
+absent?.GetValue()=Void
 outerPresent.GetChild()?.GetValue()=7
-outerAbsent.GetChild()?.GetValue()=
+outerAbsent.GetChild()?.GetValue()=Void
 hasValue ?? 0=10
 noValue ?? 42=42
 a ?? 99=99, b ?? 99=77
@@ -1492,4 +1492,23 @@ absent ?? 42: 42
 [inference] simple=just a string
 [inference] alias=just a string
 --- Ownership Done ---
+=== Optional Defaultability Sample ===
+--- Non-Defaultable Type ---
+  conn=Server=localhost timeout=30
+--- Constructor + Default Block ---
+  prod: env=production retries=3
+  dev: env=development retries=1
+--- Implicitly Defaultable ---
+  default: x=0 y=0
+  new: x=0 y=0
+--- Enum Default Variant ---
+  direction=North
+--- Generic Default Constraint ---
+  factory point: x=0 y=0
+--- Optional Defaultability ---
+  maybeValue=Void
+--- Array Defaultability ---
+  ints[0]=0 ints[1]=0 ints[2]=0
+  points[0].X=0 points[0].Y=0
+Done!
 === Done! ===

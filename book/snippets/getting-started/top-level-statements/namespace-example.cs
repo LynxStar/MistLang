@@ -20,16 +20,5 @@ namespace MyApp
         {
             return $"Hello, {this.target}!";
         }
-
-        protected Helper()
-        {
-            this.target = "";
-        }
-
-        public static Helper __CreateDefault()
-        {
-            var inst = new Helper();
-            return inst;
-        }
     }
 }

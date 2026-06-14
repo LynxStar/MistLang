@@ -19,16 +19,4 @@ public class User
         this.Name = name;
         this.Id = id;
     }
-
-    protected User()
-    {
-        this.Name = "";
-        this.Id = 0;
-    }
-
-    public static User __CreateDefault()
-    {
-        var inst = new User();
-        return inst;
-    }
 }

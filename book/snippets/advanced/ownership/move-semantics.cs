@@ -15,17 +15,6 @@ public class Handle
     {
         return $"Handle({Id})";
     }
-
-    protected Handle()
-    {
-        this.Id = 0;
-    }
-
-    public static Handle __CreateDefault()
-    {
-        var inst = new Handle();
-        return inst;
-    }
 }
 public class MoveDemo
 {

@@ -2118,8 +2118,419 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             // Remove parameter refinement narrowing entries after the body.
             RemoveParameterRefinementNarrowing(paramNarrowings);
+
+            // ── Definite assignment analysis (Requirements 3.1–3.6) ──
+            CheckDefiniteAssignment(ctorSymbol, ctorBlock, model, diagnostics);
         }
         _insideConstructor = false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Definite assignment analysis for constructors (Requirements 3.1–3.6)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Verifies that all fields of the declaring type are definitely assigned
+    /// by the end of the constructor body. Emits <c>MIST_FIELD_NOT_DEFINITELY_ASSIGNED</c>
+    /// for any non-defaultable field without an initializer that is not assigned
+    /// on all control-flow paths.
+    /// </summary>
+    private static void CheckDefiniteAssignment(
+        ISymbol ctorSymbol, BlockNode ctorBlock, ISemanticModel model, DiagnosticBag diagnostics)
+    {
+        // Find the declaring type.
+        var declaringType = FindDeclaringType(ctorSymbol);
+        if (declaringType is null)
+            return;
+
+        // Get the member scope to enumerate fields.
+        var memberScope = declaringType switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            _ => null,
+        };
+        if (memberScope is null)
+            return;
+
+        // Collect all instance fields declared on this type (not inherited).
+        // Static fields are not part of instance construction and must be excluded.
+        // Inherited fields are excluded because their assignment is handled by the base constructor.
+        var allFields = new List<string>();
+        foreach (var member in memberScope.Members)
+        {
+            if (member.Kind == SymbolKind.Field && member is Symbol sym && !sym.IsStatic
+                && ReferenceEquals(member.ContainingScope, memberScope))
+                allFields.Add(member.Name);
+        }
+
+        if (allFields.Count == 0)
+            return;
+
+        // Build a mapping from property names to their backing field names.
+        // When code assigns `this.PropertyName = value`, it's actually assigning
+        // the backing field `_PropertyName_k__BackingField`.
+        var propertyToBackingField = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var member in memberScope.Members)
+        {
+            if (member.Kind == SymbolKind.Property && member is Symbol propSym
+                && propSym.PropertyMetadata?.BackingField is Symbol backingField
+                && !backingField.IsStatic)
+            {
+                propertyToBackingField[member.Name] = backingField.Name;
+            }
+        }
+
+        // Compute the initial definitely-assigned set:
+        // - Fields with initializers (Req 3.2)
+        // - Fields with defaultable types and no initializer (Req 3.3 — synthetic default injection)
+        var initiallyAssigned = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var member in memberScope.Members)
+        {
+            if (member.Kind != SymbolKind.Field)
+                continue;
+
+            // Skip static fields — they are not part of instance construction.
+            if (member is Symbol fieldSym && fieldSym.IsStatic)
+                continue;
+
+            // Skip inherited fields — their initialization is the base constructor's responsibility.
+            if (!ReferenceEquals(member.ContainingScope, memberScope))
+                continue;
+
+            // Check if the field has an initializer.
+            bool hasInitializer = false;
+            try
+            {
+                var fieldNode = model.GetDeclaringNode(member);
+                if (fieldNode is FieldDeclarationNode fieldDecl && fieldDecl.Initializer is not null)
+                    hasInitializer = true;
+                // For backing fields, the declaring node is the property node.
+                // Check if the property has an initializer.
+                else if (fieldNode is BlockPropertyPropertyDeclarationNode propDecl && propDecl.Initializer is not null)
+                    hasInitializer = true;
+            }
+            catch
+            {
+                // If we can't get the declaring node, treat as no initializer.
+            }
+
+            if (hasInitializer)
+            {
+                // Req 3.2: Field with initializer → pre-assigned.
+                initiallyAssigned.Add(member.Name);
+            }
+            else if (member.DeclaredType is not null && IsTypeDefaultable(member.DeclaredType))
+            {
+                // Req 3.3: Field type is defaultable, no initializer → pre-assigned (synthetic default injection).
+                initiallyAssigned.Add(member.Name);
+            }
+            else if (member.DeclaredType is TypeParameterType)
+            {
+                // Type parameter fields are runtime zero-initialized (like C#'s default(T)).
+                // Constraint satisfaction for the type argument is checked at instantiation sites.
+                initiallyAssigned.Add(member.Name);
+            }
+        }
+
+        // If all fields are already assigned, nothing to check.
+        if (initiallyAssigned.Count >= allFields.Count)
+            return;
+
+        // Perform forward dataflow analysis on the constructor body.
+        var assignedAtExit = ComputeDefinitelyAssigned(ctorBlock, initiallyAssigned, propertyToBackingField);
+
+        // Check that all fields are in the definitely-assigned set at exit.
+        // Only report unassigned fields that are non-defaultable without initializers
+        // (they weren't in the initially-assigned set).
+        foreach (var fieldName in allFields)
+        {
+            if (!assignedAtExit.Contains(fieldName))
+            {
+                // Find the field symbol to get its type for the diagnostic message.
+                ISymbol? fieldSymbol = null;
+                foreach (var member in memberScope.Members)
+                {
+                    if (member.Kind == SymbolKind.Field && member.Name == fieldName)
+                    {
+                        fieldSymbol = member;
+                        break;
+                    }
+                }
+
+                var typeName = fieldSymbol?.DeclaredType?.DisplayName ?? "unknown";
+                var ctorName = ctorSymbol.Name;
+
+                // Get the constructor's declaring node for location.
+                SyntaxNode ctorDeclNode;
+                try { ctorDeclNode = model.GetDeclaringNode(ctorSymbol); }
+                catch { continue; }
+
+                diagnostics.Add(MakeDiagnostic(
+                    DiagnosticId.FieldNotDefinitelyAssigned.Value,
+                    $"Field '{fieldName}' must be definitely assigned before constructor '{ctorName}' completes. " +
+                    $"The field's type '{typeName}' is not defaultable and has no initializer.",
+                    ctorDeclNode,
+                    model));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Performs a forward dataflow analysis on a constructor body block to determine
+    /// which fields are definitely assigned at the exit point.
+    /// Tracks <c>this.fieldName = expr</c> assignments and intersects at control-flow merges.
+    /// </summary>
+    private static HashSet<string> ComputeDefinitelyAssigned(
+        BlockNode block, HashSet<string> initialSet, Dictionary<string, string> propertyToBackingField)
+    {
+        var assigned = new HashSet<string>(initialSet, StringComparer.Ordinal);
+        AnalyzeBlockForAssignments(block, assigned, propertyToBackingField);
+        return assigned;
+    }
+
+    /// <summary>
+    /// Walks a block of statements and updates the definitely-assigned set
+    /// by detecting <c>this.fieldName = expr</c> patterns and handling
+    /// control flow (if/else intersection, while loops).
+    /// </summary>
+    private static void AnalyzeBlockForAssignments(
+        BlockNode block, HashSet<string> assigned, Dictionary<string, string> propertyToBackingField)
+    {
+        foreach (var stmt in block.Statements)
+        {
+            AnalyzeStatementForAssignments(stmt, assigned, propertyToBackingField);
+        }
+    }
+
+    /// <summary>
+    /// Analyzes a single statement for field assignment patterns and control flow.
+    /// </summary>
+    private static void AnalyzeStatementForAssignments(
+        StatementNode stmt, HashSet<string> assigned, Dictionary<string, string> propertyToBackingField)
+    {
+        switch (stmt)
+        {
+            case ExpressionStatementStatementNode exprStmt:
+                AnalyzeExpressionForAssignment(exprStmt.ExpressionStatement.Expression, assigned, propertyToBackingField);
+                break;
+
+            case IfStatementStatementNode ifStmt:
+                AnalyzeIfForAssignments(ifStmt.IfStatement, assigned, propertyToBackingField);
+                break;
+
+            case WhileStatementStatementNode whileStmt:
+                // For while loops, we conservatively don't add anything from the body
+                // because the body might not execute. We do a single pass to see if
+                // assignments happen, but we don't remove from the set either.
+                // The loop body might never execute, so assignments inside are not guaranteed.
+                // Just analyze for any nested control flow but don't trust single-path additions.
+                break;
+
+            case ForStatementStatementNode forStmt:
+                // Same conservative treatment as while — body may not execute.
+                break;
+
+            case ForeachStatementStatementNode foreachStmt:
+                // Same conservative treatment — body may not execute.
+                break;
+
+            case BlockStatementStatementNode blockStmt:
+                AnalyzeBlockForAssignments(blockStmt.BlockStatement, assigned, propertyToBackingField);
+                break;
+
+            case ReturnStatementStatementNode:
+                // Return exits the constructor — any field not assigned by now is unassigned.
+                // The assigned set at this point represents what's assigned before return.
+                break;
+
+            case VariableDeclarationStatementStatementNode:
+            case BreakStatementStatementNode:
+            case ReadonlyBlockStatementStatementNode readonlyBlock:
+                // Variable declarations and break don't affect field assignments.
+                // For readonly blocks, analyze inner block.
+                if (stmt is ReadonlyBlockStatementStatementNode rb)
+                    AnalyzeBlockForAssignments(rb.ReadonlyBlock.Body, assigned, propertyToBackingField);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Analyzes an if statement for definite assignment. At a control-flow merge,
+    /// only fields assigned on ALL branches are considered definitely assigned.
+    /// </summary>
+    private static void AnalyzeIfForAssignments(
+        IfStatementNode ifStmt, HashSet<string> assigned, Dictionary<string, string> propertyToBackingField)
+    {
+        if (ifStmt.ElseBranch is null)
+        {
+            // No else branch: the field might not be assigned (the 'then' path
+            // is conditional). We can't add anything from 'then' to the definite set.
+            // However, we still need to detect assignments in the then-branch that
+            // happen on EVERY path once we know both sides execute.
+            // With no else, we conservatively keep the current assigned set unchanged.
+            return;
+        }
+
+        // Both then and else branches exist — intersection of the two.
+        var thenAssigned = new HashSet<string>(assigned, StringComparer.Ordinal);
+        AnalyzeBlockForAssignments(ifStmt.ThenBranch, thenAssigned, propertyToBackingField);
+
+        var elseAssigned = new HashSet<string>(assigned, StringComparer.Ordinal);
+        switch (ifStmt.ElseBranch)
+        {
+            case ElseBlockElseClauseNode elseBlock:
+                AnalyzeBlockForAssignments(elseBlock.ElseBlock, elseAssigned, propertyToBackingField);
+                break;
+            case ElseIfElseClauseNode elseIf:
+                AnalyzeIfForAssignments(elseIf.ElseIf, elseAssigned, propertyToBackingField);
+                break;
+        }
+
+        // Intersection: a field is definitely assigned only if assigned on both paths.
+        thenAssigned.IntersectWith(elseAssigned);
+
+        // Update the current set to the intersection.
+        assigned.Clear();
+        assigned.UnionWith(thenAssigned);
+    }
+
+    /// <summary>
+    /// Checks if an expression is a <c>this.fieldName = expr</c> assignment
+    /// and adds the field name to the definitely-assigned set.
+    /// Also handles property assignments that map to backing fields.
+    /// </summary>
+    private static void AnalyzeExpressionForAssignment(
+        ExpressionNode expr, HashSet<string> assigned, Dictionary<string, string> propertyToBackingField)
+    {
+        // The expression structure is: AssignmentFormExpressionNode -> Assignment -> Target/Value
+        if (expr is not AssignmentFormExpressionNode assignExpr)
+            return;
+
+        var assignment = assignExpr.Assignment;
+        if (assignment.Value is null)
+            return;
+
+        // The target of the assignment should be this.fieldName.
+        // Structure: AssignmentNode.Target (VoidCoalescingNode) -> Left (LogicalOrNode)
+        //   -> Left (LogicalAndNode) -> Left (EqualityNode) -> Left (RelationalNode)
+        //   -> Left (AdditiveNode) -> Left (MultiplicativeNode) -> Left (UnaryNode)
+        //   -> Operand (PostfixNode) { Target: ThisExpressionPrimaryNode, Suffix: [MemberAccessSuffix] }
+        var fieldName = TryExtractThisFieldAssignmentTarget(assignment.Target);
+        if (fieldName is null)
+            fieldName = TryExtractBareFieldAssignmentTarget(assignment.Target);
+        if (fieldName is not null)
+        {
+            assigned.Add(fieldName);
+            // If the assigned name is a property, also mark its backing field as assigned.
+            if (propertyToBackingField.TryGetValue(fieldName, out var backingFieldName))
+                assigned.Add(backingFieldName);
+        }
+    }
+
+    /// <summary>
+    /// Attempts to extract the field name from a bare <c>fieldName</c> assignment target
+    /// (without the <c>this.</c> prefix). In a constructor body, <c>Item = x</c> is
+    /// semantically equivalent to <c>this.Item = x</c>.
+    /// </summary>
+    private static string? TryExtractBareFieldAssignmentTarget(VoidCoalescingNode target)
+    {
+        // Unwrap the nested expression tree to reach the PostfixNode.
+        if (target.Left is not { } logicalOr)
+            return null;
+        if (logicalOr.Right is not null)
+            return null;
+
+        var logicalAnd = logicalOr.Left;
+        if (logicalAnd.Right is not null)
+            return null;
+
+        var equality = logicalAnd.Left;
+        if (equality.Right is not null)
+            return null;
+
+        if (equality.Left is not RelationalComparisonRelationalNode relational)
+            return null;
+        if (relational.Right is not null)
+            return null;
+
+        var additive = relational.Left;
+        if (additive.Right is not null)
+            return null;
+
+        var multiplicative = additive.Left;
+        if (multiplicative.Right is not null)
+            return null;
+
+        if (multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+            return null;
+
+        var postfix = postfixExpr.Primary;
+        if (postfix is null)
+            return null;
+
+        // Check that the target is a bare identifier with no suffix (no member access, no invocation).
+        if (postfix.Target is not IdentifierExpressionPrimaryNode identifier)
+            return null;
+        if (postfix.Suffix.Length != 0)
+            return null;
+
+        return identifier.Name.Lexeme;
+    }
+
+    /// <summary>
+    /// Attempts to extract the field name from a <c>this.fieldName</c> assignment target.
+    /// Returns the field name if the target matches the pattern, otherwise null.
+    /// </summary>
+    private static string? TryExtractThisFieldAssignmentTarget(VoidCoalescingNode target)
+    {
+        // Unwrap the deeply nested expression tree to get to the PostfixNode.
+        // VoidCoalescingNode -> Left (LogicalOrNode) -> Left (LogicalAndNode)
+        //   -> Left (EqualityNode) -> Left (RelationalComparisonRelationalNode)
+        //   -> Left (AdditiveNode) -> Left (MultiplicativeNode) -> Left (UnaryNode)
+        //   -> Primary (PostfixNode)
+        if (target.Left is not { } logicalOr)
+            return null;
+        if (logicalOr.Right is not null)
+            return null;
+
+        var logicalAnd = logicalOr.Left;
+        if (logicalAnd.Right is not null)
+            return null;
+
+        var equality = logicalAnd.Left;
+        if (equality.Right is not null)
+            return null;
+
+        if (equality.Left is not RelationalComparisonRelationalNode relational)
+            return null;
+        if (relational.Right is not null)
+            return null;
+
+        var additive = relational.Left;
+        if (additive.Right is not null)
+            return null;
+
+        var multiplicative = additive.Left;
+        if (multiplicative.Right is not null)
+            return null;
+
+        if (multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+            return null;
+
+        var postfix = postfixExpr.Primary;
+        if (postfix is null)
+            return null;
+
+        // Check that the target is `this.fieldName` — a ThisExpression with exactly one MemberAccessSuffix.
+        if (postfix.Target is not ThisExpressionPrimaryNode)
+            return null;
+        if (postfix.Suffix.Length != 1)
+            return null;
+        if (postfix.Suffix[0] is not MemberAccessSuffixPostfixSuffixNode memberAccess)
+            return null;
+
+        return memberAccess.Name.Lexeme;
     }
 
     private static void CheckFieldDeclaration(ISymbol fieldSymbol, ISemanticModel model, DiagnosticBag diagnostics)
@@ -9335,6 +9746,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
+        // Unwrap type aliases to their underlying type for validation.
+        while (resolvedType is TypeAliasType alias)
+            resolvedType = alias.UnderlyingType;
+
         // ── unknown-type storage ban on `default` (Task 12.4) ────────────
         // Requirement 5.6 — `default(unknown)` and bare `default` inferred
         // to `unknown` are forbidden. Checked before the interface/trait/
@@ -9372,7 +9787,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     model));
                 return;
 
-            case TypeParameterType:
+            case TypeParameterType typeParamType:
+                if (typeParamType.Constraints?.HasDefaultConstraint == true)
+                    return;
+
                 diagnostics.Add(MakeDiagnostic(
                     DiagnosticId.DefaultOnTypeParameter.Value,
                     $"The 'default' operator is not supported on unconstrained generic type parameter '{resolvedType.DisplayName}'",
@@ -9397,6 +9815,28 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     diagnostics.Add(MakeDiagnostic(
                         DiagnosticId.DefaultNotSupported.Value,
                         $"Type '{structType.DisplayName}' does not support the 'default' operator because it has non-defaultable fields without type bindings in a default block",
+                        node,
+                        model));
+                }
+                return;
+
+            case EnumType enumType:
+                if (enumType.Defaultability != DefaultabilityStatus.Explicit)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        DiagnosticId.DefaultNotSupported.Value,
+                        $"Enum '{enumType.DisplayName}' does not support the 'default' operator. Designate a default variant using `default VariantName,`.",
+                        node,
+                        model));
+                }
+                return;
+
+            case UnionType unionType:
+                if (!unionType.Constituents.Any(c => c.IsVoid()))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        DiagnosticId.DefaultNotSupported.Value,
+                        $"Union type '{unionType.DisplayName}' does not support the 'default' operator. Only union types containing 'void' are defaultable.",
                         node,
                         model));
                 }
@@ -11169,6 +11609,49 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             ClassType ct => ct.IsOwnedType,
             StructType st => st.IsOwnedType,
             ConstructedType constructed => IsTypeOwned(constructed.GenericDefinition),
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Names of types that are intrinsically defaultable (primitives and string).
+    /// Mirrors <c>SemanticModelBuilder.IntrinsicDefaultableNames</c>.
+    /// </summary>
+    private static readonly HashSet<string> IntrinsicDefaultableNames = new(StringComparer.Ordinal)
+    {
+        "Int32", "UInt32", "Int64", "UInt64", "Int16", "UInt16",
+        "Byte", "SByte", "Single", "Double", "Decimal",
+        "Boolean", "Char", "String",
+        "int", "uint", "long", "ulong", "short", "ushort",
+        "byte", "sbyte", "float", "double", "decimal",
+        "bool", "char", "string",
+    };
+
+    /// <summary>
+    /// Determines whether a type is defaultable — either intrinsically defaultable
+    /// (primitive/string), or a ClassType/StructType/EnumType with <c>Inferred</c>
+    /// or <c>Explicit</c> defaultability, or a union type containing void.
+    /// Interfaces and traits are never defaultable.
+    /// </summary>
+    private static bool IsTypeDefaultable(IType type)
+    {
+        // Intrinsically defaultable: primitives and string.
+        if (type is StructType or ClassType)
+        {
+            if (IntrinsicDefaultableNames.Contains(type.DisplayName))
+                return true;
+        }
+
+        return type switch
+        {
+            ClassType ct => ct.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit,
+            StructType st => st.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit,
+            EnumType et => et.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit,
+            UnionType ut => ut.Constituents.Any(c => c.IsVoid()),
+            ConstructedType constructed => IsTypeDefaultable(constructed.GenericDefinition),
+            TypeParameterType tp => tp.Constraints?.HasDefaultConstraint == true,
+            InterfaceType => false,
+            TraitType => false,
             _ => false,
         };
     }
@@ -17487,6 +17970,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 diagnostics.Add(MakeDiagnostic(
                     ConstraintOwnedViolation.Value,
                     $"Type argument '{typeArgument.DisplayName}' does not satisfy the 'owned' constraint on type parameter '{typeParameter.Name}'.",
+                    node,
+                    model));
+            }
+        }
+
+        // Check default constraint: type argument must be a defaultable type.
+        if (constraints.HasDefaultConstraint)
+        {
+            if (!IsTypeDefaultable(typeArgument))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    DiagnosticId.DefaultConstraintNotSatisfied.Value,
+                    $"Type '{typeArgument.DisplayName}' does not satisfy the 'default' constraint on type parameter '{typeParameter.Name}' of '{genericTypeName}'.",
                     node,
                     model));
             }

@@ -14,16 +14,4 @@ public class Record
         this.Name = name;
         this.Year = year;
     }
-
-    protected Record()
-    {
-        this.Name = "";
-        this.Year = 0;
-    }
-
-    public static Record __CreateDefault()
-    {
-        var inst = new Record();
-        return inst;
-    }
 }

@@ -31,15 +31,4 @@ public class ReadonlyBlockDemo
         }
         return $"before={before}, after={after}";
     }
-
-    protected ReadonlyBlockDemo()
-    {
-        this.Value = 0;
-    }
-
-    public static ReadonlyBlockDemo __CreateDefault()
-    {
-        var inst = new ReadonlyBlockDemo();
-        return inst;
-    }
 }

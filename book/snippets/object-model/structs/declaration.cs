@@ -21,13 +21,4 @@ public struct Color
     {
         return (this.r + this.b) / 3;
     }
-
-    public static Color __CreateDefault()
-    {
-        var inst = new Color();
-        inst.r = 0;
-        inst.g = 0;
-        inst.b = 0;
-        return inst;
-    }
 }

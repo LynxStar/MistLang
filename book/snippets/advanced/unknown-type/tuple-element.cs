@@ -15,17 +15,6 @@ public class Greeter
     {
         return $"Hello from {this.Name}";
     }
-
-    protected Greeter()
-    {
-        this.Name = "";
-    }
-
-    public static Greeter __CreateDefault()
-    {
-        var inst = new Greeter();
-        return inst;
-    }
 }
 public class Program
 {

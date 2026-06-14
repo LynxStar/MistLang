@@ -16,17 +16,6 @@ public class SecretBox
         System.Console.WriteLine("SecretBox consumed");
         return Secret;
     }
-
-    protected SecretBox()
-    {
-        this.Secret = "";
-    }
-
-    public static SecretBox __CreateDefault()
-    {
-        var inst = new SecretBox();
-        return inst;
-    }
 }
 public class Program
 {

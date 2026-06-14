@@ -8,35 +8,35 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
 
 ## Tasks
 
-- [ ] 1. Grammar: `with {tier}` clause on method declarations
-  - [ ] 1.1 Add `with {tier}` clause to Storm grammar
+- [x] 1. Grammar: `with {tier}` clause on method declarations
+  - [x] 1.1 Add `with {tier}` clause to Storm grammar
     - In `Source/Mist/Grammar/Mist.storm`, extend the `MethodDeclaration` rule to accept an optional `WithClause` after the parameter list and before the body: `WithClause: 'with' OwnershipTierKeyword` where `OwnershipTierKeyword` is `'owned' | 'borrowed' | 'frozen' | 'readonly' 'ref'`
     - Regenerate grammar artifacts after the `.storm` file changes
     - _Requirements: 17.8, 17.9_
 
-  - [ ] 1.2 Parse and expose `WithClause` on method symbol
+  - [x] 1.2 Parse and expose `WithClause` on method symbol
     - In `Source/Mist/Semantics/`, update the `SemanticModelBuilder` to read the parsed `WithClause` and store the declared tier on the method symbol as an optional `ThisTier?` property (null when not declared)
     - Verify that methods without `with` parse as before (no regression)
     - _Requirements: 17.8, 17.9, 17.10_
 
-  - [ ] 1.3 Write unit tests for `with {tier}` parsing
+  - [x] 1.3 Write unit tests for `with {tier}` parsing
     - Assert `void Foo() with borrowed { }` parses successfully and produces the correct symbol annotation
     - Assert `string Describe() with frozen { }` and `void Consume() with owned { }` parse correctly
     - Assert `void Bar() with readonly ref { }` (two-token tier) parses correctly
     - Assert methods without `with` retain null/None annotation
     - _Requirements: 17.8, 17.9_
 
-- [ ] 2. Type model: `IsOwnedField` property on field symbols
-  - [ ] 2.1 Add `IsOwnedField` to field symbol
+- [x] 2. Type model: `IsOwnedField` property on field symbols
+  - [x] 2.1 Add `IsOwnedField` to field symbol
     - In `Source/Mist/Semantics/Model/`, add `public bool IsOwnedField { get; internal set; }` to the field symbol type, set during semantic model building from the field declaration's ownership specifier
     - For `owned type` instances, add logic in the semantic model builder (or a post-pass) that sets `IsOwnedField = true` on ALL instance fields regardless of explicit annotation (Req 3 AC 1)
     - _Requirements: 1.1, 1.2, 3.1, 3.2_
 
-  - [ ] 2.2 Reject `owned` on static fields
+  - [x] 2.2 Reject `owned` on static fields
     - In the type checker or semantic model builder, detect `owned` on a static field and emit `MIST_OWN_STATIC_FIELD_OWNED`
     - _Requirements: 1.5, 11.4_
 
-  - [ ] 2.3 Write unit tests for `IsOwnedField` resolution
+  - [x] 2.3 Write unit tests for `IsOwnedField` resolution
     - Assert explicit `owned Widget data;` → `IsOwnedField == true`
     - Assert non-owned field → `IsOwnedField == false`
     - Assert `owned type` implicit marking: all instance fields report `IsOwnedField == true`
@@ -44,26 +44,26 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - Assert `owned` on static field → error
     - _Requirements: 1.1, 1.2, 1.5, 3.1, 3.2_
 
-- [ ] 3. `ThisTier` enum and `InferredBinding` record types
-  - [ ] 3.1 Define the `ThisTier` enum
+- [x] 3. `ThisTier` enum and `InferredBinding` record types
+  - [x] 3.1 Define the `ThisTier` enum
     - Add `Source/Mist/Analysis/Builtin/ThisTier.cs` defining the enum: `None = 0`, `ReadonlyRef = 1`, `Frozen = 2`, `Borrowed = 3`, `Owned = 4`
     - Include ordering comparison helper: `static bool Satisfies(ThisTier callerTier, ThisTier requiredTier)` → `callerTier >= requiredTier`
     - Include the satisfaction table mapping `OwnershipTier` (from bindings) to `ThisTier`
     - _Requirements: 17.15_
 
-  - [ ] 3.2 Define the `InferredBinding` record and `InferenceReason` enum
+  - [x] 3.2 Define the `InferredBinding` record and `InferenceReason` enum
     - Add `Source/Mist/Analysis/Builtin/InferredBinding.cs` defining `public readonly record struct InferredBinding(ISymbol Symbol, OwnershipTier InferredTier, InferenceReason Reason)` and the `InferenceReason` enum (`OwnedInit`, `ThisTierRequired`, `OwnedParamConsumption`, `SharedFallback`, `Downgraded`)
     - _Requirements: 18.1, 18.2_
 
-- [ ] 4. `FieldTypeRestrictionVerifier` — standalone, testable independently
-  - [ ] 4.1 Implement `FieldTypeRestrictionVerifier`
+- [x] 4. `FieldTypeRestrictionVerifier` — standalone, testable independently
+  - [x] 4.1 Implement `FieldTypeRestrictionVerifier`
     - Add `Source/Mist/Analysis/Builtin/FieldTypeRestrictionVerifier.cs` with `static void Verify(IType ownedType, ISemanticModel model, DiagnosticBag diagnostics)`
     - For each instance field of an owned type, verify the field's type is: (1) another owned type, (2) implements `IClonable<T>`, or (3) is a value type. If none, emit `MIST_OWN_FIELD_TYPE_VIOLATION`
     - Handle generic type parameters: check constraints for owned/clonable (Req 4 AC 6)
     - Runs after IClonable derivation so auto-derived implementations are considered (Req 4 AC 5)
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 5.1, 5.2, 5.3_
 
-  - [ ] 4.2 Write unit tests for `FieldTypeRestrictionVerifier`
+  - [x] 4.2 Write unit tests for `FieldTypeRestrictionVerifier`
     - Owned type with all-owned-type fields → passes
     - Owned type with all-IClonable fields → passes
     - Owned type with value-type fields → passes
@@ -73,37 +73,37 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - Multiple violations in same type → each reported independently (Req 5.3, 11.6)
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.6, 5.2, 5.3, 11.2_
 
-- [ ] 5. Checkpoint — Wave 0 foundations build and tests pass
+- [x] 5. Checkpoint — Wave 0 foundations build and tests pass
   - Ensure the grammar change regenerated successfully, type model additions compile, `ThisTier`/`InferredBinding` types exist, and `FieldTypeRestrictionVerifier` unit tests pass. Ask the user if questions arise.
 
-- [ ] 6. Delete `RejectOwnedFieldModifier` pass + `MIST_OWN_FIELD_MODIFIER_REMOVED` diagnostic
-  - [ ] 6.1 Remove `RejectOwnedFieldModifier` and its diagnostic
+- [x] 6. Delete `RejectOwnedFieldModifier` pass + `MIST_OWN_FIELD_MODIFIER_REMOVED` diagnostic
+  - [x] 6.1 Remove `RejectOwnedFieldModifier` and its diagnostic
     - In `Source/Mist/Analysis/Builtin/OwnershipAnalyzer.cs`, delete the `RejectOwnedFieldModifier` method and its orchestrator call site
     - Delete the `MIST_OWN_FIELD_MODIFIER_REMOVED` diagnostic ID definition, message builder (`FieldModifierRemovedMessage`), and all emission sites
     - Delete/update unit tests in `Test/Mist.Tests/` that assert `MIST_OWN_FIELD_MODIFIER_REMOVED` is emitted — replace with tests that assert `owned` field declarations are now accepted
     - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [ ] 7. Delete `MethodTierVisibilityFilter` + `MIST_OWN_MUTABLE_HIDDEN` diagnostic
-  - [ ] 7.1 Remove `MethodTierVisibilityFilter` and its diagnostic
+- [x] 7. Delete `MethodTierVisibilityFilter` + `MIST_OWN_MUTABLE_HIDDEN` diagnostic
+  - [x] 7.1 Remove `MethodTierVisibilityFilter` and its diagnostic
     - Delete `Source/Mist/Analysis/Builtin/MethodTierVisibilityFilter.cs` entirely
     - Delete the `MIST_OWN_MUTABLE_HIDDEN` diagnostic ID definition and message builder
     - Remove all call sites in `OwnershipAnalyzer.cs` that reference the filter
     - Delete unit tests for `MethodTierVisibilityFilter` in `Test/Mist.Tests/`
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-- [ ] 8. Delete `CooperationContractVerifier` + `MIST_OWN_CONTRACT_VIOLATION` diagnostic
-  - [ ] 8.1 Remove `CooperationContractVerifier` and its diagnostic
+- [x] 8. Delete `CooperationContractVerifier` + `MIST_OWN_CONTRACT_VIOLATION` diagnostic
+  - [x] 8.1 Remove `CooperationContractVerifier` and its diagnostic
     - Delete `Source/Mist/Analysis/Builtin/CooperationContractVerifier.cs` entirely
     - Delete the `MIST_OWN_CONTRACT_VIOLATION` diagnostic ID definition and message builder
     - Remove the cooperation contract loop call site in `OwnershipAnalyzer.cs`
     - Delete unit tests for `CooperationContractVerifier` in `Test/Mist.Tests/`
     - _Requirements: 5.4, 8.1, 8.2_
 
-- [ ] 9. Checkpoint — Wave 1 removals build coherently
+- [x] 9. Checkpoint — Wave 1 removals build coherently
   - Ensure the build compiles after all three deletions. The owned-field-modifier error no longer fires, mutable method hiding is gone, and the behavioral cooperation contract is removed. Tests that asserted those old behaviors are deleted. Ask the user if questions arise.
 
 - [ ] 10. `ThisTierInferencePass` — infer this-tier per method
-  - [ ] 10.1 Implement `ThisTierInferencePass`
+  - [x] 10.1 Implement `ThisTierInferencePass`
     - Add `Source/Mist/Analysis/Builtin/ThisTierInferencePass.cs` with `void Analyze(ISemanticModel model, DiagnosticBag diagnostics)` and `static ThisTier GetThisTier(ISymbol methodSymbol)`
     - Implement the inference algorithm: for each method, scan owned-field accesses in the body; move/write → `Borrowed`, freeze/frozenRef → `Frozen`, read → `ReadonlyRef`, no access → `None`; compose transitively through helper calls on `this` (Req 17 AC 7)
     - For methods with explicit `with {tier}` annotation: use the declared tier but validate that `declaredTier >= requiredTier`; if under-declared, emit `MIST_OWN_THIS_TIER_INSUFFICIENT`; over-declared is accepted (Req 17 AC 11–12)
@@ -124,7 +124,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.11, 17.12_
 
 - [ ] 11. `OwnershipInferencePass` — infer binding tiers for var declarations
-  - [ ] 11.1 Implement `OwnershipInferencePass`
+  - [x] 11.1 Implement `OwnershipInferencePass`
     - Add `Source/Mist/Analysis/Builtin/OwnershipInferencePass.cs` with `IReadOnlyDictionary<ISymbol, InferredBinding> InferBindings(SyntaxNode functionBody, ISemanticModel model, DiagnosticBag diagnostics)`
     - Implement the fixed-point algorithm: collect `var` declarations, initialize candidates optimistically (`Owned` for constructor/owned-returning inits), iterate downgrading on conflicts (`Owned → Borrowed → Frozen → ReadonlyRef → Shared`), `Shared` as ultimate fallback (never conflicts)
     - If no consistent assignment after downgrade → emit `MIST_OWN_INFERENCE_FAILURE`
@@ -142,7 +142,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.5, 18.6, 18.7, 18.12_
 
 - [ ] 12. Per-field state tracking in `MethodFlowState`
-  - [ ] 12.1 Extend `MethodFlowState` with per-field state
+  - [x] 12.1 Extend `MethodFlowState` with per-field state
     - In `Source/Mist/Analysis/Builtin/MethodFlowState.cs`, add `Dictionary<ISymbol, Dictionary<ISymbol, VariableOwnershipState>> FieldStates` and `Dictionary<(ISymbol Parent, ISymbol Field), SourceSpan> FieldMoveLocations`
     - Initialize: when an owned binding is registered for a type with owned fields, all owned fields start at `Live`
     - Implement state transitions: field moved out → `Moved`; field borrowed → `LentRef`; field frozen → `LentFrozen`; field readonly-ref'd → `LentReadonly`; new owned value written to Moved field → `Live` (restoration); borrow scope ends → `Live`
@@ -229,7 +229,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
   - Ensure the rewritten orchestrator correctly delegates to all new passes and the build is green with all existing + new tests passing. Ask the user if questions arise.
 
 - [ ] 17. Define new diagnostics
-  - [ ] 17.1 Define diagnostic IDs and message builders
+  - [x] 17.1 Define diagnostic IDs and message builders
     - Add diagnostic ID definitions and message builders for:
       - `MIST_OWN_SHARED_EXTRACT` — move/borrow/freeze/readonly-ref of owned field through shared parent (Req 2 AC 5, Req 11 AC 1)
       - `MIST_OWN_FIELD_TYPE_VIOLATION` — owned type field type not owned/IClonable/value (Req 4 AC 4, Req 11 AC 2)

@@ -126,6 +126,7 @@ namespace Storm.SourceGenerator.Frontend
                 {
                     switch(Current.Kind)
                     {
+                        case StormTokenKind.Annotation:
                         case StormTokenKind.RuleKeyword:
                         case StormTokenKind.TokenKeyword:
                         case StormTokenKind.FragmentKeyword:
@@ -241,6 +242,8 @@ namespace Storm.SourceGenerator.Frontend
             {
                 switch(Current.Kind)
                 {
+                    case StormTokenKind.Annotation:
+                        return ParseAnnotatedDeclaration();
                     case StormTokenKind.RuleKeyword:
                         return ParseRuleDecl();
                     case StormTokenKind.TokenKeyword:
@@ -256,6 +259,46 @@ namespace Storm.SourceGenerator.Frontend
                         SynchronizeToDeclaration();
                         return null;
                 }
+            }
+
+            /// <summary>
+            /// Parses an annotated declaration. Currently only @memo is recognized,
+            /// and it must precede a rule declaration.
+            /// </summary>
+            private StormDeclaration? ParseAnnotatedDeclaration()
+            {
+                var annotationTok = Advance(); // consume the annotation token
+
+                // Only @memo is recognized
+                if(annotationTok.Lexeme != "@memo")
+                {
+                    Error($"Unrecognized annotation '{annotationTok.Lexeme}'");
+                    SynchronizeToDeclaration();
+                    return null;
+                }
+
+                // Check for duplicate @memo
+                if(Current.Kind == StormTokenKind.Annotation)
+                {
+                    Error("Duplicate '@memo' annotation on rule declaration");
+                    Advance(); // skip the duplicate
+                }
+
+                // @memo is only valid before 'rule'
+                if(Current.Kind != StormTokenKind.RuleKeyword)
+                {
+                    Error("'@memo' is only valid on rule declarations");
+                    SynchronizeToDeclaration();
+                    return null;
+                }
+
+                // Parse the rule declaration with memo flag
+                var kw = Advance(); // consume 'rule'
+                var nameTok = Expect(StormTokenKind.Identifier, "rule name");
+                Expect(StormTokenKind.Equals, "'='");
+                var body = ParseExpression();
+                Expect(StormTokenKind.Semicolon, "';'");
+                return new StormRuleDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column, IsMemo: true);
             }
 
             /// <summary>rule Name = expression ;</summary>

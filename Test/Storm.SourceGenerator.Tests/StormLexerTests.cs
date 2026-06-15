@@ -218,13 +218,72 @@ namespace Storm.SourceGenerator.Tests
         }
 
         // ---------------------------------------------------------------
+        //  Annotation tokens
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void Tokenize_Annotation_Memo()
+        {
+            var tokens = ContentTokens("@memo");
+            Assert.Single(tokens);
+            Assert.Equal(StormTokenKind.Annotation, tokens[0].Kind);
+            Assert.Equal("@memo", tokens[0].Lexeme);
+        }
+
+        [Fact]
+        public void Tokenize_Annotation_Unknown()
+        {
+            var tokens = ContentTokens("@unknown");
+            Assert.Single(tokens);
+            Assert.Equal(StormTokenKind.Annotation, tokens[0].Kind);
+            Assert.Equal("@unknown", tokens[0].Lexeme);
+        }
+
+        [Fact]
+        public void Tokenize_Annotation_AtAlone_ProducesErrorToken()
+        {
+            var tokens = Tokenize("@", out var diags);
+            Assert.Contains(tokens, t => t.Kind == StormTokenKind.Error);
+            Assert.Single(diags);
+            Assert.Contains("Unrecognized character", diags[0].Message);
+        }
+
+        [Fact]
+        public void Tokenize_Annotation_AtDigit_ProducesErrorToken()
+        {
+            var tokens = Tokenize("@123", out var diags);
+            // '@' not followed by identifier-start produces an Error token for '@'
+            Assert.Contains(tokens, t => t.Kind == StormTokenKind.Error && t.Lexeme == "@");
+            // No Annotation token should be produced
+            Assert.DoesNotContain(tokens, t => t.Kind == StormTokenKind.Annotation);
+            // The first diagnostic should be about the '@' character
+            Assert.Contains(diags, d => d.Message.Contains("Unrecognized character '@'"));
+        }
+
+        [Fact]
+        public void Tokenize_Annotation_DoesNotInterfereWithExistingTokens()
+        {
+            // Annotation followed by other tokens should not disturb classification
+            var tokens = ContentTokens("@memo rule Foo = Bar;");
+            Assert.Equal(6, tokens.Count);
+            Assert.Equal(StormTokenKind.Annotation, tokens[0].Kind);
+            Assert.Equal("@memo", tokens[0].Lexeme);
+            Assert.Equal(StormTokenKind.RuleKeyword, tokens[1].Kind);
+            Assert.Equal(StormTokenKind.Identifier, tokens[2].Kind);
+            Assert.Equal(StormTokenKind.Equals, tokens[3].Kind);
+            Assert.Equal(StormTokenKind.Identifier, tokens[4].Kind);
+            Assert.Equal(StormTokenKind.Semicolon, tokens[5].Kind);
+        }
+
+        // ---------------------------------------------------------------
         //  Error tokens
         // ---------------------------------------------------------------
 
         [Fact]
         public void Tokenize_UnrecognizedCharacter_ProducesErrorToken()
         {
-            var tokens = Tokenize("@", out var diags);
+            // Non-@ unrecognized characters (@ is now handled by annotation logic)
+            var tokens = Tokenize("#", out var diags);
             Assert.Contains(tokens, t => t.Kind == StormTokenKind.Error);
             Assert.Single(diags);
             Assert.Contains("Unrecognized character", diags[0].Message);

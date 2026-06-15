@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Mist.CLI": {
+      "commandName": "Project",
+      "commandLineArgs": "build samples\\AllFeatures",
+      "workingDirectory": "C:\\Users\\LynxStar\\GitRepos\\MistLang"
+    }
+  }
+}

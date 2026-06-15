@@ -19,10 +19,16 @@ public sealed class RuleIR
     /// </summary>
     public IReadOnlyList<RuleAlternativeIR> Alternatives { get; }
 
-    public RuleIR(string name, IReadOnlyList<RuleAlternativeIR> alternatives)
+    /// <summary>
+    /// Whether this rule was annotated with <c>@memo</c> in the source grammar.
+    /// </summary>
+    public bool IsMemo { get; }
+
+    public RuleIR(string name, IReadOnlyList<RuleAlternativeIR> alternatives, bool isMemo = false)
     {
         Name = name;
         Alternatives = alternatives;
+        IsMemo = isMemo;
     }
 }
 

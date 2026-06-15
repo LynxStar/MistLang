@@ -48,4 +48,7 @@ public static class StormDiagnosticIds
 
     /// <summary>A mode declaration uses the reserved name <c>default</c>, which represents the implicit top-level mode.</summary>
     public static string STORM_RESERVED_MODE_NAME { get; } = "STORM0015";
+
+    /// <summary>A <c>@memo</c>-annotated rule was excluded from the memoization plan because it is not speculative-safe.</summary>
+    public static string STORM_MEMO_IGNORED { get; } = "STORM0016";
 }

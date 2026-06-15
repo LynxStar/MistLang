@@ -496,6 +496,58 @@ rule F = A | C;
     //  Regex literals in expressions
     // ---------------------------------------------------------------
 
+    // ---------------------------------------------------------------
+    //  @memo annotation parsing
+    // ---------------------------------------------------------------
+
+    [Fact]
+    public void Parse_MemoAnnotation_ProducesRuleDeclWithIsMemoTrue()
+    {
+        var file = Parse("@memo rule X = A;", out var diags);
+        Assert.Empty(diags);
+        _ = Assert.Single(file.Declarations);
+        var decl = Assert.IsType<StormRuleDecl>(file.Declarations[0]);
+        Assert.Equal("X", decl.Name);
+        Assert.True(decl.IsMemo);
+        var body = Assert.IsType<StormReferenceExpr>(decl.Body);
+        Assert.Equal("A", body.Name);
+    }
+
+    [Fact]
+    public void Parse_MemoAnnotation_OnToken_ProducesError()
+    {
+        var file = Parse("@memo token X = \"x\";", out var diags);
+        Assert.Contains(diags, d => d.Id == StormDiagnosticIds.STORM_SYNTAX_ERROR);
+    }
+
+    [Fact]
+    public void Parse_UnrecognizedAnnotation_ProducesError()
+    {
+        var file = Parse("@unknown rule X = A;", out var diags);
+        Assert.Contains(diags, d => d.Id == StormDiagnosticIds.STORM_SYNTAX_ERROR);
+    }
+
+    [Fact]
+    public void Parse_DuplicateMemoAnnotation_ProducesError()
+    {
+        var file = Parse("@memo @memo rule X = A;", out var diags);
+        Assert.Contains(diags, d => d.Id == StormDiagnosticIds.STORM_SYNTAX_ERROR);
+    }
+
+    [Fact]
+    public void Parse_MemoAnnotation_ErrorRecovery_ParsesSubsequentDeclarations()
+    {
+        // @memo on a token should produce an error, but the parser should recover
+        // and still parse the subsequent rule declaration.
+        var file = Parse("@memo token X = \"x\";\nrule Y = B;", out var diags);
+        Assert.Contains(diags, d => d.Id == StormDiagnosticIds.STORM_SYNTAX_ERROR);
+        Assert.Contains(file.Declarations, d => d.Name == "Y");
+    }
+
+    // ---------------------------------------------------------------
+    //  Regex literals in expressions
+    // ---------------------------------------------------------------
+
     [Fact]
     public void Parse_RegexLiteral_InTokenBody()
     {

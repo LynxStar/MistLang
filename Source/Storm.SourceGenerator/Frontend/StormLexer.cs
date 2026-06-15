@@ -71,6 +71,10 @@ namespace Storm.SourceGenerator.Frontend
         /// <summary><c>}</c></summary>
         RightBrace,
 
+        // --- Annotations ---
+        /// <summary>An annotation: <c>@</c> followed by an identifier (e.g., <c>@memo</c>).</summary>
+        Annotation,
+
         // --- Special ---
         /// <summary>End of input.</summary>
         EndOfFile,
@@ -299,6 +303,36 @@ namespace Storm.SourceGenerator.Frontend
                     var lexeme = text.Substring(start, pos - start);
                     var kind = ClassifyKeyword(lexeme);
                     tokens.Add(new StormToken(kind, lexeme, start, line, column));
+                    continue;
+                }
+
+                // --- Annotation ---
+                if(c == '@')
+                {
+                    var start = pos;
+                    pos++; // skip '@'
+                    if(pos < text.Length && IsIdentStart(text[pos]))
+                    {
+                        pos++;
+                        while(pos < text.Length && IsIdentPart(text[pos]))
+                        {
+                            pos++;
+                        }
+                        var lexeme = text.Substring(start, pos - start);
+                        tokens.Add(new StormToken(StormTokenKind.Annotation, lexeme, start, line, column));
+                    }
+                    else
+                    {
+                        // '@' not followed by identifier-start: emit error
+                        diagnostics.Add(new StormDiagnostic(
+                            StormDiagnosticIds.STORM_SYNTAX_ERROR,
+                            StormDiagnosticSeverity.Error,
+                            "Unrecognized character '@'",
+                            source.FilePath,
+                            line,
+                            column));
+                        tokens.Add(new StormToken(StormTokenKind.Error, "@", start, line, column));
+                    }
                     continue;
                 }
 

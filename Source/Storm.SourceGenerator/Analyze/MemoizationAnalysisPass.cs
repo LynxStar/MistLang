@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.IR;
 
 namespace Storm.SourceGenerator.Analyze;
@@ -33,53 +34,57 @@ public static class MemoizationAnalysisPass
     /// <see cref="MemoizationPlan"/> with dense, declaration-ordered ids. Returns
     /// <see cref="MemoizationPlan.Empty"/> when nothing qualifies.
     /// </summary>
-    public static MemoizationPlan Run(GrammarIR grammar)
+    /// <param name="grammar">The lowered grammar IR to analyze.</param>
+    /// <param name="diagnostics">
+    /// Optional list to receive warnings (e.g., when a <c>@memo</c>-annotated rule fails
+    /// the speculative-safety check and is excluded from the plan).
+    /// </param>
+    public static MemoizationPlan Run(GrammarIR grammar, List<StormDiagnostic>? diagnostics = null)
     {
         // Phase 1 — build the full rule-reference graph (all references, any depth).
         var graph = BuildReferenceGraph(grammar);
 
-        // Phase 2 — find rules on a recursion cycle (reachable-from-self) via Tarjan SCC.
-        var (cyclic, sccOf) = FindRulesOnCycle(graph);
+        // Phase 2 — existing cycle-based candidates (rules on a recursion cycle whose
+        // SCC crosses a backtracking construct).
+        var cycleCandidates = FindCycleCandidates(grammar, graph);
 
-        // Phase 3 — keep only cycles that cross a backtracking construct.
-        // For each SCC, record whether ANY member rule contains a backtracking construct.
-        var backtracks = new HashSet<string>();
+        // Phase 3 — multi-caller alternation heuristic.
+        var multiCallerCandidates = FindMultiCallerCandidates(grammar);
+
+        // Phase 4 — @memo-annotated rules.
+        var memoCandidates = new HashSet<string>();
         foreach (var rule in grammar.Rules)
         {
-            if (HasBacktrackingConstruct(rule))
+            if (rule.IsMemo)
             {
-                _ = backtracks.Add(rule.Name);
+                memoCandidates.Add(rule.Name);
             }
         }
 
-        var sccHasBacktracking = new HashSet<int>();
-        foreach (var ruleName in cyclic)
-        {
-            if (backtracks.Contains(ruleName) && sccOf.TryGetValue(ruleName, out var sccIndex))
-            {
-                _ = sccHasBacktracking.Add(sccIndex);
-            }
-        }
+        // Phase 5 — union all candidate sources.
+        var allCandidates = new HashSet<string>(cycleCandidates);
+        allCandidates.UnionWith(multiCallerCandidates);
+        allCandidates.UnionWith(memoCandidates);
 
-        // Map rule name -> RuleIR for the speculative-safety filter.
-        var rulesByName = new Dictionary<string, RuleIR>(grammar.Rules.Count);
-        foreach (var rule in grammar.Rules)
-        {
-            rulesByName[rule.Name] = rule;
-        }
-
-        // Mark every rule whose SCC is cyclic AND crosses a backtracking construct AND
-        // is speculative-safe (SR-2 filter). Iterate in DECLARATION ORDER so ids are
-        // stable and deterministic across builds.
+        // Phase 6 — apply IsSpeculativeSafe filter, emit warnings for @memo failures.
+        // Iterate in DECLARATION ORDER so ids are stable and deterministic across builds.
         var marked = new List<string>();
         foreach (var rule in grammar.Rules)
         {
-            if (cyclic.Contains(rule.Name)
-                && sccOf.TryGetValue(rule.Name, out var sccIndex)
-                && sccHasBacktracking.Contains(sccIndex)
-                && IsSpeculativeSafe(rule))
+            if (allCandidates.Contains(rule.Name))
             {
-                marked.Add(rule.Name);
+                if (IsSpeculativeSafe(rule))
+                {
+                    marked.Add(rule.Name);
+                }
+                else if (rule.IsMemo && diagnostics != null)
+                {
+                    diagnostics.Add(new StormDiagnostic(
+                        StormDiagnosticIds.STORM_MEMO_IGNORED,
+                        StormDiagnosticSeverity.Warning,
+                        $"'@memo' on rule '{rule.Name}' ignored: rule is not speculative-safe",
+                        null, 0, 0));
+                }
             }
         }
 
@@ -107,6 +112,52 @@ public static class MemoizationAnalysisPass
         }
 
         return graph;
+    }
+
+    // ── Phase 2: cycle-based candidates ──────────────────────────────────
+
+    /// <summary>
+    /// Finds rules that are on a recursion cycle whose SCC crosses a backtracking
+    /// construct. These are the original cycle-based memoization candidates.
+    /// </summary>
+    private static HashSet<string> FindCycleCandidates(
+        GrammarIR grammar, Dictionary<string, HashSet<string>> graph)
+    {
+        // Find rules on a recursion cycle (reachable-from-self) via Tarjan SCC.
+        var (cyclic, sccOf) = FindRulesOnCycle(graph);
+
+        // Keep only cycles that cross a backtracking construct.
+        // For each SCC, record whether ANY member rule contains a backtracking construct.
+        var backtracks = new HashSet<string>();
+        foreach (var rule in grammar.Rules)
+        {
+            if (HasBacktrackingConstruct(rule))
+            {
+                _ = backtracks.Add(rule.Name);
+            }
+        }
+
+        var sccHasBacktracking = new HashSet<int>();
+        foreach (var ruleName in cyclic)
+        {
+            if (backtracks.Contains(ruleName) && sccOf.TryGetValue(ruleName, out var sccIndex))
+            {
+                _ = sccHasBacktracking.Add(sccIndex);
+            }
+        }
+
+        // Collect every rule whose SCC is cyclic AND crosses a backtracking construct.
+        var candidates = new HashSet<string>();
+        foreach (var ruleName in cyclic)
+        {
+            if (sccOf.TryGetValue(ruleName, out var sccIndex)
+                && sccHasBacktracking.Contains(sccIndex))
+            {
+                candidates.Add(ruleName);
+            }
+        }
+
+        return candidates;
     }
 
     /// <summary>
@@ -158,6 +209,57 @@ public static class MemoizationAnalysisPass
             default:
                 break;
         }
+    }
+
+    // ── Multi-caller alternation heuristic ──────────────────────────────
+
+    /// <summary>
+    /// Identifies rules that are referenced from two or more distinct alternatives
+    /// of any parent rule's top-level alternation. Such rules are attempted multiple
+    /// times at the same position when earlier alternatives fail.
+    /// </summary>
+    private static HashSet<string> FindMultiCallerCandidates(GrammarIR grammar)
+    {
+        var candidates = new HashSet<string>();
+
+        foreach (var parentRule in grammar.Rules)
+        {
+            if (parentRule.Alternatives.Count < 2)
+            {
+                continue; // single-alternative rules can't trigger redundant calls
+            }
+
+            // For each alternative, collect the set of rules reachable from it
+            // through direct references or single-path sequences.
+            var perAlternativeRefs = new List<HashSet<string>>();
+            foreach (var alt in parentRule.Alternatives)
+            {
+                var refs = new HashSet<string>();
+                CollectRuleRefs(alt.Expression, refs);
+                perAlternativeRefs.Add(refs);
+            }
+
+            // A rule appearing in 2+ alternative ref-sets is a multi-caller candidate
+            var seen = new Dictionary<string, int>();
+            foreach (var refSet in perAlternativeRefs)
+            {
+                foreach (var ruleName in refSet)
+                {
+                    seen.TryGetValue(ruleName, out var count);
+                    seen[ruleName] = count + 1;
+                }
+            }
+
+            foreach (var kvp in seen)
+            {
+                if (kvp.Value >= 2)
+                {
+                    candidates.Add(kvp.Key);
+                }
+            }
+        }
+
+        return candidates;
     }
 
     // ── Phase 2: cycle detection (Tarjan SCC) ────────────────────────────

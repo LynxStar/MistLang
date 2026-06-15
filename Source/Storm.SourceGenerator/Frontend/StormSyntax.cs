@@ -58,13 +58,14 @@ public abstract record StormDeclaration(
     int Line,
     int Column);
 
-/// <summary>A <c>rule Name = ...;</c> declaration.</summary>
+/// <summary>A <c>rule Name = ...;</c> declaration, optionally annotated with <c>@memo</c>.</summary>
 public sealed record StormRuleDecl(
     string Name,
     StormExpression Body,
     int Offset,
     int Line,
-    int Column)
+    int Column,
+    bool IsMemo = false)
     : StormDeclaration(Name, Body, Offset, Line, Column);
 
 /// <summary>A <c>token Name = ...;</c> declaration.</summary>

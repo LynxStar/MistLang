@@ -1,4 +1,5 @@
 using Storm.SourceGenerator.Analyze;
+using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.IR;
 
 namespace Storm.SourceGenerator.Tests
@@ -85,11 +86,13 @@ namespace Storm.SourceGenerator.Tests
         }
 
         [Fact]
-        public void AcyclicStraightLineGrammar_MarksNothing()
+        public void AcyclicStraightLineGrammar_CycleOnly_MarksNothing()
         {
             // No rule is reachable from itself: Start -> Expr -> Term -> terminals.
             // Expr and Term have multiple alternatives (backtracking), but with no
-            // recursion cycle, criterion 3.4 excludes every rule.
+            // recursion cycle, the cycle-based heuristic alone excludes every rule.
+            // However, the multi-caller heuristic marks Term because it appears in
+            // both alternatives of Expr. Verify the multi-caller candidate is included.
             var grammar = BuildGrammarIR(
                 "token IDENT = [a-zA-Z]+;\n" +
                 "token NUM = [0-9]+;\n" +
@@ -100,11 +103,12 @@ namespace Storm.SourceGenerator.Tests
 
             var plan = MemoizationAnalysisPass.Run(grammar);
 
-            // Requirement 3.4: acyclic rules are never marked.
-            Assert.Equal(0, plan.Count);
+            // Term is a multi-caller candidate (referenced in 2 alternatives of Expr)
+            // and is speculative-safe (multi-alternative rule), so it IS memoized.
+            Assert.Equal(1, plan.Count);
             Assert.False(plan.IsMemoized("Start"));
             Assert.False(plan.IsMemoized("Expr"));
-            Assert.False(plan.IsMemoized("Term"));
+            Assert.True(plan.IsMemoized("Term"));
         }
 
         [Fact]
@@ -423,6 +427,322 @@ namespace Storm.SourceGenerator.Tests
 
             Assert.Equal(first.MemoizedRuleNames, fourth.MemoizedRuleNames);
             AssertSameRuleIds(first, fourth);
+        }
+
+        // ===============================================================
+        //  Multi-caller heuristic unit tests (task 5.3)
+        //  Validates: Requirements 4.1, 4.2, 4.3
+        //
+        //  These tests focus specifically on the multi-caller alternation
+        //  heuristic: rules referenced from 2+ distinct alternatives of
+        //  any parent rule's top-level alternation are detected as
+        //  memoization candidates.
+        // ===============================================================
+
+        /// <summary>
+        /// A rule referenced in 2+ distinct alternatives of a parent rule
+        /// is detected as a multi-caller candidate and appears in the plan.
+        /// </summary>
+        [Fact]
+        public void MultiCaller_RuleInTwoAlternatives_IsDetected()
+        {
+            // Parent has two alternatives, both referencing Shared.
+            // Shared is a multi-alternative rule (speculative-safe).
+            var grammar = BuildGrammarIR(
+                "token NUM = [0-9]+;\n" +
+                "token IDENT = [a-zA-Z]+;\n" +
+                "rule Parent = NUM Shared | IDENT Shared;\n" +
+                "rule Shared = NUM | IDENT;");
+
+            var plan = MemoizationAnalysisPass.Run(grammar);
+
+            // Shared appears in both alternatives of Parent -> multi-caller candidate.
+            Assert.True(plan.IsMemoized("Shared"), "Shared should be memoized (referenced in 2 alternatives)");
+        }
+
+        /// <summary>
+        /// A rule referenced in only 1 alternative of a parent is NOT
+        /// detected as a multi-caller candidate.
+        /// </summary>
+        [Fact]
+        public void MultiCaller_RuleInOneAlternativeOnly_IsNotDetected()
+        {
+            // Parent has two alternatives but OnlyOnce appears in just one.
+            // Neither rule is on a cycle, and OnlyOnce isn't referenced from
+            // multiple alternatives, so it should not be memoized.
+            var grammar = BuildGrammarIR(
+                "token NUM = [0-9]+;\n" +
+                "token IDENT = [a-zA-Z]+;\n" +
+                "token PLUS = \"+\";\n" +
+                "rule Parent = NUM OnlyOnce | IDENT PLUS;\n" +
+                "rule OnlyOnce = NUM | IDENT;");
+
+            var plan = MemoizationAnalysisPass.Run(grammar);
+
+            // OnlyOnce only appears in 1 alternative -> not a multi-caller candidate.
+            Assert.False(plan.IsMemoized("OnlyOnce"), "OnlyOnce should NOT be memoized (only in 1 alternative)");
+        }
+
+        /// <summary>
+        /// Multi-caller detection works across multiple parent rules.
+        /// A rule referenced in 2+ alternatives of different parents
+        /// is still detected.
+        /// </summary>
+        [Fact]
+        public void MultiCaller_DetectionAcrossMultipleParentRules()
+        {
+            // Common is referenced in 2 alternatives of ParentA, and also
+            // in 2 alternatives of ParentB. It should be detected regardless
+            // of which parent triggers it.
+            // OnlyInB is referenced in 2 alternatives of ParentB only.
+            var grammar = BuildGrammarIR(
+                "token NUM = [0-9]+;\n" +
+                "token IDENT = [a-zA-Z]+;\n" +
+                "token PLUS = \"+\";\n" +
+                "rule ParentA = Common PLUS | Common NUM;\n" +
+                "rule ParentB = Common OnlyInB | IDENT OnlyInB;\n" +
+                "rule Common = NUM | IDENT;\n" +
+                "rule OnlyInB = NUM | IDENT;");
+
+            var plan = MemoizationAnalysisPass.Run(grammar);
+
+            // Common is multi-caller from ParentA (appears in both alts).
+            Assert.True(plan.IsMemoized("Common"), "Common should be memoized (multi-caller from ParentA)");
+            // OnlyInB is multi-caller from ParentB (appears in both alts).
+            Assert.True(plan.IsMemoized("OnlyInB"), "OnlyInB should be memoized (multi-caller from ParentB)");
+        }
+
+        /// <summary>
+        /// Single-alternative parent rules do not produce multi-caller
+        /// candidates, even if the child rule is referenced multiple times
+        /// in a sequence.
+        /// </summary>
+        [Fact]
+        public void MultiCaller_SingleAlternativeParent_DoesNotProduceCandidates()
+        {
+            // Parent has a single alternative with Repeated referenced twice
+            // in a sequence. This is NOT multi-caller because there's only one
+            // alternative — the heuristic requires 2+ DISTINCT alternatives.
+            var grammar = BuildGrammarIR(
+                "token NUM = [0-9]+;\n" +
+                "token IDENT = [a-zA-Z]+;\n" +
+                "token PLUS = \"+\";\n" +
+                "rule Parent = Repeated PLUS Repeated;\n" +
+                "rule Repeated = NUM | IDENT;");
+
+            var plan = MemoizationAnalysisPass.Run(grammar);
+
+            // Parent has only 1 alternative -> multi-caller heuristic skips it.
+            // No cycles exist, so nothing should be memoized.
+            Assert.False(plan.IsMemoized("Repeated"), "Repeated should NOT be memoized (single-alternative parent)");
+            Assert.Equal(0, plan.Count);
+        }
+
+        // ===============================================================
+        //  Candidate union and IsSpeculativeSafe filter (task 5.4)
+        //  Validates: Requirements 5.1, 5.2, 5.3, 5.4
+        //
+        //  These tests verify:
+        //    - @memo-annotated rules appear in the final plan (safe case)
+        //    - @memo-annotated rules that fail IsSpeculativeSafe are excluded
+        //      with a STORM_MEMO_IGNORED warning diagnostic
+        //    - cycle, multi-caller, and @memo candidates all merge correctly
+        //    - dense 0-based ids in declaration order after union + filter
+        // ===============================================================
+
+        /// <summary>
+        /// A @memo-annotated rule that is speculative-safe (multi-alternative)
+        /// appears in the final MemoizationPlan.
+        /// </summary>
+        [Fact]
+        public void MemoAnnotatedRule_SpeculativeSafe_AppearsInPlan()
+        {
+            // MemoRule has multiple alternatives -> always speculative-safe.
+            // It is annotated with @memo so it enters the candidate set.
+            var grammar = BuildGrammarIR(
+                "token NUM = [0-9]+;\n" +
+                "token IDENT = [a-zA-Z]+;\n" +
+                "rule Start = MemoRule;\n" +
+                "@memo\n" +
+                "rule MemoRule = NUM | IDENT;");
+
+            var diagnostics = new List<StormDiagnostic>();
+            var plan = MemoizationAnalysisPass.Run(grammar, diagnostics);
+
+            Assert.True(plan.IsMemoized("MemoRule"), "MemoRule (@memo, safe) should be in the plan");
+            Assert.False(plan.IsMemoized("Start"), "Start should NOT be in the plan (not a candidate)");
+            Assert.Empty(diagnostics); // no warnings for safe @memo rules
+        }
+
+        /// <summary>
+        /// A @memo-annotated rule that fails IsSpeculativeSafe is excluded from
+        /// the plan and a STORM_MEMO_IGNORED warning diagnostic is emitted.
+        /// </summary>
+        /// <remarks>
+        /// IsSpeculativeSafe returns false when a rule has zero alternatives
+        /// (the only structural path to "unsafe" in the current emitter, since
+        /// ContainsMandatoryTokenMatch is always false for grammar-expressible
+        /// rule bodies). This test constructs the GrammarIR directly to produce
+        /// such a rule.
+        /// </remarks>
+        [Fact]
+        public void MemoAnnotatedRule_NotSpeculativeSafe_ExcludedWithWarning()
+        {
+            // Construct a GrammarIR directly with a zero-alternative @memo rule.
+            // Zero alternatives => IsSpeculativeSafe returns false.
+            var token = new TokenIR("NUM", new CharClassIR("[0-9]"), false, 0);
+            var unsafeRule = new RuleIR("Unsafe", new List<RuleAlternativeIR>(), isMemo: true);
+            var safeRule = new RuleIR("Safe", new List<RuleAlternativeIR>
+            {
+                new RuleAlternativeIR(null, Array.Empty<FieldLabelIR>(), new TokenRefIR(token)),
+                new RuleAlternativeIR(null, Array.Empty<FieldLabelIR>(), new TokenRefIR(token)),
+            }, isMemo: true);
+
+            var grammar = new GrammarIR(
+                new List<TokenIR> { token },
+                new List<RuleIR> { unsafeRule, safeRule });
+
+            var diagnostics = new List<StormDiagnostic>();
+            var plan = MemoizationAnalysisPass.Run(grammar, diagnostics);
+
+            // Unsafe is excluded because it fails IsSpeculativeSafe.
+            Assert.False(plan.IsMemoized("Unsafe"), "Unsafe rule (0 alternatives) should be excluded from plan");
+            // Safe is included because it passes IsSpeculativeSafe (multi-alternative).
+            Assert.True(plan.IsMemoized("Safe"), "Safe rule (multi-alternative) should be in the plan");
+
+            // A STORM_MEMO_IGNORED warning is emitted for the unsafe @memo rule.
+            Assert.Single(diagnostics);
+            Assert.Equal(StormDiagnosticIds.STORM_MEMO_IGNORED, diagnostics[0].Id);
+            Assert.Equal(StormDiagnosticSeverity.Warning, diagnostics[0].Severity);
+            Assert.Contains("Unsafe", diagnostics[0].Message);
+            Assert.Contains("not speculative-safe", diagnostics[0].Message);
+        }
+
+        /// <summary>
+        /// When no diagnostics list is passed (null), the @memo excluded rule
+        /// is still filtered but no exception is thrown.
+        /// </summary>
+        [Fact]
+        public void MemoAnnotatedRule_NotSpeculativeSafe_NullDiagnostics_NoException()
+        {
+            var token = new TokenIR("NUM", new CharClassIR("[0-9]"), false, 0);
+            var unsafeRule = new RuleIR("Unsafe", new List<RuleAlternativeIR>(), isMemo: true);
+
+            var grammar = new GrammarIR(
+                new List<TokenIR> { token },
+                new List<RuleIR> { unsafeRule });
+
+            // Should not throw even with null diagnostics.
+            var plan = MemoizationAnalysisPass.Run(grammar, diagnostics: null);
+
+            Assert.False(plan.IsMemoized("Unsafe"));
+            Assert.Equal(0, plan.Count);
+        }
+
+        /// <summary>
+        /// Cycle candidates, multi-caller candidates, and @memo candidates all
+        /// merge into a single plan. Each source contributes distinct rules, and
+        /// the union includes all of them (when speculative-safe).
+        /// </summary>
+        [Fact]
+        public void CandidateUnion_AllThreeSourcesMergeCorrectly()
+        {
+            // Grammar designed to exercise all three candidate sources:
+            //
+            // CycleRule: on a recursion cycle with backtracking (self-recursive via *)
+            // MultiCallerRule: referenced in 2 alternatives of Parent (multi-caller)
+            // MemoRule: annotated with @memo (not on a cycle, not multi-caller)
+            //
+            // All are multi-alternative or single-alternative with no mandatory match,
+            // so all pass IsSpeculativeSafe.
+            var grammar = BuildGrammarIR(
+                "token NUM = [0-9]+;\n" +
+                "token IDENT = [a-zA-Z]+;\n" +
+                "token COMMA = \",\";\n" +
+                "rule Parent = NUM MultiCallerRule | IDENT MultiCallerRule;\n" +
+                "rule MultiCallerRule = NUM | IDENT;\n" +
+                "rule CycleRule = NUM (COMMA CycleRule)*;\n" +
+                "@memo\n" +
+                "rule MemoRule = NUM | IDENT;");
+
+            var diagnostics = new List<StormDiagnostic>();
+            var plan = MemoizationAnalysisPass.Run(grammar, diagnostics);
+
+            // All three sources contribute to the final plan.
+            Assert.True(plan.IsMemoized("CycleRule"), "CycleRule should be memoized (cycle candidate)");
+            Assert.True(plan.IsMemoized("MultiCallerRule"), "MultiCallerRule should be memoized (multi-caller candidate)");
+            Assert.True(plan.IsMemoized("MemoRule"), "MemoRule should be memoized (@memo candidate)");
+
+            // Parent is NOT a candidate from any source.
+            Assert.False(plan.IsMemoized("Parent"), "Parent should NOT be memoized");
+
+            // No warnings because all candidates are speculative-safe.
+            Assert.Empty(diagnostics);
+        }
+
+        /// <summary>
+        /// A rule that qualifies through multiple sources (e.g., both @memo and
+        /// multi-caller) appears only once in the plan with a single id.
+        /// </summary>
+        [Fact]
+        public void CandidateUnion_DuplicateFromMultipleSources_AppearsOnce()
+        {
+            // SharedRule is both @memo-annotated AND a multi-caller candidate
+            // (referenced in 2 alternatives of Parent). It should appear once.
+            var grammar = BuildGrammarIR(
+                "token NUM = [0-9]+;\n" +
+                "token IDENT = [a-zA-Z]+;\n" +
+                "rule Parent = NUM SharedRule | IDENT SharedRule;\n" +
+                "@memo\n" +
+                "rule SharedRule = NUM | IDENT;");
+
+            var plan = MemoizationAnalysisPass.Run(grammar);
+
+            Assert.True(plan.IsMemoized("SharedRule"));
+            // Should appear exactly once (no duplicates from multiple sources).
+            Assert.Equal(1, plan.MemoizedRuleNames.Count(n => n == "SharedRule"));
+        }
+
+        /// <summary>
+        /// The final plan assigns dense 0-based ids in grammar declaration order
+        /// across all three candidate sources, skipping non-candidate rules.
+        /// </summary>
+        [Fact]
+        public void DenseIds_DeclarationOrder_AcrossAllCandidateSources()
+        {
+            // Declaration order: Parent, MultiCallerRule, CycleRule, PlainRule, MemoRule
+            // Expected plan (in declaration order): MultiCallerRule(0), CycleRule(1), MemoRule(2)
+            // Parent is not a candidate. PlainRule is not a candidate.
+            var grammar = BuildGrammarIR(
+                "token NUM = [0-9]+;\n" +
+                "token IDENT = [a-zA-Z]+;\n" +
+                "token COMMA = \",\";\n" +
+                "rule Parent = NUM MultiCallerRule | IDENT MultiCallerRule;\n" +
+                "rule MultiCallerRule = NUM | IDENT;\n" +
+                "rule CycleRule = NUM (COMMA CycleRule)*;\n" +
+                "rule PlainRule = NUM;\n" +
+                "@memo\n" +
+                "rule MemoRule = NUM | IDENT;");
+
+            var plan = MemoizationAnalysisPass.Run(grammar);
+
+            // Dense 0-based ids.
+            Assert.Equal(3, plan.Count);
+            var expectedIds = Enumerable.Range(0, 3).ToList();
+            var actualIds = plan.RuleIds.Values.OrderBy(id => id).ToList();
+            Assert.Equal(expectedIds, actualIds);
+
+            // Ids follow grammar declaration order:
+            // MultiCallerRule declared before CycleRule, declared before MemoRule.
+            Assert.True(plan.RuleIds["MultiCallerRule"] < plan.RuleIds["CycleRule"],
+                "MultiCallerRule should have a lower id than CycleRule (declared earlier)");
+            Assert.True(plan.RuleIds["CycleRule"] < plan.RuleIds["MemoRule"],
+                "CycleRule should have a lower id than MemoRule (declared earlier)");
+
+            // Exact id assignments.
+            Assert.Equal(0, plan.RuleIds["MultiCallerRule"]);
+            Assert.Equal(1, plan.RuleIds["CycleRule"]);
+            Assert.Equal(2, plan.RuleIds["MemoRule"]);
         }
 
         // ---------------------------------------------------------------

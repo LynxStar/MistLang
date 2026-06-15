@@ -139,10 +139,11 @@ public static class GrammarIRLowering
 
         foreach(var decl in grammar.Declarations)
         {
-            if(decl is StormRuleDecl)
+            if(decl is StormRuleDecl ruleDecl)
             {
                 // Create a shell with empty alternatives — we'll fill them in step 5
-                var shell = new RuleIR(decl.Name, new List<RuleAlternativeIR>());
+                var isMemo = ruleDecl.IsMemo;
+                var shell = new RuleIR(decl.Name, new List<RuleAlternativeIR>(), isMemo);
                 ruleShells[decl.Name] = shell;
                 ruleOrder.Add((decl.Name, decl));
             }
@@ -150,9 +151,10 @@ public static class GrammarIRLowering
 
         foreach(var kvp in grammar.NamespacedDeclarations)
         {
-            if(kvp.Value is StormRuleDecl && !ruleShells.ContainsKey(kvp.Key))
+            if(kvp.Value is StormRuleDecl nsRuleDecl && !ruleShells.ContainsKey(kvp.Key))
             {
-                var shell = new RuleIR(kvp.Key, new List<RuleAlternativeIR>());
+                var isMemo = nsRuleDecl.IsMemo;
+                var shell = new RuleIR(kvp.Key, new List<RuleAlternativeIR>(), isMemo);
                 ruleShells[kvp.Key] = shell;
                 ruleOrder.Add((kvp.Key, kvp.Value));
             }

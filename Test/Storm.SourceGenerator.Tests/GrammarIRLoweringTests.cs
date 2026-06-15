@@ -486,5 +486,66 @@ namespace Storm.SourceGenerator.Tests
             var tokenRef = Assert.IsType<TokenRefIR>(startRule.Alternatives[0].Expression);
             Assert.Same(identToken, tokenRef.Token);
         }
+
+        // ---------------------------------------------------------------
+        //  @memo annotation propagation through lowering
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void Lower_MemoAnnotatedRule_ProducesRuleIRWithIsMemoTrue()
+        {
+            var files = new Dictionary<string, string>
+            {
+                ["root/main.storm"] = "grammar Test;\ntoken Ident = [a-z]+;\n@memo rule Start = Ident;"
+            };
+
+            var result = LowerGrammar(files, "root/main.storm");
+
+            Assert.True(result.Succeeded);
+            Assert.NotNull(result.Grammar);
+
+            var startRule = result.Grammar!.Rules.First(r => r.Name == "Start");
+            Assert.True(startRule.IsMemo, "Rule annotated with @memo should have IsMemo = true");
+        }
+
+        [Fact]
+        public void Lower_RuleWithoutMemoAnnotation_ProducesRuleIRWithIsMemoFalse()
+        {
+            var files = new Dictionary<string, string>
+            {
+                ["root/main.storm"] = "grammar Test;\ntoken Ident = [a-z]+;\nrule Start = Ident;"
+            };
+
+            var result = LowerGrammar(files, "root/main.storm");
+
+            Assert.True(result.Succeeded);
+            Assert.NotNull(result.Grammar);
+
+            var startRule = result.Grammar!.Rules.First(r => r.Name == "Start");
+            Assert.False(startRule.IsMemo, "Rule without @memo should have IsMemo = false");
+        }
+
+        [Fact]
+        public void Lower_MixedMemoAnnotations_PropagatesCorrectly()
+        {
+            var files = new Dictionary<string, string>
+            {
+                ["root/main.storm"] = "grammar Test;\ntoken Ident = [a-z]+;\ntoken Num = [0-9]+;\n@memo rule Expr = Ident | Num;\nrule Term = Ident;\n@memo rule Factor = Num;"
+            };
+
+            var result = LowerGrammar(files, "root/main.storm");
+
+            Assert.True(result.Succeeded);
+            Assert.NotNull(result.Grammar);
+
+            var exprRule = result.Grammar!.Rules.First(r => r.Name == "Expr");
+            var termRule = result.Grammar.Rules.First(r => r.Name == "Term");
+            var factorRule = result.Grammar.Rules.First(r => r.Name == "Factor");
+
+            Assert.True(exprRule.IsMemo, "Expr (annotated with @memo) should have IsMemo = true");
+            Assert.False(termRule.IsMemo, "Term (no annotation) should have IsMemo = false");
+            Assert.True(factorRule.IsMemo, "Factor (annotated with @memo) should have IsMemo = true");
+        }
     }
 }
+

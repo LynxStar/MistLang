@@ -17111,14 +17111,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             // 5. Redundancy check: if the explicit default block has no entries,
             //    or all field overrides match the inferred default, emit Info diagnostic.
+            //    Exception: types with constructors NEED the explicit default block as an
+            //    opt-in mechanism — without it they become NotDefaultable. In that case
+            //    the block is structurally necessary and not redundant.
             if (!hasNonRedundantEntry)
             {
-                diagnostics.Add(MakeDiagnosticWithSeverity(
-                    DiagnosticId.DefaultRedundantBlock.Value,
-                    $"The explicit default block on type '{type!.DisplayName}' is redundant and can be removed because it produces the same values as the inferred default",
-                    defaultBlockNode,
-                    model,
-                    DiagnosticSeverity.Info));
+                var hasConstructors = memberScope.Members.Any(m => m.Kind == SymbolKind.Constructor);
+                if (!hasConstructors)
+                {
+                    diagnostics.Add(MakeDiagnosticWithSeverity(
+                        DiagnosticId.DefaultRedundantBlock.Value,
+                        $"The explicit default block on type '{type!.DisplayName}' is redundant and can be removed because it produces the same values as the inferred default",
+                        defaultBlockNode,
+                        model,
+                        DiagnosticSeverity.Info));
+                }
             }
         }
     }

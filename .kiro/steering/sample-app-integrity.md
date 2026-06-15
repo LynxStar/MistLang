@@ -79,3 +79,14 @@ Treat each sample as a proof that the feature works. The sample should fail to c
 - The emitter doesn't generate correct code
 
 A sample that compiles and prints correct output regardless of whether the feature is implemented correctly is worthless.
+
+## Rule 5: Samples Must Build With Zero Warnings and Zero Info Diagnostics
+
+All samples under `samples/` MUST compile with zero errors, zero warnings, AND zero informational diagnostics (e.g., `info MIST_*` messages). Treat any diagnostic output from the Mist compiler as a defect.
+
+If a sample triggers a diagnostic:
+1. Determine whether the sample code is wrong or the compiler diagnostic is wrong.
+2. If the sample is using a pattern that should be valid without diagnostics, fix the compiler — do not suppress or ignore the diagnostic.
+3. If the sample genuinely has redundant or suboptimal code, fix the sample.
+
+After any change to samples or to analyzer/diagnostic code, verify by building the affected sample AND `samples/AllFeatures` and confirming zero diagnostic output.

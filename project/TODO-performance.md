@@ -32,7 +32,11 @@ The dominant cost is Roslyn compiling 120 .cs files to a DLL (parsing C#, semant
 
 ## Ownership Analysis (~1.2s for AllFeatures)
 
-### CollectUsesRecursive — 3.5% self CPU
-The `OwnershipInferencePass.CollectUsesRecursive` method appears in the profile. May have quadratic patterns in the fixed-point algorithm for large methods.
+### CollectUsesRecursive — 22.83% total CPU (new #1 hotspot post-AttachHidden fix)
+`OwnershipInferencePass.CollectUsesRecursive` walks the entire function body AST for each variable binding. It's called inside the fixed-point loop (N candidates × K iterations = N×K full tree walks) plus once more in the post-loop minimum-tier enforcement pass.
 
-**Status:** Investigate after parsing/emit are addressed.
+The uses of a symbol don't change between iterations — only the inferred tier changes. Pre-computing all uses for all candidates once before the loop (into a `Dictionary<ISymbol, List<VariableUse>>`) would eliminate the repeated walks entirely, reducing the cost from O(N×K×M) to O(N×M) where M is the function body AST size.
+
+The second call site (post-loop enforcement for `Unrestricted` bindings) could also reuse the pre-computed cache.
+
+**Status:** Investigate — straightforward cache fix, high impact.

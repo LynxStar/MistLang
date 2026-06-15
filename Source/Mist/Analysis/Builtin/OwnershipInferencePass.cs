@@ -177,6 +177,46 @@ public sealed class OwnershipInferencePass
         SyntaxNode functionBody,
         ISemanticModel model)
     {
+        // Pre-compute all uses for every candidate once. Uses are purely structural —
+        // they don't change between iterations, only the inferred tier changes.
+        // This eliminates repeated O(M) tree walks from the fixed-point loop.
+        var usesCache = new Dictionary<ISymbol, List<VariableUse>>(
+            candidates.Count, ReferenceEqualityComparer.Instance);
+        foreach (var candidate in candidates)
+            usesCache[candidate.Symbol] = CollectUses(candidate.Symbol, functionBody, model);
+
+        // Early-out: candidates that have uses but ALL of them are Read will always
+        // converge to Unrestricted. Remove them from the fixed-point loop entirely.
+        // Candidates with zero uses stay in the loop — they keep their initial tier
+        // (Owned for constructor-initialized, etc.) since nothing forces a downgrade.
+        var activeCandidate = new List<InferenceCandidate>(candidates.Count);
+        foreach (var candidate in candidates)
+        {
+            var uses = usesCache[candidate.Symbol];
+            if (uses.Count > 0)
+            {
+                var hasNonReadUse = false;
+                foreach (var use in uses)
+                {
+                    if (use.Kind != UseKind.Read)
+                    {
+                        hasNonReadUse = true;
+                        break;
+                    }
+                }
+
+                if (!hasNonReadUse)
+                {
+                    // All uses are reads — no ownership requirement. Skip the loop.
+                    candidate.Tier = OwnershipTier.Unrestricted;
+                    candidate.Reason = InferenceReason.Downgraded;
+                    continue;
+                }
+            }
+
+            activeCandidate.Add(candidate);
+        }
+
         // Build a symbol → candidate lookup for cross-variable dependency resolution.
         var symbolToCandidateMap = new Dictionary<ISymbol, InferenceCandidate>(
             ReferenceEqualityComparer.Instance);
@@ -185,17 +225,17 @@ public sealed class OwnershipInferencePass
 
         // Maximum iterations to prevent infinite loops. With 5 possible tiers per candidate,
         // at most candidates.Count * 4 downgrades can occur before everything reaches Shared.
-        var maxIterations = candidates.Count * 5 + 1;
+        var maxIterations = activeCandidate.Count * 5 + 1;
         for (var iteration = 0; iteration < maxIterations; iteration++)
         {
             var changed = false;
 
-            foreach (var candidate in candidates)
+            foreach (var candidate in activeCandidate)
             {
                 if (candidate.Tier is null || candidate.Tier == OwnershipTier.Unrestricted)
                     continue; // Already at shared (ultimate fallback) — cannot conflict.
 
-                var uses = CollectUses(candidate.Symbol, functionBody, model);
+                var uses = usesCache[candidate.Symbol];
                 foreach (var use in uses)
                 {
                     var requiredTier = DetermineRequiredTier(use, candidate.Symbol, symbolToCandidateMap, model);
@@ -239,8 +279,8 @@ public sealed class OwnershipInferencePass
         {
             if (candidate.Tier is null || candidate.Tier == OwnershipTier.Unrestricted)
             {
-                // Check if any MethodReceiver use requires a minimum tier.
-                var uses = CollectUses(candidate.Symbol, functionBody, model);
+                // Reuse the pre-computed uses cache instead of re-walking the tree.
+                var uses = usesCache[candidate.Symbol];
                 var minimumTier = OwnershipTier.Unrestricted;
                 foreach (var use in uses)
                 {

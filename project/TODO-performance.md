@@ -2,13 +2,6 @@
 
 ## Parsing (~4s for AllFeatures)
 
-### AttachHidden O(n) scan — CRITICAL
-The `AttachHidden<T>` method in the generated parser does linear scans through `_allTokens` to find the mapping from default-channel token indices to all-tokens indices. This is called for every AST node (148K nodes). Profile shows it at **51% total CPU / 28% self CPU** during parsing.
-
-**Fix:** Pre-build a `int[] _defaultToAllIndex` mapping array in `Init()` — one O(n) pass at startup, then O(1) lookups in `AttachHidden`.
-
-**Status:** Implementing now.
-
 ### Memoization coverage — REVISIT AFTER AttachHidden fix
 After the AttachHidden fix, re-profile to determine:
 1. Is the multi-caller heuristic (69 memoized rules / 130 total) providing meaningful speedup?
@@ -39,4 +32,10 @@ The uses of a symbol don't change between iterations — only the inferred tier 
 
 The second call site (post-loop enforcement for `Unrestricted` bindings) could also reuse the pre-computed cache.
 
-**Status:** Investigate — straightforward cache fix, high impact.
+**Status:** DONE — implemented pre-computed uses cache + early-out for read-only vars.
+
+**Changes made:**
+1. Pre-compute uses for all candidates into a `Dictionary<ISymbol, List<VariableUse>>` once before the loop.
+2. Early-out: candidates with uses that are ALL `Read` get immediately set to `Unrestricted` and skip the loop entirely.
+3. Fixed-point iterates only over `activeCandidates` (those with non-trivial uses).
+4. Post-loop enforcement reuses the cache instead of re-walking the tree.

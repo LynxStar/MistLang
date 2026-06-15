@@ -75,6 +75,7 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteLine("[ThreadStatic] private static bool _hasError;");
             writer.WriteLine("[ThreadStatic] private static DiagnosticBag? _diagnostics;");
             writer.WriteLine("[ThreadStatic] private static string? _sourcePath;");
+            writer.WriteLine("[ThreadStatic] private static int[]? _defaultToAllIndex;");
 
             // Selective packrat memo table: per-parse, thread-local, keyed by (ruleId, pos).
             // Emitted only when at least one rule is memoized so the zero-memo path is
@@ -98,6 +99,20 @@ namespace Storm.SourceGenerator.Emit
                 writer.WriteLine("_hasError = false;");
                 writer.WriteLine("_diagnostics = diag;");
                 writer.WriteLine("_sourcePath = ts.Source.Path;");
+                writer.WriteEmptyLine();
+                writer.WriteLine("// Build default-channel-index → all-tokens-index mapping for O(1) AttachHidden lookups.");
+                writer.WriteLine("_defaultToAllIndex = new int[_tokens.Length];");
+                writer.WriteLine("var allIdx = 0;");
+                writer.WriteBlock("for (var defIdx = 0; defIdx < _tokens.Length; defIdx++)", () =>
+                {
+                    writer.WriteLine("var target = _tokens[defIdx].Span.Start;");
+                    writer.WriteBlock("while (allIdx < _allTokens.Length && (_allTokens[allIdx].Span.Start != target || _allTokens[allIdx].Channel != TokenChannel.Default))", () =>
+                    {
+                        writer.WriteLine("allIdx++;");
+                    });
+                    writer.WriteLine("_defaultToAllIndex[defIdx] = allIdx;");
+                    writer.WriteLine("allIdx++;");
+                });
                 if (context.Memoization.Count > 0)
                 {
                     writer.WriteLine("_memo = new Dictionary<long, (SyntaxNode?, int)>();");
@@ -199,71 +214,50 @@ namespace Storm.SourceGenerator.Emit
                     writer.WriteLine("return node;");
                 });
                 writer.WriteEmptyLine();
-                writer.WriteLine("// Find the range in AllTokens corresponding to the default-channel range");
-                writer.WriteLine("var allStart = 0;");
-                writer.WriteLine("var allEnd = _allTokens.Length - 1;");
-                writer.WriteEmptyLine();
-                writer.WriteBlock("if (startDefaultIdx < _tokens.Length)", () =>
-                {
-                    writer.WriteLine("var targetSpan = _tokens[startDefaultIdx].Span;");
-                    writer.WriteBlock("for (var i = 0; i < _allTokens.Length; i++)", () =>
-                    {
-                        writer.WriteBlock("if (_allTokens[i].Span.Start == targetSpan.Start && _allTokens[i].Channel == TokenChannel.Default)", () =>
-                        {
-                            writer.WriteLine("allStart = i;");
-                            writer.WriteLine("break;");
-                        });
-                    });
-                });
-                writer.WriteEmptyLine();
-                writer.WriteBlock("if (endDefaultIdx > 0 && endDefaultIdx - 1 < _tokens.Length)", () =>
-                {
-                    writer.WriteLine("var targetSpan = _tokens[endDefaultIdx - 1].Span;");
-                    writer.WriteBlock("for (var i = _allTokens.Length - 1; i >= 0; i--)", () =>
-                    {
-                        writer.WriteBlock("if (_allTokens[i].Span.Start == targetSpan.Start && _allTokens[i].Channel == TokenChannel.Default)", () =>
-                        {
-                            writer.WriteLine("allEnd = i;");
-                            writer.WriteLine("break;");
-                        });
-                    });
-                });
+                writer.WriteLine("// Map default-channel indices to all-tokens indices via pre-built lookup array");
+                writer.WriteLine("var allStart = startDefaultIdx < _defaultToAllIndex!.Length ? _defaultToAllIndex[startDefaultIdx] : _allTokens.Length;");
+                writer.WriteLine("var allEnd = endDefaultIdx > 0 && endDefaultIdx - 1 < _defaultToAllIndex.Length ? _defaultToAllIndex[endDefaultIdx - 1] : _allTokens.Length - 1;");
                 writer.WriteEmptyLine();
                 writer.WriteLine("// Leading: hidden tokens before the first default-channel token");
-                writer.WriteLine("var leading = ImmutableArray.CreateBuilder<Token>();");
-                writer.WriteBlock("for (var i = allStart - 1; i >= 0; i--)", () =>
+                writer.WriteBlock("if (allStart > 0)", () =>
                 {
-                    writer.WriteBlock("if (_allTokens[i].Channel == TokenChannel.Hidden)", () =>
+                    writer.WriteLine("var leading = ImmutableArray.CreateBuilder<Token>();");
+                    writer.WriteBlock("for (var i = allStart - 1; i >= 0; i--)", () =>
                     {
-                        writer.WriteLine("leading.Insert(0, _allTokens[i]);");
+                        writer.WriteBlock("if (_allTokens[i].Channel == TokenChannel.Hidden)", () =>
+                        {
+                            writer.WriteLine("leading.Insert(0, _allTokens[i]);");
+                        });
+                        writer.WriteBlock("else", () =>
+                        {
+                            writer.WriteLine("break;");
+                        });
                     });
-                    writer.WriteBlock("else", () =>
+                    writer.WriteBlock("if (leading.Count > 0)", () =>
                     {
-                        writer.WriteLine("break;");
+                        writer.WriteLine("node.LeadingHiddenTokens = leading.ToImmutable();");
                     });
                 });
                 writer.WriteEmptyLine();
                 writer.WriteLine("// Trailing: hidden tokens after the last default-channel token");
-                writer.WriteLine("var trailing = ImmutableArray.CreateBuilder<Token>();");
-                writer.WriteBlock("for (var i = allEnd + 1; i < _allTokens.Length; i++)", () =>
+                writer.WriteBlock("if (allEnd + 1 < _allTokens.Length)", () =>
                 {
-                    writer.WriteBlock("if (_allTokens[i].Channel == TokenChannel.Hidden)", () =>
+                    writer.WriteLine("var trailing = ImmutableArray.CreateBuilder<Token>();");
+                    writer.WriteBlock("for (var i = allEnd + 1; i < _allTokens.Length; i++)", () =>
                     {
-                        writer.WriteLine("trailing.Add(_allTokens[i]);");
+                        writer.WriteBlock("if (_allTokens[i].Channel == TokenChannel.Hidden)", () =>
+                        {
+                            writer.WriteLine("trailing.Add(_allTokens[i]);");
+                        });
+                        writer.WriteBlock("else", () =>
+                        {
+                            writer.WriteLine("break;");
+                        });
                     });
-                    writer.WriteBlock("else", () =>
+                    writer.WriteBlock("if (trailing.Count > 0)", () =>
                     {
-                        writer.WriteLine("break;");
+                        writer.WriteLine("node.TrailingHiddenTokens = trailing.ToImmutable();");
                     });
-                });
-                writer.WriteEmptyLine();
-                writer.WriteBlock("if (leading.Count > 0)", () =>
-                {
-                    writer.WriteLine("node.LeadingHiddenTokens = leading.ToImmutable();");
-                });
-                writer.WriteBlock("if (trailing.Count > 0)", () =>
-                {
-                    writer.WriteLine("node.TrailingHiddenTokens = trailing.ToImmutable();");
                 });
                 writer.WriteEmptyLine();
                 writer.WriteLine("return node;");

@@ -146,6 +146,9 @@ public readonly record struct DiagnosticId(string Value)
     /// <summary>A local variable is read before being definitely assigned.</summary>
     public static readonly DiagnosticId LocalReadBeforeAssignment = new("MIST_LOCAL_READ_BEFORE_ASSIGNMENT");
 
+    /// <summary>Bare <c>new T[size]</c> where T is not a stampable type; an initializer-based construction is required.</summary>
+    public static readonly DiagnosticId ArrayRequiresInitializer = new("MIST_ARRAY_REQUIRES_INITIALIZER");
+
     /// <summary>Type argument does not satisfy the <c>where T : default</c> constraint.</summary>
     public static readonly DiagnosticId DefaultConstraintNotSatisfied = new("MIST_DEFAULT_CONSTRAINT_NOT_SATISFIED");
 

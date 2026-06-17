@@ -6,6 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var pair = new int[2];
         pair[0] = 1;
         pair[1] = 2;

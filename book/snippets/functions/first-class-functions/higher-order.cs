@@ -16,6 +16,7 @@ public class Program
 
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         int result = Apply(10, x => x + 5);
         System.Console.WriteLine($"Apply(10, x=>x+5)={result}");
         var triple = MakeMultiplier(3);

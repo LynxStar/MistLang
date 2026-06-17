@@ -34,6 +34,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var iter = new RangeIterator();
         var cursor = iter.CreateCursor(42);
         Console.WriteLine($"cursor.Position={cursor.Position}");

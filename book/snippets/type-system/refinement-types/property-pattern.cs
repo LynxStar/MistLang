@@ -18,6 +18,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var r = new Range(10, 50);
         if (r.Start >= 0)
         {

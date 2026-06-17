@@ -6,6 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         System.Func<int, int> doubler = x => x * 2;
         var square = (int x) => x * x;
         System.Console.WriteLine($"doubler(5)={doubler(5)}");

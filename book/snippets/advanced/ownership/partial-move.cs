@@ -13,18 +13,6 @@ public class Pair
         this.Left = left;
         this.Right = right;
     }
-
-    protected Pair()
-    {
-        this.Left = "";
-        this.Right = "";
-    }
-
-    public static Pair __CreateDefault()
-    {
-        var inst = new Pair();
-        return inst;
-    }
 }
 public class PartialMoveDemo
 {

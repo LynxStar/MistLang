@@ -6,6 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var temp = 75;
         var comfort = temp switch
         {

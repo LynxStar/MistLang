@@ -30,6 +30,7 @@ public class Program
 
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         int score = 85;
         var person = new Person("Alice");
         int defaultAge = Program.GetDefaultAge();

@@ -1,0 +1,12 @@
+using Standard;
+using DefiniteAssignment;
+
+namespace DefiniteAssignment;
+
+public class EntryPoint
+{
+    public static void Main()
+    {
+        DefiniteAssignment.Program.RunDemo();
+    }
+}

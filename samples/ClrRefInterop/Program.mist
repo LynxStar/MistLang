@@ -20,12 +20,10 @@ public class Program
         int old = Interlocked.Exchange(ref value, 100);
         Console.WriteLine($"[ref-param] old={old}, new={value}");
 
-        // [ref-param-array] Call Array.Resize(ref T[], int)
-        var arr = new string[2];
-        arr[0] = "a";
-        arr[1] = "b";
-        Array.Resize(ref arr, 4);
-        Console.WriteLine($"[ref-param-array] length={arr.Length}");
+        // [ref-param-add] Call Interlocked.Add(ref int, int) — CLR ref param
+        int counter = 10;
+        int result = Interlocked.Add(ref counter, 5);
+        Console.WriteLine($"[ref-param-add] result={result}, counter={counter}");
 
         // [in-param] Call a method with in parameter (projected as ref)
         int x = 7;

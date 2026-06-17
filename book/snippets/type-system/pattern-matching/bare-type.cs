@@ -24,6 +24,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         Shape shape = new Circle(5);
         if (shape is Circle)
         {

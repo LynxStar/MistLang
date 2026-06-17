@@ -24,18 +24,6 @@ public class Vault
     {
         return $"Vault(accesses={AccessCount}, secret={Secret})";
     }
-
-    protected Vault()
-    {
-        this.Secret = "";
-        this.AccessCount = 0;
-    }
-
-    public static Vault __CreateDefault()
-    {
-        var inst = new Vault();
-        return inst;
-    }
 }
 public class FieldTypeRestrictionDemo
 {

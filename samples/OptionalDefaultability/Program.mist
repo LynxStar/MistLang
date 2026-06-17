@@ -91,10 +91,9 @@ public class OptionalHolder
     public int? MaybeValue;
 }
 
-// ─── Array requires TValue : default ─────────────────────────────────────────
-// PROOF: int[] works because int is defaultable
-// PROOF: Point[] works because Point is defaultable (no constructor, all fields defaultable)
-// PROOF: DatabaseConnection?[] works because DatabaseConnection? includes void
+// ─── Array stampable-vs-initializer model ────────────────────────────────────
+// PROOF: int[] works because int is stampable (primitive) — bare new int[N] accepted
+// PROOF: Point[] requires initializer construction because Point is a class (reference type)
 public class ArrayDemo
 {
     public static void ShowArrays()
@@ -102,7 +101,7 @@ public class ArrayDemo
         var ints = new int[3];
         Console.WriteLine($"  ints[0]={ints[0]} ints[1]={ints[1]} ints[2]={ints[2]}");
 
-        var points = new Point[2];
+        var points = new Array<Point, 2>(i => new Point());
         Console.WriteLine($"  points[0].X={points[0].X} points[0].Y={points[0].Y}");
     }
 }
@@ -154,8 +153,8 @@ public class Program
         OptionalHolder holder = default(OptionalHolder);
         Console.WriteLine($"  maybeValue={holder.MaybeValue}");
 
-        // 7. Arrays of defaultable types
-        Console.WriteLine("--- Array Defaultability ---");
+        // 7. Arrays — stampable vs. initializer construction
+        Console.WriteLine("--- Array Stampability ---");
         ArrayDemo.ShowArrays();
 
         Console.WriteLine("Done!");

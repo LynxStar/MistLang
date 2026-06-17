@@ -23,18 +23,6 @@ public class Resource
     {
         this.Priority = this.Priority + 1;
     }
-
-    protected Resource()
-    {
-        this.Id = 0;
-        this.Priority = 0;
-    }
-
-    public static Resource __CreateDefault()
-    {
-        var inst = new Resource();
-        return inst;
-    }
 }
 public class WithAnnotationDemo
 {

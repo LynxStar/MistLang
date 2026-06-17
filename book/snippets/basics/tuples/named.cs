@@ -1,5 +1,6 @@
 using System;
 
+System.Console.OutputEncoding = System.Text.Encoding.UTF8;
 (int x, int y) point = (x: 3, y: 4);
 Console.WriteLine($"point.x={point.x} point.y={point.y}");
 Console.WriteLine($"positional: Item1={point.Item1} Item2={point.Item2}");

@@ -399,6 +399,21 @@ internal sealed class CSharpSourceWriter
     private int _withDropCounter;
 
     /// <summary>
+    /// Counter for generating unique temp variable names for array initializer constructions
+    /// (<c>new Array&lt;T, Size&gt;(fn)</c>) that are lifted to locals.
+    /// </summary>
+    private int _arrayInitCounter;
+
+    /// <summary>
+    /// Pending statements emitted by array initializer construction lowering.
+    /// When <c>new Array&lt;T, Size&gt;(fn)</c> appears in expression position,
+    /// the emitter generates the allocation + for-loop into this list and returns
+    /// the temp variable name as the expression value. The enclosing statement
+    /// emitter flushes these before its own output line.
+    /// </summary>
+    private readonly List<string> _pendingArrayInitStatements = new();
+
+    /// <summary>
     /// Pre-computed set of all dependent type parameter names across the entire model.
     /// Eliminates the per-call-site O(AllSymbols) iteration in IsDependentTypeParameterName.
     /// </summary>
@@ -478,6 +493,16 @@ internal sealed class CSharpSourceWriter
         {
             var name = ExtractQualifiedName(usingDecl.Name);
             usings.Add(name);
+        }
+        // Also collect using directives that appear after a file-scoped namespace
+        // (parsed as UsingItem top-level items rather than CompilationUnit.Usings).
+        foreach (var item in cu.Items)
+        {
+            if (item is UsingItemTopLevelItemNode usingItem)
+            {
+                var name = ExtractQualifiedName(usingItem.UsingDeclaration.Name);
+                usings.Add(name);
+            }
         }
 
         // Also add backend namespaces that are referenced.
@@ -562,9 +587,17 @@ internal sealed class CSharpSourceWriter
                 {
                     switch (nsItem.NamespaceDeclaration)
                     {
-                        case FileScopedNamespaceNamespaceDeclarationNode:
+                        case FileScopedNamespaceNamespaceDeclarationNode fileScopedNsDecl:
                             // File-scoped namespaces are emitted directly (no merging needed).
                             EmitNamespaceDeclaration(nsItem.NamespaceDeclaration);
+                            // Track the emitted namespace so subsequent top-level TypeItems
+                            // don't re-emit it (supports using-after-namespace ordering).
+                            var fileScopedNsName = ExtractQualifiedName(fileScopedNsDecl.Name);
+                            if (emittedInferredNamespace is null)
+                            {
+                                emittedInferredNamespace = fileScopedNsName;
+                                _currentNamespace = fileScopedNsName;
+                            }
                             break;
                         case BlockNamespaceNamespaceDeclarationNode blockNsDecl:
                         {
@@ -655,6 +688,15 @@ internal sealed class CSharpSourceWriter
         {
             var name = ExtractQualifiedName(usingDecl.Name);
             usings.Add(name);
+        }
+        // Also collect using directives that appear after a file-scoped namespace.
+        foreach (var item in cu.Items)
+        {
+            if (item is UsingItemTopLevelItemNode usingItem)
+            {
+                var name = ExtractQualifiedName(usingItem.UsingDeclaration.Name);
+                usings.Add(name);
+            }
         }
 
         foreach (var ns in _backendNamespaces)
@@ -878,6 +920,15 @@ internal sealed class CSharpSourceWriter
         {
             var name = ExtractQualifiedName(usingDecl.Name);
             usings.Add(name);
+        }
+        // Also collect using directives that appear after a file-scoped namespace.
+        foreach (var item in cu.Items)
+        {
+            if (item is UsingItemTopLevelItemNode usingItem)
+            {
+                var name = ExtractQualifiedName(usingItem.UsingDeclaration.Name);
+                usings.Add(name);
+            }
         }
 
         foreach (var ns in _backendNamespaces)
@@ -6715,37 +6766,7 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
-    /// Emits a fill loop after an array creation if the element type requires default
-    /// initialization. C# arrays of reference types default to null and struct arrays
-    /// are zero-filled — neither matches Mist's default semantics when the type has
-    /// a non-trivial default. Emits: for (int __i = 0; ...) arr[__i] = T.__CreateDefault();
-    /// </summary>
-    private void EmitArrayDefaultFillIfNeeded(string arrayVarName, IType? expressionType)
-    {
-        if (expressionType is not ArrayType arrayType)
-            return;
 
-        var elemType = arrayType.ElementType;
-
-        switch (elemType)
-        {
-            case ClassType ct when !ct.IsBackendBacked &&
-                ct.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit:
-            {
-                var elemTypeName = CSharpTypeMap.GetTypeName(elemType);
-                AppendLine($"for (int __i = 0; __i < {arrayVarName}.Length; __i++) {arrayVarName}[__i] = {elemTypeName}.__CreateDefault();");
-                break;
-            }
-            case StructType st when
-                st.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit
-                && st.DefaultValues is not null && st.DefaultValues.Count > 0:
-            {
-                var elemTypeName = CSharpTypeMap.GetTypeName(elemType);
-                AppendLine($"for (int __i = 0; __i < {arrayVarName}.Length; __i++) {arrayVarName}[__i] = {elemTypeName}.__CreateDefault();");
-                break;
-            }
-        }
-    }
 
     private string EmitTypeReference(TypeReferenceNode typeRef, bool isValueContext = false)
     {
@@ -8922,6 +8943,7 @@ internal sealed class CSharpSourceWriter
                 }
                 {
                     var exprResult = EmitExpression(exprStmt.ExpressionStatement.Expression);
+                    FlushPendingArrayInitStatements();
                     AppendLine($"{exprResult};");
                 }
                 break;
@@ -8992,12 +9014,8 @@ internal sealed class CSharpSourceWriter
                     RefKind.Ref or RefKind.RefReadonly => "ref ",
                     _ => "",
                 };
+                FlushPendingArrayInitStatements();
                 AppendLine($"{refPrefix}{type} {name} = {refInitPrefix}{init};");
-
-                // For array creations, emit a fill loop to initialize elements with
-                // their default value. C# arrays default to null (classes) or zero-fill
-                // (structs), but Mist semantics require valid default instances.
-                EmitArrayDefaultFillIfNeeded(name, _model.GetTypeOf(typed.Initializer));
                 break;
             }
             case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
@@ -9023,12 +9041,8 @@ internal sealed class CSharpSourceWriter
                     RefKind.Ref or RefKind.RefReadonly => "ref ",
                     _ => "",
                 };
+                FlushPendingArrayInitStatements();
                 AppendLine($"{refPrefix}var {name} = {refInitPrefix}{init};");
-
-                // For array creations, emit a fill loop to initialize elements with
-                // their default value. C# arrays default to null (classes) or zero-fill
-                // (structs), but Mist semantics require valid default instances.
-                EmitArrayDefaultFillIfNeeded(name, _model.GetTypeOf(inferred.Initializer));
                 break;
             }
             case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
@@ -9065,6 +9079,14 @@ internal sealed class CSharpSourceWriter
                 AppendLine($"({string.Join(", ", parts)}) = {init};");
                 break;
             }
+            case UninitializedVariableDeclarationVariableDeclarationStatementNode uninit:
+            {
+                // Emit: type name; (no initializer — definite assignment ensures it's assigned before use)
+                var type = EmitTypeReference(uninit.Type, isValueContext: true);
+                var name = uninit.Name.Lexeme;
+                AppendLine($"{type} {name};");
+                break;
+            }
         }
     }
 
@@ -9091,10 +9113,12 @@ internal sealed class CSharpSourceWriter
 
             if (returnStmt.RefKeyword is not null)
             {
+                FlushPendingArrayInitStatements();
                 AppendLine($"return ref {value};");
             }
             else
             {
+                FlushPendingArrayInitStatements();
                 AppendLine($"return {value};");
             }
         }
@@ -11842,6 +11866,59 @@ internal sealed class CSharpSourceWriter
             }
             case ObjectCreationExpressionPrimaryNode objCreation:
             {
+                // ── Special case: new Array<T, Size>(fn) → per-index init loop ──
+                var exprTypeForArray = _model.GetTypeOf(objCreation);
+                if (exprTypeForArray is ArrayType initArrayType)
+                {
+                    var arrTypeName = ExtractQualifiedName(objCreation.Type);
+                    if (arrTypeName is "Array" or "Standard.Array" && objCreation.TypeArgs is not null)
+                    {
+                        var typeArgNodes = new List<TypeArgumentNode> { objCreation.TypeArgs.TypeArgument };
+                        foreach (var extra in objCreation.TypeArgs.TypeArguments)
+                            typeArgNodes.Add(extra);
+                        if (typeArgNodes.Count == 2)
+                        {
+                            var elementTypeName = CSharpTypeMap.GetTypeName(initArrayType.ElementType);
+                            // Extract the size expression from the second type argument.
+                            string sizeExpr;
+                            if (typeArgNodes[1] is IntegerLiteralTypeArgumentTypeArgumentNode intLitArg)
+                                sizeExpr = intLitArg.Literal.Lexeme;
+                            else if (initArrayType.KnownLength.HasValue)
+                                sizeExpr = initArrayType.KnownLength.Value.ToString();
+                            else
+                                sizeExpr = "0"; // Fallback — should not happen for valid code.
+
+                            // Emit the initializer function argument.
+                            string fnExpr;
+                            if (objCreation.Arguments is not null)
+                            {
+                                var argExprs = objCreation.Arguments.GetAllExpressions();
+                                fnExpr = argExprs.Length > 0 ? EmitExpression(argExprs[0]) : "_ => default";
+                            }
+                            else
+                            {
+                                fnExpr = "_ => default";
+                            }
+
+                            // Generate unique names to avoid collisions.
+                            var suffix = _arrayInitCounter++;
+                            var arrVar = $"__arr_{suffix}";
+                            var idxVar = $"__i_{suffix}";
+
+                            // Queue the allocation + for-loop as pending statements.
+                            var fnVar = $"__fn_{suffix}";
+                            _pendingArrayInitStatements.Add(
+                                $"System.Func<int, {elementTypeName}> {fnVar} = {fnExpr};");
+                            _pendingArrayInitStatements.Add(
+                                $"var {arrVar} = new {elementTypeName}[{sizeExpr}];");
+                            _pendingArrayInitStatements.Add(
+                                $"for (int {idxVar} = 0; {idxVar} < {sizeExpr}; {idxVar}++) {arrVar}[{idxVar}] = {fnVar}({idxVar});");
+
+                            return arrVar;
+                        }
+                    }
+                }
+
                 var type = ExtractQualifiedName(objCreation.Type);
                 // Look up the type's parameters to correctly emit carrier struct names
                 // for non-int dependent type arguments (uint, long, etc.).
@@ -13731,6 +13808,21 @@ internal sealed class CSharpSourceWriter
         // For non-nested types (e.g., type alias pointing to an external type),
         // just use the standard type name.
         return CSharpTypeMap.GetTypeName(concreteType);
+    }
+
+    /// <summary>
+    /// Flushes any pending array initializer construction statements (allocation + for-loop)
+    /// that were queued during expression emission. Called by statement-level emitters before
+    /// their own output line so the lifted locals precede the statement that uses them.
+    /// </summary>
+    private void FlushPendingArrayInitStatements()
+    {
+        if (_pendingArrayInitStatements.Count == 0)
+            return;
+
+        foreach (var stmt in _pendingArrayInitStatements)
+            AppendLine(stmt);
+        _pendingArrayInitStatements.Clear();
     }
 
     private void AppendLine(string text = "")

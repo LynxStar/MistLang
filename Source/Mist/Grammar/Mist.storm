@@ -100,6 +100,7 @@ rule TopLevelItem
     | typeAliasDeclaration:TypeAliasDeclaration  as TypeAliasItem
     | withDeclaration:WithDeclaration            as WithItem
     | extensionDeclaration:ExtensionBlockDeclaration as ExtensionItem
+    | usingDeclaration:UsingDeclaration          as UsingItem
     | statement:Statement                        as StatementItem
     ;
 
@@ -528,6 +529,7 @@ rule VariableDeclarationStatement
     | readonlyModifier:READONLY? VAR LEFT_PARENTHESIS firstName:IDENTIFIER (COMMA restNames:IDENTIFIER)* RIGHT_PARENTHESIS EQUAL initializer:Expression SEMICOLON  as VarTupleDeconstruction
     | readonlyModifier:READONLY? ownershipSpecifier:OwnershipSpecifier? VAR name:(IDENTIFIER | DISCARD) EQUAL initializer:Expression SEMICOLON     as InferredVariableDeclaration
     | readonlyModifier:READONLY? LEFT_PARENTHESIS first:TupleDeconstructionElement COMMA rest:TupleDeconstructionElement (COMMA additional:TupleDeconstructionElement)* RIGHT_PARENTHESIS EQUAL initializer:Expression SEMICOLON  as TypedTupleDeconstruction
+    | ownershipSpecifier:OwnershipSpecifier? type:TypeReference name:IDENTIFIER SEMICOLON  as UninitializedVariableDeclaration
     ;
 
 rule TupleDeconstructionElement = type:TypeReference name:IDENTIFIER;

@@ -6,6 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         Union_Int32_String x = 42;
         Union_Int32_String y = "hello";
         Console.WriteLine($"x holds an int");

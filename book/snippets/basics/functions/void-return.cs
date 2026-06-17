@@ -11,6 +11,7 @@ public class Logger
 
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         Log("Application started");
         Log("Processing complete");
     }

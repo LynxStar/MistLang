@@ -18,18 +18,6 @@ public class Document
     {
         return $"Document(v{Version}: {Content})";
     }
-
-    protected Document()
-    {
-        this.Content = "";
-        this.Version = 0;
-    }
-
-    public static Document __CreateDefault()
-    {
-        var inst = new Document();
-        return inst;
-    }
 }
 public class OwnedFieldDeclarationDemo
 {

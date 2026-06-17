@@ -15,6 +15,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var box = new Box<Union_Int32_String>(42);
         Union_Int32_TError ok = 100;
         Union_Int32_TError err = "not found";

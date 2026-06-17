@@ -6,6 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var greeting = new Greeting("Hello beautiful world");
         var wc = greeting.WordCount();
         var upper = greeting.Uppercase();

@@ -1,0 +1,22 @@
+using Standard;
+
+public class Item
+{
+    public string Name;
+
+    public Item(string name)
+    {
+        this.Name = name;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Initializer construction — each slot filled by the index→value function
+        var items = new Array<Item, 5>(i => new Item($"item-{i}"));
+        Console.WriteLine(items[0].Name);
+        Console.WriteLine(items[4].Name);
+    }
+}

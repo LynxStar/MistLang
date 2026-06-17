@@ -20,6 +20,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var intBox = new GenericBox<int>(42);
         var strBox = new GenericBox<string>("Mist");
     }

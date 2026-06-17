@@ -59,3 +59,4 @@ DropSemantics = { path = "../DropSemantics" }
 AsyncDropChaining = { path = "../AsyncDropChaining" }
 Ownership = { path = "../Ownership" }
 OptionalDefaultability = { path = "../OptionalDefaultability" }
+DefiniteAssignment = { path = "../DefiniteAssignment" }

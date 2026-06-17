@@ -75,10 +75,7 @@ public class Program
         // PROOF: foreach over user-defined IEnumerable<string> with class Enumerator
         // PROOF: Associated type slot works with class enumerators
         Console.WriteLine("--- Class Enumerator ---");
-        string[] wordData = new string[3];
-        wordData[0] = "hello";
-        wordData[1] = "world";
-        wordData[2] = "mist";
+        string[] wordData = ["hello", "world", "mist"];
         var words = new Words(wordData);
         foreach (string w in words)
         {

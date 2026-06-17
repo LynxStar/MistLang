@@ -972,6 +972,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         if (!string.IsNullOrEmpty(usingName))
                             allImportedNamespaces.Add(usingName);
                     }
+                    // Also collect using directives that appear after a file-scoped namespace
+                    // (parsed as UsingItem top-level items rather than CompilationUnit.Usings).
+                    foreach (var item in cu.Items)
+                    {
+                        if (item is UsingItemTopLevelItemNode usingItem)
+                        {
+                            var usingName = ExtractQualifiedName(usingItem.UsingDeclaration.Name, sourceText);
+                            if (!string.IsNullOrEmpty(usingName))
+                                allImportedNamespaces.Add(usingName);
+                        }
+                    }
                 }
 
                 if (i < compilation.Units.Length)
@@ -2509,6 +2520,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             nsExists = ambientTypeResolver.HasNamespace(usingName);
                         if (nsExists)
                             fileScope.AddImportedNamespace(usingName);
+                    }
+                }
+                // Also collect using directives that appear after a file-scoped namespace
+                // (parsed as UsingItem top-level items rather than CompilationUnit.Usings).
+                foreach (var item in containingCu.Items)
+                {
+                    if (item is UsingItemTopLevelItemNode usingItem)
+                    {
+                        var usingName = ExtractQualifiedName(usingItem.UsingDeclaration.Name, sourceText);
+                        if (!string.IsNullOrEmpty(usingName))
+                        {
+                            var nsExists = false;
+                            foreach (var member in globalScope.Members)
+                            {
+                                if (member.Kind == SymbolKind.Namespace && member.Name == usingName)
+                                {
+                                    nsExists = true;
+                                    break;
+                                }
+                            }
+                            if (!nsExists && ambientTypeResolver is not null)
+                                nsExists = ambientTypeResolver.HasNamespace(usingName);
+                            if (nsExists)
+                                fileScope.AddImportedNamespace(usingName);
+                        }
                     }
                 }
             }
@@ -4962,6 +4998,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 if (member.Name == name)
                     return member;
+            }
+        }
+        // Also search using directives that appear after a file-scoped namespace
+        // (parsed as UsingItem top-level items rather than CompilationUnit.Usings).
+        foreach (var item in containingCu.Items)
+        {
+            if (item is UsingItemTopLevelItemNode usingItem)
+            {
+                var usingName = ExtractQualifiedName(usingItem.UsingDeclaration.Name, sourceText);
+                if (string.IsNullOrEmpty(usingName))
+                    continue;
+
+                var nsScope = FindExistingNamespaceScope(globalScope, symbolTable, usingName);
+                if (nsScope is null)
+                    continue;
+
+                foreach (var member in nsScope.Members)
+                {
+                    if (member.Name == name)
+                        return member;
+                }
             }
         }
 
@@ -13494,6 +13551,28 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     sourceText));
             }
         }
+        // Also process using directives that appear after a file-scoped namespace
+        // (parsed as UsingItem top-level items rather than CompilationUnit.Usings).
+        foreach (var item in compilationUnit.Items)
+        {
+            if (item is UsingItemTopLevelItemNode usingItem)
+            {
+                var usingName = ExtractQualifiedName(usingItem.UsingDeclaration.Name, sourceText);
+                var nsExists = false;
+                foreach (var member in globalScope.Members)
+                {
+                    if (member.Kind == SymbolKind.Namespace && member.Name == usingName)
+                    {
+                        nsExists = true;
+                        break;
+                    }
+                }
+                if (!nsExists && ambientTypeResolver is not null)
+                    nsExists = ambientTypeResolver.HasNamespace(usingName);
+                if (nsExists)
+                    fileScope.AddImportedNamespace(usingName);
+            }
+        }
 
         // Process global usings — add each as an imported namespace on the file scope.
         foreach (var globalNs in globalUsings)
@@ -13544,6 +13623,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (fileScope.ImportedNamespaces.Contains(usingName))
             {
                 explicitUsingImports.Add(usingName);
+            }
+        }
+        // Also collect UsingItem top-level items (usings after namespace declaration).
+        foreach (var item in compilationUnit.Items)
+        {
+            if (item is UsingItemTopLevelItemNode usingItem)
+            {
+                var usingName = ExtractQualifiedName(usingItem.UsingDeclaration.Name, sourceText);
+                if (fileScope.ImportedNamespaces.Contains(usingName) && !explicitUsingImports.Contains(usingName))
+                {
+                    explicitUsingImports.Add(usingName);
+                }
             }
         }
 
@@ -15877,6 +15968,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     RegisterDeconstructionElement(additional);
                 }
+                break;
+            }
+            case UninitializedVariableDeclarationVariableDeclarationStatementNode uninit:
+            {
+                // type name; — uninitialized local, type is explicit, no initializer.
+                // Definite-assignment analysis ensures it's assigned before use.
+                var declaredType = ResolveTypeReference(uninit.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+                var varName = uninit.Name.Lexeme;
+                var varSpan = ToMistSourceSpan(uninit.Name.Span);
+
+                CheckDuplicateLocal(varName, blockScope, sourceText, diagnostics);
+
+                var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, declaredType, varSpan);
+                varSymbol.OwnershipTier = MapOwnershipSpecifier(uninit.OwnershipSpecifier);
+
+                blockScope.AddMember(varSymbol);
+                symbolTable.Register(varSymbol, varDecl);
                 break;
             }
         }
@@ -21546,8 +21655,61 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case ObjectCreationExpressionPrimaryNode objCreation:
             {
                 var typeName = ExtractQualifiedName(objCreation.Type, sourceText);
-                var createdType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics,
-                    typeArgumentCount: objCreation.TypeArgs is not null ? CountTypeArgs(objCreation.TypeArgs) : 0);
+
+                // ── Special case: new Array<T, Size>(fn) ─────────────────────
+                // The bootstrap Array<TValue, Length:ZeroOrPositiveInt> class is
+                // not resolvable via normal name lookup (its dependent type param
+                // uses a refinement type alias). Route "Array" or "Standard.Array"
+                // with 2 type arguments to produce an ArrayType directly.
+                var typeArgCount = objCreation.TypeArgs is not null ? CountTypeArgs(objCreation.TypeArgs) : 0;
+                IType createdType;
+                if ((typeName == "Array" || typeName == "Standard.Array") && typeArgCount == 2)
+                {
+                    // Resolve the type arguments.
+                    var typeArgList = objCreation.TypeArgs!;
+                    var firstTypeRef = typeArgList.GetTypeReference();
+                    var elementType = ResolveTypeReference(firstTypeRef, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+                    // Resolve the size (second type argument — a literal integer for the array length).
+                    long? knownLength = null;
+                    var typeArgNodes = new List<TypeArgumentNode> { typeArgList.TypeArgument };
+                    foreach (var extra in typeArgList.TypeArguments)
+                        typeArgNodes.Add(extra);
+                    if (typeArgNodes.Count > 1 && typeArgNodes[1] is IntegerLiteralTypeArgumentTypeArgumentNode intLitArg)
+                    {
+                        if (long.TryParse(intLitArg.Literal.Lexeme, out var size))
+                            knownLength = size;
+                    }
+
+                    createdType = knownLength.HasValue
+                        ? new ArrayType(elementType, knownLength.Value)
+                        : new ArrayType(elementType);
+
+                    // Resolve arguments with Func<int, TValue> as the lambda target type.
+                    if (objCreation.Arguments is not null)
+                    {
+                        var globalScopeForFunc = FindGlobalScope(fileScope) ?? fileScope;
+                        try
+                        {
+                            var funcDefinition = LookupQualifiedStdlibType(globalScopeForFunc, symbolTable, "Standard.Func", 2);
+                            var intType = ResolvePrimitiveByKeyword("int", fileScope, symbolTable);
+                            var funcType = new ConstructedType(funcDefinition, new IType[] { intType, elementType });
+                            var ctorParamTypes = new List<IType> { funcType };
+                            ResolveArgumentList(objCreation.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics, ctorParamTypes);
+                        }
+                        catch (StdlibMissingException)
+                        {
+                            // Fallback: resolve without lambda target type.
+                            ResolveArgumentList(objCreation.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                        }
+                    }
+
+                    result = createdType;
+                    break;
+                }
+
+                createdType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics,
+                    typeArgumentCount: typeArgCount);
 
                 // Check for abstract type instantiation.
                 if (createdType is ClassType { IsAbstract: true } abstractClass)

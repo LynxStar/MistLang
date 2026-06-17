@@ -6,6 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var d = Direction.North;
         var isNorth = d is Direction.North;
         var isSouth = d is Direction.South;

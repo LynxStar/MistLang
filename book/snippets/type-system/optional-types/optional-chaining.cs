@@ -20,6 +20,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         Item present = new Item(5);
         Item absent = null;
         int? result1 = present?.GetValue();

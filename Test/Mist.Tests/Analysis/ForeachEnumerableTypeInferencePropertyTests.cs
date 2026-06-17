@@ -108,6 +108,7 @@ public sealed class ForeachEnumerableTypeInferencePropertyTests : IDisposable
     // ─── Name pools ──────────────────────────────────────────────────────
 
     private static readonly string[] ElementTypes = ["int", "string", "bool", "double", "float", "long", "char"];
+    private static readonly string[] StampableElementTypes = ["int", "bool", "double", "float", "long", "char"];
     private static readonly string[] ClassNames = ["MyCollection", "DataStream", "ItemList", "Sequence", "Elements", "Series"];
     private static readonly int[] ArraySizes = [1, 2, 3, 5, 10];
 
@@ -132,7 +133,9 @@ public sealed class ForeachEnumerableTypeInferencePropertyTests : IDisposable
     /// </summary>
     private static Gen<ForeachArrayScenario> GenArrayForeachScenario()
     {
-        return from elementType in Gen.Elements(ElementTypes)
+        // Only stampable element types are allowed with bare `new T[size]`.
+        // Reference types like `string` require initializer-based construction.
+        return from elementType in Gen.Elements(StampableElementTypes)
                from arraySize in Gen.Elements(ArraySizes)
                let source = BuildArrayForeachSource(elementType, arraySize)
                select new ForeachArrayScenario(

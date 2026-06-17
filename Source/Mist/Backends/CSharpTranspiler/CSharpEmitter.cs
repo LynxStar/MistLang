@@ -6714,6 +6714,39 @@ internal sealed class CSharpSourceWriter
         };
     }
 
+    /// <summary>
+    /// Emits a fill loop after an array creation if the element type requires default
+    /// initialization. C# arrays of reference types default to null and struct arrays
+    /// are zero-filled — neither matches Mist's default semantics when the type has
+    /// a non-trivial default. Emits: for (int __i = 0; ...) arr[__i] = T.__CreateDefault();
+    /// </summary>
+    private void EmitArrayDefaultFillIfNeeded(string arrayVarName, IType? expressionType)
+    {
+        if (expressionType is not ArrayType arrayType)
+            return;
+
+        var elemType = arrayType.ElementType;
+
+        switch (elemType)
+        {
+            case ClassType ct when !ct.IsBackendBacked &&
+                ct.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit:
+            {
+                var elemTypeName = CSharpTypeMap.GetTypeName(elemType);
+                AppendLine($"for (int __i = 0; __i < {arrayVarName}.Length; __i++) {arrayVarName}[__i] = {elemTypeName}.__CreateDefault();");
+                break;
+            }
+            case StructType st when
+                st.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit
+                && st.DefaultValues is not null && st.DefaultValues.Count > 0:
+            {
+                var elemTypeName = CSharpTypeMap.GetTypeName(elemType);
+                AppendLine($"for (int __i = 0; __i < {arrayVarName}.Length; __i++) {arrayVarName}[__i] = {elemTypeName}.__CreateDefault();");
+                break;
+            }
+        }
+    }
+
     private string EmitTypeReference(TypeReferenceNode typeRef, bool isValueContext = false)
     {
         // Union handling (non-empty PIPE-separated continuation list). Must run
@@ -8960,6 +8993,11 @@ internal sealed class CSharpSourceWriter
                     _ => "",
                 };
                 AppendLine($"{refPrefix}{type} {name} = {refInitPrefix}{init};");
+
+                // For array creations, emit a fill loop to initialize elements with
+                // their default value. C# arrays default to null (classes) or zero-fill
+                // (structs), but Mist semantics require valid default instances.
+                EmitArrayDefaultFillIfNeeded(name, _model.GetTypeOf(typed.Initializer));
                 break;
             }
             case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
@@ -8987,21 +9025,10 @@ internal sealed class CSharpSourceWriter
                 };
                 AppendLine($"{refPrefix}var {name} = {refInitPrefix}{init};");
 
-                // For array creations of reference types with __CreateDefault(),
-                // emit a fill loop to initialize elements with their default value.
-                // C# arrays of reference types default to null, but Mist semantics
-                // require TValue : default, so all slots must hold a valid default.
-                var inferredType = _model.GetTypeOf(inferred.Initializer);
-                if (inferredType is ArrayType arrayType)
-                {
-                    var elemType = arrayType.ElementType;
-                    if (elemType is ClassType ct && !ct.IsBackendBacked &&
-                        ct.Defaultability is DefaultabilityStatus.Inferred or DefaultabilityStatus.Explicit)
-                    {
-                        var elemTypeName = CSharpTypeMap.GetTypeName(elemType);
-                        AppendLine($"for (int __i = 0; __i < {name}.Length; __i++) {name}[__i] = {elemTypeName}.__CreateDefault();");
-                    }
-                }
+                // For array creations, emit a fill loop to initialize elements with
+                // their default value. C# arrays default to null (classes) or zero-fill
+                // (structs), but Mist semantics require valid default instances.
+                EmitArrayDefaultFillIfNeeded(name, _model.GetTypeOf(inferred.Initializer));
                 break;
             }
             case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:

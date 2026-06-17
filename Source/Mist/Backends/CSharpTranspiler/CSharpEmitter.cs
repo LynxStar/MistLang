@@ -398,6 +398,12 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private int _withDropCounter;
 
+    /// <summary>
+    /// Pre-computed set of all dependent type parameter names across the entire model.
+    /// Eliminates the per-call-site O(AllSymbols) iteration in IsDependentTypeParameterName.
+    /// </summary>
+    private readonly HashSet<string> _dependentTypeParamNames;
+
     private const string IndentUnit = "    ";
 
     /// <summary>
@@ -419,6 +425,27 @@ internal sealed class CSharpSourceWriter
         _diagnostics = diagnostics;
         _intrinsicRegistry = new IntrinsicEmissionTable();
         _isReferencedProject = isReferencedProject;
+
+        // Pre-compute dependent type parameter names for O(1) lookups during emission.
+        _dependentTypeParamNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var symbol in model.AllSymbols)
+        {
+            var typeParams = GetTypeParametersFromType(symbol.DeclaredType);
+            foreach (var tp in typeParams)
+            {
+                if (tp is DependentTypeParameterType depParam)
+                    _dependentTypeParamNames.Add(depParam.Name);
+            }
+
+            if (symbol is Symbol sym && sym.TypeParameters.Count > 0)
+            {
+                foreach (var tp in sym.TypeParameters)
+                {
+                    if (tp is DependentTypeParameterType depParam)
+                        _dependentTypeParamNames.Add(depParam.Name);
+                }
+            }
+        }
     }
 
     public string EmitCompilationUnit(CompilationUnitNode cu)
@@ -12412,27 +12439,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private bool IsDependentTypeParameterName(string name)
     {
-        foreach (var symbol in _model.AllSymbols)
-        {
-            // Check type-level type parameters.
-            var typeParams = GetTypeParametersFromType(symbol.DeclaredType);
-            foreach (var tp in typeParams)
-            {
-                if (tp is DependentTypeParameterType depParam && depParam.Name == name)
-                    return true;
-            }
-
-            // Check method-level type parameters.
-            if (symbol is Symbol sym && sym.TypeParameters.Count > 0)
-            {
-                foreach (var tp in sym.TypeParameters)
-                {
-                    if (tp is DependentTypeParameterType depParam && depParam.Name == name)
-                        return true;
-                }
-            }
-        }
-        return false;
+        return _dependentTypeParamNames.Contains(name);
     }
 
     /// <summary>

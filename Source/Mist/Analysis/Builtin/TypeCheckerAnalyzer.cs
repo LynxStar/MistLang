@@ -2484,6 +2484,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 AnalyzeVariableDeclarationDataflow(varDeclStmt.VariableDeclaration, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 break;
 
+            case UninitializedVariableStatementStatementNode:
+                // No initializer — the local is NOT added to AssignedLocals.
+                // Definite-assignment analysis will ensure it's assigned before use.
+                break;
+
             case BreakStatementStatementNode:
                 state.Terminated = true;
                 break;
@@ -2660,11 +2665,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var typedTupleSymbol = model.GetDeclaredSymbol(typedTuple);
                 if (typedTupleSymbol is not null)
                     state.AssignedLocals.Add(typedTupleSymbol);
-                break;
-
-            case UninitializedVariableDeclarationVariableDeclarationStatementNode:
-                // No initializer — the local is NOT added to AssignedLocals.
-                // Definite-assignment analysis will ensure it's assigned before use.
                 break;
         }
     }
@@ -2984,7 +2984,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     or InferredVariableDeclarationVariableDeclarationStatementNode
                     or VarTupleDeconstructionVariableDeclarationStatementNode
                     or TypedTupleDeconstructionVariableDeclarationStatementNode
-                    or UninitializedVariableDeclarationVariableDeclarationStatementNode
+                    or UninitializedVariableDeclarationNode
                     or ForInitializerVariableDeclarationForInitializerNode
                     or ForInitializerVarDeclarationForInitializerNode
                     or ForeachStatementNode)
@@ -5038,9 +5038,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
                 break;
             }
-            case UninitializedVariableDeclarationVariableDeclarationStatementNode:
-                // No initializer to check — definite-assignment analysis handles soundness.
-                break;
         }
     }
 

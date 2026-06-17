@@ -10,7 +10,6 @@ intrinsic public class Array<TValue, Length:ZeroOrPositiveInt> : IEnumerable<TVa
 
     intrinsic public TValue this[ArrayBounds index];
 
-    // Index→value initializer constructor. Suppresses the inferred new().
     intrinsic public Array(Func<int, TValue> initializer);
 
     intrinsic public struct Enumerator : IEnumerator<TValue> {

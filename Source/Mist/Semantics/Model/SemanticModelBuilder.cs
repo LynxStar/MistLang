@@ -15604,6 +15604,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case VariableDeclarationStatementStatementNode varDeclStmt:
                 ResolveVariableDeclaration(varDeclStmt.VariableDeclaration, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
+            case UninitializedVariableStatementStatementNode uninitStmt:
+            {
+                var uninit = uninitStmt.UninitializedVariable;
+                var declaredType = ResolveTypeReference(uninit.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                var varName = uninit.Name.Lexeme;
+                var varSpan = ToMistSourceSpan(uninit.Name.Span);
+                CheckDuplicateLocal(varName, blockScope, sourceText, diagnostics);
+                var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, declaredType, varSpan);
+                varSymbol.OwnershipTier = MapOwnershipSpecifier(uninit.OwnershipSpecifier);
+                blockScope.AddMember(varSymbol);
+                symbolTable.Register(varSymbol, uninitStmt);
+                break;
+            }
             case ReturnStatementStatementNode returnStmt:
                 if (returnStmt.ReturnStatement.Value is not null)
                 {
@@ -15968,24 +15981,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     RegisterDeconstructionElement(additional);
                 }
-                break;
-            }
-            case UninitializedVariableDeclarationVariableDeclarationStatementNode uninit:
-            {
-                // type name; — uninitialized local, type is explicit, no initializer.
-                // Definite-assignment analysis ensures it's assigned before use.
-                var declaredType = ResolveTypeReference(uninit.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-
-                var varName = uninit.Name.Lexeme;
-                var varSpan = ToMistSourceSpan(uninit.Name.Span);
-
-                CheckDuplicateLocal(varName, blockScope, sourceText, diagnostics);
-
-                var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, declaredType, varSpan);
-                varSymbol.OwnershipTier = MapOwnershipSpecifier(uninit.OwnershipSpecifier);
-
-                blockScope.AddMember(varSymbol);
-                symbolTable.Register(varSymbol, varDecl);
                 break;
             }
         }

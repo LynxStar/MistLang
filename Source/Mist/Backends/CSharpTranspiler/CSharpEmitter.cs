@@ -8957,6 +8957,14 @@ internal sealed class CSharpSourceWriter
             case WithBlockStatementStatementNode withBlockStmt:
                 EmitWithBlockStatement(withBlockStmt.WithBlockStatement);
                 break;
+            case UninitializedVariableStatementStatementNode uninitStmt:
+            {
+                var uninit = uninitStmt.UninitializedVariable;
+                var type = EmitTypeReference(uninit.Type, isValueContext: true);
+                var name = uninit.Name.Lexeme;
+                AppendLine($"{type} {name};");
+                break;
+            }
         }
     }
 
@@ -9077,14 +9085,6 @@ internal sealed class CSharpSourceWriter
 
                 var init = EmitExpression(typedTuple.Initializer);
                 AppendLine($"({string.Join(", ", parts)}) = {init};");
-                break;
-            }
-            case UninitializedVariableDeclarationVariableDeclarationStatementNode uninit:
-            {
-                // Emit: type name; (no initializer — definite assignment ensures it's assigned before use)
-                var type = EmitTypeReference(uninit.Type, isValueContext: true);
-                var name = uninit.Name.Lexeme;
-                AppendLine($"{type} {name};");
                 break;
             }
         }

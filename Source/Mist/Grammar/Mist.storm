@@ -520,7 +520,14 @@ rule Statement
     | withBlockStatement:WithBlockStatement                  as WithBlockStatement
     | blockStatement:Block                                   as BlockStatement
     | expressionStatement:ExpressionStatement             as ExpressionStatement
+    | uninitializedVariable:UninitializedVariableDeclaration as UninitializedVariableStatement
     ;
+
+// Uninitialized variable declaration: `type name;` (no initializer).
+// Placed after ExpressionStatement in Statement to avoid ambiguity with cast
+// expression statements like `(ulong)a;` which would otherwise match as a
+// parenthesized-type variable declaration.
+rule UninitializedVariableDeclaration = ownershipSpecifier:OwnershipSpecifier? type:TypeReference name:IDENTIFIER SEMICOLON;
 
 rule ReadonlyBlockStatement = READONLY body:Block;
 
@@ -529,7 +536,6 @@ rule VariableDeclarationStatement
     | readonlyModifier:READONLY? VAR LEFT_PARENTHESIS firstName:IDENTIFIER (COMMA restNames:IDENTIFIER)* RIGHT_PARENTHESIS EQUAL initializer:Expression SEMICOLON  as VarTupleDeconstruction
     | readonlyModifier:READONLY? ownershipSpecifier:OwnershipSpecifier? VAR name:(IDENTIFIER | DISCARD) EQUAL initializer:Expression SEMICOLON     as InferredVariableDeclaration
     | readonlyModifier:READONLY? LEFT_PARENTHESIS first:TupleDeconstructionElement COMMA rest:TupleDeconstructionElement (COMMA additional:TupleDeconstructionElement)* RIGHT_PARENTHESIS EQUAL initializer:Expression SEMICOLON  as TypedTupleDeconstruction
-    | ownershipSpecifier:OwnershipSpecifier? type:TypeReference name:IDENTIFIER SEMICOLON  as UninitializedVariableDeclaration
     ;
 
 rule TupleDeconstructionElement = type:TypeReference name:IDENTIFIER;

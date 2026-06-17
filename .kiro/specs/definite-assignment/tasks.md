@@ -133,7 +133,7 @@ This plan implements definite-assignment analysis (constructor fields + locals),
     - All examples as compiled snippets per the Book Snippet Policy.
     - _Requirements: 10.3, 10.4_
 
-- [-] 11. Final checkpoint
+- [ ] 11. Final checkpoint
   - Run the full test suite; confirm zero failures and zero new warnings. Confirm `samples/AllFeatures` runs clean. Ask the user for review.
 
 ## Task Dependency Graph

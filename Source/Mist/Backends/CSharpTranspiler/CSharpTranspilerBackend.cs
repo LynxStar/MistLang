@@ -265,18 +265,13 @@ public sealed class CSharpTranspilerBackend : IBackend
 
     private static bool IsNodeInAst(Storm.Runtime.SyntaxNode target, Storm.Runtime.SyntaxNode root)
     {
-        if (ReferenceEquals(target, root))
-            return true;
+        // Walk up via Parent links to find the root — O(depth) instead of O(N) tree walk.
+        // Parent links are set during parsing (SetParentLinks), so this is always valid.
+        var current = target;
+        while (current.Parent is not null)
+            current = current.Parent;
 
-        foreach (var child in root.Children())
-        {
-            if (child is null)
-                continue;
-            if (IsNodeInAst(target, child))
-                return true;
-        }
-
-        return false;
+        return ReferenceEquals(current, root);
     }
 
     /// <summary>

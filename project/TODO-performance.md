@@ -15,6 +15,16 @@ The `SetParentLinks()` call after parsing costs ~2ms for 148K nodes. Not worth o
 
 ## Emit (~3.5s for AllFeatures)
 
+### IsNodeInAst O(N) tree walk — 5.8% total CPU
+`CSharpTranspilerBackend.DetermineMainTypeName` calls `IsNodeInAst` which recursively walks
+entire AST trees to check if a method declaration node belongs to a referenced project's AST.
+With 148K nodes across multiple ASTs, this costs ~166ms.
+
+**Fix:** Walk up via `Parent` links from the target node to find the root, then `ReferenceEquals`
+against the AST root. O(tree depth) instead of O(N).
+
+**Status:** DONE — 166ms → negligible.
+
 ### Roslyn in-process compilation
 The dominant cost is Roslyn compiling 120 .cs files to a DLL (parsing C#, semantic analysis, IL emission). Hard to improve without:
 - Switching to direct IL emission (Mono.Cecil or System.Reflection.Metadata)

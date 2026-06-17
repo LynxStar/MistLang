@@ -140,6 +140,12 @@ public readonly record struct DiagnosticId(string Value)
     /// <summary>A constructor body does not definitely assign a non-defaultable field.</summary>
     public static readonly DiagnosticId FieldNotDefinitelyAssigned = new("MIST_FIELD_NOT_DEFINITELY_ASSIGNED");
 
+    /// <summary>A field is read before being definitely assigned in a constructor body.</summary>
+    public static readonly DiagnosticId FieldReadBeforeAssignment = new("MIST_FIELD_READ_BEFORE_ASSIGNMENT");
+
+    /// <summary>A local variable is read before being definitely assigned.</summary>
+    public static readonly DiagnosticId LocalReadBeforeAssignment = new("MIST_LOCAL_READ_BEFORE_ASSIGNMENT");
+
     /// <summary>Type argument does not satisfy the <c>where T : default</c> constraint.</summary>
     public static readonly DiagnosticId DefaultConstraintNotSatisfied = new("MIST_DEFAULT_CONSTRAINT_NOT_SATISFIED");
 

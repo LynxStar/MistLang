@@ -109,6 +109,14 @@ public sealed class StructType : IType
     public bool IsRefStruct { get; internal set; }
 
     /// <summary>
+    /// Indicates whether this type is stampable — a pure struct whose fields are
+    /// transitively all primitives or other stampable structs. Stampable types can
+    /// be used with bare <c>new T[size]</c> array creation (Stamp_Fill).
+    /// Set by <c>ComputeStampability</c> during model construction.
+    /// </summary>
+    public bool IsStampable { get; internal set; }
+
+    /// <summary>
     /// Returns all ancestor struct types in order from immediate parent to root.
     /// </summary>
     public IReadOnlyList<StructType> GetAncestorChain()

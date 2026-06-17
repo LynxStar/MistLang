@@ -1343,6 +1343,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CollectClosureCapturedVariables(castBlock);
                 CheckRefLambdaCaptureProhibition(castBlock, model, diagnostics);
                 CheckBlock(castBlock, returnType, model, diagnostics);
+
+                // ── Local definite-assignment analysis (Requirements 2.1–2.6) ──
+                CheckLocalDefiniteAssignment(castBlock, model, diagnostics);
             }
             return;
         }
@@ -1375,6 +1378,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CollectClosureCapturedVariables(opBlock);
                 CheckRefLambdaCaptureProhibition(opBlock, model, diagnostics);
                 CheckBlock(opBlock, returnType3, model, diagnostics);
+
+                // ── Local definite-assignment analysis (Requirements 2.1–2.6) ──
+                CheckLocalDefiniteAssignment(opBlock, model, diagnostics);
             }
             return;
         }
@@ -1447,6 +1453,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             // Remove parameter refinement narrowing entries after the body.
             RemoveParameterRefinementNarrowing(paramNarrowings);
+
+            // ── Local definite-assignment analysis (Requirements 2.1–2.6) ──
+            CheckLocalDefiniteAssignment(block, model, diagnostics);
         }
     }
 
@@ -2237,12 +2246,45 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (initiallyAssigned.Count >= allFields.Count)
             return;
 
-        // Perform forward dataflow analysis on the constructor body.
-        var assignedAtExit = ComputeDefinitelyAssigned(ctorBlock, initiallyAssigned, propertyToBackingField);
+        // Compute the set of non-defaultable fields (those not in initiallyAssigned).
+        var allNonDefaultableFields = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var fieldName in allFields)
+        {
+            if (!initiallyAssigned.Contains(fieldName))
+                allNonDefaultableFields.Add(fieldName);
+        }
 
+        // Perform forward dataflow analysis on the constructor body.
+        // This detects read-before-assignment violations AND computes the assigned set at exit.
+        var state = new AssignmentState(initiallyAssigned);
+        var readViolations = RunForwardDataflow(ctorBlock, state, propertyToBackingField, model, true, initiallyAssigned, allNonDefaultableFields);
+
+        // Emit MIST_FIELD_READ_BEFORE_ASSIGNMENT for each field-read violation (Req 1.1, 1.4, 1.8, 7.1, 7.4).
+        // Emit MIST_LOCAL_READ_BEFORE_ASSIGNMENT for each local-read violation (Req 2.1, 2.3, 2.6, 7.2, 7.4).
+        var ctorName = ctorSymbol.Name;
+        foreach (var violation in readViolations)
+        {
+            if (violation.Kind == ReadViolationKind.Field)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    DiagnosticId.FieldReadBeforeAssignment.Value,
+                    $"Field '{violation.Name}' is read before being definitely assigned in constructor '{ctorName}()'",
+                    violation.Location,
+                    model));
+            }
+            else if (violation.Kind == ReadViolationKind.Local)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    DiagnosticId.LocalReadBeforeAssignment.Value,
+                    $"Local variable '{violation.Name}' is read before being definitely assigned",
+                    violation.Location,
+                    model));
+            }
+        }
+
+        // Existing end-of-constructor check: MIST_FIELD_NOT_DEFINITELY_ASSIGNED (Req 1.7).
         // Check that all fields are in the definitely-assigned set at exit.
-        // Only report unassigned fields that are non-defaultable without initializers
-        // (they weren't in the initially-assigned set).
+        var assignedAtExit = state.AssignedFields;
         foreach (var fieldName in allFields)
         {
             if (!assignedAtExit.Contains(fieldName))
@@ -2259,7 +2301,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
                 var typeName = fieldSymbol?.DeclaredType?.DisplayName ?? "unknown";
-                var ctorName = ctorSymbol.Name;
 
                 // Get the constructor's declaring node for location.
                 SyntaxNode ctorDeclNode;
@@ -2277,155 +2318,918 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Performs a forward dataflow analysis on a constructor body block to determine
-    /// which fields are definitely assigned at the exit point.
-    /// Tracks <c>this.fieldName = expr</c> assignments and intersects at control-flow merges.
+    /// Performs forward dataflow analysis on a non-constructor method/function/operator body
+    /// to detect reads of local variables before they are definitely assigned.
+    /// Emits <c>MIST_LOCAL_READ_BEFORE_ASSIGNMENT</c> for each violation (Req 2.1–2.6, 7.2, 7.4).
     /// </summary>
-    private static HashSet<string> ComputeDefinitelyAssigned(
-        BlockNode block, HashSet<string> initialSet, Dictionary<string, string> propertyToBackingField)
+    private static void CheckLocalDefiniteAssignment(
+        BlockNode block, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        var assigned = new HashSet<string>(initialSet, StringComparer.Ordinal);
-        AnalyzeBlockForAssignments(block, assigned, propertyToBackingField);
-        return assigned;
-    }
+        var state = new AssignmentState();
+        var emptyPropertyMap = new Dictionary<string, string>(StringComparer.Ordinal);
+        var readViolations = RunForwardDataflow(block, state, emptyPropertyMap, model, false, null, null);
 
-    /// <summary>
-    /// Walks a block of statements and updates the definitely-assigned set
-    /// by detecting <c>this.fieldName = expr</c> patterns and handling
-    /// control flow (if/else intersection, while loops).
-    /// </summary>
-    private static void AnalyzeBlockForAssignments(
-        BlockNode block, HashSet<string> assigned, Dictionary<string, string> propertyToBackingField)
-    {
-        foreach (var stmt in block.Statements)
+        foreach (var violation in readViolations)
         {
-            AnalyzeStatementForAssignments(stmt, assigned, propertyToBackingField);
+            if (violation.Kind == ReadViolationKind.Local)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    DiagnosticId.LocalReadBeforeAssignment.Value,
+                    $"Local variable '{violation.Name}' is read before being definitely assigned",
+                    violation.Location,
+                    model));
+            }
         }
     }
 
     /// <summary>
-    /// Analyzes a single statement for field assignment patterns and control flow.
+    /// Performs a forward dataflow analysis on a block to determine which fields
+    /// and locals are definitely assigned at the exit point, and collects any
+    /// read-before-assignment violations detected along the way.
     /// </summary>
-    private static void AnalyzeStatementForAssignments(
-        StatementNode stmt, HashSet<string> assigned, Dictionary<string, string> propertyToBackingField)
+    /// <param name="block">The block of statements to analyze.</param>
+    /// <param name="state">The initial assignment state (seeded with pre-assigned fields/locals).</param>
+    /// <param name="propertyToBackingField">Maps property names to backing field names.</param>
+    /// <param name="model">The semantic model for symbol resolution.</param>
+    /// <param name="isConstructor">Whether the block is inside a constructor (enables field-read checks).</param>
+    /// <param name="initiallyAssignedFields">Fields pre-assigned via initializer or synthetic default (for field-read checking).</param>
+    /// <param name="allNonDefaultableFields">All non-defaultable fields that the constructor must assign (for this-escape detection).</param>
+    /// <returns>The list of read-before-assignment violations detected during the walk.</returns>
+    private static List<ReadViolation> RunForwardDataflow(
+        BlockNode block,
+        AssignmentState state,
+        Dictionary<string, string> propertyToBackingField,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        HashSet<string>? allNonDefaultableFields = null)
+    {
+        var violations = new List<ReadViolation>();
+        AnalyzeBlockDataflow(block, state, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+        return violations;
+    }
+
+    /// <summary>
+    /// Legacy entry point that preserves the existing end-of-constructor check behavior.
+    /// Performs a forward dataflow analysis and returns the set of definitely-assigned fields at exit.
+    /// </summary>
+    private static HashSet<string> ComputeDefinitelyAssigned(
+        BlockNode block, HashSet<string> initialSet, Dictionary<string, string> propertyToBackingField,
+        ISemanticModel model)
+    {
+        var state = new AssignmentState(initialSet);
+        AnalyzeBlockDataflow(block, state, propertyToBackingField, model, true, initialSet, [], null);
+        return state.AssignedFields;
+    }
+
+    /// <summary>
+    /// Walks a block of statements performing forward read+write dataflow analysis.
+    /// Records field/local writes and detects reads of unassigned locations.
+    /// </summary>
+    private static void AnalyzeBlockDataflow(
+        BlockNode block,
+        AssignmentState state,
+        Dictionary<string, string> propertyToBackingField,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
+    {
+        foreach (var stmt in block.Statements)
+        {
+            if (state.Terminated)
+                break;
+            AnalyzeStatementDataflow(stmt, state, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+        }
+    }
+
+    /// <summary>
+    /// Analyzes a single statement for the forward read+write dataflow.
+    /// Handles assignments (writes), reads, control flow (if/else, loops), and termination.
+    /// </summary>
+    private static void AnalyzeStatementDataflow(
+        StatementNode stmt,
+        AssignmentState state,
+        Dictionary<string, string> propertyToBackingField,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
     {
         switch (stmt)
         {
             case ExpressionStatementStatementNode exprStmt:
-                AnalyzeExpressionForAssignment(exprStmt.ExpressionStatement.Expression, assigned, propertyToBackingField);
+                AnalyzeExpressionDataflow(exprStmt.ExpressionStatement.Expression, state, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 break;
 
             case IfStatementStatementNode ifStmt:
-                AnalyzeIfForAssignments(ifStmt.IfStatement, assigned, propertyToBackingField);
+                AnalyzeIfDataflow(ifStmt.IfStatement, state, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 break;
 
             case WhileStatementStatementNode whileStmt:
-                // For while loops, we conservatively don't add anything from the body
-                // because the body might not execute. We do a single pass to see if
-                // assignments happen, but we don't remove from the set either.
-                // The loop body might never execute, so assignments inside are not guaranteed.
-                // Just analyze for any nested control flow but don't trust single-path additions.
+                // Conservative: analyze body with a copy but do NOT propagate body-only
+                // assignments outward (the body may not execute). Reads inside the body
+                // are checked against the pre-loop state.
+                AnalyzeExpressionForReads(whileStmt.WhileStatement.Condition, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                var whileBodyState = state.Clone();
+                AnalyzeBlockDataflow(whileStmt.WhileStatement.Body, whileBodyState, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 break;
 
             case ForStatementStatementNode forStmt:
-                // Same conservative treatment as while — body may not execute.
+                // Analyze the initializer (may introduce a local assignment).
+                AnalyzeForInitializerDataflow(forStmt.ForStatement, state, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                // Check condition and iterator for reads.
+                if (forStmt.ForStatement.Condition is not null)
+                    AnalyzeExpressionForReads(forStmt.ForStatement.Condition, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                if (forStmt.ForStatement.Iterator is not null)
+                    AnalyzeExpressionForReads(forStmt.ForStatement.Iterator, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                // Conservative: body may not execute.
+                var forBodyState = state.Clone();
+                AnalyzeBlockDataflow(forStmt.ForStatement.Body, forBodyState, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 break;
 
             case ForeachStatementStatementNode foreachStmt:
-                // Same conservative treatment — body may not execute.
+                // Check collection expression for reads.
+                AnalyzeExpressionForReads(foreachStmt.ForeachStatement.Collection, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                // Conservative: body may not execute.
+                var foreachBodyState = state.Clone();
+                // The foreach iteration variable is implicitly assigned by the loop mechanism.
+                var foreachVarSymbol = model.GetDeclaredSymbol(foreachStmt.ForeachStatement);
+                if (foreachVarSymbol is not null)
+                    foreachBodyState.AssignedLocals.Add(foreachVarSymbol);
+                AnalyzeBlockDataflow(foreachStmt.ForeachStatement.Body, foreachBodyState, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 break;
 
             case BlockStatementStatementNode blockStmt:
-                AnalyzeBlockForAssignments(blockStmt.BlockStatement, assigned, propertyToBackingField);
+                AnalyzeBlockDataflow(blockStmt.BlockStatement, state, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 break;
 
-            case ReturnStatementStatementNode:
-                // Return exits the constructor — any field not assigned by now is unassigned.
-                // The assigned set at this point represents what's assigned before return.
+            case ReturnStatementStatementNode returnStmt:
+                // Check the return value expression for reads before marking terminated.
+                if (returnStmt.ReturnStatement.Value is not null)
+                {
+                    AnalyzeExpressionForReads(returnStmt.ReturnStatement.Value, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                    // this-escape: returning `this` from a constructor while fields are unassigned (Req 1.8).
+                    if (isConstructor && allNonDefaultableFields is not null)
+                    {
+                        CheckThisEscapeInExpression(returnStmt.ReturnStatement.Value, state, allNonDefaultableFields, violations, (SyntaxNode)returnStmt.ReturnStatement);
+                    }
+                }
+                state.Terminated = true;
                 break;
 
-            case VariableDeclarationStatementStatementNode:
+            case VariableDeclarationStatementStatementNode varDeclStmt:
+                AnalyzeVariableDeclarationDataflow(varDeclStmt.VariableDeclaration, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                break;
+
             case BreakStatementStatementNode:
-            case ReadonlyBlockStatementStatementNode readonlyBlock:
-                // Variable declarations and break don't affect field assignments.
-                // For readonly blocks, analyze inner block.
-                if (stmt is ReadonlyBlockStatementStatementNode rb)
-                    AnalyzeBlockForAssignments(rb.ReadonlyBlock.Body, assigned, propertyToBackingField);
+                state.Terminated = true;
+                break;
+
+            case ReadonlyBlockStatementStatementNode rb:
+                AnalyzeBlockDataflow(rb.ReadonlyBlock.Body, state, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 break;
         }
     }
 
     /// <summary>
-    /// Analyzes an if statement for definite assignment. At a control-flow merge,
-    /// only fields assigned on ALL branches are considered definitely assigned.
+    /// Analyzes an if statement for the forward dataflow. Clones state per branch,
+    /// analyzes each, and intersects at the merge point using <see cref="AssignmentState.IntersectWith"/>.
     /// </summary>
-    private static void AnalyzeIfForAssignments(
-        IfStatementNode ifStmt, HashSet<string> assigned, Dictionary<string, string> propertyToBackingField)
+    private static void AnalyzeIfDataflow(
+        IfStatementNode ifStmt,
+        AssignmentState state,
+        Dictionary<string, string> propertyToBackingField,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
     {
+        // Check the condition expression for reads.
+        AnalyzeExpressionForReads(ifStmt.Condition, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+
         if (ifStmt.ElseBranch is null)
         {
-            // No else branch: the field might not be assigned (the 'then' path
-            // is conditional). We can't add anything from 'then' to the definite set.
-            // However, we still need to detect assignments in the then-branch that
-            // happen on EVERY path once we know both sides execute.
-            // With no else, we conservatively keep the current assigned set unchanged.
+            // No else branch: the then-path is conditional. Assignments in the then-branch
+            // are not guaranteed. Analyze the then-branch with a copy for read-checking
+            // but do not propagate its writes outward.
+            var thenState = state.Clone();
+            AnalyzeBlockDataflow(ifStmt.ThenBranch, thenState, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
             return;
         }
 
-        // Both then and else branches exist — intersection of the two.
-        var thenAssigned = new HashSet<string>(assigned, StringComparer.Ordinal);
-        AnalyzeBlockForAssignments(ifStmt.ThenBranch, thenAssigned, propertyToBackingField);
+        // Both then and else branches exist — clone per branch, analyze, intersect.
+        var thenBranchState = state.Clone();
+        AnalyzeBlockDataflow(ifStmt.ThenBranch, thenBranchState, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
 
-        var elseAssigned = new HashSet<string>(assigned, StringComparer.Ordinal);
+        var elseBranchState = state.Clone();
         switch (ifStmt.ElseBranch)
         {
             case ElseBlockElseClauseNode elseBlock:
-                AnalyzeBlockForAssignments(elseBlock.ElseBlock, elseAssigned, propertyToBackingField);
+                AnalyzeBlockDataflow(elseBlock.ElseBlock, elseBranchState, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 break;
             case ElseIfElseClauseNode elseIf:
-                AnalyzeIfForAssignments(elseIf.ElseIf, elseAssigned, propertyToBackingField);
+                AnalyzeIfDataflow(elseIf.ElseIf, elseBranchState, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 break;
         }
 
-        // Intersection: a field is definitely assigned only if assigned on both paths.
-        thenAssigned.IntersectWith(elseAssigned);
+        // Merge: use IntersectWith to compute the post-merge state.
+        thenBranchState.IntersectWith(elseBranchState);
 
-        // Update the current set to the intersection.
-        assigned.Clear();
-        assigned.UnionWith(thenAssigned);
+        // Update the current state to the merged result.
+        state.AssignedFields.Clear();
+        state.AssignedFields.UnionWith(thenBranchState.AssignedFields);
+        state.AssignedLocals.Clear();
+        state.AssignedLocals.UnionWith(thenBranchState.AssignedLocals);
+        state.Terminated = thenBranchState.Terminated;
     }
 
     /// <summary>
-    /// Checks if an expression is a <c>this.fieldName = expr</c> assignment
-    /// and adds the field name to the definitely-assigned set.
-    /// Also handles property assignments that map to backing fields.
+    /// Analyzes an expression statement for the forward dataflow.
+    /// Detects assignment targets (writes) and checks reads of unassigned locations.
+    /// Handles simple assignments and compound assignments (read-then-write).
     /// </summary>
-    private static void AnalyzeExpressionForAssignment(
-        ExpressionNode expr, HashSet<string> assigned, Dictionary<string, string> propertyToBackingField)
+    private static void AnalyzeExpressionDataflow(
+        ExpressionNode expr,
+        AssignmentState state,
+        Dictionary<string, string> propertyToBackingField,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
     {
-        // The expression structure is: AssignmentFormExpressionNode -> Assignment -> Target/Value
         if (expr is not AssignmentFormExpressionNode assignExpr)
+        {
+            // Not an assignment form — check the entire expression for reads.
+            AnalyzeExpressionForReads(expr, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
             return;
+        }
 
         var assignment = assignExpr.Assignment;
         if (assignment.Value is null)
+        {
+            // No assignment value — this is just an expression (e.g., method call).
+            // Check the target for reads.
+            AnalyzeVoidCoalescingForReads(assignment.Target, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
             return;
+        }
 
-        // The target of the assignment should be this.fieldName.
-        // Structure: AssignmentNode.Target (VoidCoalescingNode) -> Left (LogicalOrNode)
-        //   -> Left (LogicalAndNode) -> Left (EqualityNode) -> Left (RelationalNode)
-        //   -> Left (AdditiveNode) -> Left (MultiplicativeNode) -> Left (UnaryNode)
-        //   -> Operand (PostfixNode) { Target: ThisExpressionPrimaryNode, Suffix: [MemberAccessSuffix] }
+        // This is an assignment: target = value (or target ??= value).
+        // Only ??= is a read-then-write (it reads the target to check for void).
+        var isVoidCoalescingAssign = assignment.Operator is { } op
+            && op.Kind == (int)TokenKind.QUESTION_QUESTION_EQUAL;
+
+        // Extract the assignment target (field or local).
         var fieldName = TryExtractThisFieldAssignmentTarget(assignment.Target);
         if (fieldName is null)
             fieldName = TryExtractBareFieldAssignmentTarget(assignment.Target);
+        var localSymbol = TryExtractLocalAssignmentTarget(assignment.Target, model);
+
+        if (isVoidCoalescingAssign)
+        {
+            // Void-coalescing assignment (??=): read-then-write.
+            // Check the target as a read FIRST (Req 2.6).
+            AnalyzeVoidCoalescingForReads(assignment.Target, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+        }
+        else if (fieldName is null && localSymbol is null)
+        {
+            // Not a simple field/local target — check target for reads
+            // (e.g., array element assignment: arr[i] = ...).
+            AnalyzeVoidCoalescingForReads(assignment.Target, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+        }
+
+        // Check the RHS value for reads.
+        AnalyzeExpressionForReads(assignment.Value, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+
+        // Record the write.
         if (fieldName is not null)
         {
-            assigned.Add(fieldName);
-            // If the assigned name is a property, also mark its backing field as assigned.
+            state.AssignedFields.Add(fieldName);
             if (propertyToBackingField.TryGetValue(fieldName, out var backingFieldName))
-                assigned.Add(backingFieldName);
+                state.AssignedFields.Add(backingFieldName);
         }
+
+        if (localSymbol is not null)
+        {
+            state.AssignedLocals.Add(localSymbol);
+        }
+    }
+
+    /// <summary>
+    /// Analyzes a variable declaration for the forward dataflow.
+    /// A local with an initializer is marked as assigned after the initializer is checked for reads.
+    /// </summary>
+    private static void AnalyzeVariableDeclarationDataflow(
+        VariableDeclarationStatementNode varDecl,
+        AssignmentState state,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
+    {
+        switch (varDecl)
+        {
+            case TypedVariableDeclarationVariableDeclarationStatementNode typed:
+                AnalyzeExpressionForReads(typed.Initializer, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                var typedSymbol = model.GetDeclaredSymbol(typed);
+                if (typedSymbol is not null)
+                    state.AssignedLocals.Add(typedSymbol);
+                break;
+
+            case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
+                AnalyzeExpressionForReads(inferred.Initializer, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                var inferredSymbol = model.GetDeclaredSymbol(inferred);
+                if (inferredSymbol is not null)
+                    state.AssignedLocals.Add(inferredSymbol);
+                break;
+
+            case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
+                AnalyzeExpressionForReads(varTuple.Initializer, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                var tupleSymbol = model.GetDeclaredSymbol(varTuple);
+                if (tupleSymbol is not null)
+                    state.AssignedLocals.Add(tupleSymbol);
+                break;
+
+            case TypedTupleDeconstructionVariableDeclarationStatementNode typedTuple:
+                AnalyzeExpressionForReads(typedTuple.Initializer, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                var typedTupleSymbol = model.GetDeclaredSymbol(typedTuple);
+                if (typedTupleSymbol is not null)
+                    state.AssignedLocals.Add(typedTupleSymbol);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Analyzes the initializer of a for-loop for the forward dataflow.
+    /// The loop variable introduced by the initializer is marked as assigned.
+    /// </summary>
+    private static void AnalyzeForInitializerDataflow(
+        ForStatementNode forStmt,
+        AssignmentState state,
+        Dictionary<string, string> propertyToBackingField,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
+    {
+        switch (forStmt.Initializer)
+        {
+            case ForInitializerVariableDeclarationForInitializerNode varInit:
+                AnalyzeExpressionForReads(varInit.Initializer, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                var varSymbol = model.GetDeclaredSymbol(varInit);
+                if (varSymbol is not null)
+                    state.AssignedLocals.Add(varSymbol);
+                break;
+
+            case ForInitializerVarDeclarationForInitializerNode varDeclInit:
+                AnalyzeExpressionForReads(varDeclInit.Initializer, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                var varDeclSymbol = model.GetDeclaredSymbol(varDeclInit);
+                if (varDeclSymbol is not null)
+                    state.AssignedLocals.Add(varDeclSymbol);
+                break;
+
+            case ForInitializerExpressionForInitializerNode exprInit:
+                AnalyzeExpressionForReads(exprInit.Expression, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Checks an expression tree for reads of unassigned fields/locals.
+    /// This is the main read-detection entry point for arbitrary expressions.
+    /// </summary>
+    private static void AnalyzeExpressionForReads(
+        ExpressionNode expr,
+        AssignmentState state,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
+    {
+        // Lambda expressions introduce their own scope — don't analyze their body here.
+        if (expr.AsLambdaOrNull() is not null)
+            return;
+
+        var assignment = expr.AsAssignmentOrNull();
+        if (assignment is null)
+            return;
+
+        // If this is an assignment expression (nested), handle it recursively.
+        if (assignment.Value is not null)
+        {
+            // Nested assignment: check RHS for reads, then the target.
+            AnalyzeExpressionForReads(assignment.Value, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+            return;
+        }
+
+        // No assignment value — this is a read expression. Check the target.
+        AnalyzeVoidCoalescingForReads(assignment.Target, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+    }
+
+    /// <summary>
+    /// Analyzes a VoidCoalescingNode (the target side of an expression) for reads of unassigned locations.
+    /// </summary>
+    private static void AnalyzeVoidCoalescingForReads(
+        VoidCoalescingNode target,
+        AssignmentState state,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
+    {
+        if (target.Left is null)
+            return;
+
+        // Check the main expression chain.
+        AnalyzeLogicalOrForReads(target.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+
+        // Check any void-coalescing right-hand sides (?? expressions).
+        foreach (var logicalOr in target.LogicalOrs)
+        {
+            AnalyzeLogicalOrForReads(logicalOr, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+        }
+    }
+
+    /// <summary>
+    /// Analyzes a LogicalOrNode chain for reads.
+    /// </summary>
+    private static void AnalyzeLogicalOrForReads(
+        LogicalOrNode logicalOr,
+        AssignmentState state,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
+    {
+        AnalyzeLogicalAndForReads(logicalOr.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+        if (logicalOr.Right is not null)
+            AnalyzeLogicalAndForReads(logicalOr.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+    }
+
+    /// <summary>
+    /// Analyzes a LogicalAndNode chain for reads.
+    /// </summary>
+    private static void AnalyzeLogicalAndForReads(
+        LogicalAndNode logicalAnd,
+        AssignmentState state,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
+    {
+        AnalyzeEqualityForReads(logicalAnd.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+        if (logicalAnd.Right is not null)
+            AnalyzeEqualityForReads(logicalAnd.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+    }
+
+    /// <summary>
+    /// Analyzes an EqualityNode for reads.
+    /// </summary>
+    private static void AnalyzeEqualityForReads(
+        EqualityNode equality,
+        AssignmentState state,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
+    {
+        AnalyzeRelationalForReads(equality.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+
+        if (equality.Right is not null)
+            AnalyzeRelationalForReads(equality.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+    }
+
+    /// <summary>
+    /// Analyzes a RelationalNode for reads.
+    /// </summary>
+    private static void AnalyzeRelationalForReads(
+        RelationalNode relational,
+        AssignmentState state,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
+    {
+        switch (relational)
+        {
+            case RelationalComparisonRelationalNode cmp:
+                AnalyzeAdditiveForReads(cmp.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                if (cmp.Right is not null)
+                    AnalyzeAdditiveForReads(cmp.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                break;
+            case IsExpressionRelationalNode isExpr:
+                AnalyzeAdditiveForReads(isExpr.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Analyzes an AdditiveNode for reads.
+    /// </summary>
+    private static void AnalyzeAdditiveForReads(
+        AdditiveNode additive,
+        AssignmentState state,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
+    {
+        AnalyzeMultiplicativeForReads(additive.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+        if (additive.Right is not null)
+            AnalyzeMultiplicativeForReads(additive.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+    }
+
+    /// <summary>
+    /// Analyzes a MultiplicativeNode for reads.
+    /// </summary>
+    private static void AnalyzeMultiplicativeForReads(
+        MultiplicativeNode multiplicative,
+        AssignmentState state,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
+    {
+        AnalyzeUnaryForReads(multiplicative.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+        if (multiplicative.Right is not null)
+            AnalyzeUnaryForReads(multiplicative.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+    }
+
+    /// <summary>
+    /// Analyzes a UnaryNode for reads. Dispatches to the PostfixNode for postfix expressions.
+    /// </summary>
+    private static void AnalyzeUnaryForReads(
+        UnaryNode unary,
+        AssignmentState state,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
+    {
+        switch (unary)
+        {
+            case PostfixExpressionUnaryNode postfixExpr:
+                AnalyzePostfixForReads(postfixExpr.Primary, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                break;
+            case LogicalNotUnaryNode logicalNot:
+                AnalyzeUnaryForReads(logicalNot.Operand, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                break;
+            case NegateUnaryNode negate:
+                AnalyzeUnaryForReads(negate.Operand, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                break;
+            case CastExpressionUnaryNode castExpr:
+                AnalyzeUnaryForReads(castExpr.Operand, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                break;
+            case AsyncExpressionUnaryNode asyncExpr:
+                AnalyzeUnaryForReads(asyncExpr.Operand, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                break;
+            case AwaitExpressionUnaryNode awaitExpr:
+                AnalyzeUnaryForReads(awaitExpr.Operand, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Analyzes a PostfixNode for reads. This is where field reads (this.field),
+    /// local identifier reads, and this-escape patterns are detected.
+    /// </summary>
+    private static void AnalyzePostfixForReads(
+        PostfixNode? postfix,
+        AssignmentState state,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
+    {
+        if (postfix is null)
+            return;
+
+        // Check for this.field read pattern or this-escape patterns.
+        if (isConstructor && postfix.Target is ThisExpressionPrimaryNode && postfix.Suffix.Length >= 1)
+        {
+            var firstSuffix = postfix.Suffix[0];
+
+            if (firstSuffix is MemberAccessSuffixPostfixSuffixNode memberAccess)
+            {
+                var fieldName = memberAccess.Name.Lexeme;
+                if (!state.AssignedFields.Contains(fieldName)
+                    && initiallyAssignedFields is not null
+                    && !initiallyAssignedFields.Contains(fieldName))
+                {
+                    violations.Add(new ReadViolation(ReadViolationKind.Field, fieldName, null, (SyntaxNode)postfix));
+                }
+            }
+            else if (firstSuffix is MethodCallSuffixPostfixSuffixNode)
+            {
+                // this-escape: method called on `this` before all non-defaultable fields are assigned (Req 1.8).
+                if (allNonDefaultableFields is not null)
+                {
+                    foreach (var field in allNonDefaultableFields)
+                    {
+                        if (!state.AssignedFields.Contains(field))
+                        {
+                            violations.Add(new ReadViolation(ReadViolationKind.Field, field, null, (SyntaxNode)postfix));
+                        }
+                    }
+                }
+            }
+
+            // Check remaining suffixes for reads (e.g., this.field.Method(arg) — check arg).
+            for (var i = 1; i < postfix.Suffix.Length; i++)
+            {
+                AnalyzeSuffixForReads(postfix.Suffix[i], state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+            }
+            return;
+        }
+
+        // Check for bare `this` passed as an argument or used in a context requiring this-escape detection.
+        // A bare `this` (no suffixes) in a non-assignment position is handled by the caller
+        // (e.g., argument checking in AnalyzeSuffixForReads).
+
+        // Check for local variable read pattern.
+        if (postfix.Target is IdentifierExpressionPrimaryNode identifier && postfix.Suffix.Length == 0)
+        {
+            var symbol = model.GetDeclaredSymbol(identifier);
+            if (symbol is not null && symbol.Kind == SymbolKind.LocalVariable
+                && !state.AssignedLocals.Contains(symbol))
+            {
+                // Only flag locals that were introduced by variable declarations tracked
+                // by the dataflow (typed/inferred/for/foreach/tuple deconstructions).
+                // Pattern variables (is T name, var name, switch arms) are implicitly assigned
+                // by the pattern match and should not trigger this diagnostic.
+                Storm.Runtime.SyntaxNode? declaringNode = null;
+                try { declaringNode = model.GetDeclaringNode(symbol); } catch { /* ignore */ }
+                if (declaringNode is TypedVariableDeclarationVariableDeclarationStatementNode
+                    or InferredVariableDeclarationVariableDeclarationStatementNode
+                    or VarTupleDeconstructionVariableDeclarationStatementNode
+                    or TypedTupleDeconstructionVariableDeclarationStatementNode
+                    or ForInitializerVariableDeclarationForInitializerNode
+                    or ForInitializerVarDeclarationForInitializerNode
+                    or ForeachStatementNode)
+                {
+                    violations.Add(new ReadViolation(ReadViolationKind.Local, symbol.Name, symbol, (SyntaxNode)identifier));
+                }
+            }
+        }
+
+        // Check all suffixes for reads (arguments, index expressions, etc.).
+        foreach (var suffix in postfix.Suffix)
+        {
+            AnalyzeSuffixForReads(suffix, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+        }
+    }
+
+    /// <summary>
+    /// Analyzes a postfix suffix (method call arguments, index expressions) for reads.
+    /// Also detects this-escape when `this` is passed as a method/function argument (Req 1.8).
+    /// </summary>
+    private static void AnalyzeSuffixForReads(
+        PostfixSuffixNode suffix,
+        AssignmentState state,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? initiallyAssignedFields,
+        List<ReadViolation> violations,
+        HashSet<string>? allNonDefaultableFields)
+    {
+        switch (suffix)
+        {
+            case InvocationSuffixPostfixSuffixNode invocation:
+                if (invocation.Arguments is not null)
+                {
+                    CheckArgumentForThisEscape(invocation.Arguments.Argument, state, model, isConstructor, allNonDefaultableFields, violations);
+                    AnalyzeExpressionForReads(ArgumentListNodeExtensions.ExtractExpression(invocation.Arguments.Argument), state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                    foreach (var arg in invocation.Arguments.Arguments)
+                    {
+                        CheckArgumentForThisEscape(arg, state, model, isConstructor, allNonDefaultableFields, violations);
+                        AnalyzeExpressionForReads(ArgumentListNodeExtensions.ExtractExpression(arg), state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                    }
+                }
+                break;
+
+            case MethodCallSuffixPostfixSuffixNode methodCall:
+                if (methodCall.Arguments is not null)
+                {
+                    CheckArgumentForThisEscape(methodCall.Arguments.Argument, state, model, isConstructor, allNonDefaultableFields, violations);
+                    AnalyzeExpressionForReads(ArgumentListNodeExtensions.ExtractExpression(methodCall.Arguments.Argument), state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                    foreach (var arg in methodCall.Arguments.Arguments)
+                    {
+                        CheckArgumentForThisEscape(arg, state, model, isConstructor, allNonDefaultableFields, violations);
+                        AnalyzeExpressionForReads(ArgumentListNodeExtensions.ExtractExpression(arg), state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                    }
+                }
+                break;
+
+            case IndexSuffixPostfixSuffixNode index:
+                AnalyzeExpressionForReads(index.Index, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Checks whether an argument expression is a bare `this` reference (this-escape via argument passing).
+    /// If so and any non-defaultable fields are unassigned, emits a violation for each (Req 1.8).
+    /// </summary>
+    private static void CheckArgumentForThisEscape(
+        ArgumentNode arg,
+        AssignmentState state,
+        ISemanticModel model,
+        bool isConstructor,
+        HashSet<string>? allNonDefaultableFields,
+        List<ReadViolation> violations)
+    {
+        if (!isConstructor || allNonDefaultableFields is null)
+            return;
+
+        var expr = ArgumentListNodeExtensions.ExtractExpression(arg);
+        if (!IsBarThisExpression(expr))
+            return;
+
+        // this is passed as an argument — treat as a read of all unassigned non-defaultable fields.
+        foreach (var field in allNonDefaultableFields)
+        {
+            if (!state.AssignedFields.Contains(field))
+            {
+                violations.Add(new ReadViolation(ReadViolationKind.Field, field, null, GetThisNode(expr)));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks whether an expression is a bare `this` reference (this-escape via return).
+    /// If so and any non-defaultable fields are unassigned, emits a violation for each (Req 1.8).
+    /// </summary>
+    private static void CheckThisEscapeInExpression(
+        ExpressionNode expr,
+        AssignmentState state,
+        HashSet<string> allNonDefaultableFields,
+        List<ReadViolation> violations,
+        SyntaxNode locationNode)
+    {
+        if (!IsBarThisExpression(expr))
+            return;
+
+        // this is returned — treat as a read of all unassigned non-defaultable fields.
+        foreach (var field in allNonDefaultableFields)
+        {
+            if (!state.AssignedFields.Contains(field))
+            {
+                violations.Add(new ReadViolation(ReadViolationKind.Field, field, null, locationNode));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Determines whether an expression is a bare `this` reference (no suffixes).
+    /// </summary>
+    private static bool IsBarThisExpression(ExpressionNode expr)
+    {
+        var assignment = expr.AsAssignmentOrNull();
+        if (assignment is null || assignment.Value is not null)
+            return false;
+
+        var target = assignment.Target;
+        if (target.Left is not { } logicalOr)
+            return false;
+        if (logicalOr.Right is not null)
+            return false;
+
+        var logicalAnd = logicalOr.Left;
+        if (logicalAnd.Right is not null)
+            return false;
+
+        var equality = logicalAnd.Left;
+        if (equality.Right is not null)
+            return false;
+
+        if (equality.Left is not RelationalComparisonRelationalNode relational)
+            return false;
+        if (relational.Right is not null)
+            return false;
+
+        var additive = relational.Left;
+        if (additive.Right is not null)
+            return false;
+
+        var multiplicative = additive.Left;
+        if (multiplicative.Right is not null)
+            return false;
+
+        if (multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+            return false;
+
+        var postfix = postfixExpr.Primary;
+        if (postfix is null)
+            return false;
+
+        return postfix.Target is ThisExpressionPrimaryNode && postfix.Suffix.Length == 0;
+    }
+
+    /// <summary>
+    /// Extracts the ThisExpressionPrimaryNode from an expression known to be a bare `this`.
+    /// Falls back to the expression node itself as the location.
+    /// </summary>
+    private static SyntaxNode GetThisNode(ExpressionNode expr)
+    {
+        var assignment = expr.AsAssignmentOrNull();
+        if (assignment?.Target.Left?.Left.Left.Left is RelationalComparisonRelationalNode relational)
+        {
+            if (relational.Left.Left.Left is PostfixExpressionUnaryNode postfixExpr
+                && postfixExpr.Primary?.Target is ThisExpressionPrimaryNode thisNode)
+            {
+                return (SyntaxNode)thisNode;
+            }
+        }
+
+        return (SyntaxNode)expr;
+    }
+
+    /// <summary>
+    /// Attempts to extract the local variable symbol from an assignment target.
+    /// Returns the symbol if the target is a bare identifier that resolves to a local variable.
+    /// </summary>
+    private static ISymbol? TryExtractLocalAssignmentTarget(VoidCoalescingNode target, ISemanticModel model)
+    {
+        if (target.Left is not { } logicalOr)
+            return null;
+        if (logicalOr.Right is not null)
+            return null;
+
+        var logicalAnd = logicalOr.Left;
+        if (logicalAnd.Right is not null)
+            return null;
+
+        var equality = logicalAnd.Left;
+        if (equality.Right is not null)
+            return null;
+
+        if (equality.Left is not RelationalComparisonRelationalNode relational)
+            return null;
+        if (relational.Right is not null)
+            return null;
+
+        var additive = relational.Left;
+        if (additive.Right is not null)
+            return null;
+
+        var multiplicative = additive.Left;
+        if (multiplicative.Right is not null)
+            return null;
+
+        if (multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+            return null;
+
+        var postfix = postfixExpr.Primary;
+        if (postfix is null)
+            return null;
+
+        if (postfix.Target is not IdentifierExpressionPrimaryNode identifier)
+            return null;
+        if (postfix.Suffix.Length != 0)
+            return null;
+
+        var symbol = model.GetDeclaredSymbol(identifier);
+        if (symbol is not null && symbol.Kind == SymbolKind.LocalVariable)
+            return symbol;
+
+        return null;
+    }
+
+    /// <summary>
+    /// Represents a detected read of a not-yet-assigned location.
+    /// Collected by the forward dataflow walker for downstream diagnostic emission.
+    /// </summary>
+    internal readonly record struct ReadViolation(
+        ReadViolationKind Kind,
+        string Name,
+        ISymbol? Symbol,
+        SyntaxNode Location);
+
+    /// <summary>
+    /// The kind of read-before-assignment violation.
+    /// </summary>
+    internal enum ReadViolationKind
+    {
+        /// <summary>Read of an unassigned constructor field (this.field).</summary>
+        Field,
+        /// <summary>Read of an unassigned local variable.</summary>
+        Local,
     }
 
     /// <summary>

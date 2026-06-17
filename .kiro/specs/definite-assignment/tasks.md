@@ -6,16 +6,16 @@ This plan implements definite-assignment analysis (constructor fields + locals),
 
 ## Tasks
 
-- [ ] 1. Stampability classification in the semantic model
-  - [ ] 1.1 Add `bool IsStampable` property to `StructType` (`Source/Mist/Semantics/Model/Types/StructType.cs`)
+- [x] 1. Stampability classification in the semantic model
+  - [x] 1.1 Add `bool IsStampable` property to `StructType` (`Source/Mist/Semantics/Model/Types/StructType.cs`)
     - Default `false`, `internal set`.
     - _Requirements: 3.1_
-  - [ ] 1.2 Implement `ComputeStampability` in `SemanticModelBuilder`
+  - [x] 1.2 Implement `ComputeStampability` in `SemanticModelBuilder`
     - Mirror `ComputeDefaultability`: iterate struct types, compute `IsStructStampable` with a `visited` set for cycle safety.
     - Rules: primitive field → ok; nested struct field → recurse; type-parameter / dependent-type-parameter field → not stampable; class/interface/trait/union/array field → not stampable.
     - Invoke from the same place `ComputeDefaultability` is invoked (after field types resolved).
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
-  - [ ] 1.3 Write property test for stampability classification (Property 3)
+  - [x] 1.3 Write property test for stampability classification (Property 3)
     - **Property 3: Stampability classification correctness**
     - Create `Test/Mist.Tests/Semantics/StampabilityClassificationPropertyTests.cs`.
     - FsCheck generator produces structs with randomized field-type compositions (primitives, nested structs, class fields, string fields, type-parameter fields).
@@ -23,23 +23,23 @@ This plan implements definite-assignment analysis (constructor fields + locals),
     - **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5**
 
 - [ ] 2. Unified definite-assignment dataflow (read-before-assignment)
-  - [ ] 2.1 Introduce `AssignmentState` (assigned fields, assigned locals, terminated flag) with `Clone()` and `IntersectWith()` in `TypeCheckerAnalyzer`
+  - [x] 2.1 Introduce `AssignmentState` (assigned fields, assigned locals, terminated flag) with `Clone()` and `IntersectWith()` in `TypeCheckerAnalyzer`
     - _Requirements: 1.1, 2.1_
-  - [ ] 2.2 Generalize the existing assignment-only walker into a forward read+write dataflow
+  - [x] 2.2 Generalize the existing assignment-only walker into a forward read+write dataflow
     - Thread `AssignmentState` through statements; clone per branch and intersect at `if`/`else` merges; conservative loop handling (body-only assignments not propagated out).
     - Record assignment targets as writes; flag reads of not-yet-assigned fields/locals.
     - Seed initial field set from explicit initializers + synthetic-default fields (reuse existing `initiallyAssigned`); seed locals with initializers at declaration.
     - _Requirements: 1.2, 1.3, 1.4, 1.5, 1.6, 2.2, 2.3, 2.4, 2.5_
-  - [ ] 2.3 Detect constructor field read-before-assignment and emit `MIST_FIELD_READ_BEFORE_ASSIGNMENT`
+  - [x] 2.3 Detect constructor field read-before-assignment and emit `MIST_FIELD_READ_BEFORE_ASSIGNMENT`
     - Add diagnostic ID to `DiagnosticId.cs`. Located at the read expression; message names field + constructor.
     - Handle the `this`-escape case (this passed/returned/method-called before all non-defaultable fields assigned).
     - Preserve the existing end-of-constructor `MIST_FIELD_NOT_DEFINITELY_ASSIGNED` check unchanged.
     - _Requirements: 1.1, 1.4, 1.5, 1.6, 1.7, 1.8, 7.1, 7.4_
-  - [ ] 2.4 Detect local read-before-assignment and emit `MIST_LOCAL_READ_BEFORE_ASSIGNMENT`
+  - [x] 2.4 Detect local read-before-assignment and emit `MIST_LOCAL_READ_BEFORE_ASSIGNMENT`
     - Add diagnostic ID. Cover compound assignment (read-then-write). Run on constructor and non-constructor bodies.
     - Treat array-construction sites (`new T[size]`, `new Array<T,Size>(fn)`, `[a,b,c]`) as producing fully-assigned values.
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 5.4, 5.9, 7.2, 7.4_
-  - [ ] 2.5 Write property test for field read-before-assignment (Property 1)
+  - [x] 2.5 Write property test for field read-before-assignment (Property 1)
     - **Property 1: Field read-before-assignment soundness**
     - Create `Test/Mist.Tests/Analysis/FieldReadBeforeAssignmentPropertyTests.cs`.
     - Generator produces constructors with randomized assign/read orderings across branches. In-process; assert the emit-iff-unassigned-path biconditional. No process spawn.

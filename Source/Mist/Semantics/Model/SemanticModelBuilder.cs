@@ -1049,6 +1049,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // dependency graph and processes types in topological order.
         ComputeDefaultability(symbolTable, compilation, diagnostics);
 
+        // Post-Pass 2: Compute stampability for all struct types.
+        // A struct is stampable iff every instance field is transitively a
+        // primitive or another stampable struct. Classes are never stampable.
+        // This runs after field types are resolved (same timing as defaultability).
+        ComputeStampability(symbolTable);
+
         // Post-Pass 2: Check for member redeclarations in derived classes.
         // This runs after type resolution so that parameter types are resolved
         // and method signatures can be compared accurately for overloading.
@@ -24176,6 +24182,109 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var defaultValues = ComputeDefaultValues(structType.MemberScope, baseClass: null,
             structType.DefaultBlockNode, symbolTable, compilation);
         structType.DefaultValues = defaultValues;
+    }
+
+    /// <summary>
+    /// Computes stampability for all struct types in the symbol table.
+    /// A struct is stampable if and only if every instance field's declared type
+    /// is transitively a primitive type or another stampable struct. Classes,
+    /// interfaces, traits, unions, arrays, and type-parameter-typed fields make
+    /// a struct non-stampable. Cycles are handled via a visited set (conservative
+    /// false). Invoked after field types are resolved (same timing as
+    /// <see cref="ComputeDefaultability"/>).
+    /// </summary>
+    private static void ComputeStampability(SymbolTable symbolTable)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind != SymbolKind.Struct)
+                continue;
+
+            if (symbol.DeclaredType is not StructType structType)
+                continue;
+
+            // Skip generic type definitions (types with unbound type parameters).
+            // Stampability is only meaningful for closed (non-generic) struct types.
+            if (structType.TypeParameters.Count > 0)
+                continue;
+
+            // Skip intrinsically defaultable structs — they are primitives and
+            // already stampable by definition.
+            if (IsIntrinsicallyDefaultable(structType))
+            {
+                structType.IsStampable = true;
+                continue;
+            }
+
+            var visited = new HashSet<StructType>(ReferenceEqualityComparer.Instance);
+            structType.IsStampable = IsStructStampable(structType, visited);
+        }
+    }
+
+    /// <summary>
+    /// Recursively determines whether <paramref name="structType"/> is stampable.
+    /// A struct is stampable when every instance field is a primitive or another
+    /// stampable struct. The <paramref name="visited"/> set prevents infinite
+    /// recursion on cyclic struct-field references (conservative false on cycles).
+    /// </summary>
+    private static bool IsStructStampable(StructType structType, HashSet<StructType> visited)
+    {
+        // Cycle detection: if we have already visited this struct in the current
+        // recursion chain, return false conservatively (Requirement 3.5).
+        if (!visited.Add(structType))
+            return false;
+
+        foreach (var member in structType.MemberScope.Members)
+        {
+            if (member.Kind != SymbolKind.Field)
+                continue;
+
+            // Skip static fields — only instance fields contribute to the
+            // struct's value representation.
+            if (member is Symbol { IsStatic: true })
+                continue;
+
+            var fieldType = member.DeclaredType;
+            if (fieldType is null)
+                continue;
+
+            switch (fieldType)
+            {
+                case StructType innerStruct:
+                    // Primitive structs (int, bool, char, float, etc.) are stampable.
+                    if (IsIntrinsicallyDefaultable(innerStruct))
+                        continue;
+
+                    // Non-primitive struct → recurse.
+                    if (!IsStructStampable(innerStruct, visited))
+                        return false;
+                    break;
+
+                case TypeParameterType:
+                    // Type parameter fields make the struct non-stampable (Req 3.4).
+                    return false;
+
+                case DependentTypeParameterType:
+                    // Dependent type parameter fields make the struct non-stampable.
+                    return false;
+
+                case ClassType:
+                case InterfaceType:
+                case TraitType:
+                case UnionType:
+                case ArrayType:
+                    // Reference types, interfaces, traits, unions, and arrays are
+                    // not stampable (Req 3.2, 3.3).
+                    return false;
+
+                default:
+                    // Any other type kind (ConstructedType, ErrorType, etc.) is
+                    // conservatively non-stampable.
+                    return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>

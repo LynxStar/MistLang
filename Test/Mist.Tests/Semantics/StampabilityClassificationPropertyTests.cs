@@ -120,11 +120,9 @@ public class StampabilityClassificationPropertyTests
     private static readonly string[] StructNames =
         ["Widget", "Config", "Engine", "Sensor", "Agent"];
 
-    private static readonly string[] NestedStructNames =
-        ["Inner", "Nested", "Sub"];
-
-    private static readonly string[] ClassNames =
-        ["Service", "Handler", "Manager"];
+    // Note: Nested struct and class names are generated dynamically
+    // (Inner0, Inner1, ..., Service0, Service1, ...) to guarantee
+    // uniqueness across fields and avoid declaration collisions.
 
     // ─── Generators ──────────────────────────────────────────────────────
 
@@ -202,7 +200,8 @@ public class StampabilityClassificationPropertyTests
         var classesNeeded = new HashSet<string>();
         var hasTypeParam = false;
 
-        // Choose concrete type names for each field
+        // Choose concrete type names for each field — use unique indexed
+        // names to avoid collisions when multiple fields share a kind.
         var fieldSpecs = new List<(string FieldName, FieldTypeKind Kind, string TypeName)>();
         var nestedIdx = 0;
         var classIdx = 0;
@@ -215,9 +214,9 @@ public class StampabilityClassificationPropertyTests
                 FieldTypeKind.Primitive =>
                     PrimitiveTypes[primIdx++ % PrimitiveTypes.Length],
                 FieldTypeKind.StampableStruct =>
-                    NestedStructNames[nestedIdx++ % NestedStructNames.Length],
+                    $"Inner{nestedIdx++}",
                 FieldTypeKind.ClassField =>
-                    ClassNames[classIdx++ % ClassNames.Length],
+                    $"Service{classIdx++}",
                 FieldTypeKind.StringField => "string",
                 FieldTypeKind.TypeParameterField => "T",
                 _ => "int",

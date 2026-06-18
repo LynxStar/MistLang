@@ -1,6 +1,5 @@
 using System;
 
-System.Console.OutputEncoding = System.Text.Encoding.UTF8;
 int i = 42;
 string interp = $"The answer is {i}";
 string interpExpr = $"Doubled: {i * 2}";

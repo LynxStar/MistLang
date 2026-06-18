@@ -29,7 +29,6 @@ public class Program
 
     public static void Main()
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var pt = new Point(1, 2);
         Console.WriteLine($"before: {pt.Describe()}");
         MutatePoint(ref pt);

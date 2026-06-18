@@ -6,7 +6,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         int? maybeInt = 42;
         string? maybeStr = "hello";
         Console.WriteLine($"maybeInt={(object?)maybeInt ?? "Void"}");

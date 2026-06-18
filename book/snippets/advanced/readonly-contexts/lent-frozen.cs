@@ -38,7 +38,6 @@ public class LentFrozenDemo
 
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         Sensor s = new Sensor(1, 100);
         WithFrozenRef(s);
         s.SetReading(200);

@@ -21,7 +21,6 @@ public class Point
 
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var p = new Point(3, 4);
         Console.WriteLine($"Distance: {p.DistanceFromOrigin()}");
     }

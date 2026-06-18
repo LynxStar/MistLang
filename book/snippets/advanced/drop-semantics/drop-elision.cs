@@ -43,7 +43,6 @@ public class Program
 
     public static void Main()
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var c = new Connection("example.com");
         Send(c);
         var c2 = new Connection("other.com");

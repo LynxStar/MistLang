@@ -11,7 +11,6 @@ public class Program
 
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         int aliasedId = 100;
         int rawId = aliasedId;
         int plainInt = 7;

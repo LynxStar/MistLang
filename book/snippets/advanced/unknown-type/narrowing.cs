@@ -6,7 +6,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         object maybeInt = 17;
         if (maybeInt is int narrowed)
         {

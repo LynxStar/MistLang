@@ -15,7 +15,6 @@ public class Program
 
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         Console.WriteLine($"5! = {Factorial(5)}");
         Console.WriteLine($"10! = {Factorial(10)}");
     }

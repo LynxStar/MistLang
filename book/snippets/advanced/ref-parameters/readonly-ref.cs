@@ -25,7 +25,6 @@ public class Program
 
     public static void Main()
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         Sensor s = new Sensor(42);
         ReadSensor(s);
         s.Reading = 100;

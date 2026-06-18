@@ -11,7 +11,6 @@ public class Program
 
     public static async System.Threading.Tasks.Task Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         System.Func<int, System.Threading.Tasks.Task<string>> fetcher = async id => await FetchData(id);
         System.Console.WriteLine($"fetcher(1)={await fetcher(1)}");
         System.Func<int, string> syncFetcher = id => FetchData(id).GetAwaiter().GetResult();

@@ -20,7 +20,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var counts = new int[4];
         System.Console.WriteLine($"counts[0]={counts[0]}");
         var positions = new Vector2[3];

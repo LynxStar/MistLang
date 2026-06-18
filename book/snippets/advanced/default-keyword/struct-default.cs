@@ -31,7 +31,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var c1 = new Container();
         Container c2 = Container.__CreateDefault();
         Console.WriteLine($"new Container() = Code={c1.Code}, Label={c1.Label}");

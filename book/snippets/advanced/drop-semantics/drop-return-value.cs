@@ -21,7 +21,6 @@ public class Program
 {
     public static void Main()
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var box = new SecretBox("password123");
         var secret = box.Drop();
         System.Console.WriteLine($"Got: {secret}");

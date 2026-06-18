@@ -18,7 +18,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var rect = new Rectangle(4, 4);
         if (rect is { Width: >= 1 and <= 10, Height: >= 1 and <= 10 })
         {

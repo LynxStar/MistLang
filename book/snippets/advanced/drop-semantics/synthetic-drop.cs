@@ -38,7 +38,6 @@ public class Program
 {
     public static void Main()
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var session = new Session(1, 2);
         try
         {

@@ -28,7 +28,6 @@ public class Account
 
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var acct = new Account(100);
         acct.Deposit(50);
         Console.WriteLine($"Balance: {acct.GetBalance()}");

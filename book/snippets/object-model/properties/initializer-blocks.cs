@@ -21,7 +21,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var cfg = new Config() { Timeout = 60, Verbose = true, Name = "production" };
         Console.WriteLine($"Timeout={cfg.Timeout}, Name={cfg.Name}");
     }

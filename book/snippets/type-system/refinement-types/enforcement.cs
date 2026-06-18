@@ -6,7 +6,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         int known = 20;
         int userInput = 25;
         if (userInput >= 18)

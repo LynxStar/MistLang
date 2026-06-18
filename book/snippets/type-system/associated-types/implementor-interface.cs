@@ -43,7 +43,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var producer = new MessageProducer();
         var output = producer.CreateOutput("hello");
         Console.WriteLine(output.Stringify());

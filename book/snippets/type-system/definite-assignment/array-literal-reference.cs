@@ -15,7 +15,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var colors = new[] { new Color("red"), new Color("green"), new Color("blue") };
         System.Console.WriteLine(colors[0].Name);
         System.Console.WriteLine(colors[2].Name);

@@ -6,7 +6,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var numbers = new int[3];
         numbers[0] = 10;
         numbers[1] = 20;

@@ -29,7 +29,6 @@ public class Program
 
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         Program.Describe(7);
         Program.Describe("Mist");
         Union_Int32_String result = Program.GetValue(true);

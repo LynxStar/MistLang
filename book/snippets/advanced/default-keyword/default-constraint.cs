@@ -38,7 +38,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var p = Factory.Create<Pair>(() => Pair.__CreateDefault());
         Console.WriteLine($"X={p.X} Y={p.Y}");
     }

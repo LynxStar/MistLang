@@ -11,7 +11,6 @@ public class Program
 
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var user = new User("Alice", 42);
         var product = new Product("Widget", 1001);
         Printable p1 = user;

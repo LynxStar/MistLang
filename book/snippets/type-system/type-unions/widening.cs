@@ -6,7 +6,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         Union_Int32_String value = 42;
         Union_Boolean_Int32_String widened = value;
         if (widened is int n)

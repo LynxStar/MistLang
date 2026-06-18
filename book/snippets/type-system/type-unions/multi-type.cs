@@ -22,7 +22,6 @@ public class Program
 
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         Union_Boolean_Int32_String tri1 = 99;
         Union_Boolean_Int32_String tri2 = "triple";
         Union_Boolean_Int32_String tri3 = true;

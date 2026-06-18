@@ -6,7 +6,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         System.Func<int, int> doubler = x => x * 2;
         System.Func<int, int, int> adder = (x, y) => x + y;
         System.Func<string> greeter = () => "Hello, Mist!";

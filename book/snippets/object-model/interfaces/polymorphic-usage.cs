@@ -11,7 +11,6 @@ public class Program
 
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var person = new Person("Alice", 30);
         var robot = new Robot("T-800", 2);
         IDescribable describable = person;

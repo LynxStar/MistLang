@@ -15,7 +15,6 @@ public class Scorer
 
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var result = Scorer.Grade(95);
         if (result.IsString)
         {

@@ -39,7 +39,6 @@ public class FrozenDemo
 
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         Pair p = new Pair(5, 10);
         FreezeAndRead(p);
         p.SetX(50);

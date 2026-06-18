@@ -1,6 +1,5 @@
 using System;
 
-System.Console.OutputEncoding = System.Text.Encoding.UTF8;
 var a = new Color(255, 0, 0);
 var b = a;
 b.r = 0;

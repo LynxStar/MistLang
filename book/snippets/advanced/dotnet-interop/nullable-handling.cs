@@ -7,7 +7,6 @@ public class Program
 {
     public static void Main()
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var dict = new Dictionary<string, int>();
         dict.Add("answer", 42);
         if (dict.ContainsKey("answer"))

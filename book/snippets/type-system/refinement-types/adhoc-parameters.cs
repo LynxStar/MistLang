@@ -24,7 +24,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var result = Validator.Process(42);
         Console.WriteLine(result);
         var range = Validator.Range(5, 500);

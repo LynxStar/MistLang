@@ -6,7 +6,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         int statusValue = HttpStatus.Ok;
         string dirValue = Direction.North;
         byte colorValue = Color.Red;

@@ -6,7 +6,6 @@ public class DeepShadowing
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var name = "first";
         {
             var name = "second";

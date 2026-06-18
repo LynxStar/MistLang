@@ -18,7 +18,6 @@ public class Counter
 
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var c1 = new Counter();
         var c2 = new Counter();
         Console.WriteLine($"Total: {Counter.GetTotalCreated()}");

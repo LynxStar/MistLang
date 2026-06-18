@@ -7,7 +7,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         int x = 25;
         if (x >= 18)
         {

@@ -778,14 +778,6 @@ internal sealed class CSharpSourceWriter
         }
 
         // 2. Emit top-level statements directly (no class/method wrapper).
-        // Ensure compiled Mist programs always output UTF-8 regardless of the
-        // host platform's default console encoding. This mirrors the behavior of
-        // the Mist CLI (which sets Console.OutputEncoding = UTF8 at startup).
-        if (!_isReferencedProject)
-        {
-            AppendLine("System.Console.OutputEncoding = System.Text.Encoding.UTF8;");
-        }
-
         // Iterate items in order and emit only the statement items.
         foreach (var item in cu.Items)
         {
@@ -5043,15 +5035,10 @@ internal sealed class CSharpSourceWriter
         var previousMethodSymbol = _currentMethodSymbol;
         _currentMethodSymbol = methodSymbol;
 
-        // Detect if this is the entry-point Main method for UTF-8 encoding injection.
-        var isEntryPointMain = name == "Main"
-            && modifiers.Contains("static")
-            && !_isReferencedProject;
-
         if (methodDecl.Body.GetBlock() is BlockNode block)
         {
             var withClauses = methodSymbol?.WithClauses;
-            EmitMethodBlockWithRefinementGuards(block, isValueReturningVoid, methodDecl.Parameters, withClauses, isEntryPointMain);
+            EmitMethodBlockWithRefinementGuards(block, isValueReturningVoid, methodDecl.Parameters, withClauses);
         }
         else
         {
@@ -5072,7 +5059,7 @@ internal sealed class CSharpSourceWriter
     /// emits a runtime validation guard at method entry that throws
     /// <see cref="ArgumentException"/> if the value fails the predicate.
     /// </summary>
-    private void EmitMethodBlockWithRefinementGuards(BlockNode block, bool appendImplicitReturn, ParameterListNode? paramList, IReadOnlyList<ContextClauseInfo>? withClauses = null, bool emitUtf8Encoding = false)
+    private void EmitMethodBlockWithRefinementGuards(BlockNode block, bool appendImplicitReturn, ParameterListNode? paramList, IReadOnlyList<ContextClauseInfo>? withClauses = null)
     {
         // Collect refinement-typed parameters and adhoc refinement constraints.
         var refinementGuards = CollectRefinementParameterGuards(paramList);
@@ -5080,19 +5067,13 @@ internal sealed class CSharpSourceWriter
         if (refinementGuards.Count == 0)
         {
             // No refinement guards needed — emit the block normally.
-            EmitMethodBlock(block, appendImplicitReturn, withClauses, emitUtf8Encoding);
+            EmitMethodBlock(block, appendImplicitReturn, withClauses);
             return;
         }
 
         // Emit the block with guards injected at the top.
         AppendLine("{");
         _indentLevel++;
-
-        // Ensure compiled Mist programs always output UTF-8.
-        if (emitUtf8Encoding)
-        {
-            AppendLine("System.Console.OutputEncoding = System.Text.Encoding.UTF8;");
-        }
 
         // Emit with-clause peek bindings at method entry, before refinement guards.
         EmitWithClausePeekBindings(withClauses);
@@ -5173,19 +5154,10 @@ internal sealed class CSharpSourceWriter
     /// <c>var identifier = (TypeReference)MistContext.Peek&lt;TypeReference&gt;();</c>
     /// at the start of the method body for each with-clause.
     /// </summary>
-    private void EmitMethodBlock(BlockNode block, bool appendImplicitReturn, IReadOnlyList<ContextClauseInfo>? withClauses = null, bool emitUtf8Encoding = false)
+    private void EmitMethodBlock(BlockNode block, bool appendImplicitReturn, IReadOnlyList<ContextClauseInfo>? withClauses = null)
     {
         AppendLine("{");
         _indentLevel++;
-
-        // Ensure compiled Mist programs always output UTF-8 regardless of the
-        // host platform's default console encoding. This mirrors the behavior of
-        // the Mist CLI (which sets Console.OutputEncoding = UTF8 at startup).
-        // Only emitted for the entry-point Main method.
-        if (emitUtf8Encoding)
-        {
-            AppendLine("System.Console.OutputEncoding = System.Text.Encoding.UTF8;");
-        }
 
         // Emit with-clause peek bindings at method entry.
         EmitWithClausePeekBindings(withClauses);

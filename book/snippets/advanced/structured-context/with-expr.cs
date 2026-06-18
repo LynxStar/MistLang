@@ -29,7 +29,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         MistContext.Push<Locale>(new Locale("en-US"));
         try
         {

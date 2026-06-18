@@ -1,7 +1,6 @@
 using Snippet;
 using System;
 
-System.Console.OutputEncoding = System.Text.Encoding.UTF8;
 Settings s = Settings.__CreateDefault();
 
 namespace Snippet

@@ -6,7 +6,6 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         (int, object) source = (7, "seven");
         var (num, data) = source;
         Console.WriteLine($"num={num}");

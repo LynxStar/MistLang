@@ -1,6 +1,7 @@
 using MyApp;
 using System;
 
+System.Console.OutputEncoding = System.Text.Encoding.UTF8;
 var helper = new Helper("world");
 System.Console.WriteLine(helper.Greet());
 return 0;

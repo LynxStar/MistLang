@@ -1,6 +1,7 @@
 using System;
 using System.Text.RegularExpressions;
 
+System.Console.OutputEncoding = System.Text.Encoding.UTF8;
 System.Text.RegularExpressions.Regex letters = new System.Text.RegularExpressions.Regex("[a-zA-Z]+", System.Text.RegularExpressions.RegexOptions.Compiled);
 Console.WriteLine($"pattern={letters.ToString()}");
 Console.WriteLine($"matches_Hello={letters.IsMatch("Hello")}");

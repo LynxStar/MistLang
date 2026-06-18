@@ -25,6 +25,7 @@ public class Program
 
     public static void Main()
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var box = new Container(42);
         Console.WriteLine($"before: {box.Describe()}");
         ReplaceContainer(ref box);

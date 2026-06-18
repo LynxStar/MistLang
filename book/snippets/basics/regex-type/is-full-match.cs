@@ -1,6 +1,7 @@
 using System;
 using System.Text.RegularExpressions;
 
+System.Console.OutputEncoding = System.Text.Encoding.UTF8;
 var fullDigits = new System.Text.RegularExpressions.Regex("\\d{3}", System.Text.RegularExpressions.RegexOptions.Compiled);
 Console.WriteLine($"fullmatch_123={System.Text.RegularExpressions.Regex.IsMatch("123", "^(?:" + fullDigits.ToString() + ")$")}");
 Console.WriteLine($"fullmatch_1234={System.Text.RegularExpressions.Regex.IsMatch("1234", "^(?:" + fullDigits.ToString() + ")$")}");

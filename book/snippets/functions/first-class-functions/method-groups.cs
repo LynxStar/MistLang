@@ -11,6 +11,7 @@ public class Program
 
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         System.Func<int, int> fn = Negate;
         System.Console.WriteLine($"fn(42)={fn(42)}");
     }

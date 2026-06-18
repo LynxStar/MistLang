@@ -1,0 +1,55 @@
+using Standard;
+
+namespace Snippets;
+
+// Affine containers may never be dropped (0 or 1 times).
+// This means they can only hold fields that tolerate zero drops:
+//   ✓ affine fields (need 0 or 1 drops — satisfied)
+//   ✓ unrestricted fields (no requirements)
+//   ✗ linear fields (need exactly 1 drop — violated if container is never dropped)
+//   ✗ relevant fields (need at least 1 drop — violated if container is never dropped)
+
+public affine class AffineToken
+{
+    int Id;
+    public AffineToken(int id) { this.Id = id; }
+    public void Drop() { Console.WriteLine($"AffineToken({Id}).Drop()"); }
+}
+
+public class PlainData
+{
+    int Value;
+    public PlainData(int v) { this.Value = v; }
+}
+
+// Valid: affine container holds affine + unrestricted fields
+public affine class AffineContainer
+{
+    AffineToken Inner;
+    PlainData Data;
+
+    public AffineContainer(int id)
+    {
+        this.Inner = new AffineToken(id);
+        this.Data = new PlainData(id);
+    }
+
+    public void Drop()
+    {
+        Console.WriteLine("AffineContainer.Drop()");
+    }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        // Affine values are only dropped inside 'with' blocks
+        with (new AffineContainer(1))
+        {
+            Console.WriteLine("Inside with block — container will be dropped");
+        }
+        // Outside 'with', affine values can be forgotten safely
+        Console.WriteLine("Done");
+    }
+}

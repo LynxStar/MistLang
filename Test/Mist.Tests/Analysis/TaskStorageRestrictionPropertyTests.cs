@@ -1,94 +1,121 @@
-// Feature: structured-concurrency, Property 7: Task Storage Restriction
-// **Validates: Requirements 7.5**
+// Feature: substructural-field-discipline, Task/ValueTask discipline matrix
+// **Validates: Requirements 9.7, 9.8**
 
 using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
+using Mist.Analysis.Contracts;
+using Mist.Backends.CSharpTranspiler;
+using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
+using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Tests.Helpers;
+using Mist.Semantics.Model;
 
 namespace Mist.Tests.Analysis;
 
 /// <summary>
-/// Property-based tests verifying that <c>Task&lt;T&gt;</c> stored in fields, properties,
-/// or collections (array element type) produces diagnostic <c>MIST_TC_0110</c>.
+/// Property-based tests verifying that <c>Task&lt;T&gt;</c> (relevant discipline) and
+/// <c>ValueTask&lt;T&gt;</c> (linear discipline) are handled by the discipline-compatibility
+/// matrix after MIST_TC_0110 removal.
 ///
-/// **Validates: Requirements 7.5**
+/// **Validates: Requirements 9.7, 9.8**
 ///
-/// For any program that declares a field, property, or collection with element type
-/// <c>Task&lt;T&gt;</c>, the type checker SHALL emit diagnostic <c>MIST_TC_0110</c>.
+/// For any container discipline and any task-like type stored as a field, the DropAnalyzer
+/// SHALL emit <c>MIST_DROP_FIELD_NOT_OWNED</c> if and only if the matrix rejects the
+/// combination. The obsolete <c>MIST_TC_0110</c> diagnostic SHALL never appear.
 ///
-/// All work runs in-process using compiler APIs — no external process is spawned.
+/// All work runs in-process using CompilerDriver — no external process is spawned.
 /// </summary>
 public class TaskStorageRestrictionPropertyTests
 {
-    private static readonly Mist.Lexing.MistLexer Lexer = new();
-    private static readonly Mist.Parsing.MistParser Parser = new();
-    private static readonly TypeCheckerAnalyzer Analyzer = new();
+    private static readonly CompilerDriver SharedDriver = new(
+        new Mist.Lexing.MistLexer(),
+        new Mist.Parsing.MistParser(),
+        new SemanticModelBuilder(),
+        ImmutableArray.Create<IAnalyzer>(
+            new TypeCheckerAnalyzer(),
+            new ReadonlyAnalyzer(),
+            new OwnershipAnalyzer(),
+            new DropAnalyzer()),
+        ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static ImmutableArray<Diagnostic> CompileWithStdlibAndGetDiagnostics(string source)
+    private static ImmutableArray<Diagnostic> Compile(string source)
     {
-        var sourceText = new SourceText("test.mist", source);
-
-        var lexDiag = new DiagnosticBag();
-        var tokens = Lexer.Lex(sourceText, lexDiag);
-
-        var parseDiag = new DiagnosticBag();
-        var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
-            return parseDiag.ToImmutableArray();
-
-        var (model, buildDiag) = StdlibTestHelper.BuildModelWithStdlib(
-            parseResult.Root, source: source);
-
-        var tcDiag = new DiagnosticBag();
-        Analyzer.Analyze(model, tcDiag);
-
-        var all = new List<Diagnostic>();
-        all.AddRange(buildDiag);
-        all.AddRange(tcDiag.ToImmutableArray());
-        return all.ToImmutableArray();
+        var tempDir = Path.Combine(Path.GetTempPath(), "mist_task_prop_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var sourcePath = Path.Combine(tempDir, "Program.mist");
+            File.WriteAllText(sourcePath, source);
+            var options = new CompilerOptions(
+                ProjectFolder: tempDir,
+                SourcePaths: ImmutableArray.Create(sourcePath),
+                Backend: new BackendId("csharp"),
+                OutputDirectory: tempDir,
+                BinDirectory: Path.Combine(tempDir, "bin"),
+                ProjectName: "TestProgram",
+                NamespaceRoot: "TestProgram",
+                EnabledAnalyzerIds: ImmutableArray<string>.Empty,
+                EmitToDisk: false);
+            return SharedDriver.Compile(options).Diagnostics;
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, recursive: true); } catch { }
+        }
     }
 
     // ─── Scenario model ──────────────────────────────────────────────────
 
 #pragma warning disable CA1034
 
-    /// <summary>
-    /// The kind of storage location where Task&lt;T&gt; is placed.
-    /// </summary>
-    public enum TaskStorageKind
+    /// <summary>The container discipline.</summary>
+    public enum ContainerDiscipline
     {
-        /// <summary>A field of type <c>Task&lt;T&gt;</c></summary>
-        Field,
+        Linear,
+        Affine,
+        Relevant,
+        Unrestricted,
+    }
 
-        /// <summary>A property of type <c>Task&lt;T&gt;</c></summary>
-        Property,
+    /// <summary>The task-like type to store as a field.</summary>
+    public enum TaskLikeType
+    {
+        /// <summary>Task&lt;T&gt; — relevant discipline</summary>
+        Task,
 
-        /// <summary>A field of type <c>Task&lt;T&gt;[]</c> (array/collection)</summary>
-        ArrayField,
-
-        /// <summary>A property of type <c>Task&lt;T&gt;[]</c> (array/collection)</summary>
-        ArrayProperty,
+        /// <summary>ValueTask&lt;T&gt; — linear discipline</summary>
+        ValueTask,
     }
 
     /// <summary>
-    /// A scenario describing a program with Task&lt;T&gt; stored in a restricted location.
+    /// A scenario describing a container holding a task-like field.
     /// </summary>
-    public record TaskStorageScenario(
-        TaskStorageKind StorageKind,
+    public record TaskContainerScenario(
+        ContainerDiscipline Container,
+        TaskLikeType TaskType,
         string ClassName,
-        string MemberName,
         string TypeArgument)
     {
+        /// <summary>
+        /// Whether the discipline-compatibility matrix permits this combination.
+        /// Task (relevant): permitted in linear, relevant containers.
+        /// ValueTask (linear): permitted only in linear containers.
+        /// </summary>
+        public bool IsPermitted => TaskType switch
+        {
+            TaskLikeType.Task => Container is ContainerDiscipline.Linear or ContainerDiscipline.Relevant,
+            TaskLikeType.ValueTask => Container is ContainerDiscipline.Linear,
+            _ => false,
+        };
+
         public override string ToString() =>
-            $"{StorageKind}: class {ClassName} {{ {TypeArgument} {MemberName} }}";
+            $"{Container} class {ClassName} {{ {TaskType}<{TypeArgument}> field }} → {(IsPermitted ? "OK" : "ERROR")}";
     }
 
 #pragma warning restore CA1034
@@ -98,50 +125,70 @@ public class TaskStorageRestrictionPropertyTests
     private static readonly string[] ClassNames =
         ["Foo", "Bar", "Service", "Handler", "Cache", "Store"];
 
-    private static readonly string[] MemberNames =
-        ["myTask", "pending", "work", "operation", "job", "computation"];
-
     private static readonly string[] TypeArguments =
         ["int", "string", "bool", "void"];
 
-    public static Gen<TaskStorageScenario> GenScenario()
+    public static Gen<TaskContainerScenario> GenScenario()
     {
-        return from storageKind in Gen.Elements(
-                   TaskStorageKind.Field,
-                   TaskStorageKind.Property,
-                   TaskStorageKind.ArrayField,
-                   TaskStorageKind.ArrayProperty)
+        return from container in Gen.Elements(
+                   ContainerDiscipline.Linear,
+                   ContainerDiscipline.Affine,
+                   ContainerDiscipline.Relevant,
+                   ContainerDiscipline.Unrestricted)
+               from taskType in Gen.Elements(TaskLikeType.Task, TaskLikeType.ValueTask)
                from className in Gen.Elements(ClassNames)
-               from memberName in Gen.Elements(MemberNames)
                from typeArg in Gen.Elements(TypeArguments)
-               select new TaskStorageScenario(storageKind, className, memberName, typeArg);
+               select new TaskContainerScenario(container, taskType, className, typeArg);
     }
 
-    public static Arbitrary<TaskStorageScenario> ArbitraryScenario() =>
+    public static Arbitrary<TaskContainerScenario> ArbitraryScenario() =>
         GenScenario().ToArbitrary();
 
     // ─── Source builders ─────────────────────────────────────────────────
 
-    private static string BuildSource(TaskStorageScenario scenario)
+    private static string BuildSource(TaskContainerScenario scenario)
     {
-        var taskType = $"Task<{scenario.TypeArgument}>";
-        var member = scenario.StorageKind switch
+        var modifier = scenario.Container switch
         {
-            TaskStorageKind.Field =>
-                $"    {taskType} {scenario.MemberName};",
-            TaskStorageKind.Property =>
-                $"    {taskType} {scenario.MemberName} {{ get {{ return default; }} }}",
-            TaskStorageKind.ArrayField =>
-                $"    {taskType}[] {scenario.MemberName};",
-            TaskStorageKind.ArrayProperty =>
-                $"    {taskType}[] {scenario.MemberName} {{ get {{ return default; }} }}",
+            ContainerDiscipline.Linear => "linear ",
+            ContainerDiscipline.Affine => "affine ",
+            ContainerDiscipline.Relevant => "relevant ",
+            ContainerDiscipline.Unrestricted => "",
+            _ => "",
+        };
+
+        var fieldTypeName = scenario.TaskType switch
+        {
+            TaskLikeType.Task => $"Task<{scenario.TypeArgument}>",
+            TaskLikeType.ValueTask => $"ValueTask<{scenario.TypeArgument}>",
             _ => throw new ArgumentOutOfRangeException(),
         };
 
+        // Build a Drop() method appropriate for the discipline.
+        var dropMethod = scenario.Container switch
+        {
+            ContainerDiscipline.Linear =>
+                "    public void Drop() { }",
+            ContainerDiscipline.Affine =>
+                "    public void Drop() { }",
+            ContainerDiscipline.Relevant =>
+                """
+                    bool dropped;
+                    public void Drop() { if (dropped) { return; } this.dropped = true; }
+                """,
+            _ => "", // Unrestricted types don't need Drop()
+        };
+
+        var ctorBody = scenario.Container == ContainerDiscipline.Relevant
+            ? "this.myTask = t; this.dropped = false;"
+            : "this.myTask = t;";
+
         return $$"""
             using Standard;
-            class {{scenario.ClassName}} {
-            {{member}}
+            {{modifier}}class {{scenario.ClassName}} {
+                {{fieldTypeName}} myTask;
+            {{dropMethod}}
+                public {{scenario.ClassName}}({{fieldTypeName}} t) { {{ctorBody}} }
             }
             class Program { public static void Main() {} }
             """;
@@ -150,48 +197,52 @@ public class TaskStorageRestrictionPropertyTests
     // ─── Property tests ──────────────────────────────────────────────────
 
     /// <summary>
-    /// Property 7: Task Storage Restriction
+    /// For any container discipline and task-like type, the DropAnalyzer emits
+    /// MIST_DROP_FIELD_NOT_OWNED iff the discipline-compatibility matrix rejects
+    /// the combination. MIST_TC_0110 never appears.
     ///
-    /// For any program that declares a field, property, or collection with element type
-    /// <c>Task&lt;T&gt;</c>, the type checker SHALL emit diagnostic <c>MIST_TC_0110</c>.
-    ///
-    /// **Validates: Requirements 7.5**
+    /// **Validates: Requirements 9.7, 9.8**
     /// </summary>
     [Property(Arbitrary = new[] { typeof(TaskStorageRestrictionPropertyTests) }, MaxTest = 100)]
-    public Property TaskStoredInFieldOrProperty_EmitsMIST_TC_0110(TaskStorageScenario scenario)
+    public Property TaskLikeFieldDiagnostic_FollowsDisciplineMatrix(TaskContainerScenario scenario)
     {
         var source = BuildSource(scenario);
-        var diagnostics = CompileWithStdlibAndGetDiagnostics(source);
+        var diagnostics = Compile(source);
 
-        var storageRestrictionDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_TC_0110")
-            .ToList();
-
-        var hasDiagnostic = storageRestrictionDiags.Count > 0;
-
-        if (!hasDiagnostic)
+        // MIST_TC_0110 must NEVER appear (Requirement 9.8)
+        var hasTc0110 = diagnostics.Any(d => d.Id.Value == "MIST_TC_0110");
+        if (hasTc0110)
         {
             return false.ToProperty()
-                .Label($"Expected MIST_TC_0110 but got none.\n" +
+                .Label($"MIST_TC_0110 should never appear but was emitted.\n" +
+                       $"Scenario: {scenario}\n" +
+                       $"Source:\n{source}\n" +
+                       $"Diagnostics: [{string.Join(", ", diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]");
+        }
+
+        var fieldNotOwnedDiags = diagnostics
+            .Where(d => d.Id.Value == "MIST_DROP_FIELD_NOT_OWNED")
+            .ToList();
+
+        if (scenario.IsPermitted)
+        {
+            // Matrix permits → zero MIST_DROP_FIELD_NOT_OWNED diagnostics
+            var hasNone = fieldNotOwnedDiags.Count == 0;
+            return hasNone.ToProperty()
+                .Label($"Expected zero MIST_DROP_FIELD_NOT_OWNED but got {fieldNotOwnedDiags.Count}.\n" +
+                       $"Scenario: {scenario}\n" +
+                       $"Source:\n{source}\n" +
+                       $"Diagnostics: [{string.Join(", ", fieldNotOwnedDiags.Select(d => d.Message))}]");
+        }
+        else
+        {
+            // Matrix rejects → at least one MIST_DROP_FIELD_NOT_OWNED diagnostic
+            var hasFieldDiag = fieldNotOwnedDiags.Count > 0;
+            return hasFieldDiag.ToProperty()
+                .Label($"Expected MIST_DROP_FIELD_NOT_OWNED but got none.\n" +
                        $"Scenario: {scenario}\n" +
                        $"Source:\n{source}\n" +
                        $"All diagnostics: [{string.Join(", ", diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]");
         }
-
-        // Verify the diagnostic message mentions the correct storage kind
-        var expectedKindWord = scenario.StorageKind switch
-        {
-            TaskStorageKind.Field or TaskStorageKind.ArrayField => "field",
-            TaskStorageKind.Property or TaskStorageKind.ArrayProperty => "property",
-            _ => throw new ArgumentOutOfRangeException(),
-        };
-
-        var mentionsKind = storageRestrictionDiags.Any(d =>
-            d.Message.Contains(expectedKindWord, StringComparison.OrdinalIgnoreCase));
-
-        return mentionsKind.ToProperty()
-            .Label($"Diagnostic emitted but does not mention '{expectedKindWord}'.\n" +
-                   $"Scenario: {scenario}\n" +
-                   $"Diagnostic messages: [{string.Join(", ", storageRestrictionDiags.Select(d => d.Message))}]");
     }
 }

@@ -21,6 +21,7 @@ public class Counter
 
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var a = new Counter("Alpha");
         var b = new Counter("Beta");
         Console.WriteLine($"Total created: {Counter.GetTotalCreated()}");

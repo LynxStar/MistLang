@@ -192,10 +192,15 @@ public sealed class DropAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Validates the field-containment rule (Requirement 11.1): if a field's type has an
-    /// <c>Affine</c> or <c>Linear</c> discipline, the container must be an owned type.
-    /// Reports <c>MIST_DROP_FIELD_NOT_OWNED</c> otherwise.
-    /// Relevant and unrestricted fields are always permitted.
+    /// Validates the field-containment rule using the discipline-compatibility matrix.
+    /// Each container discipline imposes specific guarantees about how many times Drop() fires,
+    /// and fields whose discipline requires stronger guarantees than the container provides are rejected.
+    /// <para>
+    /// For <see cref="TypeParameterType"/> fields in substructural containers, emits a diagnostic if the
+    /// type parameter lacks a substructural constraint (unconstrained type parameters cannot guarantee
+    /// the container's required drop semantics). When constrained, the constraint's discipline is used
+    /// as the field's effective discipline and the matrix is applied.
+    /// </para>
     /// </summary>
     private static void ValidateFieldContainment(ISymbol typeSymbol, ISemanticModel model, DiagnosticBag diagnostics)
     {
@@ -207,7 +212,7 @@ public sealed class DropAnalyzer : IAnalyzer
         if (memberScope is null)
             return;
 
-        var containerIsOwned = IsOwnedType(containerType);
+        var containerDiscipline = GetContainerDiscipline(containerType);
 
         foreach (var member in memberScope.Members)
         {
@@ -218,31 +223,201 @@ public sealed class DropAnalyzer : IAnalyzer
             if (fieldType is null)
                 continue;
 
-            var discipline = GetDiscipline(fieldType);
-            if (discipline is not (SubstructuralDiscipline.Affine or SubstructuralDiscipline.Linear))
-                continue;
-
-            // Affine/linear field requires an owned container.
-            if (containerIsOwned)
-                continue;
-
-            SyntaxNode fieldNode;
-            try { fieldNode = model.GetDeclaringNode(member); }
-            catch
+            // Handle TypeParameterType fields in substructural containers.
+            if (fieldType is TypeParameterType tpType &&
+                containerDiscipline != SubstructuralDiscipline.None)
             {
-                try { fieldNode = model.GetDeclaringNode(typeSymbol); }
-                catch { continue; }
+                if (!HasSubstructuralConstraint(tpType))
+                {
+                    // Unconstrained type parameter in a substructural container → error.
+                    SyntaxNode fieldNode;
+                    try { fieldNode = model.GetDeclaringNode(member); }
+                    catch
+                    {
+                        try { fieldNode = model.GetDeclaringNode(typeSymbol); }
+                        catch { continue; }
+                    }
+
+                    var containerKeyword = containerDiscipline switch
+                    {
+                        SubstructuralDiscipline.Linear => "Linear",
+                        SubstructuralDiscipline.Affine => "Affine",
+                        SubstructuralDiscipline.Relevant => "Relevant",
+                        _ => "Type"
+                    };
+
+                    var suggestedConstraint = containerDiscipline switch
+                    {
+                        SubstructuralDiscipline.Linear => "linear",
+                        SubstructuralDiscipline.Affine => "affine",
+                        SubstructuralDiscipline.Relevant => "relevant",
+                        _ => "linear"
+                    };
+
+                    diagnostics.Add(MakeDiagnostic(
+                        FieldNotOwned,
+                        $"{containerKeyword} type '{typeSymbol.Name}' contains field '{member.Name}' of unconstrained type parameter '{tpType.Name}'. " +
+                        $"Add a substructural constraint (e.g., 'where {tpType.Name} : {suggestedConstraint}') to ensure the field's discipline is compatible.",
+                        fieldNode,
+                        model));
+                    continue;
+                }
+
+                // Type parameter has a substructural constraint — use it as the effective discipline.
+                var constraintDiscipline = GetTypeParameterDiscipline(tpType);
+                if (!IsFieldCompatible(containerDiscipline, constraintDiscipline))
+                {
+                    SyntaxNode fieldNode;
+                    try { fieldNode = model.GetDeclaringNode(member); }
+                    catch
+                    {
+                        try { fieldNode = model.GetDeclaringNode(typeSymbol); }
+                        catch { continue; }
+                    }
+
+                    ReportIncompatibleField(typeSymbol, member, containerDiscipline, constraintDiscipline, fieldNode, model, diagnostics);
+                }
+                continue;
             }
 
-            var modifierName = discipline == SubstructuralDiscipline.Affine ? "affine" : "linear";
+            // Concrete field types: resolve through ConstructedType and apply the matrix.
+            var fieldDiscipline = GetEffectiveFieldDiscipline(fieldType);
 
-            diagnostics.Add(MakeDiagnostic(
-                FieldNotOwned,
-                $"Non-owned type '{typeSymbol.Name}' cannot contain {modifierName} field '{member.Name}'. " +
-                "Aliasing the container would violate the single-holder invariant of the field.",
-                fieldNode,
-                model));
+            if (fieldDiscipline == SubstructuralDiscipline.None)
+                continue; // Unrestricted fields are always permitted.
+
+            if (IsFieldCompatible(containerDiscipline, fieldDiscipline))
+                continue;
+
+            {
+                SyntaxNode fieldNode;
+                try { fieldNode = model.GetDeclaringNode(member); }
+                catch
+                {
+                    try { fieldNode = model.GetDeclaringNode(typeSymbol); }
+                    catch { continue; }
+                }
+
+                ReportIncompatibleField(typeSymbol, member, containerDiscipline, fieldDiscipline, fieldNode, model, diagnostics);
+            }
         }
+    }
+
+    /// <summary>
+    /// Returns the container's substructural discipline. For <c>owned</c> containers with no
+    /// substructural modifier, returns <see cref="SubstructuralDiscipline.None"/> (unrestricted rules apply).
+    /// </summary>
+    private static SubstructuralDiscipline GetContainerDiscipline(IType containerType)
+    {
+        return containerType switch
+        {
+            ClassType ct => ct.Discipline,
+            StructType st => st.Discipline,
+            _ => SubstructuralDiscipline.None,
+        };
+    }
+
+    /// <summary>
+    /// Returns the effective discipline of a field type. For concrete types, resolves through
+    /// <see cref="ConstructedType"/> to get the generic definition's discipline.
+    /// For <see cref="TypeParameterType"/>, reads constraint booleans to determine effective discipline.
+    /// </summary>
+    private static SubstructuralDiscipline GetEffectiveFieldDiscipline(IType fieldType)
+    {
+        if (fieldType is TypeParameterType tpType)
+            return GetTypeParameterDiscipline(tpType);
+
+        return GetDiscipline(fieldType);
+    }
+
+    /// <summary>
+    /// Returns the effective discipline of a type parameter based on its constraints.
+    /// </summary>
+    private static SubstructuralDiscipline GetTypeParameterDiscipline(TypeParameterType tpType)
+    {
+        var constraints = tpType.Constraints;
+        if (constraints is null)
+            return SubstructuralDiscipline.None;
+
+        if (constraints.HasLinearConstraint)
+            return SubstructuralDiscipline.Linear;
+        if (constraints.HasAffineConstraint)
+            return SubstructuralDiscipline.Affine;
+        if (constraints.HasRelevantConstraint)
+            return SubstructuralDiscipline.Relevant;
+
+        return SubstructuralDiscipline.None;
+    }
+
+    /// <summary>
+    /// Returns whether a type parameter has any substructural constraint (linear, affine, or relevant).
+    /// </summary>
+    private static bool HasSubstructuralConstraint(TypeParameterType tpType)
+    {
+        var constraints = tpType.Constraints;
+        if (constraints is null)
+            return false;
+
+        return constraints.HasLinearConstraint || constraints.HasAffineConstraint || constraints.HasRelevantConstraint;
+    }
+
+    /// <summary>
+    /// Pure function implementing the discipline-compatibility matrix.
+    /// <list type="bullet">
+    ///   <item>Linear container → holds anything (linear, affine, relevant, unrestricted).</item>
+    ///   <item>Affine container → holds only affine + unrestricted.</item>
+    ///   <item>Relevant container → holds only relevant + unrestricted.</item>
+    ///   <item>Unrestricted/Owned container → holds only unrestricted.</item>
+    /// </list>
+    /// </summary>
+    private static bool IsFieldCompatible(SubstructuralDiscipline container, SubstructuralDiscipline field)
+    {
+        if (field == SubstructuralDiscipline.None)
+            return true; // Unrestricted fields are always permitted.
+
+        return container switch
+        {
+            SubstructuralDiscipline.Linear => true, // Linear holds anything.
+            SubstructuralDiscipline.Affine => field == SubstructuralDiscipline.Affine,
+            SubstructuralDiscipline.Relevant => field == SubstructuralDiscipline.Relevant,
+            _ => false, // Unrestricted/owned/None holds only unrestricted.
+        };
+    }
+
+    /// <summary>
+    /// Reports a diagnostic for an incompatible field based on the container's discipline.
+    /// </summary>
+    private static void ReportIncompatibleField(
+        ISymbol typeSymbol,
+        ISymbol fieldMember,
+        SubstructuralDiscipline containerDiscipline,
+        SubstructuralDiscipline fieldDiscipline,
+        SyntaxNode fieldNode,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        var modifierName = fieldDiscipline switch
+        {
+            SubstructuralDiscipline.Linear => "linear",
+            SubstructuralDiscipline.Affine => "affine",
+            SubstructuralDiscipline.Relevant => "relevant",
+            _ => "unrestricted"
+        };
+
+        var message = containerDiscipline switch
+        {
+            SubstructuralDiscipline.Affine =>
+                $"Affine type '{typeSymbol.Name}' cannot contain {modifierName} field '{fieldMember.Name}'. " +
+                "The container may never be dropped, violating the field's requirement of at least one drop.",
+            SubstructuralDiscipline.Relevant =>
+                $"Relevant type '{typeSymbol.Name}' cannot contain {modifierName} field '{fieldMember.Name}'. " +
+                "The container may be dropped multiple times, violating the field's at-most-once drop requirement.",
+            _ =>
+                $"Type '{typeSymbol.Name}' cannot contain {modifierName} field '{fieldMember.Name}'. " +
+                "The container has no substructural discipline and cannot guarantee the field's drop requirements."
+        };
+
+        diagnostics.Add(MakeDiagnostic(FieldNotOwned, message, fieldNode, model));
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────

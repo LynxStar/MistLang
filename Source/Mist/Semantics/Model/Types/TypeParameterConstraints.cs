@@ -46,4 +46,13 @@ public sealed class TypeParameterConstraints
 
     /// <summary>Whether the 'default' constraint is present. Type arguments must be defaultable types.</summary>
     public bool HasDefaultConstraint { get; init; }
+
+    /// <summary>Whether the 'linear' substructural constraint is present.</summary>
+    public bool HasLinearConstraint { get; init; }
+
+    /// <summary>Whether the 'affine' substructural constraint is present.</summary>
+    public bool HasAffineConstraint { get; init; }
+
+    /// <summary>Whether the 'relevant' substructural constraint is present.</summary>
+    public bool HasRelevantConstraint { get; init; }
 }

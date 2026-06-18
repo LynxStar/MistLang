@@ -1,5 +1,6 @@
 using System;
 
+System.Console.OutputEncoding = System.Text.Encoding.UTF8;
 int i = 42;
 uint ui = 100u;
 long l = 100L;

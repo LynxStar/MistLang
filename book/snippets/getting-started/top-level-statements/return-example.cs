@@ -1,5 +1,6 @@
 using System;
 
+System.Console.OutputEncoding = System.Text.Encoding.UTF8;
 if (args.Length == 0)
 {
     System.Console.WriteLine("Error: no arguments provided");

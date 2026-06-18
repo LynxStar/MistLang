@@ -34,6 +34,7 @@ public class Program
 
     public static void Main()
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         Pair p = new Pair(1, 2);
         MutateBorrowed(p);
         Console.WriteLine($"owner after={p.Describe()}");

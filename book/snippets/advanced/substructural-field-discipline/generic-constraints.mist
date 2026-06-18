@@ -1,0 +1,41 @@
+using Standard;
+
+namespace Snippets;
+
+public linear class FileHandle
+{
+    int Fd;
+    public FileHandle(int fd) { this.Fd = fd; }
+    public int GetFd() { return Fd; }
+    public void Drop() { Console.WriteLine($"FileHandle({Fd}).Drop()"); }
+}
+
+// A generic linear container requires its type parameter to have
+// a substructural constraint — otherwise the compiler cannot verify
+// that the field's discipline is compatible with the container.
+public linear class LinearBox<T> where T : linear
+{
+    T Value;
+
+    public LinearBox(T value)
+    {
+        this.Value = value;
+    }
+
+    public T Drop()
+    {
+        Console.WriteLine("LinearBox<T>.Drop()");
+        return Value;
+    }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        // FileHandle is linear, so it satisfies 'where T : linear'
+        var box = new LinearBox<FileHandle>(new FileHandle(42));
+        Console.WriteLine("Boxed resource created");
+        // Drop returns the inner value — the box is consumed
+    }
+}

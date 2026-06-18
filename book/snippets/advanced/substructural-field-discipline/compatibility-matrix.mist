@@ -1,0 +1,73 @@
+using Standard;
+
+namespace Snippets;
+
+// Each discipline makes a drop-count promise:
+//   linear   → exactly once
+//   affine   → 0 or 1 times
+//   relevant → 1 or more times
+
+public linear class Resource
+{
+    int Id;
+    public Resource(int id) { this.Id = id; }
+    public void Drop() { Console.WriteLine($"Resource({Id}).Drop()"); }
+}
+
+public affine class Token
+{
+    int Id;
+    public Token(int id) { this.Id = id; }
+    public void Drop() { Console.WriteLine($"Token({Id}).Drop()"); }
+}
+
+public relevant class Subscription
+{
+    int Id;
+    bool Dropped;
+    public Subscription(int id) { this.Id = id; this.Dropped = false; }
+    public void Drop()
+    {
+        if (Dropped) { return; }
+        this.Dropped = true;
+        Console.WriteLine($"Subscription({Id}).Drop()");
+    }
+}
+
+public class PlainData
+{
+    int Value;
+    public PlainData(int v) { this.Value = v; }
+}
+
+// Linear containers can hold ANY discipline — exactly-once satisfies all invariants
+public linear class LinearHolder
+{
+    Resource Lin;
+    Token Aff;
+    Subscription Rel;
+    PlainData Plain;
+
+    public LinearHolder()
+    {
+        this.Lin = new Resource(1);
+        this.Aff = new Token(2);
+        this.Rel = new Subscription(3);
+        this.Plain = new PlainData(4);
+    }
+
+    public void Drop()
+    {
+        Console.WriteLine("LinearHolder.Drop()");
+    }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        var holder = new LinearHolder();
+        Console.WriteLine("Linear container holds all four disciplines:");
+        // auto-drop fires exactly once at scope exit
+    }
+}

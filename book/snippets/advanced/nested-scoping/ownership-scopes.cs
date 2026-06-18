@@ -30,6 +30,7 @@ public class OwnershipScopeDemo
 
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         Resource res = new Resource(1);
         {
             ReadOnly(res);

@@ -1,6 +1,6 @@
-// Feature: drop-semantics, Property 13: Field containment rule
+// Feature: substructural-field-discipline, Property 1: Discipline-Compatibility Matrix
 //
-// **Validates: Requirements 11.1, 11.2, 11.3, 11.4**
+// **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.7**
 
 using System.Collections.Immutable;
 using FsCheck;
@@ -17,24 +17,20 @@ using Mist.Driver.Contracts;
 namespace Mist.Tests.Semantics;
 
 /// <summary>
-/// Property-based tests for the field-containment rule.
+/// Property-based tests for the field-containment rule using the discipline-compatibility matrix.
 ///
-/// Feature: drop-semantics, Property 13: Field containment rule
-/// **Validates: Requirements 11.1, 11.2, 11.3, 11.4**
+/// Feature: substructural-field-discipline, Property 1: Discipline-Compatibility Matrix
+/// **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.7**
 ///
-/// For any non-owned container type that declares a field whose type is <c>affine</c> or
-/// <c>linear</c>, the compiler SHALL report <c>MIST_DROP_FIELD_NOT_OWNED</c>. For any owned
-/// container (affine/linear/owned), or for any field whose type is <c>relevant</c> or
-/// unrestricted, the compiler SHALL NOT report that diagnostic.
+/// The discipline-compatibility matrix determines which container/field discipline pairs are valid:
+/// - Linear container → holds anything (linear, affine, relevant, unrestricted).
+/// - Affine container → holds only affine + unrestricted.
+/// - Relevant container → holds only relevant + unrestricted.
+/// - Unrestricted/Owned container → holds only unrestricted.
 ///
 /// The model is built fully in-process via a <see cref="CompilerDriver"/> that runs the
 /// <see cref="DropAnalyzer"/> pipeline; diagnostics are inspected directly. Spawns 0
 /// external processes.
-///
-/// Containers are declared as <c>class</c> (never inferred owned) plus an explicit
-/// <c>owned</c> variant for the owned-but-unrestricted-discipline case, so struct
-/// ownership inference cannot flip <c>IsOwnedType</c> and confound the property. Field
-/// types are named helper classes with each discipline.
 /// </summary>
 public sealed class FieldContainmentPropertyTests : IDisposable
 {
@@ -108,26 +104,50 @@ public sealed class FieldContainmentPropertyTests : IDisposable
 
 #pragma warning restore CA1034
 
-    // Container disciplines and whether each yields an OWNED container.
-    //   affine/linear ⇒ owned (write-through), owned ⇒ owned, none/relevant ⇒ not owned.
-    // Declared with `class` only (never struct) so ownership inference never flips the flag.
-    private static readonly (string Keyword, bool IsOwned)[] ContainerDisciplines =
+    /// <summary>
+    /// Container disciplines with their enum-equivalent for matrix lookup.
+    /// </summary>
+    private enum ContainerDisciplineKind { None, Owned, Affine, Linear, Relevant }
+
+    /// <summary>
+    /// Field disciplines with their enum-equivalent for matrix lookup.
+    /// </summary>
+    private enum FieldDisciplineKind { None, Affine, Linear, Relevant }
+
+    private static readonly (string Keyword, ContainerDisciplineKind Kind)[] ContainerDisciplines =
     [
-        ("", false),          // unrestricted class — not owned
-        ("owned", true),      // explicit owned class — owned
-        ("affine", true),     // affine ⇒ owned
-        ("linear", true),     // linear ⇒ owned
-        ("relevant", false),  // relevant — not owned
+        ("", ContainerDisciplineKind.None),           // unrestricted class
+        ("owned", ContainerDisciplineKind.Owned),     // explicit owned class (unrestricted rules)
+        ("affine", ContainerDisciplineKind.Affine),   // affine class
+        ("linear", ContainerDisciplineKind.Linear),   // linear class
+        ("relevant", ContainerDisciplineKind.Relevant), // relevant class
     ];
 
-    // Field-type disciplines and whether each is an affine/linear (owned) field.
-    private static readonly (string Keyword, string TypeName, bool IsOwnedField)[] FieldDisciplines =
+    private static readonly (string Keyword, string TypeName, FieldDisciplineKind Kind)[] FieldDisciplines =
     [
-        ("", "PlainField", false),         // unrestricted field — always permitted
-        ("affine", "AffineField", true),   // affine field — requires owned container
-        ("linear", "LinearField", true),   // linear field — requires owned container
-        ("relevant", "RelevantField", false), // relevant field — always permitted
+        ("", "PlainField", FieldDisciplineKind.None),           // unrestricted field
+        ("affine", "AffineField", FieldDisciplineKind.Affine),  // affine field
+        ("linear", "LinearField", FieldDisciplineKind.Linear),  // linear field
+        ("relevant", "RelevantField", FieldDisciplineKind.Relevant), // relevant field
     ];
+
+    /// <summary>
+    /// Implements the discipline-compatibility matrix to determine expected error state.
+    /// </summary>
+    private static bool MatrixExpectsError(ContainerDisciplineKind container, FieldDisciplineKind field)
+    {
+        // Unrestricted fields are always permitted.
+        if (field == FieldDisciplineKind.None)
+            return false;
+
+        return container switch
+        {
+            ContainerDisciplineKind.Linear => false, // Linear holds anything.
+            ContainerDisciplineKind.Affine => field != FieldDisciplineKind.Affine,
+            ContainerDisciplineKind.Relevant => field != FieldDisciplineKind.Relevant,
+            _ => true, // Unrestricted/Owned holds only unrestricted.
+        };
+    }
 
     private static Gen<FieldContainmentScenario> GenScenario()
     {
@@ -137,11 +157,10 @@ public sealed class FieldContainmentPropertyTests : IDisposable
     }
 
     private static FieldContainmentScenario Build(
-        (string Keyword, bool IsOwned) container,
-        (string Keyword, string TypeName, bool IsOwnedField) field)
+        (string Keyword, ContainerDisciplineKind Kind) container,
+        (string Keyword, string TypeName, FieldDisciplineKind Kind) field)
     {
-        // Error is required iff a non-owned container declares an affine/linear field.
-        var expectError = !container.IsOwned && field.IsOwnedField;
+        var expectError = MatrixExpectsError(container.Kind, field.Kind);
 
         var containerKeyword = container.Keyword.Length == 0
             ? "class"
@@ -174,7 +193,7 @@ public sealed class FieldContainmentPropertyTests : IDisposable
 
         var containerLabel = container.Keyword.Length == 0 ? "(none)" : container.Keyword;
         var fieldLabel = field.Keyword.Length == 0 ? "(none)" : field.Keyword;
-        var label = $"container={containerLabel} (owned={container.IsOwned}), "
+        var label = $"container={containerLabel}, "
             + $"field={fieldLabel} => expectError={expectError}";
 
         return new FieldContainmentScenario(
@@ -188,12 +207,12 @@ public sealed class FieldContainmentPropertyTests : IDisposable
         diagnostics.Count(d => d.Id.Value == FieldNotOwnedId);
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 13: Field containment rule
+    // Property 1: Discipline-Compatibility Matrix
     //
-    // A MIST_DROP_FIELD_NOT_OWNED diagnostic is present IFF the container is
-    // non-owned AND the field type is affine or linear; otherwise it is absent.
+    // A MIST_DROP_FIELD_NOT_OWNED diagnostic is present IFF the discipline-
+    // compatibility matrix rejects the (container, field) pair; otherwise absent.
     //
-    // **Validates: Requirements 11.1, 11.2, 11.3, 11.4**
+    // **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.7**
     // ═══════════════════════════════════════════════════════════════════════
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(FieldContainmentPropertyTests) })]
@@ -218,24 +237,34 @@ public sealed class FieldContainmentPropertyTests : IDisposable
     // ─── Example-based sanity checks ──────────────────────────────────────
 
     [Theory]
-    // Non-owned container + affine/linear field => error.
-    [InlineData("class", "affine", "AffineField", true)]
-    [InlineData("class", "linear", "LinearField", true)]
-    [InlineData("relevant class", "affine", "AffineField", true)]
-    [InlineData("relevant class", "linear", "LinearField", true)]
-    // Owned container + affine/linear field => no error.
-    [InlineData("owned class", "affine", "AffineField", false)]
-    [InlineData("affine class", "linear", "LinearField", false)]
-    [InlineData("linear class", "affine", "AffineField", false)]
-    // Relevant / unrestricted field => always permitted.
-    [InlineData("class", "relevant", "RelevantField", false)]
-    [InlineData("class", "", "PlainField", false)]
-    [InlineData("relevant class", "relevant", "RelevantField", false)]
+    // Unrestricted container + substructural field => error (unrestricted holds only unrestricted).
+    [InlineData("class", "AffineField", true)]
+    [InlineData("class", "LinearField", true)]
+    [InlineData("class", "RelevantField", true)]
+    // Owned container + substructural field => error (owned follows unrestricted rules).
+    [InlineData("owned class", "AffineField", true)]
+    [InlineData("owned class", "LinearField", true)]
+    [InlineData("owned class", "RelevantField", true)]
+    // Affine container: holds affine + unrestricted only.
+    [InlineData("affine class", "AffineField", false)]
+    [InlineData("affine class", "LinearField", true)]
+    [InlineData("affine class", "RelevantField", true)]
+    [InlineData("affine class", "PlainField", false)]
+    // Linear container: holds anything.
+    [InlineData("linear class", "AffineField", false)]
+    [InlineData("linear class", "LinearField", false)]
+    [InlineData("linear class", "RelevantField", false)]
+    [InlineData("linear class", "PlainField", false)]
+    // Relevant container: holds relevant + unrestricted only.
+    [InlineData("relevant class", "AffineField", true)]
+    [InlineData("relevant class", "LinearField", true)]
+    [InlineData("relevant class", "RelevantField", false)]
+    [InlineData("relevant class", "PlainField", false)]
+    // Unrestricted field => always permitted.
+    [InlineData("class", "PlainField", false)]
     public void FieldContainment_ReportsExpectedDiagnostic(
-        string containerKeyword, string fieldKeyword, string fieldTypeName, bool expectError)
+        string containerKeyword, string fieldTypeName, bool expectError)
     {
-        var fieldDecl = fieldKeyword.Length == 0 ? "class" : $"{fieldKeyword} class";
-
         var source = $$"""
             class PlainField
             {

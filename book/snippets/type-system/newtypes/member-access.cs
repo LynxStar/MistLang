@@ -6,6 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var uid = ((UserId)42);
         Console.WriteLine(uid.Value);
         var pos = new Position(10, 20);

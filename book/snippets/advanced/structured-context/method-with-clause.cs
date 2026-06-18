@@ -21,6 +21,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var name = "alpha";
         MistContext.Push<string>(name);
         try

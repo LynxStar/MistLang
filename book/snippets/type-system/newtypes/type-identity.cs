@@ -30,6 +30,7 @@ public class Program
 
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         UserId user = ((UserId)42);
         Identify(user);
     }

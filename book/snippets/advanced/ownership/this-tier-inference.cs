@@ -23,18 +23,6 @@ public class Account
     {
         return $"Account({Name}, balance={Balance})";
     }
-
-    protected Account()
-    {
-        this.Name = "";
-        this.Balance = 0;
-    }
-
-    public static Account __CreateDefault()
-    {
-        var inst = new Account();
-        return inst;
-    }
 }
 public class ThisTierInferenceDemo
 {

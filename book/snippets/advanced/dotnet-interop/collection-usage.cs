@@ -7,6 +7,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var list = new List<int>();
         list.Add(10);
         list.Add(20);

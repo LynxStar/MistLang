@@ -71,6 +71,7 @@ public sealed class DropSemanticsIntegrationTests
         "--- 4. Linear: Drop with return value ---",
         "  LinearBox.Drop() called, yielding value",
         "  Got value: 42",
+        "  FileHandle(42).Drop() called",
         "--- 5. Linear: reverse drop ordering ---",
         "  Created: 10, 11, 12",
         "  FileHandle(12).Drop() called",

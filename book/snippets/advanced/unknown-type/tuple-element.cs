@@ -20,6 +20,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         (int tag, object payload) envelope = (tag: 1, payload: new Greeter("Mist"));
         Console.WriteLine($"tag={envelope.tag}");
         if (envelope.payload is Greeter g)

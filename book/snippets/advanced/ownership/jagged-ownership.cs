@@ -21,19 +21,6 @@ public class Connection
     {
         return $"Connection(handle={Handle}, label={Label}, retries={RetryCount})";
     }
-
-    protected Connection()
-    {
-        this.Handle = "";
-        this.Label = "";
-        this.RetryCount = 0;
-    }
-
-    public static Connection __CreateDefault()
-    {
-        var inst = new Connection();
-        return inst;
-    }
 }
 public class JaggedOwnershipDemo
 {

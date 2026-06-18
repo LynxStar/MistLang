@@ -177,6 +177,9 @@ rule Constraint
     | READONLY                                                                 as ReadonlyConstraint
     | MUTABLE                                                                  as MutableConstraint
     | OWNED                                                                    as OwnedConstraint
+    | LINEAR                                                                   as LinearConstraint
+    | AFFINE                                                                   as AffineConstraint
+    | RELEVANT                                                                 as RelevantConstraint
     | NEW LEFT_PARENTHESIS paramTypes:ConstraintParameterTypeList? RIGHT_PARENTHESIS  as ConstructorConstraint
     | DEFAULT                                                                  as DefaultConstraint
     | type:TypeReference                                                       as TypeConstraint
@@ -516,6 +519,7 @@ rule Statement
     | withTypedDeclaration:WithTypedDeclarationStatement     as WithTypedDeclarationStatement
     | withDiscardDeclaration:WithDiscardDeclarationStatement as WithDiscardDeclarationStatement
     | withPushStatement:WithPushStatement                    as WithPushStatement
+    | withVarBlockStatement:WithVarBlockStatement            as WithVarBlockStatement
     | withBlockStatement:WithBlockStatement                  as WithBlockStatement
     | blockStatement:Block                                   as BlockStatement
     | expressionStatement:ExpressionStatement             as ExpressionStatement
@@ -569,6 +573,7 @@ rule WithTypedDeclarationStatement = WITH type:TypeReference name:IDENTIFIER EQU
 rule WithDiscardDeclarationStatement = WITH type:TypeReference DISCARD EQUAL initializer:Expression SEMICOLON;
 rule WithPushStatement = WITH value:Expression SEMICOLON;
 rule WithBlockStatement = WITH LEFT_PARENTHESIS expression:Expression RIGHT_PARENTHESIS body:Block;
+rule WithVarBlockStatement = WITH LEFT_PARENTHESIS VAR name:IDENTIFIER EQUAL initializer:Expression RIGHT_PARENTHESIS body:Block;
 
 // ─── Parser Rules — With Clause (Method Signature Context Bindings + This-Tier) ─
 
@@ -628,6 +633,8 @@ rule Unary
     // such as `async foo()` fail the LambdaExpression attempt and fall through to
     // Assignment, reaching the `ASYNC operand:Unary` async-functor rule below.
     | primary:Postfix              as PostfixExpression
+    | ASYNC hint:IDENTIFIER body:Block                                            as AsyncHintBlockExpression
+    | ASYNC body:Block                                                            as AsyncBlockExpression
     | ASYNC operand:Unary                                                         as AsyncExpression
     | AWAIT operand:Unary                                                         as AwaitExpression
     | EXCLAMATION operand:Unary    as LogicalNot

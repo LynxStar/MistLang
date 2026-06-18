@@ -42,6 +42,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var arr = new FixedArray<int, Const_Int_5>();
         Console.WriteLine(arr.Describe());
         var mat = new Matrix<Const_Int_3, Const_Int_4>();

@@ -6,6 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         for (int i = 0; i < 10; i = i + 1)
         {
             if (i == 3)

@@ -16,6 +16,7 @@ public class MathUtils
 
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var result = Add(3, 4);
         Console.WriteLine($"Add(3, 4) = {result}");
         Console.WriteLine(Greet("Mist"));

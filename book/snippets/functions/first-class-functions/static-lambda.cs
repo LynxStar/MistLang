@@ -6,6 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         System.Func<int, int, int> add = static (a, b) => a + b;
         System.Console.WriteLine($"add(10,20)={add(10, 20)}");
     }

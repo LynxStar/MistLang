@@ -25,6 +25,7 @@ public class Program
 {
     public static void Main()
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var f = new FileHandle(42);
         try
         {

@@ -6447,11 +6447,14 @@ internal sealed class CSharpSourceWriter
         // (e.g., Regex.Pattern, Regex.IsFullMatch) that needs rewriting.
         // Task 12.1: Also bypass when any argument has an implicit-clone annotation
         // so that .Clone() can be emitted (Req 14 AC 7).
+        // Also bypass when any argument contains an async block expression
+        // (async { ... } or async valuetask { ... }) that needs rewriting.
         if (!ArgumentContainsTypeLiteral(argExprs) && !ArgumentContainsDependentTypeParam(argExprs)
             && !ArgumentContainsIntrinsicMemberAccess(argExprs)
             && !ArgumentContainsAutoAwaitCall(argExprs)
             && !ArgumentsContainImplicitClone(argExprs)
-            && !ArgumentContainsOptionalInterpolation(argExprs))
+            && !ArgumentContainsOptionalInterpolation(argExprs)
+            && !ArgumentContainsAsyncBlockExpression(argExprs))
         {
             var span = argList.Span;
             if (span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
@@ -7780,13 +7783,28 @@ internal sealed class CSharpSourceWriter
 
         // Emit Drop() for remaining un-dropped fields in declaration order.
         // Apply recursive drop chaining (Requirement 2.3).
+        // Skip task-like fields (Task<T>, ValueTask<T>) — their "drop" would require
+        // await, which changes the method's async signature. If the user's manual Drop()
+        // doesn't explicitly handle them, they are intentionally abandoned.
         foreach (var field in remaining)
         {
             var fieldType = field.DeclaredType;
             if (fieldType is not null)
             {
-                var chainedExpr = EmitChainedDropExpression(fieldType, $"this.{field.Name}");
-                AppendLine($"{chainedExpr};");
+                if (IsTaskLikeType(fieldType))
+                    continue;
+                // For type parameter fields (e.g., T Value in a generic class), we cannot
+                // call .Drop() directly in C# because T has no Drop constraint. Use dynamic
+                // dispatch to call Drop at runtime.
+                if (fieldType is TypeParameterType)
+                {
+                    AppendLine($"((dynamic)this.{field.Name}).Drop();");
+                }
+                else
+                {
+                    var chainedExpr = EmitChainedDropExpression(fieldType, $"this.{field.Name}");
+                    AppendLine($"{chainedExpr};");
+                }
             }
             else
             {
@@ -7865,6 +7883,10 @@ internal sealed class CSharpSourceWriter
             StructType st => st.HasDrop,
             ConstructedType constructed => TypeHasDrop(constructed.GenericDefinition),
             TypeAliasType alias => TypeHasDrop(alias.UnderlyingType),
+            // Type parameters with substructural constraints (linear, affine, relevant)
+            // are guaranteed to have Drop since all substructural types must have Drop.
+            TypeParameterType tpt => tpt.Constraints is { } c
+                && (c.HasLinearConstraint || c.HasAffineConstraint || c.HasRelevantConstraint),
             _ => false,
         };
     }
@@ -8419,6 +8441,11 @@ internal sealed class CSharpSourceWriter
         if (unwrapped.Kind is TypeKind.Struct or TypeKind.Enum)
             return emittedExpr;
 
+        // Backend-backed types (Task<T>, ValueTask<T>, etc.) do not have a
+        // Mist-generated .Clone() method — elide the clone call.
+        if (unwrapped is ClassType { IsBackendBacked: true })
+            return emittedExpr;
+
         return $"{emittedExpr}.Clone()";
     }
 
@@ -8475,6 +8502,34 @@ internal sealed class CSharpSourceWriter
         foreach (var child in node.Children())
         {
             if (child is not null && ExpressionContainsOptionalInterpolation(child))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Returns true if any argument expression contains an async block expression
+    /// (<c>async { return expr; }</c> or <c>async valuetask { return expr; }</c>)
+    /// that requires rewriting from Mist syntax to C# Task/ValueTask construction.
+    /// </summary>
+    private static bool ArgumentContainsAsyncBlockExpression(List<ExpressionNode> argExprs)
+    {
+        foreach (var expr in argExprs)
+        {
+            if (ExpressionContainsAsyncBlock(expr))
+                return true;
+        }
+        return false;
+    }
+
+    private static bool ExpressionContainsAsyncBlock(Storm.Runtime.SyntaxNode node)
+    {
+        if (node is AsyncBlockExpressionUnaryNode or AsyncHintBlockExpressionUnaryNode)
+            return true;
+
+        foreach (var child in node.Children())
+        {
+            if (child is not null && ExpressionContainsAsyncBlock(child))
                 return true;
         }
         return false;
@@ -8763,6 +8818,41 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
+    /// Emits a <c>with (var name = expr) { block }</c> statement as a scoped
+    /// variable declaration with a try/finally that drops the variable.
+    /// </summary>
+    private void EmitWithVarBlockStatement(WithVarBlockStatementNode withVarBlock)
+    {
+        var name = withVarBlock.Name.Lexeme;
+        var init = EmitExpression(withVarBlock.Initializer);
+        var type = _model.GetTypeOf(withVarBlock.Initializer);
+        var hasDrop = type is not null && TypeHasDrop(type);
+
+        // Wrap in braces to create a new scope — prevents variable name leakage
+        // into the surrounding method body (the with-var introduces a scoped local).
+        AppendLine("{");
+        _indentLevel++;
+        AppendLine($"var {name} = {init};");
+        AppendLine("try");
+        AppendLine("{");
+        _indentLevel++;
+        EmitBlockStatements(withVarBlock.Body);
+        _indentLevel--;
+        AppendLine("}");
+        AppendLine("finally");
+        AppendLine("{");
+        _indentLevel++;
+        if (hasDrop)
+        {
+            EmitWithBlockDropCall(name, type!);
+        }
+        _indentLevel--;
+        AppendLine("}");
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    /// <summary>
     /// Emits the Drop() call (or <c>await</c> for Task/ValueTask) in a with-block's finally
     /// clause. The return value is always discarded in the with context (Requirement 5.6).
     /// Pop is emitted before this call (Requirement 5.7).
@@ -8934,6 +9024,9 @@ internal sealed class CSharpSourceWriter
                 break;
             case WithBlockStatementStatementNode withBlockStmt:
                 EmitWithBlockStatement(withBlockStmt.WithBlockStatement);
+                break;
+            case WithVarBlockStatementStatementNode withVarBlockStmt:
+                EmitWithVarBlockStatement(withVarBlockStmt.WithVarBlockStatement);
                 break;
         }
     }
@@ -10673,6 +10766,47 @@ internal sealed class CSharpSourceWriter
             }
             case PostfixExpressionUnaryNode postfix:
                 return EmitPostfix(postfix.Primary);
+            case AsyncBlockExpressionUnaryNode asyncBlock:
+            {
+                // async { return expr; } → Task.Run(async () => { ... })
+                // Extract the return expression from the block body.
+                var retExpr = "default";
+                foreach (var blockStmt in asyncBlock.Body.Statements)
+                {
+                    if (blockStmt is ReturnStatementStatementNode returnStmt && returnStmt.ReturnStatement.Value is not null)
+                    {
+                        retExpr = EmitExpression(returnStmt.ReturnStatement.Value);
+                        break;
+                    }
+                }
+                return $"System.Threading.Tasks.Task.Run(() => {retExpr})";
+            }
+            case AsyncHintBlockExpressionUnaryNode asyncHintBlock:
+            {
+                // async valuetask { return expr; } → ValueTask wrapping pattern.
+                var retExpr = "default";
+                foreach (var blockStmt in asyncHintBlock.Body.Statements)
+                {
+                    if (blockStmt is ReturnStatementStatementNode returnStmt && returnStmt.ReturnStatement.Value is not null)
+                    {
+                        retExpr = EmitExpression(returnStmt.ReturnStatement.Value);
+                        break;
+                    }
+                }
+                var hint = asyncHintBlock.Hint.Lexeme;
+                if (hint == "valuetask")
+                {
+                    // Resolve the actual type argument from the semantic model.
+                    var resolvedType = _model.GetTypeOf(asyncHintBlock);
+                    var typeArgName = "object";
+                    if (resolvedType is ConstructedType ct && ct.TypeArguments.Count > 0)
+                    {
+                        typeArgName = CSharpTypeMap.GetTypeName(ct.TypeArguments[0]);
+                    }
+                    return $"new System.Threading.Tasks.ValueTask<{typeArgName}>({retExpr})";
+                }
+                return $"System.Threading.Tasks.Task.Run(() => {retExpr})";
+            }
             default:
                 return "";
         }

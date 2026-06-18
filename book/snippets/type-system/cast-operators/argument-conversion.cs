@@ -11,6 +11,7 @@ public class Program
 
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var freezing = new Celsius(0.0);
         PrintTemperature(freezing);
     }

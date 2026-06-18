@@ -24,6 +24,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var p1 = new Point();
         Point p2 = Point.__CreateDefault();
         Console.WriteLine($"new: X={p1.X} Y={p1.Y}");

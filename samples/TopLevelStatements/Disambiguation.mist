@@ -39,9 +39,7 @@ public class Program
         Console.WriteLine("  Calling Main explicitly to prove it is just a normal static method:");
 
         // Call Main as a regular static method — proves it compiled as a normal method
-        var demoArgs = new string[2];
-        demoArgs[0] = "demo";
-        demoArgs[1] = "arg";
+        var demoArgs = ["demo", "arg"];
         Program.Main(demoArgs);
 
         Console.WriteLine("  Disambiguation complete — Main is callable but not the entry point");

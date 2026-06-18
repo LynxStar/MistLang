@@ -60,3 +60,4 @@ AsyncDropChaining = { path = "../AsyncDropChaining" }
 Ownership = { path = "../Ownership" }
 OptionalDefaultability = { path = "../OptionalDefaultability" }
 SubstructuralFieldDiscipline = { path = "../SubstructuralFieldDiscipline" }
+DefiniteAssignment = { path = "../DefiniteAssignment" }

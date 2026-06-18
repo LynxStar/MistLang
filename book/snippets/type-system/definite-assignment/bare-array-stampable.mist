@@ -1,0 +1,22 @@
+using Standard;
+
+public struct Vector2
+{
+    public int X;
+    public int Y;
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Bare array of primitives — stampable, zero-filled
+        var counts = new int[4];
+        Console.WriteLine($"counts[0]={counts[0]}");
+
+        // Bare array of a pure struct — stampable, zero-filled
+        var positions = new Vector2[3];
+        Console.WriteLine($"positions[0].X={positions[0].X}");
+        Console.WriteLine($"positions[1].Y={positions[1].Y}");
+    }
+}

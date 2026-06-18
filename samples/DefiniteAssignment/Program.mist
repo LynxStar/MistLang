@@ -1,0 +1,74 @@
+// PROOF: a constructor that assigns every field on all paths compiles
+// PROOF: a local assigned before use compiles and reads the assigned value
+// PROOF: bare new T[size] works for a primitive (stampable) element type
+// PROOF: bare new T[size] works for a pure struct (stampable) element type
+// PROOF: initializer-based construction fills a reference-type array with no nulls
+// PROOF: an array literal of reference types is accepted (every element explicit)
+// PROOF: every array element read returns a real, assigned value
+
+namespace DefiniteAssignment;
+
+using Standard;
+
+public struct Point
+{
+    public int X;
+    public int Y;
+}
+
+public class Label
+{
+    public string Text;
+
+    public Label(string text)
+    {
+        this.Text = text;
+    }
+
+    public string Describe()
+    {
+        return $"Label({Text})";
+    }
+}
+
+public class Program
+{
+    // Constructor assigns every field on all paths — definite assignment satisfied.
+    public static void RunDemo()
+    {
+        // Local assigned before use.
+        var greeting = "definite";
+        Console.WriteLine($"[da] local={greeting}");
+
+        // Conditional assignment that is definite at the merge point.
+        var n = 3;
+        int category;
+        if (n > 0)
+        {
+            category = 1;
+        }
+        else
+        {
+            category = 0;
+        }
+        Console.WriteLine($"[da] category={category}");
+
+        // Bare new T[size] for a primitive (stampable) — zero-filled stamp.
+        var ints = new int[3];
+        Console.WriteLine($"[da] ints[0]={ints[0]} ints[2]={ints[2]}");
+
+        // Bare new T[size] for a pure struct (stampable) — zero-filled stamp.
+        var points = new Point[2];
+        Console.WriteLine($"[da] points[0].X={points[0].X} points[1].Y={points[1].Y}");
+
+        // Initializer-based construction for a reference type — no nulls.
+        var labels = new Array<Label, 3>(i => new Label($"item-{i}"));
+        Console.WriteLine($"[da] labels[0]={labels[0].Describe()}");
+        Console.WriteLine($"[da] labels[2]={labels[2].Describe()}");
+
+        // Array literal for a reference type — every element explicitly provided.
+        var pair = [new Label("first"), new Label("second")];
+        Console.WriteLine($"[da] pair[0]={pair[0].Describe()}");
+        Console.WriteLine($"[da] pair[1]={pair[1].Describe()}");
+    }
+}

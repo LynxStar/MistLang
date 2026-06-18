@@ -46,6 +46,7 @@
 - [Cast Operators](type-system/cast-operators.md)
 - [Refinement Types](type-system/refinement-types.md)
 - [Dependent Types](type-system/dependent-types.md)
+- [Definite Assignment](type-system/definite-assignment.md)
 
 # Advanced Features
 

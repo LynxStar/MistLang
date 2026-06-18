@@ -1220,7 +1220,7 @@ Abs=5
 ArrLen=3
 --- CLR Ref Interop ---
 [ref-param] old=42, new=100
-[ref-param-array] length=4
+[ref-param-add] result=15, counter=15
 [in-param] doubled=14, x=7
 [out-param] success=True, found=42
 [out-param-miss] success=False, missing=0
@@ -1508,7 +1508,7 @@ absent ?? 42: 42
   factory point: x=0 y=0
 --- Optional Defaultability ---
   maybeValue=Void
---- Array Defaultability ---
+--- Array Stampability ---
   ints[0]=0 ints[1]=0 ints[2]=0
   points[0].X=0 points[0].Y=0
 Done!
@@ -1564,4 +1564,12 @@ Done!
   result=7
   LinearValueTaskHolder<T>.Drop()
 === Done ===
+[da] local=definite
+[da] category=1
+[da] ints[0]=0 ints[2]=0
+[da] points[0].X=0 points[1].Y=0
+[da] labels[0]=Label(item-0)
+[da] labels[2]=Label(item-2)
+[da] pair[0]=Label(first)
+[da] pair[1]=Label(second)
 === Done! ===

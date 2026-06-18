@@ -92,10 +92,7 @@ Console.WriteLine($"  while final count: {whileCount}");
 // === 6. Control Flow — foreach ===
 Console.WriteLine("=== Control Flow: foreach ===");
 
-var items = new string[3];
-items[0] = "alpha";
-items[1] = "beta";
-items[2] = "gamma";
+var items = ["alpha", "beta", "gamma"];
 
 foreach (string item in items)
 {

@@ -3,13 +3,14 @@ namespace Standard;
 type ZeroOrPositiveInt = int >= 0;
 
 intrinsic public class Array<TValue, Length:ZeroOrPositiveInt> : IEnumerable<TValue>
-    where TValue : default
 {
     public type ArrayBounds = ZeroOrPositiveInt and < Length;
 
     intrinsic public Int32 Length { get; }
 
     intrinsic public TValue this[ArrayBounds index];
+
+    intrinsic public Array(Func<int, TValue> initializer);
 
     intrinsic public struct Enumerator : IEnumerator<TValue> {
         intrinsic public bool MoveNext();

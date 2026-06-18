@@ -70,6 +70,7 @@ public class Program
         Ownership.Program.RunDemo();
         OptionalDefaultability.Program.RunDemo();
         SubstructuralFieldDiscipline.Program.RunDemo();
+        DefiniteAssignment.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

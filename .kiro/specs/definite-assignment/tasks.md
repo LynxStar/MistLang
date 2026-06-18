@@ -22,7 +22,7 @@ This plan implements definite-assignment analysis (constructor fields + locals),
     - In-process compile via shared `CompilerDriver`; assert `IsStampable` matches the recursive primitive-or-stampable-struct predicate. No process spawn.
     - **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5**
 
-- [ ] 2. Unified definite-assignment dataflow (read-before-assignment)
+- [x] 2. Unified definite-assignment dataflow (read-before-assignment)
   - [x] 2.1 Introduce `AssignmentState` (assigned fields, assigned locals, terminated flag) with `Clone()` and `IntersectWith()` in `TypeCheckerAnalyzer`
     - _Requirements: 1.1, 2.1_
   - [x] 2.2 Generalize the existing assignment-only walker into a forward read+write dataflow
@@ -44,92 +44,92 @@ This plan implements definite-assignment analysis (constructor fields + locals),
     - Create `Test/Mist.Tests/Analysis/FieldReadBeforeAssignmentPropertyTests.cs`.
     - Generator produces constructors with randomized assign/read orderings across branches. In-process; assert the emit-iff-unassigned-path biconditional. No process spawn.
     - **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.8**
-  - [ ] 2.6 Write property test for local read-before-assignment (Property 2)
+  - [x] 2.6 Write property test for local read-before-assignment (Property 2)
     - **Property 2: Local read-before-assignment soundness**
     - Create `Test/Mist.Tests/Analysis/LocalReadBeforeAssignmentPropertyTests.cs`.
     - Generator produces method bodies with randomized local declare/assign/read orderings (incl. branches, loops, compound assignment). In-process; assert biconditional. No process spawn.
     - **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5, 2.6**
-  - [ ] 2.7 Unit tests for definite-assignment edge cases
+  - [x] 2.7 Unit tests for definite-assignment edge cases
     - Field: all-branch assign (ok), one-branch assign (error), read-after-assign (ok), this-escape (error), initializer/synthetic-default pre-assigned (ok), end-of-ctor not-assigned still fires.
     - Local: initializer (ok), read-before (error), conditional merge (ok), loop-body read (error), compound-before-assign (error).
     - _Requirements: 1.2, 1.3, 1.5, 1.6, 1.7, 2.2, 2.4_
 
-- [ ] 3. Checkpoint — Classification and dataflow
+- [x] 3. Checkpoint — Classification and dataflow
   - Ensure all tests pass; confirm no existing tests regressed from the new read checks. Ask the user if questions arise.
 
-- [ ] 4. Bare array creation stampability gate (Type Checker)
-  - [ ] 4.1 Add `MIST_ARRAY_REQUIRES_INITIALIZER` diagnostic ID
+- [x] 4. Bare array creation stampability gate (Type Checker)
+  - [x] 4.1 Add `MIST_ARRAY_REQUIRES_INITIALIZER` diagnostic ID
     - _Requirements: 4.2_
-  - [ ] 4.2 Gate `new T[size]` on stampability in the array-creation check
+  - [x] 4.2 Gate `new T[size]` on stampability in the array-creation check
     - Accept primitive or stampable struct; otherwise emit `MIST_ARRAY_REQUIRES_INITIALIZER` with a reason (reference type vs. struct-with-non-stampable-field) and a fix suggestion.
     - _Requirements: 4.1, 4.2, 4.5, 4.6, 7.3, 7.4_
-  - [ ] 4.3 Write property test for the bare-array gate (Property 4)
+  - [x] 4.3 Write property test for the bare-array gate (Property 4)
     - **Property 4: Bare-array stampability gate**
     - Create `Test/Mist.Tests/Analysis/BareArrayStampabilityGatePropertyTests.cs`.
     - Generator produces `new T[N]` over randomized element types. In-process compile; assert success iff stampable, exactly one diagnostic otherwise. No process spawn.
     - **Validates: Requirements 4.1, 4.2, 4.5, 4.6**
 
-- [ ] 5. Initializer-based array construction (`new Array<T, Size>(fn)`)
-  - [ ] 5.1 Add the explicit `(Func<int, TValue> initializer)` constructor to `Source/Standard/Bootstrap/Array.mist`
+- [x] 5. Initializer-based array construction (`new Array<T, Size>(fn)`)
+  - [x] 5.1 Add the explicit `(Func<int, TValue> initializer)` constructor to `Source/Standard/Bootstrap/Array.mist`
     - Mark `intrinsic`; confirm declaring it suppresses the inferred `new()`. Remove the `where TValue : default` constraint.
     - _Requirements: 5.1, 6.4, 8.3, 8.3a_
-  - [ ] 5.2 Type-check `new Array<T, Size>(fn)`
+  - [x] 5.2 Type-check `new Array<T, Size>(fn)`
     - Validate single function argument, one integer-index parameter, return assignable to `T`; accept any `T`. Emit a diagnostic on signature mismatch.
     - _Requirements: 5.1, 5.2, 5.5, 5.7_
-  - [ ] 5.3 Emit the per-index initialization loop in `CSharpEmitter`
+  - [x] 5.3 Emit the per-index initialization loop in `CSharpEmitter`
     - Lower `new Array<T,Size>(fn)` to `new T[Size]` + `for (i in 0..Size) arr[i] = fn(i)`, lifted to a local as needed. Invoke only the user `fn`.
     - _Requirements: 5.3, 6.2_
-  - [ ] 5.4 Write property test for initializer construction totality (Property 5)
+  - [x] 5.4 Write property test for initializer construction totality (Property 5)
     - **Property 5: Initializer construction totality**
     - Create `Test/Mist.Tests/Backend/InitializerArrayConstructionPropertyTests.cs`.
     - **Process-spawning:** batched — generate N `(T, size, fn)` scenarios, build ONE program that prints every element, compile once, run once, compare line-by-line. Single `dotnet` spawn for the whole property.
     - **Validates: Requirements 5.1, 5.2, 5.3, 5.4, 6.1, 6.2**
 
-- [ ] 6. Remove the interim `__CreateDefault` array-fill loop and finalize stamp emission
-  - [ ] 6.1 Remove the `EmitArrayDefaultFillIfNeeded` calls and helper from `CSharpEmitter` (typed + inferred var-decl paths)
+- [x] 6. Remove the interim `__CreateDefault` array-fill loop and finalize stamp emission
+  - [x] 6.1 Remove the `EmitArrayDefaultFillIfNeeded` calls and helper from `CSharpEmitter` (typed + inferred var-decl paths)
     - Bare stampable arrays emit `new T[size]` with no loop (zero-fill); non-zero stampable defaults replicate the stamp value.
     - _Requirements: 4.1, 4.3, 4.4_
-  - [ ] 6.2 Write property test verifying no hidden default-fill (Property 6)
+  - [x] 6.2 Write property test verifying no hidden default-fill (Property 6)
     - **Property 6: No hidden default-fill**
     - Create `Test/Mist.Tests/Backend/NoHiddenArrayFillPropertyTests.cs`.
     - In-process emit to memory; assert emitted C# for array-creation paths contains no per-element `__CreateDefault()`; bare stampable path has no per-element loop; initializer path invokes only `fn`. No process spawn (source inspection).
     - **Validates: Requirements 4.3, 4.4, 6.3**
 
-- [ ] 7. Checkpoint — Array construction model
+- [x] 7. Checkpoint — Array construction model
   - Ensure all tests pass; build `samples/AllFeatures` and confirm no new diagnostics from the compiler changes alone (before migration). Ask the user if questions arise.
 
-- [ ] 8. Migrate affected samples and Standard Library
-  - [ ] 8.1 Migrate reference-type-array samples
+- [x] 8. Migrate affected samples and Standard Library
+  - [x] 8.1 Migrate reference-type-array samples
     - `Iterators` (`new string[3]`), `TopLevelStatements/Disambiguation.mist` (`new string[2]`), `TopLevelStatements/Program.mist` (`new string[3]`): replace with array literals or `new Array<T,Size>(fn)`.
     - _Requirements: 8.1, 8.6, 8.8, 8.9_
-  - [ ] 8.2 Migrate `ClrRefInterop` — remove the `Array.Resize` demo
+  - [x] 8.2 Migrate `ClrRefInterop` — remove the `Array.Resize` demo
     - Delete the `[ref-param-array]` block and its `new string[2]`; replace with a CLR ref-param demo that does not reassign an array (`Interlocked.Increment(ref int)` or `Interlocked.Add(ref int, int)`).
     - _Requirements: 8.7_
-  - [ ] 8.3 Migrate `OptionalDefaultability` — `new Point[2]` where `Point` is a class
+  - [x] 8.3 Migrate `OptionalDefaultability` — `new Point[2]` where `Point` is a class
     - Replace with array literal or initializer construction; rewrite PROOF comments/narrative to the stampable-vs-initializer model (the old "array requires TValue:default" theme is superseded).
     - _Requirements: 8.10_
-  - [ ] 8.4 Scan and migrate any Standard Library bare `new T[size]` over non-stampable `T`
+  - [x] 8.4 Scan and migrate any Standard Library bare `new T[size]` over non-stampable `T`
     - _Requirements: 8.2_
-  - [ ] 8.5 Verify stampable samples compile unchanged
+  - [x] 8.5 Verify stampable samples compile unchanged
     - Build each sample in Req 8.11 (`new int[N]` users). If any newly fails, fix the stampability classifier, not the sample.
     - _Requirements: 8.11_
 
-- [ ] 9. Definite-assignment sample application
-  - [ ] 9.1 Create `samples/DefiniteAssignment/Program.mist` with the proof code verbatim
+- [x] 9. Definite-assignment sample application
+  - [x] 9.1 Create `samples/DefiniteAssignment/Program.mist` with the proof code verbatim
     - Include `mist.toml`. The proof code from Requirement 9 must appear as-is and produce the exact expected output.
     - _Requirements: 9.1, 9.2, 9.3, 9.5_
-  - [ ] 9.2 Wire `DefiniteAssignment.Program.RunDemo()` into `samples/AllFeatures`
+  - [x] 9.2 Wire `DefiniteAssignment.Program.RunDemo()` into `samples/AllFeatures`
     - Add the call to `samples/AllFeatures/Program.mist` and the reference to `samples/AllFeatures/mist.toml`.
     - _Requirements: 9.4_
-  - [ ] 9.3 Verify the sample and AllFeatures
+  - [x] 9.3 Verify the sample and AllFeatures
     - Compile and run `DefiniteAssignment`; assert exact expected output. Build+run `samples/AllFeatures` with zero errors/warnings/info diagnostics.
     - _Requirements: 8.4, 9.5_
 
-- [ ] 10. Book documentation
-  - [ ] 10.1 Add a definite-assignment chapter/section under the Type System area in `book/src/`
+- [x] 10. Book documentation
+  - [x] 10.1 Add a definite-assignment chapter/section under the Type System area in `book/src/`
     - Cover: field/local read-before-assignment rejection; bare array for stampable types; initializer construction for non-stampable types; the no-null/zero-invalid soundness guarantee.
     - _Requirements: 10.1, 10.2_
-  - [ ] 10.2 Add compiled snippets and reference the chapter in `SUMMARY.md`
+  - [x] 10.2 Add compiled snippets and reference the chapter in `SUMMARY.md`
     - All examples as compiled snippets per the Book Snippet Policy.
     - _Requirements: 10.3, 10.4_
 

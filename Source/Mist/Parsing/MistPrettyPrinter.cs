@@ -93,6 +93,9 @@ public sealed class MistPrettyPrinter
                 case ExtensionItemTopLevelItemNode extensionItem:
                     EmitExtensionBlockDeclaration(extensionItem.ExtensionDeclaration);
                     break;
+                case UsingItemTopLevelItemNode usingItem:
+                    EmitUsingDeclaration(usingItem.UsingDeclaration);
+                    break;
                 case StatementItemTopLevelItemNode stmtItem:
                     EmitStatement(stmtItem.Statement);
                     break;

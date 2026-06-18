@@ -1,0 +1,22 @@
+using Standard;
+
+public class Color
+{
+    public string Name;
+
+    public Color(string name)
+    {
+        this.Name = name;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Array literal — every element explicitly provided, any type accepted
+        var colors = [new Color("red"), new Color("green"), new Color("blue")];
+        Console.WriteLine(colors[0].Name);
+        Console.WriteLine(colors[2].Name);
+    }
+}

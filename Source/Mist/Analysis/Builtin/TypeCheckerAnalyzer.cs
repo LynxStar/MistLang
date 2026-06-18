@@ -2482,6 +2482,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 AnalyzeVariableDeclarationDataflow(varDeclStmt.VariableDeclaration, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 break;
 
+            case UninitializedVariableStatementStatementNode:
+                // No initializer — the local is NOT added to AssignedLocals.
+                // Definite-assignment analysis will ensure it's assigned before use.
+                break;
+
             case BreakStatementStatementNode:
                 state.Terminated = true;
                 break;
@@ -2977,6 +2982,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     or InferredVariableDeclarationVariableDeclarationStatementNode
                     or VarTupleDeconstructionVariableDeclarationStatementNode
                     or TypedTupleDeconstructionVariableDeclarationStatementNode
+                    or UninitializedVariableDeclarationNode
                     or ForInitializerVariableDeclarationForInitializerNode
                     or ForInitializerVarDeclarationForInitializerNode
                     or ForeachStatementNode)
@@ -12383,6 +12389,34 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     };
 
     /// <summary>
+    /// Names of primitive struct types that are always stampable. This covers
+    /// legacy singleton StructType instances that may not have had
+    /// <see cref="StructType.IsStampable"/> set by <c>ComputeStampability</c>
+    /// (e.g., when the standard library is not loaded in tests).
+    /// Excludes <c>string</c> because it is a ClassType, not a StructType.
+    /// </summary>
+    private static readonly HashSet<string> PrimitiveStructNames = new(StringComparer.Ordinal)
+    {
+        "Int32", "UInt32", "Int64", "UInt64", "Int16", "UInt16",
+        "Byte", "SByte", "Single", "Double", "Decimal",
+        "Boolean", "Char",
+        "int", "uint", "long", "ulong", "short", "ushort",
+        "byte", "sbyte", "float", "double", "decimal",
+        "bool", "char",
+    };
+
+    /// <summary>
+    /// Returns <c>true</c> if a <see cref="StructType"/> is a primitive numeric or
+    /// boolean/char type by name. Used as a fallback in the stampability gate for
+    /// legacy primitive singletons that may not have been processed by
+    /// <c>ComputeStampability</c>.
+    /// </summary>
+    private static bool IsPrimitiveStructByName(StructType st)
+    {
+        return PrimitiveStructNames.Contains(st.DisplayName);
+    }
+
+    /// <summary>
     /// Determines whether a type is defaultable — either intrinsically defaultable
     /// (primitive/string), or a ClassType/StructType/EnumType with <c>Inferred</c>
     /// or <c>Explicit</c> defaultability, or a union type containing void.
@@ -12762,6 +12796,41 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     model));
             }
         }
+
+        // ── Stampability gate for bare `new T[size]` ─────────────────────
+        // Requirement 4.1/4.2/4.5/4.6: bare array creation is restricted
+        // to stampable element types (primitives and pure structs). All
+        // other types require initializer-based construction.
+        if (elementType is ArrayType arrayType)
+        {
+            var elemType = arrayType.ElementType;
+
+            // Skip the gate if the element type is unresolved/error.
+            if (elemType is null || IsErrorType(elemType))
+                return;
+
+            // Accept stampable struct types (includes primitives like int,
+            // bool, char, float — all modeled as StructType with IsStampable = true).
+            // Also accept legacy primitive struct singletons that may not have
+            // had IsStampable set (they are intrinsically stampable by name).
+            if (elemType is StructType st && (st.IsStampable || IsPrimitiveStructByName(st)))
+                return;
+
+            // All other element types are not stampable — emit the diagnostic.
+            var reason = elemType switch
+            {
+                StructType => $"'{elemType.DisplayName}' is a struct with fields that are not stampable",
+                _ => $"'{elemType.DisplayName}' is a reference type",
+            };
+
+            diagnostics.Add(MakeDiagnostic(
+                DiagnosticId.ArrayRequiresInitializer.Value,
+                $"Cannot create a bare array 'new {elemType.DisplayName}[size]' because {reason}. " +
+                $"Use 'new Array<{elemType.DisplayName}, Size>(i => ...)' to supply a value for each element, " +
+                $"or use an array literal.",
+                arrayCreation,
+                model));
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -13064,6 +13133,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return; // Literal satisfies all constraints — accept.
             }
 
+            // If the only unsatisfied constraint is a symbolic upper bound
+            // (unresolvable at compile time), and the literal satisfies the
+            // lower bound (>= 0), accept it — defer upper bound to runtime.
+            if (longVal.HasValue && longVal.Value >= 0 && !arrayType.KnownLength.HasValue)
+                return;
+
             // Literal fails — emit diagnostic.
             var boundsDesc = arrayType.KnownLength.HasValue
                 ? $">= 0 and < {arrayType.KnownLength.Value}"
@@ -13303,6 +13378,84 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // so constructor lookup finds the actual class/struct constructors.
         if (createdType is TypeAliasType aliasCreated)
             createdType = aliasCreated.UnderlyingType;
+
+        // ── new Array<T, Size>(fn) — initializer-based array construction ──
+        // When the created type is an ArrayType (produced by the special-case
+        // in SemanticModelBuilder for `new Array<T, Size>(fn)`), validate the
+        // function argument: it must be a Func<int, T> where T is assignable
+        // to the element type. The lambda target type was already set during
+        // semantic model construction, so argument type resolution has
+        // inferred the lambda's type. We validate the resolved argument type
+        // here.
+        if (createdType is ArrayType arrayCtorType)
+        {
+            var arrayCtorArgTypes = CollectArgumentTypes(objectCreation.Arguments, model);
+
+            // Validate: exactly one argument, which must be a Func<int, T>.
+            if (arrayCtorArgTypes.Count != 1)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0011",
+                    $"'new Array<{arrayCtorType.ElementType.DisplayName}, Size>(fn)' requires exactly one argument: a function of type 'Func<int, {arrayCtorType.ElementType.DisplayName}>'.",
+                    objectCreation,
+                    model));
+                return;
+            }
+
+            var argType = arrayCtorArgTypes[0];
+            if (IsErrorType(argType))
+                return; // Error already reported during argument resolution.
+
+            // Check that the argument is a Func type with the right shape:
+            // Func<int, TReturn> where TReturn is assignable to elementType.
+            if (!SemanticModelBuilder.IsFuncType(argType) || argType is not ConstructedType funcCt)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0011",
+                    $"'new Array<{arrayCtorType.ElementType.DisplayName}, Size>(fn)' requires a function argument of type 'Func<int, {arrayCtorType.ElementType.DisplayName}>', but found '{argType.DisplayName}'.",
+                    objectCreation,
+                    model));
+                return;
+            }
+
+            // Func<int, T> has 2 type arguments: [int, T].
+            if (funcCt.TypeArguments.Count != 2)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0011",
+                    $"'new Array<{arrayCtorType.ElementType.DisplayName}, Size>(fn)' requires a function with one integer parameter, but the provided function has {funcCt.TypeArguments.Count - 1} parameter(s).",
+                    objectCreation,
+                    model));
+                return;
+            }
+
+            // Check that the first parameter is int.
+            var paramType = funcCt.TypeArguments[0];
+            if (!IsIntType(paramType))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0011",
+                    $"'new Array<{arrayCtorType.ElementType.DisplayName}, Size>(fn)' requires a function with an 'int' index parameter, but found '{paramType.DisplayName}'.",
+                    objectCreation,
+                    model));
+                return;
+            }
+
+            // Check that the return type is assignable to the element type.
+            var returnType = funcCt.TypeArguments[1];
+            if (!IsAssignable(returnType, arrayCtorType.ElementType, model))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0011",
+                    $"'new Array<{arrayCtorType.ElementType.DisplayName}, Size>(fn)' requires the function to return a value assignable to '{arrayCtorType.ElementType.DisplayName}', but found '{returnType.DisplayName}'.",
+                    objectCreation,
+                    model));
+                return;
+            }
+
+            // Valid — no further checks needed.
+            return;
+        }
 
         // ── unknown-type storage ban on `new` (Task 12.1, 12.2) ──────────
         // Two guards, checked before constructor lookup because the
@@ -17172,6 +17325,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsErrorType(IType type)
     {
         return type is ErrorType;
+    }
+
+    /// <summary>
+    /// Returns true if the given type represents the <c>int</c> (Int32) primitive type.
+    /// Used for validating array initializer constructor index parameters.
+    /// </summary>
+    private static bool IsIntType(IType type)
+    {
+        if (type is TypeAliasType alias)
+            type = alias.UnderlyingType;
+        return type is StructType st && st.DisplayName == "Int32";
     }
 
     /// <summary>

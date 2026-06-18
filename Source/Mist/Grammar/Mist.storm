@@ -100,6 +100,7 @@ rule TopLevelItem
     | typeAliasDeclaration:TypeAliasDeclaration  as TypeAliasItem
     | withDeclaration:WithDeclaration            as WithItem
     | extensionDeclaration:ExtensionBlockDeclaration as ExtensionItem
+    | usingDeclaration:UsingDeclaration          as UsingItem
     | statement:Statement                        as StatementItem
     ;
 
@@ -523,7 +524,14 @@ rule Statement
     | withBlockStatement:WithBlockStatement                  as WithBlockStatement
     | blockStatement:Block                                   as BlockStatement
     | expressionStatement:ExpressionStatement             as ExpressionStatement
+    | uninitializedVariable:UninitializedVariableDeclaration as UninitializedVariableStatement
     ;
+
+// Uninitialized variable declaration: `type name;` (no initializer).
+// Placed after ExpressionStatement in Statement to avoid ambiguity with cast
+// expression statements like `(ulong)a;` which would otherwise match as a
+// parenthesized-type variable declaration.
+rule UninitializedVariableDeclaration = ownershipSpecifier:OwnershipSpecifier? type:TypeReference name:IDENTIFIER SEMICOLON;
 
 rule ReadonlyBlockStatement = READONLY body:Block;
 

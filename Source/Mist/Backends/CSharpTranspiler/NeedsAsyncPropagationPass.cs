@@ -87,6 +87,13 @@ internal static class NeedsAsyncPropagationPass
             }
         }
 
+        // Seed rule 5: Drop() methods on types with task-like droppable fields.
+        // The emitter's EmitRemainingFieldDropsIfManualDrop now skips task-like fields
+        // (Task<T>, ValueTask<T>) — their "drop" (await) is intentionally omitted when
+        // the user's manual Drop() doesn't explicitly handle them. Therefore we no longer
+        // need to mark Drop() as async based solely on having task-like fields.
+        // This rule is now disabled since the emitter skips task-like field auto-drops.
+
         // Step 3: Build reverse call graph (callee → callers).
         var calleeToCallers = new Dictionary<Symbol, List<Symbol>>();
         foreach (var (caller, callees) in callerToCallees)
@@ -457,6 +464,38 @@ internal static class NeedsAsyncPropagationPass
                 continue;
 
             return FindMethodInType(typeForLookup, methodName);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the enclosing type (class or struct) for a method symbol by checking
+    /// the method's declaring scope chain.
+    /// </summary>
+    private static IType? FindEnclosingType(Symbol method, ISemanticModel model)
+    {
+        // Search all type symbols to find one whose member scope contains this method.
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol is not Symbol sym)
+                continue;
+
+            var memberScope = sym.DeclaredType switch
+            {
+                ClassType ct => ct.MemberScope,
+                StructType st => st.MemberScope,
+                _ => null,
+            };
+
+            if (memberScope is null)
+                continue;
+
+            foreach (var member in memberScope.Members)
+            {
+                if (ReferenceEquals(member, method))
+                    return sym.DeclaredType;
+            }
         }
 
         return null;

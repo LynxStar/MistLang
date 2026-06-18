@@ -1343,6 +1343,7 @@ absent ?? 42: 42
 --- 4. Linear: Drop with return value ---
   LinearBox.Drop() called, yielding value
   Got value: 42
+  FileHandle(42).Drop() called
 --- 5. Linear: reverse drop ordering ---
   Created: 10, 11, 12
   FileHandle(12).Drop() called
@@ -1511,6 +1512,58 @@ absent ?? 42: 42
   ints[0]=0 ints[1]=0 ints[2]=0
   points[0].X=0 points[0].Y=0
 Done!
+=== Substructural Field Discipline Sample ===
+--- 1. Linear container holds linear field ---
+  LinearHoldsLinear.Drop()
+  LinearToken(1).Drop()
+--- 2. Linear container holds affine field ---
+  LinearHoldsAffine.Drop()
+  AffineToken(2).Drop()
+--- 3. Linear container holds relevant field ---
+  LinearHoldsRelevant.Drop()
+  RelevantToken(3).Drop()
+--- 4. Linear container holds unrestricted field ---
+  LinearHoldsPlain.Drop()
+--- 5. Affine container holds affine field ---
+  AffineHoldsAffine.Drop()
+  AffineToken(5).Drop()
+--- 6. Affine container holds unrestricted field ---
+  AffineHoldsPlain.Drop()
+--- 7. Relevant container holds relevant field ---
+  RelevantHoldsRelevant.Drop()
+  RelevantToken(7).Drop()
+--- 8. Relevant container holds unrestricted field ---
+  RelevantHoldsPlain.Drop()
+--- 9. Generic linear box with linear type argument ---
+  LinearBox<T>.Drop()
+  LinearToken(9).Drop()
+--- 10. Generic affine box with affine type argument ---
+  AffineBox<T>.Drop()
+  AffineToken(10).Drop()
+--- 11. Generic relevant box with relevant type argument ---
+  RelevantBox<T>.Drop()
+  RelevantToken(11).Drop()
+--- 12. Linear satisfies affine constraint ---
+  AffineBoxWithLinear.Drop()
+  AffineBox<T>.Drop()
+  LinearToken(12).Drop()
+--- 13. Linear satisfies relevant constraint ---
+  RelevantBoxWithLinear.Drop()
+  RelevantBox<T>.Drop()
+  LinearToken(13).Drop()
+--- 14. Task<T> stored in relevant container ---
+  RelevantTaskHolder<T>.Resolve()
+  result=42
+  RelevantTaskHolder<T>.Drop()
+--- 15. Task<T> stored in linear container ---
+  LinearTaskHolder<T>.Resolve()
+  result=99
+  LinearTaskHolder<T>.Drop()
+--- 16. ValueTask<T> stored in linear container ---
+  LinearValueTaskHolder<T>.Resolve()
+  result=7
+  LinearValueTaskHolder<T>.Drop()
+=== Done ===
 [da] local=definite
 [da] category=1
 [da] ints[0]=0 ints[2]=0

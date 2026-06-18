@@ -472,6 +472,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId ConstraintPropagationInsufficient = new("MIST_CONSTRAINT_0017");
 
+    /// <summary>
+    /// Emitted when a type argument's substructural discipline does not satisfy
+    /// the substructural constraint on the corresponding type parameter.
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintSubstructuralViolation = new("MIST_CONSTRAINT_0018");
+
     // ── property-initializers feature: validation diagnostics ──────────────
 
     /// <summary>
@@ -634,14 +640,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// This is technically valid but almost certainly unintended (Requirement 3.6).
     /// </summary>
     internal static readonly DiagnosticId AsyncFunctorDoubleWrap = new("MIST_TC_0109");
-
-    /// <summary>
-    /// Emitted when a <c>Task&lt;T&gt;</c> value is stored in a field, property,
-    /// or collection (array element type). Storing tasks in these locations would
-    /// allow them to escape their structured scope, violating structured concurrency
-    /// (Requirement 7.5).
-    /// </summary>
-    internal static readonly DiagnosticId TaskStorageRestriction = new("MIST_TC_0110");
 
     // ── optional-types feature: operator diagnostics ─────────────────────
 
@@ -3352,22 +3350,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (declaringNode is not FieldDeclarationNode fieldDecl)
             return;
 
-        // ── MIST_TC_0110: Task<T> storage restriction (Requirement 7.5) ──
-        // Task<T> cannot be stored in a field — it would allow the task to escape
-        // its structured scope.
-        var fieldType = fieldSymbol.DeclaredType;
-        if (fieldType is not null && IsTaskStorageViolation(fieldType))
-        {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0110",
-                "Cannot store 'Task<T>' in a field; tasks must be awaited or returned to maintain structured concurrency",
-                declaringNode,
-                model));
-        }
-
         // ── MIST2002: Ref struct field restriction (Requirement 3.5) ──
         // A ref struct type cannot be used as a field in a non-ref-struct type,
         // since that would allow the ref struct value to escape to the heap.
+        var fieldType = fieldSymbol.DeclaredType;
         if (fieldType is StructType { IsRefStruct: true } refFieldType)
         {
             var containingType = FindDeclaringType(fieldSymbol);
@@ -3422,18 +3408,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         var propInfo = GetPropertyMetadata(propertySymbol);
         var propType = propertySymbol.DeclaredType ?? ErrorType.Instance;
-
-        // ── MIST_TC_0110: Task<T> storage restriction (Requirement 7.5) ──
-        // Task<T> cannot be stored in a property — it would allow the task to escape
-        // its structured scope.
-        if (IsTaskStorageViolation(propType))
-        {
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0110",
-                "Cannot store 'Task<T>' in a property; tasks must be awaited or returned to maintain structured concurrency",
-                declaringNode,
-                model));
-        }
 
         // ── MIST2003: Ref struct property restriction (Requirement 3.6) ──
         // A ref struct type cannot be used as a property type in a non-ref-struct type,
@@ -9458,39 +9432,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (SemanticModelBuilder.IsStandardTaskType(operandType))
             return;
 
+        // Also accept ValueTask<T> as a valid await operand.
+        if (operandType is ConstructedType vt
+            && vt.GenericDefinition is ClassType { DisplayName: "ValueTask", ContainingNamespace: "Standard", IsBackendBacked: true })
+            return;
+
         diagnostics.Add(MakeDiagnostic(
             AwaitNonTaskOperand.Value,
             $"The 'await' functor requires an operand of type 'Task<T>', but got '{operandType.DisplayName}'",
             awaitExpr,
             model));
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Task<T> storage restriction (MIST_TC_0110)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Returns <c>true</c> when the given type represents a storage violation
-    /// for <c>Task&lt;T&gt;</c>: either the type itself is <c>Task&lt;T&gt;</c>,
-    /// or it is an array whose element type is <c>Task&lt;T&gt;</c>.
-    /// Task&lt;T&gt; cannot be stored in fields, properties, or collections
-    /// because it would allow the task to escape its structured scope
-    /// (Requirement 7.5).
-    /// </summary>
-    private static bool IsTaskStorageViolation(IType type)
-    {
-        if (IsErrorType(type))
-            return false;
-
-        // Direct Task<T> type
-        if (SemanticModelBuilder.IsStandardTaskType(type))
-            return true;
-
-        // Array with Task<T> element type (collection)
-        if (type is ArrayType arrayType && SemanticModelBuilder.IsStandardTaskType(arrayType.ElementType))
-            return true;
-
-        return false;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -18962,6 +18913,97 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     model));
             }
         }
+
+        // Check substructural constraint: type argument's discipline must satisfy
+        // the constraint discipline per the satisfaction lattice.
+        var requiredDiscipline = GetConstraintDiscipline(constraints);
+        if (requiredDiscipline != SubstructuralDiscipline.None)
+        {
+            var argDiscipline = GetArgumentDiscipline(typeArgument);
+            if (!SatisfiesSubstructuralConstraint(argDiscipline, requiredDiscipline))
+            {
+                var constraintKeyword = requiredDiscipline switch
+                {
+                    SubstructuralDiscipline.Linear => "linear",
+                    SubstructuralDiscipline.Affine => "affine",
+                    SubstructuralDiscipline.Relevant => "relevant",
+                    _ => "substructural",
+                };
+                diagnostics.Add(MakeDiagnostic(
+                    ConstraintSubstructuralViolation.Value,
+                    $"Type '{typeArgument.DisplayName}' does not satisfy the '{constraintKeyword}' constraint on type parameter '{typeParameter.Name}' of '{genericTypeName}'.",
+                    node,
+                    model));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns the substructural discipline required by a type parameter's constraints.
+    /// Returns <see cref="SubstructuralDiscipline.None"/> if no substructural constraint is present.
+    /// </summary>
+    private static SubstructuralDiscipline GetConstraintDiscipline(TypeParameterConstraints constraints)
+    {
+        if (constraints.HasLinearConstraint)
+            return SubstructuralDiscipline.Linear;
+        if (constraints.HasAffineConstraint)
+            return SubstructuralDiscipline.Affine;
+        if (constraints.HasRelevantConstraint)
+            return SubstructuralDiscipline.Relevant;
+        return SubstructuralDiscipline.None;
+    }
+
+    /// <summary>
+    /// Returns the substructural discipline of a type argument. Resolves through
+    /// <see cref="ConstructedType"/> to get the generic definition's discipline.
+    /// For <see cref="TypeParameterType"/>, reads constraint booleans.
+    /// </summary>
+    private static SubstructuralDiscipline GetArgumentDiscipline(IType type)
+    {
+        if (type is TypeParameterType tpType)
+        {
+            var tpConstraints = tpType.Constraints;
+            if (tpConstraints is null)
+                return SubstructuralDiscipline.None;
+            if (tpConstraints.HasLinearConstraint)
+                return SubstructuralDiscipline.Linear;
+            if (tpConstraints.HasAffineConstraint)
+                return SubstructuralDiscipline.Affine;
+            if (tpConstraints.HasRelevantConstraint)
+                return SubstructuralDiscipline.Relevant;
+            return SubstructuralDiscipline.None;
+        }
+
+        var resolved = type is ConstructedType constructed ? constructed.GenericDefinition : type;
+        return resolved switch
+        {
+            ClassType ct => ct.Discipline,
+            StructType st => st.Discipline,
+            _ => SubstructuralDiscipline.None,
+        };
+    }
+
+    /// <summary>
+    /// Determines whether an argument discipline satisfies a required constraint discipline
+    /// per the satisfaction lattice:
+    /// <list type="bullet">
+    ///   <item>Linear satisfies {linear, affine, relevant}.</item>
+    ///   <item>Affine satisfies only {affine}.</item>
+    ///   <item>Relevant satisfies only {relevant}.</item>
+    ///   <item>Unrestricted (None) satisfies nothing.</item>
+    /// </list>
+    /// </summary>
+    private static bool SatisfiesSubstructuralConstraint(
+        SubstructuralDiscipline argument,
+        SubstructuralDiscipline constraint)
+    {
+        return constraint switch
+        {
+            SubstructuralDiscipline.Linear => argument == SubstructuralDiscipline.Linear,
+            SubstructuralDiscipline.Affine => argument is SubstructuralDiscipline.Affine or SubstructuralDiscipline.Linear,
+            SubstructuralDiscipline.Relevant => argument is SubstructuralDiscipline.Relevant or SubstructuralDiscipline.Linear,
+            _ => true,
+        };
     }
 
     /// <summary>

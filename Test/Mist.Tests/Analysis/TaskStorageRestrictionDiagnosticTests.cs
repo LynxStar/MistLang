@@ -1,163 +1,262 @@
-// **Validates: Requirements 7.5, 7.6, 7.7**
+// **Validates: Requirements 9.7, 9.8**
 
 using System.Collections.Immutable;
 using Mist.Analysis.Builtin;
+using Mist.Analysis.Contracts;
+using Mist.Backends.CSharpTranspiler;
+using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
+using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Generated;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Analysis;
 
 /// <summary>
-/// Unit tests verifying that MIST_TC_0110 is emitted when <c>Task&lt;T&gt;</c>
-/// is stored in a field, property, or collection (array element type).
-/// Also verifies that <c>Task&lt;T&gt;</c> is allowed in local variables,
-/// method parameters, and return types.
+/// Unit tests verifying that <c>Task&lt;T&gt;</c> and <c>ValueTask&lt;T&gt;</c>
+/// are handled by the discipline-compatibility matrix after removal of MIST_TC_0110.
+///
+/// Task&lt;T&gt; has relevant discipline; ValueTask&lt;T&gt; has linear discipline.
+/// The matrix determines which containers may hold them:
+///   - Task in relevant container → ✓ (zero diagnostics)
+///   - Task in linear container → ✓ (zero diagnostics)
+///   - Task in affine container → ✗ (MIST_DROP_FIELD_NOT_OWNED)
+///   - Task in unrestricted container → ✗ (MIST_DROP_FIELD_NOT_OWNED)
+///   - ValueTask in linear container → ✓ (zero diagnostics)
+///   - ValueTask in affine container → ✗ (MIST_DROP_FIELD_NOT_OWNED)
+///   - ValueTask in relevant container → ✗ (MIST_DROP_FIELD_NOT_OWNED)
+///   - ValueTask in unrestricted container → ✗ (MIST_DROP_FIELD_NOT_OWNED)
+///
+/// **Validates: Requirements 9.7, 9.8**
 /// </summary>
 public class TaskStorageRestrictionDiagnosticTests
 {
-    private static readonly Mist.Lexing.MistLexer Lexer = new();
-    private static readonly Mist.Parsing.MistParser Parser = new();
-    private static readonly TypeCheckerAnalyzer Analyzer = new();
+    private static readonly CompilerDriver SharedDriver = new(
+        new Mist.Lexing.MistLexer(),
+        new Mist.Parsing.MistParser(),
+        new SemanticModelBuilder(),
+        ImmutableArray.Create<IAnalyzer>(
+            new TypeCheckerAnalyzer(),
+            new ReadonlyAnalyzer(),
+            new OwnershipAnalyzer(),
+            new DropAnalyzer()),
+        ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
-    /// <summary>
-    /// Compiles source with stdlib loaded (needed for Task&lt;T&gt; resolution).
-    /// </summary>
-    private static ImmutableArray<Diagnostic> CompileWithStdlibAndGetDiagnostics(string source)
+    private static ImmutableArray<Diagnostic> Compile(string source)
     {
-        var sourceText = new SourceText("test.mist", source);
-
-        var lexDiag = new DiagnosticBag();
-        var tokens = Lexer.Lex(sourceText, lexDiag);
-
-        var parseDiag = new DiagnosticBag();
-        var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
-            return parseDiag.ToImmutableArray();
-
-        var (model, buildDiag) = StdlibTestHelper.BuildModelWithStdlib(
-            parseResult.Root, source: source);
-
-        var tcDiag = new DiagnosticBag();
-        Analyzer.Analyze(model, tcDiag);
-
-        var all = new List<Diagnostic>();
-        all.AddRange(buildDiag);
-        all.AddRange(tcDiag.ToImmutableArray());
-        return all.ToImmutableArray();
+        var tempDir = Path.Combine(Path.GetTempPath(), "mist_task_storage_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var sourcePath = Path.Combine(tempDir, "Program.mist");
+            File.WriteAllText(sourcePath, source);
+            var options = new CompilerOptions(
+                ProjectFolder: tempDir,
+                SourcePaths: ImmutableArray.Create(sourcePath),
+                Backend: new BackendId("csharp"),
+                OutputDirectory: tempDir,
+                BinDirectory: Path.Combine(tempDir, "bin"),
+                ProjectName: "TestProgram",
+                NamespaceRoot: "TestProgram",
+                EnabledAnalyzerIds: ImmutableArray<string>.Empty,
+                EmitToDisk: false);
+            return SharedDriver.Compile(options).Diagnostics;
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, recursive: true); } catch { }
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Field storage restriction tests
+    // Task<T> in compatible containers (zero diagnostics)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void TaskFieldDeclaration_EmitsMIST_TC_0110()
+    public void TaskFieldInRelevantContainer_ZeroDiagnostics()
     {
         const string source = """
             using Standard;
-            class Foo {
+            relevant class Holder {
                 Task<int> myTask;
+                bool dropped;
+                public Holder(Task<int> t) { this.myTask = t; this.dropped = false; }
+                public void Drop() { if (dropped) { return; } this.dropped = true; }
             }
             class Program { public static void Main() {} }
             """;
 
-        var diagnostics = CompileWithStdlibAndGetDiagnostics(source);
+        var diagnostics = Compile(source);
 
-        var diag = Assert.Single(diagnostics, d => d.Id.Value == "MIST_TC_0110");
-        Assert.Contains("field", diag.Message);
-        Assert.Contains("Task<T>", diag.Message);
-        Assert.Contains("structured concurrency", diag.Message);
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_DROP_FIELD_NOT_OWNED");
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0110");
     }
 
     [Fact]
-    public void TaskVoidFieldDeclaration_EmitsMIST_TC_0110()
+    public void TaskFieldInLinearContainer_ZeroDiagnostics()
     {
         const string source = """
             using Standard;
-            class Foo {
-                Task<void> work;
+            linear class Holder {
+                Task<int> myTask;
+                public Holder(Task<int> t) { this.myTask = t; }
+                public void Drop() { }
             }
             class Program { public static void Main() {} }
             """;
 
-        var diagnostics = CompileWithStdlibAndGetDiagnostics(source);
+        var diagnostics = Compile(source);
 
-        var diag = Assert.Single(diagnostics, d => d.Id.Value == "MIST_TC_0110");
-        Assert.Contains("field", diag.Message);
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_DROP_FIELD_NOT_OWNED");
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0110");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property storage restriction tests
+    // Task<T> in incompatible containers (MIST_DROP_FIELD_NOT_OWNED)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void TaskPropertyDeclaration_EmitsMIST_TC_0110()
+    public void TaskFieldInAffineContainer_EmitsDisciplineCompatibilityDiagnostic()
     {
         const string source = """
             using Standard;
-            class Foo {
-                Task<int> MyTask { get { return default; } }
+            affine class Holder {
+                Task<int> myTask;
+                public Holder(Task<int> t) { this.myTask = t; }
+                public void Drop() { }
             }
             class Program { public static void Main() {} }
             """;
 
-        var diagnostics = CompileWithStdlibAndGetDiagnostics(source);
+        var diagnostics = Compile(source);
 
-        var diag = Assert.Single(diagnostics, d => d.Id.Value == "MIST_TC_0110");
-        Assert.Contains("property", diag.Message);
-        Assert.Contains("Task<T>", diag.Message);
-        Assert.Contains("structured concurrency", diag.Message);
+        var diag = Assert.Single(diagnostics, d => d.Id.Value == "MIST_DROP_FIELD_NOT_OWNED");
+        Assert.Contains("Affine", diag.Message);
+        Assert.Contains("relevant", diag.Message);
+        Assert.Contains("myTask", diag.Message);
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0110");
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Collection (array) storage restriction tests
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
-    public void TaskArrayFieldDeclaration_EmitsMIST_TC_0110()
+    public void TaskFieldInUnrestrictedContainer_EmitsDisciplineCompatibilityDiagnostic()
     {
         const string source = """
             using Standard;
-            class Foo {
-                Task<int>[] tasks;
+            class Holder {
+                Task<int> myTask;
+                public Holder(Task<int> t) { this.myTask = t; }
             }
             class Program { public static void Main() {} }
             """;
 
-        var diagnostics = CompileWithStdlibAndGetDiagnostics(source);
+        var diagnostics = Compile(source);
 
-        var diag = Assert.Single(diagnostics, d => d.Id.Value == "MIST_TC_0110");
-        Assert.Contains("field", diag.Message);
+        var diag = Assert.Single(diagnostics, d => d.Id.Value == "MIST_DROP_FIELD_NOT_OWNED");
+        Assert.Contains("relevant", diag.Message);
+        Assert.Contains("myTask", diag.Message);
+        Assert.Contains("no substructural discipline", diag.Message);
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0110");
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // ValueTask<T> in compatible containers (zero diagnostics)
+    // ═══════════════════════════════════════════════════════════════════════
+
     [Fact]
-    public void TaskArrayPropertyDeclaration_EmitsMIST_TC_0110()
+    public void ValueTaskFieldInLinearContainer_ZeroDiagnostics()
     {
         const string source = """
             using Standard;
-            class Foo {
-                Task<string>[] Tasks { get { return default; } }
+            linear class Holder {
+                ValueTask<int> myTask;
+                public Holder(ValueTask<int> t) { this.myTask = t; }
+                public void Drop() { }
             }
             class Program { public static void Main() {} }
             """;
 
-        var diagnostics = CompileWithStdlibAndGetDiagnostics(source);
+        var diagnostics = Compile(source);
 
-        var diag = Assert.Single(diagnostics, d => d.Id.Value == "MIST_TC_0110");
-        Assert.Contains("property", diag.Message);
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_DROP_FIELD_NOT_OWNED");
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0110");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Allowed usages (no diagnostic expected)
+    // ValueTask<T> in incompatible containers (MIST_DROP_FIELD_NOT_OWNED)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void TaskAsMethodReturnType_DoesNotEmitMIST_TC_0110()
+    public void ValueTaskFieldInAffineContainer_EmitsDisciplineCompatibilityDiagnostic()
+    {
+        const string source = """
+            using Standard;
+            affine class Holder {
+                ValueTask<int> myTask;
+                public Holder(ValueTask<int> t) { this.myTask = t; }
+                public void Drop() { }
+            }
+            class Program { public static void Main() {} }
+            """;
+
+        var diagnostics = Compile(source);
+
+        var diag = Assert.Single(diagnostics, d => d.Id.Value == "MIST_DROP_FIELD_NOT_OWNED");
+        Assert.Contains("Affine", diag.Message);
+        Assert.Contains("linear", diag.Message);
+        Assert.Contains("myTask", diag.Message);
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0110");
+    }
+
+    [Fact]
+    public void ValueTaskFieldInRelevantContainer_EmitsDisciplineCompatibilityDiagnostic()
+    {
+        const string source = """
+            using Standard;
+            relevant class Holder {
+                ValueTask<int> myTask;
+                bool dropped;
+                public Holder(ValueTask<int> t) { this.myTask = t; this.dropped = false; }
+                public void Drop() { if (dropped) { return; } this.dropped = true; }
+            }
+            class Program { public static void Main() {} }
+            """;
+
+        var diagnostics = Compile(source);
+
+        var diag = Assert.Single(diagnostics, d => d.Id.Value == "MIST_DROP_FIELD_NOT_OWNED");
+        Assert.Contains("Relevant", diag.Message);
+        Assert.Contains("linear", diag.Message);
+        Assert.Contains("myTask", diag.Message);
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0110");
+    }
+
+    [Fact]
+    public void ValueTaskFieldInUnrestrictedContainer_EmitsDisciplineCompatibilityDiagnostic()
+    {
+        const string source = """
+            using Standard;
+            class Holder {
+                ValueTask<int> myTask;
+                public Holder(ValueTask<int> t) { this.myTask = t; }
+            }
+            class Program { public static void Main() {} }
+            """;
+
+        var diagnostics = Compile(source);
+
+        var diag = Assert.Single(diagnostics, d => d.Id.Value == "MIST_DROP_FIELD_NOT_OWNED");
+        Assert.Contains("linear", diag.Message);
+        Assert.Contains("myTask", diag.Message);
+        Assert.Contains("no substructural discipline", diag.Message);
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0110");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // MIST_TC_0110 no longer appears anywhere
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void TaskAsMethodReturnType_NoDiagnostics()
     {
         const string source = """
             using Standard;
@@ -167,13 +266,14 @@ public class TaskStorageRestrictionDiagnosticTests
             class Program { public static void Main() {} }
             """;
 
-        var diagnostics = CompileWithStdlibAndGetDiagnostics(source);
+        var diagnostics = Compile(source);
 
         Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0110");
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_DROP_FIELD_NOT_OWNED");
     }
 
     [Fact]
-    public void TaskAsMethodParameter_DoesNotEmitMIST_TC_0110()
+    public void TaskAsMethodParameter_NoDiagnostics()
     {
         const string source = """
             using Standard;
@@ -183,13 +283,14 @@ public class TaskStorageRestrictionDiagnosticTests
             class Program { public static void Main() {} }
             """;
 
-        var diagnostics = CompileWithStdlibAndGetDiagnostics(source);
+        var diagnostics = Compile(source);
 
         Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0110");
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_DROP_FIELD_NOT_OWNED");
     }
 
     [Fact]
-    public void TaskAsLocalVariable_DoesNotEmitMIST_TC_0110()
+    public void TaskAsLocalVariable_NoDiagnostics()
     {
         const string source = """
             using Standard;
@@ -202,13 +303,13 @@ public class TaskStorageRestrictionDiagnosticTests
             class Program { public static void Main() {} }
             """;
 
-        var diagnostics = CompileWithStdlibAndGetDiagnostics(source);
+        var diagnostics = Compile(source);
 
         Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0110");
     }
 
     [Fact]
-    public void NonTaskFieldDeclaration_DoesNotEmitMIST_TC_0110()
+    public void NonTaskFieldDeclaration_NoDiagnostics()
     {
         const string source = """
             using Standard;
@@ -219,8 +320,9 @@ public class TaskStorageRestrictionDiagnosticTests
             class Program { public static void Main() {} }
             """;
 
-        var diagnostics = CompileWithStdlibAndGetDiagnostics(source);
+        var diagnostics = Compile(source);
 
         Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0110");
+        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_DROP_FIELD_NOT_OWNED");
     }
 }

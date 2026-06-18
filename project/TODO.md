@@ -4,54 +4,6 @@ Tracked issues and improvements that don't belong to an active spec but should b
 
 ---
 
-## Ownership — Open Design Questions
-
-### Statics and Method Body Safety
-
-There's a gap between "owned type cooperation" and static/global state:
-
-**The problem:** An owned type's constructor or method could store a reference from a static field into an instance field. From the call site, you can't tell this happened. Multiple `owned var` instances of the same type would share state through the static, breaking the "unique graph" guarantee.
-
-```mist
-public owned class Sneaky
-{
-    Widget cache;
-    public Sneaky() { this.cache = StaticCache.Instance; }  // alias from global
-}
-
-owned var a = new Sneaky();  // a.cache == StaticCache.Instance
-owned var b = new Sneaky();  // b.cache == same object — not unique!
-```
-
-The cooperation contract verifier currently rejects static reads as field assignment sources (emits `MIST_OWN_CONTRACT_VIOLATION`). But the broader question remains:
-
-**Unresolved:** How to ergonomically express both "returns owned" and "body-safe for owned context" on the same method. What static field reads are safe (readonly statics? deeply immutable statics?). Whether method-level granularity is needed or type-level is sufficient.
-
-### Non-Owned Type Constructors in Owned Bindings
-
-`new NonOwnedType()` is accepted as a valid owned binding initializer (fresh allocation = unique root). But the constructor body of a non-owned type has no cooperation contract — it might store shared/static references into fields during construction.
-
-```mist
-public class Foo
-{
-    public Widget Item;
-    public Foo() { this.Item = StaticCache.Get(); }  // alias leaks in
-}
-
-owned var foo = new Foo();  // root is unique, but foo.Item is aliased
-```
-
-For owned types, the cooperation contract catches this. For non-owned types, there's no verification — the type doesn't opt in.
-
-**Current stance:** Accept this as a known weakness. `new NonOwnedType()` gives you a unique root. The mutable-methods-hidden rule prevents further pollution after construction. But the initial state may contain shared references from the constructor. Full graph uniqueness requires the owned type cooperation contract.
-
-**Future options:**
-- Constructor body analysis at the call site (expensive, may not be feasible across compilation units)
-- Require non-owned types to have only "trivial" constructors (field assignment from parameters only) to be eligible for owned bindings
-- Accept the weaker guarantee and document it
-
----
-
 ## Remove Task<T> storage restriction (MIST_TC_0110)
 
 `MIST_TC_0110` prevents `Task<T>` from being stored in fields or properties. This was a protective measure before drop semantics existed — without it, a task stored in a field could escape its structured scope and be silently abandoned.

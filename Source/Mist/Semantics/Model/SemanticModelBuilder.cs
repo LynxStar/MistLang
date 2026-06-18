@@ -526,6 +526,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId ConstraintUnresolvableType = new("MIST_CONSTRAINT_0008");
 
+    /// <summary>
+    /// Multiple substructural constraints (linear, affine, relevant) are specified
+    /// on the same type parameter (Requirement 3.3).
+    /// </summary>
+    internal static readonly DiagnosticId ConstraintMultipleSubstructural = new("MIST_CONSTRAINT_0009");
+
     // ── Enum diagnostic IDs (Task 3.6, Requirements 3.5, 3.6, 3.7, 5.2) ──
 
     /// <summary>
@@ -7026,6 +7032,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var hasReadonlyConstraint = false;
         var hasMutableConstraint = false;
         var hasOwnedConstraint = false;
+        var hasLinearConstraint = false;
+        var hasAffineConstraint = false;
+        var hasRelevantConstraint = false;
         var hasDefaultConstraint = false;
         IType? baseClassConstraint = null;
         var interfaceConstraints = new List<IType>();
@@ -7065,6 +7074,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     hasOwnedConstraint = true;
                     break;
 
+
+                case LinearConstraintConstraintNode:
+                    hasLinearConstraint = true;
+                    break;
+
+                case AffineConstraintConstraintNode:
+                    hasAffineConstraint = true;
+                    break;
+
+                case RelevantConstraintConstraintNode:
+                    hasRelevantConstraint = true;
+                    break;
                 case DefaultConstraintConstraintNode:
                     hasDefaultConstraint = true;
                     break;
@@ -7101,6 +7122,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Validate constraint combinations after all constraints are resolved.
         ValidateConstraintCombinations(
             hasClassConstraint, hasStructConstraint,
+            hasLinearConstraint, hasAffineConstraint, hasRelevantConstraint,
             baseClassConstraints, structTypeConstraints,
             constructorConstraints,
             typeParam, clause, sourceText, diagnostics);
@@ -7116,6 +7138,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             HasReadonlyConstraint = hasReadonlyConstraint,
             HasMutableConstraint = hasMutableConstraint,
             HasOwnedConstraint = hasOwnedConstraint,
+            HasLinearConstraint = hasLinearConstraint,
+            HasAffineConstraint = hasAffineConstraint,
+            HasRelevantConstraint = hasRelevantConstraint,
             HasDefaultConstraint = hasDefaultConstraint,
         };
     }
@@ -7141,6 +7166,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var hasReadonlyConstraint = false;
         var hasMutableConstraint = false;
         var hasOwnedConstraint = false;
+        var hasLinearConstraint = false;
+        var hasAffineConstraint = false;
+        var hasRelevantConstraint = false;
         var hasDefaultConstraint = false;
         IType? baseClassConstraint = null;
         var interfaceConstraints = new List<IType>();
@@ -7179,6 +7207,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     hasOwnedConstraint = true;
                     break;
 
+
+                case LinearConstraintConstraintNode:
+                    hasLinearConstraint = true;
+                    break;
+
+                case AffineConstraintConstraintNode:
+                    hasAffineConstraint = true;
+                    break;
+
+                case RelevantConstraintConstraintNode:
+                    hasRelevantConstraint = true;
+                    break;
                 case DefaultConstraintConstraintNode:
                     hasDefaultConstraint = true;
                     break;
@@ -7223,6 +7263,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             HasReadonlyConstraint = hasReadonlyConstraint,
             HasMutableConstraint = hasMutableConstraint,
             HasOwnedConstraint = hasOwnedConstraint,
+            HasLinearConstraint = hasLinearConstraint,
+            HasAffineConstraint = hasAffineConstraint,
+            HasRelevantConstraint = hasRelevantConstraint,
             HasDefaultConstraint = hasDefaultConstraint,
         };
     }
@@ -7443,6 +7486,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static void ValidateConstraintCombinations(
         bool hasClassConstraint,
         bool hasStructConstraint,
+        bool hasLinearConstraint,
+        bool hasAffineConstraint,
+        bool hasRelevantConstraint,
         List<IType> baseClassConstraints,
         List<IType> structTypeConstraints,
         List<IReadOnlyList<IType>> constructorConstraints,
@@ -7451,6 +7497,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
+        // MIST_CONSTRAINT_0009: Multiple substructural constraints on same type parameter.
+        var substructuralCount = (hasLinearConstraint ? 1 : 0)
+            + (hasAffineConstraint ? 1 : 0)
+            + (hasRelevantConstraint ? 1 : 0);
+        if (substructuralCount > 1)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                ConstraintMultipleSubstructural.Value,
+                DiagnosticSeverity.Error,
+                $"Multiple substructural constraints are not allowed on type parameter '{typeParam.Name}'. " +
+                "Specify at most one of 'linear', 'affine', or 'relevant'.",
+                clause,
+                sourceText));
+        }
+
         // MIST_CONSTRAINT_0002: class + struct mutual exclusion.
         if (hasClassConstraint && hasStructConstraint)
         {
@@ -15712,6 +15773,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case WithBlockStatementStatementNode withBlockStmt:
                 ResolveWithBlockStatement(withBlockStmt.WithBlockStatement, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
+            case WithVarBlockStatementStatementNode withVarBlockStmt:
+                ResolveWithVarBlockStatement(withVarBlockStmt.WithVarBlockStatement, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
         }
     }
 
@@ -15806,6 +15870,37 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Process the block body.
         ResolveBlock(withBlockStmt.Body, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    private static void ResolveWithVarBlockStatement(
+        WithVarBlockStatementNode withVarBlock,
+        Scope blockScope,
+        Scope fileScope,
+        IType enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Resolve the initializer expression.
+        var initType = ResolveExpression(withVarBlock.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+        // Create a child scope for the with-var binding so the variable doesn't
+        // conflict with other locals at the same level (multiple with-var blocks
+        // in the same method can reuse the same variable name).
+        var withScope = new Scope(parent: blockScope);
+
+        var varName = withVarBlock.Name.Lexeme;
+        var varSpan = ToMistSourceSpan(withVarBlock.Name.Span);
+
+        var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, withScope, initType, varSpan);
+        withScope.AddMember(varSymbol);
+        symbolTable.Register(varSymbol, withVarBlock);
+
+        // Process the block body within the with-var's scope.
+        ResolveBlock(withVarBlock.Body, withScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
     }
 
     private static void ResolveVariableDeclaration(
@@ -18028,6 +18123,62 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Stdlib not loaded (unit tests with minimal AST) — fall back gracefully.
             return innerType;
         }
+    }
+
+    /// <summary>
+    /// Constructs a <c>ValueTask&lt;T&gt;</c> type from the given inner type.
+    /// Falls back to returning the inner type if the stdlib is not loaded.
+    /// </summary>
+    internal static IType ConstructValueTaskType(IType innerType, Scope fileScope, SymbolTable symbolTable)
+    {
+        var globalScope = FindGlobalScope(fileScope) ?? fileScope;
+        try
+        {
+            var valueTaskClass = LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.ValueTask");
+            return new ConstructedType(valueTaskClass, new[] { innerType });
+        }
+        catch (StdlibMissingException)
+        {
+            // Stdlib not loaded (unit tests with minimal AST) — fall back gracefully.
+            return innerType;
+        }
+    }
+
+    /// <summary>
+    /// Resolves the return type of a block by finding return statements.
+    /// Returns the type of the first return statement's value, or <c>VoidType</c> if no return value.
+    /// </summary>
+    private static IType ResolveBlockReturnType(
+        BlockNode block,
+        Scope currentScope,
+        Scope fileScope,
+        IType? enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Walk statements looking for return statements with values.
+        foreach (var stmt in block.Statements)
+        {
+            if (stmt is ReturnStatementStatementNode returnStmt)
+            {
+                var returnNode = returnStmt.ReturnStatement;
+                if (returnNode.Value is not null)
+                {
+                    // Resolve the return expression type.
+                    var returnExprType = ResolveExpression(
+                        returnNode.Value, currentScope, fileScope, enclosingType!, isStatic,
+                        symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    return returnExprType;
+                }
+            }
+        }
+
+        // No return value found — assume void.
+        return LegacyPrimitiveTypes.Void;
     }
 
     /// <summary>
@@ -20570,8 +20721,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             case AwaitExpressionUnaryNode awaitExpr:
             {
+                // Suppress auto-unwrap for the await operand so that async method calls
+                // return Task<T> (not T) — the await itself will do the unwrapping.
+                var prevAsyncContext = _isInAsyncContext;
+                _isInAsyncContext = true;
                 // Resolve the operand expression (should be of type Task<T>).
                 var operandType = ResolveUnary(awaitExpr.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                _isInAsyncContext = prevAsyncContext;
 
                 // If the operand is Task<T>, unwrap to T. Otherwise, return UnknownType
                 // (the diagnostic for non-Task operands is added in task 8.5).
@@ -20591,9 +20747,46 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     return innerType;
                 }
 
+                // Also handle ValueTask<T> — unwrap to T.
+                if (operandType is ConstructedType vtCt
+                    && vtCt.GenericDefinition is ClassType { DisplayName: "ValueTask", ContainingNamespace: "Standard", IsBackendBacked: true }
+                    && vtCt.TypeArguments.Count > 0)
+                {
+                    var innerType = vtCt.TypeArguments[0];
+                    expressionTypes[node] = innerType;
+                    return innerType;
+                }
+
                 var unknownResult = UnknownType.Instance;
                 expressionTypes[node] = unknownResult;
                 return unknownResult;
+            }
+            case AsyncBlockExpressionUnaryNode asyncBlock:
+            {
+                // async { return expr; } produces Task<T> where T is the block's return type.
+                // For simplicity, we resolve the block's statements to find the return type.
+                var returnType = ResolveBlockReturnType(asyncBlock.Body, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                var taskType = ConstructTaskType(returnType, fileScope, symbolTable);
+                expressionTypes[node] = taskType;
+                return taskType;
+            }
+            case AsyncHintBlockExpressionUnaryNode asyncHintBlock:
+            {
+                // async valuetask { return expr; } produces ValueTask<T> where T is the block's return type.
+                // The hint identifier determines the wrapper type.
+                var returnType = ResolveBlockReturnType(asyncHintBlock.Body, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                var hint = asyncHintBlock.Hint.Lexeme;
+                IType resultType;
+                if (hint == "valuetask")
+                {
+                    resultType = ConstructValueTaskType(returnType, fileScope, symbolTable);
+                }
+                else
+                {
+                    resultType = ConstructTaskType(returnType, fileScope, symbolTable);
+                }
+                expressionTypes[node] = resultType;
+                return resultType;
             }
             default:
                 expressionTypes[node] = ErrorType.Instance;

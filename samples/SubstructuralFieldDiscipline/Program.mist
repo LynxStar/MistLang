@@ -1,0 +1,401 @@
+// SubstructuralFieldDiscipline — Demonstrates corrected field containment rules
+// and generic substructural constraints.
+
+using Standard;
+
+namespace SubstructuralFieldDiscipline;
+
+// ─── Leaf types with each discipline ─────────────────────────────────────────
+
+public linear class LinearToken
+{
+    int Id;
+    public LinearToken(int id) { this.Id = id; }
+    public int GetId() { return Id; }
+    public void Drop() { Console.WriteLine($"  LinearToken({Id}).Drop()"); }
+}
+
+public affine class AffineToken
+{
+    int Id;
+    public AffineToken(int id) { this.Id = id; }
+    public int GetId() { return Id; }
+    public void Drop() { Console.WriteLine($"  AffineToken({Id}).Drop()"); }
+}
+
+public relevant class RelevantToken
+{
+    int Id;
+    bool Dropped;
+    public RelevantToken(int id) { this.Id = id; this.Dropped = false; }
+    public int GetId() { return Id; }
+    public void Drop()
+    {
+        if (Dropped) { return; }
+        this.Dropped = true;
+        Console.WriteLine($"  RelevantToken({Id}).Drop()");
+    }
+}
+
+public class PlainToken
+{
+    int Id;
+    public PlainToken(int id) { this.Id = id; }
+    public int GetId() { return Id; }
+}
+
+// ─── Linear container: can hold anything ─────────────────────────────────────
+
+// PROOF: linear container permits linear field — exactly-once drop covers linear's exactly-once need
+public linear class LinearHoldsLinear
+{
+    LinearToken Inner;
+    public LinearHoldsLinear(int id) { this.Inner = new LinearToken(id); }
+    public void Drop()
+    {
+        Console.WriteLine("  LinearHoldsLinear.Drop()");
+    }
+}
+
+// PROOF: linear container permits affine field — exactly-once drop covers affine's at-most-once need
+public linear class LinearHoldsAffine
+{
+    AffineToken Inner;
+    public LinearHoldsAffine(int id) { this.Inner = new AffineToken(id); }
+    public void Drop()
+    {
+        Console.WriteLine("  LinearHoldsAffine.Drop()");
+    }
+}
+
+// PROOF: linear container permits relevant field — exactly-once drop covers relevant's at-least-once need
+public linear class LinearHoldsRelevant
+{
+    RelevantToken Inner;
+    public LinearHoldsRelevant(int id) { this.Inner = new RelevantToken(id); }
+    public void Drop()
+    {
+        Console.WriteLine("  LinearHoldsRelevant.Drop()");
+    }
+}
+
+// PROOF: linear container permits unrestricted field — no constraints on unrestricted
+public linear class LinearHoldsPlain
+{
+    PlainToken Inner;
+    public LinearHoldsPlain(int id) { this.Inner = new PlainToken(id); }
+    public void Drop()
+    {
+        Console.WriteLine("  LinearHoldsPlain.Drop()");
+    }
+}
+
+// ─── Affine container: only affine and unrestricted ──────────────────────────
+
+// PROOF: affine container permits affine field
+public affine class AffineHoldsAffine
+{
+    AffineToken Inner;
+    public AffineHoldsAffine(int id) { this.Inner = new AffineToken(id); }
+    public void Drop()
+    {
+        Console.WriteLine("  AffineHoldsAffine.Drop()");
+    }
+}
+
+// PROOF: affine container permits unrestricted field
+public affine class AffineHoldsPlain
+{
+    PlainToken Inner;
+    public AffineHoldsPlain(int id) { this.Inner = new PlainToken(id); }
+    public void Drop()
+    {
+        Console.WriteLine("  AffineHoldsPlain.Drop()");
+    }
+}
+
+// ─── Relevant container: only relevant and unrestricted ──────────────────────
+
+// PROOF: relevant container permits relevant field
+public relevant class RelevantHoldsRelevant
+{
+    RelevantToken Inner;
+    bool Dropped;
+    public RelevantHoldsRelevant(int id) { this.Inner = new RelevantToken(id); this.Dropped = false; }
+    public void Drop()
+    {
+        if (Dropped) { return; }
+        this.Dropped = true;
+        Console.WriteLine("  RelevantHoldsRelevant.Drop()");
+    }
+}
+
+// PROOF: relevant container permits unrestricted field
+public relevant class RelevantHoldsPlain
+{
+    PlainToken Inner;
+    bool Dropped;
+    public RelevantHoldsPlain(int id) { this.Inner = new PlainToken(id); this.Dropped = false; }
+    public void Drop()
+    {
+        if (Dropped) { return; }
+        this.Dropped = true;
+        Console.WriteLine("  RelevantHoldsPlain.Drop()");
+    }
+}
+
+// ─── Generic containers with substructural constraints ───────────────────────
+
+// PROOF: generic linear container requires 'where T : linear' for field of type T
+// PROOF: linear constraint allows T to be used as a field in a linear container
+public linear class LinearBox<T> where T : linear
+{
+    T Value;
+    public LinearBox(T value) { this.Value = value; }
+    public T Drop()
+    {
+        Console.WriteLine("  LinearBox<T>.Drop()");
+        return Value;
+    }
+}
+
+// PROOF: generic affine container requires 'where T : affine' for field of type T
+// PROOF: affine constraint allows T to be used as a field in an affine container
+public affine class AffineBox<T> where T : affine
+{
+    T Value;
+    public AffineBox(T value) { this.Value = value; }
+    public void Drop()
+    {
+        Console.WriteLine("  AffineBox<T>.Drop()");
+    }
+}
+
+// PROOF: generic relevant container requires 'where T : relevant' for field of type T
+// PROOF: relevant constraint allows T to be used as a field in a relevant container
+public relevant class RelevantBox<T> where T : relevant
+{
+    T Value;
+    bool Dropped;
+    public RelevantBox(T value) { this.Value = value; this.Dropped = false; }
+    public void Drop()
+    {
+        if (Dropped) { return; }
+        this.Dropped = true;
+        Console.WriteLine("  RelevantBox<T>.Drop()");
+    }
+}
+
+// ─── Constraint satisfaction: linear satisfies affine and relevant ────────────
+
+// PROOF: linear type argument satisfies affine constraint (exactly-once ⊆ at-most-once)
+public affine class AffineBoxWithLinear
+{
+    AffineBox<LinearToken> Boxed;
+    public AffineBoxWithLinear(int id)
+    {
+        this.Boxed = new AffineBox<LinearToken>(new LinearToken(id));
+    }
+    public void Drop()
+    {
+        Console.WriteLine("  AffineBoxWithLinear.Drop()");
+    }
+}
+
+// PROOF: linear type argument satisfies relevant constraint (exactly-once ⊆ at-least-once)
+public relevant class RelevantBoxWithLinear
+{
+    RelevantBox<LinearToken> Boxed;
+    bool Dropped;
+    public RelevantBoxWithLinear(int id)
+    {
+        this.Boxed = new RelevantBox<LinearToken>(new LinearToken(id));
+        this.Dropped = false;
+    }
+    public void Drop()
+    {
+        if (Dropped) { return; }
+        this.Dropped = true;
+        Console.WriteLine("  RelevantBoxWithLinear.Drop()");
+    }
+}
+
+// ─── Task<T> and ValueTask<T> in compatible containers (MIST_TC_0110 removal) ─
+
+// PROOF: Task<T> is relevant — it can be stored in a relevant container
+// PROOF: MIST_TC_0110 no longer fires — the discipline matrix handles correctness
+// PROOF: a relevant container holding Task<T> compiles without error because
+//        relevant containers can hold relevant fields (Requirement 1 AC 3 permits relevant fields)
+public relevant class RelevantTaskHolder<T>
+{
+    Task<T> Pending;
+    bool Dropped;
+    public RelevantTaskHolder(Task<T> task) { this.Pending = task; this.Dropped = false; }
+    public async T Resolve()
+    {
+        Console.WriteLine("  RelevantTaskHolder<T>.Resolve()");
+        return await Pending;
+    }
+    public void Drop()
+    {
+        if (Dropped) { return; }
+        this.Dropped = true;
+        Console.WriteLine("  RelevantTaskHolder<T>.Drop()");
+    }
+}
+
+// PROOF: Task<T> is relevant — it can also be stored in a linear container
+// PROOF: linear containers hold anything (Requirement 1 AC 1)
+public linear class LinearTaskHolder<T>
+{
+    Task<T> Pending;
+    public LinearTaskHolder(Task<T> task) { this.Pending = task; }
+    public async T Resolve()
+    {
+        Console.WriteLine("  LinearTaskHolder<T>.Resolve()");
+        return await Pending;
+    }
+    public void Drop()
+    {
+        Console.WriteLine("  LinearTaskHolder<T>.Drop()");
+    }
+}
+
+// PROOF: ValueTask<T> is linear — it can be stored in a linear container
+// PROOF: linear containers hold linear fields (Requirement 1 AC 1)
+public linear class LinearValueTaskHolder<T>
+{
+    ValueTask<T> Pending;
+    public LinearValueTaskHolder(ValueTask<T> task) { this.Pending = task; }
+    public async T Resolve()
+    {
+        Console.WriteLine("  LinearValueTaskHolder<T>.Resolve()");
+        return await Pending;
+    }
+    public void Drop()
+    {
+        Console.WriteLine("  LinearValueTaskHolder<T>.Drop()");
+    }
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Substructural Field Discipline Sample ===");
+
+        // 1. Linear container holds all disciplines
+        Console.WriteLine("--- 1. Linear container holds linear field ---");
+        {
+            var holder = new LinearHoldsLinear(1);
+            // PROOF: auto-drop at scope exit drops container, which drops inner LinearToken
+        }
+
+        Console.WriteLine("--- 2. Linear container holds affine field ---");
+        {
+            var holder = new LinearHoldsAffine(2);
+        }
+
+        Console.WriteLine("--- 3. Linear container holds relevant field ---");
+        {
+            var holder = new LinearHoldsRelevant(3);
+        }
+
+        Console.WriteLine("--- 4. Linear container holds unrestricted field ---");
+        {
+            var holder = new LinearHoldsPlain(4);
+        }
+
+        // 2. Affine container with valid fields
+        Console.WriteLine("--- 5. Affine container holds affine field ---");
+        with (var holder = new AffineHoldsAffine(5))
+        {
+            // PROOF: affine container dropped in with block
+        }
+
+        Console.WriteLine("--- 6. Affine container holds unrestricted field ---");
+        with (var holder = new AffineHoldsPlain(6))
+        {
+        }
+
+        // 3. Relevant container with valid fields
+        Console.WriteLine("--- 7. Relevant container holds relevant field ---");
+        {
+            var holder = new RelevantHoldsRelevant(7);
+            // PROOF: auto-drop at scope exit for relevant type
+        }
+
+        Console.WriteLine("--- 8. Relevant container holds unrestricted field ---");
+        {
+            var holder = new RelevantHoldsPlain(8);
+        }
+
+        // 4. Generic containers with substructural constraints
+        Console.WriteLine("--- 9. Generic linear box with linear type argument ---");
+        {
+            var box = new LinearBox<LinearToken>(new LinearToken(9));
+            // PROOF: LinearBox<LinearToken> is valid — LinearToken satisfies 'where T : linear'
+            // Drop returns the LinearToken
+        }
+
+        Console.WriteLine("--- 10. Generic affine box with affine type argument ---");
+        with (var box = new AffineBox<AffineToken>(new AffineToken(10)))
+        {
+            // PROOF: AffineBox<AffineToken> is valid — AffineToken satisfies 'where T : affine'
+        }
+
+        Console.WriteLine("--- 11. Generic relevant box with relevant type argument ---");
+        {
+            var box = new RelevantBox<RelevantToken>(new RelevantToken(11));
+            // PROOF: RelevantBox<RelevantToken> is valid — RelevantToken satisfies 'where T : relevant'
+        }
+
+        // 5. Constraint satisfaction: linear satisfies affine and relevant
+        Console.WriteLine("--- 12. Linear satisfies affine constraint ---");
+        with (var holder = new AffineBoxWithLinear(12))
+        {
+            // PROOF: LinearToken satisfies 'where T : affine' — exactly-once ⊆ at-most-once
+        }
+
+        Console.WriteLine("--- 13. Linear satisfies relevant constraint ---");
+        {
+            var holder = new RelevantBoxWithLinear(13);
+            // PROOF: LinearToken satisfies 'where T : relevant' — exactly-once ⊆ at-least-once
+        }
+
+        // 6. Task<T> and ValueTask<T> stored in compatible containers (MIST_TC_0110 removal)
+        Console.WriteLine("--- 14. Task<T> stored in relevant container ---");
+        {
+            var holder = new RelevantTaskHolder<int>(async { return 42; });
+            // PROOF: Task<int> is relevant and is stored as a field in relevant RelevantTaskHolder<T>
+            // PROOF: MIST_TC_0110 would have rejected this — now the matrix permits it
+            var result = await holder.Resolve();
+            Console.WriteLine($"  result={result}");
+        }
+
+        Console.WriteLine("--- 15. Task<T> stored in linear container ---");
+        {
+            var holder = new LinearTaskHolder<int>(async { return 99; });
+            // PROOF: Task<int> is relevant, linear container holds anything
+            var result = await holder.Resolve();
+            Console.WriteLine($"  result={result}");
+        }
+
+        Console.WriteLine("--- 16. ValueTask<T> stored in linear container ---");
+        {
+            var holder = new LinearValueTaskHolder<int>(async valuetask { return 7; });
+            // PROOF: ValueTask<int> is linear, linear container holds linear fields
+            var result = await holder.Resolve();
+            Console.WriteLine($"  result={result}");
+        }
+
+        Console.WriteLine("=== Done ===");
+    }
+}

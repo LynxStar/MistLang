@@ -18,14 +18,14 @@ The design is grounded in the current code. Key confirmed facts that shape it:
 
 - Wire resolved NuGet package and framework-reference assemblies into the type provider.
 - Resolve cross-assembly base types and interfaces so derived types are assignable to base types and inherited members are callable.
-- Exclude ref-struct types (e.g., `Span<T>`) and hide only the individual overloads that use them.
+- Project ref-struct types (e.g., `Span<T>`) as Mist stack-only structs so they remain usable, and hide only the individual overloads that use genuinely-unsupported types (pointer params, `ref readonly` returns).
 - Add a quiet-by-default package-resolution stage with `--verbose` opt-in, a dedicated `mist restore` command, and a `mist inspect <TypeName>` command.
 - Add `[framework_references]` to `mist.toml` and resolve enabled shared frameworks.
 - Update the book and distributed steering files; add a sample that proves the behavior end-to-end.
 
 ### Non-Goals
 
-- Full ref-struct (stack-only / `ref struct`) type discipline in Mist. Ref structs remain unmapped; this is a deliberate limitation (Requirement 9).
+- Full first-party ref-struct safety (stackalloc plus escape/lifetime analysis) in Mist. Ref structs are projected as stack-only structs and remain usable, but Mist does not analyze their escape/lifetime; the downstream C# compiler is the safety backstop for misuse. First-party ref-struct safety is deliberate future work (Requirement 9).
 - NuGet version-range support (exact versions only, unchanged).
 - New Mist source syntax (no lexer/parser/TextMate-grammar changes).
 
@@ -172,10 +172,10 @@ Root fix: base-type and interface references must resolve to the **cached, fully
 
 **Files:** `Source/Mist/Backends/CSharpTranspiler/VisibilityFilter.cs`, `TypeProjector.cs`, and a new inspection support type.
 
-- `VisibilityFilter.IsTypeExcluded` adds: a type whose metadata carries `IsByRefLikeAttribute` (ref struct) is excluded. This makes `ReferencesExcludedType` return true for any member signature that uses `Span<T>`/`ReadOnlySpan<T>` in any position (parameter, return, generic argument, field, including nested generic positions — the existing recursive `IsTypeExcludedInSignature` already unwraps these).
-- Because `IsMemberExcluded` is evaluated per `MethodInfo`, only the offending overload is excluded; sibling overloads using only supported types are retained. This satisfies Requirement 8 (per-overload) and Requirement 9 (ref-struct members hidden individually). `Encoding.GetBytes(string)`, `Socket.Send(byte[])`, and `Console.ReadLine()` are retained while their `Span` siblings are dropped.
-- Remove ref-struct projection: `ProjectStruct` no longer projects `IsByRefLike` types as `IsRefStruct` stack-only structs; `AssemblyTypeProvider.ResolveType` returns null for ref-struct types (they are not projected at all). The `StructType.IsRefStruct` path and its emitter handling are removed or made unreachable for projected CLR types. (Investigation task confirms no Mist-declared type relies on `IsRefStruct`.)
-- Hidden-member reasons for inspection: add a classification API used only by the inspect command (the hot build path stays boolean):
+- `VisibilityFilter.IsTypeExcluded` excludes only non-public types. Ref-struct types (carrying `IsByRefLikeAttribute`) are **not** excluded — they are projected. `ReferencesExcludedType` therefore returns true only for signatures that reference a genuinely-excluded type (e.g., a non-public type, a pointer, or a `ref readonly` return), not for `Span<T>`/`ReadOnlySpan<T>`.
+- Because `IsMemberExcluded` is evaluated per `MethodInfo`, only genuinely-offending overloads are excluded; sibling overloads using only supported types are retained. This satisfies Requirement 8 (per-overload). `Encoding.GetBytes(string)`, `Socket.Send(byte[])`, and `Console.ReadLine()` are retained, and their `Span` siblings are now projected alongside them rather than dropped.
+- Project ref structs as stack-only structs: `TypeProjector.ProjectStruct` sets `StructType.IsRefStruct = true` for `IsByRefLike` CLR types (detected via `IsByRefLikeAttribute` metadata, since `Type.IsByRefLike` is unreliable under `MetadataLoadContext`), preserving the prior, working behavior and the `RefStructs` sample. `AssemblyTypeProvider.ResolveType` returns the projected `Span<T>`/`ReadOnlySpan<T>` type (non-null). Mist performs no escape/lifetime analysis for these projected types; the transpiled-C# compiler is the backstop, and full first-party ref-struct safety is future work.
+- Hidden-member reasons for inspection: a classification API used only by the inspect command (the hot build path stays boolean):
 
 ```csharp
 public enum MemberHiddenReason { None, NonPublic, Event, OutParameter, RefReadonlyReturn, Pointer, RefStructType, OtherExcludedType }
@@ -184,7 +184,7 @@ public MemberClassification Classify(MemberInfo member);
 // MemberClassification { bool Hidden; MemberHiddenReason Reason; ImmutableArray<string> OffendingTypeNames; }
 ```
 
-For `RefStructType`/`OtherExcludedType`, `OffendingTypeNames` lists each excluded type by name (e.g., `Span<Byte>`), enabling reason text like `HIDDEN: signature uses Span<Byte>`.
+`RefStructType` is retained in the enum for compatibility but is no longer triggered by projection (ref structs are projected, not hidden). For `OtherExcludedType`, `OffendingTypeNames` lists each excluded type by name (e.g., a non-public type), enabling reason text like `HIDDEN: signature uses <Type>`.
 
 ### C7. CLI: `--verbose`, `mist inspect`, `mist restore`
 
@@ -240,7 +240,7 @@ In-process tests (no process spawning), using the shared-driver / direct-provide
 - **ProjectFileParser**: `[framework_references]` table parsing — valid true/false, absent table, non-table value, non-boolean value, empty/oversized names. (`Driver/`)
 - **FrameworkReferenceResolver**: pack-path discovery, version selection (major-match, highest), `MIST_FWREF_001` (not installed) and `MIST_FWREF_002` (unknown name). Resolution success asserted against the locally-installed `Microsoft.AspNetCore.App` pack; if absent in CI, the not-installed path is asserted instead. (`Driver/`)
 - **PackageResolver**: structured-result shape and `MIST_PKG_001/002/003` diagnostics. Network-dependent restore is covered by existing TFM-selection unit tests plus targeted tests using already-cached packages; no new network-heavy property tests.
-- **VisibilityFilter**: ref-struct type exclusion; per-overload retention (Span sibling hidden, `byte[]` sibling kept) using `Test/Mist.Tests.InteropFixtures` (extend with a fixture exposing mixed Span/non-Span overloads); `Classify` reasons and offending type names. (`Backend/`)
+- **VisibilityFilter**: ref structs are NOT excluded (`Span<>`/`ReadOnlySpan<>` not excluded); per-overload behavior with genuinely-unsupported overloads; ref-struct overloads stay visible (Span sibling and `byte[]` sibling both kept) using `Test/Mist.Tests.InteropFixtures` (a fixture exposing mixed Span/non-Span overloads); `Classify` reports ref-struct overloads as visible. (`Backend/`)
 - **TypeProjector / AssemblyTypeProvider**: cross-assembly base type and interface resolution and assignability, asserted against genuinely cross-assembly SDK types (e.g., `NetworkStream : Stream`, `IPEndPoint : EndPoint`) loaded through a provider built from runtime + SDK paths; inherited-member access; unresolved-relationship fallback. (`Backend/`)
 - **Inspect/Restore command logic**: invoke the report builder and the restore-resolution logic **in-process** (call the command handler functions directly, not via spawning the CLI). Assert printed output, exit codes, and diagnostics.
 - **Pipeline integration**: a driver-level test that compiles a small program referencing a package type, asserting the resolved assembly reaches the provider and the type resolves — using a pre-cached package to avoid network flakiness.
@@ -253,7 +253,23 @@ In-process tests (no process spawning), using the shared-driver / direct-provide
 2. **String stage identifiers.** Chosen over renumbering integer stages (which would churn baselines and every call site's meaning) or a decimal type. Localized to the reporter contract + two implementations + driver call sites.
 3. **Cache-mediated base-type resolution.** Reuses the provider's existing reference-equality cache rather than introducing a separate inheritance graph, which both fixes cross-assembly resolution and preserves the recursion-safety the cache already provides.
 4. **Per-overload filtering is mostly emergent.** Since filtering is already per-`MemberInfo`, the main risk is that adding ref-struct exclusion could surface a latent group-level cascade. An early investigation task pins the actual root cause of the user's "all overloads hidden" report before changing filtering, so the fix is targeted.
-5. **Ref structs unmapped, not faked.** Removing the `IsRefStruct` stack-only projection is intentional: the previous projection produced a type Mist cannot use safely. Hiding the members that need it (with inspect-visible reasons) is more honest than projecting an unusable type.
+
+   **Investigation outcome (Task 1).** The root cause was pinned by reading the projection/scope/overload-resolution paths and confirmed empirically with a throwaway in-process probe built directly on `AssemblyTypeProvider` against the real SDK assemblies. Findings:
+
+   - **No group-level cascade exists at the projection layer.** `TypeProjector.ProjectMethods` evaluates `VisibilityFilter.IsMemberExcluded` per `MethodInfo` and skips only the offending method via `continue`; surviving overloads are still projected. `Scope.AddMember` appends each symbol to a backing `List<ISymbol>`, so same-named overloads coexist, and `Scope.LookupAll` returns all of them. Excluding one overload therefore removes exactly that overload — siblings are unaffected. (This also gives Requirement 8.6 for free: when *every* overload is excluded, none is added and the name projects no symbol.)
+   - **No group-level filtering at `GetMembers`.** `AssemblyTypeProvider.GetMembers` returns the cached member array verbatim; it performs no name-group collapsing.
+   - **The user's symptom is not reproducible against current code.** With ref structs *not yet excluded*, the probe showed the full groups project today: `System.Text.Encoding.GetBytes` → 7 overloads (including the `ReadOnlySpan<char>`/`Span<byte>` one), `System.Net.Sockets.Socket.Send` → 11 (including three `ReadOnlySpan<byte>` ones), `System.Console.ReadLine` → 1. The `Span<T>` overloads currently project against **disconnected `Span` shells** (created by `ProjectSimpleTypeReference`, which does not set `IsRefStruct`), not against the cached fully-projected `Span` type. The probe also confirmed `ResolveType("System","Span")` / `"ReadOnlySpan"` currently return `StructType` with `IsRefStruct == true`.
+   - **Conclusion / impact on Tasks 5 and 7.** The "all hidden" concern was *forward-looking* — the risk that introducing ref-struct exclusion might cascade. Under Option A that exclusion is **not** introduced: ref structs are projected as stack-only structs and the `Span` overloads project alongside their siblings, exactly as the probe observed today. Because filtering and scope insertion are strictly per-`MemberInfo`, genuinely-unsupported overloads (pointer params, `ref readonly` returns) are still hidden individually while `GetBytes(string)`, `Send(byte[])`, and `ReadLine()` stay callable. No group-level guard is needed.
+
+5. **Ref structs projected as stack-only structs, not faked away.** Ref-struct types (`Span<T>`, `ReadOnlySpan<T>`, any `IsByRefLike` type) are projected as Mist stack-only structs (`StructType.IsRefStruct = true`), preserving the prior, working behavior and keeping the `RefStructs` sample compiling and running. Mist does not yet perform escape/lifetime analysis for projected CLR ref structs, so the projection is unsound in the general case; the transpiled-C# compiler is the safety backstop for any misuse (storing a ref struct on the heap, boxing, capturing, generic-arg use). Full first-party ref-struct safety (stackalloc plus escape analysis) is deliberate future work, tracked separately. This is more useful than refusing to project a widely-used type: the alternative (excluding ref structs and hiding the members that use them) was tried and reverted because it removed large, commonly-needed swaths of the CLR surface for a safety guarantee Mist's downstream compiler already provides.
+
+   **Investigation outcome (Task 1) — scope of the `IsRefStruct` handling.** A codebase-wide search confirmed `StructType.IsRefStruct` is **load-bearing** for both Mist's own source-declared `ref struct` feature and the projection of CLR ref structs. Specifically:
+   - `SemanticModelBuilder` sets `structType.IsRefStruct = HasRefModifier(structDecl.Modifiers)` for Mist-source `ref struct` declarations (covered by `RefStructParsingPropertyTests`).
+   - `TypeProjector.ProjectStruct` sets `structType.IsRefStruct = true` for `IsByRefLike` CLR types (detected via `IsByRefLikeAttribute` metadata, since `Type.IsByRefLike` is unreliable under `MetadataLoadContext`). This projection is **retained** under Option A.
+   - `CSharpEmitter` (~line 3931) uses `IsRefStruct` only to emit the `ref ` prefix on a Mist-source **struct declaration**; projected CLR types are never re-emitted as declarations, so this path is unaffected by the projection assignment.
+   - `TypeCheckerAnalyzer` and `SemanticModelBuilder` enforce ref-struct discipline (no field/property in non-ref-struct, no capture, no boxing to interface, no generic-arg/union/optional use) keyed off `IsRefStruct`; these checks remain for Mist-declared ref structs.
+
+   Therefore the implementation **retains** the projection-time assignment in `TypeProjector.ProjectStruct` and `AssemblyTypeProvider.ResolveType` returns the projected `Span<T>`/`ReadOnlySpan<T>` type (non-null). `VisibilityFilter.IsTypeExcluded` excludes only non-public types, so members whose signatures reference ref structs stay visible.
 6. **Known-framework allow-list.** A small allow-list distinguishes `MIST_FWREF_002` (unknown name) from `MIST_FWREF_001` (known but not installed), giving actionable errors without attempting to enumerate every conceivable shared framework.
 
 ## Correctness Properties
@@ -286,14 +302,14 @@ For a projected derived type, every visible public member declared on any ancest
 **Validates: Requirements 7.1, 7.3, 7.4, 7.7, 7.8**
 
 ### Property 6: Overload filtering is local to the offending overload
-For an overload group containing both supported and ref-struct-using overloads, exactly the ref-struct-using overloads are excluded and the supported overloads remain resolution candidates. If and only if every overload is excluded, the method name projects no symbol.
+For an overload group containing both supported overloads and overloads that use a genuinely-unsupported type (a pointer parameter or a `ref readonly` return), exactly the unsupported overloads are excluded and the supported overloads remain resolution candidates. If and only if every overload is excluded, the method name projects no symbol.
 
-**Validates: Requirements 8.1, 8.2, 8.6, 8.7, 9.2, 9.3**
+**Validates: Requirements 8.1, 8.2, 8.6, 8.7**
 
-### Property 7: Ref structs are never projected
-No CLR type carrying `IsByRefLikeAttribute` (including `Span<T>`/`ReadOnlySpan<T>`) is projected as a Mist type; members using one in any signature position are hidden with a recorded reason naming each offending ref-struct type.
+### Property 7: Ref structs are projected as usable stack-only structs
+Every CLR type carrying `IsByRefLikeAttribute` (including `Span<T>`/`ReadOnlySpan<T>`) is projected as a Mist stack-only struct (`StructType.IsRefStruct == true`) and is resolvable by namespace and name (non-null), not excluded. Members whose signatures reference a ref-struct type in any position stay visible. Falsifiable: re-introduce ref-struct exclusion and `ResolveType("System","Span",1)` returns null, the `RefStructs` sample fails to compile, and span-using overloads disappear.
 
-**Validates: Requirements 9.1, 9.4, 9.5**
+**Validates: Requirements 9.1, 9.2, 9.3, 9.4, 9.5**
 
 ### Property 8: Inspect output is complete, ordered, and reasoned
 For a resolvable type, `mist inspect` lists every visible property and method (ascending ordinal by name, parameters in declaration order) with projected Mist types, every hidden member with a reason, and the declaring base FQN for inherited members; unresolved/omitted-name/outside-project cases exit non-zero.

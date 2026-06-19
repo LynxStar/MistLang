@@ -10,7 +10,7 @@ namespace Mist.CLI.Tests.Output;
 /// Data record representing generated inputs for the stage formatting property test.
 /// </summary>
 public record StageFormattingInput(
-    int StageNumber,
+    string StageId,
     string Title,
     IReadOnlyList<string> Details,
     TimeSpan Elapsed);
@@ -62,7 +62,7 @@ public class ConsoleProgressReporterPropertyTests
             from details in detailListGen
             from totalSeconds in Gen.Choose(0, 10000) // 0–100.00 seconds in centiseconds
             let elapsed = TimeSpan.FromMilliseconds(totalSeconds * 10.0)
-            select new StageFormattingInput(stageNumber, title, details, elapsed);
+            select new StageFormattingInput(stageNumber.ToString(), title, details, elapsed);
 
         return gen.ToArbitrary();
     }
@@ -82,8 +82,8 @@ public class ConsoleProgressReporterPropertyTests
         using var writer = new StringWriter();
         var reporter = new ConsoleProgressReporter(writer);
 
-        reporter.ReportStageStart(input.StageNumber, input.Title);
-        reporter.ReportStageComplete(input.StageNumber, input.Elapsed, input.Details);
+        reporter.ReportStageStart(input.StageId, input.Title);
+        reporter.ReportStageComplete(input.StageId, input.Elapsed, input.Details);
 
         var output = writer.ToString();
         var expected = BuildExpectedOutput(input);
@@ -100,10 +100,10 @@ public class ConsoleProgressReporterPropertyTests
         using var writer = new StringWriter();
         var reporter = new ConsoleProgressReporter(writer);
 
-        reporter.ReportStageStart(input.StageNumber, input.Title);
+        reporter.ReportStageStart(input.StageId, input.Title);
 
         var output = writer.ToString();
-        var expectedHeader = $"Stage {input.StageNumber} - {input.Title}{Environment.NewLine}";
+        var expectedHeader = $"Stage {input.StageId} - {input.Title}{Environment.NewLine}";
 
         return output == expectedHeader;
     }
@@ -120,7 +120,7 @@ public class ConsoleProgressReporterPropertyTests
         using var writer = new StringWriter();
         var reporter = new ConsoleProgressReporter(writer);
 
-        reporter.ReportStageComplete(input.StageNumber, input.Elapsed, input.Details);
+        reporter.ReportStageComplete(input.StageId, input.Elapsed, input.Details);
 
         var lines = writer.ToString().Split(Environment.NewLine);
 
@@ -144,7 +144,7 @@ public class ConsoleProgressReporterPropertyTests
         using var writer = new StringWriter();
         var reporter = new ConsoleProgressReporter(writer);
 
-        reporter.ReportStageComplete(input.StageNumber, input.Elapsed, input.Details);
+        reporter.ReportStageComplete(input.StageId, input.Elapsed, input.Details);
 
         var lines = writer.ToString().Split(Environment.NewLine);
 
@@ -167,7 +167,7 @@ public class ConsoleProgressReporterPropertyTests
         var sb = new System.Text.StringBuilder();
 
         // Header line from ReportStageStart
-        sb.AppendLine($"Stage {input.StageNumber} - {input.Title}");
+        sb.AppendLine($"Stage {input.StageId} - {input.Title}");
 
         // Detail lines from ReportStageComplete
         foreach (var detail in input.Details)

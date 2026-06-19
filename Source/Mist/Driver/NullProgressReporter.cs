@@ -10,7 +10,7 @@ public sealed class NullProgressReporter : ICompilationProgressReporter
 
     private NullProgressReporter() { }
 
-    public void ReportStageStart(int stageNumber, string title) { }
-    public void ReportStageComplete(int stageNumber, TimeSpan elapsed, IReadOnlyList<string> details) { }
+    public void ReportStageStart(string stageId, string title) { }
+    public void ReportStageComplete(string stageId, TimeSpan elapsed, IReadOnlyList<string> details) { }
     public void ReportBuildSummary(bool succeeded, int errorCount, int warningCount, TimeSpan totalElapsed) { }
 }

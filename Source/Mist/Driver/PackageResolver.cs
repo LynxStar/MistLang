@@ -38,9 +38,25 @@ public static class PackageResolver
     ];
 
     /// <summary>
-    /// Timeout for each individual package download operation.
+    /// The configured NuGet feeds searched when restoring packages. Reported in
+    /// <c>MIST_PKG_002</c> diagnostics so the user can see exactly which feeds
+    /// were consulted.
     /// </summary>
-    private static readonly TimeSpan DownloadTimeout = TimeSpan.FromSeconds(60);
+    private static readonly ImmutableArray<string> ConfiguredFeeds =
+        ["https://api.nuget.org/v3/index.json"];
+
+    /// <summary>
+    /// Upper bound on restoring a single package (download + extract). When a
+    /// restore exceeds this bound a <c>MIST_PKG_003</c> restore-timeout
+    /// diagnostic is emitted. This single 100-second bound replaces the former
+    /// 60-second download timeout.
+    /// </summary>
+    private static readonly TimeSpan RestoreTimeout = TimeSpan.FromSeconds(100);
+
+    /// <summary>
+    /// The configured feeds rendered as a comma-separated list for diagnostics.
+    /// </summary>
+    private static string FeedList => string.Join(", ", ConfiguredFeeds);
 
     /// <summary>
     /// Resolves all package references to assembly paths.
@@ -51,26 +67,38 @@ public static class PackageResolver
     /// <param name="packages">The declared package references from mist.toml.</param>
     /// <param name="targetFramework">The project's target framework (e.g., "net10.0").</param>
     /// <param name="diagnostics">Diagnostic bag for reporting errors.</param>
-    /// <returns>An array of assembly file paths from all resolved packages.</returns>
-    public static ImmutableArray<string> ResolvePackages(
+    /// <returns>
+    /// A <see cref="PackageResolutionResult"/> carrying the flattened assembly
+    /// paths, a per-declared-package summary, and the count of declared packages
+    /// that failed to resolve.
+    /// </returns>
+    public static PackageResolutionResult ResolvePackages(
         ImmutableArray<NuGetPackageReference> packages,
         string targetFramework,
         DiagnosticBag diagnostics)
     {
         if (packages.IsDefaultOrEmpty)
-            return ImmutableArray<string>.Empty;
+            return new PackageResolutionResult(
+                ImmutableArray<string>.Empty,
+                ImmutableArray<ResolvedPackageInfo>.Empty,
+                FailureCount: 0);
 
         var assemblyPaths = ImmutableArray.CreateBuilder<string>();
+        var resolvedInfos = ImmutableArray.CreateBuilder<ResolvedPackageInfo>();
         var resolvedPackages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var failureCount = 0;
 
-        var repository = Repository.Factory.GetCoreV3("https://api.nuget.org/v3/index.json");
+        var repository = Repository.Factory.GetCoreV3(ConfiguredFeeds[0]);
         var cache = new SourceCacheContext();
         var logger = NullLogger.Instance;
 
         var projectFramework = NuGetFramework.Parse(targetFramework);
 
-        // Resolve each declared package and its transitive dependencies
-        var queue = new Queue<PackageIdentity>();
+        // Resolve each declared package and its transitive dependencies.
+        // The IsDirect flag distinguishes declared packages (recorded as
+        // ResolvedPackageInfo / counted as failures) from transitive
+        // dependencies (which only contribute assembly paths).
+        var queue = new Queue<(PackageIdentity Identity, bool IsDirect)>();
 
         foreach (var pkg in packages)
         {
@@ -80,19 +108,20 @@ public static class PackageResolver
                     DiagnosticId.PackageNotFound,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
-                    $"Package '{pkg.Name}' version '{pkg.Version}' is not a valid NuGet version.",
+                    $"Package '{pkg.Name}' version '{pkg.Version}' could not be found on any configured NuGet feed ({FeedList}); the version string is not a valid NuGet version.",
                     Location: default,
                     CompilationUnitPath: string.Empty,
                     AnalyzerName: null));
+                failureCount++;
                 continue;
             }
 
-            queue.Enqueue(new PackageIdentity(pkg.Name, version));
+            queue.Enqueue((new PackageIdentity(pkg.Name, version), true));
         }
 
         while (queue.Count > 0)
         {
-            var identity = queue.Dequeue();
+            var (identity, isDirect) = queue.Dequeue();
             var packageKey = $"{identity.Id}/{identity.Version}";
 
             if (!resolvedPackages.Add(packageKey))
@@ -101,11 +130,36 @@ public static class PackageResolver
             // Try to resolve the package (download if not cached)
             var packagePath = ResolvePackage(identity, repository, cache, logger, diagnostics);
             if (packagePath is null)
+            {
+                if (isDirect)
+                    failureCount++;
                 continue;
+            }
 
             // Find compatible assemblies for the target framework
-            var assemblies = GetCompatibleAssemblies(identity, packagePath, projectFramework, diagnostics);
+            var (assemblies, selectedTfm, hadError) =
+                GetCompatibleAssemblies(identity, packagePath, projectFramework, targetFramework, diagnostics);
             assemblyPaths.AddRange(assemblies);
+
+            if (isDirect)
+            {
+                if (hadError)
+                {
+                    failureCount++;
+                }
+                else
+                {
+                    // Record the per-package outcome. A package that resolves to
+                    // zero compatible assemblies but produces no error is recorded
+                    // with AssemblyCount == 0 so the verbose stage and `mist
+                    // restore` can print the "contributed no assemblies" note.
+                    resolvedInfos.Add(new ResolvedPackageInfo(
+                        identity.Id,
+                        identity.Version.ToNormalizedString(),
+                        selectedTfm ?? string.Empty,
+                        assemblies.Length));
+                }
+            }
 
             // Resolve transitive dependencies
             var dependencies = GetDependencies(identity, packagePath, projectFramework);
@@ -113,11 +167,14 @@ public static class PackageResolver
             {
                 var depKey = $"{dep.Id}/{dep.Version}";
                 if (!resolvedPackages.Contains(depKey))
-                    queue.Enqueue(dep);
+                    queue.Enqueue((dep, false));
             }
         }
 
-        return assemblyPaths.ToImmutable();
+        return new PackageResolutionResult(
+            assemblyPaths.ToImmutable(),
+            resolvedInfos.ToImmutable(),
+            failureCount);
     }
 
     /// <summary>
@@ -143,7 +200,7 @@ public static class PackageResolver
         // Download the package
         try
         {
-            using var cts = new CancellationTokenSource(DownloadTimeout);
+            using var cts = new CancellationTokenSource(RestoreTimeout);
 
             var findResource = repository.GetResourceAsync<FindPackageByIdResource>(cts.Token)
                 .GetAwaiter().GetResult();
@@ -158,7 +215,7 @@ public static class PackageResolver
                     DiagnosticId.PackageNotFound,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
-                    $"Package '{identity.Id}' version '{identity.Version}' was not found on nuget.org.",
+                    $"Package '{identity.Id}' version '{identity.Version}' was not found on any configured NuGet feed. Searched: {FeedList}.",
                     Location: default,
                     CompilationUnitPath: string.Empty,
                     AnalyzerName: null));
@@ -179,7 +236,7 @@ public static class PackageResolver
                     DiagnosticId.PackageNotFound,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
-                    $"Failed to download package '{identity.Id}' version '{identity.Version}' from nuget.org.",
+                    $"Failed to download package '{identity.Id}' version '{identity.Version}' from any configured NuGet feed. Searched: {FeedList}.",
                     Location: default,
                     CompilationUnitPath: string.Empty,
                     AnalyzerName: null));
@@ -210,7 +267,7 @@ public static class PackageResolver
                 DiagnosticId.PackageNetworkError,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
-                $"Timed out downloading package '{identity.Id}' version '{identity.Version}' (60-second limit exceeded).",
+                $"Restore timeout: restoring package '{identity.Id}' version '{identity.Version}' did not complete within 100 seconds.",
                 Location: default,
                 CompilationUnitPath: string.Empty,
                 AnalyzerName: null));
@@ -222,7 +279,7 @@ public static class PackageResolver
                 DiagnosticId.PackageNetworkError,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
-                $"Network error downloading package '{identity.Id}' version '{identity.Version}': {ex.Message}",
+                $"Connection or network failure while restoring package '{identity.Id}' version '{identity.Version}': {ex.Message}",
                 Location: default,
                 CompilationUnitPath: string.Empty,
                 AnalyzerName: null));
@@ -234,19 +291,27 @@ public static class PackageResolver
     /// Gets the assembly DLL paths from a package directory that are compatible
     /// with the target framework, using the TFM preference order.
     /// </summary>
-    private static ImmutableArray<string> GetCompatibleAssemblies(
+    /// <returns>
+    /// A tuple of the compatible assembly paths, the selected <c>lib/</c> TFM
+    /// directory name (null when none was selected), and whether an
+    /// error-severity diagnostic was emitted. A package with no <c>lib/</c>
+    /// directory or no TFM subdirectories yields zero assemblies without an
+    /// error (a "contributed no assemblies" outcome).
+    /// </returns>
+    private static (ImmutableArray<string> Assemblies, string? SelectedTfm, bool HadError) GetCompatibleAssemblies(
         PackageIdentity identity,
         string packageDir,
         NuGetFramework projectFramework,
+        string targetFramework,
         DiagnosticBag diagnostics)
     {
         var libDir = Path.Combine(packageDir, "lib");
         if (!Directory.Exists(libDir))
-            return ImmutableArray<string>.Empty;
+            return (ImmutableArray<string>.Empty, null, false);
 
         var tfmDirs = Directory.GetDirectories(libDir);
         if (tfmDirs.Length == 0)
-            return ImmutableArray<string>.Empty;
+            return (ImmutableArray<string>.Empty, null, false);
 
         // Find the best matching TFM directory using our preference order
         string? bestTfmDir = null;
@@ -281,15 +346,15 @@ public static class PackageResolver
                 DiagnosticId.PackageNoCompatibleTfm,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
-                $"Package '{identity.Id}' version '{identity.Version}' has no compatible framework target. Available: {string.Join(", ", availableTfms)}.",
+                $"Package '{identity.Id}' version '{identity.Version}' does not support {targetFramework}. The package provides these framework targets: {string.Join(", ", availableTfms)}.",
                 Location: default,
                 CompilationUnitPath: string.Empty,
                 AnalyzerName: null));
-            return ImmutableArray<string>.Empty;
+            return (ImmutableArray<string>.Empty, null, true);
         }
 
         var dlls = Directory.GetFiles(bestTfmDir, "*.dll");
-        return [.. dlls];
+        return ([.. dlls], Path.GetFileName(bestTfmDir), false);
     }
 
     /// <summary>

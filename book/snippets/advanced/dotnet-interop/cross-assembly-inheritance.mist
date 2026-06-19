@@ -1,0 +1,16 @@
+using Standard;
+using System.IO;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var memory = new MemoryStream();
+        memory.WriteByte(65);
+        memory.WriteByte(66);
+
+        Stream stream = memory;
+        Console.WriteLine($"length={stream.Length}");
+        Console.WriteLine($"canRead={stream.CanRead}");
+    }
+}

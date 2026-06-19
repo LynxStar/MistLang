@@ -14115,8 +14115,34 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
+        // For ambient/backend-projected constructors (no AST declaring node),
+        // extract parameter types from the symbol's ParameterSignature directly.
         if (ctorNode is not ConstructorDeclarationNode ctorDecl)
-            return false;
+        {
+            var extractedParamTypes = ParameterSignature.Extract(ctor, model);
+            if (extractedParamTypes.Count == 0 && argTypes.Count == 0)
+                return true;
+            if (extractedParamTypes.Count != argTypes.Count)
+                return false;
+
+            IReadOnlyList<IType>? typeParamsFallback = null;
+            IReadOnlyList<IType>? typeArgsFallback = null;
+            if (createdType is ConstructedType ctFallback)
+            {
+                typeParamsFallback = GetTypeParameters(ctFallback.GenericDefinition);
+                typeArgsFallback = ctFallback.TypeArguments;
+            }
+
+            for (var i = 0; i < argTypes.Count; i++)
+            {
+                var paramType = extractedParamTypes[i];
+                if (typeParamsFallback is not null && typeArgsFallback is not null)
+                    paramType = SubstituteType(paramType, typeParamsFallback, typeArgsFallback);
+                if (!IsAssignable(argTypes[i], paramType))
+                    return false;
+            }
+            return true;
+        }
 
         var paramTypes = new List<IType>();
         if (ctorDecl.Parameters is not null)
@@ -15973,6 +15999,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Non-union → Union: source must be a constituent of target.
+            // Special case: if the union contains UnknownType (e.g., `unknown | void`),
+            // any non-void source is assignable — this mirrors the direct UnknownType
+            // target rule and handles CLR reference-type parameters projected as T?.
+            if (!source.IsVoid() && targetUnion.Constituents.Any(c => c is UnknownType))
+                return true;
             return IsConstituentOf(source, targetUnion);
         }
         if (source is UnionType)
@@ -16143,6 +16174,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Numeric widening is now handled by implicit cast operators
         // declared on the stdlib bootstrap types. The implicit cast
         // operator fallback at the end of this method handles it.
+
+        // Implicit numeric narrowing for CLR interop: allow integer types to narrow
+        // to smaller integer types when the target is a backend-projected numeric type.
+        // This mirrors C#'s implicit narrowing of constant expressions and is safe
+        // because the generated C# will emit the appropriate cast.
+        if (IsIntegerNumericType(source) && IsIntegerNumericType(target)
+            && source.DisplayName != target.DisplayName)
+        {
+            return true;
+        }
 
         // Interface assignability:
         // A class/struct implementing an interface (directly or transitively) is assignable to that interface.
@@ -17339,6 +17380,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
+    /// Returns true if the given type is one of the CLR integer numeric types.
+    /// Used for implicit integer narrowing in CLR interop scenarios (e.g., int → byte).
+    /// </summary>
+    private static bool IsIntegerNumericType(IType type)
+    {
+        if (type is TypeAliasType alias)
+            type = alias.UnderlyingType;
+        if (type is not StructType st)
+            return false;
+        return st.DisplayName is "Byte" or "SByte" or "Int16" or "UInt16"
+            or "Int32" or "UInt32" or "Int64" or "UInt64";
+    }
+
+    /// <summary>
     /// Returns true if the given type is a ref struct (stack-only value type).
     /// Handles both plain <see cref="StructType"/> and <see cref="ConstructedType"/>
     /// whose generic definition is a ref struct (e.g., a generic ref struct like Span&lt;int&gt;).
@@ -17417,6 +17472,34 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <summary>
     /// Collects all method symbols with the given name from the target type's member scope
     /// and inherited methods from base types (walking the base type chain).
+    ///
+    /// <para>
+    /// For CLR-projected (Backend) types, reflection flattens inherited members onto each
+    /// type's own member scope (the projector enumerates with <c>Public | Instance | Static</c>
+    /// and no <c>DeclaredOnly</c>). Once the base chain is connected to the cached,
+    /// fully-projected ancestors (cross-assembly inheritance, Requirements 6.1/6.2), the same
+    /// inherited signature appears once per level: on the leaf (flattened) and again on every
+    /// ancestor scope. Without de-duplication this turns a single inherited method into N
+    /// identical-signature overload candidates (e.g. a method overridden through two levels
+    /// yields three copies of the same <c>()-&gt;string</c> signature), which overload
+    /// resolution then reports as ambiguous — making inherited members effectively uncallable
+    /// (Requirements 7.1, 7.5, 7.8).
+    /// </para>
+    ///
+    /// <para>
+    /// To keep only the most-derived visible signature for each inherited member
+    /// (Requirements 7.3, 7.8) — and to fall back to the nearest visible ancestor when the
+    /// most-derived definition is hidden by the visibility filter (Requirement 7.4) — Backend
+    /// candidates are de-duplicated by full signature (parameter types + ref kinds + generic
+    /// arity), keeping the first occurrence. Because the leaf scope is collected before the
+    /// base chain is walked, the first occurrence is always the most-derived definition; when
+    /// the most-derived definition was hidden (never projected), the first occurrence is the
+    /// nearest visible ancestor's. De-duplication is restricted to Backend symbols: Mist-source
+    /// method overloads store their parameters in AST scopes (not on <see cref="Symbol.Parameters"/>),
+    /// so their signatures are not computed here and their resolution is left unchanged.
+    /// Distinct overloads (different parameter types, ref kinds, or arity) keep distinct
+    /// signature keys and are all preserved.
+    /// </para>
     /// </summary>
     private static List<ISymbol> CollectMethodOverloads(IType? targetType, string methodName)
     {
@@ -17424,7 +17507,26 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (targetType is null)
             return results;
 
-        // Collect from the target type's own member scope.
+        // Tracks the full signatures of Backend (CLR-projected) candidates already kept, so a
+        // later (less-derived) copy of the same inherited signature is skipped (Req 7.3, 7.8).
+        var seenBackendSignatures = new HashSet<string>(StringComparer.Ordinal);
+
+        void AddIfNotDuplicate(ISymbol member)
+        {
+            // Only CLR-projected (Backend) methods are flattened onto every level of the chain,
+            // so only they can produce same-signature cross-level duplicates. Mist-source methods
+            // are added verbatim (their signatures live in AST scopes, not on Symbol.Parameters).
+            if (member.Origin == SymbolOrigin.Backend
+                && BuildBackendOverloadSignatureKey(member) is { } signatureKey)
+            {
+                if (!seenBackendSignatures.Add(signatureKey))
+                    return; // A more-derived copy of this exact signature was already kept.
+            }
+
+            results.Add(member);
+        }
+
+        // Collect from the target type's own member scope (the most-derived level).
         var memberScope = targetType switch
         {
             ClassType ct => ct.MemberScope,
@@ -17438,11 +17540,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             foreach (var member in memberScope.Members)
             {
                 if (member.Kind == SymbolKind.Method && member.Name == methodName)
-                    results.Add(member);
+                    AddIfNotDuplicate(member);
             }
         }
 
-        // Walk the base type chain to collect inherited methods.
+        // Walk the base type chain to collect inherited methods (less-derived levels).
         if (targetType is ClassType classType)
         {
             var baseType = classType.BaseType as ClassType;
@@ -17452,13 +17554,44 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 foreach (var member in baseScope.Members)
                 {
                     if (member.Kind == SymbolKind.Method && member.Name == methodName)
-                        results.Add(member);
+                        AddIfNotDuplicate(member);
                 }
                 baseType = baseType.BaseType as ClassType;
             }
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Builds a stable full-signature key for a CLR-projected (Backend) method symbol, used to
+    /// de-duplicate inherited members that reflection flattens onto every level of a connected
+    /// inheritance chain (see <see cref="CollectMethodOverloads"/>). The key combines the
+    /// method's generic arity with each parameter's projected type display name and ref kind,
+    /// so genuinely distinct overloads (different parameter types, ref kinds, or arity) keep
+    /// distinct keys and are never collapsed.
+    /// </summary>
+    /// <returns>
+    /// The signature key, or <c>null</c> when the symbol is not a <see cref="Symbol"/> (in which
+    /// case the caller does not de-duplicate it).
+    /// </returns>
+    private static string? BuildBackendOverloadSignatureKey(ISymbol member)
+    {
+        if (member is not Symbol sym)
+            return null;
+
+        var builder = new System.Text.StringBuilder();
+        builder.Append(sym.TypeParameters.Count).Append('|');
+
+        foreach (var parameter in sym.Parameters)
+        {
+            builder.Append(parameter.DeclaredType?.DisplayName ?? "?");
+            if (parameter is Symbol paramSym && paramSym.RefKind != RefKind.None)
+                builder.Append('#').Append(paramSym.RefKind);
+            builder.Append(',');
+        }
+
+        return builder.ToString();
     }
 
     /// <summary>

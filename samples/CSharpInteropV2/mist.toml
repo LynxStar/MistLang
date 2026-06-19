@@ -1,0 +1,7 @@
+name = "CSharpInteropV2"
+
+[packages]
+"Newtonsoft.Json" = "13.0.3"
+
+[framework_references]
+"Microsoft.AspNetCore.App" = true

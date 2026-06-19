@@ -8,17 +8,17 @@ public interface ICompilationProgressReporter
     /// <summary>
     /// Called when a compilation stage begins.
     /// </summary>
-    /// <param name="stageNumber">Zero-based stage index (0–6).</param>
-    /// <param name="title">Human-readable stage name (e.g., "Cleaning", "Lexing").</param>
-    void ReportStageStart(int stageNumber, string title);
+    /// <param name="stageId">Stage identifier (e.g., "1", "1.5", "2").</param>
+    /// <param name="title">Human-readable stage name (e.g., "Loading", "Lexing").</param>
+    void ReportStageStart(string stageId, string title);
 
     /// <summary>
     /// Called when a compilation stage completes.
     /// </summary>
-    /// <param name="stageNumber">Zero-based stage index.</param>
+    /// <param name="stageId">Stage identifier (e.g., "1", "1.5", "2").</param>
     /// <param name="elapsed">Wall-clock time for this stage.</param>
     /// <param name="details">One or more detail lines (without leading indent — the reporter adds formatting).</param>
-    void ReportStageComplete(int stageNumber, TimeSpan elapsed, IReadOnlyList<string> details);
+    void ReportStageComplete(string stageId, TimeSpan elapsed, IReadOnlyList<string> details);
 
     /// <summary>
     /// Called once at the end of the build to report the final outcome.

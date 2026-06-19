@@ -141,26 +141,28 @@ The scope is the C# transpiler backend's interop pipeline (`PackageResolver`, `A
 
 #### Acceptance Criteria
 
-1. WHEN an Overload_Group contains an overload whose signature uses a type excluded by the Visibility_Filter in any parameter position or the return position, THE Visibility_Filter SHALL exclude that overload.
+1. WHEN an Overload_Group contains an overload whose signature uses a type excluded by the Visibility_Filter (for example a pointer type) or otherwise unsupported (for example a `ref readonly` return) in any parameter position or the return position, THE Visibility_Filter SHALL exclude that overload.
 2. WHEN an Overload_Group contains overloads whose signatures use only supported types, THE Visibility_Filter SHALL project those overloads.
-3. WHEN `System.Text.Encoding` is projected, THE Assembly_Type_Provider SHALL project the `GetBytes(string)` overload returning a byte array, even though `GetBytes` also has overloads that use `Span<T>` or `ReadOnlySpan<T>`.
-4. WHEN `System.Net.Sockets.Socket` is projected, THE Assembly_Type_Provider SHALL project the `Send(byte[])` overload, even though `Send` also has overloads that use `Span<T>` or `ReadOnlySpan<T>`.
-5. WHEN `System.Console` is projected, THE Assembly_Type_Provider SHALL project the parameterless `ReadLine()` overload returning a nullable string, even though other members of `Console` use unsupported types.
-6. WHEN every overload in an Overload_Group is excluded by the Visibility_Filter, THE Assembly_Type_Provider SHALL project no symbol for that method name.
+3. WHEN `System.Text.Encoding` is projected, THE Assembly_Type_Provider SHALL project the `GetBytes(string)` overload returning a byte array; its `Span<T>`/`ReadOnlySpan<T>` overloads are also projected (ref structs are projected, not hidden — Requirement 9).
+4. WHEN `System.Net.Sockets.Socket` is projected, THE Assembly_Type_Provider SHALL project the `Send(byte[])` overload; its `Span<T>`/`ReadOnlySpan<T>` overloads are also projected.
+5. WHEN `System.Console` is projected, THE Assembly_Type_Provider SHALL project the parameterless `ReadLine()` overload returning a nullable string, even though some other members of `Console` use unsupported types (for example pointer-based members).
+6. WHEN every overload in an Overload_Group is excluded by the Visibility_Filter (for example a method group in which every overload has a pointer parameter or a `ref readonly` return), THE Assembly_Type_Provider SHALL project no symbol for that method name.
 7. WHEN Mist code calls an Overload_Group that has both projected and excluded overloads, THE Semantic_Model SHALL perform overload resolution only over the projected overloads, and the excluded overloads SHALL NOT be resolution candidates.
-8. IF Mist code calls an Overload_Group whose argument list matches only an excluded overload, THEN THE Semantic_Model SHALL produce an error-severity diagnostic indicating no matching overload, SHALL NOT resolve to the excluded overload, and sibling projected overloads SHALL remain callable.
+8. IF Mist code calls an Overload_Group whose argument list matches only an excluded overload (for example an overload with a pointer parameter), THEN THE Semantic_Model SHALL produce an error-severity diagnostic indicating no matching overload, SHALL NOT resolve to the excluded overload, and sibling projected overloads SHALL remain callable.
 
 ### Requirement 9: Ref Struct and Span Type Handling
 
-**User Story:** As a Mist developer, I want a clear and consistent behaviour for `Span<T>` and other ref structs, so that I understand why they are unavailable and which APIs are affected.
+**User Story:** As a Mist developer, I want `Span<T>`, `ReadOnlySpan<T>`, and other ref structs to be usable in Mist source code, so that I can call the many CLR APIs that expose them and write span-based code.
 
 #### Acceptance Criteria
 
-1. WHEN the Type_Projector encounters a Ref_Struct_Type (any type whose CLR metadata carries `IsByRefLikeAttribute`, including `System.Span<T>` and `System.ReadOnlySpan<T>`), THE Visibility_Filter SHALL exclude that type from the Mist projection.
-2. WHEN a CLR member's signature references a Ref_Struct_Type in any signature position (parameter type, return type, generic type argument, or field type, including positions nested within generic type arguments), THE Visibility_Filter SHALL exclude that member per Requirement 8.
-3. WHEN a CLR member is excluded because its signature references a Ref_Struct_Type, THE Visibility_Filter SHALL retain every other overload of the same member name whose signature references no Ref_Struct_Type in any signature position.
-4. WHEN a member is excluded because its signature references one or more Ref_Struct_Types, THE Assembly_Type_Provider SHALL record a hidden-member reason that identifies each offending Ref_Struct_Type by name so that the Inspect_Command can report it.
-5. THE Assembly_Type_Provider SHALL NOT project a Mist type for any Ref_Struct_Type, including `System.Span<T>` and `System.ReadOnlySpan<T>`, because Mist has no stack-only (ref struct) type discipline to represent their lifetime constraints; full ref struct support is out of scope for this feature.
+1. WHEN the Type_Projector encounters a Ref_Struct_Type (any type whose CLR metadata carries `IsByRefLikeAttribute`, including `System.Span<T>` and `System.ReadOnlySpan<T>`), THE Type_Projector SHALL project it as a Mist stack-only struct with `StructType.IsRefStruct` set to `true`.
+2. THE Visibility_Filter SHALL NOT exclude a Ref_Struct_Type on the basis that it is a ref struct; a Ref_Struct_Type is excluded only if it is non-public.
+3. WHEN a CLR member's signature references a Ref_Struct_Type in any signature position (parameter type, return type, generic type argument, or field type, including positions nested within generic type arguments), THE Visibility_Filter SHALL NOT hide that member on the basis of the Ref_Struct_Type reference.
+4. WHEN a Mist source file uses a projected Ref_Struct_Type, THE Semantic_Model SHALL support declaring it as a local variable, constructing it, indexing it, calling its members (e.g., `Slice`, `Length`), and iterating it with `foreach`, the same as it did before this feature.
+5. WHEN the Assembly_Type_Provider resolves a Ref_Struct_Type by its CLR namespace and name (e.g., `ResolveType("System", "Span", 1)`), THE Assembly_Type_Provider SHALL return the projected stack-only struct rather than `null`.
+6. WHERE a Mist program uses a projected Ref_Struct_Type in a way that violates CLR ref-struct lifetime rules (for example storing it in a heap location, boxing it, capturing it in a closure, or using it as a generic type argument), THE Mist compiler does NOT itself perform ref-struct escape or lifetime analysis for projected CLR ref structs; such misuse is reported by the downstream C# compiler when the transpiled C# is compiled, not by Mist's own checks. Full first-party ref-struct safety (stackalloc plus escape analysis) is out of scope for this feature and is tracked as separate future work.
+
 
 ### Requirement 10: Type Inspection Command
 
@@ -207,7 +209,7 @@ The scope is the C# transpiler backend's interop pipeline (`PackageResolver`, `A
    b. using a public type from the enabled `Microsoft.AspNetCore.App` Framework_Reference;
    c. assigning a projected derived type to a projected base type across assemblies;
    d. calling a member inherited from a base type across assemblies;
-   e. calling a supported overload of a method group that also has overloads hidden because they use `Span<T>` or `ReadOnlySpan<T>`.
+   e. calling a supported overload of a method group (e.g. `Encoding.GetBytes(string)`) where the same method group also exposes `Span<T>`/`ReadOnlySpan<T>` overloads that are now also projected (ref structs are projected, not hidden — Requirement 9).
 4. WHEN a demonstrated pattern executes, THE sample SHALL print one line to stdout in `Key=Value` form, where `Key` is a non-empty label and `Value` is the observed runtime result of that pattern.
 5. The `CSharpInteropV2` sample SHALL NOT be wired into `samples/AllFeatures` (it is excluded from the full-suite baseline run because it requires a network NuGet restore and an installed shared framework).
 6. A dedicated integration test SHALL compile and run the `samples/CSharpInteropV2` project end-to-end — performing a real NuGet restore of `Newtonsoft.Json` and resolving the `Microsoft.AspNetCore.App` framework reference — and SHALL assert the process exits with code 0 and that stdout matches the Proof Code expected output byte-for-byte. This test MAY spawn a process to run the compiled sample (an approved exception to the Test Process Spawning Policy for this single sample) and SHALL configure UTF-8 stdout/stderr encoding per the Test UTF-8 Encoding Policy.
@@ -252,8 +254,10 @@ public class Program
         Console.WriteLine($"streamLength={stream.Length}");
         Console.WriteLine($"canRead={stream.CanRead}");
 
-        // PROOF: Per-overload filtering — Encoding.GetBytes(string) survives even though
-        //        GetBytes also has Span<T>/ReadOnlySpan<T> overloads that are hidden.
+        // PROOF: Method-group overload resolution — Encoding.GetBytes(string) is callable.
+        //        GetBytes also exposes Span<T>/ReadOnlySpan<T> overloads, which under
+        //        Option A are also projected (ref structs are projected, not hidden); the
+        //        string overload still resolves correctly alongside them.
         var encoded = Encoding.UTF8.GetBytes("Hi");
         Console.WriteLine($"encodedLength={encoded.Length}");
 

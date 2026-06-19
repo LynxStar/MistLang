@@ -29,10 +29,27 @@ namespace Mist.Driver.Contracts;
 /// source file within the declaring project. Defaults to an empty array when
 /// no <c>[global_usings]</c> section is present.
 /// </param>
+/// <param name="Packages">
+/// The list of NuGet package references parsed from the <c>[packages]</c> table
+/// in <c>mist.toml</c>. Defaults to an empty array when no <c>[packages]</c>
+/// section is present.
+/// </param>
+/// <param name="FrameworkReferences">
+/// The list of enabled .NET shared frameworks parsed from the
+/// <c>[framework_references]</c> table in <c>mist.toml</c>. Defaults to an empty
+/// array when no <c>[framework_references]</c> section is present.
+/// </param>
+/// <param name="TargetFramework">
+/// The target framework moniker that drives dependency resolution. Populated from
+/// the optional <c>target_framework</c> field in <c>mist.toml</c>, defaulting to
+/// <c>"net10.0"</c> when not specified.
+/// </param>
 public sealed record ProjectConfiguration(
     string Name,
     string NamespaceRoot,
     ImmutableArray<ProjectReference> References,
     string? EntryPoint = null,
     ImmutableArray<string> GlobalUsings = default,
-    ImmutableArray<NuGetPackageReference> Packages = default);
+    ImmutableArray<NuGetPackageReference> Packages = default,
+    ImmutableArray<FrameworkReference> FrameworkReferences = default,
+    string TargetFramework = "net10.0");

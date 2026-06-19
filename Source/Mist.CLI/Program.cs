@@ -33,7 +33,18 @@ internal class Program
                 Console.Error.WriteLine($"error: {error.Message}");
             }
 
-            Console.Error.WriteLine("Usage: mist <build|run|steering> [project-folder] [--backend <id>] [--output <dir>] [--bin <dir>] [--mode <compile|lex>]");
+            Console.Error.WriteLine("Usage: mist <build|run|steering|inspect|restore> [project-folder] [--backend <id>] [--output <dir>] [--bin <dir>] [--mode <compile|lex>] [--quiet] [--verbose]");
+            Console.Error.WriteLine();
+            Console.Error.WriteLine("Commands:");
+            Console.Error.WriteLine("  build              Compile the project (default)");
+            Console.Error.WriteLine("  run                Compile and execute the project");
+            Console.Error.WriteLine("  steering           Install Mist steering files");
+            Console.Error.WriteLine("  inspect <TypeName> Inspect a CLR type's projected and hidden members");
+            Console.Error.WriteLine("  restore            Resolve packages and framework references without building");
+            Console.Error.WriteLine();
+            Console.Error.WriteLine("Flags:");
+            Console.Error.WriteLine("  --verbose, -v      Show detailed package/framework resolution output");
+            Console.Error.WriteLine("  --quiet, -q        Suppress progress output (mutually exclusive with --verbose)");
             return 1;
         }
 
@@ -49,6 +60,12 @@ internal class Program
 
             case CliCommand.Steering:
                 return RunSteeringCommand(cliArgs);
+
+            case CliCommand.Inspect:
+                return RunInspectCommand(cliArgs);
+
+            case CliCommand.Restore:
+                return RunRestoreCommand(cliArgs);
 
             default:
                 Console.Error.WriteLine($"error: Unknown command '{cliArgs.Command}'.");
@@ -75,7 +92,7 @@ internal class Program
         }
 
         // Stage 0: Cleaning
-        reporter.ReportStageStart(0, "Cleaning");
+        reporter.ReportStageStart("0", "Cleaning");
         var cleanStopwatch = Stopwatch.StartNew();
 
         try
@@ -90,7 +107,7 @@ internal class Program
         }
 
         cleanStopwatch.Stop();
-        reporter.ReportStageComplete(0, cleanStopwatch.Elapsed, new[]
+        reporter.ReportStageComplete("0", cleanStopwatch.Elapsed, new[]
         {
             $"Cleaned {cliArgs.OutputDirectory}",
             $"Cleaned {cliArgs.BinDirectory}",
@@ -240,7 +257,11 @@ internal class Program
             ProjectName: config.Name,
             NamespaceRoot: config.NamespaceRoot,
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
-            EntryPoint: config.EntryPoint);
+            EntryPoint: config.EntryPoint,
+            Packages: config.Packages,
+            FrameworkReferences: config.FrameworkReferences,
+            TargetFramework: config.TargetFramework,
+            VerboseResolution: cliArgs.Verbose);
 
         // Construct the compiler pipeline
         var lexer = new MistLexer();
@@ -274,7 +295,7 @@ internal class Program
         }
 
         // Stage 0: Cleaning
-        reporter.ReportStageStart(0, "Cleaning");
+        reporter.ReportStageStart("0", "Cleaning");
         var cleanStopwatch = Stopwatch.StartNew();
 
         try
@@ -289,7 +310,7 @@ internal class Program
         }
 
         cleanStopwatch.Stop();
-        reporter.ReportStageComplete(0, cleanStopwatch.Elapsed, new[]
+        reporter.ReportStageComplete("0", cleanStopwatch.Elapsed, new[]
         {
             $"Cleaned {cliArgs.OutputDirectory}",
             $"Cleaned {cliArgs.BinDirectory}",
@@ -359,6 +380,141 @@ internal class Program
         }
 
         return 0;
+    }
+
+    private static int RunInspectCommand(CliArguments cliArgs)
+    {
+        if(cliArgs.InspectTypeName is null)
+        {
+            Console.Error.WriteLine("Usage: mist inspect <TypeName>");
+            Console.Error.WriteLine("  <TypeName> is the fully-qualified CLR type name to inspect.");
+            return 1;
+        }
+
+        var projectFolder = Path.GetFullPath(cliArgs.ProjectFolder);
+        var projectFilePath = Path.Combine(projectFolder, "mist.toml");
+
+        if(!File.Exists(projectFilePath))
+        {
+            Console.Error.WriteLine("error: No mist.toml found in the current directory. Run this command from a Mist project folder.");
+            return 1;
+        }
+
+        // Parse the project file
+        var parseDiagnostics = new DiagnosticBag();
+        var config = ProjectFileParser.Parse(projectFolder, parseDiagnostics);
+
+        if(config is null)
+        {
+            foreach(var diagnostic in parseDiagnostics.ToImmutableArray())
+            {
+                Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
+            }
+            return 1;
+        }
+
+        // Resolve SDK + package + framework assemblies (same as a build would use)
+        var packageDiagnostics = new DiagnosticBag();
+        var packageResult = PackageResolver.ResolvePackages(
+            config.Packages,
+            config.TargetFramework,
+            packageDiagnostics);
+
+        var frameworkDiagnostics = new DiagnosticBag();
+        var frameworkResult = FrameworkReferenceResolver.Resolve(
+            config.FrameworkReferences,
+            config.TargetFramework,
+            frameworkDiagnostics);
+
+        // Merge additional assembly paths from packages and framework references
+        var additionalPaths = packageResult.AssemblyPaths
+            .AddRange(frameworkResult.AssemblyPaths);
+
+        // Use the TypeInspector to resolve and print the inspection report
+        var result = TypeInspector.Inspect(
+            config.TargetFramework,
+            additionalPaths,
+            cliArgs.InspectTypeName,
+            Console.Out);
+
+        return result;
+    }
+
+    private static int RunRestoreCommand(CliArguments cliArgs)
+    {
+        var projectFolder = Path.GetFullPath(cliArgs.ProjectFolder);
+        var projectFilePath = Path.Combine(projectFolder, "mist.toml");
+
+        if(!File.Exists(projectFilePath))
+        {
+            Console.Error.WriteLine("error: No mist.toml found in the current directory. Run this command from a Mist project folder.");
+            return 1;
+        }
+
+        // Parse the project file
+        var parseDiagnostics = new DiagnosticBag();
+        var config = ProjectFileParser.Parse(projectFolder, parseDiagnostics);
+
+        if(config is null)
+        {
+            foreach(var diagnostic in parseDiagnostics.ToImmutableArray())
+            {
+                Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
+            }
+            return 1;
+        }
+
+        // Run package resolution
+        var packageDiagnostics = new DiagnosticBag();
+        var packageResult = PackageResolver.ResolvePackages(
+            config.Packages,
+            config.TargetFramework,
+            packageDiagnostics);
+
+        // Run framework reference resolution
+        var frameworkDiagnostics = new DiagnosticBag();
+        var frameworkResult = FrameworkReferenceResolver.Resolve(
+            config.FrameworkReferences,
+            config.TargetFramework,
+            frameworkDiagnostics);
+
+        // Print per-package detail lines unconditionally
+        foreach(var pkg in packageResult.Resolved)
+        {
+            Console.WriteLine($"Restored {pkg.Name} {pkg.Version} ({pkg.SelectedTfm})");
+        }
+
+        // Print per-framework detail lines unconditionally
+        foreach(var fw in frameworkResult.Resolved)
+        {
+            Console.WriteLine($"Resolved {fw.Name} {fw.Version}");
+        }
+
+        // Print zero-assemblies notes for packages that resolved but contributed nothing
+        foreach(var pkg in packageResult.Resolved)
+        {
+            if(pkg.AssemblyCount == 0)
+            {
+                Console.WriteLine($"{pkg.Name} contributed no assemblies for {config.TargetFramework}");
+            }
+        }
+
+        // Print summary
+        var successCount = packageResult.Resolved.Length + frameworkResult.Resolved.Length;
+        var failureCount = packageResult.FailureCount + frameworkResult.FailureCount;
+        Console.WriteLine($"{successCount} succeeded, {failureCount} failed");
+
+        // Emit diagnostics on failure
+        foreach(var diagnostic in packageDiagnostics.ToImmutableArray())
+        {
+            Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
+        }
+        foreach(var diagnostic in frameworkDiagnostics.ToImmutableArray())
+        {
+            Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
+        }
+
+        return failureCount > 0 ? 1 : 0;
     }
 
     private static int RunArtifact(string artifactPath)

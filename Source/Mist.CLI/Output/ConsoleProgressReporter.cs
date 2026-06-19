@@ -15,12 +15,12 @@ public sealed class ConsoleProgressReporter : ICompilationProgressReporter
         _out = output;
     }
 
-    public void ReportStageStart(int stageNumber, string title)
+    public void ReportStageStart(string stageId, string title)
     {
-        _out.WriteLine($"Stage {stageNumber} - {title}");
+        _out.WriteLine($"Stage {stageId} - {title}");
     }
 
-    public void ReportStageComplete(int stageNumber, TimeSpan elapsed, IReadOnlyList<string> details)
+    public void ReportStageComplete(string stageId, TimeSpan elapsed, IReadOnlyList<string> details)
     {
         foreach (var detail in details)
             _out.WriteLine($"    {detail}");

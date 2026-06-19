@@ -1,6 +1,65 @@
+using System.Collections.Immutable;
 using System.Reflection;
 
 namespace Mist.Backends.CSharpTranspiler;
+
+/// <summary>
+/// The reason a CLR member is hidden from the Mist projection, surfaced by
+/// <see cref="VisibilityFilter.Classify"/> for the <c>mist inspect</c> command.
+/// </summary>
+/// <remarks>
+/// Values mirror the exclusion rules evaluated by <see cref="VisibilityFilter.IsMemberExcluded"/>,
+/// in the same order. <see cref="None"/> means the member is visible. Note that CLR <c>out</c>/<c>ref</c>
+/// parameters are now supported and never trigger exclusion, so <see cref="OutParameter"/> is retained
+/// only to mirror the (currently dead) <c>HasOutParameters</c> check and will not occur in practice.
+/// </remarks>
+internal enum MemberHiddenReason
+{
+    /// <summary>The member is visible (not hidden).</summary>
+    None,
+
+    /// <summary>The member is not publicly accessible.</summary>
+    NonPublic,
+
+    /// <summary>The member is an event (events are not projected).</summary>
+    Event,
+
+    /// <summary>The member has a CLR <c>out</c> parameter. Retained for parity; does not occur today.</summary>
+    OutParameter,
+
+    /// <summary>The member has a <c>ref readonly</c> return type.</summary>
+    RefReadonlyReturn,
+
+    /// <summary>The member's signature contains a pointer type.</summary>
+    Pointer,
+
+    /// <summary>
+    /// Reserved. Previously flagged members whose signature referenced a ref-struct type
+    /// (e.g. <c>Span&lt;T&gt;</c>). Ref structs are now projected rather than excluded, so this
+    /// reason is no longer triggered by projection. Retained for compatibility with the inspect
+    /// command's classification surface.
+    /// </summary>
+    RefStructType,
+
+    /// <summary>The member's signature references some other excluded type (e.g. a non-public type).</summary>
+    OtherExcludedType,
+}
+
+/// <summary>
+/// The result of classifying why a CLR member is (or is not) hidden from the Mist projection.
+/// Produced by <see cref="VisibilityFilter.Classify"/> for the inspect command.
+/// </summary>
+/// <param name="Hidden"><c>true</c> if the member is excluded from projection.</param>
+/// <param name="Reason">The reason the member is hidden, or <see cref="MemberHiddenReason.None"/> when visible.</param>
+/// <param name="OffendingTypeNames">
+/// For <see cref="MemberHiddenReason.RefStructType"/> and <see cref="MemberHiddenReason.OtherExcludedType"/>,
+/// the display names of each excluded type referenced by the signature (e.g. <c>Span&lt;Byte&gt;</c>).
+/// Empty for all other reasons and for visible members.
+/// </param>
+internal sealed record MemberClassification(
+    bool Hidden,
+    MemberHiddenReason Reason,
+    ImmutableArray<string> OffendingTypeNames);
 
 /// <summary>
 /// Determines which CLR types and members are visible to Mist.
@@ -18,6 +77,13 @@ namespace Mist.Backends.CSharpTranspiler;
 ///   <item>Signature references an excluded type → exclude member</item>
 /// </list>
 /// <para>
+/// Ref-struct types (those carrying <c>System.Runtime.CompilerServices.IsByRefLikeAttribute</c>,
+/// e.g. <c>Span&lt;T&gt;</c>/<c>ReadOnlySpan&lt;T&gt;</c>) are <b>not</b> excluded by
+/// <see cref="IsTypeExcluded"/>: they are projected as Mist stack-only structs and members that
+/// use them stay visible. The downstream C# compiler remains the safety backstop for ref-struct
+/// misuse; first-party escape/lifetime analysis is future work (Requirement 9).
+/// </para>
+/// <para>
 /// CLR <c>ref</c> parameters, <c>in</c> parameters, <c>out</c> parameters, and mutable
 /// <c>ref</c> returns are now supported and pass through the filter. <c>out</c> parameters
 /// are projected as <c>ref</c> with <see cref="Mist.Semantics.Model.ClrCallingConvention.Out"/>.
@@ -29,7 +95,12 @@ internal sealed class VisibilityFilter
 {
     /// <summary>
     /// Returns <c>true</c> if the type should be excluded from projection.
-    /// Excludes: non-public types.
+    /// Excludes only non-public types. Ref-struct types (those carrying
+    /// <c>IsByRefLikeAttribute</c>, e.g. <c>Span&lt;T&gt;</c>/<c>ReadOnlySpan&lt;T&gt;</c>)
+    /// are <b>projected</b> as Mist stack-only structs (<c>StructType.IsRefStruct = true</c>),
+    /// not excluded — see <see cref="TypeProjector"/>. The downstream C# compiler is the
+    /// safety backstop for any ref-struct misuse; first-party escape/lifetime analysis is
+    /// future work (Requirement 9).
     /// </summary>
     // CA1822 suppressed: IsTypeExcluded is intentionally an instance method because it is
     // called from IsTypeExcludedInSignature (instance) to enable the recursive exclusion
@@ -42,6 +113,7 @@ internal sealed class VisibilityFilter
         if (!IsTypePublic(clrType))
             return true;
 
+        // Ref-struct types are NOT excluded — they are projected as stack-only structs.
         return false;
     }
 
@@ -80,6 +152,106 @@ internal sealed class VisibilityFilter
             return true;
 
         return false;
+    }
+
+    /// <summary>
+    /// Classifies why a member is hidden from the Mist projection, for the <c>mist inspect</c>
+    /// command. This mirrors the SAME exclusion logic and order as <see cref="IsMemberExcluded"/>
+    /// (accessibility → events → out params → ref readonly return → pointers → excluded-type
+    /// references) but, instead of a boolean, returns the reason and — for excluded-type references —
+    /// the display names of each offending type (e.g. <c>Span&lt;Byte&gt;</c>) so the inspect command
+    /// can produce reason text like <c>HIDDEN: signature uses Span&lt;Byte&gt;</c>.
+    /// </summary>
+    /// <remarks>
+    /// The hot build path uses the boolean <see cref="IsMemberExcluded"/>; this method is intended
+    /// only for the (cold) inspect command, which additionally collects offending type names.
+    /// For a visible member, returns <c>{ Hidden = false, Reason = None, OffendingTypeNames = empty }</c>.
+    /// </remarks>
+    public MemberClassification Classify(MemberInfo member)
+    {
+        // 1. Non-public accessibility → exclude (Requirement 6.7)
+        if (!IsMemberPublic(member))
+            return Hidden(MemberHiddenReason.NonPublic);
+
+        // 2. Events → exclude (Requirement 5.8)
+        if (member is EventInfo)
+            return Hidden(MemberHiddenReason.Event);
+
+        // 3. out parameters — no longer excluded; check retained to mirror IsMemberExcluded order.
+        // HasOutParameters currently returns false, so this never triggers in practice.
+        if (HasOutParameters(member))
+            return Hidden(MemberHiddenReason.OutParameter);
+
+        // 4. ref parameters — no longer excluded (HasRefParameters always returns false). There is
+        // no corresponding MemberHiddenReason because this exclusion was removed and cannot trigger.
+
+        // 5. ref readonly return type → exclude method/property (Requirement 6.3)
+        if (HasRefReturn(member))
+            return Hidden(MemberHiddenReason.RefReadonlyReturn);
+
+        // 6. Pointer types in signature → exclude member (Requirement 6.4)
+        if (HasPointerTypes(member))
+            return Hidden(MemberHiddenReason.Pointer);
+
+        // 7. Signature references an excluded type → exclude member (Requirement 6.6).
+        // Gather the offending types so the inspect command can name them (Requirement 9.4).
+        var offendingTypes = CollectExcludedTypesInSignature(member);
+        if (offendingTypes.Count > 0)
+        {
+            // Prefer reporting RefStructType when any offending type is a ref struct; otherwise the
+            // member is hidden because of some other excluded type (e.g. a non-public type).
+            var anyRefStruct = offendingTypes.Any(IsOffendingTypeRefStruct);
+            var reason = anyRefStruct ? MemberHiddenReason.RefStructType : MemberHiddenReason.OtherExcludedType;
+
+            // De-duplicate by rendered display name, preserving first-seen order for determinism.
+            var names = ImmutableArray.CreateBuilder<string>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var offending in offendingTypes)
+            {
+                var name = RenderTypeDisplayName(offending);
+                if (seen.Add(name))
+                    names.Add(name);
+            }
+
+            return new MemberClassification(true, reason, names.ToImmutable());
+        }
+
+        return new MemberClassification(false, MemberHiddenReason.None, ImmutableArray<string>.Empty);
+    }
+
+    /// <summary>
+    /// Builds a hidden classification with no offending type names (used for reasons other than
+    /// excluded-type references, which do not carry offending types).
+    /// </summary>
+    private static MemberClassification Hidden(MemberHiddenReason reason) =>
+        new(true, reason, ImmutableArray<string>.Empty);
+
+    /// <summary>
+    /// Determines whether a type is a ref struct (carries
+    /// <c>System.Runtime.CompilerServices.IsByRefLikeAttribute</c>), e.g. <c>Span&lt;T&gt;</c>
+    /// or <c>ReadOnlySpan&lt;T&gt;</c>.
+    /// </summary>
+    /// <remarks>
+    /// This code runs under a <c>MetadataLoadContext</c>, where <see cref="Type.IsByRefLike"/>
+    /// is not guaranteed to be reliable. Detection therefore reads custom-attribute metadata
+    /// by <c>FullName</c>, mirroring <see cref="IsRefReadonlyReturn"/>. For a constructed generic
+    /// such as <c>Span&lt;byte&gt;</c>, the attribute lives on the generic type definition, which
+    /// <see cref="IsTypeExcludedInSignature"/> passes here via <c>GetGenericTypeDefinition()</c>.
+    /// If metadata cannot be loaded, defaults to <c>false</c> (the type is not treated as a ref struct).
+    /// </remarks>
+    private static bool IsRefStruct(Type type)
+    {
+        try
+        {
+            return type.GetCustomAttributesData()
+                .Any(a => a.AttributeType.FullName ==
+                    "System.Runtime.CompilerServices.IsByRefLikeAttribute");
+        }
+        catch
+        {
+            // If metadata cannot be loaded, default to false (do not treat as a ref struct).
+            return false;
+        }
     }
 
     /// <summary>
@@ -273,6 +445,132 @@ internal sealed class VisibilityFilter
 
         // Check the concrete type itself
         return IsTypeExcluded(type);
+    }
+
+    /// <summary>
+    /// Member-signature counterpart to <see cref="ReferencesExcludedType"/> that, instead of a
+    /// boolean, gathers the offending excluded types found in each signature position. Mirrors the
+    /// same positions (return type, parameters, property type, field type). Used by
+    /// <see cref="Classify"/> for the inspect command; the boolean build path is unaffected.
+    /// </summary>
+    private List<Type> CollectExcludedTypesInSignature(MemberInfo member)
+    {
+        var offending = new List<Type>();
+        switch (member)
+        {
+            case MethodInfo method:
+                CollectExcludedTypesInSignature(method.ReturnType, offending);
+                foreach (var p in method.GetParameters())
+                    CollectExcludedTypesInSignature(p.ParameterType, offending);
+                break;
+            case ConstructorInfo ctor:
+                foreach (var p in ctor.GetParameters())
+                    CollectExcludedTypesInSignature(p.ParameterType, offending);
+                break;
+            case PropertyInfo property:
+                CollectExcludedTypesInSignature(property.PropertyType, offending);
+                break;
+            case FieldInfo field:
+                CollectExcludedTypesInSignature(field.FieldType, offending);
+                break;
+        }
+
+        return offending;
+    }
+
+    /// <summary>
+    /// Gathering counterpart to <see cref="IsTypeExcludedInSignature"/>: walks a signature type in
+    /// the same way (unwrapping by-ref/pointer/array wrappers, descending into generic arguments,
+    /// skipping generic parameters) and appends every excluded type encountered to
+    /// <paramref name="offending"/>. For a constructed generic whose definition is excluded
+    /// (e.g. <c>Span&lt;byte&gt;</c>), the constructed type is recorded so it renders as
+    /// <c>Span&lt;Byte&gt;</c>.
+    /// </summary>
+    private void CollectExcludedTypesInSignature(Type type, List<Type> offending)
+    {
+        // Unwrap by-ref (ref/out/in parameter types are T& in metadata)
+        if (type.IsByRef)
+        {
+            var elementType = type.GetElementType();
+            if (elementType is not null)
+                CollectExcludedTypesInSignature(elementType, offending);
+            return;
+        }
+
+        // Unwrap pointer types
+        if (type.IsPointer)
+        {
+            var elementType = type.GetElementType();
+            if (elementType is not null)
+                CollectExcludedTypesInSignature(elementType, offending);
+            return;
+        }
+
+        // Unwrap array element types
+        if (type.IsArray)
+        {
+            var elementType = type.GetElementType();
+            if (elementType is not null)
+                CollectExcludedTypesInSignature(elementType, offending);
+            return;
+        }
+
+        // Descend into generic type arguments, then check the generic definition itself.
+        if (type.IsConstructedGenericType)
+        {
+            foreach (var arg in type.GetGenericArguments())
+                CollectExcludedTypesInSignature(arg, offending);
+
+            var genericDef = type.GetGenericTypeDefinition();
+            if (IsTypeExcluded(genericDef))
+                offending.Add(type);
+
+            return;
+        }
+
+        // Skip generic type parameters (T, TKey, etc.) — they are not concrete types
+        if (type.IsGenericParameter)
+            return;
+
+        // Check the concrete type itself
+        if (IsTypeExcluded(type))
+            offending.Add(type);
+    }
+
+    /// <summary>
+    /// Determines whether an offending signature type is a ref struct. For a constructed generic
+    /// (e.g. <c>Span&lt;byte&gt;</c>), the <c>IsByRefLikeAttribute</c> lives on the generic type
+    /// definition, so this checks the definition in that case.
+    /// </summary>
+    private static bool IsOffendingTypeRefStruct(Type type)
+    {
+        var typeToCheck = type.IsConstructedGenericType ? type.GetGenericTypeDefinition() : type;
+        return IsRefStruct(typeToCheck);
+    }
+
+    /// <summary>
+    /// Renders a CLR type's display name for inspect reason text, using the CLR simple name with the
+    /// generic arity suffix stripped and generic arguments rendered recursively, e.g.
+    /// <c>Span&lt;Byte&gt;</c> or <c>Dictionary&lt;String, Int32&gt;</c>. Array/pointer wrappers are
+    /// unwrapped to their element type (the offending element is what matters for the reason).
+    /// </summary>
+    private static string RenderTypeDisplayName(Type type)
+    {
+        if (type.IsByRef || type.IsPointer || type.IsArray)
+        {
+            var elementType = type.GetElementType();
+            if (elementType is not null)
+                return RenderTypeDisplayName(elementType);
+        }
+
+        if (type.IsConstructedGenericType)
+        {
+            var name = TypeProjector.StripGenericAritySuffix(type.Name);
+            var args = type.GetGenericArguments().Select(RenderTypeDisplayName);
+            return $"{name}<{string.Join(", ", args)}>";
+        }
+
+        return TypeProjector.StripGenericAritySuffix(type.Name);
     }
 
     /// <summary>

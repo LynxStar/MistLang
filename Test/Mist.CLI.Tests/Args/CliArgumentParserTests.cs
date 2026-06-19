@@ -117,11 +117,11 @@ public class CliArgumentParserTests
     [Fact]
     public void Parse_UnknownFlag_ReportsError()
     {
-        var result = CliArgumentParser.Parse(["--verbose"]);
+        var result = CliArgumentParser.Parse(["--foobar"]);
 
         Assert.Null(result.Arguments);
         _ = Assert.Single(result.Errors);
-        Assert.Contains("--verbose", result.Errors[0].Message);
+        Assert.Contains("--foobar", result.Errors[0].Message);
     }
 
     [Fact]

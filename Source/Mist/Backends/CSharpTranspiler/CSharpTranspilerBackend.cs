@@ -18,20 +18,31 @@ public sealed class CSharpTranspilerBackend : IBackend
     public BackendId Id => new("csharp");
 
     /// <summary>
-    /// Cached <see cref="AssemblyTypeProvider"/> instance. Reused when the same SDK
-    /// assembly paths are used across multiple <c>Compile()</c> calls (the common case).
+    /// Cached <see cref="AssemblyTypeProvider"/> instance. Reused when the same merged
+    /// assembly path set is used across multiple <c>Compile()</c> calls (the common case).
     /// This avoids recreating the MetadataLoadContext and reloading ~167 DLLs per compilation.
+    /// The cache is keyed on the full merged path set (SDK + additional), so different
+    /// path sets produce different providers.
     /// </summary>
     private static AssemblyTypeProvider? _cachedProvider;
-    private static ImmutableArray<string> _cachedPaths;
+    private static ImmutableArray<string> _cachedMergedPaths;
     private static readonly object _providerCacheLock = new();
 
-    public IAmbientTypeResolver? GetAmbientTypeResolver()
+    /// <summary>
+    /// Stores the additional (non-SDK) assembly paths from the most recent
+    /// <see cref="GetAmbientTypeResolver"/> call on THIS instance. These are passed to the
+    /// C# compilation driver during emit so the downstream Roslyn compilation
+    /// references the NuGet package and framework assemblies. Instance-scoped to avoid
+    /// cross-test contamination when multiple CompilerDriver instances run in parallel.
+    /// </summary>
+    private ImmutableArray<string> _lastAdditionalAssemblyPaths;
+
+    public IAmbientTypeResolver? GetAmbientTypeResolver(string targetFramework, ImmutableArray<string> additionalAssemblyPaths)
     {
         var diagnostics = new DiagnosticBag();
 
-        // Discover SDK reference assembly path.
-        var sdkRefPath = SdkDiscovery.FindReferenceAssemblyPath("net10.0", diagnostics);
+        // Discover SDK reference assembly path for the specified TFM.
+        var sdkRefPath = SdkDiscovery.FindReferenceAssemblyPath(targetFramework, diagnostics);
         if (sdkRefPath is null)
         {
             // SDK not found — fall back to no assembly types.
@@ -41,20 +52,41 @@ public sealed class CSharpTranspilerBackend : IBackend
         }
 
         // Get all DLL paths from the SDK reference assembly directory.
-        var assemblyPaths = GetCachedSdkAssemblyPaths(sdkRefPath);
+        var sdkPaths = GetCachedSdkAssemblyPaths(sdkRefPath);
 
-        // Reuse cached provider if assembly paths are identical.
+        // Union SDK paths with additional assembly paths and de-duplicate
+        // by file path (case-insensitive).
+        var mergedSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in sdkPaths)
+            mergedSet.Add(path);
+
+        if (!additionalAssemblyPaths.IsDefaultOrEmpty)
+        {
+            foreach (var path in additionalAssemblyPaths)
+                mergedSet.Add(path);
+        }
+
+        var mergedPaths = mergedSet.ToImmutableArray();
+
+        // Store the additional assembly paths for downstream C# compilation.
+        _lastAdditionalAssemblyPaths = additionalAssemblyPaths.IsDefaultOrEmpty
+            ? ImmutableArray<string>.Empty
+            : additionalAssemblyPaths;
+
+        // Reuse cached provider if the merged path set is identical.
         lock (_providerCacheLock)
         {
-            if (_cachedProvider is not null && _cachedPaths.SequenceEqual(assemblyPaths))
+            if (_cachedProvider is not null
+                && _cachedMergedPaths.Length == mergedPaths.Length
+                && _cachedMergedPaths.All(p => mergedSet.Contains(p)))
             {
                 return _cachedProvider;
             }
 
-            // Create a new provider.
-            var provider = new AssemblyTypeProvider(assemblyPaths, diagnostics);
+            // Create a new provider with the merged paths.
+            var provider = new AssemblyTypeProvider(mergedPaths, diagnostics);
             _cachedProvider = provider;
-            _cachedPaths = assemblyPaths;
+            _cachedMergedPaths = mergedPaths;
             return provider;
         }
     }
@@ -120,7 +152,7 @@ public sealed class CSharpTranspilerBackend : IBackend
             var mainTypeName = DetermineMainTypeName(model);
 
             // Step 2: Compile the emitted C# project
-            var compileResult = CSharpCompilationDriver.Compile(outputDirectory, binDirectory, projectName, bag, emittedFileCount, mainTypeName);
+            var compileResult = CSharpCompilationDriver.Compile(outputDirectory, binDirectory, projectName, bag, emittedFileCount, mainTypeName, _lastAdditionalAssemblyPaths);
 
             return compileResult;
         }

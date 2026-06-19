@@ -11,8 +11,8 @@ public sealed class NullProgressReporterTests
 
         var ex = Record.Exception(() =>
         {
-            reporter.ReportStageStart(1, "Loading");
-            reporter.ReportStageComplete(2, TimeSpan.FromMilliseconds(42), new[] { "detail1", "detail2" });
+            reporter.ReportStageStart("1", "Loading");
+            reporter.ReportStageComplete("2", TimeSpan.FromMilliseconds(42), new[] { "detail1", "detail2" });
             reporter.ReportBuildSummary(true, 0, 0, TimeSpan.FromSeconds(1.5));
         });
 

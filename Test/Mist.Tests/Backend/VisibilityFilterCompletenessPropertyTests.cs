@@ -15,8 +15,10 @@ namespace Mist.Tests.Backend;
 /// Property 3: For any CLR member, the visibility filter SHALL exclude it if and only if
 /// at least one of the following holds: (a) it is not public, (b) it is an event,
 /// (c) it has a ref readonly return type,
-/// (d) it has pointer types in its signature, (e) its declaring type
-/// is a ref struct, or (f) its signature references a type that is itself excluded.
+/// (d) it has pointer types in its signature, or (e) its signature references a type that is
+/// itself excluded (i.e. a non-public type). Ref-struct types (those carrying
+/// IsByRefLikeAttribute, e.g. Span&lt;T&gt;) are NOT excluded under csharp-interop-v2 Option A —
+/// they are projected as Mist stack-only structs.
 /// Ref parameters (including in), out parameters, and mutable ref returns now pass through.
 /// All other public members SHALL be projected.
 /// </summary>
@@ -275,6 +277,9 @@ public sealed class VisibilityFilterCompletenessPropertyTests
         if (!IsTypePublic(type))
             return true;
 
+        // Ref-struct types (carry IsByRefLikeAttribute, e.g. Span<T>/ReadOnlySpan<T>) are NOT
+        // excluded under csharp-interop-v2 Option A — they are projected as Mist stack-only
+        // structs. Only non-public types are excluded at the type level.
         return false;
     }
 

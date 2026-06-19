@@ -140,10 +140,12 @@ public sealed class OverloadPreservationPropertyTests
 
     /// <summary>
     /// Property 12b: For any type with overloaded methods where at least one overload
-    /// is filtered (e.g., has out param), the remaining overloads are still projected
-    /// independently — their count is strictly less than the total overload count but
-    /// greater than zero.
-    /// **Validates: Requirements 11.1, 11.2**
+    /// is filtered (e.g., has an unsupported type), the remaining overloads are still
+    /// projected independently — the projected count equals the visible count and is
+    /// strictly less than the total overload count. When <em>every</em> overload in the
+    /// group is filtered (e.g. all use a ref struct), no symbol is projected for that
+    /// name (count 0), per csharp-interop-v2 Requirement 8.6.
+    /// **Validates: Requirements 11.1, 11.2, 8.6**
     /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(OverloadPreservationPropertyTests) })]
     public bool FilteredOverloads_DoNotAffectRemainingProjection(OverloadScenario scenario)
@@ -169,13 +171,14 @@ public sealed class OverloadPreservationPropertyTests
             .Where(m => m.Kind == SymbolKind.Method && m.Name == scenario.MethodName)
             .ToArray();
 
-        // If some overloads are filtered, the projected count should be less than total
-        // but still equal to the visible count (filtering doesn't suppress others)
+        // If some overloads are filtered, the projected count should equal the visible
+        // count (filtering one overload doesn't suppress the others) and be strictly
+        // less than the total. When all overloads are filtered, the visible count — and
+        // therefore the projected count — is 0 (Requirement 8.6).
         if (filteredOverloads.Length > 0)
         {
             return projectedOverloads.Length == visibleOverloads.Length
-                && projectedOverloads.Length < allOverloads.Length
-                && projectedOverloads.Length > 0;
+                && projectedOverloads.Length < allOverloads.Length;
         }
 
         // If no overloads are filtered, all should be projected

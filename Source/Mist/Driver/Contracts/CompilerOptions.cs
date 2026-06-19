@@ -19,6 +19,10 @@ namespace Mist.Driver.Contracts;
 /// Namespaces to implicitly import into every compilation unit.
 /// Enables in-process test compilation with global usings without requiring a mist.toml on disk.
 /// </param>
+/// <param name="Packages">NuGet package references declared in <c>[packages]</c>.</param>
+/// <param name="FrameworkReferences">Shared framework references declared in <c>[framework_references]</c>.</param>
+/// <param name="TargetFramework">Target framework moniker for dependency resolution (e.g., <c>net10.0</c>).</param>
+/// <param name="VerboseResolution">When true, the package-resolution stage reports detailed progress.</param>
 public sealed record CompilerOptions(
     string ProjectFolder,
     ImmutableArray<string> SourcePaths,
@@ -30,4 +34,8 @@ public sealed record CompilerOptions(
     ImmutableArray<string> EnabledAnalyzerIds,
     bool EmitToDisk = true,
     string? EntryPoint = null,
-    ImmutableArray<string> GlobalUsings = default);
+    ImmutableArray<string> GlobalUsings = default,
+    ImmutableArray<NuGetPackageReference> Packages = default,
+    ImmutableArray<FrameworkReference> FrameworkReferences = default,
+    string TargetFramework = "net10.0",
+    bool VerboseResolution = false);

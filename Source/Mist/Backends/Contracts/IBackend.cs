@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Semantics.Contracts;
 
@@ -10,6 +11,6 @@ namespace Mist.Backends.Contracts;
 public interface IBackend
 {
     BackendId Id { get; }
-    IAmbientTypeResolver? GetAmbientTypeResolver();
+    IAmbientTypeResolver? GetAmbientTypeResolver(string targetFramework, ImmutableArray<string> additionalAssemblyPaths);
     BackendResult Emit(ISemanticModel model, string outputDirectory, string binDirectory, string projectName, DiagnosticBag diagnostics);
 }

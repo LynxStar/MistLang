@@ -10,6 +10,13 @@
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <PublishTrimmed>true</PublishTrimmed>
+    <!-- IL2104 = "Assembly produced trim warnings" meta-warning from third-party NuGet packages
+         (Microsoft.CodeAnalysis, Newtonsoft.Json, NuGet.Configuration, Tomlyn, MetadataLoadContext).
+         IL2026 = The MetadataLoadContext package (System.Reflection.MetadataLoadContext) is marked
+         IsTrimmable=true so TrimmerSingleWarn doesn't collapse its internal RoAssembly.GetExportedTypes()
+         warning into IL2104. This is a third-party package we don't control.
+         Per Zero Warnings Policy: trim warnings from third-party packages are excluded. -->
+    <NoWarn>$(NoWarn);IL2104;IL2026</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

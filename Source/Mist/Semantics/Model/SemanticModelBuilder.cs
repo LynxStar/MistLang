@@ -18485,6 +18485,32 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 RegisterAmbientTypeInScope(ambientResolvedType, typeName, ambientResolvedNs!, fileScope, ambientTypeResolver, symbolTable);
                 return ambientResolvedType;
             }
+
+            // 3c. Fully-qualified namespace.type reference: if the typeName contains dots,
+            // try splitting at each dot position (right to left) and check if the left
+            // part is a known ambient namespace containing the right part as a type.
+            // This handles cases like "Microsoft.AspNetCore.Http.QueryString" or
+            // "Newtonsoft.Json.JsonConvert" without requiring a using directive.
+            if (typeName.Contains('.'))
+            {
+                for (var dotIdx = typeName.LastIndexOf('.'); dotIdx > 0; dotIdx = typeName.LastIndexOf('.', dotIdx - 1))
+                {
+                    var candidateNs = typeName.Substring(0, dotIdx);
+                    var candidateType = typeName.Substring(dotIdx + 1);
+
+                    if (ambientTypeResolver.HasNamespace(candidateNs))
+                    {
+                        var resolved = typeArgumentCount >= 0
+                            ? ambientTypeResolver.ResolveType(candidateNs, candidateType, typeArgumentCount)
+                            : ambientTypeResolver.ResolveType(candidateNs, candidateType);
+                        if (resolved is not null)
+                        {
+                            RegisterAmbientTypeInScope(resolved, candidateType, candidateNs, fileScope, ambientTypeResolver, symbolTable);
+                            return resolved;
+                        }
+                    }
+                }
+            }
         }
 
         // 4. Not found → emit diagnostic, return ErrorType.
@@ -22063,6 +22089,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         result = typeAsSymbol;
                     }
+                    // Check if the identifier is a namespace root (for fully-qualified
+                    // type references like Newtonsoft.Json.JsonConvert.SerializeObject).
+                    else if (ambientTypeResolver is not null && IsNamespaceOrPrefix(name, ambientTypeResolver))
+                    {
+                        result = new NamespaceReferenceType(name);
+                    }
                     // In a non-static instance context, bare identifiers may refer
                     // to inherited members from the base class chain. Walk the
                     // BaseType chain to find the member, mirroring what
@@ -22316,6 +22348,39 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         if (targetType is ErrorType)
         {
+            return ErrorType.Instance;
+        }
+
+        // Namespace-qualified access: when the target is a NamespaceReferenceType, the
+        // member name is the next segment in a fully-qualified reference. Try to resolve
+        // it as a sub-namespace or as a type within the namespace.
+        if (targetType is NamespaceReferenceType nsRef && ambientTypeResolver is not null)
+        {
+            var qualifiedNs = $"{nsRef.NamespaceName}.{memberName}";
+
+            // First check if the qualified name is a type in the namespace.
+            var resolvedType = ambientTypeResolver.ResolveType(nsRef.NamespaceName, memberName);
+            if (resolvedType is not null)
+            {
+                RegisterAmbientTypeInScope(resolvedType, memberName, nsRef.NamespaceName, fileScope, ambientTypeResolver, symbolTable);
+                return resolvedType;
+            }
+
+            // Otherwise check if it's a sub-namespace.
+            if (IsNamespaceOrPrefix(qualifiedNs, ambientTypeResolver))
+            {
+                return new NamespaceReferenceType(qualifiedNs);
+            }
+
+            // Neither a type nor a namespace — emit diagnostic.
+            diagnostics.Add(new Diagnostic(
+                new DiagnosticId("MIST_UNDEFINED_MEMBER"),
+                DiagnosticSeverity.Error,
+                PipelineStage.SemanticModelConstruction,
+                $"'{nsRef.NamespaceName}' does not contain a definition for '{memberName}'.",
+                Location: default,
+                CompilationUnitPath: sourceText?.Path ?? "<unknown>",
+                AnalyzerName: null));
             return ErrorType.Instance;
         }
 
@@ -23465,6 +23530,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (targetType is ErrorType)
             return null;
 
+        // Namespace references have no symbol-level members; return null to
+        // avoid the kind-aware validation from emitting spurious errors.
+        if (targetType is NamespaceReferenceType)
+            return null;
+
         // ── Constrained type parameter member access (Requirements 6.1–6.4, 6.7) ──
         // When the receiver is a TypeParameterType with constraints, look up the
         // member in the constraint types (interfaces, traits, base class).
@@ -23885,6 +23955,32 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // 'field' keyword used outside a property accessor or in a computed property.
         // Return ErrorType — the type checker will report the appropriate diagnostic.
         return ErrorType.Instance;
+    }
+
+    /// <summary>
+    /// Returns true if <paramref name="name"/> is either an exact namespace in the ambient
+    /// resolver or a prefix of one (e.g., "Newtonsoft" is a prefix of "Newtonsoft.Json").
+    /// Used to detect namespace roots in expression context for fully-qualified type access.
+    /// </summary>
+    private static bool IsNamespaceOrPrefix(string name, IAmbientTypeResolver resolver)
+    {
+        // Exact match: the name itself is a namespace.
+        if (resolver.HasNamespace(name))
+            return true;
+
+        // Prefix match: check if any type name exists in a namespace that starts
+        // with "name." — this detects namespace root identifiers like "Newtonsoft"
+        // when "Newtonsoft.Json" is a known namespace.
+        var prefix = name + ".";
+        // Use GetTypeNamesInNamespace? No — we don't know the full namespace name yet.
+        // Instead, rely on the fact that if the ambient resolver is an AssemblyTypeProvider,
+        // it has a namespace index. We cast to check.
+        if (resolver is Backends.CSharpTranspiler.AssemblyTypeProvider atp)
+        {
+            return atp.HasNamespaceWithPrefix(prefix);
+        }
+
+        return false;
     }
 
     /// <summary>

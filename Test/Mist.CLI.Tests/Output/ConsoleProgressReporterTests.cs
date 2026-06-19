@@ -10,7 +10,7 @@ public class ConsoleProgressReporterTests
         using var writer = new StringWriter();
         var reporter = new ConsoleProgressReporter(writer);
 
-        reporter.ReportStageStart(2, "Lexing");
+        reporter.ReportStageStart("2", "Lexing");
 
         Assert.Equal($"Stage 2 - Lexing{Environment.NewLine}", writer.ToString());
     }
@@ -23,7 +23,7 @@ public class ConsoleProgressReporterTests
         var elapsed = TimeSpan.FromSeconds(1.234);
         var details = new List<string> { "100 tokens", "5 files" };
 
-        reporter.ReportStageComplete(2, elapsed, details);
+        reporter.ReportStageComplete("2", elapsed, details);
 
         var expected =
             $"    100 tokens{Environment.NewLine}" +

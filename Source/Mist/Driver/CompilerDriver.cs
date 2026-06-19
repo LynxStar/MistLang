@@ -72,7 +72,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
         // Stage 1: Loading
         var loadingStopwatch = Stopwatch.StartNew();
-        progressReporter.ReportStageStart(1, "Loading");
+        progressReporter.ReportStageStart("1", "Loading");
 
         // Step 1: Load source files into CompilationUnits
         var userUnits = ImmutableArray.CreateBuilder<CompilationUnit>();
@@ -245,16 +245,93 @@ public sealed class CompilerDriver : ICompilerDriver
         var stdlibCount = compilation.Units.Count(u => u.IsStdlib);
         var refCount = compilation.Units.Count(u => !u.IsStdlib && u.OriginProjectPath is not null);
         var userFileCount = compilation.Units.Count(u => !u.IsStdlib && u.OriginProjectPath is null);
-        progressReporter.ReportStageComplete(1, loadingStopwatch.Elapsed, new[]
+        progressReporter.ReportStageComplete("1", loadingStopwatch.Elapsed, new[]
         {
             $"{stdlibCount} stdlib files",
             $"{refCount} referenced project files",
             $"{userFileCount} user files",
         });
 
+        // Stage 1.5: Package Resolution (runs only when deps are declared)
+        var resolvedAssemblyPaths = ImmutableArray<string>.Empty;
+
+        var hasPackages = !options.Packages.IsDefaultOrEmpty;
+        var hasFrameworkRefs = !options.FrameworkReferences.IsDefaultOrEmpty;
+
+        if (hasPackages || hasFrameworkRefs)
+        {
+            var resolutionStopwatch = Stopwatch.StartNew();
+
+            if (options.VerboseResolution)
+                progressReporter.ReportStageStart("1.5", "Package Resolution");
+
+            var resolutionDiagnostics = new DiagnosticBag();
+
+            // Resolve NuGet packages
+            var packageResult = PackageResolver.ResolvePackages(
+                options.Packages, options.TargetFramework, resolutionDiagnostics);
+
+            // Resolve framework references
+            var frameworkResult = FrameworkReferenceResolver.Resolve(
+                options.FrameworkReferences, options.TargetFramework, resolutionDiagnostics);
+
+            // Merge assembly paths (union, dedupe by path)
+            var mergedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var path in packageResult.AssemblyPaths)
+                mergedPaths.Add(path);
+            foreach (var path in frameworkResult.AssemblyPaths)
+                mergedPaths.Add(path);
+            resolvedAssemblyPaths = [.. mergedPaths];
+
+            // Add diagnostics to the shared bag (they always surface through
+            // normal diagnostic printing regardless of verbose).
+            foreach (var d in resolutionDiagnostics.ToImmutableArray())
+                allDiagnostics.Add(d);
+
+            resolutionStopwatch.Stop();
+
+            // Verbose output: emit detail lines and summary
+            if (options.VerboseResolution)
+            {
+                var details = new List<string>();
+
+                // Per-package detail lines
+                foreach (var pkg in packageResult.Resolved)
+                {
+                    details.Add($"Restored {pkg.Name} {pkg.Version} ({pkg.SelectedTfm})");
+                }
+
+                // Per-framework detail lines
+                foreach (var fw in frameworkResult.Resolved)
+                {
+                    details.Add($"Resolved {fw.Name} {fw.Version}");
+                }
+
+                // Zero-assemblies notes for packages with AssemblyCount == 0
+                foreach (var pkg in packageResult.Resolved)
+                {
+                    if (pkg.AssemblyCount == 0)
+                        details.Add($"{pkg.Name} contributed no assemblies for {options.TargetFramework}");
+                }
+
+                // Elapsed ms
+                details.Add($"{(int)resolutionStopwatch.Elapsed.TotalMilliseconds} ms");
+
+                // Summary line with success/failure counts
+                var successCount = packageResult.Resolved.Length + frameworkResult.Resolved.Length;
+                var failureCountTotal = packageResult.FailureCount + frameworkResult.FailureCount;
+                details.Add($"{successCount} succeeded, {failureCountTotal} failed");
+
+                progressReporter.ReportStageComplete("1.5", resolutionStopwatch.Elapsed, details);
+            }
+
+            // On resolution failure: continue the build with whatever resolved
+            // successfully (Req 2.6, 5.8). Do NOT abort.
+        }
+
         // Stage 2: Lexing
         var lexingStopwatch = Stopwatch.StartNew();
-        progressReporter.ReportStageStart(2, "Lexing");
+        progressReporter.ReportStageStart("2", "Lexing");
 
         // Try to retrieve cached stdlib lex/parse results.
         var cachedStdlib = _stdlibCache;
@@ -293,14 +370,14 @@ public sealed class CompilerDriver : ICompilerDriver
         var totalTokens = tokenStreams.Values.Sum(ts => ts.DefaultChannelTokens.Length);
         if (cachedStdlib.HasValue)
             totalTokens += cachedStdlib.Value.Tokens.Sum(ts => ts.DefaultChannelTokens.Length);
-        progressReporter.ReportStageComplete(2, lexingStopwatch.Elapsed, new[]
+        progressReporter.ReportStageComplete("2", lexingStopwatch.Elapsed, new[]
         {
             $"{totalTokens} tokens",
         });
 
         // Stage 3: Parsing
         var parsingStopwatch = Stopwatch.StartNew();
-        progressReporter.ReportStageStart(3, "Parsing");
+        progressReporter.ReportStageStart("3", "Parsing");
 
         var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
         var stdlibAstsForCache = cachedStdlib.HasValue
@@ -371,16 +448,16 @@ public sealed class CompilerDriver : ICompilerDriver
 
         parsingStopwatch.Stop();
         var totalNodes = asts.Sum(root => SyntaxTreeMetrics.CountNodes(root));
-        progressReporter.ReportStageComplete(3, parsingStopwatch.Elapsed, new[]
+        progressReporter.ReportStageComplete("3", parsingStopwatch.Elapsed, new[]
         {
             $"{totalNodes} AST nodes",
         });
 
         // Stage 4: Semantic Model
         var semanticStopwatch = Stopwatch.StartNew();
-        progressReporter.ReportStageStart(4, "Semantic Model");
+        progressReporter.ReportStageStart("4", "Semantic Model");
 
-        var ambientTypeResolver = backend.GetAmbientTypeResolver();
+        var ambientTypeResolver = backend.GetAmbientTypeResolver(options.TargetFramework, resolvedAssemblyPaths);
         var semanticBag = new DiagnosticBag();
         ISemanticModel? semanticModel;
         try
@@ -404,7 +481,7 @@ public sealed class CompilerDriver : ICompilerDriver
         var topLevelConstructs = semanticModel?.AllSymbols.Count(s =>
             s.Origin == SymbolOrigin.UserCode &&
             s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Trait) ?? 0;
-        progressReporter.ReportStageComplete(4, semanticStopwatch.Elapsed, new[]
+        progressReporter.ReportStageComplete("4", semanticStopwatch.Elapsed, new[]
         {
             $"{topLevelConstructs} top-level constructs",
         });
@@ -451,7 +528,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
         // Stage 5: Analysis
         var analysisStopwatch = Stopwatch.StartNew();
-        progressReporter.ReportStageStart(5, "Analysis");
+        progressReporter.ReportStageStart("5", "Analysis");
 
         var filteredAnalyzers = options.EnabledAnalyzerIds.IsEmpty
             ? analyzers
@@ -464,7 +541,7 @@ public sealed class CompilerDriver : ICompilerDriver
         var analyzerDetails = analyzerResult.Timings
             .Select(entry => $"{entry.AnalyzerId}  {entry.Elapsed.TotalSeconds:F2}s")
             .ToArray();
-        progressReporter.ReportStageComplete(5, analysisStopwatch.Elapsed, analyzerDetails);
+        progressReporter.ReportStageComplete("5", analysisStopwatch.Elapsed, analyzerDetails);
 
         foreach(var d in analyzerResult.Diagnostics)
         {
@@ -479,7 +556,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
         // Stage 6: Emit via backend
         var emitStopwatch = Stopwatch.StartNew();
-        progressReporter.ReportStageStart(6, "Emit");
+        progressReporter.ReportStageStart("6", "Emit");
 
         var backendBag = new DiagnosticBag();
         var projectName = options.ProjectName;
@@ -490,6 +567,13 @@ public sealed class CompilerDriver : ICompilerDriver
         if (options.EmitToDisk)
         {
             backendResult = backend.Emit(semanticModel, options.OutputDirectory, options.BinDirectory, projectName, backendBag);
+
+            // Patch the emitted .csproj with declared NuGet packages and framework references
+            // so the downstream C# compilation can resolve the referenced types.
+            if (backendResult.Succeeded && (hasPackages || hasFrameworkRefs))
+            {
+                PatchCsprojWithReferences(options.OutputDirectory, projectName, options.Packages, options.FrameworkReferences);
+            }
         }
         else
         {
@@ -509,7 +593,7 @@ public sealed class CompilerDriver : ICompilerDriver
         {
             emitDetails.Add(backendResult.PrimaryArtifactPath);
         }
-        progressReporter.ReportStageComplete(6, emitStopwatch.Elapsed, emitDetails);
+        progressReporter.ReportStageComplete("6", emitStopwatch.Elapsed, emitDetails);
 
         foreach(var d in backendBag.ToImmutableArray())
         {
@@ -526,5 +610,56 @@ public sealed class CompilerDriver : ICompilerDriver
             backendResult.PrimaryArtifactPath,
             allDiagnostics.ToImmutableArray(),
             emittedFiles);
+    }
+
+    /// <summary>
+    /// Patches the emitted .csproj file with PackageReference and FrameworkReference entries
+    /// so the downstream C# compilation resolves types from declared packages and frameworks.
+    /// </summary>
+    private static void PatchCsprojWithReferences(
+        string outputDirectory,
+        string projectName,
+        ImmutableArray<NuGetPackageReference> packages,
+        ImmutableArray<FrameworkReference> frameworkReferences)
+    {
+        var csprojPath = Path.Combine(outputDirectory, $"{projectName}.csproj");
+        if (!File.Exists(csprojPath))
+            return;
+
+        var content = File.ReadAllText(csprojPath);
+
+        // Build the additional ItemGroup entries.
+        var sb = new System.Text.StringBuilder();
+
+        if (!packages.IsDefaultOrEmpty)
+        {
+            sb.AppendLine("  <ItemGroup>");
+            foreach (var pkg in packages)
+            {
+                sb.AppendLine($"    <PackageReference Include=\"{pkg.Name}\" Version=\"{pkg.Version}\" />");
+            }
+            sb.AppendLine("  </ItemGroup>");
+        }
+
+        if (!frameworkReferences.IsDefaultOrEmpty)
+        {
+            sb.AppendLine("  <ItemGroup>");
+            foreach (var fw in frameworkReferences)
+            {
+                sb.AppendLine($"    <FrameworkReference Include=\"{fw.Name}\" />");
+            }
+            sb.AppendLine("  </ItemGroup>");
+        }
+
+        if (sb.Length > 0)
+        {
+            // Insert before the closing </Project> tag.
+            var insertionPoint = content.LastIndexOf("</Project>", StringComparison.Ordinal);
+            if (insertionPoint >= 0)
+            {
+                content = content.Insert(insertionPoint, sb.ToString());
+                File.WriteAllText(csprojPath, content);
+            }
+        }
     }
 }

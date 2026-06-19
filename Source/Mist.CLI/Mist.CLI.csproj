@@ -32,4 +32,18 @@
              TargetPath="Standard\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <!--
+    Package the distributable Mist steering files alongside the compiler binary
+    so that `mist steering` can resolve AppContext.BaseDirectory/Steering/ at
+    runtime and install them into a project's .kiro/steering/ directory.
+    Mirrors the Standard Library bundling above.
+  -->
+  <ItemGroup>
+    <Content Include="..\..\distribute\steering\mist-*.md"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true"
+             TargetPath="Steering\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
 </Project>

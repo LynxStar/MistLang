@@ -169,4 +169,44 @@ public class CliArgumentParserTests
             Directory.Delete(tempDir, recursive: true);
         }
     }
+
+    [Fact]
+    public void Parse_SteeringCommand_SetsCommandAndDefaultsToCwd()
+    {
+        var result = CliArgumentParser.Parse(["steering"]);
+
+        Assert.NotNull(result.Arguments);
+        Assert.Equal(CliCommand.Steering, result.Arguments!.Command);
+        Assert.Equal(Directory.GetCurrentDirectory(), result.Arguments.ProjectFolder);
+        Assert.Empty(result.Errors);
+    }
+
+    [Fact]
+    public void Parse_SteeringCommand_WithProjectFolder()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var result = CliArgumentParser.Parse(["steering", tempDir]);
+
+            Assert.NotNull(result.Arguments);
+            Assert.Equal(CliCommand.Steering, result.Arguments!.Command);
+            Assert.Equal(tempDir, result.Arguments.ProjectFolder);
+            Assert.Empty(result.Errors);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Parse_BuildCommand_DefaultWhenNoVerb()
+    {
+        var result = CliArgumentParser.Parse([]);
+
+        Assert.NotNull(result.Arguments);
+        Assert.Equal(CliCommand.Build, result.Arguments!.Command);
+    }
 }

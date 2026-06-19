@@ -6,6 +6,7 @@ using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.CLI.Args;
 using Mist.CLI.Output;
+using Mist.CLI.Steering;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -32,7 +33,7 @@ internal class Program
                 Console.Error.WriteLine($"error: {error.Message}");
             }
 
-            Console.Error.WriteLine("Usage: mist <build|run> [project-folder] [--backend <id>] [--output <dir>] [--bin <dir>] [--mode <compile|lex>]");
+            Console.Error.WriteLine("Usage: mist <build|run|steering> [project-folder] [--backend <id>] [--output <dir>] [--bin <dir>] [--mode <compile|lex>]");
             return 1;
         }
 
@@ -45,6 +46,9 @@ internal class Program
 
             case CliCommand.Run:
                 return RunRunCommand(cliArgs);
+
+            case CliCommand.Steering:
+                return RunSteeringCommand(cliArgs);
 
             default:
                 Console.Error.WriteLine($"error: Unknown command '{cliArgs.Command}'.");
@@ -325,6 +329,36 @@ internal class Program
         }
 
         return RunArtifact(result.PrimaryOutputArtifactPath);
+    }
+
+    private static int RunSteeringCommand(CliArguments cliArgs)
+    {
+        var projectFolder = Path.GetFullPath(cliArgs.ProjectFolder);
+        var result = SteeringInstaller.Install(projectFolder);
+
+        if(!result.Succeeded)
+        {
+            Console.Error.WriteLine($"error: {result.Error}");
+            return 1;
+        }
+
+        if(!cliArgs.Quiet)
+        {
+            var steeringDir = Path.Combine(projectFolder, ".kiro", "steering");
+            Console.WriteLine($"Installed Mist steering files into {steeringDir}");
+
+            foreach(var path in result.Installed)
+            {
+                Console.WriteLine($"  + {Path.GetFileName(path)}");
+            }
+
+            if(result.SkippedUserFiles.Count > 0)
+            {
+                Console.WriteLine($"Left {result.SkippedUserFiles.Count} of your own steering file(s) untouched.");
+            }
+        }
+
+        return 0;
     }
 
     private static int RunArtifact(string artifactPath)

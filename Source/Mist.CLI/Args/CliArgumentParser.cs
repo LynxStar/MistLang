@@ -114,6 +114,11 @@ public static class CliArgumentParser
             command = CliCommand.Run;
             positionalArgs.RemoveAt(0);
         }
+        else if(positionalArgs.Count > 0 && positionalArgs[0] == "steering")
+        {
+            command = CliCommand.Steering;
+            positionalArgs.RemoveAt(0);
+        }
 
         // Validate run + lex mode combination
         if(command == CliCommand.Run && mode == CompilerMode.Lex)

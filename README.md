@@ -4,13 +4,14 @@ The Mist programming language
 ## CLI Usage
 
 ```
-mist <build|run> [project-folder] [--backend <id>] [--output <dir>] [--bin <dir>] [--mode <compile|lex>]
+mist <build|run|steering> [project-folder] [--backend <id>] [--output <dir>] [--bin <dir>] [--mode <compile|lex>]
 ```
 
 ### Commands
 
 - `build` — Compile a Mist project and report diagnostics. This is the default when no command is specified.
 - `run` — Compile the project and execute the resulting artifact via `dotnet`.
+- `steering` — Install the bundled Mist steering files into the project's `.kiro/steering/` directory so Kiro understands the language. Idempotent and safe to re-run; it never touches your own steering files. See [Steering Files](distribute/steering/README.md).
 
 ### Options
 
@@ -35,6 +36,9 @@ mist build ./my-project
 
 # Compile and run
 mist run ./my-project
+
+# Install Mist steering files for Kiro into the current project
+mist steering
 
 # Omitting the command defaults to build
 mist ./my-project

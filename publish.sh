@@ -83,6 +83,20 @@ else
     echo "Warning: Standard Library not found at ${STDLIB_SRC} — stdlib will not be available." >&2
 fi
 
+# Copy the bundled steering files alongside the binary so that `mist steering`
+# can find them at AppContext.BaseDirectory/Steering/ and install them into a
+# project's .kiro/steering/ directory.
+STEERING_SRC="${PUBLISH_DIR}/Steering"
+STEERING_DST="${INSTALL_DIR}/Steering"
+
+if [[ -d "$STEERING_SRC" ]]; then
+    rm -rf "$STEERING_DST"
+    cp -R "$STEERING_SRC" "$STEERING_DST"
+    echo "Installed steering files to ${STEERING_DST}/"
+else
+    echo "Warning: Steering files not found at ${STEERING_SRC} — 'mist steering' will not be available." >&2
+fi
+
 # ---------------------------------------------------------------------------
 # Task 3.6: PATH configuration with shell profile detection
 # ---------------------------------------------------------------------------
@@ -140,3 +154,4 @@ echo ""
 echo "Usage:"
 echo "  mist build <project-folder>"
 echo "  mist run <project-folder>"
+echo "  mist steering [project-folder]"

@@ -9,6 +9,8 @@ public enum CliCommand
     Build,
     /// <summary>Compile the project and execute the resulting artifact.</summary>
     Run,
+    /// <summary>Install the bundled Mist steering files into the project's .kiro/steering/ directory.</summary>
+    Steering,
 }
 
 /// <summary>

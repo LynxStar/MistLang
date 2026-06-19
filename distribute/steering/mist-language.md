@@ -14,6 +14,7 @@ This file is always loaded. Deeper references live in separate manual-inclusion 
 |------|----------------------------------|
 | `#mist-ownership` | `owned`/`borrowed`/`frozen`/`readonly ref`, move semantics, lending, `IClonable`, or `linear`/`affine`/`relevant` drop semantics |
 | `#mist-advanced-features` | traits, structured context (`with` clauses), refinement types, dependent types, associated types, extension blocks |
+| `#mist-interop` | adding NuGet packages or consuming existing C#/.NET types and assemblies |
 | `#mist-gitignore` | setting up version control — what Mist generates and what to ignore |
 
 ## Project Model
@@ -30,10 +31,14 @@ SharedLib = { path = "../SharedLib" }  # key MUST match referenced project's nam
 
 [global_usings]
 namespaces = ["Standard", "MyApp.Models"]
+
+[packages]
+Newtonsoft.Json = "13.0.3"  # NuGet deps — exact versions, no ranges
 ```
 
 - Namespace is inferred from directory structure: `Models/Player.mist` → `{namespace_root}.Models`.
 - `Standard` is Mist's core namespace (the equivalent of `System`): `using Standard;` gives you `Console`, `List<T>`, etc.
+- `[packages]` adds NuGet dependencies (the equivalent of `<PackageReference>`); all .NET SDK types are available without any declaration. For consuming C#/.NET, see `#mist-interop`.
 
 CLI:
 

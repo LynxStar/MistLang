@@ -41,6 +41,7 @@ cp path/to/distribute/steering/mist-*.md .kiro/steering/
 | `mist-language.md` | Always | Core language reference — syntax, types, project structure, patterns. Loaded into every conversation. |
 | `mist-ownership.md` | Manual (`#`) | Deep dive on ownership, move semantics, lending, drop, substructural types. Include when working with owned code. |
 | `mist-advanced-features.md` | Manual (`#`) | Traits, structured context, refinement types, dependent types, extensions, async. Include when using advanced features. |
+| `mist-interop.md` | Manual (`#`) | Consuming .NET — NuGet packages via `[packages]`, SDK types, and the CLR-to-Mist projection rules. Include when adding dependencies or calling C#. |
 | `mist-gitignore.md` | Manual (`#`) | What Mist generates and what to ignore. Include when setting up version control. |
 
 ## How Inclusion Works

@@ -6,6 +6,16 @@ Mist compiles to C# and is deliberately C#-like. **Assume every language feature
 
 If something isn't mentioned here, write it the way you would in C#.
 
+## Companion Steering Files
+
+This file is always loaded. Deeper references live in separate manual-inclusion files in `.kiro/steering/`. Pull the relevant one into context (the user can reference it with `#`, or you can read the file directly) when a task touches its topic:
+
+| File | Read it when the task involves… |
+|------|----------------------------------|
+| `#mist-ownership` | `owned`/`borrowed`/`frozen`/`readonly ref`, move semantics, lending, `IClonable`, or `linear`/`affine`/`relevant` drop semantics |
+| `#mist-advanced-features` | traits, structured context (`with` clauses), refinement types, dependent types, associated types, extension blocks |
+| `#mist-gitignore` | setting up version control — what Mist generates and what to ignore |
+
 ## Project Model
 
 Mist projects are configured with `mist.toml`, not `.csproj`. Source files use the `.mist` extension and are discovered recursively — there is no file manifest.

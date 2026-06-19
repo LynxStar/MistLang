@@ -41,11 +41,12 @@ cp path/to/distribute/steering/mist-*.md .kiro/steering/
 | `mist-language.md` | Always | Core language reference — syntax, types, project structure, patterns. Loaded into every conversation. |
 | `mist-ownership.md` | Manual (`#`) | Deep dive on ownership, move semantics, lending, drop, substructural types. Include when working with owned code. |
 | `mist-advanced-features.md` | Manual (`#`) | Traits, structured context, refinement types, dependent types, extensions, async. Include when using advanced features. |
+| `mist-gitignore.md` | Manual (`#`) | What Mist generates and what to ignore. Include when setting up version control. |
 
 ## How Inclusion Works
 
 - **Always** files are automatically included in every Kiro conversation. Keep these concise to minimize context budget usage.
-- **Manual** files are included only when you reference them with `#` in chat (e.g., `#mist-ownership.md`). Use these for deep dives without paying the always-on context cost.
+- **Manual** files are included only when referenced with `#` in chat (e.g., `#mist-ownership`). Use these for deep dives without paying the always-on context cost. The always-included `mist-language.md` lists the manual files and when to reach for each, so they remain discoverable.
 
 ## Keeping Up to Date
 

@@ -436,6 +436,11 @@ internal sealed class VisibilityFilter
             if (IsTypeExcluded(genericDef))
                 return true;
 
+            // Delegate-specific check: if a constructed generic type is a named delegate,
+            // inspect its Invoke method for excluded types (Requirements 5.2, 5.3, 5.4).
+            if (IsDelegateWithExcludedInvokeSignature(genericDef))
+                return true;
+
             return false;
         }
 
@@ -443,8 +448,102 @@ internal sealed class VisibilityFilter
         if (type.IsGenericParameter)
             return false;
 
+        // Delegate-specific check: if a non-generic type is a named delegate, inspect its
+        // Invoke method for pointer types, ref structs, or ref readonly return (Requirements 5.2, 5.3, 5.4).
+        if (IsDelegateWithExcludedInvokeSignature(type))
+            return true;
+
         // Check the concrete type itself
         return IsTypeExcluded(type);
+    }
+
+    /// <summary>
+    /// Determines whether a CLR type is a named delegate whose <c>Invoke</c> method signature
+    /// references excluded types (pointer parameters, ref struct parameters, or a <c>ref readonly</c>
+    /// return). Such delegates are hidden from Mist because they cannot be safely projected.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>System.Func</c>, <c>System.Action</c>, <c>System.Delegate</c>, and
+    /// <c>System.MulticastDelegate</c> are never treated as excludable named delegates:
+    /// <list type="bullet">
+    ///   <item><c>Func</c>/<c>Action</c> are projected directly as <c>Standard.Func&lt;...&gt;</c>.</item>
+    ///   <item><c>System.Delegate</c>/<c>MulticastDelegate</c> are the delegate hierarchy root
+    ///     and are always visible (Requirement 5.5).</item>
+    /// </list>
+    /// </para>
+    /// <para>
+    /// This method runs under <see cref="System.Reflection.MetadataLoadContext"/> so uses
+    /// attribute-based detection for <c>ref readonly</c> returns and <c>IsByRefLikeAttribute</c>
+    /// for ref structs.
+    /// </para>
+    /// </remarks>
+    /// <param name="type">The CLR type to inspect. May be a generic type definition.</param>
+    /// <returns><c>true</c> if the type is a named delegate with an excluded Invoke signature.</returns>
+    private static bool IsDelegateWithExcludedInvokeSignature(Type type)
+    {
+        // Only named delegates inherit from System.MulticastDelegate.
+        if (type.BaseType?.FullName != "System.MulticastDelegate")
+            return false;
+
+        // System.Delegate and System.MulticastDelegate themselves are never excluded (Requirement 5.5).
+        var fullName = type.FullName ?? "";
+        if (fullName is "System.Delegate" or "System.MulticastDelegate")
+            return false;
+
+        // System.Func<...> and System.Action<...> families are not named delegates for this purpose;
+        // they are projected directly as Standard.Func<...>.
+        var name = type.Name;
+        if (type.Namespace == "System" &&
+            (name.StartsWith("Func`", StringComparison.Ordinal) ||
+             name.StartsWith("Action`", StringComparison.Ordinal) ||
+             name == "Action"))
+            return false;
+
+        // Get the Invoke method that defines the delegate's calling convention.
+        var invokeMethod = type.GetMethod("Invoke");
+        if (invokeMethod is null)
+            return false;
+
+        // Check for ref readonly return (Requirement 5.2).
+        if (invokeMethod.ReturnType.IsByRef && IsRefReadonlyReturn(invokeMethod))
+            return true;
+
+        // Check for pointer types in the return type.
+        if (ContainsPointerType(invokeMethod.ReturnType))
+            return true;
+
+        // Check for ref struct types in the return type.
+        var returnElementType = invokeMethod.ReturnType.IsByRef
+            ? invokeMethod.ReturnType.GetElementType() ?? invokeMethod.ReturnType
+            : invokeMethod.ReturnType;
+        if (IsRefStruct(returnElementType.IsConstructedGenericType
+            ? returnElementType.GetGenericTypeDefinition()
+            : returnElementType))
+            return true;
+
+        // Check parameters for pointer types or ref struct types.
+        foreach (var param in invokeMethod.GetParameters())
+        {
+            var paramType = param.ParameterType;
+
+            // Unwrap by-ref parameter types (ref/in/out are T& in metadata).
+            var unwrapped = paramType.IsByRef
+                ? paramType.GetElementType() ?? paramType
+                : paramType;
+
+            if (ContainsPointerType(unwrapped))
+                return true;
+
+            // Check if the unwrapped type is a ref struct.
+            var typeToCheck = unwrapped.IsConstructedGenericType
+                ? unwrapped.GetGenericTypeDefinition()
+                : unwrapped;
+            if (IsRefStruct(typeToCheck))
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -525,12 +624,22 @@ internal sealed class VisibilityFilter
             if (IsTypeExcluded(genericDef))
                 offending.Add(type);
 
+            // Delegate-specific check: if the generic definition is a named delegate with an
+            // excluded Invoke signature, record the constructed type as offending (Requirements 5.2, 5.3, 5.4).
+            if (IsDelegateWithExcludedInvokeSignature(genericDef))
+                offending.Add(type);
+
             return;
         }
 
         // Skip generic type parameters (T, TKey, etc.) — they are not concrete types
         if (type.IsGenericParameter)
             return;
+
+        // Delegate-specific check: if a non-generic type is a named delegate with an excluded
+        // Invoke signature, record it as offending (Requirements 5.2, 5.3, 5.4).
+        if (IsDelegateWithExcludedInvokeSignature(type))
+            offending.Add(type);
 
         // Check the concrete type itself
         if (IsTypeExcluded(type))

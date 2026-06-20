@@ -93,6 +93,63 @@ Console.WriteLine(stream.CanRead);
 
 Multi-level inheritance chains (`NetworkStream : Stream : MarshalByRefObject`) are resolved through all levels. If a base type or interface cannot be resolved from any loaded assembly, only that relationship is omitted — the type and its directly declared members remain usable.
 
+## Named Delegates and `System.Delegate`
+
+Named CLR delegates (types inheriting from `System.MulticastDelegate` other than `System.Func<...>` and `System.Action<...>`) are projected as distinct `DelegateType` values that preserve their CLR identity. They are **not** collapsed to bare `func<...>` — the compiler keeps the delegate's fully qualified name, namespace, and generic type parameters through projection, type checking, and C# emission.
+
+`System.Func<...>` and `System.Action<...>` continue to project directly as `func<...>` types without any wrapper.
+
+### Implicit Conversions
+
+The following implicit conversions are supported:
+
+- **func → named delegate** — a `func<...>` value is assignable to a named delegate variable if their signatures are compatible (same parameter count, pairwise compatible parameter types and return type).
+- **lambda → named delegate** — a lambda expression can be passed where a named delegate is expected, with target-type inference for parameter types.
+- **method group → named delegate** — a method group (method name used as a value) can be passed where a named delegate is expected if exactly one overload is signature-compatible.
+- **named delegate → func** — a named-delegate-typed value is assignable to its equivalent `func<...>` type.
+- **any delegate or func → System.Delegate** — any `func<...>` value, named-delegate value, lambda, or method group is assignable to `System.Delegate` (the base type of all CLR delegates).
+
+### Nominal Distinctness
+
+Two distinct named delegates are **NOT** implicitly convertible to each other, even when their signatures are identical. For example, you cannot assign a `Predicate<int>` to a `Comparison<int>`-typed variable or vice versa — they are nominally distinct. To convert between them, go through `func<...>` as an intermediate.
+
+`System.Delegate` cannot be narrowed back to a specific delegate type or `func<...>` — it is the top type of the delegate hierarchy.
+
+### Invocation
+
+A value typed as a named delegate is directly invocable using standard call syntax, exactly like `func<...>` values:
+
+```mist
+System.Predicate<int> isEven = x => x % 2 == 0;
+var result = isEven(4);  // true
+```
+
+A value typed as `System.Delegate` is **not** directly invocable — cast to a specific delegate or `func<...>` type first.
+
+### Common Patterns
+
+```mist
+using System.Collections.Generic;
+
+// Lambda → named delegate (Predicate<int>)
+var numbers = new List<int> { 1, 2, 3, 4, 5 };
+var evens = numbers.FindAll(x => x % 2 == 0);
+
+// func value → named delegate variable
+func<int, bool> checker = x => x > 0;
+System.Predicate<int> pred = checker;
+
+// Named delegate → func variable
+func<int, bool> backToFunc = pred;
+
+// Any → System.Delegate (e.g., ASP.NET Core MapGet)
+app.MapGet("/hello", () => "Hello from Mist!");
+```
+
+### Emission
+
+When the C# emitter encounters a func-to-named-delegate conversion at a call site, it emits `new DelegateName(expression)` to satisfy C#'s type system. When the target is `System.Delegate`, the lambda is emitted as-is (C# 11+ handles the conversion). When a named-delegate value flows to a `func<...>` target, it is emitted as-is.
+
 ## Build Output: Quiet by Default
 
 Builds are **quiet by default**. When packages or framework references are declared, the Package Resolution stage always runs (between Loading and Lexing), but its detail output is suppressed unless you opt in with `--verbose`. Error diagnostics (`MIST_PKG_*`, `MIST_FWREF_*`) always surface regardless of verbosity.

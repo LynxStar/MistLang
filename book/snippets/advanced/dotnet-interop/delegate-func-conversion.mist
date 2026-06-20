@@ -1,0 +1,43 @@
+using Standard;
+using System.Collections.Generic;
+
+public class Program
+{
+    public static bool IsPositive(int x)
+    {
+        return x > 0;
+    }
+
+    public static void Main(string[] args)
+    {
+        var numbers = new List<int>();
+        numbers.Add(-2);
+        numbers.Add(-1);
+        numbers.Add(0);
+        numbers.Add(1);
+        numbers.Add(2);
+        numbers.Add(3);
+
+        // Lambda → Named Delegate (Predicate<int>)
+        var positives = numbers.FindAll(x => x > 0);
+        Console.WriteLine($"positives={positives.Count}");
+
+        // Method group → Named Delegate (Predicate<int>)
+        var alsoPositives = numbers.FindAll(IsPositive);
+        Console.WriteLine($"alsoPositives={alsoPositives.Count}");
+
+        // func<int, bool> → Predicate<int> assignment
+        func<int, bool> isEven = x => x % 2 == 0;
+        System.Predicate<int> predicate = isEven;
+        var evens = numbers.FindAll(predicate);
+        Console.WriteLine($"evens={evens.Count}");
+
+        // Predicate<int> → func<int, bool> assignment
+        func<int, bool> backToFunc = predicate;
+        Console.WriteLine($"backToFunc(4)={backToFunc(4)}");
+
+        // Direct invocation of delegate-typed value
+        Console.WriteLine($"predicate(6)={predicate(6)}");
+        Console.WriteLine($"predicate(7)={predicate(7)}");
+    }
+}

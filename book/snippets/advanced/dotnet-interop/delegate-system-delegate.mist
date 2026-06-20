@@ -1,0 +1,18 @@
+using Standard;
+using System.Collections.Generic;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Any func or delegate is assignable to System.Delegate
+        func<int, bool> isPositive = x => x > 0;
+        System.Delegate baseDelegate = isPositive;
+        Console.WriteLine($"delegateType={baseDelegate.GetType().Name}");
+
+        // Named delegate also assignable to System.Delegate
+        System.Predicate<int> pred = x => x < 10;
+        System.Delegate fromNamed = pred;
+        Console.WriteLine($"fromNamedType={fromNamed.GetType().Name}");
+    }
+}

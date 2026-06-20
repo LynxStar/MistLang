@@ -245,6 +245,16 @@ internal static class CSharpTypeMap
             => EmitConstructedTypeWithDependentArgs(ct, isValueContext),
 
         ConstructedType ct => $"{GetTypeName(ct.GenericDefinition, isValueContext)}<{string.Join(", ", ct.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
+
+        // DelegateType → emit the fully qualified CLR delegate name
+        DelegateType dt when dt.TypeArguments.Count > 0
+            => $"{dt.ClrNamespace}.{dt.ClrSimpleName}<{string.Join(", ", dt.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
+        DelegateType dt
+            => $"{dt.ClrNamespace}.{dt.ClrSimpleName}",
+
+        // BaseDelegateType → System.Delegate
+        BaseDelegateType => "System.Delegate",
+
         NewtypeType nt => nt.Name,
         ClassType c => c.DisplayName,
         StructType s => GetKeywordOrDisplayName(s),

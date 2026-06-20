@@ -769,6 +769,59 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId ConstraintOwnedViolation = new("MIST_TC_0127");
 
+    // ── delegate-func-conversion: diagnostics ──────────────────────────
+
+    /// <summary>
+    /// Emitted when a value typed as <see cref="BaseDelegateType"/>
+    /// (<c>System.Delegate</c>) is invoked directly. The base delegate type
+    /// is not callable without a cast to a specific delegate or func type
+    /// (Requirements 3.6, 3.7).
+    /// </summary>
+    internal static readonly DiagnosticId BaseDelegateNotInvocable = new("MIST_TC_0128");
+
+    /// <summary>
+    /// Emitted when a func or lambda's signature is incompatible with the
+    /// target <see cref="DelegateType"/> (differing parameter count or
+    /// incompatible parameter/return types) (Requirement 2.5).
+    /// </summary>
+    internal static readonly DiagnosticId DelegateSignatureMismatch = new("MIST_TC_0129");
+
+    /// <summary>
+    /// Emitted when an assignment or conversion is attempted between two
+    /// distinct named delegates. Named delegates are nominally distinct even
+    /// when their signatures match (Requirements 6.1, 6.6).
+    /// </summary>
+    internal static readonly DiagnosticId DelegateNominalMismatch = new("MIST_TC_0130");
+
+    /// <summary>
+    /// Emitted when <c>System.Delegate</c> (<see cref="BaseDelegateType"/>) is
+    /// implicitly narrowed to a specific <see cref="DelegateType"/> or func type.
+    /// Use a cast to a specific delegate or func type (Requirement 6.7).
+    /// </summary>
+    internal static readonly DiagnosticId DelegateCannotNarrowBaseDelegate = new("MIST_TC_0131");
+
+    /// <summary>
+    /// Emitted when overload resolution cannot disambiguate between multiple
+    /// <see cref="DelegateType"/>-typed overloads — the argument is signature-compatible
+    /// with more than one named delegate parameter and no other disambiguation is
+    /// available (Requirements 7.5, 7.6).
+    /// </summary>
+    internal static readonly DiagnosticId DelegateOverloadAmbiguity = new("MIST_TC_0094");
+
+    /// <summary>
+    /// Emitted when a method group is used in a position targeting a <see cref="DelegateType"/>
+    /// but no overload of the method has a signature compatible with the delegate
+    /// (Requirement 2.9).
+    /// </summary>
+    internal static readonly DiagnosticId MethodGroupNoMatchingOverload = new("MIST_TC_0132");
+
+    /// <summary>
+    /// Emitted when a method group is used in a position targeting a <see cref="DelegateType"/>
+    /// and multiple overloads have signatures compatible with the delegate
+    /// (Requirement 2.9).
+    /// </summary>
+    internal static readonly DiagnosticId MethodGroupMultipleMatchingOverloads = new("MIST_TC_0133");
+
     // ── enums feature: assignability diagnostic ──────────────────────────
 
     /// <summary>
@@ -11031,13 +11084,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return;
 
                 case OverloadResolutionStatus.AmbiguousCall:
-                    var sigs = result.AmbiguousCandidates!
-                        .Select(c => FormatCandidateSignature(c, methodName, model));
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0032",
-                        $"Call to '{methodName}' is ambiguous between: {string.Join(" and ", sigs)}",
-                        (SyntaxNode)methodCall,
-                        model));
+                    // Check if the ambiguity is specifically across multiple DelegateType parameters
+                    // (delegate-func-conversion: MIST_TC_0094).
+                    if (IsDelegateOverloadAmbiguity(result.AmbiguousCandidates!, model))
+                    {
+                        var delegateNames = GetAmbiguousDelegateNames(result.AmbiguousCandidates!, model);
+                        diagnostics.Add(MakeDiagnostic(
+                            DelegateOverloadAmbiguity.Value,
+                            $"Ambiguous call: argument is compatible with both '{delegateNames.Item1}' and '{delegateNames.Item2}'",
+                            (SyntaxNode)methodCall,
+                            model));
+                    }
+                    else
+                    {
+                        var sigs = result.AmbiguousCandidates!
+                            .Select(c => FormatCandidateSignature(c, methodName, model));
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0032",
+                            $"Call to '{methodName}' is ambiguous between: {string.Join(" and ", sigs)}",
+                            (SyntaxNode)methodCall,
+                            model));
+                    }
                     return;
 
                 case OverloadResolutionStatus.Success:
@@ -11231,6 +11298,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
+        // ── delegate-func-conversion: DelegateType invocation validation ──
+        // When the target expression's type is a DelegateType, validate arguments
+        // against the DelegateType's FuncSignature (the equivalent func<...> type).
+        // The result type is the FuncSignature's return type (last type argument).
+        if (targetType is DelegateType delegateType)
+        {
+            CheckFuncInvocationArguments(invocation, delegateType.FuncSignature, model, diagnostics);
+            return;
+        }
+
+        // ── delegate-func-conversion: BaseDelegateType is NOT invocable ──
+        // System.Delegate cannot be invoked directly — it requires a cast to a
+        // specific delegate type or func<...> first.
+        if (targetType is BaseDelegateType)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                BaseDelegateNotInvocable.Value,
+                "Cannot invoke a value of type 'System.Delegate' directly: cast to a specific delegate type or func<...> first",
+                (SyntaxNode)invocation,
+                model));
+            return;
+        }
+
         // Look up the invoked symbol.
         var invokedSymbol = model.GetDeclaredSymbol(invocation);
         if (invokedSymbol is null)
@@ -11268,13 +11358,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         return;
 
                     case OverloadResolutionStatus.AmbiguousCall:
-                        var sigs = result.AmbiguousCandidates!
-                            .Select(c => FormatCandidateSignature(c, methodName, model));
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0032",
-                            $"Call to '{methodName}' is ambiguous between: {string.Join(" and ", sigs)}",
-                            (SyntaxNode)invocation,
-                            model));
+                        if (IsDelegateOverloadAmbiguity(result.AmbiguousCandidates!, model))
+                        {
+                            var delegateNames = GetAmbiguousDelegateNames(result.AmbiguousCandidates!, model);
+                            diagnostics.Add(MakeDiagnostic(
+                                DelegateOverloadAmbiguity.Value,
+                                $"Ambiguous call: argument is compatible with both '{delegateNames.Item1}' and '{delegateNames.Item2}'",
+                                (SyntaxNode)invocation,
+                                model));
+                        }
+                        else
+                        {
+                            var sigs = result.AmbiguousCandidates!
+                                .Select(c => FormatCandidateSignature(c, methodName, model));
+                            diagnostics.Add(MakeDiagnostic(
+                                "MIST_TC_0032",
+                                $"Call to '{methodName}' is ambiguous between: {string.Join(" and ", sigs)}",
+                                (SyntaxNode)invocation,
+                                model));
+                        }
                         return;
 
                     case OverloadResolutionStatus.Success:
@@ -13834,7 +13936,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        var memberName = assignment.Name.Lexeme;
+        // Collection element assignments (bare expressions in collection initializers)
+        // are not property assignments — they don't target named members.
+        // Skip property-initializer validation for them.
+        if (assignment is CollectionElementAssignmentPropertyAssignmentNode)
+            return;
+
+        if (assignment is not NamedPropertyAssignmentPropertyAssignmentNode namedAssignment)
+            return;
+
+        var memberName = namedAssignment.Name.Lexeme;
 
         // ── 6. Duplicate detection ───────────────────────────────────────
         if (!seenNames.Add(memberName))
@@ -13917,7 +14028,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // ── 2. Type compatibility ────────────────────────────────────────
         var memberType = symbol.DeclaredType;
-        var valueType = model.GetTypeOf(assignment.Value);
+        var valueType = model.GetTypeOf(namedAssignment.Value);
         if (memberType is not null && valueType is not null
             && !IsErrorType(memberType) && !IsErrorType(valueType))
         {
@@ -15353,6 +15464,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (TryEmitNewtypeAssignabilityDiagnostic(source, target, node, diagnostics, model))
                 return;
 
+            // delegate-func-conversion (Req 2.5, 6.1, 6.6, 6.7): detect
+            // delegate-specific failure modes and emit the targeted diagnostic.
+            if (TryEmitDelegateAssignabilityDiagnostic(source, target, node, diagnostics, model))
+                return;
+
             // Emit a trait-specific diagnostic when the target is a TraitType.
             if (target is TraitType targetTrait)
             {
@@ -16011,6 +16127,57 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Union → non-union: rejected (must narrow first).
             // The only exception is if the target is UnknownType, but that
             // was already handled above.
+            return false;
+        }
+
+        // ── delegate-func-conversion: DelegateType assignability ──────────
+        //
+        // func<...> → DelegateType: accepted if signature-compatible
+        // DelegateType → func<...>: accepted if signature-compatible
+        // DelegateType → BaseDelegateType: always accepted
+        // func<...> → BaseDelegateType: always accepted
+        // DelegateType(A) → DelegateType(B) where A ≠ B: REJECTED (nominal distinctness)
+        // BaseDelegateType → DelegateType: REJECTED (cannot narrow)
+        // BaseDelegateType → func<...>: REJECTED (cannot narrow)
+        if (target is DelegateType targetDelegate)
+        {
+            if (source is DelegateType sourceDelegate)
+            {
+                // Same delegate type → accept
+                if (sourceDelegate.ClrFullName == targetDelegate.ClrFullName
+                    && DelegateTypeArgumentsMatch(sourceDelegate, targetDelegate))
+                    return true;
+                // Different named delegates → reject (nominal distinctness, Req 6.1)
+                return false;
+            }
+            // func<...> → DelegateType: check signature compatibility
+            if (SemanticModelBuilder.IsFuncType(source))
+                return IsSignatureCompatible(source, targetDelegate.FuncSignature);
+            return false;
+        }
+
+        if (source is DelegateType sourceDelegate2)
+        {
+            if (target is BaseDelegateType)
+                return true;  // Any delegate → System.Delegate
+            // DelegateType → func<...>: check signature compatibility
+            if (SemanticModelBuilder.IsFuncType(target))
+                return IsSignatureCompatible(sourceDelegate2.FuncSignature, target);
+            return false;
+        }
+
+        if (target is BaseDelegateType)
+        {
+            // func<...> → System.Delegate: always accepted
+            if (SemanticModelBuilder.IsFuncType(source))
+                return true;
+            // DelegateType → System.Delegate handled above
+            return false;
+        }
+
+        if (source is BaseDelegateType)
+        {
+            // System.Delegate cannot be narrowed to anything
             return false;
         }
 
@@ -17416,6 +17583,120 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             || (type is ConstructedType ct && ct.GenericDefinition is InterfaceType);
     }
 
+    // ── delegate-func-conversion: assignability helpers ─────────────────
+
+    /// <summary>
+    /// Returns true if two <see cref="DelegateType"/> instances have matching
+    /// type arguments (pairwise equality). Used to distinguish
+    /// <c>Predicate&lt;int&gt;</c> from <c>Predicate&lt;string&gt;</c>.
+    /// </summary>
+    private static bool DelegateTypeArgumentsMatch(DelegateType a, DelegateType b)
+    {
+        if (a.TypeArguments.Count != b.TypeArguments.Count)
+            return false;
+        for (var i = 0; i < a.TypeArguments.Count; i++)
+        {
+            if (!TypesEqual(a.TypeArguments[i], b.TypeArguments[i]))
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Returns true if two func types (<see cref="ConstructedType"/> wrapping
+    /// <c>Standard.Func</c>) are signature-compatible — same arity and each
+    /// corresponding type argument is assignable.
+    /// </summary>
+    private static bool IsSignatureCompatible(IType sourceFunc, IType targetFunc)
+    {
+        if (sourceFunc is not ConstructedType sourceCt || targetFunc is not ConstructedType targetCt)
+            return false;
+        if (sourceCt.TypeArguments.Count != targetCt.TypeArguments.Count)
+            return false;
+        for (var i = 0; i < sourceCt.TypeArguments.Count; i++)
+        {
+            if (!IsAssignable(sourceCt.TypeArguments[i], targetCt.TypeArguments[i]))
+                return false;
+        }
+        return true;
+    }
+
+    // ── delegate-func-conversion: overload ambiguity helpers ─────────────
+
+    /// <summary>
+    /// Determines whether an ambiguous overload resolution result involves
+    /// multiple <see cref="DelegateType"/>-typed parameters — i.e., the candidates
+    /// differ primarily by which named delegate type they accept at the same position.
+    /// When true, the caller should emit <c>MIST_TC_0094</c> instead of the generic
+    /// <c>MIST_TC_0032</c> (Requirements 7.5, 7.6).
+    /// </summary>
+    private static bool IsDelegateOverloadAmbiguity(IReadOnlyList<ISymbol> ambiguousCandidates, ISemanticModel model)
+    {
+        if (ambiguousCandidates.Count < 2)
+            return false;
+
+        // Check if at least one parameter position has different DelegateType values across candidates.
+        var paramSets = ambiguousCandidates
+            .Select(c => ParameterSignature.Extract(c, model))
+            .ToList();
+
+        var paramCount = paramSets[0].Count;
+        if (paramSets.Any(ps => ps.Count != paramCount))
+            return false;
+
+        for (var i = 0; i < paramCount; i++)
+        {
+            var delegateCount = 0;
+            DelegateType? firstDelegate = null;
+            var hasDifferentDelegates = false;
+
+            foreach (var ps in paramSets)
+            {
+                if (ps[i] is DelegateType dt)
+                {
+                    delegateCount++;
+                    if (firstDelegate is null)
+                        firstDelegate = dt;
+                    else if (firstDelegate.ClrFullName != dt.ClrFullName)
+                        hasDifferentDelegates = true;
+                }
+            }
+
+            // Ambiguity across multiple distinct DelegateTypes at this position.
+            if (hasDifferentDelegates && delegateCount >= 2)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Extracts the names of the first two distinct <see cref="DelegateType"/> parameters
+    /// from the ambiguous candidates for use in the <c>MIST_TC_0094</c> diagnostic message.
+    /// </summary>
+    private static (string, string) GetAmbiguousDelegateNames(IReadOnlyList<ISymbol> ambiguousCandidates, ISemanticModel model)
+    {
+        var delegateNames = new List<string>();
+
+        foreach (var candidate in ambiguousCandidates)
+        {
+            var paramTypes = ParameterSignature.Extract(candidate, model);
+            foreach (var paramType in paramTypes)
+            {
+                if (paramType is DelegateType dt && !delegateNames.Contains(dt.DisplayName))
+                {
+                    delegateNames.Add(dt.DisplayName);
+                    if (delegateNames.Count >= 2)
+                        return (delegateNames[0], delegateNames[1]);
+                }
+            }
+        }
+
+        // Fallback — should not happen if IsDelegateOverloadAmbiguity returned true.
+        return (delegateNames.Count > 0 ? delegateNames[0] : "?",
+                delegateNames.Count > 1 ? delegateNames[1] : "?");
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // Utility helpers
     // ═══════════════════════════════════════════════════════════════════════
@@ -18721,6 +19002,126 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Detects delegate-func-conversion-specific assignability failure modes and
+    /// emits a targeted diagnostic. Returns <c>true</c> if a diagnostic was emitted.
+    /// <list type="bullet">
+    /// <item><description><c>MIST_TC_0129</c> — Signature mismatch: func/lambda is
+    /// not signature-compatible with target DelegateType (Req 2.5).</description></item>
+    /// <item><description><c>MIST_TC_0130</c> — Nominal mismatch: cannot convert
+    /// between two distinct named delegates even when signatures match (Req 6.1, 6.6).</description></item>
+    /// <item><description><c>MIST_TC_0131</c> — Cannot implicitly narrow
+    /// System.Delegate to a specific delegate or func type (Req 6.7).</description></item>
+    /// </list>
+    /// </summary>
+    private static bool TryEmitDelegateAssignabilityDiagnostic(
+        IType source,
+        IType target,
+        SyntaxNode node,
+        DiagnosticBag diagnostics,
+        ISemanticModel model)
+    {
+        // Unwrap type aliases before checking.
+        var unwrappedSource = source;
+        while (unwrappedSource is TypeAliasType srcAlias)
+            unwrappedSource = srcAlias.UnderlyingType;
+        var unwrappedTarget = target;
+        while (unwrappedTarget is TypeAliasType tgtAlias)
+            unwrappedTarget = tgtAlias.UnderlyingType;
+
+        // ── MIST_TC_0131: System.Delegate cannot be narrowed ──
+        // Source is BaseDelegateType and target is a specific DelegateType or func<...>.
+        if (unwrappedSource is BaseDelegateType)
+        {
+            if (unwrappedTarget is DelegateType narrowTarget)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    DelegateCannotNarrowBaseDelegate.Value,
+                    $"Cannot implicitly convert 'System.Delegate' to '{narrowTarget.DisplayName}': use a cast to a specific delegate or func type",
+                    node,
+                    model));
+                return true;
+            }
+
+            if (SemanticModelBuilder.IsFuncType(unwrappedTarget))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    DelegateCannotNarrowBaseDelegate.Value,
+                    $"Cannot implicitly convert 'System.Delegate' to '{unwrappedTarget.DisplayName}': use a cast to a specific delegate or func type",
+                    node,
+                    model));
+                return true;
+            }
+
+            return false;
+        }
+
+        // ── MIST_TC_0130: Nominal mismatch between two distinct named delegates ──
+        if (unwrappedTarget is DelegateType targetDelegate && unwrappedSource is DelegateType sourceDelegate)
+        {
+            // If we reach here, assignability already failed — they must be different.
+            diagnostics.Add(MakeDiagnostic(
+                DelegateNominalMismatch.Value,
+                $"Cannot convert delegate '{sourceDelegate.DisplayName}' to '{targetDelegate.DisplayName}': named delegates are nominally distinct even when their signatures match",
+                node,
+                model));
+            return true;
+        }
+
+        // ── MIST_TC_0129: Signature mismatch (func → DelegateType) ──
+        if (unwrappedTarget is DelegateType targetDelegateForSig)
+        {
+            if (SemanticModelBuilder.IsFuncType(unwrappedSource))
+            {
+                // Signature mismatch: provide details about the incompatibility.
+                var mismatchReason = DescribeSignatureMismatch(unwrappedSource, targetDelegateForSig.FuncSignature);
+                diagnostics.Add(MakeDiagnostic(
+                    DelegateSignatureMismatch.Value,
+                    $"Cannot convert '{unwrappedSource.DisplayName}' to delegate type '{targetDelegateForSig.DisplayName}': {mismatchReason}",
+                    node,
+                    model));
+                return true;
+            }
+
+            return false;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Describes why a func type is not signature-compatible with a target func type.
+    /// Returns a human-readable reason string.
+    /// </summary>
+    private static string DescribeSignatureMismatch(IType sourceFunc, IType targetFunc)
+    {
+        if (sourceFunc is ConstructedType sourceCt && targetFunc is ConstructedType targetCt)
+        {
+            if (sourceCt.TypeArguments.Count != targetCt.TypeArguments.Count)
+            {
+                // Parameter count difference: func arity includes return type, so parameter count is arity - 1
+                var sourceParamCount = sourceCt.TypeArguments.Count - 1;
+                var targetParamCount = targetCt.TypeArguments.Count - 1;
+                return $"parameter count mismatch (expected {targetParamCount}, got {sourceParamCount})";
+            }
+
+            for (var i = 0; i < sourceCt.TypeArguments.Count; i++)
+            {
+                if (!IsAssignable(sourceCt.TypeArguments[i], targetCt.TypeArguments[i]))
+                {
+                    if (i == sourceCt.TypeArguments.Count - 1)
+                    {
+                        return $"return type '{sourceCt.TypeArguments[i].DisplayName}' is not compatible with '{targetCt.TypeArguments[i].DisplayName}'";
+                    }
+
+                    return $"parameter {i + 1} type '{sourceCt.TypeArguments[i].DisplayName}' is not compatible with '{targetCt.TypeArguments[i].DisplayName}'";
+                }
+            }
+        }
+
+        return "incompatible signature";
     }
 
     /// <summary>

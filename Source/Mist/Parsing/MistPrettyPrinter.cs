@@ -2573,12 +2573,22 @@ public sealed class MistPrettyPrinter
             return "";
 
         var parts = new List<string>();
-        parts.Add($"{block.Assignments.PropertyAssignment.Name.Lexeme} = {EmitExpression(block.Assignments.PropertyAssignment.Value)}");
+        parts.Add(EmitSinglePropertyAssignment(block.Assignments.PropertyAssignment));
         foreach (var assignment in block.Assignments.PropertyAssignments)
         {
-            parts.Add($"{assignment.Name.Lexeme} = {EmitExpression(assignment.Value)}");
+            parts.Add(EmitSinglePropertyAssignment(assignment));
         }
         return string.Join(", ", parts);
+    }
+
+    private string EmitSinglePropertyAssignment(PropertyAssignmentNode assignment)
+    {
+        return assignment switch
+        {
+            NamedPropertyAssignmentPropertyAssignmentNode named => $"{named.Name.Lexeme} = {EmitExpression(named.Value)}",
+            CollectionElementAssignmentPropertyAssignmentNode element => EmitExpression(element.Value),
+            _ => ""
+        };
     }
 
     private void AppendLine(string text = "")

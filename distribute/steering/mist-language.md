@@ -14,7 +14,7 @@ This file is always loaded. Deeper references live in separate manual-inclusion 
 |------|----------------------------------|
 | `#mist-ownership` | `owned`/`borrowed`/`frozen`/`readonly ref`, move semantics, lending, `IClonable`, or `linear`/`affine`/`relevant` drop semantics |
 | `#mist-advanced-features` | traits, structured context (`with` clauses), refinement types, dependent types, associated types, extension blocks |
-| `#mist-interop` | adding NuGet packages, framework references, consuming C#/.NET types, `mist inspect`, `mist restore`, or diagnosing dependency resolution |
+| `#mist-interop` | adding NuGet packages, framework references, consuming C#/.NET types, named delegate types, delegate-func conversion, `mist inspect`, `mist restore`, or diagnosing dependency resolution |
 | `#mist-gitignore` | setting up version control — what Mist generates and what to ignore |
 
 ## Project Model
@@ -89,6 +89,8 @@ func<int, int, int> add = (a, b) => a + b;
 ```
 
 Lambdas, captures, method-group conversion, and `static` lambdas all behave as in C#. (`Action<T>` and `Func<...>` also exist as aliases if you prefer.)
+
+Named CLR delegates (e.g., `Predicate<T>`, `RequestDelegate`, `Comparison<T>`) are **not** collapsed to `func<...>`. They are preserved as distinct types with their CLR identity intact. A `func<...>` value or lambda is implicitly convertible to a signature-compatible named delegate, and a named delegate value is implicitly convertible back to its equivalent `func<...>` type. Two distinct named delegates are not convertible to each other, even when their signatures match. For full details, see `#mist-interop`.
 
 ## Traits (Structural Typing)
 

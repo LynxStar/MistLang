@@ -144,6 +144,29 @@ internal sealed class TypeProjector
             return ProjectStruct(clrType, displayName, containingNamespace, stdlib);
         }
 
+        // Project System.Delegate / System.MulticastDelegate as BaseDelegateType singleton
+        // (Requirement 3.1). Must appear before the named delegate and generic class checks.
+        if (clrType.FullName == "System.Delegate" || clrType.FullName == "System.MulticastDelegate")
+        {
+            // Initialize the MemberScope if this is the first time we project System.Delegate.
+            // The scope will be populated by the member projection phase in AssemblyTypeProvider.
+            if (BaseDelegateType.Instance.MemberScope is null)
+            {
+                BaseDelegateType.Instance.MemberScope = new Scope(parent: null);
+            }
+            return (BaseDelegateType.Instance, ImmutableArray<ISymbol>.Empty);
+        }
+
+        // Project named delegates (Predicate<T>, Comparison<T>, EventHandler, etc.) as
+        // DelegateType preserving CLR identity (Requirements 1.1, 1.5). The standard
+        // Func/Action families are excluded (handled via TryProjectStandardFuncDelegate
+        // in ProjectTypeReference). This check must come before the generic class fallback
+        // so that delegate type definitions resolve to DelegateType, not ClassType.
+        if (TryProjectNamedDelegate(clrType, stdlib, out var namedDelegateType))
+        {
+            return (namedDelegateType, ImmutableArray<ISymbol>.Empty);
+        }
+
         // Default: class
         return ProjectClass(clrType, displayName, containingNamespace, stdlib);
     }
@@ -1159,6 +1182,14 @@ internal sealed class TypeProjector
             return UnknownType.Instance;
         }
 
+        // Project System.Delegate / System.MulticastDelegate as BaseDelegateType (Requirement 3.1).
+        // This must appear before the standard func/named delegate dispatch so that the
+        // hierarchy root types are caught early and returned as the singleton.
+        if (clrType.FullName == "System.Delegate" || clrType.FullName == "System.MulticastDelegate")
+        {
+            return BaseDelegateType.Instance;
+        }
+
         // Project the well-known .NET delegate families to the Mist Func type family
         // (Requirements 15.1, 15.2):
         //   System.Func<T1, ..., TN, TResult> → Standard.Func<T1, ..., TN, TResult>
@@ -1172,8 +1203,8 @@ internal sealed class TypeProjector
         }
 
         // Project named delegate types (Predicate<T>, Comparison<T>, EventHandler, etc.)
-        // to their equivalent Standard.Func type based on the delegate's Invoke signature
-        // (Requirements 15.3, 15.6).
+        // as DelegateType instances preserving CLR identity with equivalent func<...> signature
+        // (Requirements 1.1, 1.2, 1.5).
         if (TryProjectNamedDelegate(clrType, stdlib, out var namedDelegateType))
         {
             return namedDelegateType;
@@ -1185,9 +1216,20 @@ internal sealed class TypeProjector
             return ProjectConstructedGenericType(clrType, stdlib);
         }
 
-        // Handle generic type definitions (e.g., List<T> when used as a type reference)
+        // Handle generic type definitions (e.g., List<T> when used as a type reference).
+        // First try the cache-only resolver to get the fully-projected type instance with
+        // populated member scopes. This ensures that return types like List<T> on methods
+        // (projected as ConstructedType(List, [T])) use the same ClassType instance that the
+        // provider returns from ResolveType, so downstream member lookup (e.g., .Count) works
+        // correctly when the result is stored in a var-inferred variable.
         if (clrType.IsGenericTypeDefinition)
         {
+            if (_typeReferenceResolverCacheOnly is not null && clrType.Namespace is not null)
+            {
+                var cached = _typeReferenceResolverCacheOnly(clrType);
+                if (cached is not null)
+                    return cached;
+            }
             return ProjectGenericDefinitionReference(clrType, stdlib);
         }
 
@@ -1206,8 +1248,9 @@ internal sealed class TypeProjector
         // the same instance the provider hands out from ResolveType, so their member scopes are
         // populated and downstream member lookup succeeds (C5 cross-assembly fix).
         // IMPORTANT: Only resolve types already in the cache to avoid infinite recursion during
-        // type projection. Types not yet cached will get a disconnected shell; the semantic
-        // model will resolve them on-demand when accessed later (via RegisterAmbientTypeInScope).
+        // type projection. Types not yet cached will get a disconnected shell here; the
+        // ProjectMemberType method will attempt a full resolve as a second pass for member
+        // signatures where a populated scope is critical for var-inference.
         if (_typeReferenceResolver is not null
             && !clrType.IsGenericParameter
             && !clrType.IsArray
@@ -1383,29 +1426,30 @@ internal sealed class TypeProjector
     /// <summary>
     /// Attempts to project a named CLR delegate type (e.g., <c>Predicate&lt;T&gt;</c>,
     /// <c>Comparison&lt;T&gt;</c>, <c>EventHandler</c>, <c>Converter&lt;TInput, TOutput&gt;</c>)
-    /// into the equivalent <c>Standard.Func</c> constructed type based on the delegate's
-    /// <c>Invoke</c> method signature (Requirements 15.3, 15.6).
+    /// into a <see cref="DelegateType"/> that preserves the delegate's CLR identity while
+    /// carrying the equivalent <c>Standard.Func</c> signature (Requirements 1.1, 1.2, 1.5).
     ///
     /// <para>
     /// This handles all delegate types that are NOT <c>System.Func</c> or <c>System.Action</c>
     /// (those are handled by <see cref="TryProjectStandardFuncDelegate"/>). The projection
     /// inspects the delegate's <c>Invoke</c> method to determine parameter types and return
-    /// type, then constructs the equivalent <c>Standard.Func</c> type. For void-returning
-    /// delegates, the trailing type argument is <c>Standard.Void</c>.
+    /// type, then constructs the equivalent <c>Standard.Func</c> type and wraps it in a
+    /// <see cref="DelegateType"/> that also preserves the CLR fully qualified name, namespace,
+    /// simple name, type parameters, and type arguments.
     /// </para>
     /// </summary>
     /// <param name="clrType">The CLR type to inspect.</param>
     /// <param name="stdlib">The stdlib type provider used to resolve <c>Standard.Func</c>/<c>Void</c>.</param>
-    /// <param name="funcType">The projected <c>Standard.Func</c> constructed type, when matched.</param>
+    /// <param name="delegateType">The projected <see cref="DelegateType"/>, when matched.</param>
     /// <returns><c>true</c> when <paramref name="clrType"/> is a projectable named delegate; otherwise <c>false</c>.</returns>
     [UnconditionalSuppressMessage("Trimming", "IL2070",
         Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private bool TryProjectNamedDelegate(
         Type clrType,
         IStdlibTypeProvider stdlib,
-        out IType funcType)
+        out IType delegateType)
     {
-        funcType = null!;
+        delegateType = null!;
 
         // All delegates inherit from System.MulticastDelegate.
         if (clrType.BaseType?.FullName != "System.MulticastDelegate")
@@ -1459,7 +1503,60 @@ internal sealed class TypeProjector
             funcTypeArguments[parameters.Length] = _intrinsicMap.SubstituteIntrinsics(projectedReturn, stdlib);
         }
 
-        funcType = new ConstructedType(funcDefinition, funcTypeArguments);
+        var funcSignature = new ConstructedType(funcDefinition, funcTypeArguments);
+
+        // Determine CLR identity components.
+        var clrFullName = clrType.FullName ?? clrType.Name;
+        var clrNamespace = clrType.Namespace ?? "";
+        var clrSimpleName = StripGenericAritySuffix(clrType.Name);
+
+        // Determine type parameters (for open generic definitions) and type arguments
+        // (for constructed generic instances).
+        IReadOnlyList<IType> typeParameters;
+        IReadOnlyList<IType> typeArguments;
+
+        if (clrType.IsGenericTypeDefinition)
+        {
+            // Open generic delegate definition (e.g., Predicate<T>, Comparison<T>).
+            // TypeParameters carry the open type parameter placeholders.
+            typeParameters = ProjectTypeParameters(clrType, stdlib);
+            typeArguments = Array.Empty<IType>();
+        }
+        else if (clrType.IsConstructedGenericType)
+        {
+            // Constructed generic delegate (e.g., Predicate<int>).
+            // TypeParameters are empty; TypeArguments carry the concrete types.
+            typeParameters = Array.Empty<IType>();
+            var clrArgs = clrType.GetGenericArguments();
+            var projectedArgs = new IType[clrArgs.Length];
+            for (var i = 0; i < clrArgs.Length; i++)
+            {
+                var projectedArg = ProjectTypeReference(clrArgs[i], stdlib);
+                projectedArgs[i] = _intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
+            }
+            typeArguments = projectedArgs;
+        }
+        else
+        {
+            // Non-generic delegate (e.g., RequestDelegate, EventHandler without generics).
+            typeParameters = Array.Empty<IType>();
+            typeArguments = Array.Empty<IType>();
+        }
+
+        // Create an empty member scope for the delegate. Members inherited from
+        // System.Delegate (GetType, DynamicInvoke, Method, Target) will be populated
+        // by the member projection phase when the delegate type is fully projected.
+        var memberScope = new Scope(parent: null);
+
+        delegateType = new DelegateType(
+            clrFullName: clrFullName,
+            clrNamespace: clrNamespace,
+            clrSimpleName: clrSimpleName,
+            funcSignature: funcSignature,
+            typeParameters: typeParameters,
+            typeArguments: typeArguments,
+            memberScope: memberScope);
+
         return true;
     }
 
@@ -2110,7 +2207,49 @@ internal sealed class TypeProjector
     internal IType ProjectMemberType(Type clrType, IStdlibTypeProvider stdlib)
     {
         var projected = ProjectTypeReference(clrType, stdlib);
-        return _intrinsicMap.SubstituteIntrinsics(projected, stdlib);
+        projected = _intrinsicMap.SubstituteIntrinsics(projected, stdlib);
+
+        // If ProjectTypeReference returned a disconnected shell (empty member scope) for a
+        // non-generic, non-constructed class/struct/interface, attempt a full resolve via the
+        // provider. This is safe here because ProjectMemberType is only called during member
+        // projection (ProjectMembers), which executes AFTER the owning type is already cached
+        // in ResolveTypeCore. Any back-reference to the owning type will find it in the cache,
+        // preventing infinite recursion.
+        // Without this, var-inferred variables whose type comes from a method return type
+        // (e.g., `var builder = WebApplication.CreateBuilder()` returning WebApplicationBuilder)
+        // get a disconnected shell with no members, causing MIST_UNDEFINED_MEMBER errors.
+        if (_typeReferenceResolver is not null
+            && IsDisconnectedShell(projected)
+            && !clrType.IsGenericParameter
+            && !clrType.IsArray
+            && clrType.Namespace is not null
+            && !clrType.IsConstructedGenericType
+            && !clrType.IsGenericTypeDefinition)
+        {
+            var resolved = _typeReferenceResolver(clrType);
+            if (resolved is not null)
+            {
+                return resolved;
+            }
+        }
+
+        return projected;
+    }
+
+    /// <summary>
+    /// Determines whether a projected type is a "disconnected shell" — a type with an empty
+    /// member scope produced by <see cref="ProjectSimpleTypeReference"/> when the type was not
+    /// yet in the provider's cache during projection.
+    /// </summary>
+    private static bool IsDisconnectedShell(IType type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.MemberScope.Members.Count == 0,
+            StructType st => st.MemberScope.Members.Count == 0,
+            InterfaceType it => it.MemberScope.Members.Count == 0,
+            _ => false
+        };
     }
 
     /// <summary>
@@ -2145,6 +2284,7 @@ internal sealed class TypeProjector
             StructType st => st.MemberScope as Scope,
             InterfaceType it => it.MemberScope as Scope,
             EnumType et => et.MemberScope as Scope,
+            DelegateType dt => dt.MemberScope as Scope,
             _ => null,
         };
     }

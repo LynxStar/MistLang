@@ -1,0 +1,80 @@
+using System.Collections.Generic;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Builder;
+
+namespace DelegateFuncConversion;
+
+public class Program
+{
+    // PROOF: A method whose signature matches Predicate<int> — used for method group conversion
+    public static bool IsPositive(int x)
+    {
+        return x > 0;
+    }
+
+    // PROOF: A method whose signature matches Comparison<int>
+    public static int CompareDescending(int a, int b)
+    {
+        return b - a;
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== DelegateFuncConversion Sample ===");
+
+        // PROOF: Lambda → Named_Delegate (Predicate<int>)
+        // The List<int>.FindAll method expects Predicate<int>, not func<int, bool>.
+        // This proves implicit conversion from lambda to a named delegate type.
+        var numbers = new List<int> { -2, -1, 0, 1, 2, 3 };
+        var positives = numbers.FindAll(x => x > 0);
+        Console.WriteLine($"positives.Count={positives.Count}");
+
+        // PROOF: Method group → Named_Delegate (Predicate<int>)
+        // Passing a method group where Predicate<int> is expected.
+        var alsoPositives = numbers.FindAll(IsPositive);
+        Console.WriteLine($"alsoPositives.Count={alsoPositives.Count}");
+
+        // PROOF: Lambda → Named_Delegate (Comparison<int>)
+        // List<T>.Sort(Comparison<T>) expects a named delegate, not func<int, int, int>.
+        var sortable = new List<int> { 3, 1, 4, 1, 5 };
+        sortable.Sort(CompareDescending);
+        Console.WriteLine($"sortedFirst={sortable[0]}");
+
+        // PROOF: func<...> value → Delegate_Type variable assignment
+        // A func<int, bool> value can be assigned to a Predicate<int>-typed variable.
+        func<int, bool> isEven = x => x % 2 == 0;
+        System.Predicate<int> predicate = isEven;
+        var evens = numbers.FindAll(predicate);
+        Console.WriteLine($"evens.Count={evens.Count}");
+
+        // PROOF: Delegate_Type value → func<...> variable assignment
+        // A Predicate<int>-typed value can be assigned back to a func<int, bool> variable.
+        func<int, bool> funcFromDelegate = predicate;
+        Console.WriteLine($"funcFromDelegate(4)={funcFromDelegate(4)}");
+
+        // PROOF: Any func/delegate → System.Delegate base type
+        // A lambda can be assigned to a System.Delegate-typed variable.
+        System.Delegate baseDelegate = isEven;
+        Console.WriteLine($"baseDelegateType={baseDelegate.GetType().Name}");
+
+        // PROOF: Invoking a Delegate_Type-typed value
+        // A Predicate<int>-typed variable is directly invocable.
+        Console.WriteLine($"predicate(6)={predicate(6)}");
+        Console.WriteLine($"predicate(7)={predicate(7)}");
+
+        // PROOF: Lambda → System.Delegate parameter (ASP.NET Core MapGet pattern)
+        // WebApplication.CreateBuilder().Build().MapGet("/", Delegate) accepts System.Delegate.
+        // This proves that a lambda returning string is convertible to System.Delegate.
+        var builder = WebApplication.CreateBuilder();
+        var app = builder.Build();
+        app.MapGet("/hello", () => "Hello from Mist!");
+        Console.WriteLine($"mapGetRegistered=true");
+
+        Console.WriteLine("=== DelegateFuncConversion Done ===");
+    }
+
+    public static void Main()
+    {
+        RunDemo();
+    }
+}

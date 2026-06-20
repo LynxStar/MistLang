@@ -481,6 +481,94 @@ CLR types that define operator methods (`op_Addition`, `op_Equality`, etc.) have
 
 Implicit and explicit conversion operators (`op_Implicit`, `op_Explicit`) are projected as Mist cast operators, enabling `as` casts between types that define conversions.
 
+## Delegates and func Conversion
+
+Named CLR delegates — types like `Predicate<T>`, `Comparison<T>`, and `RequestDelegate` that inherit from `System.MulticastDelegate` — are projected as distinct types in Mist. Unlike the `System.Func<...>` and `System.Action<...>` families (which map directly to Mist's structural `func<...>` type), named delegates preserve their CLR identity through projection and emission.
+
+This matters because many .NET APIs accept a specific named delegate rather than a generic `Func<...>`. For example, `List<T>.FindAll` expects a `Predicate<T>`, and `List<T>.Sort` expects a `Comparison<T>`. Mist handles the conversion implicitly — you pass a lambda, a `func<...>` value, or a method group, and the compiler wraps it in the correct delegate constructor.
+
+### Implicit Conversions
+
+The following conversions happen implicitly (no cast required):
+
+| Source | Target | Allowed? |
+|--------|--------|----------|
+| `func<...>` or lambda | Named delegate with compatible signature | ✓ |
+| Named delegate | `func<...>` with compatible signature | ✓ |
+| `func<...>` or lambda | `System.Delegate` | ✓ |
+| Named delegate | `System.Delegate` | ✓ |
+| Named delegate A | Named delegate B (different type, same signature) | ✗ |
+| `System.Delegate` | Named delegate or `func<...>` | ✗ |
+
+Two types are "signature-compatible" when they have the same number of parameters, each corresponding parameter type matches, and the return type matches.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/dotnet-interop/delegate-func-conversion.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/dotnet-interop/delegate-func-conversion.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+### Nominal Distinctness
+
+Named delegates are nominally distinct from each other, even when their signatures are identical. If two delegate types happen to share the same `func<...>` shape, you still cannot assign one to the other:
+
+```
+// Hypothetical example — this does NOT compile:
+System.Predicate<int> pred = x => x > 0;
+System.Converter<int, bool> conv = pred;  // ERROR: nominally distinct types
+```
+
+To convert between two named delegates with the same signature, go through `func<...>` as an intermediate:
+
+```
+func<int, bool> intermediate = pred;
+System.Converter<int, bool> conv = intermediate;  // OK — func→delegate conversion
+```
+
+### System.Delegate (The Base Type)
+
+`System.Delegate` is the root base type of all CLR delegates. Any delegate-typed or `func<...>` value is assignable to `System.Delegate`. This is how APIs like ASP.NET Core's `MapGet` work — they accept `System.Delegate` so that any lambda can be passed regardless of its signature:
+
+```mist
+// ASP.NET Core MapGet accepts System.Delegate
+var builder = WebApplication.CreateBuilder();
+var app = builder.Build();
+app.MapGet("/", () => "Hello!");
+```
+
+A value typed as `System.Delegate` cannot be narrowed back to a specific delegate or `func<...>` type without an explicit cast, and it cannot be invoked directly — you must cast it first.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/dotnet-interop/delegate-system-delegate.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/dotnet-interop/delegate-system-delegate.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+### Invoking Delegate-Typed Values
+
+A value whose type is a named delegate is directly invocable using standard call syntax, just like `func<...>` values. The compiler validates the argument types against the delegate's signature:
+
+```mist
+System.Predicate<int> isEven = x => x % 2 == 0;
+var result = isEven(4);  // result is true — standard call syntax works
+```
+
+The type checker ensures argument count and types match the delegate's `Invoke` signature, and the return type of the call expression is the delegate's return type.
+
 ## Inheritance and Interfaces
 
 CLR inheritance hierarchies are fully projected. If class `C` inherits from `B` which inherits from `A`, the Mist type for `C` is assignable to variables of type `B` or `A`. Base class members are accessible on derived types.

@@ -3,8 +3,9 @@
 //   TypeParameter = name:IDENTIFIER
 // to:
 //   TypeParameter
-//       = name:IDENTIFIER COLON valueType:PrimitiveType  as DependentTypeParameter
-//       | name:IDENTIFIER                                 as RegularTypeParameter
+//       = name:IDENTIFIER COLON valueType:PrimitiveType           as DependentTypeParameter
+//       | name:IDENTIFIER COLON constraintName:IDENTIFIER         as NamedConstraintDependentTypeParameter
+//       | name:IDENTIFIER                                          as RegularTypeParameter
 //
 // These extensions provide the old Name accessor so existing code can work
 // with minimal changes until it is updated to handle dependent type parameters.
@@ -27,6 +28,7 @@ public static class TypeParameterNodeExtensions
         return node switch
         {
             DependentTypeParameterTypeParameterNode dep => dep.Name,
+            NamedConstraintDependentTypeParameterTypeParameterNode named => named.Name,
             RegularTypeParameterTypeParameterNode reg => reg.Name,
             _ => throw new System.InvalidOperationException(
                 $"Unknown TypeParameterNode variant: {node.GetType().Name}"),

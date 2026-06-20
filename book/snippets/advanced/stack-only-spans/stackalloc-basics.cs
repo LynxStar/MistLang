@@ -1,6 +1,6 @@
 using System;
 
-Span<int> buffer = stackalloc int[4];
+System.Span<int> buffer = stackalloc int[4];
 buffer[0] = 10;
 buffer[1] = 20;
 buffer[2] = 30;
@@ -14,7 +14,7 @@ foreach (int v in buffer)
     total = total + v;
 }
 System.Console.WriteLine($"total={total}");
-var mid = buffer.Slice(1, 2);
+System.Span<int> mid = buffer.Slice(1, 2);
 System.Console.WriteLine($"mid.Length={mid.Length}");
 System.Console.WriteLine($"mid[0]={mid[0]}");
 mid[0] = 99;

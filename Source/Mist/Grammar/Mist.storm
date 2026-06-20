@@ -137,7 +137,10 @@ rule RefinableTypeExpression = first:RefinableSingleTypeExpr (PIPE rest:Refinabl
 
 rule RefinableSingleTypeExpr = type:SingleTypeRef refinement:RefinementPredicate?;
 
-rule RefinementPredicate = predicate:AndPattern;
+rule RefinementPredicate
+    = AND first:UnaryPattern (AND rest:UnaryPattern)*   as CompoundRefinementPredicate
+    | predicate:AndPattern                              as SimpleRefinementPredicate
+    ;
 
 rule NewtypeDeclaration = TYPE name:IDENTIFIER EQUAL NEW sourceType:TypeReference SEMICOLON;
 
@@ -146,8 +149,9 @@ rule NewtypeDeclaration = TYPE name:IDENTIFIER EQUAL NEW sourceType:TypeReferenc
 rule TypeParameterList = LESS_THAN TypeParameter (COMMA TypeParameter)* GREATER_THAN;
 
 rule TypeParameter
-    = name:IDENTIFIER COLON valueType:PrimitiveType  as DependentTypeParameter
-    | name:IDENTIFIER                                 as RegularTypeParameter
+    = name:IDENTIFIER COLON valueType:PrimitiveType           as DependentTypeParameter
+    | name:IDENTIFIER COLON constraintName:IDENTIFIER         as NamedConstraintDependentTypeParameter
+    | name:IDENTIFIER                                          as RegularTypeParameter
     ;
 
 rule TypeArgumentList = LESS_THAN TypeArgument (COMMA TypeArgument)* GREATER_THAN;
@@ -218,6 +222,7 @@ rule InterfaceMemberDeclaration
     | associatedType:AssociatedTypeSlotDeclaration as InterfaceAssociatedTypeMember
     | unconstrainedAssociatedType:UnconstrainedAssociatedTypeSlotDeclaration as InterfaceUnconstrainedAssociatedTypeMember
     | modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as InterfaceModifiedAssociatedTypeMember
+    | nestedType:TypeDeclaration                  as InterfaceNestedTypeMember
     ;
 
 rule InterfaceMethodDeclaration = returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
@@ -269,6 +274,7 @@ rule TraitMemberDeclaration
     | associatedType:AssociatedTypeSlotDeclaration as TraitAssociatedTypeMember
     | unconstrainedAssociatedType:UnconstrainedAssociatedTypeSlotDeclaration as TraitUnconstrainedAssociatedTypeMember
     | modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as TraitModifiedAssociatedTypeMember
+    | nestedType:TypeDeclaration                  as TraitNestedTypeMember
     ;
 
 rule TraitFieldDeclaration = type:TypeReference name:IDENTIFIER SEMICOLON;
@@ -392,11 +398,14 @@ rule AccessorDeclaration
     | accessorModifier:Modifier? INIT SUCH_THAT expression:Expression SEMICOLON   as ExpressionInitAccessor
     ;
 
-rule IndexerDeclaration
-    = modifiers:Modifier* type:TypeReference THIS
+rule IndexerDeclaration = modifiers:Modifier* type:TypeReference THIS
       LEFT_BRACKET parameters:ParameterList RIGHT_BRACKET
       constraints:WhereClause*
-      LEFT_BRACE accessors:AccessorDeclaration+ RIGHT_BRACE       as BlockIndexer
+      body:IndexerBody;
+
+rule IndexerBody
+    = LEFT_BRACE accessors:AccessorDeclaration+ RIGHT_BRACE       as BlockIndexerBody
+    | SEMICOLON                                                    as IntrinsicIndexerBody
     ;
 
 rule ConstructorDeclaration = modifiers:Modifier* name:IDENTIFIER LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS

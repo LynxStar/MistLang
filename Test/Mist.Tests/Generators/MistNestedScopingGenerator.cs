@@ -399,7 +399,7 @@ public static class MistNestedScopingGenerator
 
         return $"{containerKeyword} Outer<{paramName}> {{\n" +
                $"    {nestedKeyword} Inner<{paramName}> {{\n" +
-               $"        {paramName} field;\n" +
+               $"        {paramName} data;\n" +
                $"    }}\n" +
                $"}}";
     }

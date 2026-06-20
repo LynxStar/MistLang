@@ -121,7 +121,7 @@ public sealed class OptionalTypeSuffixPropertyTests
                 new TypePositionScenario(typeName, "return type",
                     $"class T {{ public {typeName}? M() {{ return default; }} }}"),
                 new TypePositionScenario(typeName, "field type",
-                    $"class T {{ public {typeName}? field; }}"),
+                    $"class T {{ public {typeName}? myField; }}"),
                 new TypePositionScenario(typeName, "generic type argument",
                     $"class T {{ public void M() {{ Wrapper<{typeName}?> x = default; }} }}"),
             };

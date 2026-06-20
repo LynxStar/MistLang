@@ -175,10 +175,10 @@ public sealed class MistContextGenerationTests
                 void Print();
             }
             class Foo {
-                void Print() { }
+                public void Print() { }
             }
             with Foo : Printable {
-                Print = Print;
+                Print as Print;
             }
             class Program {
                 public static void Main() { }

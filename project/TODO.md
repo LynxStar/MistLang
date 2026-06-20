@@ -4,55 +4,6 @@ Tracked issues and improvements that don't belong to an active spec but should b
 
 ---
 
-## PEG parser silently drops unparseable content (no error recovery)
-
-**Severity: high** — When a `TopLevelItem` or `NamespaceBodyItem` fails to parse, the PEG `*` repetition loop stops, truncates any diagnostics from the failed attempt, and the parser returns a successful root node with fewer items than the file actually contains. No error is reported. Everything after the first unparseable item is silently lost.
-
-**Affects user code, not just stdlib.** Any file where the parser can't match a top-level item will silently drop that item and everything following it. Users get confusing downstream errors ("type not found") with no indication that the file didn't fully parse.
-
-**How it happens:** The Storm-generated PEG parser's `*` loop pattern:
-```csharp
-if (_item == null || _pos == _listSaved)
-{
-    _hasError = _savedError;
-    _pos = _listSaved;
-    _diagnostics?.TruncateTo(_savedDiagCount);  // erases evidence
-    break;
-}
-```
-
-**Existing example:** `Array.mist` has silently failed to parse its class declaration since it was introduced (due to `Length:ZeroOrPositiveInt` in the type parameter list). It went unnoticed because `ArrayType` is a dedicated IType that doesn't rely on the parsed declaration.
-
-**Action:**
-1. After parsing the entry rule (`CompilationUnit`), check whether the parser consumed all tokens (i.e., `_pos` is at EOF). If not, emit a diagnostic like `MIST_PARSE_INCOMPLETE: Unexpected content starting at line X was not parsed`. This is a one-line check in `MistParser.cs` after the Storm-generated parse returns.
-2. Optionally, implement token-skipping recovery in `*` loops for better UX: skip to the next synchronization point (e.g., a keyword that could start a new item) and retry, accumulating skipped tokens as error nodes.
-3. Add a test that asserts every stdlib `.mist` file's token stream is fully consumed after parsing.
-
----
-
-## TypeParameter constraint limited to PrimitiveType — blocks non-primitive dependent types
-
-The `TypeParameter` grammar rule only supports `PrimitiveType` as a constraint:
-
-```storm
-rule TypeParameter
-    = name:IDENTIFIER COLON valueType:PrimitiveType  as DependentTypeParameter
-    | name:IDENTIFIER                                 as RegularTypeParameter
-    ;
-```
-
-This means `Length:int` parses but `Length:ZeroOrPositiveInt` (or any user-defined refinement type) does not. Currently `Array.mist` and `Span.mist` both declare `Length:ZeroOrPositiveInt` in their type parameter lists, causing the entire type declaration to fail to parse (silently, per the issue above).
-
-**Impact:** The constraint syntax is purely documentary today — the compiler uses the intrinsic `ArrayType`/`SpanType` machinery regardless. But if/when dependent types are extended to user-defined types, this grammar restriction will need to be lifted.
-
-**Action:**
-1. Extend `DependentTypeParameter` to accept `TypeReference` (or at least `QualifiedIdentifier`) as the constraint, not just `PrimitiveType`.
-2. Once extended, `Array.mist` and `Span.mist` will parse their full declarations, registering proper `ClassType`/`StructType` nodes with member scopes.
-3. At that point, the synthetic `EnsureSpanAliasesRegistered` workaround and the type-checker special cases for Span constructors/foreach can be removed in favor of the natural parsed declarations.
-4. Update `StdlibCompilesTest` to assert that `Array` and `Span` types are actually registered in the semantic model's Standard namespace scope.
-
----
-
 ## 🔴 CRITICAL: Array (and Span) indexer upper bound is deferred to runtime for unknown-length types
 
 **Severity: critical** — Mist advertises static bounds safety via the `ArrayBounds` refinement (`>= 0 and < Length`), but that guarantee silently degrades to a runtime check whenever the length is not a compile-time constant. A program can compile with zero errors and throw `System.IndexOutOfRangeException` at runtime.

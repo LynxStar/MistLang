@@ -962,12 +962,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     //    Invalidated on reassignment.
     private readonly Dictionary<string, IType> _voidCoalescingTypeNarrowings = new(StringComparer.Ordinal);
 
+    // ── Cache for cross-reference lookups from dedicated types to registered declarations ──
+    //    Used by CollectConstructorOverloads to bridge SpanType to its registered StructType,
+    //    and by GetInterfaceList to bridge ArrayType to its registered ClassType.
+    //    Cleared at the start of each Analyze() call.
+    private readonly Dictionary<string, StructType?> _registeredStructTypeCache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ClassType?> _registeredClassTypeCache = new(StringComparer.Ordinal);
+
     public void Analyze(ISemanticModel model, DiagnosticBag diagnostics)
     {
         // Clear flow narrowing state from any previous compilation.
         _narrowingContext.Clear();
         _closureCapturedVariables.Clear();
         _voidCoalescingTypeNarrowings.Clear();
+        _registeredStructTypeCache.Clear();
+        _registeredClassTypeCache.Clear();
 
         // Walk each method, constructor, property, and indexer body to check type rules.
         foreach (var symbol in model.AllSymbols)
@@ -3496,7 +3505,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(indexerSymbol); }
         catch { return; }
 
-        if (declaringNode is not BlockIndexerIndexerDeclarationNode blockIndexer)
+        if (declaringNode is not IndexerDeclarationNode indexerDecl)
+            return;
+        if (indexerDecl.Body is not BlockIndexerBodyIndexerBodyNode blockBody)
             return;
 
         _currentEnclosingType = FindDeclaringType(indexerSymbol);
@@ -3505,16 +3516,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         var propInfo = GetPropertyMetadata(indexerSymbol);
         var indexerType = indexerSymbol.DeclaredType ?? ErrorType.Instance;
-        var indexerModifiers = ExtractPropertyModifiers(blockIndexer.Modifiers);
+        var indexerModifiers = ExtractPropertyModifiers(indexerDecl.Modifiers);
 
         // Task 5.4: Check accessor modifier restrictiveness (MIST_TC_0022).
-        CheckAccessorModifierRestrictiveness(blockIndexer.Accessors, indexerModifiers, model, diagnostics);
+        CheckAccessorModifierRestrictiveness(blockBody.Accessors, indexerModifiers, model, diagnostics);
 
         // ── Flow narrowing: inject parameter refinement narrowing for indexer parameters (Requirement 8.1–8.5) ──
         var paramNarrowings = InjectParameterRefinementNarrowing(declaringNode, model);
 
         // Task 5.1: Walk accessor bodies for type correctness.
-        foreach (var accessor in blockIndexer.Accessors)
+        foreach (var accessor in blockBody.Accessors)
         {
             CheckAccessorBody(accessor, indexerType, propInfo, indexerModifiers.IsStatic, model, diagnostics);
         }
@@ -3523,7 +3534,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         RemoveParameterRefinementNarrowing(paramNarrowings);
 
         // Task 5.9: Check for duplicate indexers (MIST_TC_0029).
-        CheckDuplicateIndexer(indexerSymbol, blockIndexer, model, diagnostics);
+        CheckDuplicateIndexer(indexerSymbol, indexerDecl, model, diagnostics);
     }
 
     /// <summary>
@@ -3720,7 +3731,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckDuplicateIndexer(
         ISymbol indexerSymbol,
-        BlockIndexerIndexerDeclarationNode blockIndexer,
+        IndexerDeclarationNode indexerDecl,
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
@@ -3739,7 +3750,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
 
         // Collect parameter types for this indexer.
-        var thisParamTypes = CollectIndexerParameterTypes(blockIndexer, model);
+        var thisParamTypes = CollectIndexerParameterTypes(indexerDecl, model);
 
         // Check all other indexers in the same type.
         foreach (var member in memberScope.Members)
@@ -3751,7 +3762,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             try { otherNode = model.GetDeclaringNode(member); }
             catch { continue; }
 
-            if (otherNode is not BlockIndexerIndexerDeclarationNode otherIndexer)
+            if (otherNode is not IndexerDeclarationNode otherIndexer)
                 continue;
 
             var otherParamTypes = CollectIndexerParameterTypes(otherIndexer, model);
@@ -3761,7 +3772,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0029",
                     "Duplicate indexer declaration with the same parameter types",
-                    blockIndexer,
+                    indexerDecl,
                     model));
                 break; // Only report once per indexer.
             }
@@ -3772,7 +3783,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Collects parameter types from an indexer declaration.
     /// </summary>
     private static List<string> CollectIndexerParameterTypes(
-        BlockIndexerIndexerDeclarationNode indexer,
+        IndexerDeclarationNode indexer,
         ISemanticModel model)
     {
         var types = new List<string>();
@@ -6473,7 +6484,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var collectionType = model.GetTypeOf(foreachStmt.Collection);
         if (collectionType is not null && !IsErrorType(collectionType))
         {
-            var elementType = FindIEnumerableImplementation(collectionType);
+            var elementType = FindIEnumerableImplementation(collectionType, model);
             if (elementType is null)
             {
                 // Emit diagnostic: type does not implement IEnumerable<TElement>.
@@ -6524,17 +6535,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// the resolved <c>TElement</c>, or <c>null</c> if the type does not implement
     /// <c>IEnumerable&lt;TElement&gt;</c>.
     /// </summary>
-    private static IType? FindIEnumerableImplementation(IType type)
+    private IType? FindIEnumerableImplementation(IType type, ISemanticModel model)
     {
-        // Arrays always implement IEnumerable<ElementType>.
-        if (type is ArrayType arrayType)
-            return arrayType.ElementType;
-
-        // Spans implement IEnumerable<ElementType> (declared in Span.mist).
-        if (type is Semantics.Model.Types.SpanType spanType)
-            return spanType.ElementType;
-
-        var interfaces = GetInterfaceList(type);
+        var interfaces = GetInterfaceList(type, model);
 
         // If the source is a ConstructedType, we need to substitute type parameters
         // in the interface list with the concrete type arguments.
@@ -6559,6 +6562,32 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     typeParams = ifaceDef.TypeParameters;
                     typeArgs = sourceCt.TypeArguments;
                     break;
+            }
+        }
+        // Bridge: for dedicated intrinsic types, construct type parameter → type argument
+        // mapping so that interface type parameters (e.g., TValue in IEnumerable<TValue>)
+        // are substituted with the actual element type.
+        else if (type is ArrayType bridgeArray)
+        {
+            var registeredClass = FindRegisteredClassType("Array", "Standard", model);
+            if (registeredClass != null)
+            {
+                interfaces = registeredClass.Interfaces;
+                typeParams = registeredClass.TypeParameters;
+                // Array<TValue, Length> → [elementType, unknownLength]
+                typeArgs = new IType[] { bridgeArray.ElementType, new ArrayType(bridgeArray.ElementType) };
+            }
+        }
+        else if (type is Semantics.Model.Types.SpanType bridgeSpan)
+        {
+            var name = bridgeSpan.IsReadOnly ? "ReadOnlySpan" : "Span";
+            var registeredStruct = FindRegisteredStructType(name, "Standard", model);
+            if (registeredStruct != null)
+            {
+                interfaces = registeredStruct.Interfaces;
+                typeParams = registeredStruct.TypeParameters;
+                // Span<T, Length> → [elementType, unknownLength]
+                typeArgs = new IType[] { bridgeSpan.ElementType, new Semantics.Model.Types.SpanType(bridgeSpan.ElementType, bridgeSpan.IsReadOnly) };
             }
         }
 
@@ -11879,7 +11908,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             MethodDeclarationNode method => method.Parameters,
             ConstructorDeclarationNode ctor => ctor.Parameters,
-            BlockIndexerIndexerDeclarationNode indexer => indexer.Parameters,
+            IndexerDeclarationNode indexer => indexer.Parameters,
             _ => null,
         };
 
@@ -12421,7 +12450,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             MethodDeclarationNode method => method.Parameters,
             ConstructorDeclarationNode ctor => ctor.Parameters,
-            BlockIndexerIndexerDeclarationNode indexer => indexer.Parameters,
+            IndexerDeclarationNode indexer => indexer.Parameters,
             _ => null,
         };
 
@@ -13612,7 +13641,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(indexerSymbol); }
         catch { return; }
 
-        if (declaringNode is not BlockIndexerIndexerDeclarationNode indexerDecl || indexerDecl.Parameters is null)
+        if (declaringNode is not IndexerDeclarationNode indexerDecl || indexerDecl.Parameters is null)
             return;
 
         // Get the first parameter symbol and check its refinement.
@@ -13776,54 +13805,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        // ── new Span<T>(array) / new ReadOnlySpan<T>(array) ──────────────
-        // SpanType is a dedicated IType without a member scope or registered
-        // constructors. The only valid construction pattern is wrapping an
-        // array: `new Span<T>(arr)` / `new ReadOnlySpan<T>(arr)` where arr
-        // is a T[] (or implicitly convertible to one). This mirrors the CLR
-        // System.Span<T>(T[]) constructor.
-        if (createdType is Semantics.Model.Types.SpanType spanCtorType)
-        {
-            var spanCtorArgTypes = CollectArgumentTypes(objectCreation.Arguments, model);
-
-            if (spanCtorArgTypes.Count != 1)
-            {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0011",
-                    $"'new {spanCtorType.DisplayName}(...)' requires exactly one argument: an array of '{spanCtorType.ElementType.DisplayName}'.",
-                    objectCreation,
-                    model));
-                return;
-            }
-
-            var spanArgType = spanCtorArgTypes[0];
-            if (IsErrorType(spanArgType))
-                return;
-
-            // The argument must be an array whose element type is assignable
-            // to the span's element type (mirrors System.Span<T>(T[])).
-            if (spanArgType is ArrayType spanArgArrayType)
-            {
-                if (!IsAssignable(spanArgArrayType.ElementType, spanCtorType.ElementType, model))
-                {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0011",
-                        $"'new {spanCtorType.DisplayName}(arr)' requires an array of '{spanCtorType.ElementType.DisplayName}', but found '{spanArgType.DisplayName}'.",
-                        objectCreation,
-                        model));
-                }
-                return;
-            }
-
-            // Not an array — invalid.
-            diagnostics.Add(MakeDiagnostic(
-                "MIST_TC_0011",
-                $"'new {spanCtorType.DisplayName}(...)' requires an array argument, but found '{spanArgType.DisplayName}'.",
-                objectCreation,
-                model));
-            return;
-        }
-
         // ── unknown-type storage ban on `new` (Task 12.1, 12.2) ──────────
         // Two guards, checked before constructor lookup because the
         // constructor lookup would fail anyway (UnknownType has no members
@@ -13953,7 +13934,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
         // Collect all constructors from the target type's member scope.
-        var constructors = CollectConstructorOverloads(createdType);
+        var constructors = CollectConstructorOverloads(createdType, model);
 
         // Collect argument types.
         var argTypes = CollectArgumentTypes(objectCreation.Arguments, model);
@@ -14114,7 +14095,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // The no-args variant invokes the parameterless constructor.
         // If no constructors are defined, a default parameterless constructor
         // is implied. If constructors exist, at least one must be parameterless.
-        var constructors = CollectConstructorOverloads(createdType);
+        var constructors = CollectConstructorOverloads(createdType, model);
         if (constructors.Count > 0)
         {
             var hasParameterless = false;
@@ -14512,6 +14493,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             typeParams = GetTypeParameters(ct.GenericDefinition);
             typeArgs = ct.TypeArguments;
         }
+        else if (createdType is Semantics.Model.Types.SpanType spanCreated)
+        {
+            // Bridge: SpanType is a dedicated IType without a GenericDefinition.
+            // The constructor lives on the registered StructType (Span or ReadOnlySpan)
+            // whose type parameters are [T, Length]. Build the substitution mapping
+            // T → ElementType, Length → UnknownType (since Span<T> aliases Span<T, unknown>).
+            var declaringType = FindDeclaringType(ctor);
+            if (declaringType is not null)
+            {
+                typeParams = GetTypeParameters(declaringType);
+                if (typeParams is not null)
+                {
+                    var args = new IType[typeParams.Count];
+                    // First type parameter is the element type T.
+                    args[0] = spanCreated.ElementType;
+                    // Remaining type parameters (Length) map to UnknownType
+                    // unless the SpanType has a known length.
+                    for (var j = 1; j < args.Length; j++)
+                        args[j] = UnknownType.Instance;
+                    typeArgs = args;
+                }
+            }
+        }
 
         for (var i = 0; i < argTypes.Count; i++)
         {
@@ -14752,7 +14756,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             ConstructorDeclarationNode ctor => ctor.Modifiers,
             BlockPropertyPropertyDeclarationNode blockProp => blockProp.Modifiers,
             ExpressionBodiedPropertyPropertyDeclarationNode exprProp => exprProp.Modifiers,
-            BlockIndexerIndexerDeclarationNode blockIndexer => blockIndexer.Modifiers,
+            IndexerDeclarationNode blockIndexer => blockIndexer.Modifiers,
             _ => null,
         };
 
@@ -16441,6 +16445,30 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return false;
         }
 
+        // ArrayType → ConstructedType(Array<T, unknown>) bridging:
+        // The dedicated ArrayType representation (e.g., int[3]) must be
+        // assignable to the stdlib ConstructedType form Array<T, unknown>
+        // used in constructor parameter declarations (e.g., Span's ctor).
+        // A known-length or unsized ArrayType widens to Array<T, unknown>
+        // when element types are compatible.
+        if (source is ArrayType sourceArrayForCt
+            && target is ConstructedType targetArrayCt
+            && targetArrayCt.GenericDefinition is ClassType targetArrayClass
+            && targetArrayClass.DisplayName == "Array"
+            && targetArrayClass.ContainingNamespace == "Standard"
+            && targetArrayCt.TypeArguments.Count >= 2)
+        {
+            var targetElementType = targetArrayCt.TypeArguments[0];
+            var targetLengthType = targetArrayCt.TypeArguments[1];
+
+            if (IsAssignable(sourceArrayForCt.ElementType, targetElementType, model))
+            {
+                // Target length is unknown — any source length is accepted (widening).
+                if (targetLengthType is UnknownType)
+                    return true;
+            }
+        }
+
         // Migration-window shim: `bool` and `Standard.Boolean` (likewise
         // `int`/`Int32`, `string`/`String`, …) can coexist within a
         // single compilation when some sub-tree was resolved via the
@@ -17892,7 +17920,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Collects all constructor symbols from the target type's member scope.
     /// Unlike methods, constructors are not inherited from base types.
     /// </summary>
-    private static List<ISymbol> CollectConstructorOverloads(IType? targetType)
+    private List<ISymbol> CollectConstructorOverloads(IType? targetType, ISemanticModel? model = null)
     {
         var results = new List<ISymbol>();
         if (targetType is null)
@@ -17902,13 +17930,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // definition to find constructors in the original type's member scope.
         var lookupType = targetType is ConstructedType cst ? cst.GenericDefinition : targetType;
 
-        var memberScope = lookupType switch
+        IScope? memberScope;
+
+        if (lookupType is Semantics.Model.Types.SpanType spanLookup && model is not null)
         {
-            ClassType ct => ct.MemberScope,
-            StructType st => st.MemberScope,
-            NewtypeType nt => nt.MemberScope,
-            _ => null,
-        };
+            // Bridge: SpanType is a dedicated IType without a member scope.
+            // Look up the corresponding registered StructType in the Standard namespace
+            // and pull constructors from its member scope.
+            var registeredStruct = FindRegisteredStructType(
+                spanLookup.IsReadOnly ? "ReadOnlySpan" : "Span", "Standard", model);
+            memberScope = registeredStruct?.MemberScope;
+        }
+        else
+        {
+            memberScope = lookupType switch
+            {
+                ClassType ct => ct.MemberScope,
+                StructType st => st.MemberScope,
+                NewtypeType nt => nt.MemberScope,
+                _ => null,
+            };
+        }
 
         if (memberScope is null)
             return results;
@@ -17920,6 +17962,64 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Looks up a registered <see cref="StructType"/> by name and namespace in the semantic model.
+    /// Used to bridge dedicated types (e.g., <see cref="SpanType"/>) to their registered
+    /// declarations so that member scope data (constructors, interfaces) can be accessed.
+    /// Results are cached per compilation for performance.
+    /// </summary>
+    private StructType? FindRegisteredStructType(string name, string namespaceName, ISemanticModel model)
+    {
+        var cacheKey = $"{namespaceName}.{name}";
+        if (_registeredStructTypeCache.TryGetValue(cacheKey, out var cached))
+            return cached;
+
+        StructType? result = null;
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Kind == SymbolKind.Struct
+                && symbol.Name == name
+                && symbol.DeclaredType is StructType st
+                && st.ContainingNamespace == namespaceName)
+            {
+                result = st;
+                break;
+            }
+        }
+
+        _registeredStructTypeCache[cacheKey] = result;
+        return result;
+    }
+
+    /// <summary>
+    /// Looks up a registered <see cref="ClassType"/> by name and namespace in the semantic model.
+    /// Used to bridge dedicated types (e.g., <see cref="ArrayType"/>) to their registered
+    /// declarations so that interface data can be accessed.
+    /// Results are cached per compilation for performance.
+    /// </summary>
+    private ClassType? FindRegisteredClassType(string name, string namespaceName, ISemanticModel model)
+    {
+        var cacheKey = $"{namespaceName}.{name}";
+        if (_registeredClassTypeCache.TryGetValue(cacheKey, out var cached))
+            return cached;
+
+        ClassType? result = null;
+        foreach (var symbol in model.AllSymbols)
+        {
+            if (symbol.Kind == SymbolKind.Class
+                && symbol.Name == name
+                && symbol.DeclaredType is ClassType ct
+                && ct.ContainingNamespace == namespaceName)
+            {
+                result = ct;
+                break;
+            }
+        }
+
+        _registeredClassTypeCache[cacheKey] = result;
+        return result;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -19550,15 +19650,46 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Fallback: display name comparison.
-        return GetInterfaceList(typeArgument)
+        return GetStaticInterfaceList(typeArgument)
             .Any(i => i.DisplayName == interfaceConstraint.DisplayName);
     }
 
     /// <summary>
     /// Gets the interface list from a type (ClassType, StructType, or InterfaceType).
+    /// Static version used by constraint checking where the model is not needed.
     /// </summary>
-    private static IReadOnlyList<IType> GetInterfaceList(IType type)
+    private static IReadOnlyList<IType> GetStaticInterfaceList(IType type)
     {
+        return type switch
+        {
+            ClassType ct => ct.Interfaces,
+            StructType st => st.Interfaces,
+            InterfaceType it => it.Interfaces,
+            _ => Array.Empty<IType>(),
+        };
+    }
+
+    /// <summary>
+    /// Gets the interface list from a type (ClassType, StructType, or InterfaceType).
+    /// For dedicated intrinsic types (<see cref="ArrayType"/> and <see cref="SpanType"/>),
+    /// bridges to the registered declaration's interface list.
+    /// </summary>
+    private IReadOnlyList<IType> GetInterfaceList(IType type, ISemanticModel model)
+    {
+        // Bridge: for dedicated intrinsic types, look up the registered declaration's interfaces.
+        if (type is ArrayType)
+        {
+            var registeredClass = FindRegisteredClassType("Array", "Standard", model);
+            if (registeredClass != null) return registeredClass.Interfaces;
+        }
+
+        if (type is Semantics.Model.Types.SpanType spanType)
+        {
+            var name = spanType.IsReadOnly ? "ReadOnlySpan" : "Span";
+            var registeredStruct = FindRegisteredStructType(name, "Standard", model);
+            if (registeredStruct != null) return registeredStruct.Interfaces;
+        }
+
         return type switch
         {
             ClassType ct => ct.Interfaces,
@@ -20508,7 +20639,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             MethodDeclarationNode methodDecl => methodDecl.Parameters,
             ConstructorDeclarationNode ctorDecl => ctorDecl.Parameters,
-            BlockIndexerIndexerDeclarationNode indexerDecl => indexerDecl.Parameters,
+            IndexerDeclarationNode indexerDecl => indexerDecl.Parameters,
             InterfaceMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Parameters,
             _ => null,
         };
@@ -20618,7 +20749,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             InterfaceMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Constraints,
             TypeAliasDeclarationNode aliasDecl => aliasDecl.Constraints,
             ConstructorDeclarationNode ctorDecl => ctorDecl.Constraints,
-            BlockIndexerIndexerDeclarationNode indexerDecl => indexerDecl.Constraints,
+            IndexerDeclarationNode indexerDecl => indexerDecl.Constraints,
             _ => ImmutableArray<WhereClauseNode>.Empty,
         };
     }

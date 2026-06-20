@@ -595,6 +595,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     internal static readonly DiagnosticId DependentTypeDisallowedAnnotation = new("MIST_DT_0001");
 
     /// <summary>
+    /// A named constraint type reference could not be resolved to any known type
+    /// in scope (Requirement 2.3).
+    /// </summary>
+    internal static readonly DiagnosticId DependentTypeConstraintNotFound = new("MIST_DT_0002");
+
+    /// <summary>
     /// A dependent type parameter name conflicts with a member declared in the
     /// same type. The dependent parameter takes precedence in scope resolution
     /// (consistent with how type parameters shadow members in C#), but the
@@ -720,6 +726,49 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         "int", "uint", "long", "ulong", "short", "ushort", "byte", "sbyte", "bool", "char",
     };
 
+    /// <summary>
+    /// Maps a stdlib type's <see cref="IType.DisplayName"/> (e.g., "Int32", "Boolean")
+    /// or a legacy keyword name (e.g., "int", "bool") to the canonical keyword form
+    /// used by <see cref="AllowedDependentTypeAnnotations"/>.
+    /// Returns <c>null</c> if the name does not correspond to any known primitive keyword.
+    /// </summary>
+    private static readonly Dictionary<string, string> StdlibNameToKeyword =
+        BuildStdlibNameToKeywordMap();
+
+    private static Dictionary<string, string> BuildStdlibNameToKeywordMap()
+    {
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        // Build from KeywordAliases.Map: "int" → "Standard.Int32" becomes "Int32" → "int"
+        foreach (var (keyword, qualifiedName) in KeywordAliases.Map)
+        {
+            // qualifiedName is like "Standard.Int32" — extract just the type name.
+            var dotIndex = qualifiedName.LastIndexOf('.');
+            var typeName = dotIndex >= 0 ? qualifiedName.Substring(dotIndex + 1) : qualifiedName;
+            map[typeName] = keyword;
+        }
+
+        // Also include the keyword names themselves (for legacy primitives).
+        foreach (var (keyword, _) in KeywordAliases.Map)
+        {
+            map[keyword] = keyword;
+        }
+
+        return map;
+    }
+
+    /// <summary>
+    /// Returns the Mist keyword for a given type's display name, or the display name
+    /// itself if no mapping is found.
+    /// </summary>
+    private static string GetKeywordForBaseType(IType baseType)
+    {
+        var displayName = baseType.DisplayName;
+        return StdlibNameToKeyword.TryGetValue(displayName, out var keyword)
+            ? keyword
+            : displayName;
+    }
+
     public ISemanticModel Build(
         MistCompilation compilation,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
@@ -795,18 +844,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     AnalyzerName: null));
             }
         }
-
-        // Synthetic alias registration for Span<T> / ReadOnlySpan<T>.
-        // The Span.mist file uses `Length:ZeroOrPositiveInt` (a non-primitive dependent
-        // type parameter constraint) which the PEG parser's TypeParameterList rule cannot
-        // parse. This causes the entire file content to be silently skipped (the file-scoped
-        // namespace produces zero body items). This is the Array<T,Length> precedent:
-        // Array.mist is also unparseable but Array doesn't need a name-resolvable alias
-        // because `int[]` / `new int[n]` are handled as special syntax. Span DOES need
-        // name-resolvable aliases (`Span<T>` / `ReadOnlySpan<T>`) so user code like
-        // `Span<int> buffer = stackalloc int[4];` can resolve the type annotation.
-        // Register synthetic arity-1 aliases in the Standard namespace scope.
-        EnsureSpanAliasesRegistered(globalScope, symbolTable);
 
         // Pass 1: Validate namespace declarations.
         // After all types are registered, walk each compilation unit to detect:
@@ -1053,6 +1090,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // This runs after Pass 2 so that expression types are available for
         // body resolution.
         Pass2_ResolveExtensionBodies(extensionBlockScopes, globalScope, symbolTable, expressionTypes, ambientTypeResolver, asts, compilation, diagnostics);
+
+        // Post-Pass 2: Resolve named type parameter constraints.
+        // During Pass 1, NamedConstraintDependentTypeParameter nodes stored
+        // the constraint name as PendingConstraintName with ErrorType as a
+        // placeholder. Now that type aliases are resolved in Pass 2, we can
+        // look up the constraint, validate it is a RefinementType with an
+        // allowed base type, and update the DependentTypeParameterType.
+        Pass2_ResolveNamedTypeParameterConstraints(symbolTable, globalScope, asts, compilation, diagnostics);
+
+        // Post-Pass 2: Fix up DependentValueArguments created during Pass 2.
+        // When Pass 2 resolved type arguments at positions corresponding to named-constraint
+        // dependent parameters, the DependentTypeParameterType.ValueType was still ErrorType
+        // (the placeholder). Now that constraints are resolved, update those arguments.
+        FixUpDependentValueArguments(symbolTable, expressionTypes);
 
         // Post-Pass 2: Resolve adhoc refinement constraints.
         // This runs after Pass 2 so that parameter symbols are registered and
@@ -1358,85 +1409,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         return namespaceScope;
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Synthetic Span Alias Registration
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Registers synthetic <c>Span&lt;T&gt;</c> and <c>ReadOnlySpan&lt;T&gt;</c> type alias
-    /// symbols in the <c>Standard</c> namespace scope. These aliases resolve to
-    /// <see cref="Types.SpanType"/> with unknown length, enabling user code like
-    /// <c>Span&lt;int&gt; buffer = stackalloc int[4];</c> to resolve the type annotation.
-    /// <para>
-    /// This is necessary because <c>Span.mist</c> uses <c>Length:ZeroOrPositiveInt</c>
-    /// (a non-primitive dependent type parameter constraint) which the PEG parser cannot
-    /// handle, causing the entire file to be silently skipped. The aliases are registered
-    /// idempotently — if they already exist (e.g., if the grammar is later extended to
-    /// parse the file), this method is a no-op.
-    /// </para>
-    /// </summary>
-    private static void EnsureSpanAliasesRegistered(Scope globalScope, SymbolTable symbolTable)
-    {
-        // Find or create the Standard namespace scope.
-        _namespaceScopeMap ??= new Dictionary<string, Scope>();
-        if (!_namespaceScopeMap.TryGetValue("Standard", out var standardScope))
-        {
-            // Standard namespace wasn't created by any parsed file — create it now.
-            standardScope = new Scope(parent: globalScope);
-            _namespaceScopeMap["Standard"] = standardScope;
-        }
-
-        // Register Span<T> alias (arity 1) if not already present.
-        RegisterSyntheticSpanAlias(standardScope, symbolTable, "Span", isReadOnly: false);
-
-        // Register ReadOnlySpan<T> alias (arity 1) if not already present.
-        RegisterSyntheticSpanAlias(standardScope, symbolTable, "ReadOnlySpan", isReadOnly: true);
-    }
-
-    /// <summary>
-    /// Registers a single synthetic span type alias symbol with arity 1.
-    /// The alias wraps a <see cref="Types.SpanType"/> with unknown length.
-    /// Skips registration if an alias with the same name and arity already exists.
-    /// </summary>
-    private static void RegisterSyntheticSpanAlias(
-        Scope standardScope, SymbolTable symbolTable, string aliasName, bool isReadOnly)
-    {
-        // Check if an alias with this name and arity 1 already exists.
-        foreach (var member in standardScope.Members)
-        {
-            if (member.Name != aliasName)
-                continue;
-            if (member.Kind != SymbolKind.TypeAlias)
-                continue;
-            // Check arity: the alias should have exactly 1 type parameter.
-            var arity = (member as Symbol)?.TypeParameters.Count ?? 0;
-            if (arity == 1)
-                return; // Already registered — skip.
-        }
-
-        // Create the type parameter T.
-        var typeParamT = new Types.TypeParameterType("T", 0);
-        var typeParams = new IType[] { typeParamT };
-
-        // Create the underlying SpanType with unknown length, using T as the element type.
-        var underlyingSpanType = new Types.SpanType(typeParamT, isReadOnly);
-
-        // Create the TypeAliasType.
-        var typeAliasType = new Types.TypeAliasType(aliasName, underlyingSpanType, typeParams);
-
-        // Create and register the symbol.
-        var aliasSymbol = new Symbol(
-            aliasName,
-            SymbolKind.TypeAlias,
-            SymbolOrigin.UserCode,
-            standardScope,
-            typeAliasType,
-            declarationSpan: null);
-
-        aliasSymbol.TypeParameters = typeParams;
-        standardScope.AddMember(aliasSymbol);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -2085,6 +2057,41 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         aliasSymbol.TypeParameters = typeParams;
 
         parentScope.AddMember(aliasSymbol);
+        symbolTable.Register(aliasSymbol, aliasDecl);
+    }
+
+    /// <summary>
+    /// Registers a member-level type alias declaration (e.g., <c>public type ArrayBounds = ZeroOrPositiveInt and &lt; Length;</c>)
+    /// as a symbol in the enclosing type's scope. The <c>DeclaredType</c> is left null during Pass 1 and
+    /// resolved during Pass 2 when the target type expression is processed.
+    /// </summary>
+    private static void RegisterMemberTypeAliasDeclaration(
+        MemberTypeAliasDeclarationNode aliasDecl,
+        Scope typeScope,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var aliasName = aliasDecl.Name.Lexeme;
+        var aliasSpan = ToMistSourceSpan(aliasDecl.Name.Span);
+
+        // Extract type parameters (if generic alias).
+        var typeParams = ExtractTypeParameters(aliasDecl.TypeParams, aliasName, sourceText, diagnostics);
+
+        // Create the symbol with a null DeclaredType — it will be set in Pass 2
+        // after the target type reference is resolved.
+        var aliasSymbol = new Symbol(
+            aliasName,
+            SymbolKind.TypeAlias,
+            SymbolOrigin.UserCode,
+            typeScope,
+            declaredType: null,
+            aliasSpan);
+
+        // Store type parameters on the symbol for later resolution.
+        aliasSymbol.TypeParameters = typeParams;
+
+        typeScope.AddMember(aliasSymbol);
         symbolTable.Register(aliasSymbol, aliasDecl);
     }
 
@@ -3308,11 +3315,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case UnconstrainedAssociatedTypeMemberMemberDeclarationNode unconstrainedMember:
                 EmitAssociatedTypeSlotInWrongContextDiagnostic(unconstrainedMember.UnconstrainedAssociatedType.TYPE, sourceText, diagnostics);
                 break;
-            case MemberTypeAliasMemberMemberDeclarationNode:
-                // Member-level type aliases (e.g. `public type SpanBounds = ...;`)
-                // are parsed and tolerated but do not register a symbol in the
-                // struct/class scope — the refinement types they describe are handled
-                // intrinsically by the type checker (ValidateLengthIndexRefinement).
+            case MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias:
+                RegisterMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, symbolTable, sourceText, diagnostics);
                 break;
         }
     }
@@ -4020,6 +4024,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 typeParams.Add(new DependentTypeParameterType(name, ordinal, valueType));
             }
         }
+        else if (node is NamedConstraintDependentTypeParameterTypeParameterNode namedNode)
+        {
+            // Named constraint (e.g., Length:ZeroOrPositiveInt).
+            // During Pass 1, the constraint type alias may not have its DeclaredType
+            // resolved yet (type aliases are resolved in Pass 2). Store the constraint
+            // name as pending and use ErrorType as a placeholder; resolution completes
+            // in Pass2_ResolveNamedTypeParameterConstraints after type alias resolution.
+            var constraintName = namedNode.ConstraintName.Lexeme;
+            var depType = new DependentTypeParameterType(name, ordinal, ErrorType.Instance)
+            {
+                PendingConstraintName = constraintName
+            };
+            typeParams.Add(depType);
+        }
         else
         {
             typeParams.Add(new TypeParameterType(name, ordinal));
@@ -4184,22 +4202,48 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             // Check for name collisions with existing members (fields, methods, properties).
+            // When the declaring type is intrinsic (backend-backed), the explicit property
+            // declaration IS the dependent parameter's value accessor (e.g., Array's
+            // `intrinsic public Int32 Length` is the accessor for the `Length` dependent
+            // parameter). No conflict exists and we skip generating an implicit property
+            // since the intrinsic declaration serves that purpose.
+            var isBackendBacked = declaringType switch
+            {
+                ClassType ct => ct.IsBackendBacked,
+                StructType st => st.IsBackendBacked,
+                _ => false,
+            };
+            var hasCollision = false;
             foreach (var member in typeScope.Members)
             {
                 if (member.Name == paramName &&
                     member.Kind is SymbolKind.Field or SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer)
                 {
-                    diagnostics.Add(new Diagnostic(
-                        DependentTypeParameterNameCollision,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.SemanticModelConstruction,
-                        $"Dependent type parameter '{paramName}' conflicts with member '{paramName}' declared in type '{declaringType.DisplayName}'. Rename either the parameter or the member.",
-                        Location: default,
-                        CompilationUnitPath: sourceText?.Path ?? "<unknown>",
-                        AnalyzerName: null));
+                    if (isBackendBacked)
+                    {
+                        // Intrinsic type with same-named member — this is the intended
+                        // value accessor for the dependent parameter. No diagnostic needed.
+                        hasCollision = true;
+                    }
+                    else
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            DependentTypeParameterNameCollision,
+                            DiagnosticSeverity.Error,
+                            PipelineStage.SemanticModelConstruction,
+                            $"Dependent type parameter '{paramName}' conflicts with member '{paramName}' declared in type '{declaringType.DisplayName}'. Rename either the parameter or the member.",
+                            Location: default,
+                            CompilationUnitPath: sourceText?.Path ?? "<unknown>",
+                            AnalyzerName: null));
+                    }
                     break;
                 }
             }
+
+            // When an intrinsic declaration already provides the value accessor, skip
+            // generating the implicit property to avoid duplicates in the scope.
+            if (hasCollision)
+                continue;
 
             // Generate the implicit property even if there's a collision
             // (the dependent parameter takes precedence per design doc).
@@ -4431,19 +4475,45 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static void RegisterIndexerDeclaration(IndexerDeclarationNode indexerDecl, Scope typeScope, SymbolTable symbolTable)
     {
-        if (indexerDecl is not BlockIndexerIndexerDeclarationNode blockIndexer)
+        if (indexerDecl.Body is not BlockIndexerBodyIndexerBodyNode blockBody)
+        {
+            // Intrinsic indexer — register with get-only accessor info.
+            var intrinsicName = "this[]";
+            var intrinsicSpan = ToMistSourceSpan(indexerDecl.THIS.Span);
+            var intrinsicIsStatic = indexerDecl.Modifiers.Any(m => m is StaticModifierModifierNode);
+            var intrinsicPropertyInfo = new PropertyInfo
+            {
+                HasGet = true,
+                HasSet = true,
+                HasInit = false,
+                IsComputed = false,
+                IsStatic = intrinsicIsStatic,
+                IsExpressionBodied = false,
+                GetAccessor = new AccessorInfo { Kind = AccessorKind.Get, BodyKind = AccessorBodyKind.Auto, Modifier = null },
+                SetAccessor = new AccessorInfo { Kind = AccessorKind.Set, BodyKind = AccessorBodyKind.Auto, Modifier = null },
+                InitAccessor = null,
+                BackingField = null,
+                ReadonlyStatus = HasReadonlyModifier(indexerDecl.Modifiers) ? ReadonlyStatus.ExplicitReadonly : ReadonlyStatus.Unknown,
+            };
+            var intrinsicSymbol = new Symbol(intrinsicName, SymbolKind.Indexer, SymbolOrigin.UserCode, typeScope, declaredType: null, intrinsicSpan);
+            intrinsicSymbol.PropertyMetadata = intrinsicPropertyInfo;
+            if (HasReadonlyModifier(indexerDecl.Modifiers))
+                intrinsicSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+            typeScope.AddMember(intrinsicSymbol);
+            symbolTable.Register(intrinsicSymbol, indexerDecl);
             return;
+        }
 
         var indexerName = "this[]";
-        var indexerSpan = ToMistSourceSpan(blockIndexer.THIS.Span);
-        var isStatic = blockIndexer.Modifiers.Any(m => m is StaticModifierModifierNode);
+        var indexerSpan = ToMistSourceSpan(indexerDecl.THIS.Span);
+        var isStatic = indexerDecl.Modifiers.Any(m => m is StaticModifierModifierNode);
 
         // Walk accessor list to build PropertyInfo (same as block property).
         AccessorInfo? getAccessor = null;
         AccessorInfo? setAccessor = null;
         AccessorInfo? initAccessor = null;
 
-        foreach (var accessor in blockIndexer.Accessors)
+        foreach (var accessor in blockBody.Accessors)
         {
             switch (accessor)
             {
@@ -4489,19 +4559,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             SetAccessor = setAccessor,
             InitAccessor = initAccessor,
             BackingField = null,
-            ReadonlyStatus = HasReadonlyModifier(blockIndexer.Modifiers) ? ReadonlyStatus.ExplicitReadonly : ReadonlyStatus.Unknown,
+            ReadonlyStatus = HasReadonlyModifier(indexerDecl.Modifiers) ? ReadonlyStatus.ExplicitReadonly : ReadonlyStatus.Unknown,
         };
 
         var indexerSymbol = new Symbol(indexerName, SymbolKind.Indexer, SymbolOrigin.UserCode, typeScope, declaredType: null, indexerSpan);
         indexerSymbol.PropertyMetadata = propertyInfo;
 
-        if (HasReadonlyModifier(blockIndexer.Modifiers))
+        if (HasReadonlyModifier(indexerDecl.Modifiers))
         {
             indexerSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
         }
 
         typeScope.AddMember(indexerSymbol);
-        symbolTable.Register(indexerSymbol, blockIndexer);
+        symbolTable.Register(indexerSymbol, indexerDecl);
     }
 
     /// <summary>
@@ -6617,6 +6687,371 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Resolves named type parameter constraints that were deferred during Pass 1.
+    /// During Pass 1, <see cref="NamedConstraintDependentTypeParameterTypeParameterNode"/>
+    /// nodes store the constraint name in <see cref="DependentTypeParameterType.PendingConstraintName"/>
+    /// because type alias <c>DeclaredType</c> may not be resolved yet. After Pass 2 resolves
+    /// type aliases, this method:
+    ///   - Looks up the constraint name in the declaring type's containing scope (with usings).
+    ///   - Validates it resolves to a <see cref="RefinementType"/>.
+    ///   - Validates the base type is in <see cref="AllowedDependentTypeAnnotations"/>.
+    ///   - Updates <see cref="DependentTypeParameterType.ValueType"/> and
+    ///     <see cref="DependentTypeParameterType.RefinementConstraint"/>.
+    ///   - Emits MIST_DT_0002 if the constraint cannot be found or is not a refinement type.
+    ///   - Emits MIST_DT_0001 if the base type is not in the allowed set.
+    /// </summary>
+    private static void Pass2_ResolveNamedTypeParameterConstraints(
+        SymbolTable symbolTable,
+        Scope globalScope,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            // Get type parameters from the symbol's declared type.
+            IReadOnlyList<IType>? typeParameters = symbol.DeclaredType switch
+            {
+                ClassType ct => ct.TypeParameters,
+                StructType st => st.TypeParameters,
+                InterfaceType it => it.TypeParameters,
+                TraitType tt => tt.TypeParameters,
+                _ => null,
+            };
+
+            if (typeParameters is null || typeParameters.Count == 0)
+                continue;
+
+            foreach (var tp in typeParameters)
+            {
+                if (tp is not DependentTypeParameterType depType)
+                    continue;
+                if (depType.PendingConstraintName is null)
+                    continue;
+
+                var constraintName = depType.PendingConstraintName;
+
+                // Look up the constraint name in the type's containing scope.
+                var containingScope = symbol.ContainingScope;
+                var constraintSymbol = containingScope.Lookup(constraintName);
+
+                // Also search via using directives by finding the declaring node
+                // and using LookupWithUsings.
+                if (constraintSymbol is null)
+                {
+                    var declaringNode = symbolTable.GetDeclaringNode(symbol);
+                    if (declaringNode is not null)
+                    {
+                        constraintSymbol = LookupWithUsings(
+                            constraintName, containingScope, declaringNode,
+                            asts, globalScope, symbolTable, compilation);
+                    }
+                }
+
+                if (constraintSymbol is null)
+                {
+                    // Constraint type not found — emit MIST_DT_0002.
+                    var declaringNode = symbolTable.GetDeclaringNode(symbol);
+                    var sourceText = GetSourceTextForSymbol(symbol, symbolTable)
+                        ?? (declaringNode is not null ? GetSourceTextFromOrigin(declaringNode) : null);
+
+                    if (declaringNode is not null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            DependentTypeConstraintNotFound.Value,
+                            DiagnosticSeverity.Error,
+                            $"Constraint type '{constraintName}' could not be found.",
+                            declaringNode,
+                            sourceText));
+                    }
+                    else
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            DependentTypeConstraintNotFound,
+                            DiagnosticSeverity.Error,
+                            PipelineStage.SemanticModelConstruction,
+                            $"Constraint type '{constraintName}' could not be found.",
+                            Location: default,
+                            CompilationUnitPath: "<unknown>",
+                            AnalyzerName: null));
+                    }
+                    continue;
+                }
+
+                // Resolve to RefinementType — check DeclaredType.
+                RefinementType? refinement = null;
+                if (constraintSymbol.DeclaredType is RefinementType directRefinement)
+                {
+                    refinement = directRefinement;
+                }
+                else if (constraintSymbol.DeclaredType is TypeAliasType aliasType
+                         && aliasType.UnderlyingType is RefinementType aliasRefinement)
+                {
+                    refinement = aliasRefinement;
+                }
+
+                if (refinement is null)
+                {
+                    // Constraint resolves but is not a refinement type — emit MIST_DT_0002.
+                    var declaringNode = symbolTable.GetDeclaringNode(symbol);
+                    var sourceText = GetSourceTextForSymbol(symbol, symbolTable)
+                        ?? (declaringNode is not null ? GetSourceTextFromOrigin(declaringNode) : null);
+
+                    if (declaringNode is not null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            DependentTypeConstraintNotFound.Value,
+                            DiagnosticSeverity.Error,
+                            $"Constraint '{constraintName}' must be a refinement type with a primitive base type.",
+                            declaringNode,
+                            sourceText));
+                    }
+                    else
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            DependentTypeConstraintNotFound,
+                            DiagnosticSeverity.Error,
+                            PipelineStage.SemanticModelConstruction,
+                            $"Constraint '{constraintName}' must be a refinement type with a primitive base type.",
+                            Location: default,
+                            CompilationUnitPath: "<unknown>",
+                            AnalyzerName: null));
+                    }
+                    continue;
+                }
+
+                // Validate the base type is in AllowedDependentTypeAnnotations.
+                var baseType = refinement.BaseType;
+                var baseKeyword = GetKeywordForBaseType(baseType);
+
+                if (!AllowedDependentTypeAnnotations.Contains(baseKeyword))
+                {
+                    // Base type not allowed — emit MIST_DT_0001.
+                    var declaringNode = symbolTable.GetDeclaringNode(symbol);
+                    var sourceText = GetSourceTextForSymbol(symbol, symbolTable)
+                        ?? (declaringNode is not null ? GetSourceTextFromOrigin(declaringNode) : null);
+
+                    if (declaringNode is not null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            DependentTypeDisallowedAnnotation.Value,
+                            DiagnosticSeverity.Error,
+                            $"Type '{baseKeyword}' (base type of '{constraintName}') cannot be used as a dependent type parameter. Only primitive integral types, bool, and char are allowed.",
+                            declaringNode,
+                            sourceText));
+                    }
+                    else
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            DependentTypeDisallowedAnnotation,
+                            DiagnosticSeverity.Error,
+                            PipelineStage.SemanticModelConstruction,
+                            $"Type '{baseKeyword}' (base type of '{constraintName}') cannot be used as a dependent type parameter. Only primitive integral types, bool, and char are allowed.",
+                            Location: default,
+                            CompilationUnitPath: "<unknown>",
+                            AnalyzerName: null));
+                    }
+                    continue;
+                }
+
+                // Resolution succeeded — update the DependentTypeParameterType.
+                depType.ValueType = baseType;
+                depType.RefinementConstraint = refinement;
+                depType.PendingConstraintName = null;
+            }
+        }
+
+        // Also resolve named constraints on method type parameters.
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
+                continue;
+
+            var methodTypeParams = (symbol as Symbol)?.TypeParameters;
+            if (methodTypeParams is null || methodTypeParams.Count == 0)
+                continue;
+
+            foreach (var tp in methodTypeParams)
+            {
+                if (tp is not DependentTypeParameterType depType)
+                    continue;
+                if (depType.PendingConstraintName is null)
+                    continue;
+
+                var constraintName = depType.PendingConstraintName;
+                var containingScope = symbol.ContainingScope;
+                var constraintSymbol = containingScope.Lookup(constraintName);
+
+                if (constraintSymbol is null)
+                {
+                    var declaringNode = symbolTable.GetDeclaringNode(symbol);
+                    if (declaringNode is not null)
+                    {
+                        constraintSymbol = LookupWithUsings(
+                            constraintName, containingScope, declaringNode,
+                            asts, globalScope, symbolTable, compilation);
+                    }
+                }
+
+                if (constraintSymbol is null)
+                {
+                    var declaringNode = symbolTable.GetDeclaringNode(symbol);
+                    var sourceText = GetSourceTextForSymbol(symbol, symbolTable)
+                        ?? (declaringNode is not null ? GetSourceTextFromOrigin(declaringNode) : null);
+
+                    if (declaringNode is not null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            DependentTypeConstraintNotFound.Value,
+                            DiagnosticSeverity.Error,
+                            $"Constraint type '{constraintName}' could not be found.",
+                            declaringNode,
+                            sourceText));
+                    }
+                    continue;
+                }
+
+                RefinementType? refinement = null;
+                if (constraintSymbol.DeclaredType is RefinementType directRefinement)
+                {
+                    refinement = directRefinement;
+                }
+                else if (constraintSymbol.DeclaredType is TypeAliasType aliasType
+                         && aliasType.UnderlyingType is RefinementType aliasRefinement)
+                {
+                    refinement = aliasRefinement;
+                }
+
+                if (refinement is null)
+                {
+                    var declaringNode = symbolTable.GetDeclaringNode(symbol);
+                    var sourceText = GetSourceTextForSymbol(symbol, symbolTable)
+                        ?? (declaringNode is not null ? GetSourceTextFromOrigin(declaringNode) : null);
+
+                    if (declaringNode is not null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            DependentTypeConstraintNotFound.Value,
+                            DiagnosticSeverity.Error,
+                            $"Constraint '{constraintName}' must be a refinement type with a primitive base type.",
+                            declaringNode,
+                            sourceText));
+                    }
+                    continue;
+                }
+
+                var baseType = refinement.BaseType;
+                var baseKeyword = GetKeywordForBaseType(baseType);
+
+                if (!AllowedDependentTypeAnnotations.Contains(baseKeyword))
+                {
+                    var declaringNode = symbolTable.GetDeclaringNode(symbol);
+                    var sourceText = GetSourceTextForSymbol(symbol, symbolTable)
+                        ?? (declaringNode is not null ? GetSourceTextFromOrigin(declaringNode) : null);
+
+                    if (declaringNode is not null)
+                    {
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            DependentTypeDisallowedAnnotation.Value,
+                            DiagnosticSeverity.Error,
+                            $"Type '{baseKeyword}' (base type of '{constraintName}') cannot be used as a dependent type parameter. Only primitive integral types, bool, and char are allowed.",
+                            declaringNode,
+                            sourceText));
+                    }
+                    continue;
+                }
+
+                depType.ValueType = baseType;
+                depType.RefinementConstraint = refinement;
+                depType.PendingConstraintName = null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Fixes up <see cref="DependentValueArgument"/> instances that were created during Pass 2
+    /// with <see cref="ErrorType"/> as their <c>ValueType</c>. This happens because named-constraint
+    /// dependent parameters (e.g., <c>Count:PositiveInt</c>) have <c>ErrorType</c> as a placeholder
+    /// during Pass 2 and are resolved after. This method patches those arguments by looking at the
+    /// declaring type's resolved <see cref="DependentTypeParameterType.ValueType"/>.
+    /// </summary>
+    private static void FixUpDependentValueArguments(
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes)
+    {
+        // Fix DependentValueArguments in expression types.
+        foreach (var (node, type) in expressionTypes)
+        {
+            FixUpDependentArgsInType(type);
+        }
+
+        // Fix DependentValueArguments in symbol declared types (e.g., base types, interfaces).
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            FixUpDependentArgsInType(symbol.DeclaredType);
+
+            if (symbol.DeclaredType is ClassType ct)
+            {
+                FixUpDependentArgsInType(ct.BaseType);
+                foreach (var iface in ct.Interfaces)
+                    FixUpDependentArgsInType(iface);
+                foreach (var member in ct.MemberScope.Members)
+                    FixUpDependentArgsInType(member.DeclaredType);
+            }
+            else if (symbol.DeclaredType is StructType st)
+            {
+                foreach (var iface in st.Interfaces)
+                    FixUpDependentArgsInType(iface);
+                foreach (var member in st.MemberScope.Members)
+                    FixUpDependentArgsInType(member.DeclaredType);
+            }
+        }
+    }
+
+    /// <summary>
+    /// If the type is a <see cref="ConstructedType"/> with <see cref="ConstructedType.DependentArguments"/>,
+    /// patches any argument whose <c>ValueType</c> is <see cref="ErrorType"/> by resolving the correct
+    /// value type from the generic definition's type parameters.
+    /// </summary>
+    private static void FixUpDependentArgsInType(IType? type)
+    {
+        if (type is not ConstructedType ct)
+            return;
+        if (ct.DependentArguments is null)
+            return;
+
+        // Get the type parameters from the generic definition.
+        var typeParams = GetTypeParametersForType(ct.GenericDefinition);
+        if (typeParams is null)
+            return;
+
+        for (var i = 0; i < ct.DependentArguments.Count; i++)
+        {
+            var depArg = ct.DependentArguments[i];
+            if (depArg is null)
+                continue;
+            if (depArg.ValueType is not ErrorType)
+                continue;
+
+            // The corresponding type parameter should now have the resolved ValueType.
+            if (i < typeParams.Count && typeParams[i] is DependentTypeParameterType depParam
+                && depParam.ValueType is not ErrorType)
+            {
+                depArg.ValueType = depParam.ValueType;
+            }
+        }
+    }
+
+    private static IReadOnlyList<IType>? GetTypeParametersForType(IType? type) => type switch
+    {
+        ClassType ct => ct.TypeParameters,
+        StructType st => st.TypeParameters,
+        InterfaceType it => it.TypeParameters,
+        TraitType tt => tt.TypeParameters,
+        _ => null,
+    };
+
+    /// <summary>
     /// Resolves adhoc refinement constraint clauses on all declarations after Pass 2
     /// has registered parameter symbols. For each <see cref="AdhocRefinementConstraintWhereClauseNode"/>:
     ///   - Looks up the name in dependent type parameters → attaches predicate to
@@ -6976,8 +7411,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case ConstructorDeclarationNode ctorDecl:
                 return (ctorDecl.Constraints, Array.Empty<IType>());
 
-            case BlockIndexerIndexerDeclarationNode blockIndexerDecl:
-                return (blockIndexerDecl.Constraints, Array.Empty<IType>());
+            case IndexerDeclarationNode indexerDecl2:
+                return (indexerDecl2.Constraints, Array.Empty<IType>());
 
             case AssociatedTypeSlotDeclarationNode slotDecl when symbol is Symbol slotSymbol:
                 return (slotDecl.SlotWhereConstraints, slotSymbol.TypeParameters);
@@ -7098,7 +7533,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             MethodDeclarationNode methodDecl => methodDecl.Parameters,
             ConstructorDeclarationNode ctorDecl => ctorDecl.Parameters,
-            BlockIndexerIndexerDeclarationNode indexerDecl => indexerDecl.Parameters,
+            IndexerDeclarationNode indexerDecl3 => indexerDecl3.Parameters,
             InterfaceMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Parameters,
             _ => null,
         };
@@ -14455,6 +14890,83 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Resolves a member-level type alias declaration (e.g., <c>public type ArrayBounds = ZeroOrPositiveInt and &lt; Length;</c>).
+    /// The resolution scope includes the enclosing type's scope so that dependent parameter names (like <c>Length</c>)
+    /// can be referenced in the type expression.
+    /// </summary>
+    private static void ResolveMemberTypeAliasDeclaration(
+        MemberTypeAliasDeclarationNode aliasDecl,
+        Scope typeScope,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var aliasSymbol = symbolTable.GetDeclaredSymbol(aliasDecl) as Symbol;
+        if (aliasSymbol is null) return;
+
+        // If already resolved, skip.
+        if (aliasSymbol.DeclaredType is not null) return;
+
+        var aliasName = aliasDecl.Name.Lexeme;
+
+        // Create a resolution scope that includes the type's scope (for dependent parameters
+        // like Length) and the file scope (for external types like ZeroOrPositiveInt).
+        // The type scope is the parent so that dependent parameter references resolve first.
+        var resolutionScope = new Scope(parent: fileScope);
+
+        // Add type scope members to the resolution scope so dependent parameters are visible.
+        foreach (var member in typeScope.Members)
+        {
+            resolutionScope.AddMember(member);
+        }
+
+        // Add alias's own type parameters if any.
+        if (aliasSymbol.TypeParameters.Count > 0)
+        {
+            foreach (var tp in aliasSymbol.TypeParameters)
+            {
+                var (tpName, _) = GetTypeParameterNameAndOrdinal(tp);
+                var tpSymbol = new Symbol(tpName, SymbolKind.Class, SymbolOrigin.UserCode, resolutionScope, tp, null);
+                resolutionScope.AddMember(tpSymbol);
+            }
+        }
+
+        // Resolve the target type reference.
+        var targetType = ResolveRefinableTypeExpression(
+            aliasDecl.Type, resolutionScope, ambientTypeResolver, symbolTable, sourceText, diagnostics, aliasName);
+
+        if (targetType is ErrorType)
+        {
+            aliasSymbol.DeclaredType = ErrorType.Instance;
+            return;
+        }
+
+        // If the target resolves to another TypeAliasType, unwrap it.
+        if (targetType is TypeAliasType aliasTarget)
+        {
+            targetType = aliasTarget.UnderlyingType;
+        }
+
+        // Store the resolved type as the alias's declared type.
+        if (targetType is RefinementType refinementType)
+        {
+            aliasSymbol.DeclaredType = refinementType;
+        }
+        else if (targetType is UnionType unionType && HasRefinementConstituent(unionType))
+        {
+            aliasSymbol.DeclaredType = unionType;
+        }
+        else
+        {
+            var typeParams = aliasSymbol.TypeParameters;
+            var typeAliasType = new TypeAliasType(aliasName, targetType, typeParams);
+            aliasSymbol.DeclaredType = typeAliasType;
+        }
+    }
+
+    /// <summary>
     /// Resolves a newtype declaration by resolving the source type reference,
     /// creating a <see cref="NewtypeType"/>, and cloning all members from the
     /// source type's scope into the newtype's member scope.
@@ -14600,6 +15112,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Generate implicit properties for dependent type parameters.
         GenerateDependentTypeProperties(classType.TypeParameters, typeScope, classType, sourceText, diagnostics);
 
+        // Pre-resolve member type aliases before other members, so that types like
+        // ArrayBounds/SpanBounds are available when referenced in parameter types.
+        foreach (var memberDecl in classDecl.Members)
+        {
+            if (memberDecl is MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias)
+            {
+                ResolveMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+            }
+        }
+
         // Create a per-class resolution scope that layers the class's type
         // parameters on top of the file scope. This ensures that type parameter
         // names (e.g., T in GenericBox<T>) resolve to the correct
@@ -14640,6 +15162,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Generate implicit properties for dependent type parameters.
         GenerateDependentTypeProperties(structType.TypeParameters, typeScope, structType, sourceText, diagnostics);
+
+        // Pre-resolve member type aliases before other members, so that types like
+        // SpanBounds are available when referenced in parameter types.
+        foreach (var memberDecl in structDecl.Members)
+        {
+            if (memberDecl is MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias)
+            {
+                ResolveMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+            }
+        }
 
         // Create a per-struct resolution scope that layers the struct's type
         // parameters on top of the file scope.
@@ -14866,6 +15398,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             case NestedTypeMemberMemberDeclarationNode nestedTypeMember:
                 ResolveTypeDeclaration(nestedTypeMember.NestedType, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias:
+                ResolveMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 break;
         }
     }
@@ -15550,11 +16085,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        if (indexerDecl is not BlockIndexerIndexerDeclarationNode blockIndexer)
+        if (indexerDecl.Body is not BlockIndexerBodyIndexerBodyNode blockBody2)
+        {
+            // Intrinsic indexer — still resolve the type for the symbol.
+            var intrinsicIndexerType = ResolveTypeReference(indexerDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            var intrinsicIndexerSymbol = symbolTable.GetDeclaredSymbol(indexerDecl) as Symbol;
+            if (intrinsicIndexerSymbol is not null)
+            {
+                intrinsicIndexerSymbol.DeclaredType = intrinsicIndexerType;
+            }
+            // Register indexer parameters.
+            if (indexerDecl.Parameters is not null)
+            {
+                var intrinsicIndexerScope = new Scope(parent: typeScope);
+                RegisterParameters(indexerDecl.Parameters, intrinsicIndexerScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+            }
             return;
+        }
 
         // Resolve the indexer return type and update the indexer symbol.
-        var indexerType = ResolveTypeReference(blockIndexer.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        var indexerType = ResolveTypeReference(indexerDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
 
         // Storage-ban check (unknown-type feature, Task 11.3, Requirements
         // 5.3, 7.5, 7.6, 16.1). Applies to the indexer's element type — the
@@ -15566,27 +16116,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 UnknownAsIndexerElementType.Value,
                 DiagnosticSeverity.Error,
                 $"Indexer '{enclosingType.DisplayName}.this[]' of element type '{indexerType.DisplayName}' cannot have 'unknown' in its declared type: 'unknown' is not permitted as the element type of writable storage.",
-                blockIndexer,
+                indexerDecl,
                 sourceText));
         }
 
-        var indexerSymbol = symbolTable.GetDeclaredSymbol(blockIndexer) as Symbol;
+        var indexerSymbol = symbolTable.GetDeclaredSymbol(indexerDecl) as Symbol;
         if (indexerSymbol is not null)
         {
             indexerSymbol.DeclaredType = indexerType;
         }
 
-        var isStatic = blockIndexer.Modifiers.Any(m => m is StaticModifierModifierNode);
+        var isStatic = indexerDecl.Modifiers.Any(m => m is StaticModifierModifierNode);
 
         // Create a scope for the indexer parameters.
         var indexerScope = new Scope(parent: typeScope);
 
         // Register indexer parameters.
-        RegisterParameters(blockIndexer.Parameters, indexerScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+        RegisterParameters(indexerDecl.Parameters, indexerScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
 
         // Resolve each accessor body with the indexer scope (which has the parameters).
         var propInfo = indexerSymbol?.PropertyMetadata;
-        foreach (var accessor in blockIndexer.Accessors)
+        foreach (var accessor in blockBody2.Accessors)
         {
             ResolveAccessorBody(accessor, indexerType, propInfo, indexerScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
         }
@@ -17137,7 +17687,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return baseType;
 
         // Refinement is present — validate predicate compatibility with the base type.
-        var andPatternNode = singleExpr.Refinement.Predicate;
+        AndPatternNode andPatternNode;
+        switch (singleExpr.Refinement)
+        {
+            case SimpleRefinementPredicateRefinementPredicateNode simple:
+                andPatternNode = simple.Predicate;
+                break;
+            case CompoundRefinementPredicateRefinementPredicateNode compound:
+                // Synthesize an AndPatternNode from the compound parts.
+                // The compound form "and <pat1> and <pat2>" is equivalent to
+                // an AndPattern with first=pat1 and rest=[pat2].
+                andPatternNode = new AndPatternNode
+                {
+                    Left = compound.First,
+                    UnaryPatterns = compound.UnaryPatterns
+                };
+                break;
+            default:
+                return ErrorType.Instance;
+        }
         var predicate = new RefinementPredicate(andPatternNode);
 
         // Validate: relational patterns require a comparable type.
@@ -17201,6 +17769,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static bool IsComparableType(IType type)
     {
+        // Unwrap RefinementType to check the underlying base type.
+        // e.g., ZeroOrPositiveInt (= int >= 0) should be comparable because its base type is int.
+        if (type is RefinementType refinement)
+            return IsComparableType(refinement.BaseType);
+
         var displayName = type.DisplayName;
         return displayName switch
         {
@@ -18515,6 +19088,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     ResolveTypeAliasDeclaration(aliasNode, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 }
+                else
+                {
+                    // Member-level type alias (e.g., public type ArrayBounds = ZeroOrPositiveInt and < Length;)
+                    var memberAliasNode = symbolTable.GetDeclaringNode(symbol) as MemberTypeAliasDeclarationNode;
+                    if (memberAliasNode is not null)
+                    {
+                        // Resolve using the type scope (parent of the alias symbol's containing scope).
+                        var typeScope = symbol.ContainingScope as Scope;
+                        if (typeScope is not null)
+                        {
+                            ResolveMemberTypeAliasDeclaration(memberAliasNode, typeScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                        }
+                    }
+                }
             }
             // For newtypes that haven't been resolved yet, trigger resolution
             // so that forward references to newtypes work (newtypes declared
@@ -19321,6 +19908,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var hasTypeParams = false;
         var hasNestedTypes = false;
         var hasAssociatedTypeSlots = false;
+        var hasResolvedMemberTypeAliases = false;
         foreach (var member in typeScope.Members)
         {
             if (member.DeclaredType is TypeParameterType or DependentTypeParameterType)
@@ -19335,9 +19923,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 hasAssociatedTypeSlots = true;
             }
+            else if (member.Kind == SymbolKind.TypeAlias && member.DeclaredType is not null)
+            {
+                // Only include member type aliases that have already been resolved.
+                // Unresolved aliases (DeclaredType == null) would trigger on-demand
+                // resolution which can cause ordering issues.
+                hasResolvedMemberTypeAliases = true;
+            }
         }
 
-        if (!hasTypeParams && !hasNestedTypes && !hasAssociatedTypeSlots)
+        if (!hasTypeParams && !hasNestedTypes && !hasAssociatedTypeSlots && !hasResolvedMemberTypeAliases)
             return fileScope;
 
         var scope = new Scope(parent: fileScope);
@@ -19352,6 +19947,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 scope.AddMember(member);
             }
             else if (member.DeclaredType is AssociatedTypeSlotType)
+            {
+                scope.AddMember(member);
+            }
+            else if (member.Kind == SymbolKind.TypeAlias && member.DeclaredType is not null)
             {
                 scope.AddMember(member);
             }

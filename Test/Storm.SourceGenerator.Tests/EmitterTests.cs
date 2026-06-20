@@ -467,8 +467,12 @@ namespace Storm.SourceGenerator.Tests
             var output = ParserEmitter.Emit(ctx);
 
             Assert.Contains("public static class TestParser", output);
-            // No public parse methods for empty grammar (helper methods are still emitted)
-            Assert.DoesNotContain("public static", output.Substring(output.IndexOf("class TestParser") + 20));
+            // LastPosition property is always emitted as parser infrastructure
+            Assert.Contains("public static int LastPosition => _pos;", output);
+            // No public parse methods for empty grammar (only LastPosition is public static)
+            var afterClass = output.Substring(output.IndexOf("class TestParser") + 20);
+            var afterLastPosition = afterClass.Substring(afterClass.IndexOf("LastPosition => _pos;") + 21);
+            Assert.DoesNotContain("public static", afterLastPosition);
             // No _memo in the emitted parser state
             Assert.DoesNotContain("_memo", output);
         }

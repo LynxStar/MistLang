@@ -194,10 +194,11 @@ public sealed class ReadonlyInferenceEngine
             }
 
             // Indexer declarations
-            case BlockIndexerIndexerDeclarationNode blockIndexer:
+            case IndexerDeclarationNode indexerDecl
+                when indexerDecl.Body is BlockIndexerBodyIndexerBodyNode blockBody:
             {
                 // If the indexer has a setter, it's mutable.
-                foreach (var accessor in blockIndexer.Accessors)
+                foreach (var accessor in blockBody.Accessors)
                 {
                     if (accessor is BlockSetAccessorAccessorDeclarationNode
                         or ExpressionSetAccessorAccessorDeclarationNode
@@ -211,7 +212,7 @@ public sealed class ReadonlyInferenceEngine
                 }
 
                 // Check getter bodies.
-                foreach (var accessor in blockIndexer.Accessors)
+                foreach (var accessor in blockBody.Accessors)
                 {
                     switch (accessor)
                     {

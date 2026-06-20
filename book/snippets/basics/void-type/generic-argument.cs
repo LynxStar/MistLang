@@ -1,21 +1,8 @@
 using System;
 
-namespace Snippet;
+namespace Standard;
 
-public class Result<T>
+interface IClonable<T>
 {
-    private T value;
-
-    private bool success;
-
-    public Result(T value, bool success)
-    {
-        this.value = value;
-        this.success = success;
-    }
-
-    public bool IsSuccess()
-    {
-        return success;
-    }
+    T Clone();
 }

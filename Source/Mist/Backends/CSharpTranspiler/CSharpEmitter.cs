@@ -334,6 +334,13 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private IType? _arrayLiteralTargetElementType;
     /// <summary>
+    /// Tracks the dependent type parameter names declared on the current enclosing type
+    /// (class or struct) being emitted. Used by the identifier emission fallback to
+    /// distinguish between a dependent type parameter reference and a field/property
+    /// with the same name declared in a different type.
+    /// </summary>
+    private HashSet<string>? _currentTypeDependentParamNames;
+    /// <summary>
     /// The symbol of the method currently being emitted. Used to determine whether
     /// the enclosing context is sync or async for auto-unwrap emission.
     /// </summary>
@@ -2923,6 +2930,22 @@ internal sealed class CSharpSourceWriter
         }
         _currentInterfaceTypeParamSubs = interfaceTypeParamSubstitutions;
 
+        // Track dependent type parameter names declared on this type so the
+        // identifier emission fallback can distinguish local dep params from
+        // fields/properties with the same name in other types.
+        var previousTypeDependentParamNames = _currentTypeDependentParamNames;
+        if (symbol?.DeclaredType is not null)
+        {
+            var typeParamsForDep = GetTypeParametersFromType(symbol.DeclaredType);
+            var depNames = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var tp in typeParamsForDep)
+            {
+                if (tp is DependentTypeParameterType depParam)
+                    depNames.Add(depParam.Name);
+            }
+            _currentTypeDependentParamNames = depNames.Count > 0 ? depNames : null;
+        }
+
         // Emit every member in declaration order. No name-based grouping or
         // deduplication is performed, so overloaded methods and constructors
         // are each emitted as separate C# declarations.
@@ -2937,6 +2960,7 @@ internal sealed class CSharpSourceWriter
 
         // Clear class-level factory tracking after emitting all members.
         _currentClassFactoryTypeParams = null;
+        _currentTypeDependentParamNames = previousTypeDependentParamNames;
         _currentParameterizedSlots = previousParameterizedSlotsForClass;
         _currentInterfaceTypeParamSubs = previousInterfaceTypeParamSubs;
 
@@ -4011,6 +4035,20 @@ internal sealed class CSharpSourceWriter
             }
         }
 
+        // Track dependent type parameter names declared on this struct.
+        var previousTypeDependentParamNames = _currentTypeDependentParamNames;
+        if (symbol?.DeclaredType is not null)
+        {
+            var typeParamsForDep = GetTypeParametersFromType(symbol.DeclaredType);
+            var depNames = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var tp in typeParamsForDep)
+            {
+                if (tp is DependentTypeParameterType depParam)
+                    depNames.Add(depParam.Name);
+            }
+            _currentTypeDependentParamNames = depNames.Count > 0 ? depNames : null;
+        }
+
         // Emit every member in declaration order. No name-based grouping or
         // deduplication is performed, so overloaded methods and constructors
         // are each emitted as separate C# declarations.
@@ -4025,6 +4063,7 @@ internal sealed class CSharpSourceWriter
 
         // Clear class-level factory tracking after emitting all members.
         _currentClassFactoryTypeParams = null;
+        _currentTypeDependentParamNames = previousTypeDependentParamNames;
 
         // Emit explicit interface implementations for with-mapped trait members.
         if (symbol?.DeclaredType is StructType structTypeForTraits)
@@ -5726,24 +5765,24 @@ internal sealed class CSharpSourceWriter
 
     private void EmitIndexerDeclaration(IndexerDeclarationNode indexerDecl)
     {
-        if (indexerDecl is not BlockIndexerIndexerDeclarationNode blockIndexer)
+        if (indexerDecl.Body is not BlockIndexerBodyIndexerBodyNode blockBody)
             return;
 
-        var modifiers = EmitModifiers(blockIndexer.Modifiers);
-        var type = EmitTypeReference(blockIndexer.Type);
-        var parameters = EmitParameterList(blockIndexer.Parameters);
+        var modifiers = EmitModifiers(indexerDecl.Modifiers);
+        var type = EmitTypeReference(indexerDecl.Type);
+        var parameters = EmitParameterList(indexerDecl.Parameters);
 
         // Task 12.2 — Determine if this indexer is readonly (emit `init` instead of `set`).
-        var indexerSymbol = _model.GetDeclaredSymbol(blockIndexer) as Symbol;
+        var indexerSymbol = _model.GetDeclaredSymbol(indexerDecl) as Symbol;
         var isReadonlyIndexer = indexerSymbol is not null
             && indexerSymbol.ReadonlyStatus is not ReadonlyStatus.Mutable and not ReadonlyStatus.Unknown;
 
         // Collect refinement guards for indexer parameters.
-        var refinementGuards = CollectRefinementParameterGuards(blockIndexer.Parameters);
+        var refinementGuards = CollectRefinementParameterGuards(indexerDecl.Parameters);
 
         // Build accessor list.
         var accessorParts = new List<string>();
-        foreach (var accessor in blockIndexer.Accessors)
+        foreach (var accessor in blockBody.Accessors)
         {
             accessorParts.Add(EmitAccessorDeclarationWithGuards(accessor, null, isReadonlyIndexer, refinementGuards));
         }
@@ -6309,9 +6348,18 @@ internal sealed class CSharpSourceWriter
         }
 
         // Fallback: emit the underlying type with the type arguments appended.
+        // SpanType/ArrayType already include their element type in GetTypeName output,
+        // so we emit just the base name (without the baked-in type arg) and append
+        // the call-site type arguments to get proper substitution.
+        if (underlying is SpanType fallbackSpan)
+        {
+            var spanBase = fallbackSpan.IsReadOnly ? "System.ReadOnlySpan" : "System.Span";
+            var args = EmitTypeArgumentList(namedRef.TypeArgs);
+            return $"{spanBase}{args}";
+        }
         var baseName = CSharpTypeMap.GetTypeName(underlying, isValueContext);
-        var args = EmitTypeArgumentList(namedRef.TypeArgs);
-        return $"{baseName}{args}";
+        var args2 = EmitTypeArgumentList(namedRef.TypeArgs);
+        return $"{baseName}{args2}";
     }
 
     /// <summary>
@@ -6335,19 +6383,24 @@ internal sealed class CSharpSourceWriter
         if (paramList.Parameter.Type.First is NamedSingleTypeRefSingleTypeRefNode namedRef)
         {
             var name = ExtractQualifiedName(namedRef.Name);
-            if (_model.AllSymbols.Any(s => s.Name == name && s.Kind == SymbolKind.TypeAlias))
+            if (_model.AllSymbols.Any(s => s.Name == name && s.Kind == SymbolKind.TypeAlias
+                && !IsStdlibTypeAlias(s)))
                 return true;
         }
 
-        // Lexical fallback: check if any type alias name appears in the source text
-        // as a standalone word (word-boundary match). This catches subsequent parameters
+        // Lexical fallback: check if any NON-STDLIB type alias name appears in the source
+        // text as a standalone word (word-boundary match). This catches subsequent parameters
         // (beyond the first) that the Storm parser does not expose structurally.
         // We use ContainsWord instead of Contains to avoid false positives where an
         // alias name is a substring of a parameter name (e.g., alias "Name" matching
         // inside "appName").
+        // Stdlib type aliases (Action, Span, ReadOnlySpan, Task, etc.) are excluded
+        // because they are either handled by dedicated emission paths or produce
+        // identical source text when emitted.
         foreach (var sym in _model.AllSymbols)
         {
             if (sym.Kind == SymbolKind.TypeAlias
+                && !IsStdlibTypeAlias(sym)
                 && ContainsWord(sourceText, sym.Name))
             {
                 return true;
@@ -6355,6 +6408,22 @@ internal sealed class CSharpSourceWriter
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Returns true if the symbol is a stdlib type alias whose source text can be
+    /// used as-is without rewriting. Span and ReadOnlySpan are copied verbatim
+    /// because the source text fast path uses the same spelling as C# (they're
+    /// resolved through the mapped name path when the fallback triggers elsewhere).
+    /// Other stdlib aliases like Task, Action, SpanBounds need rewriting and should
+    /// NOT be excluded.
+    /// </summary>
+    private static bool IsStdlibTypeAlias(ISymbol sym)
+    {
+        // Only Span and ReadOnlySpan produce identical C# source text.
+        // Other stdlib aliases (Task → System.Threading.Tasks.Task, 
+        // Action → System.Action, etc.) need rewriting.
+        return sym.Name is "Span" or "ReadOnlySpan";
     }
 
     private string EmitParameter(ParameterNode param)
@@ -6888,6 +6957,16 @@ internal sealed class CSharpSourceWriter
                     && resolvedCtTask.GenericDefinition is ClassType { DisplayName: "Task", ContainingNamespace: "Standard", IsBackendBacked: true })
                 {
                     var emittedType = CSharpTypeMap.GetTypeName(resolvedCtTask, isValueContext);
+                    return namedRef.ArrayRank is not null ? $"{emittedType}[]" : emittedType;
+                }
+                // ── SpanType: emit via CSharpTypeMap ──
+                // When a named type reference resolves to a SpanType (e.g., Span<int>
+                // which resolves through the type alias Span<T> = Span<T, unknown>),
+                // emit it through CSharpTypeMap which handles the length-erasure:
+                // Span<T, Length> → System.Span<T>, ReadOnlySpan<T, Length> → System.ReadOnlySpan<T>.
+                if (resolvedType is SpanType resolvedSpanType)
+                {
+                    var emittedType = CSharpTypeMap.GetTypeName(resolvedSpanType, isValueContext);
                     return namedRef.ArrayRank is not null ? $"{emittedType}[]" : emittedType;
                 }
                 // Fallback: search all symbols for a type alias with this name.
@@ -12134,6 +12213,14 @@ internal sealed class CSharpSourceWriter
                                 {
                                     type = CSharpTypeMap.GetTypeName(ct.GenericDefinition);
                                 }
+                                else if (underlying is SpanType spanUnderlying)
+                                {
+                                    // SpanType bakes element type into GetTypeName (e.g., System.Span<T>).
+                                    // We emit just the base name and keep the original call-site type args
+                                    // so that the alias's type parameter T is substituted with the actual
+                                    // type argument (e.g., int).
+                                    type = spanUnderlying.IsReadOnly ? "System.ReadOnlySpan" : "System.Span";
+                                }
                                 else
                                 {
                                     type = CSharpTypeMap.GetTypeName(underlying);
@@ -12273,9 +12360,13 @@ internal sealed class CSharpSourceWriter
                     return $"T{identName}.Value";
                 }
                 // Fallback: check if the name matches a dependent type parameter
-                // (the semantic model may resolve it to the value type rather than
-                // the DependentTypeParameterType itself in some contexts).
-                if (IsDependentTypeParameterName(identName))
+                // declared on the current method or its enclosing type. This prevents
+                // false positives where a field or property in a different type shares
+                // a name with a dependent type parameter declared elsewhere in the
+                // compilation (e.g., a property named "Count" colliding with a
+                // dependent param "Count:PositiveInt" from another class).
+                if (IsDependentTypeParameterName(identName)
+                    && IsLocalDependentTypeParameterName(identName))
                 {
                     return $"T{identName}.Value";
                 }
@@ -12524,6 +12615,7 @@ internal sealed class CSharpSourceWriter
         return typeParam switch
         {
             DependentTypeParameterTypeParameterNode dep => $"T{dep.Name.Lexeme}",
+            NamedConstraintDependentTypeParameterTypeParameterNode named => $"T{named.Name.Lexeme}",
             _ => typeParam.GetName().Lexeme,
         };
     }
@@ -12683,6 +12775,34 @@ internal sealed class CSharpSourceWriter
     private bool IsDependentTypeParameterName(string name)
     {
         return _dependentTypeParamNames.Contains(name);
+    }
+
+    /// <summary>
+    /// Checks if a name corresponds to a dependent type parameter declared on the
+    /// current method or enclosing type — not just any type in the compilation.
+    /// This prevents cross-type name collisions where a field named "Count" in one
+    /// type incorrectly matches a dependent param "Count" on a different type.
+    /// </summary>
+    private bool IsLocalDependentTypeParameterName(string name)
+    {
+        // Check the current method's type parameters.
+        if (_currentMethodSymbol is not null)
+        {
+            foreach (var tp in _currentMethodSymbol.TypeParameters)
+            {
+                if (tp is DependentTypeParameterType depParam && depParam.Name == name)
+                    return true;
+            }
+        }
+
+        // Check the current enclosing type's dependent parameters.
+        if (_currentTypeDependentParamNames is not null
+            && _currentTypeDependentParamNames.Contains(name))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>

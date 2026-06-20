@@ -73,6 +73,33 @@ public sealed class MistParser : IParser
         if (root is not null)
         {
             AssignOrigin(root, new ParsedOrigin(tokens.Source));
+
+            // Completeness check: verify the parser consumed all default-channel tokens.
+            // The CompilationUnit rule does not consume the EOF sentinel, so we exclude it
+            // from the comparison — only flag genuinely unconsumed content tokens.
+            var lastPos = Mist.Generated.MistParser.LastPosition;
+            var defaultTokens = tokens.DefaultChannelTokens;
+            var contentTokenCount = defaultTokens.Length > 0
+                && defaultTokens[^1].Kind == (int)Mist.Generated.TokenKind.EndOfFile
+                ? defaultTokens.Length - 1
+                : defaultTokens.Length;
+
+            if (lastPos < contentTokenCount)
+            {
+                var unconsumedToken = defaultTokens[lastPos];
+                var location = new LinePositionSpan(
+                    new LinePosition(unconsumedToken.Start.Line, unconsumedToken.Start.Column),
+                    new LinePosition(unconsumedToken.Start.Line, unconsumedToken.Start.Column));
+
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_PARSE_INCOMPLETE"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Parsing,
+                    $"Parser did not consume all input. Unparseable content begins at line {unconsumedToken.Start.Line}.",
+                    Location: location,
+                    CompilationUnitPath: tokens.Source.Path,
+                    AnalyzerName: null));
+            }
         }
 
         return new ParseResult(

@@ -535,7 +535,15 @@ public class Program {
             // Console, Math, Convert, and Task map 1:1 to their CLR equivalents
             // and the emitter resolves them through TryGetMappedName in
             // EmitPrimary — no template needed (design: Approach B).
-            if (declaringType is "Standard.Console" or "Standard.Math" or "Standard.Convert" or "Standard.Task" or "Standard.ValueTask")
+            // Array, Span, and ReadOnlySpan are lowered to their CLR equivalents
+            // (T[], System.Span<T>, System.ReadOnlySpan<T>) via dedicated
+            // ArrayType/SpanType handling in the type map and emitter — their
+            // intrinsic members (constructors, GetEnumerator, Slice, indexers)
+            // are emitted through dedicated code paths, not templates.
+            if (declaringType is "Standard.Console" or "Standard.Math" or "Standard.Convert"
+                or "Standard.Task" or "Standard.ValueTask"
+                or "Standard.Array" or "Standard.Span" or "Standard.ReadOnlySpan"
+                or "Enumerator")
                 continue;
 
             var name = intrinsicSymbol.Name;

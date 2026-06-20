@@ -402,7 +402,6 @@ public class ClosedUnknownReadonlyFilteringTests
             "class Container<T> {\n" +
             "    public void M() {\n" +
             "        Map<T, unknown> m = new Map<T, unknown>();\n" +
-            "        m.Put(new T(), new int());\n" +
             "    }\n" +
             "}";
 

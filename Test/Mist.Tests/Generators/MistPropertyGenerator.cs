@@ -396,7 +396,7 @@ public static class MistPropertyGenerator
                from paramName in Gen.Elements(IndexerParamNames)
                from paramType in MistTypeGenerator.GenPrimitiveTypeRef()
                from accessors in GenAccessorList(type)
-               select (IndexerDeclarationNode)new BlockIndexerIndexerDeclarationNode
+               select (IndexerDeclarationNode)new IndexerDeclarationNode
                {
                    Modifiers = mods,
                    Type = type,
@@ -409,7 +409,10 @@ public static class MistPropertyGenerator
                            Name = Tok(paramName),
                        },
                    },
-                   Accessors = accessors,
+                   Body = new BlockIndexerBodyIndexerBodyNode
+                   {
+                       Accessors = accessors,
+                   },
                };
     }
 

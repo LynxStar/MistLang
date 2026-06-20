@@ -290,10 +290,10 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (declaringNode is not BlockIndexerIndexerDeclarationNode blockIndexer)
+        if (declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
             return;
 
-        foreach (var accessor in blockIndexer.Accessors)
+        foreach (var accessor in blockBody.Accessors)
         {
             switch (accessor)
             {
@@ -1022,10 +1022,10 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         Stack<ContextEntry> contextStack)
     {
-        if (declaringNode is not BlockIndexerIndexerDeclarationNode blockIndexer)
+        if (declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
             return;
 
-        foreach (var accessor in blockIndexer.Accessors)
+        foreach (var accessor in blockBody.Accessors)
         {
             switch (accessor)
             {
@@ -1753,10 +1753,10 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (declaringNode is not BlockIndexerIndexerDeclarationNode blockIndexer)
+        if (declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
             return;
 
-        foreach (var accessor in blockIndexer.Accessors)
+        foreach (var accessor in blockBody.Accessors)
         {
             switch (accessor)
             {
@@ -2136,10 +2136,10 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (declaringNode is not BlockIndexerIndexerDeclarationNode blockIndexer)
+        if (declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
             return;
 
-        foreach (var accessor in blockIndexer.Accessors)
+        foreach (var accessor in blockBody.Accessors)
         {
             switch (accessor)
             {

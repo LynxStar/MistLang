@@ -1,10 +1,10 @@
 using Snippet;
 using System;
 
-ReadOnlySpan<int> ro = stackalloc int[3];
+System.ReadOnlySpan<int> ro = stackalloc int[3];
 System.Console.WriteLine($"ro.Length={ro.Length}");
 System.Console.WriteLine($"ro[0]={ro[0]}");
-Span<Point> points = stackalloc Point[2];
+System.Span<Point> points = stackalloc Point[2];
 points[0] = new Point(1, 2);
 points[1] = new Point(3, 4);
 System.Console.WriteLine($"points[0].x={points[0].x}");

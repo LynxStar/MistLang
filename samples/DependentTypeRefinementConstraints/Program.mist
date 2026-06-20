@@ -1,0 +1,59 @@
+using Standard;
+
+namespace DependentTypeRefinementConstraints;
+
+// PROOF: Refinement type declaration parses correctly
+type PositiveInt = int >= 1;
+
+// PROOF: Refinement type used as dependent parameter constraint parses and resolves
+// PROOF: The base type of PositiveInt (int) is in the allowed primitives set
+public class SizedCollection<Count:PositiveInt>
+{
+    // PROOF: Dependent parameter value is accessible inside the type body
+    public int GetCount()
+    {
+        return Count;
+    }
+
+    public string Describe()
+    {
+        return $"SizedCollection<{Count}>";
+    }
+}
+
+// PROOF: Struct with refinement-constrained dependent parameter
+public struct FixedSlot<Capacity:PositiveInt>
+{
+    public int GetCapacity()
+    {
+        return Capacity;
+    }
+}
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Dependent Type Refinement Constraints ===");
+
+        // PROOF: Construction with literal value satisfying the refinement (>= 1)
+        var coll = new SizedCollection<5>();
+        Console.WriteLine($"  coll.Describe() = {coll.Describe()}");
+        Console.WriteLine($"  coll.GetCount() = {coll.GetCount()}");
+
+        // PROOF: Struct construction with refinement-constrained dependent
+        var slot = new FixedSlot<3>();
+        Console.WriteLine($"  slot.GetCapacity() = {slot.GetCapacity()}");
+
+        // PROOF: Different literal values produce distinct types
+        var coll10 = new SizedCollection<10>();
+        Console.WriteLine($"  coll10.Describe() = {coll10.Describe()}");
+
+        Console.WriteLine("=== Done ===");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

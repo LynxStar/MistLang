@@ -11,7 +11,7 @@ public sealed class DependentValueArgument
     public object Value { get; }
 
     /// <summary>The type of the value (int, bool, char, etc.).</summary>
-    public IType ValueType { get; }
+    public IType ValueType { get; internal set; }
 
     /// <summary>Display string for diagnostics (e.g., "5", "true", "'x'").</summary>
     public string DisplayValue { get; }

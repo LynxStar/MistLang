@@ -173,6 +173,27 @@ Dependent types and refinement types serve different purposes:
 
 Use refinement types when you want to restrict what values flow through a variable. Use dependent types when the constant should be part of the type's structure — dimensions, capacities, protocol versions, or any value that distinguishes one instantiation from another at the type level.
 
+## Refinement Type Constraints
+
+While the previous section explained the *conceptual* difference between refinement types and dependent types, there is a direct syntactic connection between the two: you can use a refinement type as a dependent parameter constraint.
+
+When you write `Count:int`, you're saying "Count is a compile-time int." But you can also write `Count:PositiveInt` where `PositiveInt` is a refinement type alias — the compiler resolves the refinement's base type and uses that as the dependent parameter's value type. This lets you document intent at the type-parameter level: the parameter isn't just any int, it's specifically a positive int.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/dependent-types/refinement-constraints.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/dependent-types/refinement-constraints.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The refinement type's base type must be in the set of allowed dependent value types (integral types, `bool`, and `char`). In the emitted C#, the constraint resolves to the same carrier-interface pattern as a plain primitive constraint — `PositiveInt` has base type `int`, so the emitted code uses `IConstInt`.
+
 ## Type Identity Semantics
 
 Different dependent values produce distinct types. `FixedBuffer<5>` and `FixedBuffer<10>` are not interchangeable — you cannot assign one to the other, and a function expecting `FixedBuffer<5>` will not accept a `FixedBuffer<10>`.

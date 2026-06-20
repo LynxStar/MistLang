@@ -84,6 +84,9 @@ namespace Storm.SourceGenerator.Emit
             {
                 writer.WriteLine("[ThreadStatic] private static Dictionary<long, (SyntaxNode? Node, int End)>? _memo;");
             }
+
+            writer.WriteEmptyLine();
+            writer.WriteLine("public static int LastPosition => _pos;");
         }
 
         // ── Helpers ─────────────────────────────────────────────────────

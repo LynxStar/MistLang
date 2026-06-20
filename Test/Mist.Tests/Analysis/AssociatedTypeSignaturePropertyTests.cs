@@ -194,7 +194,9 @@ class {scenario.ClassName} : {scenario.InterfaceName} {{
 {implMethod}
 }}
 
-public static void Main() {{
+class Program {{
+    public static void Main() {{
+    }}
 }}
 ";
     }
@@ -235,7 +237,9 @@ class {scenario.ClassName} : {scenario.InterfaceName} {{
 {implMethod}
 }}
 
-public static void Main() {{
+class Program {{
+    public static void Main() {{
+    }}
 }}
 ";
     }

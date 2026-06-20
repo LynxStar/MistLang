@@ -16,6 +16,8 @@ intrinsic public ref struct Span<T, Length:ZeroOrPositiveInt> : IEnumerable<T>
     }
 
     intrinsic public Enumerator GetEnumerator();
+
+    intrinsic public Span(Array<T, unknown> source);
 }
 
 intrinsic public ref struct ReadOnlySpan<T, Length:ZeroOrPositiveInt> : IEnumerable<T>
@@ -34,6 +36,8 @@ intrinsic public ref struct ReadOnlySpan<T, Length:ZeroOrPositiveInt> : IEnumera
     }
 
     intrinsic public Enumerator GetEnumerator();
+
+    intrinsic public ReadOnlySpan(Array<T, unknown> source);
 }
 
 type Span<T> = Span<T, unknown>;

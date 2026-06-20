@@ -1595,4 +1595,10 @@ view[2]=9
 --- Span Argument ---
 SumSpan=179
 === StackOnlyTypes Done ===
+=== Dependent Type Refinement Constraints ===
+  coll.Describe() = SizedCollection<5>
+  coll.GetCount() = 5
+  slot.GetCapacity() = 3
+  coll10.Describe() = SizedCollection<10>
+=== Done ===
 === Done! ===

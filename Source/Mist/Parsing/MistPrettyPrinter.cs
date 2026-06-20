@@ -211,7 +211,7 @@ public sealed class MistPrettyPrinter
     {
         var type = EmitSingleTypeRef(expr.Type);
         if (expr.Refinement is null) return type;
-        var predicate = EmitAndPattern(expr.Refinement.Predicate);
+        var predicate = EmitRefinementPredicate(expr.Refinement);
         return $"{type} {predicate}";
     }
 
@@ -668,23 +668,28 @@ public sealed class MistPrettyPrinter
 
     private void EmitIndexerDeclaration(IndexerDeclarationNode indexerDecl)
     {
-        if (indexerDecl is not BlockIndexerIndexerDeclarationNode blockIndexer)
-            return;
+        var modifiers = EmitModifiers(indexerDecl.Modifiers);
+        var type = EmitTypeReference(indexerDecl.Type);
+        var parameters = EmitParameterList(indexerDecl.Parameters);
+        var constraints = EmitConstraintClauses(indexerDecl.Constraints);
 
-        var modifiers = EmitModifiers(blockIndexer.Modifiers);
-        var type = EmitTypeReference(blockIndexer.Type);
-        var parameters = EmitParameterList(blockIndexer.Parameters);
-        var constraints = EmitConstraintClauses(blockIndexer.Constraints);
-
-        // Build accessor list.
-        var accessorParts = new List<string>();
-        foreach (var accessor in blockIndexer.Accessors)
+        if (indexerDecl.Body is BlockIndexerBodyIndexerBodyNode blockBody)
         {
-            accessorParts.Add(EmitAccessorDeclaration(accessor));
-        }
+            // Build accessor list.
+            var accessorParts = new List<string>();
+            foreach (var accessor in blockBody.Accessors)
+            {
+                accessorParts.Add(EmitAccessorDeclaration(accessor));
+            }
 
-        var accessorBody = string.Join(" ", accessorParts);
-        AppendLine($"{modifiers}{type} this[{parameters}]{constraints} {{ {accessorBody} }}");
+            var accessorBody = string.Join(" ", accessorParts);
+            AppendLine($"{modifiers}{type} this[{parameters}]{constraints} {{ {accessorBody} }}");
+        }
+        else
+        {
+            // Intrinsic indexer — semicolon-terminated.
+            AppendLine($"{modifiers}{type} this[{parameters}]{constraints};");
+        }
     }
 
     // ─── Operator Declarations ───────────────────────────────────────────
@@ -1886,6 +1891,24 @@ public sealed class MistPrettyPrinter
         return string.Join(" or ", parts);
     }
 
+    private string EmitRefinementPredicate(RefinementPredicateNode node)
+    {
+        switch (node)
+        {
+            case SimpleRefinementPredicateRefinementPredicateNode simple:
+                return EmitAndPattern(simple.Predicate);
+            case CompoundRefinementPredicateRefinementPredicateNode compound:
+                var parts = new List<string> { EmitUnaryPattern(compound.First) };
+                foreach (var rest in compound.UnaryPatterns)
+                {
+                    parts.Add(EmitUnaryPattern(rest));
+                }
+                return "and " + string.Join(" and ", parts);
+            default:
+                return "<unknown-refinement>";
+        }
+    }
+
     private string EmitAndPattern(AndPatternNode andPattern)
     {
         var left = EmitUnaryPattern(andPattern.Left);
@@ -2412,6 +2435,8 @@ public sealed class MistPrettyPrinter
         {
             DependentTypeParameterTypeParameterNode dep =>
                 $"{dep.Name.Lexeme}:{EmitPrimitiveType(dep.ValueType)}",
+            NamedConstraintDependentTypeParameterTypeParameterNode named =>
+                $"{named.Name.Lexeme}:{named.ConstraintName.Lexeme}",
             RegularTypeParameterTypeParameterNode reg =>
                 reg.Name.Lexeme,
             _ => tp.GetName().Lexeme,

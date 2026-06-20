@@ -125,20 +125,20 @@ public sealed class NestedScopingUnitTests
         var source = """
             class Outer {
                 class Inner {
-                    int field;
+                    int data;
                     
                     Inner() { }
                     
                     void Method() { }
                     
-                    int Prop { get { return field; } set { field = value; } }
+                    int Prop { get { return data; } set { data = value; } }
                     
-                    static Inner operator +(Inner a, Inner b) { return a; }
+                    public static Inner operator +(Inner a, Inner b) { return a; }
                     
                     int this[int index] { get { return 0; } }
                     
                     default {
-                        field = 0;
+                        data = 0
                     }
                     
                     class DeepNested { }

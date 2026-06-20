@@ -1,0 +1,14 @@
+// A refinement type with an allowed primitive base type (int)
+type PositiveInt = int >= 1;
+
+// Use the refinement type as a dependent parameter constraint
+public class SizedCollection<Count:PositiveInt>
+{
+    public int GetCount() { return Count; }
+    public string Describe() { return $"SizedCollection<{Count}>"; }
+}
+
+public struct FixedSlot<Capacity:PositiveInt>
+{
+    public int GetCapacity() { return Capacity; }
+}

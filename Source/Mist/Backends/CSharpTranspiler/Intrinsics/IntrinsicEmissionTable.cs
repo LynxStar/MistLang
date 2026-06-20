@@ -253,6 +253,14 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
         // Regex constructor: new Regex(pattern, RegexOptions.Compiled)
         dict["Standard.Regex:.ctor(Standard.String)"] = new IntrinsicEmissionTemplate(
             "new System.Text.RegularExpressions.Regex({0}, System.Text.RegularExpressions.RegexOptions.Compiled)");
+
+        // Span/ReadOnlySpan constructors: new Span<T>(array) → new System.Span<T>(array)
+        // These are intrinsic constructors that take an Array<T, unknown> and create a span.
+        // The emitter resolves the actual element type from context.
+        dict["Standard.Span:.ctor(Standard.Array)"] = new IntrinsicEmissionTemplate(
+            "new System.Span<{T}>({0})");
+        dict["Standard.ReadOnlySpan:.ctor(Standard.Array)"] = new IntrinsicEmissionTemplate(
+            "new System.ReadOnlySpan<{T}>({0})");
     }
 
     // ── IIntrinsicEmissionRegistry implementation ────────────────────────

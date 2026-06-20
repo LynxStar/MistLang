@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace Mist.Backends.CSharpTranspiler;
@@ -480,6 +481,8 @@ internal sealed class VisibilityFilter
     /// </remarks>
     /// <param name="type">The CLR type to inspect. May be a generic type definition.</param>
     /// <returns><c>true</c> if the type is a named delegate with an excluded Invoke signature.</returns>
+    [UnconditionalSuppressMessage("Trimming", "IL2070",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private static bool IsDelegateWithExcludedInvokeSignature(Type type)
     {
         // Only named delegates inherit from System.MulticastDelegate.

@@ -3308,9 +3308,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case UnconstrainedAssociatedTypeMemberMemberDeclarationNode unconstrainedMember:
                 EmitAssociatedTypeSlotInWrongContextDiagnostic(unconstrainedMember.UnconstrainedAssociatedType.TYPE, sourceText, diagnostics);
                 break;
-            case ModifiedAssociatedTypeMemberMemberDeclarationNode modifiedMember:
-                EmitModifiersOnAssociatedTypeSlotDiagnostic(modifiedMember.ModifiedAssociatedType, sourceText, diagnostics);
-                EmitAssociatedTypeSlotInWrongContextDiagnostic(modifiedMember.ModifiedAssociatedType.TYPE, sourceText, diagnostics);
+            case MemberTypeAliasMemberMemberDeclarationNode:
+                // Member-level type aliases (e.g. `public type SpanBounds = ...;`)
+                // are parsed and tolerated but do not register a symbol in the
+                // struct/class scope — the refinement types they describe are handled
+                // intrinsically by the type checker (ValidateLengthIndexRefinement).
                 break;
         }
     }
@@ -21315,6 +21317,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
 
                 // The result type is the return type of the method (stored as DeclaredType on the member symbol).
+                // ── Slice length inference (mirrors TypeCheckerAnalyzer.TryInferSliceLengthFromCall) ──
+                // When a Slice call is made on a SpanType receiver with a literal
+                // length argument, refine the result to a known-length SpanType so
+                // the inferred variable type carries the correct length.
+                if (memberType is Semantics.Model.Types.SpanType sliceResultSpan
+                    && memberName == "Slice"
+                    && methodCall.Arguments is not null
+                    && methodCall.Arguments.Arguments.Length >= 1)
+                {
+                    var sliceLengthArg = methodCall.Arguments.Arguments[0];
+                    var sliceLengthExpr = ArgumentListNodeExtensions.ExtractExpression(sliceLengthArg);
+                    var sliceLiteralLength = TryExtractIntegerLiteral(sliceLengthExpr);
+                    if (sliceLiteralLength.HasValue)
+                    {
+                        memberType = new Semantics.Model.Types.SpanType(
+                            sliceResultSpan.ElementType, sliceLiteralLength.Value, sliceResultSpan.IsReadOnly);
+                    }
+                }
                 expressionTypes[suffix] = memberType;
                 return memberType;
             }

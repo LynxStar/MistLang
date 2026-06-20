@@ -6530,6 +6530,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (type is ArrayType arrayType)
             return arrayType.ElementType;
 
+        // Spans implement IEnumerable<ElementType> (declared in Span.mist).
+        if (type is Semantics.Model.Types.SpanType spanType)
+            return spanType.ElementType;
+
         var interfaces = GetInterfaceList(type);
 
         // If the source is a ConstructedType, we need to substitute type parameters
@@ -13769,6 +13773,54 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Valid — no further checks needed.
+            return;
+        }
+
+        // ── new Span<T>(array) / new ReadOnlySpan<T>(array) ──────────────
+        // SpanType is a dedicated IType without a member scope or registered
+        // constructors. The only valid construction pattern is wrapping an
+        // array: `new Span<T>(arr)` / `new ReadOnlySpan<T>(arr)` where arr
+        // is a T[] (or implicitly convertible to one). This mirrors the CLR
+        // System.Span<T>(T[]) constructor.
+        if (createdType is Semantics.Model.Types.SpanType spanCtorType)
+        {
+            var spanCtorArgTypes = CollectArgumentTypes(objectCreation.Arguments, model);
+
+            if (spanCtorArgTypes.Count != 1)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0011",
+                    $"'new {spanCtorType.DisplayName}(...)' requires exactly one argument: an array of '{spanCtorType.ElementType.DisplayName}'.",
+                    objectCreation,
+                    model));
+                return;
+            }
+
+            var spanArgType = spanCtorArgTypes[0];
+            if (IsErrorType(spanArgType))
+                return;
+
+            // The argument must be an array whose element type is assignable
+            // to the span's element type (mirrors System.Span<T>(T[])).
+            if (spanArgType is ArrayType spanArgArrayType)
+            {
+                if (!IsAssignable(spanArgArrayType.ElementType, spanCtorType.ElementType, model))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0011",
+                        $"'new {spanCtorType.DisplayName}(arr)' requires an array of '{spanCtorType.ElementType.DisplayName}', but found '{spanArgType.DisplayName}'.",
+                        objectCreation,
+                        model));
+                }
+                return;
+            }
+
+            // Not an array — invalid.
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0011",
+                $"'new {spanCtorType.DisplayName}(...)' requires an array argument, but found '{spanArgType.DisplayName}'.",
+                objectCreation,
+                model));
             return;
         }
 

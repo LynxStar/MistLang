@@ -345,10 +345,16 @@ rule MemberDeclaration
     | defaultBlock:DefaultBlockDeclaration as DefaultBlockMember
     | field:FieldDeclaration             as FieldMember
     | nestedType:TypeDeclaration         as NestedTypeMember
-    | modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as ModifiedAssociatedTypeMember
+    | memberTypeAlias:MemberTypeAliasDeclaration as MemberTypeAliasMember
     | associatedType:AssociatedTypeSlotDeclaration as AssociatedTypeMember
     | unconstrainedAssociatedType:UnconstrainedAssociatedTypeSlotDeclaration as UnconstrainedAssociatedTypeMember
     ;
+
+rule MemberTypeAliasDeclaration = modifiers:Modifier+ TYPE name:IDENTIFIER
+    typeParams:TypeParameterList?
+    EQUAL type:RefinableTypeExpression
+    constraints:WhereClause*
+    SEMICOLON;
 
 // ─── Parser Rules — Default Block ───────────────────────────────────────────
 

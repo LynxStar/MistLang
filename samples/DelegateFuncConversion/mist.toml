@@ -1,0 +1,7 @@
+name = "DelegateFuncConversion"
+
+[global_usings]
+namespaces = ["Standard"]
+
+[framework_references]
+"Microsoft.AspNetCore.App" = true

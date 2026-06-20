@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
@@ -36,6 +38,47 @@ internal sealed class TypeProjector
     private readonly VisibilityFilter _filter;
 
     /// <summary>
+    /// Optional type-reference resolver injected by <see cref="AssemblyTypeProvider"/>.
+    /// Maps a CLR <see cref="ClrType"/> to its cached, fully-projected Mist <see cref="IType"/>
+    /// via the provider's <c>(namespace, name, arity)</c> cache (the same path
+    /// <c>AssemblyTypeProvider.ResolveType</c> uses). When set, base-type and interface
+    /// references resolve to the cached instances so cross-assembly inheritance connects
+    /// to the real projected type rather than a disconnected shell (Requirements 6.1, 6.2, 6.3).
+    /// <para>
+    /// When <c>null</c> (e.g. unit tests that construct a bare <see cref="TypeProjector"/>),
+    /// projection falls back to the shell-building behavior, identical to before this resolver
+    /// existed — so those call sites are unaffected.
+    /// </para>
+    /// </summary>
+    private readonly Func<ClrType, IType?>? _typeReferenceResolver;
+
+    /// <summary>
+    /// Cache-only type-reference resolver: returns the cached type ONLY if it has already been
+    /// projected and inserted into the provider's cache. Returns null for types not yet cached.
+    /// Used by <see cref="ProjectTypeReference"/> for member return/parameter types to avoid
+    /// infinite recursion (unlike <see cref="_typeReferenceResolver"/> which triggers full projection).
+    /// </summary>
+    private readonly Func<ClrType, IType?>? _typeReferenceResolverCacheOnly;
+
+    /// <summary>
+    /// Collected indications that a base-type or implemented-interface relationship was
+    /// omitted during projection because the referenced CLR type could not be resolved from
+    /// any assembly available to the provider (Requirement 6.6). The projector does not hold a
+    /// <c>DiagnosticBag</c>, so it accumulates these structured records here and the
+    /// <see cref="AssemblyTypeProvider"/> surfaces them. A <see cref="ConcurrentBag{T}"/> keeps
+    /// the recording thread-safe because projection runs under parallel compilations.
+    /// </summary>
+    private readonly ConcurrentBag<UnresolvedRelationship> _unresolvedRelationships = new();
+
+    /// <summary>
+    /// The relationships that were omitted during projection because their referenced CLR type
+    /// could not be resolved (Requirement 6.6). Each entry identifies the relationship kind
+    /// (base type vs interface), the derived type, and the unresolved type's name.
+    /// </summary>
+    internal IReadOnlyCollection<UnresolvedRelationship> UnresolvedRelationships
+        => _unresolvedRelationships;
+
+    /// <summary>
     /// Tracks types currently being projected to detect and break recursive cycles
     /// in generic constraint projection (e.g., <c>IComparable&lt;T&gt;</c> where T
     /// has a constraint referencing <c>IComparable&lt;T&gt;</c>).
@@ -43,10 +86,28 @@ internal sealed class TypeProjector
     [ThreadStatic]
     private static HashSet<Type>? _projectionStack;
 
-    public TypeProjector(IntrinsicTypeMap intrinsicMap, VisibilityFilter filter)
+    /// <summary>
+    /// Creates a new <see cref="TypeProjector"/>.
+    /// </summary>
+    /// <param name="intrinsicMap">Map used to substitute CLR types with Mist intrinsics.</param>
+    /// <param name="filter">Visibility filter applied during projection.</param>
+    /// <param name="typeReferenceResolver">
+    /// Optional resolver mapping a CLR type to its cached, fully-projected Mist type. Supplied by
+    /// <see cref="AssemblyTypeProvider"/> after it constructs itself (so the delegate can route
+    /// through the provider's own type cache). Defaults to <c>null</c>, preserving the legacy
+    /// shell-building behavior for callers that do not wire a provider (the additive contract
+    /// keeps existing <c>new TypeProjector(intrinsicMap, filter)</c> call sites working).
+    /// </param>
+    public TypeProjector(
+        IntrinsicTypeMap intrinsicMap,
+        VisibilityFilter filter,
+        Func<ClrType, IType?>? typeReferenceResolver = null,
+        Func<ClrType, IType?>? typeReferenceResolverCacheOnly = null)
     {
         _intrinsicMap = intrinsicMap;
         _filter = filter;
+        _typeReferenceResolver = typeReferenceResolver;
+        _typeReferenceResolverCacheOnly = typeReferenceResolverCacheOnly;
     }
 
     /// <summary>
@@ -83,6 +144,29 @@ internal sealed class TypeProjector
             return ProjectStruct(clrType, displayName, containingNamespace, stdlib);
         }
 
+        // Project System.Delegate / System.MulticastDelegate as BaseDelegateType singleton
+        // (Requirement 3.1). Must appear before the named delegate and generic class checks.
+        if (clrType.FullName == "System.Delegate" || clrType.FullName == "System.MulticastDelegate")
+        {
+            // Initialize the MemberScope if this is the first time we project System.Delegate.
+            // The scope will be populated by the member projection phase in AssemblyTypeProvider.
+            if (BaseDelegateType.Instance.MemberScope is null)
+            {
+                BaseDelegateType.Instance.MemberScope = new Scope(parent: null);
+            }
+            return (BaseDelegateType.Instance, ImmutableArray<ISymbol>.Empty);
+        }
+
+        // Project named delegates (Predicate<T>, Comparison<T>, EventHandler, etc.) as
+        // DelegateType preserving CLR identity (Requirements 1.1, 1.5). The standard
+        // Func/Action families are excluded (handled via TryProjectStandardFuncDelegate
+        // in ProjectTypeReference). This check must come before the generic class fallback
+        // so that delegate type definitions resolve to DelegateType, not ClassType.
+        if (TryProjectNamedDelegate(clrType, stdlib, out var namedDelegateType))
+        {
+            return (namedDelegateType, ImmutableArray<ISymbol>.Empty);
+        }
+
         // Default: class
         return ProjectClass(clrType, displayName, containingNamespace, stdlib);
     }
@@ -90,6 +174,8 @@ internal sealed class TypeProjector
     /// <summary>
     /// Projects a CLR enum into a Mist <see cref="EnumType"/> with members and underlying type.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private (IType Type, ImmutableArray<ISymbol> Members) ProjectEnum(
         Type clrType,
         string displayName,
@@ -172,8 +258,16 @@ internal sealed class TypeProjector
         var memberScope = new Scope(null);
         var structType = new StructType(displayName, memberScope, containingNamespace);
 
-        if (clrType.IsByRefLike)
+        // Project ref-struct (IsByRefLike) CLR types as Mist stack-only structs so that
+        // Span<T>, ReadOnlySpan<T>, and any other ref struct remain usable (Requirement 9).
+        // Detection reads custom-attribute metadata rather than Type.IsByRefLike because this
+        // runs under a MetadataLoadContext where IsByRefLike is not guaranteed reliable. Mist
+        // does not yet perform ref-struct escape/lifetime analysis; the downstream C# compiler
+        // is the safety backstop for any misuse of the projected type.
+        if (IsRefStruct(clrType))
+        {
             structType.IsRefStruct = true;
+        }
 
         // Project type parameters for generic structs
         if (clrType.IsGenericTypeDefinition)
@@ -192,6 +286,28 @@ internal sealed class TypeProjector
         SynthesizeEnumeratorSlots(clrType, structType, stdlib);
 
         return (structType, ImmutableArray<ISymbol>.Empty);
+    }
+
+    /// <summary>
+    /// Determines whether a CLR type is a ref struct (carries
+    /// <c>System.Runtime.CompilerServices.IsByRefLikeAttribute</c>), e.g. <c>Span&lt;T&gt;</c>
+    /// or <c>ReadOnlySpan&lt;T&gt;</c>. Mirrors <c>VisibilityFilter.IsRefStruct</c>: detection
+    /// reads custom-attribute metadata by <c>FullName</c> rather than relying on
+    /// <see cref="Type.IsByRefLike"/>, which is not guaranteed reliable under a
+    /// <c>MetadataLoadContext</c>. Defaults to <c>false</c> if metadata cannot be loaded.
+    /// </summary>
+    private static bool IsRefStruct(Type type)
+    {
+        try
+        {
+            return type.GetCustomAttributesData()
+                .Any(a => a.AttributeType.FullName ==
+                    "System.Runtime.CompilerServices.IsByRefLikeAttribute");
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>
@@ -216,10 +332,22 @@ internal sealed class TypeProjector
             classType.TypeParameters = ProjectTypeParameters(clrType, stdlib);
         }
 
-        // Project base type (only if not System.Object)
+        // Project base type (only if not System.Object).
+        // Routed through the type-reference resolver so a cross-assembly base type connects
+        // to the cached, fully-projected instance rather than a disconnected shell
+        // (Requirements 6.1, 6.3). When the base type is a named, non-generic CLR type that the
+        // provider cannot project (e.g. it lives in an assembly that was not supplied), the
+        // relationship is omitted entirely — BaseType is left unset rather than connected to a
+        // disconnected shell — and a diagnostic indication is recorded (Requirement 6.6).
         if (clrType.BaseType is not null && clrType.BaseType != typeof(object))
         {
-            classType.BaseType = ProjectTypeReference(clrType.BaseType, stdlib);
+            var resolvedBase = ResolveInheritanceReference(
+                clrType.BaseType, stdlib, InheritanceRelationshipKind.BaseType, displayName);
+            if (resolvedBase is not null)
+            {
+                classType.BaseType = resolvedBase;
+            }
+            // else: unresolvable base type — leave BaseType unset (Requirement 6.6).
         }
 
         // Project implemented interfaces
@@ -327,6 +455,10 @@ internal sealed class TypeProjector
     /// Filters out the non-generic <c>System.Collections.IEnumerable</c> interface
     /// (Requirement 18.1).
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
+    [UnconditionalSuppressMessage("Trimming", "IL2075",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private IReadOnlyList<IType> ProjectInterfaces(ClrType clrType, IStdlibTypeProvider stdlib)
     {
         var interfaces = clrType.GetInterfaces();
@@ -344,6 +476,17 @@ internal sealed class TypeProjector
         }
 
         var result = new List<IType>();
+
+        // Dedupe by resolved interface identity so each resolved interface appears exactly
+        // once (Requirement 6.2). Two distinct CLR interface Types can resolve to the same
+        // projected Mist type — most notably across assemblies, where type forwarding makes
+        // the same logical interface reachable as more than one metadata Type yet the
+        // resolver maps them to a single cached instance. Reference equality catches that
+        // canonical-instance case; a structural key catches structurally-identical
+        // constructed/shell projections that are distinct instances.
+        var seenIdentity = new HashSet<IType>(ReferenceEqualityComparer.Instance);
+        var seenStructural = new HashSet<string>(StringComparer.Ordinal);
+
         foreach (var iface in interfaces)
         {
             // Skip interfaces inherited from base type
@@ -361,10 +504,121 @@ internal sealed class TypeProjector
             if (_filter.IsTypeExcluded(ifaceToCheck))
                 continue;
 
-            result.Add(ProjectTypeReference(iface, stdlib));
+            // Resolve the interface through the type-reference resolver so a cross-assembly
+            // interface connects to the cached, fully-projected instance rather than a shell
+            // (Requirement 6.2). Falls back to shell-building when no resolver is wired. When
+            // the interface is a named, non-generic CLR type that the provider cannot project,
+            // the relationship is omitted (the interface is dropped from the list) and a
+            // diagnostic indication is recorded (Requirement 6.6).
+            var resolved = ResolveInheritanceReference(
+                iface, stdlib, InheritanceRelationshipKind.Interface, StripGenericAritySuffix(clrType.Name));
+            if (resolved is null)
+                continue;
+
+            // Each resolved interface exactly once (Requirement 6.2).
+            if (!seenIdentity.Add(resolved))
+                continue;
+            if (!seenStructural.Add(BuildInterfaceIdentityKey(resolved)))
+                continue;
+
+            result.Add(resolved);
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Builds a stable structural identity key for a resolved interface <see cref="IType"/>,
+    /// used to dedupe the projected interface list (Requirement 6.2). Named types key on their
+    /// containing namespace and display name; constructed generic types key recursively on the
+    /// generic definition plus type arguments so <c>IEnumerable&lt;int&gt;</c> and
+    /// <c>IEnumerable&lt;string&gt;</c> remain distinct while two structurally identical
+    /// projections of the same constructed interface collapse to one entry.
+    /// </summary>
+    private static string BuildInterfaceIdentityKey(IType type)
+    {
+        return type switch
+        {
+            ConstructedType ct =>
+                BuildInterfaceIdentityKey(ct.GenericDefinition)
+                + "<"
+                + string.Join(",", ct.TypeArguments.Select(BuildInterfaceIdentityKey))
+                + ">",
+            ClassType c => (c.ContainingNamespace ?? string.Empty) + "." + c.DisplayName,
+            StructType s => (s.ContainingNamespace ?? string.Empty) + "." + s.DisplayName,
+            InterfaceType it => (it.ContainingNamespace ?? string.Empty) + "." + it.DisplayName,
+            _ => type.Kind + ":" + type.DisplayName,
+        };
+    }
+
+    /// <summary>
+    /// Resolves a base-type or implemented-interface CLR reference to its cached,
+    /// fully-projected Mist <see cref="IType"/> via the injected type-reference resolver,
+    /// so cross-assembly inheritance connects to the real projected instance the provider
+    /// returns elsewhere (Requirements 6.1, 6.2, 6.3).
+    ///
+    /// <para>
+    /// Only non-generic named types (class/struct/interface/enum) are routed through the
+    /// resolver — generic parameters and arrays are never inheritance references, and
+    /// constructed/open generic references keep their existing
+    /// <see cref="ProjectTypeReference"/> handling (the resolver maps a generic definition,
+    /// not a constructed type).
+    /// </para>
+    ///
+    /// <para>
+    /// Return-value contract:
+    /// <list type="bullet">
+    ///   <item>A resolved cached instance, when the resolver maps the named type.</item>
+    ///   <item>A shell from <see cref="ProjectTypeReference"/> (never <c>null</c>) for the
+    ///         cases that are <em>not</em> "unresolvable" in the Requirement 6.6 sense:
+    ///         generic parameters, arrays, constructed/open generics, and any reference when no
+    ///         resolver is wired (bare-projector unit tests). This preserves the pre-6.6
+    ///         behavior for those call sites.</item>
+    ///   <item><c>null</c> when a <em>named, non-generic</em> base/interface type cannot be
+    ///         projected by the wired resolver (e.g. it lives in an assembly that was not
+    ///         supplied). This signals the caller to omit the relationship entirely rather than
+    ///         attach a disconnected shell, and a diagnostic indication is recorded
+    ///         (Requirement 6.6).</item>
+    /// </list>
+    /// </para>
+    /// </summary>
+    private IType? ResolveInheritanceReference(
+        ClrType clrType,
+        IStdlibTypeProvider stdlib,
+        InheritanceRelationshipKind kind,
+        string derivedTypeName)
+    {
+        var isNamedNonGeneric =
+            !clrType.IsGenericParameter
+            && !clrType.IsArray
+            && !clrType.IsConstructedGenericType
+            && !clrType.IsGenericTypeDefinition;
+
+        if (_typeReferenceResolver is not null && isNamedNonGeneric)
+        {
+            var resolved = _typeReferenceResolver(clrType);
+            if (resolved is not null)
+            {
+                // Return the cached instance directly: the whole point is reference identity
+                // with the provider's projected type. Base types and interfaces are never
+                // intrinsic-mapped types, so intrinsic substitution would be a no-op here.
+                return resolved;
+            }
+
+            // Genuinely unresolvable named base/interface (Requirement 6.6): the type exists in
+            // metadata terms but the provider cannot project it (not in any loaded assembly, or
+            // non-public). Record the indication and signal omission by returning null — do NOT
+            // fall back to a disconnected shell here.
+            _unresolvedRelationships.Add(new UnresolvedRelationship(
+                kind, derivedTypeName, clrType.FullName ?? clrType.Name));
+            return null;
+        }
+
+        // Generic parameters/arrays/constructed generics, or no resolver wired: keep the legacy
+        // shell-building behavior (Requirement 6.6 does not apply to these — constructed generic
+        // bases/interfaces retain their existing handling, and bare-projector call sites are
+        // unaffected).
+        return ProjectTypeReference(clrType, stdlib);
     }
 
     /// <summary>
@@ -509,6 +763,10 @@ internal sealed class TypeProjector
     /// <param name="clrType">The CLR type to inspect for duck-typed enumerable pattern.</param>
     /// <param name="projectedType">The already-projected Mist type whose interface list and member scope may be updated.</param>
     /// <param name="stdlib">The stdlib type provider for resolving Standard Library types.</param>
+    [UnconditionalSuppressMessage("Trimming", "IL2070",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
+    [UnconditionalSuppressMessage("Trimming", "IL2075",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     internal void SynthesizeDuckTypedIEnumerable(
         Type clrType,
         IType projectedType,
@@ -668,6 +926,8 @@ internal sealed class TypeProjector
     /// Returns all <c>System.Collections.Generic.IEnumerable&lt;T&gt;</c> implementations
     /// on the given CLR type (handles multiple implementations per Requirement 18.6).
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private static List<Type> GetGenericIEnumerableImplementations(Type clrType)
     {
         var result = new List<Type>();
@@ -693,6 +953,8 @@ internal sealed class TypeProjector
     ///         <c>Standard.IEnumerator&lt;TElement&gt;</c>.</item>
     /// </list>
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private IType? ResolveEnumeratorType(
         Type clrType,
         Type enumerableImpl,
@@ -788,6 +1050,8 @@ internal sealed class TypeProjector
     /// <param name="memberScope">The Mist type's member scope to add operator symbols to.</param>
     /// <param name="stdlib">The stdlib type provider for resolving Standard Library types.</param>
     /// <returns>The projected operator symbols.</returns>
+    [UnconditionalSuppressMessage("Trimming", "IL2070",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     internal ImmutableArray<ISymbol> ProjectOperators(
         ClrType clrType,
         Scope memberScope,
@@ -911,6 +1175,21 @@ internal sealed class TypeProjector
             return new TypeParameterType(clrType.Name, clrType.GenericParameterPosition);
         }
 
+        // System.Object → Mist UnknownType (the top type). Every non-void value is
+        // assignable to `unknown`, mirroring how C# treats `object` as the universal base.
+        if (clrType.Namespace == "System" && clrType.Name == "Object" && !clrType.IsGenericType)
+        {
+            return UnknownType.Instance;
+        }
+
+        // Project System.Delegate / System.MulticastDelegate as BaseDelegateType (Requirement 3.1).
+        // This must appear before the standard func/named delegate dispatch so that the
+        // hierarchy root types are caught early and returned as the singleton.
+        if (clrType.FullName == "System.Delegate" || clrType.FullName == "System.MulticastDelegate")
+        {
+            return BaseDelegateType.Instance;
+        }
+
         // Project the well-known .NET delegate families to the Mist Func type family
         // (Requirements 15.1, 15.2):
         //   System.Func<T1, ..., TN, TResult> → Standard.Func<T1, ..., TN, TResult>
@@ -924,8 +1203,8 @@ internal sealed class TypeProjector
         }
 
         // Project named delegate types (Predicate<T>, Comparison<T>, EventHandler, etc.)
-        // to their equivalent Standard.Func type based on the delegate's Invoke signature
-        // (Requirements 15.3, 15.6).
+        // as DelegateType instances preserving CLR identity with equivalent func<...> signature
+        // (Requirements 1.1, 1.2, 1.5).
         if (TryProjectNamedDelegate(clrType, stdlib, out var namedDelegateType))
         {
             return namedDelegateType;
@@ -950,9 +1229,20 @@ internal sealed class TypeProjector
             return ProjectConstructedGenericType(clrType, stdlib);
         }
 
-        // Handle generic type definitions (e.g., List<T> when used as a type reference)
+        // Handle generic type definitions (e.g., List<T> when used as a type reference).
+        // First try the cache-only resolver to get the fully-projected type instance with
+        // populated member scopes. This ensures that return types like List<T> on methods
+        // (projected as ConstructedType(List, [T])) use the same ClassType instance that the
+        // provider returns from ResolveType, so downstream member lookup (e.g., .Count) works
+        // correctly when the result is stored in a var-inferred variable.
         if (clrType.IsGenericTypeDefinition)
         {
+            if (_typeReferenceResolverCacheOnly is not null && clrType.Namespace is not null)
+            {
+                var cached = _typeReferenceResolverCacheOnly(clrType);
+                if (cached is not null)
+                    return cached;
+            }
             return ProjectGenericDefinitionReference(clrType, stdlib);
         }
 
@@ -964,6 +1254,28 @@ internal sealed class TypeProjector
             // Apply intrinsic substitution to the element type
             projectedElement = _intrinsicMap.SubstituteIntrinsics(projectedElement, stdlib);
             return new ArrayType(projectedElement);
+        }
+
+        // Try to resolve to the cached, fully-projected type via the provider's resolver.
+        // This ensures member return types (e.g., Encoding.UTF8 returning Encoding) reference
+        // the same instance the provider hands out from ResolveType, so their member scopes are
+        // populated and downstream member lookup succeeds (C5 cross-assembly fix).
+        // IMPORTANT: Only resolve types already in the cache to avoid infinite recursion during
+        // type projection. Types not yet cached will get a disconnected shell here; the
+        // ProjectMemberType method will attempt a full resolve as a second pass for member
+        // signatures where a populated scope is critical for var-inference.
+        if (_typeReferenceResolver is not null
+            && !clrType.IsGenericParameter
+            && !clrType.IsArray
+            && clrType.Namespace is not null
+            && !clrType.IsConstructedGenericType
+            && !clrType.IsGenericTypeDefinition)
+        {
+            var resolved = _typeReferenceResolverCacheOnly?.Invoke(clrType);
+            if (resolved is not null)
+            {
+                return resolved;
+            }
         }
 
         // Project as a simple type and apply intrinsic substitution
@@ -1182,27 +1494,30 @@ internal sealed class TypeProjector
     /// <summary>
     /// Attempts to project a named CLR delegate type (e.g., <c>Predicate&lt;T&gt;</c>,
     /// <c>Comparison&lt;T&gt;</c>, <c>EventHandler</c>, <c>Converter&lt;TInput, TOutput&gt;</c>)
-    /// into the equivalent <c>Standard.Func</c> constructed type based on the delegate's
-    /// <c>Invoke</c> method signature (Requirements 15.3, 15.6).
+    /// into a <see cref="DelegateType"/> that preserves the delegate's CLR identity while
+    /// carrying the equivalent <c>Standard.Func</c> signature (Requirements 1.1, 1.2, 1.5).
     ///
     /// <para>
     /// This handles all delegate types that are NOT <c>System.Func</c> or <c>System.Action</c>
     /// (those are handled by <see cref="TryProjectStandardFuncDelegate"/>). The projection
     /// inspects the delegate's <c>Invoke</c> method to determine parameter types and return
-    /// type, then constructs the equivalent <c>Standard.Func</c> type. For void-returning
-    /// delegates, the trailing type argument is <c>Standard.Void</c>.
+    /// type, then constructs the equivalent <c>Standard.Func</c> type and wraps it in a
+    /// <see cref="DelegateType"/> that also preserves the CLR fully qualified name, namespace,
+    /// simple name, type parameters, and type arguments.
     /// </para>
     /// </summary>
     /// <param name="clrType">The CLR type to inspect.</param>
     /// <param name="stdlib">The stdlib type provider used to resolve <c>Standard.Func</c>/<c>Void</c>.</param>
-    /// <param name="funcType">The projected <c>Standard.Func</c> constructed type, when matched.</param>
+    /// <param name="delegateType">The projected <see cref="DelegateType"/>, when matched.</param>
     /// <returns><c>true</c> when <paramref name="clrType"/> is a projectable named delegate; otherwise <c>false</c>.</returns>
+    [UnconditionalSuppressMessage("Trimming", "IL2070",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private bool TryProjectNamedDelegate(
         Type clrType,
         IStdlibTypeProvider stdlib,
-        out IType funcType)
+        out IType delegateType)
     {
-        funcType = null!;
+        delegateType = null!;
 
         // All delegates inherit from System.MulticastDelegate.
         if (clrType.BaseType?.FullName != "System.MulticastDelegate")
@@ -1256,7 +1571,60 @@ internal sealed class TypeProjector
             funcTypeArguments[parameters.Length] = _intrinsicMap.SubstituteIntrinsics(projectedReturn, stdlib);
         }
 
-        funcType = new ConstructedType(funcDefinition, funcTypeArguments);
+        var funcSignature = new ConstructedType(funcDefinition, funcTypeArguments);
+
+        // Determine CLR identity components.
+        var clrFullName = clrType.FullName ?? clrType.Name;
+        var clrNamespace = clrType.Namespace ?? "";
+        var clrSimpleName = StripGenericAritySuffix(clrType.Name);
+
+        // Determine type parameters (for open generic definitions) and type arguments
+        // (for constructed generic instances).
+        IReadOnlyList<IType> typeParameters;
+        IReadOnlyList<IType> typeArguments;
+
+        if (clrType.IsGenericTypeDefinition)
+        {
+            // Open generic delegate definition (e.g., Predicate<T>, Comparison<T>).
+            // TypeParameters carry the open type parameter placeholders.
+            typeParameters = ProjectTypeParameters(clrType, stdlib);
+            typeArguments = Array.Empty<IType>();
+        }
+        else if (clrType.IsConstructedGenericType)
+        {
+            // Constructed generic delegate (e.g., Predicate<int>).
+            // TypeParameters are empty; TypeArguments carry the concrete types.
+            typeParameters = Array.Empty<IType>();
+            var clrArgs = clrType.GetGenericArguments();
+            var projectedArgs = new IType[clrArgs.Length];
+            for (var i = 0; i < clrArgs.Length; i++)
+            {
+                var projectedArg = ProjectTypeReference(clrArgs[i], stdlib);
+                projectedArgs[i] = _intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
+            }
+            typeArguments = projectedArgs;
+        }
+        else
+        {
+            // Non-generic delegate (e.g., RequestDelegate, EventHandler without generics).
+            typeParameters = Array.Empty<IType>();
+            typeArguments = Array.Empty<IType>();
+        }
+
+        // Create an empty member scope for the delegate. Members inherited from
+        // System.Delegate (GetType, DynamicInvoke, Method, Target) will be populated
+        // by the member projection phase when the delegate type is fully projected.
+        var memberScope = new Scope(parent: null);
+
+        delegateType = new DelegateType(
+            clrFullName: clrFullName,
+            clrNamespace: clrNamespace,
+            clrSimpleName: clrSimpleName,
+            funcSignature: funcSignature,
+            typeParameters: typeParameters,
+            typeArguments: typeArguments,
+            memberScope: memberScope);
+
         return true;
     }
 
@@ -1424,6 +1792,41 @@ internal sealed class TypeProjector
     /// Applies <see cref="VisibilityFilter"/> to each member before projection and
     /// <see cref="IntrinsicTypeMap.SubstituteIntrinsics"/> to all types in signatures.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Inherited-member projection (Requirements 7.1, 7.3, 7.4, 7.5, 7.8):</b></para>
+    /// <para>
+    /// The reflection calls below use <c>BindingFlags.Public | Instance | Static</c> WITHOUT
+    /// <c>DeclaredOnly</c>, producing a flattened enumeration that includes members inherited
+    /// from all ancestor types. For <c>virtual</c>/<c>override</c> chains, reflection returns
+    /// only the most-derived signature — base definitions that were overridden do not appear.
+    /// This satisfies Req 7.3 (most-derived visible signature exposed) without any explicit
+    /// de-duplication at this layer.
+    /// </para>
+    /// <para>
+    /// For <c>new</c>-hidden (shadow) members, both the derived and base declarations appear in
+    /// the flattened enumeration. However, under MetadataLoadContext the derived <c>new</c> method
+    /// hides the base slot: only the most-derived declaring type's version appears in the returned
+    /// array for any given method slot, so no extra signature-based de-duplication is needed here.
+    /// </para>
+    /// <para>
+    /// <b>Req 7.4 fallback (nearest visible ancestor):</b> When the most-derived definition of
+    /// an inherited member is hidden by <see cref="VisibilityFilter.IsMemberExcluded"/> (e.g. it
+    /// added a pointer parameter in its override), it is simply not projected into this type's
+    /// scope. However, each ancestor type is projected independently via its own flattened
+    /// enumeration — where that ancestor IS the most-derived level. The ancestor's visible copy
+    /// therefore exists in the ancestor's member scope. The semantic model's
+    /// <c>CollectMethodOverloads</c> walks the connected base chain (Requirements 6.1/6.2) and
+    /// finds the nearest visible ancestor's copy, satisfying Req 7.4.
+    /// </para>
+    /// <para>
+    /// <b>Inherited members callable (Requirements 7.1, 7.5, 7.8):</b> With the base chain
+    /// connected to cached fully-projected ancestors (Task 6.1/6.2) and members projected into
+    /// each level's scope, the semantic model resolves inherited members either from the leaf
+    /// type's own member scope (for scope.Lookup-based resolution) or via <c>CollectMethodOverloads</c>
+    /// which de-duplicates across the chain using signature keys, keeping only the first
+    /// (most-derived) occurrence. This makes inherited members callable on derived types.
+    /// </para>
+    /// </remarks>
     /// <param name="clrType">The CLR type whose members to project.</param>
     /// <param name="projectedMistType">The already-projected Mist type (used as the declaring type for constructors).</param>
     /// <param name="stdlib">The stdlib type provider for resolving Standard Library types.</param>
@@ -1443,6 +1846,9 @@ internal sealed class TypeProjector
         ProjectConstructors(clrType, projectedMistType, memberScope, stdlib, symbols);
 
         // Project methods (instance and static, excluding property accessors and operators)
+        // Reflection's flattened enumeration (no DeclaredOnly) returns the most-derived
+        // signature for virtual/override chains. IsMemberExcluded filters per-overload,
+        // so only genuinely-offending methods are hidden (Req 7.2, 7.3, 8.1).
         ProjectMethods(clrType, memberScope, stdlib, symbols);
 
         // Project properties (including distinguishing read-only vs read-write)
@@ -1460,6 +1866,8 @@ internal sealed class TypeProjector
     /// <summary>
     /// Projects public constructors of a CLR type as Mist constructor symbols.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private void ProjectConstructors(
         Type clrType,
         IType declaringType,
@@ -1497,6 +1905,8 @@ internal sealed class TypeProjector
     /// Projects public instance and static methods of a CLR type as Mist method symbols.
     /// Excludes property accessors, event accessors, and operator methods (handled separately).
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private void ProjectMethods(
         Type clrType,
         Scope memberScope,
@@ -1572,6 +1982,8 @@ internal sealed class TypeProjector
     /// </list>
     /// Indexers (parameterized properties) are handled separately by <see cref="ProjectIndexers"/>.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private void ProjectProperties(
         Type clrType,
         Scope memberScope,
@@ -1625,6 +2037,8 @@ internal sealed class TypeProjector
     /// Projects public fields of a CLR type as Mist field symbols.
     /// Fields marked <c>readonly</c> or <c>const</c> are projected as read-only.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private void ProjectFields(
         Type clrType,
         Scope memberScope,
@@ -1665,6 +2079,8 @@ internal sealed class TypeProjector
     /// Projects public indexers (parameterized <c>Item</c> properties) of a CLR type
     /// as Mist indexer symbols.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private void ProjectIndexers(
         Type clrType,
         Scope memberScope,
@@ -1859,7 +2275,49 @@ internal sealed class TypeProjector
     internal IType ProjectMemberType(Type clrType, IStdlibTypeProvider stdlib)
     {
         var projected = ProjectTypeReference(clrType, stdlib);
-        return _intrinsicMap.SubstituteIntrinsics(projected, stdlib);
+        projected = _intrinsicMap.SubstituteIntrinsics(projected, stdlib);
+
+        // If ProjectTypeReference returned a disconnected shell (empty member scope) for a
+        // non-generic, non-constructed class/struct/interface, attempt a full resolve via the
+        // provider. This is safe here because ProjectMemberType is only called during member
+        // projection (ProjectMembers), which executes AFTER the owning type is already cached
+        // in ResolveTypeCore. Any back-reference to the owning type will find it in the cache,
+        // preventing infinite recursion.
+        // Without this, var-inferred variables whose type comes from a method return type
+        // (e.g., `var builder = WebApplication.CreateBuilder()` returning WebApplicationBuilder)
+        // get a disconnected shell with no members, causing MIST_UNDEFINED_MEMBER errors.
+        if (_typeReferenceResolver is not null
+            && IsDisconnectedShell(projected)
+            && !clrType.IsGenericParameter
+            && !clrType.IsArray
+            && clrType.Namespace is not null
+            && !clrType.IsConstructedGenericType
+            && !clrType.IsGenericTypeDefinition)
+        {
+            var resolved = _typeReferenceResolver(clrType);
+            if (resolved is not null)
+            {
+                return resolved;
+            }
+        }
+
+        return projected;
+    }
+
+    /// <summary>
+    /// Determines whether a projected type is a "disconnected shell" — a type with an empty
+    /// member scope produced by <see cref="ProjectSimpleTypeReference"/> when the type was not
+    /// yet in the provider's cache during projection.
+    /// </summary>
+    private static bool IsDisconnectedShell(IType type)
+    {
+        return type switch
+        {
+            ClassType ct => ct.MemberScope.Members.Count == 0,
+            StructType st => st.MemberScope.Members.Count == 0,
+            InterfaceType it => it.MemberScope.Members.Count == 0,
+            _ => false
+        };
     }
 
     /// <summary>
@@ -1894,6 +2352,7 @@ internal sealed class TypeProjector
             StructType st => st.MemberScope as Scope,
             InterfaceType it => it.MemberScope as Scope,
             EnumType et => et.MemberScope as Scope,
+            DelegateType dt => dt.MemberScope as Scope,
             _ => null,
         };
     }

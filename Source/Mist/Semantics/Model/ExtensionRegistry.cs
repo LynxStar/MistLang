@@ -253,14 +253,18 @@ public sealed class ExtensionRegistry
                 return true;
         }
 
-        // Check interface implementations.
+        // Check interface implementations (structural matching).
         if (valueType is ClassType ct)
         {
-            foreach (var iface in ct.Interfaces)
-            {
-                if (ReferenceEquals(extensionReceiverType, iface))
-                    return true;
-            }
+            if (ImplementsInterfaceStructural(ct.Interfaces, extensionReceiverType))
+                return true;
+        }
+
+        // Check interface implementations for struct types.
+        if (valueType is StructType st)
+        {
+            if (ImplementsInterfaceStructural(st.Interfaces, extensionReceiverType))
+                return true;
         }
 
         return false;
@@ -280,6 +284,100 @@ public sealed class ExtensionRegistry
             if (arg is ConstructedType nested && ContainsTypeParameter(nested))
                 return true;
         }
+        return false;
+    }
+
+    /// <summary>
+    /// Recursively checks whether the given extension receiver type is implemented by any
+    /// interface in the provided list (or in any interface's own inherited interfaces).
+    /// Uses structural matching (DisplayName + ContainingNamespace for InterfaceType,
+    /// GenericDefinition + TypeArguments for ConstructedType wrapping an interface).
+    /// </summary>
+    private static bool ImplementsInterfaceStructural(
+        IReadOnlyList<IType> interfaces,
+        IType extensionReceiverType,
+        HashSet<IType>? visited = null)
+    {
+        foreach (var iface in interfaces)
+        {
+            if (InterfaceMatches(iface, extensionReceiverType))
+                return true;
+
+            // Recursively check inherited interfaces.
+            visited ??= new HashSet<IType>(ReferenceEqualityComparer.Instance);
+            if (!visited.Add(iface))
+                continue;
+
+            var inheritedInterfaces = iface switch
+            {
+                InterfaceType it => it.Interfaces,
+                ConstructedType ct when ct.GenericDefinition is InterfaceType itDef => itDef.Interfaces,
+                _ => null
+            };
+
+            if (inheritedInterfaces is not null && ImplementsInterfaceStructural(inheritedInterfaces, extensionReceiverType, visited))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether two interface type references represent the same interface.
+    /// Handles InterfaceType (by DisplayName + ContainingNamespace) and ConstructedType
+    /// wrapping an interface (by GenericDefinition identity + TypeArguments structural equality).
+    /// </summary>
+    private static bool InterfaceMatches(IType iface, IType target)
+    {
+        if (ReferenceEquals(iface, target))
+            return true;
+
+        // Both are plain InterfaceType: compare by name + namespace.
+        if (iface is InterfaceType ifaceIt && target is InterfaceType targetIt)
+        {
+            return ifaceIt.DisplayName == targetIt.DisplayName
+                && ifaceIt.ContainingNamespace == targetIt.ContainingNamespace;
+        }
+
+        // Both are ConstructedType wrapping an interface: compare generic definition + type args.
+        if (iface is ConstructedType ifaceCt && target is ConstructedType targetCt)
+        {
+            if (ifaceCt.GenericDefinition is InterfaceType && targetCt.GenericDefinition is InterfaceType)
+            {
+                if (ifaceCt.DisplayName == targetCt.DisplayName)
+                    return true;
+
+                // Same generic definition + same type arguments.
+                if (InterfaceMatches(ifaceCt.GenericDefinition, targetCt.GenericDefinition)
+                    && ifaceCt.TypeArguments.Count == targetCt.TypeArguments.Count)
+                {
+                    for (var i = 0; i < ifaceCt.TypeArguments.Count; i++)
+                    {
+                        if (!ReferenceEquals(ifaceCt.TypeArguments[i], targetCt.TypeArguments[i])
+                            && ifaceCt.TypeArguments[i].DisplayName != targetCt.TypeArguments[i].DisplayName)
+                            return false;
+                    }
+                    return true;
+                }
+            }
+        }
+
+        // iface is InterfaceType, target is ConstructedType with that interface as generic def (or vice versa).
+        // This handles the case where the extension is registered on a non-generic interface
+        // but the implementation list has it wrapped in a constructed type, or vice versa.
+        if (iface is InterfaceType plainIface && target is ConstructedType targetCtForPlain)
+        {
+            if (targetCtForPlain.GenericDefinition is InterfaceType targetGenDef)
+                return plainIface.DisplayName == targetGenDef.DisplayName
+                    && plainIface.ContainingNamespace == targetGenDef.ContainingNamespace;
+        }
+        if (iface is ConstructedType ifaceCtForPlain && target is InterfaceType plainTarget)
+        {
+            if (ifaceCtForPlain.GenericDefinition is InterfaceType ifaceGenDef)
+                return ifaceGenDef.DisplayName == plainTarget.DisplayName
+                    && ifaceGenDef.ContainingNamespace == plainTarget.ContainingNamespace;
+        }
+
         return false;
     }
 

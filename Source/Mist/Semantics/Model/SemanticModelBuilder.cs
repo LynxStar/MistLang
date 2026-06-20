@@ -5984,6 +5984,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             TraitType tt => tt.TypeParameters,
             TypeAliasType at => at.TypeParameters,
             AssociatedTypeSlotType slot => slot.TypeParameters,
+            DelegateType dt => dt.TypeParameters,
             _ => Array.Empty<IType>(),
         };
     }
@@ -15469,6 +15470,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 _lambdaTargetType = fieldType;
             }
+            else if (fieldType is DelegateType)
+            {
+                _lambdaTargetType = fieldType;
+            }
             _voidLiteralTargetType = fieldType;
             ResolveExpression(initExpr, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
             _emptyArrayTargetType = null;
@@ -16345,6 +16350,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         _lambdaTargetType = _currentMethodReturnType;
                     }
+                    else if (_currentMethodReturnType is DelegateType)
+                    {
+                        _lambdaTargetType = _currentMethodReturnType;
+                    }
 
                     // Set target type context for void value literal resolution
                     // from the enclosing method's declared return type.
@@ -16583,8 +16592,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 _emptyArrayTargetType = declaredType;
 
                 // Set lambda target type context so implicitly-typed lambda parameters
-                // can infer their types from the declared Func type.
+                // can infer their types from the declared Func or DelegateType.
                 if (IsFuncType(declaredType))
+                {
+                    _lambdaTargetType = declaredType;
+                }
+                else if (declaredType is DelegateType)
                 {
                     _lambdaTargetType = declaredType;
                 }
@@ -18961,6 +18974,120 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Resolves a method group against a <see cref="DelegateType"/> target.
+    /// Finds all overloads of the method name and selects the single overload whose
+    /// signature is compatible with the delegate's <see cref="DelegateType.FuncSignature"/>.
+    /// Emits <c>MIST_TC_0132</c> when zero overloads match and <c>MIST_TC_0133</c> when
+    /// multiple overloads match (Requirements 2.7, 2.9).
+    /// </summary>
+    /// <returns>
+    /// The constructed <c>func&lt;...&gt;</c> type of the selected overload, or <c>null</c>
+    /// if no unique match could be determined (diagnostic already emitted).
+    /// </returns>
+    private static IType? ResolveMethodGroupForDelegateTarget(
+        IdentifierExpressionPrimaryNode identifier,
+        DelegateType delegateTarget,
+        Scope currentScope,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var methodName = identifier.Name.Lexeme;
+        var allSymbols = currentScope.LookupAll(methodName);
+
+        // Collect all method overloads.
+        var methodOverloads = new List<Symbol>();
+        foreach (var sym in allSymbols)
+        {
+            if (sym is Symbol { Kind: SymbolKind.Method } methodSym)
+            {
+                methodOverloads.Add(methodSym);
+            }
+        }
+
+        if (methodOverloads.Count == 0)
+        {
+            // No methods found — should not happen since we already know the
+            // identifier resolved to a method, but fall through gracefully.
+            return null;
+        }
+
+        // If only one overload exists, use it directly (no ambiguity possible).
+        if (methodOverloads.Count == 1)
+        {
+            return ConstructFuncTypeFromMethod(methodOverloads[0], fileScope, symbolTable);
+        }
+
+        // Multiple overloads: find those whose signature is compatible with the delegate.
+        var delegateFunc = delegateTarget.FuncSignature;
+        var delegateParamCount = delegateFunc.TypeArguments.Count - 1; // Last type arg is return type.
+        var compatibleOverloads = new List<Symbol>();
+
+        foreach (var overload in methodOverloads)
+        {
+            var paramTypes = ParameterSignature.Extract(overload, symbolTable);
+            var returnType = overload.DeclaredType;
+            if (returnType is null || returnType is ErrorType)
+                continue;
+
+            // Check parameter count matches.
+            if (paramTypes.Count != delegateParamCount)
+                continue;
+
+            // Check each parameter type matches the delegate's corresponding type.
+            var compatible = true;
+            for (var i = 0; i < paramTypes.Count; i++)
+            {
+                var delegateParamType = delegateFunc.TypeArguments[i];
+                if (!TypesMatch(paramTypes[i], delegateParamType))
+                {
+                    compatible = false;
+                    break;
+                }
+            }
+
+            if (!compatible)
+                continue;
+
+            // Check return type matches.
+            var delegateReturnType = delegateFunc.TypeArguments[^1];
+            if (!TypesMatch(returnType, delegateReturnType))
+                continue;
+
+            compatibleOverloads.Add(overload);
+        }
+
+        if (compatibleOverloads.Count == 1)
+        {
+            // Exactly one compatible overload — select it.
+            var selected = compatibleOverloads[0];
+            return ConstructFuncTypeFromMethod(selected, fileScope, symbolTable);
+        }
+
+        if (compatibleOverloads.Count == 0)
+        {
+            // No overload matches the delegate signature.
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                "MIST_TC_0132",
+                DiagnosticSeverity.Error,
+                $"No overload of '{methodName}' matches delegate type '{delegateTarget.DisplayName}'.",
+                identifier,
+                sourceText));
+            return null;
+        }
+
+        // Multiple overloads match — ambiguous.
+        diagnostics.Add(MakeDiagnosticWithLocation(
+            "MIST_TC_0133",
+            DiagnosticSeverity.Error,
+            $"Multiple overloads of '{methodName}' match delegate type '{delegateTarget.DisplayName}'.",
+            identifier,
+            sourceText));
+        return null;
+    }
+
+    /// <summary>
     /// Returns <c>true</c> when the given type is a <c>Standard.Task&lt;T&gt;</c>
     /// constructed type (the Mist concurrency primitive).
     /// </summary>
@@ -19218,6 +19345,32 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Register the resolved ambient type in the scope hierarchy.
                 RegisterAmbientTypeInScope(ambientResolvedType, typeName, ambientResolvedNs!, fileScope, ambientTypeResolver, symbolTable);
                 return ambientResolvedType;
+            }
+
+            // 3c. Fully-qualified namespace.type reference: if the typeName contains dots,
+            // try splitting at each dot position (right to left) and check if the left
+            // part is a known ambient namespace containing the right part as a type.
+            // This handles cases like "Microsoft.AspNetCore.Http.QueryString" or
+            // "Newtonsoft.Json.JsonConvert" without requiring a using directive.
+            if (typeName.Contains('.'))
+            {
+                for (var dotIdx = typeName.LastIndexOf('.'); dotIdx > 0; dotIdx = typeName.LastIndexOf('.', dotIdx - 1))
+                {
+                    var candidateNs = typeName.Substring(0, dotIdx);
+                    var candidateType = typeName.Substring(dotIdx + 1);
+
+                    if (ambientTypeResolver.HasNamespace(candidateNs))
+                    {
+                        var resolved = typeArgumentCount >= 0
+                            ? ambientTypeResolver.ResolveType(candidateNs, candidateType, typeArgumentCount)
+                            : ambientTypeResolver.ResolveType(candidateNs, candidateType);
+                        if (resolved is not null)
+                        {
+                            RegisterAmbientTypeInScope(resolved, candidateType, candidateNs, fileScope, ambientTypeResolver, symbolTable);
+                            return resolved;
+                        }
+                    }
+                }
             }
         }
 
@@ -19499,6 +19652,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (resolvedType is TraitType traitType)
         {
             return new ConstructedTraitType(traitType, resolvedTypeArgs);
+        }
+
+        // For generic delegate types (e.g., Predicate<T>), construct a new DelegateType
+        // with the concrete type arguments and a substituted FuncSignature. This ensures
+        // that `System.Predicate<int>` resolves to DelegateType (not ConstructedType
+        // wrapping a DelegateType), so assignability rules in IsAssignable can match it
+        // directly as a DelegateType instance.
+        if (resolvedType is DelegateType openDelegate)
+        {
+            // Substitute type parameters in the FuncSignature to produce the concrete signature.
+            var substitutedSignature = SubstituteTypeInMember(openDelegate.FuncSignature, openDelegate.TypeParameters, resolvedTypeArgs);
+            var concreteFuncSignature = substitutedSignature as ConstructedType ?? openDelegate.FuncSignature;
+
+            return new DelegateType(
+                clrFullName: openDelegate.ClrFullName,
+                clrNamespace: openDelegate.ClrNamespace,
+                clrSimpleName: openDelegate.ClrSimpleName,
+                funcSignature: concreteFuncSignature,
+                typeParameters: Array.Empty<IType>(),
+                typeArguments: resolvedTypeArgs,
+                memberScope: openDelegate.MemberScope);
         }
 
         return new ConstructedType(resolvedType, resolvedTypeArgs, dependentArgs);
@@ -20030,6 +20204,37 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
     }
 
+    // ─── Property Assignment Value Resolution ────────────────────────────
+
+    /// <summary>
+    /// Resolves the value expression within a PropertyAssignment node,
+    /// handling both named property assignments and collection element assignments.
+    /// </summary>
+    private static void ResolvePropertyAssignmentValue(
+        PropertyAssignmentNode assignment,
+        Scope currentScope,
+        Scope fileScope,
+        IType? enclosingType,
+        bool isStatic,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        ExpressionNode valueExpr = assignment switch
+        {
+            NamedPropertyAssignmentPropertyAssignmentNode named => named.Value,
+            CollectionElementAssignmentPropertyAssignmentNode element => element.Value,
+            _ => null!
+        };
+
+        if (valueExpr is not null)
+        {
+            ResolveExpression(valueExpr, currentScope, fileScope, enclosingType!, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        }
+    }
+
     // ─── Expression Resolution ───────────────────────────────────────────
 
     /// <summary>
@@ -20092,7 +20297,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Check if a target type is available from the enclosing context.
         var targetType = _lambdaTargetType;
 
-        if (targetType is not null && IsFuncType(targetType) && targetType is ConstructedType funcCt)
+        // When the target type is a DelegateType, extract its FuncSignature for inference.
+        // The lambda's parameter types come from the FuncSignature's type arguments.
+        ConstructedType? funcCt = null;
+        if (targetType is not null && targetType is DelegateType delegateTarget)
+        {
+            funcCt = delegateTarget.FuncSignature;
+        }
+        else if (targetType is not null && IsFuncType(targetType) && targetType is ConstructedType directFuncCt)
+        {
+            funcCt = directFuncCt;
+        }
+
+        if (funcCt is not null)
         {
             // Target-type-driven inference: extract parameter types from the Func
             // type arguments (all but the last, which is the return type).
@@ -20157,11 +20374,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
             }
 
-            // The lambda's type is the target Func type.
-            return targetType;
+            // The lambda's type is the equivalent Func type (even when targeting a DelegateType,
+            // the lambda is typed as func<...> — conversion to the delegate happens at the call site).
+            return funcCt;
         }
 
-        // No target type available (or target type is not a Func type).
+        // No target type available (or target type is not a Func type / DelegateType).
         // Attempt explicit-parameter inference: if the lambda has all explicitly-typed
         // parameters, resolve their type annotations, infer the return type from the
         // body, and construct the Func type.
@@ -21603,10 +21821,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var targetSymbol = symbolTable.GetDeclaredSymbol(node.Target);
             if (targetSymbol is Symbol { Kind: SymbolKind.Method } methodSymbol)
             {
-                var funcType = ConstructFuncTypeFromMethod(methodSymbol, fileScope, symbolTable);
-                if (funcType is not null)
+                // ── delegate-func-conversion: method group resolution for DelegateType targets ──
+                // When the target type context is a DelegateType, resolve the method group
+                // against the delegate's FuncSignature to select the single compatible overload.
+                if (_lambdaTargetType is DelegateType delegateTarget)
                 {
-                    targetType = funcType;
+                    var resolved = ResolveMethodGroupForDelegateTarget(
+                        (IdentifierExpressionPrimaryNode)node.Target,
+                        delegateTarget,
+                        currentScope,
+                        fileScope,
+                        symbolTable,
+                        sourceText,
+                        diagnostics);
+                    if (resolved is not null)
+                    {
+                        targetType = resolved;
+                    }
+                }
+                else
+                {
+                    var funcType = ConstructFuncTypeFromMethod(methodSymbol, fileScope, symbolTable);
+                    if (funcType is not null)
+                    {
+                        targetType = funcType;
+                    }
                 }
             }
         }
@@ -21708,6 +21947,28 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             expressionTypes[invocation] = returnType;
             return returnType;
+        }
+
+        // ── delegate-func-conversion: DelegateType invocation ──
+        // When the target expression's type is a DelegateType, the invocation's
+        // result type is the FuncSignature's return type (last type argument).
+        if (targetType is DelegateType delegateType)
+        {
+            var returnType = GetFuncReturnType(delegateType.FuncSignature);
+            if (!_isInAsyncContext && IsStandardTaskType(returnType))
+            {
+                returnType = UnwrapTaskType(returnType);
+            }
+
+            expressionTypes[invocation] = returnType;
+            return returnType;
+        }
+
+        // ── delegate-func-conversion: BaseDelegateType is NOT invocable ──
+        if (targetType is BaseDelegateType)
+        {
+            expressionTypes[invocation] = ErrorType.Instance;
+            return ErrorType.Instance;
         }
 
         // The result type is the return type of the target (if it's a method).
@@ -22070,6 +22331,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                     expressionTypes[suffix] = returnType;
                     return returnType;
+                }
+
+                // ── delegate-func-conversion: DelegateType invocation ──
+                // When the target expression's type is a DelegateType, the invocation's
+                // result type is the FuncSignature's return type (last type argument).
+                if (targetType is DelegateType delegateType)
+                {
+                    var returnType = GetFuncReturnType(delegateType.FuncSignature);
+                    if (!_isInAsyncContext && IsStandardTaskType(returnType))
+                    {
+                        returnType = UnwrapTaskType(returnType);
+                    }
+
+                    expressionTypes[suffix] = returnType;
+                    return returnType;
+                }
+
+                // ── delegate-func-conversion: BaseDelegateType is NOT invocable ──
+                // System.Delegate cannot be invoked directly. The type checker will
+                // emit the diagnostic; here we resolve to ErrorType to suppress
+                // cascading type errors.
+                if (targetType is BaseDelegateType)
+                {
+                    expressionTypes[suffix] = ErrorType.Instance;
+                    return ErrorType.Instance;
                 }
 
                 // The result type is the return type of the target (if it's a method).
@@ -22755,10 +23041,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (objCreation.Initializer is not null && objCreation.Initializer.Assignments is not null)
                 {
                     var assignments = objCreation.Initializer.Assignments;
-                    ResolveExpression(assignments.PropertyAssignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    ResolvePropertyAssignmentValue(assignments.PropertyAssignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     foreach (var assignment in assignments.PropertyAssignments)
                     {
-                        ResolveExpression(assignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                        ResolvePropertyAssignmentValue(assignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     }
                 }
 
@@ -22795,10 +23081,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (objCreationNoArgs.Initializer.Assignments is not null)
                 {
                     var assignments = objCreationNoArgs.Initializer.Assignments;
-                    ResolveExpression(assignments.PropertyAssignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    ResolvePropertyAssignmentValue(assignments.PropertyAssignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     foreach (var assignment in assignments.PropertyAssignments)
                     {
-                        ResolveExpression(assignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                        ResolvePropertyAssignmentValue(assignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     }
                 }
 
@@ -22857,6 +23143,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if (typeAsSymbol is not null)
                     {
                         result = typeAsSymbol;
+                    }
+                    // Check if the identifier is a namespace root (for fully-qualified
+                    // type references like Newtonsoft.Json.JsonConvert.SerializeObject).
+                    else if (ambientTypeResolver is not null && IsNamespaceOrPrefix(name, ambientTypeResolver))
+                    {
+                        result = new NamespaceReferenceType(name);
                     }
                     // In a non-static instance context, bare identifiers may refer
                     // to inherited members from the base class chain. Walk the
@@ -23111,6 +23403,39 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         if (targetType is ErrorType)
         {
+            return ErrorType.Instance;
+        }
+
+        // Namespace-qualified access: when the target is a NamespaceReferenceType, the
+        // member name is the next segment in a fully-qualified reference. Try to resolve
+        // it as a sub-namespace or as a type within the namespace.
+        if (targetType is NamespaceReferenceType nsRef && ambientTypeResolver is not null)
+        {
+            var qualifiedNs = $"{nsRef.NamespaceName}.{memberName}";
+
+            // First check if the qualified name is a type in the namespace.
+            var resolvedType = ambientTypeResolver.ResolveType(nsRef.NamespaceName, memberName);
+            if (resolvedType is not null)
+            {
+                RegisterAmbientTypeInScope(resolvedType, memberName, nsRef.NamespaceName, fileScope, ambientTypeResolver, symbolTable);
+                return resolvedType;
+            }
+
+            // Otherwise check if it's a sub-namespace.
+            if (IsNamespaceOrPrefix(qualifiedNs, ambientTypeResolver))
+            {
+                return new NamespaceReferenceType(qualifiedNs);
+            }
+
+            // Neither a type nor a namespace — emit diagnostic.
+            diagnostics.Add(new Diagnostic(
+                new DiagnosticId("MIST_UNDEFINED_MEMBER"),
+                DiagnosticSeverity.Error,
+                PipelineStage.SemanticModelConstruction,
+                $"'{nsRef.NamespaceName}' does not contain a definition for '{memberName}'.",
+                Location: default,
+                CompilationUnitPath: sourceText?.Path ?? "<unknown>",
+                AnalyzerName: null));
             return ErrorType.Instance;
         }
 
@@ -24215,6 +24540,45 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return type;
         }
 
+        // DelegateType: substitute type parameters in TypeArguments and FuncSignature
+        // so that e.g. Predicate<T> on List<int> becomes Predicate<int> with
+        // FuncSignature = Func<int, bool> after substituting T → int.
+        if (type is DelegateType delegateType)
+        {
+            // Substitute in TypeArguments
+            var substitutedTypeArgs = delegateType.TypeArguments;
+            var typeArgsChanged = false;
+            if (delegateType.TypeArguments.Count > 0)
+            {
+                var newTypeArgs = new IType[delegateType.TypeArguments.Count];
+                for (var i = 0; i < delegateType.TypeArguments.Count; i++)
+                {
+                    newTypeArgs[i] = SubstituteTypeInMember(delegateType.TypeArguments[i], typeParams, typeArgs);
+                    if (!ReferenceEquals(newTypeArgs[i], delegateType.TypeArguments[i]))
+                        typeArgsChanged = true;
+                }
+                if (typeArgsChanged)
+                    substitutedTypeArgs = newTypeArgs;
+            }
+
+            // Substitute in FuncSignature (a ConstructedType)
+            var substitutedFuncSig = (ConstructedType)SubstituteTypeInMember(delegateType.FuncSignature, typeParams, typeArgs);
+            var funcSigChanged = !ReferenceEquals(substitutedFuncSig, delegateType.FuncSignature);
+
+            if (typeArgsChanged || funcSigChanged)
+            {
+                return new DelegateType(
+                    clrFullName: delegateType.ClrFullName,
+                    clrNamespace: delegateType.ClrNamespace,
+                    clrSimpleName: delegateType.ClrSimpleName,
+                    funcSignature: substitutedFuncSig,
+                    typeParameters: delegateType.TypeParameters,
+                    typeArguments: substitutedTypeArgs,
+                    memberScope: delegateType.MemberScope);
+            }
+            return type;
+        }
+
         if (type is SpanType spanType)
         {
             var substitutedElement = SubstituteTypeInMember(spanType.ElementType, typeParams, typeArgs);
@@ -24320,6 +24684,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SymbolTable symbolTable)
     {
         if (targetType is ErrorType)
+            return null;
+
+        // Namespace references have no symbol-level members; return null to
+        // avoid the kind-aware validation from emitting spurious errors.
+        if (targetType is NamespaceReferenceType)
             return null;
 
         // ── Constrained type parameter member access (Requirements 6.1–6.4, 6.7) ──
@@ -24537,12 +24906,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     _lambdaTargetType = paramType;
                 }
+                else if (paramType is DelegateType)
+                {
+                    _lambdaTargetType = paramType;
+                }
                 else if (paramType is UnionType unionParam)
                 {
-                    // Check if the union contains a Func constituent (e.g., Func<T, void> | Void).
+                    // Check if the union contains a Func or DelegateType constituent
+                    // (e.g., Func<T, void> | Void or Predicate<int> | Void from nullable projection).
                     foreach (var constituent in unionParam.Constituents)
                     {
                         if (IsFuncType(constituent))
+                        {
+                            _lambdaTargetType = constituent;
+                            break;
+                        }
+                        if (constituent is DelegateType)
                         {
                             _lambdaTargetType = constituent;
                             break;
@@ -24742,6 +25121,32 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // 'field' keyword used outside a property accessor or in a computed property.
         // Return ErrorType — the type checker will report the appropriate diagnostic.
         return ErrorType.Instance;
+    }
+
+    /// <summary>
+    /// Returns true if <paramref name="name"/> is either an exact namespace in the ambient
+    /// resolver or a prefix of one (e.g., "Newtonsoft" is a prefix of "Newtonsoft.Json").
+    /// Used to detect namespace roots in expression context for fully-qualified type access.
+    /// </summary>
+    private static bool IsNamespaceOrPrefix(string name, IAmbientTypeResolver resolver)
+    {
+        // Exact match: the name itself is a namespace.
+        if (resolver.HasNamespace(name))
+            return true;
+
+        // Prefix match: check if any type name exists in a namespace that starts
+        // with "name." — this detects namespace root identifiers like "Newtonsoft"
+        // when "Newtonsoft.Json" is a known namespace.
+        var prefix = name + ".";
+        // Use GetTypeNamesInNamespace? No — we don't know the full namespace name yet.
+        // Instead, rely on the fact that if the ambient resolver is an AssemblyTypeProvider,
+        // it has a namespace index. We cast to check.
+        if (resolver is Backends.CSharpTranspiler.AssemblyTypeProvider atp)
+        {
+            return atp.HasNamespaceWithPrefix(prefix);
+        }
+
+        return false;
     }
 
     /// <summary>

@@ -1,0 +1,11 @@
+using Standard;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var qs = new Microsoft.AspNetCore.Http.QueryString("?page=1");
+        Console.WriteLine($"query={qs.Value}");
+        Console.WriteLine($"hasValue={qs.HasValue}");
+    }
+}

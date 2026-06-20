@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
@@ -83,7 +84,14 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     {
         _intrinsicMap = new IntrinsicTypeMap();
         _filter = new VisibilityFilter();
-        _projector = new TypeProjector(_intrinsicMap, _filter);
+
+        // Inject a type-reference resolver so the projector can connect base types and
+        // implemented interfaces to the cached, fully-projected instances this provider
+        // returns from ResolveType — the foundation for cross-assembly inheritance
+        // (Requirements 6.1, 6.2, 6.3). The delegate captures `this`; it is only invoked
+        // later during projection, after the constructor has finished wiring the cache and
+        // loaded assemblies below.
+        _projector = new TypeProjector(_intrinsicMap, _filter, ResolveProjectedType, ResolveProjectedTypeCacheOnly);
 
         // Create MetadataLoadContext with a PathAssemblyResolver for all assembly paths.
         var resolver = new PathAssemblyResolver(assemblyPaths);
@@ -126,6 +134,16 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     internal TypeProjector Projector => _projector;
 
     /// <summary>
+    /// Surfaces the inheritance relationships that were omitted during projection because the
+    /// referenced CLR base type or interface could not be resolved from any loaded assembly
+    /// (Requirement 6.6). Each entry identifies the omitted relationship (base type vs
+    /// interface), the derived type, and the unresolved type's name. Accumulates lazily as
+    /// types are projected through <see cref="ResolveType(string, string, int)"/>.
+    /// </summary>
+    internal IReadOnlyCollection<UnresolvedRelationship> UnresolvedRelationships
+        => _projector.UnresolvedRelationships;
+
+    /// <summary>
     /// Exposes the current stdlib type provider for ambient extension registration.
     /// </summary>
     internal IStdlibTypeProvider CurrentStdlib => Stdlib;
@@ -134,6 +152,21 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     public bool HasNamespace(string namespaceName)
     {
         return _namespaceIndex.ContainsKey(namespaceName);
+    }
+
+    /// <summary>
+    /// Returns true if any namespace in the index starts with the given prefix.
+    /// Used by the semantic model to detect namespace root identifiers in expression
+    /// context (e.g., "Newtonsoft" when "Newtonsoft.Json" is a known namespace).
+    /// </summary>
+    internal bool HasNamespaceWithPrefix(string prefix)
+    {
+        foreach (var ns in _namespaceIndex.Keys)
+        {
+            if (ns.StartsWith(prefix, StringComparison.Ordinal))
+                return true;
+        }
+        return false;
     }
 
     /// <inheritdoc />
@@ -171,9 +204,26 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         if (clrType is null)
             return null;
 
+        // Skip non-public types: VisibilityFilter.IsTypeExcluded excludes types that are not
+        // publicly accessible, so they resolve to null rather than a projected type. Ref-struct
+        // types (Span<T>/ReadOnlySpan<T> and any IsByRefLike type) are NOT excluded here — they
+        // are projected as Mist stack-only structs (Requirement 9), so this guard does not null
+        // them out.
+        if (_filter.IsTypeExcluded(clrType))
+            return null;
+
         // Project the type lazily on first access (Requirement 3.3).
         var stdlib = Stdlib;
         var (projectedType, members) = _projector.ProjectType(clrType, stdlib);
+
+        // Insert the in-progress type into the cache BEFORE projecting members so that a
+        // base-type or interface reference that resolves back to a type already on the
+        // projection stack returns this same instance instead of recursing forever
+        // (cache-mediated recursion safety — Requirements 6.1, 6.3). If another thread won
+        // the race to project this key, discard our work and return the cached instance so
+        // reference equality is preserved (Requirement 3.4).
+        if (!_cache.TryAdd(cacheKey, (projectedType, ImmutableArray<ISymbol>.Empty)))
+            return _cache[cacheKey].Type;
 
         // Project members (methods, properties, fields, constructors, indexers).
         var projectedMembers = _projector.ProjectMembers(clrType, projectedType, stdlib);
@@ -202,12 +252,70 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             ? members.AddRange(projectedMembers)
             : projectedMembers;
 
-        // Cache the result for reference equality on subsequent resolutions.
-        // TryAdd ensures only the first projection wins if two threads race on the
-        // same key; the loser's projection is discarded (both are equivalent).
-        _cache.TryAdd(cacheKey, (projectedType, allMembers));
+        // Finalize the cache entry, upgrading the early-inserted (members-empty) entry to the
+        // fully-projected member set. The projected IType instance is unchanged, so any base/
+        // interface reference captured during the in-progress window above stays reference-equal
+        // to this canonical instance (Requirement 3.4). Indexer assignment (not TryAdd) is
+        // required because the early insert above already added the key.
+        _cache[cacheKey] = (projectedType, allMembers);
 
         return projectedType;
+    }
+
+    /// <summary>
+    /// Type-reference resolver injected into the <see cref="TypeProjector"/>. Maps a CLR
+    /// <see cref="Type"/> to its cached, fully-projected Mist <see cref="IType"/> via the same
+    /// <c>(namespace, name, arity)</c> cache path that <see cref="ResolveType(string, string, int)"/>
+    /// uses, so base types and implemented interfaces connect to the cached instances rather
+    /// than disconnected shells (Requirements 6.1, 6.2, 6.3).
+    /// <para>
+    /// Returns <c>null</c> when the type cannot be resolved from any loaded assembly (e.g. a
+    /// base type defined in an assembly that was not supplied), letting the projector fall back
+    /// to shell-building so projection of the derived type and its remaining relationships
+    /// continues. Generic parameters and arrays are never inheritance references and are not
+    /// routed here.
+    /// </para>
+    /// </summary>
+    private IType? ResolveProjectedType(Type clrType)
+    {
+        if (clrType.Namespace is null || clrType.IsGenericParameter || clrType.IsArray)
+            return null;
+
+        var typeName = TypeProjector.StripGenericAritySuffix(clrType.Name);
+        var arity = clrType.IsGenericType ? clrType.GetGenericArguments().Length : 0;
+        return ResolveTypeCore(clrType.Namespace, typeName, arity);
+    }
+
+    /// <summary>
+    /// Cache-only variant of <see cref="ResolveProjectedType"/>: returns the projected type
+    /// ONLY if it has already been projected and exists in the cache. Does NOT trigger
+    /// projection of new types, so it is safe to call during member type projection without
+    /// risking infinite recursion.
+    /// </summary>
+    private IType? ResolveProjectedTypeCacheOnly(Type clrType)
+    {
+        if (clrType.Namespace is null || clrType.IsGenericParameter || clrType.IsArray)
+            return null;
+
+        var typeName = TypeProjector.StripGenericAritySuffix(clrType.Name);
+        var arity = clrType.IsGenericType ? clrType.GetGenericArguments().Length : 0;
+
+        var cacheKey = arity >= 0
+            ? (clrType.Namespace, $"{typeName}`{arity}")
+            : (clrType.Namespace, typeName);
+
+        if (_cache.TryGetValue(cacheKey, out var cached))
+            return cached.Type;
+
+        // Also try without arity suffix for non-generic types (arity == 0).
+        if (arity == 0)
+        {
+            var altKey = (clrType.Namespace, typeName);
+            if (_cache.TryGetValue(altKey, out var altCached))
+                return altCached.Type;
+        }
+
+        return null;
     }
 
     /// <inheritdoc />
@@ -245,6 +353,16 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     public void Dispose()
     {
         _metadataContext.Dispose();
+    }
+
+    /// <summary>
+    /// Locates the CLR <see cref="Type"/> for an already-resolved type by namespace and name.
+    /// Used by the <c>mist inspect</c> command to enumerate CLR members for classification.
+    /// This method is internal because the inspect command lives in the same assembly.
+    /// </summary>
+    internal Type? FindClrTypeForInspection(string namespaceName, string typeName)
+    {
+        return FindClrType(namespaceName, typeName);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -314,6 +432,8 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// Finds a CLR <see cref="Type"/> by namespace and type name across all loaded assemblies.
     /// Searches by matching the type's namespace and name (including generic arity suffix).
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2026",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private Type? FindClrType(string namespaceName, string typeName)
     {
         // The typeName from the caller may not include the generic arity suffix.
@@ -368,6 +488,8 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// For arity 0, matches only non-generic types (no backtick suffix).
     /// For arity N &gt; 0, matches only types with exactly <c>`N</c> suffix.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2026",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private Type? FindClrTypeByArity(string namespaceName, string typeName, int typeArgumentCount)
     {
         foreach (var assemblyInfo in _loadedAssemblies)
@@ -429,6 +551,8 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             Semantics.Model.Types.StructType st => st.MemberScope as Scope,
             Semantics.Model.Types.InterfaceType it => it.MemberScope as Scope,
             Semantics.Model.Types.EnumType et => et.MemberScope as Scope,
+            Semantics.Model.Types.DelegateType dt => dt.MemberScope as Scope,
+            Semantics.Model.Types.BaseDelegateType bdt => bdt.MemberScope as Scope,
             _ => null,
         };
     }

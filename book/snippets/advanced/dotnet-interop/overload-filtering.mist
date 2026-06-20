@@ -1,0 +1,14 @@
+using Standard;
+using System.Text;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var bytes = Encoding.UTF8.GetBytes("Hello");
+        Console.WriteLine($"length={bytes.Length}");
+
+        var text = Encoding.UTF8.GetString(bytes);
+        Console.WriteLine($"text={text}");
+    }
+}

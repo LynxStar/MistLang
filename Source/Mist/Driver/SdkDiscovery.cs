@@ -125,11 +125,8 @@ public static partial class SdkDiscovery
         // Extract the TFM short name (e.g., "net10.0" → "net10.0")
         var tfm = targetFramework;
 
-        // Try dotnet --list-sdks first
-        var sdkRoot = TryDiscoverViaDotnetCli();
-
-        // Fall back to well-known paths
-        sdkRoot ??= TryWellKnownPaths();
+        // Locate the dotnet root (the directory containing packs/).
+        var sdkRoot = FindDotnetRoot();
 
         if (sdkRoot is null)
         {
@@ -160,6 +157,25 @@ public static partial class SdkDiscovery
         }
 
         return refPath;
+    }
+
+    /// <summary>
+    /// Discovers the .NET installation root: the directory that contains the
+    /// <c>packs/</c> folder (e.g., <c>/usr/share/dotnet</c>). Tries
+    /// <c>dotnet --list-sdks</c> first, then falls back to well-known paths.
+    /// Returns <c>null</c> when no installation can be located.
+    /// </summary>
+    /// <remarks>
+    /// Exposed for reuse by <see cref="FrameworkReferenceResolver"/>, which
+    /// resolves reference packs relative to the same root. This method performs
+    /// no caching; the cached path served by
+    /// <see cref="FindReferenceAssemblyPath"/> is the resolved reference-assembly
+    /// directory, not the dotnet root.
+    /// </remarks>
+    internal static string? FindDotnetRoot()
+    {
+        // Try dotnet --list-sdks first, then fall back to well-known paths.
+        return TryDiscoverViaDotnetCli() ?? TryWellKnownPaths();
     }
 
     /// <summary>
@@ -352,7 +368,7 @@ public static partial class SdkDiscovery
     /// E.g., "net10.0" → 10, "net8.0" → 8, "net9.0" → 9.
     /// Returns null if the TFM cannot be parsed.
     /// </summary>
-    private static int? ExtractTfmMajorVersion(string tfm)
+    internal static int? ExtractTfmMajorVersion(string tfm)
     {
         if (tfm.StartsWith("net", StringComparison.OrdinalIgnoreCase) && tfm.Contains('.'))
         {

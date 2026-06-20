@@ -1,0 +1,41 @@
+using System;
+using System.Collections.Generic;
+
+namespace Snippet;
+
+public class Program
+{
+    public static bool IsPositive(int x)
+    {
+        return x > 0;
+    }
+
+    public static void Main(string[] args)
+    {
+        var numbers = new List<int>();
+        numbers.Add(-2);
+        numbers.Add(-1);
+        numbers.Add(0);
+        numbers.Add(1);
+        numbers.Add(2);
+        numbers.Add(3);
+        var positives = numbers.FindAll(x => x > 0);
+        System.Console.WriteLine($"positives={positives.Count}");
+        var alsoPositives = numbers.FindAll(IsPositive);
+        System.Console.WriteLine($"alsoPositives={alsoPositives.Count}");
+        System.Func<int, bool> isEven = x => x % 2 == 0;
+        System.Predicate<int> predicate = isEven;
+        var evens = numbers.FindAll(predicate);
+        System.Console.WriteLine($"evens={evens.Count}");
+        System.Func<int, bool> backToFunc = predicate;
+        System.Console.WriteLine($"backToFunc(4)={backToFunc(4)}");
+        System.Console.WriteLine($"predicate(6)={predicate(6)}");
+        System.Console.WriteLine($"predicate(7)={predicate(7)}");
+    }
+
+    public static Program __CreateDefault()
+    {
+        var inst = new Program();
+        return inst;
+    }
+}

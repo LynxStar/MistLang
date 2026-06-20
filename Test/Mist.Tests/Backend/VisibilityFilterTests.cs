@@ -51,7 +51,10 @@ public class VisibilityFilterTests
         Assert.False(_filter.IsMemberExcluded(method));
     }
 
-    // --- Ref struct types are no longer excluded (lifted for ref-structs feature) ---
+    // --- Ref struct types are NOT excluded (csharp-interop-v2 Requirement 9, Option A) ---
+    // Ref structs (Span<T>/ReadOnlySpan<T> and any IsByRefLike type) are projected as Mist
+    // stack-only structs, exactly as before this spec. The downstream C# compiler is the
+    // safety backstop for ref-struct misuse; first-party escape analysis is future work.
 
     [Fact]
     public void IsTypeExcluded_RefStruct_ReturnsFalse()
@@ -71,6 +74,9 @@ public class VisibilityFilterTests
         Assert.False(_filter.IsTypeExcluded(typeof(SimpleClass)));
     }
 
+    // GetValue()'s own signature (int return, no parameters) references no ref-struct
+    // type, so the per-signature member filter does not exclude it. Ref struct types are
+    // themselves projected (as stack-only structs), so the member is reachable.
     [Fact]
     public void IsMemberExcluded_MemberOnRefStruct_ReturnsFalse()
     {
@@ -226,9 +232,9 @@ public class VisibilityFilterTests
         Assert.True(_filter.IsMemberExcluded(property));
     }
 
-    // --- Requirement 6.6: Signature referencing excluded type → member excluded ---
-    // Note: Ref struct types are no longer excluded by IsTypeExcluded, so members
-    // referencing ref struct types in their signatures are no longer excluded.
+    // --- Requirement 6.6: signature referencing a genuinely-excluded type (e.g. a
+    // non-public type) → member excluded. Ref-struct types are NOT excluded under Option A,
+    // so a member whose signature references a ref struct stays visible (projected). ---
 
     [Fact]
     public void IsMemberExcluded_ParameterReferencesRefStruct_ReturnsFalse()

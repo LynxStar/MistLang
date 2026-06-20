@@ -217,7 +217,8 @@ public sealed class CSharpCompilationDriver
         string projectName,
         DiagnosticBag diagnostics,
         int emittedFileCount = 0,
-        string? mainTypeName = null)
+        string? mainTypeName = null,
+        ImmutableArray<string> additionalReferencePaths = default)
     {
         if (!Directory.Exists(binDirectory))
             Directory.CreateDirectory(binDirectory);
@@ -256,7 +257,12 @@ public sealed class CSharpCompilationDriver
         var compilation = CSharpCompilation.Create(
             assemblyName: projectName,
             syntaxTrees: syntaxTrees,
-            references: CoreReferences,
+            references: additionalReferencePaths.IsDefaultOrEmpty
+                ? CoreReferences
+                : CoreReferences.AddRange(
+                    additionalReferencePaths
+                        .Where(File.Exists)
+                        .Select(p => (RoslynApi.MetadataReference)RoslynApi.MetadataReference.CreateFromFile(p))),
             options: compilationOptions);
 
         // Emit to the bin directory
@@ -297,12 +303,28 @@ public sealed class CSharpCompilationDriver
         }
 
         // Write a .runtimeconfig.json so `dotnet <dll>` knows which runtime to use
-        WriteRuntimeConfig(runtimeConfigPath);
+        WriteRuntimeConfig(runtimeConfigPath, additionalReferencePaths);
+
+        // Copy package assembly DLLs to the bin directory so they're found at runtime.
+        if (!additionalReferencePaths.IsDefaultOrEmpty)
+        {
+            foreach (var refPath in additionalReferencePaths)
+            {
+                if (File.Exists(refPath))
+                {
+                    var destPath = Path.Combine(binDirectory, Path.GetFileName(refPath));
+                    if (!File.Exists(destPath))
+                    {
+                        try { File.Copy(refPath, destPath); } catch { /* best effort */ }
+                    }
+                }
+            }
+        }
 
         return new BackendResult(true, outputPath, diagnostics.ToImmutableArray(), EmittedFileCount: emittedFileCount);
     }
 
-    private static void WriteRuntimeConfig(string path)
+    private static void WriteRuntimeConfig(string path, ImmutableArray<string> additionalReferencePaths = default)
     {
         var tfm = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription;
         // Extract version like "10.0.3" from ".NET 10.0.3"
@@ -311,17 +333,47 @@ public sealed class CSharpCompilationDriver
         var parts = version.Split('.');
         var majorMinor = parts.Length >= 2 ? $"{parts[0]}.{parts[1]}" : version;
 
-        var json = $$"""
-            {
-              "runtimeOptions": {
-                "tfm": "net{{majorMinor}}",
-                "framework": {
-                  "name": "Microsoft.NETCore.App",
-                  "version": "{{version}}"
+        // Check if additional reference paths include ASP.NET Core assemblies
+        // (indicating that Microsoft.AspNetCore.App framework should be included).
+        var includeAspNetCore = !additionalReferencePaths.IsDefaultOrEmpty &&
+            additionalReferencePaths.Any(p =>
+                p.Contains("Microsoft.AspNetCore.App", StringComparison.OrdinalIgnoreCase));
+
+        string json;
+        if (includeAspNetCore)
+        {
+            json = $$"""
+                {
+                  "runtimeOptions": {
+                    "tfm": "net{{majorMinor}}",
+                    "frameworks": [
+                      {
+                        "name": "Microsoft.NETCore.App",
+                        "version": "{{version}}"
+                      },
+                      {
+                        "name": "Microsoft.AspNetCore.App",
+                        "version": "{{version}}"
+                      }
+                    ]
+                  }
                 }
-              }
-            }
-            """;
+                """;
+        }
+        else
+        {
+            json = $$"""
+                {
+                  "runtimeOptions": {
+                    "tfm": "net{{majorMinor}}",
+                    "framework": {
+                      "name": "Microsoft.NETCore.App",
+                      "version": "{{version}}"
+                    }
+                  }
+                }
+                """;
+        }
         File.WriteAllText(path, json);
     }
 }

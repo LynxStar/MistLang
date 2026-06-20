@@ -11,6 +11,10 @@ public enum CliCommand
     Run,
     /// <summary>Install the bundled Mist steering files into the project's .kiro/steering/ directory.</summary>
     Steering,
+    /// <summary>Inspect a CLR type's projected and hidden members.</summary>
+    Inspect,
+    /// <summary>Resolve packages and framework references without building.</summary>
+    Restore,
 }
 
 /// <summary>
@@ -23,7 +27,9 @@ public sealed record CliArguments(
     string OutputDirectory = "",
     string BinDirectory = "",
     CompilerMode Mode = CompilerMode.Compile,
-    bool Quiet = false);
+    bool Quiet = false,
+    bool Verbose = false,
+    string? InspectTypeName = null);
 
 /// <summary>
 /// The compiler execution mode.

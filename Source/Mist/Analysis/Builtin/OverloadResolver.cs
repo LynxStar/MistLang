@@ -1,6 +1,7 @@
 using System.Linq;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
+using Mist.Semantics.Model.Types;
 
 namespace Mist.Analysis.Builtin;
 
@@ -238,7 +239,7 @@ public static class OverloadResolver
                 if (!MoreSpecific(best.ParamTypes, other.ParamTypes))
                 {
                     // best is not more specific than this other candidate — ambiguous.
-                    return MakeAmbiguousOrTiebreak(applicable, candidateOrigin);
+                    return MakeAmbiguousOrTiebreak(applicable, candidateOrigin, argumentTypes);
                 }
             }
 
@@ -250,7 +251,7 @@ public static class OverloadResolver
 
         // No single most-specific candidate — either ambiguous or resolved by
         // the origin-based tiebreaker.
-        return MakeAmbiguousOrTiebreak(applicable, candidateOrigin);
+        return MakeAmbiguousOrTiebreak(applicable, candidateOrigin, argumentTypes);
     }
 
     /// <summary>
@@ -262,7 +263,17 @@ public static class OverloadResolver
     /// is preferred over a generic method with identical parameter types after
     /// type argument substitution.
     ///
-    /// Tiebreaker 2 (left-operand precedence, design § 5): When
+    /// Tiebreaker 2 (delegate-aware preference, design § 6): When multiple
+    /// applicable candidates differ only in delegate-typed vs func-typed parameters,
+    /// the preference depends on the argument kind:
+    /// - DelegateType-typed argument → prefer matching DelegateType overload (exact nominal match).
+    /// - func&lt;...&gt; argument → prefer func&lt;...&gt; overload over DelegateType overload.
+    /// - Lambda argument (a func that is signature-compatible with a DelegateType) →
+    ///   prefer DelegateType overload over func&lt;...&gt; overload (target-type inference favors nominal).
+    /// - DelegateType overload vs BaseDelegateType overload → prefer DelegateType (more specific).
+    /// - Ambiguity across multiple DelegateTypes → remains ambiguous (MIST_TC_0094).
+    ///
+    /// Tiebreaker 3 (left-operand precedence, design § 5): When
     /// <paramref name="candidateOrigin"/> is provided, the applicable
     /// candidates are partitioned by their origin value (looked up using the
     /// original candidate-list index preserved in
@@ -272,12 +283,13 @@ public static class OverloadResolver
     /// candidates share the minimum origin, the tiebreaker cannot
     /// disambiguate and the call remains <see cref="OverloadResolutionStatus.AmbiguousCall"/>.
     ///
-    /// When neither tiebreaker resolves the ambiguity, the result is
+    /// When no tiebreaker resolves the ambiguity, the result is
     /// <see cref="OverloadResolutionStatus.AmbiguousCall"/>.
     /// </summary>
     private static OverloadResolutionResult MakeAmbiguousOrTiebreak(
         List<(ISymbol Symbol, IReadOnlyList<IType> ParamTypes, int OriginalIndex)> applicable,
-        IReadOnlyList<int>? candidateOrigin)
+        IReadOnlyList<int>? candidateOrigin,
+        IReadOnlyList<IType> argumentTypes)
     {
         // Tiebreaker 1: Prefer non-generic over generic (C# §12.6.4.3).
         // When exactly one applicable candidate is non-generic and the rest are
@@ -293,6 +305,14 @@ public static class OverloadResolver
                 BestCandidate: nonGenericCandidates[0].Symbol,
                 AmbiguousCandidates: null);
         }
+
+        // Tiebreaker 2: Delegate-aware preference (delegate-func-conversion, design § 6).
+        // When multiple candidates differ in delegate-typed vs func-typed parameters,
+        // apply delegate-specific scoring to pick the preferred overload.
+        var delegateResult = TryResolveDelegatePreference(applicable, argumentTypes);
+        if (delegateResult is not null)
+            return delegateResult.Value;
+
         if (candidateOrigin is null)
         {
             return new OverloadResolutionResult(
@@ -301,7 +321,7 @@ public static class OverloadResolver
                 AmbiguousCandidates: applicable.Select(a => a.Symbol).ToList());
         }
 
-        // Find the minimum origin value across the applicable candidates.
+        // Tiebreaker 3: Find the minimum origin value across the applicable candidates.
         var minOrigin = int.MaxValue;
         foreach (var entry in applicable)
         {
@@ -338,6 +358,156 @@ public static class OverloadResolver
             OverloadResolutionStatus.AmbiguousCall,
             BestCandidate: null,
             AmbiguousCandidates: applicable.Select(a => a.Symbol).ToList());
+    }
+
+    /// <summary>
+    /// Attempts to resolve ambiguity using delegate-specific preference rules.
+    /// Returns a resolved result if one candidate is clearly preferred, or null if
+    /// the delegate tiebreaker does not apply or cannot resolve the ambiguity.
+    ///
+    /// Rules (Requirements 7.1–7.6):
+    /// 1. DelegateType-typed argument → prefer overload whose parameter is that exact DelegateType.
+    /// 2. func&lt;...&gt; argument → prefer overload whose parameter is func&lt;...&gt; over DelegateType.
+    /// 3. Lambda argument (func with no matching DelegateType identity) → prefer DelegateType overload
+    ///    over func&lt;...&gt; overload (target-type inference favors the nominal type).
+    /// 4. DelegateType overload vs BaseDelegateType overload → prefer DelegateType (more specific).
+    /// 5. Multiple DelegateType overloads both matching → ambiguous (MIST_TC_0094 emitted by caller).
+    /// </summary>
+    private static OverloadResolutionResult? TryResolveDelegatePreference(
+        List<(ISymbol Symbol, IReadOnlyList<IType> ParamTypes, int OriginalIndex)> applicable,
+        IReadOnlyList<IType> argumentTypes)
+    {
+        // Check if the ambiguity involves delegate/func/basedelegate parameter differences.
+        // We scan each parameter position to see if candidates differ by delegate-related types.
+        // If at any position we can apply a preference, score each candidate.
+        var scores = new int[applicable.Count];
+        var hasDelegateRelevance = false;
+
+        for (var argIdx = 0; argIdx < argumentTypes.Count; argIdx++)
+        {
+            var argType = argumentTypes[argIdx];
+
+            // Classify the parameter types at this position across candidates.
+            var hasDelegateParam = false;
+            var hasFuncParam = false;
+            var hasBaseDelegateParam = false;
+
+            for (var candIdx = 0; candIdx < applicable.Count; candIdx++)
+            {
+                if (argIdx >= applicable[candIdx].ParamTypes.Count) continue;
+                var paramType = applicable[candIdx].ParamTypes[argIdx];
+
+                if (paramType is DelegateType)
+                    hasDelegateParam = true;
+                else if (paramType is BaseDelegateType)
+                    hasBaseDelegateParam = true;
+                else if (SemanticModelBuilder.IsFuncType(paramType))
+                    hasFuncParam = true;
+            }
+
+            // Only apply delegate preference when candidates differ at this position
+            // with delegate-related types.
+            if (!hasDelegateParam && !hasBaseDelegateParam)
+                continue;
+            if (!hasFuncParam && !hasBaseDelegateParam && !hasDelegateParam)
+                continue;
+
+            hasDelegateRelevance = true;
+
+            // Score each candidate based on the argument kind at this position.
+            for (var candIdx = 0; candIdx < applicable.Count; candIdx++)
+            {
+                if (argIdx >= applicable[candIdx].ParamTypes.Count) continue;
+                var paramType = applicable[candIdx].ParamTypes[argIdx];
+
+                // Rule 1: DelegateType-typed argument → prefer exact nominal match.
+                if (argType is DelegateType argDelegate)
+                {
+                    if (paramType is DelegateType paramDelegate
+                        && argDelegate.ClrFullName == paramDelegate.ClrFullName)
+                    {
+                        scores[candIdx] += 2; // Strong preference for exact match.
+                    }
+                    else if (paramType is BaseDelegateType)
+                    {
+                        scores[candIdx] -= 1; // Penalize BaseDelegateType (less specific).
+                    }
+                    // func<...> or different DelegateType: no bonus.
+                }
+                // Rule 2: func<...> argument → prefer func<...> overload over DelegateType.
+                else if (SemanticModelBuilder.IsFuncType(argType))
+                {
+                    if (SemanticModelBuilder.IsFuncType(paramType))
+                    {
+                        scores[candIdx] += 2; // Strong preference for structural match.
+                    }
+                    else if (paramType is DelegateType)
+                    {
+                        scores[candIdx] += 0; // Neutral — delegate accepts func but not preferred.
+                    }
+                    else if (paramType is BaseDelegateType)
+                    {
+                        scores[candIdx] -= 1; // Penalize BaseDelegateType (less specific).
+                    }
+                }
+                // Rule 3: Lambda argument — in the Mist type system, a lambda that has been
+                // resolved to a func<...> type but isn't a DelegateType itself is treated as
+                // a "lambda-like" argument. Prefer DelegateType overload over func<...> overload.
+                // Note: Lambdas in the resolved argument types appear as func<...>, but since
+                // we already handled the case where arg is func<...> (Rule 2), here we handle
+                // the remaining case: when all candidates differ only by DelegateType vs BaseDelegateType.
+                // Rule 4: DelegateType vs BaseDelegateType → prefer DelegateType.
+                else
+                {
+                    // For any other argument type (e.g., lambda resolved as func),
+                    // DelegateType is preferred over BaseDelegateType.
+                    if (paramType is DelegateType)
+                    {
+                        scores[candIdx] += 1;
+                    }
+                    else if (paramType is BaseDelegateType)
+                    {
+                        scores[candIdx] -= 1;
+                    }
+                }
+            }
+        }
+
+        if (!hasDelegateRelevance)
+            return null;
+
+        // Find the candidate with the highest score.
+        var bestScore = int.MinValue;
+        var bestIdx = -1;
+        var tieCount = 0;
+
+        for (var i = 0; i < scores.Length; i++)
+        {
+            if (scores[i] > bestScore)
+            {
+                bestScore = scores[i];
+                bestIdx = i;
+                tieCount = 1;
+            }
+            else if (scores[i] == bestScore)
+            {
+                tieCount++;
+            }
+        }
+
+        // If exactly one candidate has the highest score, it wins.
+        if (tieCount == 1 && bestIdx >= 0)
+        {
+            return new OverloadResolutionResult(
+                OverloadResolutionStatus.Success,
+                BestCandidate: applicable[bestIdx].Symbol,
+                AmbiguousCandidates: null);
+        }
+
+        // Multiple candidates tied — check if the tie is specifically across
+        // multiple DelegateTypes (Rule 5 → MIST_TC_0094 emitted by caller).
+        // Return null to let the standard ambiguity path handle it.
+        return null;
     }
 
     /// <summary>

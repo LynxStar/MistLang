@@ -41,15 +41,15 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
     /// </summary>
     private sealed class SpyProgressReporter : ICompilationProgressReporter
     {
-        public List<(int StageNumber, string Title)> StageStarts { get; } = new();
-        public List<(int StageNumber, TimeSpan Elapsed, IReadOnlyList<string> Details)> StageCompletes { get; } = new();
+        public List<(string StageId, string Title)> StageStarts { get; } = new();
+        public List<(string StageId, TimeSpan Elapsed, IReadOnlyList<string> Details)> StageCompletes { get; } = new();
         public (bool Succeeded, int ErrorCount, int WarningCount, TimeSpan TotalElapsed)? Summary { get; private set; }
 
-        public void ReportStageStart(int stageNumber, string title) =>
-            StageStarts.Add((stageNumber, title));
+        public void ReportStageStart(string stageId, string title) =>
+            StageStarts.Add((stageId, title));
 
-        public void ReportStageComplete(int stageNumber, TimeSpan elapsed, IReadOnlyList<string> details) =>
-            StageCompletes.Add((stageNumber, elapsed, details));
+        public void ReportStageComplete(string stageId, TimeSpan elapsed, IReadOnlyList<string> details) =>
+            StageCompletes.Add((stageId, elapsed, details));
 
         public void ReportBuildSummary(bool succeeded, int errorCount, int warningCount, TimeSpan totalElapsed) =>
             Summary = (succeeded, errorCount, warningCount, totalElapsed);
@@ -109,8 +109,8 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
 
         for (var i = 0; i < 6; i++)
         {
-            Assert.Equal(i + 1, spy.StageStarts[i].StageNumber);
-            Assert.Equal(i + 1, spy.StageCompletes[i].StageNumber);
+            Assert.Equal((i + 1).ToString(), spy.StageStarts[i].StageId);
+            Assert.Equal((i + 1).ToString(), spy.StageCompletes[i].StageId);
         }
     }
 
@@ -123,7 +123,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
 
         driver.Compile(options);
 
-        var stage1 = spy.StageCompletes.First(s => s.StageNumber == 1);
+        var stage1 = spy.StageCompletes.First(s => s.StageId == "1");
 
         // Should have 3 detail lines: stdlib, referenced, user
         Assert.Equal(3, stage1.Details.Count);
@@ -149,7 +149,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
 
         driver.Compile(options);
 
-        var stage2 = spy.StageCompletes.First(s => s.StageNumber == 2);
+        var stage2 = spy.StageCompletes.First(s => s.StageId == "2");
 
         Assert.Single(stage2.Details);
         Assert.Matches(@"^\d+ tokens$", stage2.Details[0]);
@@ -166,7 +166,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
 
         driver.Compile(options);
 
-        var stage3 = spy.StageCompletes.First(s => s.StageNumber == 3);
+        var stage3 = spy.StageCompletes.First(s => s.StageId == "3");
 
         Assert.Single(stage3.Details);
         Assert.Matches(@"^\d+ AST nodes$", stage3.Details[0]);
@@ -183,7 +183,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
 
         driver.Compile(options);
 
-        var stage4 = spy.StageCompletes.First(s => s.StageNumber == 4);
+        var stage4 = spy.StageCompletes.First(s => s.StageId == "4");
 
         Assert.Single(stage4.Details);
         Assert.Matches(@"^\d+ top-level constructs$", stage4.Details[0]);
@@ -201,7 +201,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
 
         driver.Compile(options);
 
-        var stage5 = spy.StageCompletes.First(s => s.StageNumber == 5);
+        var stage5 = spy.StageCompletes.First(s => s.StageId == "5");
 
         // At least one timing entry (TypeCheckerAnalyzer)
         Assert.True(stage5.Details.Count >= 1, "Expected at least one analyzer timing entry");
@@ -221,7 +221,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
 
         driver.Compile(options);
 
-        var stage6 = spy.StageCompletes.First(s => s.StageNumber == 6);
+        var stage6 = spy.StageCompletes.First(s => s.StageId == "6");
 
         // First detail: emitted file count
         Assert.True(stage6.Details.Count >= 1, "Expected at least one emit detail");
@@ -272,23 +272,23 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
         var result = driver.Compile(options);
 
         // Stages 1–4 should always be reported
-        Assert.Contains(spy.StageStarts, s => s.StageNumber == 1);
-        Assert.Contains(spy.StageStarts, s => s.StageNumber == 2);
-        Assert.Contains(spy.StageStarts, s => s.StageNumber == 3);
-        Assert.Contains(spy.StageStarts, s => s.StageNumber == 4);
+        Assert.Contains(spy.StageStarts, s => s.StageId == "1");
+        Assert.Contains(spy.StageStarts, s => s.StageId == "2");
+        Assert.Contains(spy.StageStarts, s => s.StageId == "3");
+        Assert.Contains(spy.StageStarts, s => s.StageId == "4");
 
-        Assert.Contains(spy.StageCompletes, s => s.StageNumber == 1);
-        Assert.Contains(spy.StageCompletes, s => s.StageNumber == 2);
-        Assert.Contains(spy.StageCompletes, s => s.StageNumber == 3);
-        Assert.Contains(spy.StageCompletes, s => s.StageNumber == 4);
+        Assert.Contains(spy.StageCompletes, s => s.StageId == "1");
+        Assert.Contains(spy.StageCompletes, s => s.StageId == "2");
+        Assert.Contains(spy.StageCompletes, s => s.StageId == "3");
+        Assert.Contains(spy.StageCompletes, s => s.StageId == "4");
 
         // The build should have failed
         Assert.False(result.Succeeded, "Expected compilation to fail");
 
         // Stages 5 and 6 should NOT be started (skipped due to semantic errors)
-        Assert.DoesNotContain(spy.StageStarts, s => s.StageNumber == 5);
-        Assert.DoesNotContain(spy.StageStarts, s => s.StageNumber == 6);
-        Assert.DoesNotContain(spy.StageCompletes, s => s.StageNumber == 5);
-        Assert.DoesNotContain(spy.StageCompletes, s => s.StageNumber == 6);
+        Assert.DoesNotContain(spy.StageStarts, s => s.StageId == "5");
+        Assert.DoesNotContain(spy.StageStarts, s => s.StageId == "6");
+        Assert.DoesNotContain(spy.StageCompletes, s => s.StageId == "5");
+        Assert.DoesNotContain(spy.StageCompletes, s => s.StageId == "6");
     }
 }

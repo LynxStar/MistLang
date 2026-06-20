@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace Mist.Driver;
@@ -41,6 +42,8 @@ public sealed class LoadedAssemblyInfo
         NamespaceIndex = BuildNamespaceIndex(metadataAssembly);
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2026",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildNamespaceIndex(
         Assembly assembly)
     {

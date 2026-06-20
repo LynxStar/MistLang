@@ -214,14 +214,49 @@ public readonly record struct DiagnosticId(string Value)
     /// <summary>The target framework reference path does not exist in the SDK.</summary>
     public static readonly DiagnosticId SdkNoFramework = new("MIST_SDK_NO_FRAMEWORK");
 
-    /// <summary>A referenced NuGet package could not be found on any configured feed.</summary>
-    public static readonly DiagnosticId PackageNotFound = new("MIST_PKG_NOT_FOUND");
+    /// <summary>
+    /// A declared package provides no assemblies compatible with the target
+    /// framework. The message lists the framework targets the package offers.
+    /// </summary>
+    public static readonly DiagnosticId PackageNoCompatibleTfm = new("MIST_PKG_001");
 
-    /// <summary>A network error or timeout occurred during package download.</summary>
-    public static readonly DiagnosticId PackageNetworkError = new("MIST_PKG_NETWORK_ERROR");
+    /// <summary>
+    /// A referenced NuGet package name or version could not be found on any
+    /// configured NuGet feed. The message names every feed that was searched.
+    /// </summary>
+    public static readonly DiagnosticId PackageNotFound = new("MIST_PKG_002");
 
-    /// <summary>A NuGet package has no compatible framework target.</summary>
-    public static readonly DiagnosticId PackageNoCompatibleTfm = new("MIST_PKG_NO_COMPATIBLE_TFM");
+    /// <summary>
+    /// A connection or network failure occurred while restoring a package, or
+    /// the restore did not complete within the 100-second bound. The message
+    /// indicates which category of failure occurred.
+    /// </summary>
+    public static readonly DiagnosticId PackageNetworkError = new("MIST_PKG_003");
+
+    // ── Framework reference resolution diagnostics ───────────────────────
+
+    /// <summary>
+    /// An enabled framework reference is a known shared framework but its
+    /// reference pack is not installed for the target framework. The message
+    /// names the framework, the target framework, and the pack path searched.
+    /// </summary>
+    public static readonly DiagnosticId FrameworkReferenceNotInstalled = new("MIST_FWREF_001");
+
+    /// <summary>
+    /// An enabled framework reference name does not correspond to a known
+    /// shared framework (it is absent from the known-framework allow-list).
+    /// The message names the offending framework.
+    /// </summary>
+    public static readonly DiagnosticId FrameworkReferenceUnknownName = new("MIST_FWREF_002");
+
+    /// <summary>
+    /// A CLR base type or implemented interface could not be resolved from any assembly
+    /// available to the provider during projection. Only that relationship is omitted
+    /// (no disconnected shell is attached); the derived type and its remaining members and
+    /// relationships continue to project. Non-fatal indication (Requirement 6.6).
+    /// </summary>
+    public static readonly DiagnosticId CrossAssemblyRelationshipUnresolved =
+        new("MIST_INTEROP_UNRESOLVED_RELATIONSHIP");
 
     /// <summary>A <c>using</c> directive references a namespace that does not exist.</summary>
     public static readonly DiagnosticId NamespaceNotFound = new("MIST_NS_NOT_FOUND");

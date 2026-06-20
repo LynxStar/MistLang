@@ -15,8 +15,10 @@ namespace Mist.Tests.Backend;
 /// Property 3: For any CLR member, the visibility filter SHALL exclude it if and only if
 /// at least one of the following holds: (a) it is not public, (b) it is an event,
 /// (c) it has a ref readonly return type,
-/// (d) it has pointer types in its signature, (e) its declaring type
-/// is a ref struct, or (f) its signature references a type that is itself excluded.
+/// (d) it has pointer types in its signature, or (e) its signature references a type that is
+/// itself excluded (i.e. a non-public type). Ref-struct types (those carrying
+/// IsByRefLikeAttribute, e.g. Span&lt;T&gt;) are NOT excluded under csharp-interop-v2 Option A —
+/// they are projected as Mist stack-only structs.
 /// Ref parameters (including in), out parameters, and mutable ref returns now pass through.
 /// All other public members SHALL be projected.
 /// </summary>
@@ -274,6 +276,63 @@ public sealed class VisibilityFilterCompletenessPropertyTests
     {
         if (!IsTypePublic(type))
             return true;
+
+        // Ref-struct types (carry IsByRefLikeAttribute, e.g. Span<T>/ReadOnlySpan<T>) are NOT
+        // excluded under csharp-interop-v2 Option A — they are projected as Mist stack-only
+        // structs. Only non-public types are excluded at the type level.
+
+        // Delegate-specific check: named delegates whose Invoke method references excluded
+        // types (pointers, ref readonly return) are excluded (Requirements 5.2, 5.3, 5.4).
+        if (IsDelegateWithExcludedInvokeSignature(type))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if a CLR type is a named delegate whose Invoke method references excluded
+    /// types (pointer params, ref readonly return). This mirrors the VisibilityFilter's
+    /// IsDelegateWithExcludedInvokeSignature rule from Requirements 5.2, 5.3, 5.4.
+    /// </summary>
+    private static bool IsDelegateWithExcludedInvokeSignature(Type type)
+    {
+        if (type.BaseType?.FullName != "System.MulticastDelegate")
+            return false;
+
+        // System.Delegate and System.MulticastDelegate themselves are never excluded.
+        var fullName = type.FullName ?? "";
+        if (fullName is "System.Delegate" or "System.MulticastDelegate")
+            return false;
+
+        // System.Func/Action families are not named delegates for this purpose.
+        var name = type.Name;
+        if (name.StartsWith("Func`") || name.StartsWith("Action`") || name == "Action")
+            return false;
+
+        var invokeMethod = type.GetMethod("Invoke");
+        if (invokeMethod is null)
+            return false;
+
+        // Check for pointer types in Invoke parameters
+        foreach (var p in invokeMethod.GetParameters())
+        {
+            if (ContainsPointerType(p.ParameterType))
+                return true;
+        }
+
+        // Check for pointer type in return
+        if (ContainsPointerType(invokeMethod.ReturnType))
+            return true;
+
+        // Check for ref readonly return on Invoke
+        if (invokeMethod.ReturnType.IsByRef)
+        {
+            if (invokeMethod.ReturnParameter
+                .GetCustomAttributesData()
+                .Any(a => a.AttributeType.FullName ==
+                    "System.Runtime.CompilerServices.IsReadOnlyAttribute"))
+                return true;
+        }
 
         return false;
     }

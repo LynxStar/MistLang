@@ -766,7 +766,10 @@ rule PropertyInitializerBlock = LEFT_BRACE assignments:PropertyAssignmentList? R
 
 rule PropertyAssignmentList = PropertyAssignment (COMMA PropertyAssignment)* COMMA?;
 
-rule PropertyAssignment = name:IDENTIFIER EQUAL value:Expression;
+rule PropertyAssignment
+    = name:IDENTIFIER EQUAL value:Expression   as NamedPropertyAssignment
+    | value:Expression                          as CollectionElementAssignment
+    ;
 
 // ─── Parser Rules — Patterns ────────────────────────────────────────────────
 // Pattern grammar for `is` expressions. Precedence: or < and < not < primary.

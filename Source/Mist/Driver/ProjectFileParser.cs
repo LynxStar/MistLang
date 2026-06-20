@@ -16,6 +16,12 @@ public static partial class ProjectFileParser
     public const string FileName = "mist.toml";
     public const int MaxNameLength = 128;
 
+    /// <summary>
+    /// Maximum length, after trimming, of a framework name declared in the
+    /// <c>[framework_references]</c> table.
+    /// </summary>
+    public const int MaxFrameworkReferenceNameLength = 256;
+
     [GeneratedRegex(@"^[a-zA-Z0-9\-_\.]+$")]
     private static partial Regex ValidNamePattern();
 
@@ -539,6 +545,101 @@ public static partial class ProjectFileParser
             packages = pkgBuilder.ToImmutable();
         }
 
-        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint, globalUsings, packages);
+        // 12. Read target_framework field (optional string), defaulting to net10.0
+        var targetFramework = "net10.0";
+        if (model.TryGetValue("target_framework", out var tfObj)
+            && tfObj is string tfStr
+            && !string.IsNullOrWhiteSpace(tfStr))
+        {
+            targetFramework = tfStr.Trim();
+        }
+
+        // 13. Read [framework_references] table (optional)
+        var frameworkReferences = ImmutableArray<FrameworkReference>.Empty;
+
+        if (model.TryGetValue("framework_references", out var fwrefsObj))
+        {
+            if (fwrefsObj is not TomlTable fwrefsTable)
+            {
+                // Present but not a table → emit diagnostic, produce empty list,
+                // and continue (do not abort the parse).
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_FWREF_TABLE_EXPECTED"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Driver,
+                    $"The 'framework_references' field in '{filePath}' must be a table ([framework_references]).",
+                    Location: default,
+                    CompilationUnitPath: filePath,
+                    AnalyzerName: null));
+            }
+            else
+            {
+                var fwrefBuilder = ImmutableArray.CreateBuilder<FrameworkReference>();
+                var seenFrameworks = new HashSet<string>(StringComparer.Ordinal);
+
+                foreach (var (rawFwName, fwValue) in fwrefsTable)
+                {
+                    var fwName = rawFwName.Trim();
+
+                    // 13a. Validate framework name: empty/whitespace after trim
+                    if (fwName.Length == 0)
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            new DiagnosticId("MIST_FWREF_INVALID_NAME"),
+                            DiagnosticSeverity.Error,
+                            PipelineStage.Driver,
+                            $"Framework reference name '{rawFwName}' in '{filePath}' must not be empty or whitespace after trimming.",
+                            Location: default,
+                            CompilationUnitPath: filePath,
+                            AnalyzerName: null));
+                        continue;
+                    }
+
+                    // 13b. Validate framework name: length check (after trim)
+                    if (fwName.Length > MaxFrameworkReferenceNameLength)
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            new DiagnosticId("MIST_FWREF_INVALID_NAME"),
+                            DiagnosticSeverity.Error,
+                            PipelineStage.Driver,
+                            $"Framework reference name '{fwName}' in '{filePath}' exceeds the maximum length of {MaxFrameworkReferenceNameLength} characters (got {fwName.Length}).",
+                            Location: default,
+                            CompilationUnitPath: filePath,
+                            AnalyzerName: null));
+                        continue;
+                    }
+
+                    // 13c. Validate value: must be a TOML boolean
+                    if (fwValue is not bool enabled)
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            new DiagnosticId("MIST_FWREF_INVALID_VALUE"),
+                            DiagnosticSeverity.Error,
+                            PipelineStage.Driver,
+                            $"Framework reference '{fwName}' in '{filePath}' must have a boolean value (true or false).",
+                            Location: default,
+                            CompilationUnitPath: filePath,
+                            AnalyzerName: null));
+                        continue;
+                    }
+
+                    // 13d. false → exclude from the list.
+                    if (!enabled)
+                    {
+                        continue;
+                    }
+
+                    // 13e. true → include exactly once (dedupe by trimmed name).
+                    if (seenFrameworks.Add(fwName))
+                    {
+                        fwrefBuilder.Add(new FrameworkReference(fwName));
+                    }
+                }
+
+                frameworkReferences = fwrefBuilder.ToImmutable();
+            }
+        }
+
+        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint, globalUsings, packages, frameworkReferences, targetFramework);
     }
 }

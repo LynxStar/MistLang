@@ -12,7 +12,7 @@ public sealed record CliParseResult(CliArguments? Arguments, IReadOnlyList<CliPa
 
 /// <summary>
 /// Hand-rolled argument parser for the Mist CLI.
-/// Parses: <c>mist [project-folder] [--backend &lt;id&gt;] [--output &lt;dir&gt;] [--bin &lt;dir&gt;] [--mode &lt;compile|lex&gt;]</c>
+/// Parses: <c>mist &lt;build|run|steering|inspect|restore&gt; [project-folder] [--backend &lt;id&gt;] [--output &lt;dir&gt;] [--bin &lt;dir&gt;] [--mode &lt;compile|lex&gt;] [--quiet] [--verbose]</c>
 /// </summary>
 public static class CliArgumentParser
 {
@@ -25,6 +25,7 @@ public static class CliArgumentParser
         var binDirectory = "";
         var mode = CompilerMode.Compile;
         var quiet = false;
+        var verbose = false;
 
         for(var i = 0; i < args.Length; i++)
         {
@@ -91,6 +92,10 @@ public static class CliArgumentParser
             {
                 quiet = true;
             }
+            else if(arg == "--verbose" || arg == "-v")
+            {
+                verbose = true;
+            }
             else if(arg.StartsWith("--"))
             {
                 errors.Add(new CliParseError($"Unknown flag: {arg}"));
@@ -101,8 +106,15 @@ public static class CliArgumentParser
             }
         }
 
+        // --verbose and --quiet are mutually exclusive
+        if(verbose && quiet)
+        {
+            errors.Add(new CliParseError("The '--verbose' and '--quiet' flags are mutually exclusive."));
+        }
+
         // Detect command verb from the first positional argument
         var command = CliCommand.Build;
+        string? inspectTypeName = null;
 
         if(positionalArgs.Count > 0 && positionalArgs[0] == "build")
         {
@@ -117,6 +129,23 @@ public static class CliArgumentParser
         else if(positionalArgs.Count > 0 && positionalArgs[0] == "steering")
         {
             command = CliCommand.Steering;
+            positionalArgs.RemoveAt(0);
+        }
+        else if(positionalArgs.Count > 0 && positionalArgs[0] == "inspect")
+        {
+            command = CliCommand.Inspect;
+            positionalArgs.RemoveAt(0);
+
+            // Capture the next positional argument as the type name
+            if(positionalArgs.Count > 0)
+            {
+                inspectTypeName = positionalArgs[0];
+                positionalArgs.RemoveAt(0);
+            }
+        }
+        else if(positionalArgs.Count > 0 && positionalArgs[0] == "restore")
+        {
+            command = CliCommand.Restore;
             positionalArgs.RemoveAt(0);
         }
 
@@ -172,7 +201,7 @@ public static class CliArgumentParser
         }
 
         return new CliParseResult(
-            new CliArguments(projectFolder!, Command: command, backendId, outputDirectory, binDirectory, mode, quiet),
+            new CliArguments(projectFolder!, Command: command, backendId, outputDirectory, binDirectory, mode, quiet, verbose, inspectTypeName),
             errors);
     }
 }

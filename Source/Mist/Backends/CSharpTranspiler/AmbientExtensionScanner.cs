@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Mist.Driver;
 
@@ -77,6 +78,8 @@ internal sealed class AmbientExtensionScanner
     /// Iterates exported types in the target namespace, checking for static classes
     /// with [ExtensionAttribute] and their qualifying methods.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2026",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private static void ScanAssemblyNamespace(
         LoadedAssemblyInfo assembly,
         string namespaceName,
@@ -116,6 +119,8 @@ internal sealed class AmbientExtensionScanner
     /// Scans a static class decorated with [ExtensionAttribute] for qualifying
     /// extension methods (public static, has [ExtensionAttribute], at least 1 parameter).
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070",
+        Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private static void ScanExtensionClass(
         Type extensionClass,
         string namespaceName,

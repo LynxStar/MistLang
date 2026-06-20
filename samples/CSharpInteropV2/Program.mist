@@ -1,0 +1,56 @@
+using Standard;
+using System.IO;
+using System.Text;
+
+namespace CSharpInteropV2;
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("--- C# Interop V2 ---");
+
+        // PROOF: NuGet package resolution is wired into the type provider.
+        // PROOF: JsonConvert.SerializeObject(int[]) resolves from Newtonsoft.Json,
+        //        which is only available if the [packages] entry was restored AND
+        //        its assemblies were passed to the AssemblyTypeProvider.
+        int[] data = [1, 2, 3];
+        var json = Newtonsoft.Json.JsonConvert.SerializeObject(data);
+        Console.WriteLine($"json={json}");
+
+        // PROOF: Framework reference resolution makes Microsoft.AspNetCore.App types
+        //        available. QueryString lives in Microsoft.AspNetCore.Http.Abstractions,
+        //        which only loads when [framework_references] enables the shared framework.
+        var qs = new Microsoft.AspNetCore.Http.QueryString("?id=42");
+        Console.WriteLine($"query={qs.Value}");
+        Console.WriteLine($"hasValue={qs.HasValue}");
+
+        // PROOF: Cross-assembly inheritance — MemoryStream is assignable to Stream.
+        // PROOF: Inherited members (Length, CanRead) declared on Stream are callable
+        //        on the value through the base-typed variable.
+        var memory = new MemoryStream();
+        memory.WriteByte(72);
+        memory.WriteByte(105);
+        Stream stream = memory;
+        Console.WriteLine($"streamLength={stream.Length}");
+        Console.WriteLine($"canRead={stream.CanRead}");
+
+        // PROOF: Method-group overload resolution — Encoding.GetBytes(string) is callable.
+        //        GetBytes also exposes Span<T>/ReadOnlySpan<T> overloads, which under
+        //        Option A are also projected (ref structs are projected, not hidden); the
+        //        string overload still resolves correctly alongside them.
+        var encoded = Encoding.UTF8.GetBytes("Hi");
+        Console.WriteLine($"encodedLength={encoded.Length}");
+
+        // PROOF: The supported decode overload GetString(byte[]) is also preserved.
+        var decoded = Encoding.UTF8.GetString(encoded);
+        Console.WriteLine($"decoded={decoded}");
+
+        Console.WriteLine("--- C# Interop V2 Done ---");
+    }
+
+    public static void Main()
+    {
+        RunDemo();
+    }
+}

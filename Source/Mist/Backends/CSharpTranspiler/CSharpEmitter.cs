@@ -6489,9 +6489,12 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        // If any argument is a ref argument or needs implicit cast wrapping, emit all
-        // arguments through the expression emitter so we can apply ref/cast as needed.
-        if (hasRefArgument || hasImplicitCast)
+        // Check if any argument requires delegate constructor wrapping (Task 9.1).
+        var hasDelegateWrapping = ArgumentRequiresDelegateWrapping(argExprs, calledMethod);
+
+        // If any argument is a ref argument, needs implicit cast wrapping, or needs
+        // delegate wrapping, emit all arguments through the expression emitter.
+        if (hasRefArgument || hasImplicitCast || hasDelegateWrapping)
         {
             var emitted = new List<string>();
             for (var i = 0; i < argExprs.Count; i++)
@@ -6524,6 +6527,8 @@ internal sealed class CSharpSourceWriter
                     // Task 12.1 — emit .Clone() at resolver-marked implicit-clone sites (Req 14 AC 7).
                     emittedArg = WrapWithImplicitCloneIfNeeded(argExprs[i], emittedArg);
                 }
+                // Task 9.1 — delegate constructor wrapping at call sites (Req 4.3, 4.4, 4.7, 4.8).
+                emittedArg = WrapWithDelegateConstructorIfNeeded(argExprs[i], emittedArg, i, calledMethod);
                 emitted.Add(emittedArg);
             }
             return string.Join(", ", emitted);
@@ -6584,6 +6589,8 @@ internal sealed class CSharpSourceWriter
                 emittedArg = WrapWithImplicitCastIfNeeded(argExprs[i], emittedArg);
                 // Task 12.1 — emit .Clone() at resolver-marked implicit-clone sites (Req 14 AC 7).
                 emittedArg = WrapWithImplicitCloneIfNeeded(argExprs[i], emittedArg);
+                // Task 9.1 — delegate constructor wrapping at call sites (Req 4.3, 4.4, 4.7, 4.8).
+                emittedArg = WrapWithDelegateConstructorIfNeeded(argExprs[i], emittedArg, i, calledMethod);
                 emitted.Add(emittedArg);
             }
             return string.Join(", ", emitted);
@@ -8607,6 +8614,80 @@ internal sealed class CSharpSourceWriter
         return false;
     }
 
+    /// <summary>
+    /// Returns <c>true</c> if any argument requires delegate constructor wrapping —
+    /// i.e., the parameter type is a <see cref="DelegateType"/> and the argument's
+    /// type is a func/lambda/method-group (not already a DelegateType). When true,
+    /// the source-text fast path must be bypassed so the expression emitter can apply
+    /// <c>new DelegateName(...)</c> wrapping.
+    /// </summary>
+    private bool ArgumentRequiresDelegateWrapping(List<ExpressionNode> argExprs, Symbol? calledMethod)
+    {
+        if (calledMethod?.Parameters is not { Count: > 0 } parameters)
+            return false;
+
+        for (var i = 0; i < argExprs.Count && i < parameters.Count; i++)
+        {
+            var paramType = parameters[i].DeclaredType;
+            if (paramType is not DelegateType)
+                continue;
+
+            // The parameter expects a named delegate. Check if the argument's type
+            // is a func/lambda (not already a DelegateType value).
+            var argType = _model.GetTypeOf(argExprs[i]);
+            if (argType is DelegateType)
+                continue; // DelegateType → DelegateType: no wrapping needed (same type)
+
+            // If the argument is a lambda expression or has a func type, wrapping is needed.
+            if (argExprs[i] is LambdaFormExpressionNode)
+                return true;
+            if (argType is not null && SemanticModelBuilder.IsFuncType(argType))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Wraps an emitted argument in a delegate constructor invocation if the corresponding
+    /// parameter type is a <see cref="DelegateType"/> and the argument is a lambda, func value,
+    /// or method group. When the target is <see cref="BaseDelegateType"/>, the argument is emitted
+    /// as-is (C# 11+ handles the conversion implicitly). When a <see cref="DelegateType"/> value
+    /// is passed where <c>func&lt;...&gt;</c> is expected, it is also emitted as-is.
+    /// </summary>
+    private string WrapWithDelegateConstructorIfNeeded(ExpressionNode argExpr, string emittedArg, int argIndex, Symbol? calledMethod)
+    {
+        if (calledMethod?.Parameters is not { Count: > 0 } parameters)
+            return emittedArg;
+        if (argIndex >= parameters.Count)
+            return emittedArg;
+
+        var paramType = parameters[argIndex].DeclaredType;
+
+        // When target is BaseDelegateType: emit as-is (C# 11+ implicit conversion).
+        if (paramType is BaseDelegateType)
+            return emittedArg;
+
+        // When target is not a DelegateType: no wrapping needed.
+        if (paramType is not DelegateType delegateType)
+            return emittedArg;
+
+        // When a DelegateType value is passed where DelegateType is expected: emit as-is.
+        var argType = _model.GetTypeOf(argExpr);
+        if (argType is DelegateType)
+            return emittedArg;
+
+        // When the argument is a lambda, func value, or method group and the parameter
+        // type is a DelegateType: wrap with new DelegateName(argument).
+        if (argExpr is LambdaFormExpressionNode
+            || (argType is not null && SemanticModelBuilder.IsFuncType(argType)))
+        {
+            var delegateTypeName = CSharpTypeMap.GetTypeName(delegateType);
+            return $"new {delegateTypeName}({emittedArg})";
+        }
+
+        return emittedArg;
+    }
+
     private static bool IsOwnedType(IType type)
     {
         var resolved = type is ConstructedType constructed ? constructed.GenericDefinition : type;
@@ -9160,6 +9241,11 @@ internal sealed class CSharpSourceWriter
                 if (widened is not null)
                     init = widened;
 
+                // Delegate-func conversion wrapping: when assigning a func value to a
+                // DelegateType variable or a DelegateType value to a func variable, emit
+                // a constructor invocation to satisfy C#'s nominal delegate type system.
+                init = WrapDelegateConversionIfNeeded(initType, declaredType, init);
+
                 // Emit ref / ref readonly prefix for ref locals.
                 var refPrefix = declaredSymbol?.RefKind switch
                 {
@@ -9470,6 +9556,18 @@ internal sealed class CSharpSourceWriter
 
         AppendLine($"foreach ({type} {name} in {collection})");
         EmitBlock(foreachStmt.Body);
+    }
+
+    // ─── Property / Collection Initializer Entry Emission ────────────────
+
+    private string EmitPropertyAssignmentEntry(PropertyAssignmentNode assignment)
+    {
+        return assignment switch
+        {
+            NamedPropertyAssignmentPropertyAssignmentNode named => $"{named.Name.Lexeme} = {EmitExpression(named.Value)}",
+            CollectionElementAssignmentPropertyAssignmentNode element => EmitExpression(element.Value),
+            _ => ""
+        };
     }
 
     // ─── Expression Emission ─────────────────────────────────────────────
@@ -11156,6 +11254,43 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
+    /// Wraps an emitted initializer expression in a delegate constructor invocation when
+    /// the declared variable type and the initializer type require delegate-func conversion.
+    /// <list type="bullet">
+    ///   <item>func → DelegateType: emits <c>new DelegateName(expr)</c></item>
+    ///   <item>DelegateType → func: emits <c>new System.Func&lt;...&gt;(expr)</c></item>
+    ///   <item>func → BaseDelegateType: emits as-is (C# 11+ handles implicitly)</item>
+    ///   <item>DelegateType → BaseDelegateType: emits as-is</item>
+    /// </list>
+    /// </summary>
+    private static string WrapDelegateConversionIfNeeded(
+        IType? sourceType,
+        IType? targetType,
+        string emittedInit)
+    {
+        if (sourceType is null || targetType is null)
+            return emittedInit;
+
+        // func → DelegateType: wrap with new DelegateName(expr)
+        if (targetType is DelegateType targetDelegate && SemanticModelBuilder.IsFuncType(sourceType))
+        {
+            var delegateTypeName = CSharpTypeMap.GetTypeName(targetDelegate);
+            return $"new {delegateTypeName}({emittedInit})";
+        }
+
+        // DelegateType → func: wrap with new System.Func<...>(expr)
+        if (sourceType is DelegateType && SemanticModelBuilder.IsFuncType(targetType))
+        {
+            var funcTypeName = CSharpTypeMap.GetTypeName(targetType);
+            return $"new {funcTypeName}({emittedInit})";
+        }
+
+        // func → BaseDelegateType: C# 11+ handles implicitly, emit as-is
+        // DelegateType → BaseDelegateType: C# handles implicitly, emit as-is
+        return emittedInit;
+    }
+
+    /// <summary>
     /// Looks up the return type of a method declaration from the semantic
     /// model via the declared symbol. Used by <see cref="EmitMethodDeclaration"/>
     /// to set <see cref="_currentMethodReturnType"/> for the duration of
@@ -12264,10 +12399,10 @@ internal sealed class CSharpSourceWriter
                     if (objCreation.Initializer.Assignments is not null)
                     {
                         var assignments = objCreation.Initializer.Assignments;
-                        initParts.Add($"{assignments.PropertyAssignment.Name.Lexeme} = {EmitExpression(assignments.PropertyAssignment.Value)}");
+                        initParts.Add(EmitPropertyAssignmentEntry(assignments.PropertyAssignment));
                         foreach (var assignment in assignments.PropertyAssignments)
                         {
-                            initParts.Add($"{assignment.Name.Lexeme} = {EmitExpression(assignment.Value)}");
+                            initParts.Add(EmitPropertyAssignmentEntry(assignment));
                         }
                     }
                     return $"new {type}{typeArgs}({argsStr}) {{ {string.Join(", ", initParts)} }}";
@@ -12283,10 +12418,10 @@ internal sealed class CSharpSourceWriter
                 if (objCreationNoArgs.Initializer.Assignments is not null)
                 {
                     var assignments = objCreationNoArgs.Initializer.Assignments;
-                    initParts.Add($"{assignments.PropertyAssignment.Name.Lexeme} = {EmitExpression(assignments.PropertyAssignment.Value)}");
+                    initParts.Add(EmitPropertyAssignmentEntry(assignments.PropertyAssignment));
                     foreach (var assignment in assignments.PropertyAssignments)
                     {
-                        initParts.Add($"{assignment.Name.Lexeme} = {EmitExpression(assignment.Value)}");
+                        initParts.Add(EmitPropertyAssignmentEntry(assignment));
                     }
                 }
                 return $"new {type}{typeArgs}() {{ {string.Join(", ", initParts)} }}";

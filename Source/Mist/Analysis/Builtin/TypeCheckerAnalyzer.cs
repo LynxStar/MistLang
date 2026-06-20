@@ -3407,10 +3407,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // A ref struct type cannot be used as a field in a non-ref-struct type,
         // since that would allow the ref struct value to escape to the heap.
         var fieldType = fieldSymbol.DeclaredType;
-        if (fieldType is StructType { IsRefStruct: true } refFieldType)
+        if (fieldType is not null && IsRefStructType(fieldType))
         {
             var containingType = FindDeclaringType(fieldSymbol);
-            var containingIsRefStruct = containingType is StructType { IsRefStruct: true };
+            var containingIsRefStruct = containingType is not null && IsRefStructType(containingType);
             if (!containingIsRefStruct)
             {
                 var containerName = containingType switch
@@ -3421,7 +3421,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 };
                 diagnostics.Add(MakeDiagnostic(
                     "MIST2002",
-                    $"Ref struct type '{refFieldType.DisplayName}' cannot be used as a field in non-ref-struct type '{containerName}'",
+                    $"Ref struct type '{fieldType.DisplayName}' cannot be used as a field in non-ref-struct type '{containerName}'",
                     declaringNode,
                     model));
             }
@@ -3465,10 +3465,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── MIST2003: Ref struct property restriction (Requirement 3.6) ──
         // A ref struct type cannot be used as a property type in a non-ref-struct type,
         // since that would allow the ref struct value to escape to the heap.
-        if (propType is StructType { IsRefStruct: true } refPropType)
+        if (IsRefStructType(propType))
         {
             var containingType = _currentEnclosingType;
-            var containingIsRefStruct = containingType is StructType { IsRefStruct: true };
+            var containingIsRefStruct = containingType is not null && IsRefStructType(containingType);
             if (!containingIsRefStruct)
             {
                 var containerName = containingType switch
@@ -3479,7 +3479,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 };
                 diagnostics.Add(MakeDiagnostic(
                     "MIST2003",
-                    $"Ref struct type '{refPropType.DisplayName}' cannot be used as a property type in non-ref-struct type '{containerName}'",
+                    $"Ref struct type '{propType.DisplayName}' cannot be used as a property type in non-ref-struct type '{containerName}'",
                     declaringNode,
                     model));
             }
@@ -6583,6 +6583,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (type is ArrayType arrayType)
             return arrayType.ElementType;
 
+        // Spans implement IEnumerable<ElementType> (declared in Span.mist).
+        if (type is Semantics.Model.Types.SpanType spanType)
+            return spanType.ElementType;
+
         var interfaces = GetInterfaceList(type);
 
         // If the source is a ConstructedType, we need to substitute type parameters
@@ -7298,6 +7302,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // MIST_REF_0009: Cannot assign through a ref readonly return value.
             CheckRefReadonlyAssignmentProhibition(assignment, model, diagnostics);
 
+            // ── stack-only-types feature: read-only span indexer write rejection ──
+            // MIST_TC_0156: Cannot assign through a ReadOnlySpan indexer.
+            CheckReadOnlySpanIndexerAssignment(assignment, model, diagnostics);
+
             // ── ref-parameters feature: ref field storage prohibition ──
             // MIST_REF_0008: Cannot store a ref in a field.
             CheckRefFieldStorageProhibition(assignment, model, diagnostics);
@@ -7565,6 +7573,41 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     model));
                 return;
             }
+        }
+    }
+
+    /// <summary>
+    /// Checks if an assignment targets the indexer of a read-only span.
+    /// Emits <c>MIST_TC_0156</c> when the assignment target is an index suffix whose
+    /// receiver is a <see cref="SpanType"/> with <c>IsReadOnly == true</c>.
+    /// This check is independent of length validation (Requirement 2.8).
+    /// </summary>
+    private static void CheckReadOnlySpanIndexerAssignment(
+        AssignmentNode assignment,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Extract the PostfixNode from the assignment target.
+        var postfix = TryExtractPostfixFromLogicalOr(assignment.Target.Left);
+        if (postfix is null)
+            return;
+
+        // The assignment target must end with an index suffix.
+        if (postfix.Suffix.Length == 0 || postfix.Suffix[^1] is not IndexSuffixPostfixSuffixNode)
+            return;
+
+        // Determine the receiver type (the expression before the index suffix).
+        IType? receiverType = postfix.Suffix.Length > 1
+            ? model.GetTypeOf(postfix.Suffix[^2])
+            : model.GetTypeOf(postfix.Target);
+
+        if (receiverType is SpanType { IsReadOnly: true })
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0156",
+                "Cannot assign through a ReadOnlySpan indexer; ReadOnlySpan elements are read-only",
+                assignment,
+                model));
         }
     }
 
@@ -9559,6 +9602,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     currentType = SubstituteMemberType(model.GetTypeOf(suffix), currentType);
                     // Also substitute method-level type arguments in the return type.
                     currentType = SubstituteMethodReturnType(currentType, methodCall, model);
+                    // ── stack-only-types: Slice length inference (Requirements 1.6, 2.6) ──
+                    // When a Slice call is made on a SpanType receiver, infer the result
+                    // as a SpanType of the same kind with KnownLength = len for a literal
+                    // len argument, unknown otherwise.
+                    currentType = TryInferSliceLengthFromCall(methodCall, currentType, model);
                     // A method call's return flows through the unknown-receiver
                     // substitution so the result type is reported as `unknown` at
                     // any position the generic's type parameter was closed with it.
@@ -10268,6 +10316,60 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
+    /// When a <c>Slice(start, len)</c> call is made on a <see cref="SpanType"/> receiver,
+    /// infers the result as a <see cref="SpanType"/> of the same kind (mutable/read-only)
+    /// with <c>KnownLength = len</c> when the second argument is a literal integer,
+    /// or unknown length otherwise (Requirements 1.6, 2.6).
+    /// Returns <paramref name="currentType"/> unchanged if not applicable.
+    /// </summary>
+    private static IType? TryInferSliceLengthFromCall(
+        MethodCallSuffixPostfixSuffixNode methodCall,
+        IType? currentType,
+        ISemanticModel model)
+    {
+        // Only applies to Slice calls whose return type is already a SpanType.
+        if (currentType is not SpanType resultSpan)
+            return currentType;
+
+        // Must be a method named "Slice".
+        if (methodCall.Name.Lexeme != "Slice")
+            return currentType;
+
+        // Must have arguments with at least two parameters (start, length).
+        if (methodCall.Arguments is null)
+            return currentType;
+
+        // The second argument is the length parameter.
+        if (methodCall.Arguments.Arguments.Length < 1)
+            return currentType;
+
+        var lengthArg = methodCall.Arguments.Arguments[0];
+        var lengthExpr = ArgumentListNodeExtensions.ExtractExpression(lengthArg);
+
+        // Try to extract a literal integer value from the length argument.
+        var literalValue = TryExtractLiteralConstantValue(lengthExpr);
+        if (literalValue is int intVal)
+        {
+            return new SpanType(resultSpan.ElementType, (long)intVal, resultSpan.IsReadOnly);
+        }
+        if (literalValue is long longVal)
+        {
+            return new SpanType(resultSpan.ElementType, longVal, resultSpan.IsReadOnly);
+        }
+        if (literalValue is uint uintVal)
+        {
+            return new SpanType(resultSpan.ElementType, (long)uintVal, resultSpan.IsReadOnly);
+        }
+        if (literalValue is ulong ulongVal && ulongVal <= long.MaxValue)
+        {
+            return new SpanType(resultSpan.ElementType, (long)ulongVal, resultSpan.IsReadOnly);
+        }
+
+        // Non-literal length → result is unknown-length (already the case from the declared return type).
+        return currentType;
+    }
+
+    /// <summary>
     /// After a member read passes the filter, substitute <see cref="UnknownType"/>
     /// for every type-parameter position of <paramref name="receiverType"/>'s
     /// generic definition that is closed with <c>unknown</c>. This implements
@@ -10365,6 +10467,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             case ArrayCreationExpressionPrimaryNode arrayCreation:
                 CheckArrayCreation(arrayCreation, model, diagnostics);
+                break;
+
+            case StackallocExpressionPrimaryNode stackallocExpr:
+                CheckStackallocExpression(stackallocExpr, model, diagnostics);
                 break;
 
             case ObjectCreationExpressionPrimaryNode objectCreation:
@@ -11833,6 +11939,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 ObjectCreationExpressionPrimaryNode => "new expression",
                 ObjectCreationExpressionNoArgsPrimaryNode => "new expression",
                 ArrayCreationExpressionPrimaryNode => "new expression",
+                StackallocExpressionPrimaryNode => "stackalloc expression",
                 ArrayLiteralExpressionPrimaryNode => "array literal",
                 DefaultExpressionPrimaryNode => "default expression",
                 DefaultLiteralExpressionPrimaryNode => "default",
@@ -12085,6 +12192,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         // Targeted enum diagnostic emitted; skip generic.
                     }
+                    // stack-only-types feature (R7.7): emit a targeted diagnostic
+                    // for span-to-span mismatch (kind or element type).
+                    else if (TryEmitSpanInteropMismatchDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    {
+                        // Targeted span mismatch diagnostic emitted; skip generic.
+                    }
                     else
                     {
                         diagnostics.Add(MakeDiagnostic(
@@ -12256,6 +12369,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     else if (TryEmitEnumAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
                     {
                         // Targeted enum diagnostic emitted; skip generic.
+                    }
+                    // stack-only-types feature (R7.7): emit a targeted diagnostic
+                    // for span-to-span mismatch (kind or element type).
+                    else if (TryEmitSpanInteropMismatchDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    {
+                        // Targeted span mismatch diagnostic emitted; skip generic.
                     }
                     else
                     {
@@ -12936,6 +13055,179 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // Stackalloc expression checking (MIST_TC_0150, MIST_TC_0151)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private void CheckStackallocExpression(
+        StackallocExpressionPrimaryNode stackallocExpr,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Recursively type-check the size expression.
+        CheckExpression(stackallocExpr.Size, model, diagnostics);
+
+        // ── MIST_TC_0151: size must be integer-typed (R4.7, R4.8) ────────
+        // Uses the same `IsIntLike` predicate that array creation uses at
+        // MIST_TC_0012 for `new T[n]`.
+        var sizeType = model.GetTypeOf(stackallocExpr.Size);
+        if (sizeType is not null && !IsErrorType(sizeType))
+        {
+            if (!IsIntLike(sizeType))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0151",
+                    $"Stackalloc size must be of type 'int', but found '{sizeType.DisplayName}'",
+                    stackallocExpr.Size,
+                    model));
+            }
+        }
+
+        // ── Element-type stampability gate (R5.1–R5.7, R14.3) ────────────
+        // Reuses the same IsStampable + IsPrimitiveStructByName gate that
+        // bare `new T[size]` uses, but anchored at the element-type node
+        // and with span-specific diagnostic IDs distinguishing the reason:
+        //   MIST_TC_0152 — reference type
+        //   MIST_TC_0153 — non-stampable struct
+        //   MIST_TC_0154 — ref struct
+        //   MIST_TC_0155 — unconstrained type parameter
+        var spanType = model.GetTypeOf(stackallocExpr);
+        if (spanType is SpanType span)
+        {
+            var elemType = span.ElementType;
+
+            // Skip the gate if the element type is unresolved/error.
+            if (elemType is null || IsErrorType(elemType))
+                return;
+
+            // Reject ref structs unconditionally BEFORE the stampability check:
+            // a ref struct cannot be used as a span element type even if its
+            // fields happen to be all primitives (R5.6, MIST_TC_0154).
+            if (IsRefStructType(elemType))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0154",
+                    $"Cannot use ref struct '{elemType.DisplayName}' as a stackalloc element type. " +
+                    $"Ref structs cannot be stored in contiguous stack-allocated memory.",
+                    stackallocExpr.Type,
+                    model));
+                return;
+            }
+
+            // Accept stampable struct types (includes primitives like int,
+            // bool, char, float — all modeled as StructType with IsStampable = true).
+            // Also accept legacy primitive struct singletons that may not have
+            // had IsStampable set (they are intrinsically stampable by name).
+            if (elemType is StructType st && (st.IsStampable || IsPrimitiveStructByName(st)))
+                return;
+
+            // Reject: determine the specific reason and diagnostic ID.
+            var (diagId, message) = elemType switch
+            {
+                _ when IsRefStructType(elemType) =>
+                    ("MIST_TC_0154",
+                     $"Cannot use ref struct '{elemType.DisplayName}' as a stackalloc element type. " +
+                     $"Ref structs cannot be stored in contiguous stack-allocated memory."),
+
+                StructType =>
+                    ("MIST_TC_0153",
+                     $"Cannot use '{elemType.DisplayName}' as a stackalloc element type because it is not stampable. " +
+                     $"Only primitive types and structs whose fields are all stampable can be stack-allocated."),
+
+                TypeParameterType =>
+                    ("MIST_TC_0155",
+                     $"Cannot use type parameter '{elemType.DisplayName}' as a stackalloc element type. " +
+                     $"The type parameter is not constrained to be a stampable type."),
+
+                _ =>
+                    ("MIST_TC_0152",
+                     $"Cannot use reference type '{elemType.DisplayName}' as a stackalloc element type. " +
+                     $"Only value types (stampable structs and primitives) can be stack-allocated."),
+            };
+
+            diagnostics.Add(MakeDiagnostic(
+                diagId,
+                message,
+                stackallocExpr.Type,
+                model));
+        }
+    }
+
+    /// <summary>
+    /// Detects the stackalloc-target-type-specific assignability failure mode:
+    /// when the source type is a <see cref="SpanType"/> (the result of a stackalloc
+    /// expression) and the target type is not a <see cref="SpanType"/> family type,
+    /// emits <c>MIST_TC_0150</c> and returns <c>true</c>. Returns <c>false</c> if the
+    /// case does not apply, leaving the caller to emit its regular diagnostic.
+    /// </summary>
+    private static bool TryEmitStackallocTargetMismatchDiagnostic(
+        IType source,
+        IType target,
+        SyntaxNode node,
+        DiagnosticBag diagnostics,
+        ISemanticModel model)
+    {
+        if (source is SpanType && target is not SpanType)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0150",
+                $"Cannot assign stackalloc result of type '{source.DisplayName}' to target type '{target.DisplayName}'. " +
+                $"A stackalloc expression can only be assigned to a 'var' declaration, 'Span<T>', or 'ReadOnlySpan<T>'.",
+                node,
+                model));
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Detects the span-interop-specific assignability failure mode:
+    /// when both source and target are <see cref="SpanType"/> but the assignment
+    /// is rejected because the span kind differs (mutable vs read-only) or the
+    /// element types cannot be reconciled. Emits <c>MIST_TC_0157</c> with a message
+    /// identifying the specific mismatch reason and returns <c>true</c>. Returns
+    /// <c>false</c> if neither type is a <see cref="SpanType"/>, leaving the caller
+    /// to emit its regular diagnostic. (Requirements 7.4, 7.5, 7.6, 7.7, 9.2)
+    /// </summary>
+    private static bool TryEmitSpanInteropMismatchDiagnostic(
+        IType source,
+        IType target,
+        SyntaxNode node,
+        DiagnosticBag diagnostics,
+        ISemanticModel model)
+    {
+        if (source is SpanType sourceSpan && target is SpanType targetSpan)
+        {
+            // Both are SpanType but IsAssignable returned false.
+            // Identify the reason: kind mismatch or element type mismatch.
+            if (sourceSpan.IsReadOnly != targetSpan.IsReadOnly)
+            {
+                var sourceKind = sourceSpan.IsReadOnly ? "ReadOnlySpan" : "Span";
+                var targetKind = targetSpan.IsReadOnly ? "ReadOnlySpan" : "Span";
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0157",
+                    $"Span kind mismatch: cannot assign '{sourceKind}<{sourceSpan.ElementType.DisplayName}>' " +
+                    $"to '{targetKind}<{targetSpan.ElementType.DisplayName}>'. " +
+                    $"Mutable Span and ReadOnlySpan are not interchangeable.",
+                    node,
+                    model));
+            }
+            else
+            {
+                // Kind matches but element types cannot be reconciled.
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0157",
+                    $"Span element type mismatch: cannot assign '{source.DisplayName}' " +
+                    $"to '{target.DisplayName}'. " +
+                    $"Element type '{sourceSpan.ElementType.DisplayName}' is not compatible with '{targetSpan.ElementType.DisplayName}'.",
+                    node,
+                    model));
+            }
+            return true;
+        }
+        return false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // Array literal checking (MIST_TC_0034, MIST_TC_0095, MIST_SB_0055)
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -13147,10 +13439,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Validate refinement constraint on the indexer parameter.
-        // Arrays and custom indexers use the same validation path (Requirement 2.1).
+        // Arrays, spans, and custom indexers use the same validation path (Requirement 2.1).
         if (targetType is ArrayType arrayTarget)
         {
             ValidateArrayIndexRefinement(indexSuffix, arrayTarget, model, diagnostics);
+        }
+        else if (targetType is SpanType spanTarget)
+        {
+            // Spans reuse the exact array bounds machinery (Requirements 1.5, 2.5, 14.6).
+            ValidateLengthIndexRefinement(
+                indexSuffix, spanTarget.KnownLength, spanTarget.SymbolicLengthId, spanTarget.DisplayName, model, diagnostics);
         }
         else if (targetType is not null)
         {
@@ -13160,9 +13458,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Validates the index argument against the ArrayBounds predicate for an array indexer.
-    /// Constructs the predicate (>= 0 and &lt; Length) from the array's KnownLength or
-    /// SymbolicLengthId, then validates using the 3-case logic: literal evaluation,
-    /// narrowing context implication, refinement type implication, or reject with diagnostic.
+    /// One-line adapter delegating to the shared length-based bounds helper.
     /// </summary>
     /// <remarks>
     /// Requirements: 2.1, 2.2, 2.3, 2.4, 5.1, 5.2, 5.3, 5.4
@@ -13172,22 +13468,45 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ArrayType arrayType,
         ISemanticModel model,
         DiagnosticBag diagnostics)
+        => ValidateLengthIndexRefinement(
+            indexSuffix, arrayType.KnownLength, arrayType.SymbolicLengthId, arrayType.DisplayName, model, diagnostics);
+
+    /// <summary>
+    /// Validates the index argument against the Bounds predicate for a length-carrying
+    /// indexer target (an array or a span). Constructs the predicate (>= 0 and &lt; Length)
+    /// from the target's KnownLength or SymbolicLengthId, then validates using the 3-case
+    /// logic: literal evaluation, narrowing context implication, refinement type implication,
+    /// or reject with diagnostic. Shared verbatim between <see cref="ArrayType"/> and
+    /// <see cref="SpanType"/> — this is reuse of the existing array machinery, not a second
+    /// bounds checker.
+    /// </summary>
+    /// <remarks>
+    /// Requirements: 2.1, 2.2, 2.3, 2.4, 5.1, 5.2, 5.3, 5.4, 1.5, 2.5, 14.6
+    /// </remarks>
+    private void ValidateLengthIndexRefinement(
+        IndexSuffixPostfixSuffixNode indexSuffix,
+        long? knownLength,
+        int? symbolicLengthId,
+        string targetDisplayName,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
     {
-        // Build the target constraints based on what's known about the array's length.
-        // Per Requirement 2.1: no bypass — validation always runs for ArrayType.
+        // Build the target constraints based on what's known about the target's length.
+        // Per Requirement 2.1: no bypass — validation always runs.
         // - Concrete length: full bounds check (>= 0 and < KnownLength)
         // - Symbolic length: full bounds check (>= 0 and < symbolic ID)
         // - Unknown length (no KnownLength, no SymbolicLengthId): only enforce >= 0.
         //   This occurs for local variables with explicit array type annotations
-        //   (e.g., `int[] numbers = new int[3]`). The upper bound cannot be proven
-        //   statically, so it is deferred to runtime — matching C# semantics.
+        //   (e.g., `int[] numbers = new int[3]`) and unknown-length spans. The upper
+        //   bound cannot be proven statically, so it is deferred to runtime — matching
+        //   C# semantics.
         var targetConstraints = new List<ConditionConstraint>();
         targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Gte, 0));
 
-        if (arrayType.KnownLength.HasValue)
-            targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Lt, arrayType.KnownLength.Value));
-        else if (arrayType.SymbolicLengthId.HasValue)
-            targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Lt, 0, arrayType.SymbolicLengthId.Value));
+        if (knownLength.HasValue)
+            targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Lt, knownLength.Value));
+        else if (symbolicLengthId.HasValue)
+            targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Lt, 0, symbolicLengthId.Value));
 
         // Case 1 (literal): Evaluate predicate directly.
         var constantValue = TryExtractLiteralConstantValue(indexSuffix.Index);
@@ -13238,18 +13557,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // If the only unsatisfied constraint is a symbolic upper bound
             // (unresolvable at compile time), and the literal satisfies the
             // lower bound (>= 0), accept it — defer upper bound to runtime.
-            if (longVal.HasValue && longVal.Value >= 0 && !arrayType.KnownLength.HasValue)
+            if (longVal.HasValue && longVal.Value >= 0 && !knownLength.HasValue)
                 return;
 
             // Literal fails — emit diagnostic.
-            var boundsDesc = arrayType.KnownLength.HasValue
-                ? $">= 0 and < {arrayType.KnownLength.Value}"
-                : arrayType.SymbolicLengthId.HasValue
-                    ? $">= 0 and < {arrayType.DisplayName}.Length"
+            var boundsDesc = knownLength.HasValue
+                ? $">= 0 and < {knownLength.Value}"
+                : symbolicLengthId.HasValue
+                    ? $">= 0 and < {targetDisplayName}.Length"
                     : ">= 0";
             diagnostics.Add(MakeDiagnostic(
                 ParameterRefinementViolation.Value,
-                $"Argument '{constantValue}' does not satisfy refinement constraint '{boundsDesc}' on parameter 'index' of indexer '{arrayType.DisplayName}'.",
+                $"Argument '{constantValue}' does not satisfy refinement constraint '{boundsDesc}' on parameter 'index' of indexer '{targetDisplayName}'.",
                 indexSuffix.Index,
                 model));
             return;
@@ -13314,12 +13633,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return; // Refinement type proves bounds — accept.
 
             // Refinement type doesn't imply — emit implication failure diagnostic.
-            var boundsDesc2 = arrayType.KnownLength.HasValue
-                ? $">= 0 and < {arrayType.KnownLength.Value}"
-                : $">= 0 and < {arrayType.DisplayName}.Length";
+            var boundsDesc2 = knownLength.HasValue
+                ? $">= 0 and < {knownLength.Value}"
+                : $">= 0 and < {targetDisplayName}.Length";
             diagnostics.Add(MakeDiagnostic(
                 RefinementImplicationFailure.Value,
-                $"Cannot pass '{sourceRefinement.Name}' with constraint '{sourceRefinement.Predicate.Description}' to parameter 'index' of indexer '{arrayType.DisplayName}' with constraint '{boundsDesc2}' because the compiler cannot prove the implication. Use pattern matching to validate.",
+                $"Cannot pass '{sourceRefinement.Name}' with constraint '{sourceRefinement.Predicate.Description}' to parameter 'index' of indexer '{targetDisplayName}' with constraint '{boundsDesc2}' because the compiler cannot prove the implication. Use pattern matching to validate.",
                 indexSuffix.Index,
                 model));
             return;
@@ -13328,15 +13647,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Case 4: Emit diagnostic — cannot prove bounds.
         // For unknown-length arrays (no KnownLength, no SymbolicLengthId), accept
         // non-constant indices — the upper bound is deferred to runtime.
-        if (!arrayType.KnownLength.HasValue && !arrayType.SymbolicLengthId.HasValue)
+        if (!knownLength.HasValue && !symbolicLengthId.HasValue)
             return;
 
-        var boundsDescription = arrayType.KnownLength.HasValue
-            ? $">= 0 and < {arrayType.KnownLength.Value}"
-            : $">= 0 and < {arrayType.DisplayName}.Length";
+        var boundsDescription = knownLength.HasValue
+            ? $">= 0 and < {knownLength.Value}"
+            : $">= 0 and < {targetDisplayName}.Length";
         diagnostics.Add(MakeDiagnostic(
             ParameterRefinementViolation.Value,
-            $"Cannot pass non-constant argument to parameter 'index' of indexer '{arrayType.DisplayName}' with refinement constraint '{boundsDescription}' without proving the refinement. Use pattern matching to validate.",
+            $"Cannot pass non-constant argument to parameter 'index' of indexer '{targetDisplayName}' with refinement constraint '{boundsDescription}' without proving the refinement. Use pattern matching to validate.",
             indexSuffix.Index,
             model));
     }
@@ -13556,6 +13875,54 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Valid — no further checks needed.
+            return;
+        }
+
+        // ── new Span<T>(array) / new ReadOnlySpan<T>(array) ──────────────
+        // SpanType is a dedicated IType without a member scope or registered
+        // constructors. The only valid construction pattern is wrapping an
+        // array: `new Span<T>(arr)` / `new ReadOnlySpan<T>(arr)` where arr
+        // is a T[] (or implicitly convertible to one). This mirrors the CLR
+        // System.Span<T>(T[]) constructor.
+        if (createdType is Semantics.Model.Types.SpanType spanCtorType)
+        {
+            var spanCtorArgTypes = CollectArgumentTypes(objectCreation.Arguments, model);
+
+            if (spanCtorArgTypes.Count != 1)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0011",
+                    $"'new {spanCtorType.DisplayName}(...)' requires exactly one argument: an array of '{spanCtorType.ElementType.DisplayName}'.",
+                    objectCreation,
+                    model));
+                return;
+            }
+
+            var spanArgType = spanCtorArgTypes[0];
+            if (IsErrorType(spanArgType))
+                return;
+
+            // The argument must be an array whose element type is assignable
+            // to the span's element type (mirrors System.Span<T>(T[])).
+            if (spanArgType is ArrayType spanArgArrayType)
+            {
+                if (!IsAssignable(spanArgArrayType.ElementType, spanCtorType.ElementType, model))
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0011",
+                        $"'new {spanCtorType.DisplayName}(arr)' requires an array of '{spanCtorType.ElementType.DisplayName}', but found '{spanArgType.DisplayName}'.",
+                        objectCreation,
+                        model));
+                }
+                return;
+            }
+
+            // Not an array — invalid.
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0011",
+                $"'new {spanCtorType.DisplayName}(...)' requires an array argument, but found '{spanArgType.DisplayName}'.",
+                objectCreation,
+                model));
             return;
         }
 
@@ -15442,6 +15809,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if (!IsAssignable(source, target, model))
         {
+            // stack-only-types feature (R4.6): before falling back to the
+            // generic type-mismatch diagnostic, detect when a stackalloc
+            // result (SpanType) is assigned to a non-span target.
+            if (TryEmitStackallocTargetMismatchDiagnostic(source, target, node, diagnostics, model))
+                return;
+
+            // stack-only-types feature (R7.7): detect span-to-span mismatch
+            // (kind differs or element types not reconcilable) and emit a
+            // targeted diagnostic before the generic type-mismatch.
+            if (TryEmitSpanInteropMismatchDiagnostic(source, target, node, diagnostics, model))
+                return;
+
             // unknown-type feature (Req 4.2, 4.4): before falling back to
             // the generic type-mismatch diagnostic, detect the two specific
             // unknown-related failure modes and emit the targeted code.
@@ -16232,6 +16611,34 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return false;
         }
 
+        // SpanType assignability (Requirements 4.4, 4.5): mirrors ArrayType exactly.
+        // A known-length span (e.g., Span<int, 4>) is assignable to an unknown-length
+        // or symbolic-length span (Span<int>) with the same element type and matching
+        // kind (mutable/read-only). Two spans with the same concrete length are assignable.
+        // This is the permitted known→unknown widening that erases the known length.
+        if (source is SpanType sourceSpan && target is SpanType targetSpan)
+        {
+            // Kind must match: Span→Span or ReadOnlySpan→ReadOnlySpan.
+            if (sourceSpan.IsReadOnly != targetSpan.IsReadOnly)
+                return false;
+
+            if (IsAssignable(sourceSpan.ElementType, targetSpan.ElementType, model))
+            {
+                // Target is unsized (no known length, no symbolic ID) — any source matches.
+                if (targetSpan.KnownLength is null && targetSpan.SymbolicLengthId is null)
+                    return true;
+                // Target has a symbolic length — any source with same element type is
+                // acceptable (symbolic just means "unknown at compile time").
+                if (targetSpan.SymbolicLengthId is not null)
+                    return true;
+                // Target has a concrete length — source must have the same concrete length.
+                if (targetSpan.KnownLength is not null
+                    && sourceSpan.KnownLength == targetSpan.KnownLength)
+                    return true;
+            }
+            return false;
+        }
+
         // Migration-window shim: `bool` and `Standard.Boolean` (likewise
         // `int`/`Int32`, `string`/`String`, …) can coexist within a
         // single compilation when some sub-tree was resolved via the
@@ -16876,6 +17283,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return IsAssignable(argType, paramType);
         }
 
+        // For spans, use assignability (handles sized → unsized, same kind).
+        if (argType is SpanType && paramType is SpanType)
+        {
+            return IsAssignable(argType, paramType);
+        }
+
         return TypesEqual(argType, paramType);
     }
 
@@ -17231,6 +17644,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 : new ArrayType(substitutedElement);
         }
 
+        // Substitute inside span element types (e.g., Span<T> → Span<int> when T = int).
+        if (type is SpanType spanType)
+        {
+            var substitutedElement = SubstituteType(spanType.ElementType, typeParams, typeArgs);
+            if (ReferenceEquals(substitutedElement, spanType.ElementType))
+                return spanType;
+            if (spanType.KnownLength.HasValue)
+                return new SpanType(substitutedElement, spanType.KnownLength.Value, spanType.IsReadOnly);
+            if (spanType.SymbolicLengthId.HasValue)
+                return new SpanType(substitutedElement, spanType.SymbolicLengthId.Value, spanType.IsReadOnly);
+            return new SpanType(substitutedElement, spanType.IsReadOnly);
+        }
+
         // Substitute inside union type constituents (e.g., T | void → string | void when T = string).
         if (type is UnionType unionType)
         {
@@ -17567,7 +17993,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsRefStructType(IType type)
     {
-        return type is StructType { IsRefStruct: true }
+        return type is SpanType
+            || type is StructType { IsRefStruct: true }
             || (type is ConstructedType ct && ct.GenericDefinition is StructType { IsRefStruct: true });
     }
 
@@ -19305,11 +19732,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── MIST2004: Ref struct generic type argument restriction (Requirement 3.7) ──
         // A ref struct type cannot be used as a generic type argument, since generic
         // instantiation may box or store the value on the heap.
-        if (effectiveTypeArgument is StructType { IsRefStruct: true } refStructArg)
+        if (IsRefStructType(effectiveTypeArgument))
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST2004",
-                $"Ref struct type '{refStructArg.DisplayName}' cannot be used as a generic type argument",
+                $"Ref struct type '{effectiveTypeArgument.DisplayName}' cannot be used as a generic type argument",
                 node,
                 model));
         }

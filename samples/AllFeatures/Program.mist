@@ -71,6 +71,7 @@ public class Program
         OptionalDefaultability.Program.RunDemo();
         SubstructuralFieldDiscipline.Program.RunDemo();
         DefiniteAssignment.Program.RunDemo();
+        StackOnlyTypes.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

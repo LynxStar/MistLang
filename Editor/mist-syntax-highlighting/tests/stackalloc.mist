@@ -1,0 +1,22 @@
+// SYNTAX TEST "source.mist"
+
+// ===== stackalloc keyword (keyword.other.mist) =====
+// `stackalloc` is scoped identically to the `new` array-creation keyword,
+// and the element type following it is scoped like a `new T[n]` element type.
+
+stackalloc Buffer[4];
+// <- keyword.other.mist
+//         ^^^^^^ entity.name.type.mist
+
+// ===== stackalloc with a runtime size expression =====
+
+stackalloc Point[count];
+// <- keyword.other.mist
+//         ^^^^^ entity.name.type.mist
+
+// ===== Word boundary test =====
+// Identifiers that contain `stackalloc` as a substring must NOT match as the
+// keyword.
+
+stackallocated
+// <- source.mist -keyword

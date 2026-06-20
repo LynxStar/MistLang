@@ -108,3 +108,6 @@ token DISCARD = "_";
 // Concurrency keywords
 token ASYNC = "async";
 token AWAIT = "await";
+
+// Stack allocation keyword
+token STACKALLOC = "stackalloc";

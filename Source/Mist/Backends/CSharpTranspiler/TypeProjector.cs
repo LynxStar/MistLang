@@ -1210,6 +1210,19 @@ internal sealed class TypeProjector
             return namedDelegateType;
         }
 
+        // Project inbound CLR System.Span`1 / System.ReadOnlySpan`1 to the dedicated
+        // SpanType with an unknown Length, mirroring the inbound-array arm
+        // (clrType.IsArray → new ArrayType(projectedElement), which projects to an
+        // unknown-length array). The Mist Span<T, Length> is arity-2 while the CLR
+        // System.Span`1 is arity-1 — the same mismatch Array<T, Length> ↔ T[] handles —
+        // so no Length argument is fabricated; the projected SpanType is always
+        // unknown-length. Done before the constructed-generic branch so the spans are
+        // never projected as plain ConstructedType<StructType>. (Requirements 7.3, 9.1)
+        if (TryProjectClrSpan(clrType, stdlib, out var spanType))
+        {
+            return spanType;
+        }
+
         // Handle constructed generic types (e.g., List<int>, Dictionary<string, int>)
         if (clrType.IsConstructedGenericType)
         {
@@ -1291,6 +1304,61 @@ internal sealed class TypeProjector
         projectedDef = _intrinsicMap.SubstituteIntrinsics(projectedDef, stdlib);
 
         return new ConstructedType(projectedDef, projectedArgs);
+    }
+
+    /// <summary>
+    /// Attempts to project an inbound CLR <c>System.Span&lt;T&gt;</c> (<c>System.Span`1</c>)
+    /// or <c>System.ReadOnlySpan&lt;T&gt;</c> (<c>System.ReadOnlySpan`1</c>) into the dedicated
+    /// Mist <see cref="SpanType"/> with an unknown <c>Length</c>.
+    ///
+    /// <para>
+    /// This mirrors the inbound-array arm (<c>clrType.IsArray → new ArrayType(projectedElement)</c>),
+    /// which projects a CLR array to an unknown-length <see cref="ArrayType"/>. The Mist
+    /// <c>Span&lt;T, Length&gt;</c> is arity-2 while the CLR <c>System.Span`1</c> is arity-1 — the
+    /// same arity mismatch <c>Array&lt;T, Length&gt;</c> ↔ <c>T[]</c> already handles — so the
+    /// single CLR generic argument is the element type and no <c>Length</c> is fabricated;
+    /// the projected <see cref="SpanType"/> is always unknown-length (Requirement 7.3).
+    /// </para>
+    ///
+    /// <para>
+    /// All other CLR ref structs (<c>IsByRefLike</c>) are left untouched and continue to flow
+    /// through <see cref="ProjectStruct"/>'s <c>IsByRefLike → IsRefStruct</c> path (Requirement 9.1).
+    /// </para>
+    /// </summary>
+    /// <param name="clrType">The CLR type to inspect.</param>
+    /// <param name="stdlib">The stdlib type provider used to project the element type.</param>
+    /// <param name="spanType">The projected unknown-length <see cref="SpanType"/>, when matched.</param>
+    /// <returns><c>true</c> when <paramref name="clrType"/> is a CLR span; otherwise <c>false</c>.</returns>
+    private bool TryProjectClrSpan(Type clrType, IStdlibTypeProvider stdlib, out IType spanType)
+    {
+        spanType = null!;
+
+        if (!clrType.IsConstructedGenericType)
+            return false;
+
+        var genericDefName = clrType.GetGenericTypeDefinition().FullName;
+        bool isReadOnly;
+        if (genericDefName == "System.Span`1")
+        {
+            isReadOnly = false;
+        }
+        else if (genericDefName == "System.ReadOnlySpan`1")
+        {
+            isReadOnly = true;
+        }
+        else
+        {
+            return false;
+        }
+
+        var elementClrType = clrType.GetGenericArguments()[0];
+        var projectedElement = ProjectTypeReference(elementClrType, stdlib);
+        // Apply intrinsic substitution to the element type, mirroring the array arm.
+        projectedElement = _intrinsicMap.SubstituteIntrinsics(projectedElement, stdlib);
+
+        // Always unknown-length: no Length argument is fabricated (Requirement 7.3).
+        spanType = new SpanType(projectedElement, isReadOnly);
+        return true;
     }
 
     /// <summary>

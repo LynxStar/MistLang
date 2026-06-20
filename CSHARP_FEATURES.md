@@ -834,10 +834,10 @@ The specificity ordering is: exact type match > base type match > universal (`un
 | `unsafe` blocks | ⛔ | Out of scope |
 | Pointer types (`int*`) | ⛔ | Out of scope |
 | `fixed` statement | ⛔ | Out of scope |
-| `stackalloc` | ⛔ | Out of scope |
+| `stackalloc` | ✅ | `stackalloc T[n]` produces a `Span<T>` (or `ReadOnlySpan<T>` in a read-only context) with frame-escape safety enforced |
 | `sizeof` | ⛔ | Out of scope |
 | Function pointers | ⛔ | Out of scope |
-| `Span<T>` / `Memory<T>` | ✅ | Projected from ambient assemblies as ref struct types |
+| `Span<T>` / `Memory<T>` | ✅ | Projected from ambient assemblies as ref struct types; `Standard.Span<T>` / `Standard.ReadOnlySpan<T>` intrinsics with `stackalloc` support |
 | `ref struct` | ✅ | Declaration and consumption; stack-only restrictions enforced |
 
 ---
@@ -948,6 +948,6 @@ Features introduced by Mist that don't map directly to a single C# feature. Thes
 | Comments | 1 | 2 | 0 |
 | Attributes | 0 | 4 | 0 |
 | Preprocessor | 0 | 0 | 6 |
-| Unsafe / Low-Level | 0 | 0 | 8 |
+| Unsafe / Low-Level | 1 | 0 | 7 |
 | Ambient Types | 5 | 0 | 0 |
 | Type Checking | 11 | 4 | 0 |

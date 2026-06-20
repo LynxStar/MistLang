@@ -124,8 +124,16 @@
           }
         },
         {
+          "comment": "stackalloc expression: stackalloc T[n] - scope the keyword like `new` (keyword.other.mist) and the element type like a `new T[n]` element type (entity.name.type.mist)",
+          "match": "\\b(stackalloc)\\s+([a-zA-Z_]\\w*)",
+          "captures": {
+            "1": { "name": "keyword.other.mist" },
+            "2": { "name": "entity.name.type.mist" }
+          }
+        },
+        {
           "name": "keyword.other.mist",
-          "match": "\\b(new|var|this|get|set|init|field|operator|with|as|default|where)\\b"
+          "match": "\\b(new|stackalloc|var|this|get|set|init|field|operator|with|as|default|where)\\b"
         },
         {
           "comment": "Discard pattern: standalone _ in pattern contexts",

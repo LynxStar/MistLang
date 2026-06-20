@@ -1150,6 +1150,31 @@ public sealed class EndToEndCompilationTests : IDisposable
         // Interface-typed parameter dispatch via static helper
         Assert.Contains("helper circle:", stdout);
         Assert.Contains("helper rect:", stdout);
+
+        // StackOnlyTypes integration (R13.6): verify StackOnlyTypes.Program.RunDemo() output
+        Assert.Contains("=== StackOnlyTypes Sample ===", stdout);
+        Assert.Contains("--- stackalloc Span ---", stdout);
+        Assert.Contains("buffer.Length=4", stdout);
+        Assert.Contains("buffer[0]=10", stdout);
+        Assert.Contains("buffer[3]=40", stdout);
+        Assert.Contains("total=100", stdout);
+        Assert.Contains("--- Slice Aliasing ---", stdout);
+        Assert.Contains("mid.Length=2", stdout);
+        Assert.Contains("mid[0]=20", stdout);
+        Assert.Contains("mid[1]=30", stdout);
+        Assert.Contains("buffer[1]=99", stdout);
+        Assert.Contains("--- ReadOnlySpan ---", stdout);
+        Assert.Contains("ro.Length=3", stdout);
+        Assert.Contains("ro[0]=0", stdout);
+        Assert.Contains("--- stackalloc Struct Element ---", stdout);
+        Assert.Contains("points[0].x=1", stdout);
+        Assert.Contains("points[1].y=4", stdout);
+        Assert.Contains("--- Ambient AsSpan Identity ---", stdout);
+        Assert.Contains("view.Length=3", stdout);
+        Assert.Contains("view[2]=9", stdout);
+        Assert.Contains("--- Span Argument ---", stdout);
+        Assert.Contains("SumSpan=179", stdout);
+        Assert.Contains("=== StackOnlyTypes Done ===", stdout);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

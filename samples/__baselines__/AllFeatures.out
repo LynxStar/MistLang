@@ -1572,4 +1572,27 @@ Done!
 [da] labels[2]=Label(item-2)
 [da] pair[0]=Label(first)
 [da] pair[1]=Label(second)
+=== StackOnlyTypes Sample ===
+--- stackalloc Span ---
+buffer.Length=4
+buffer[0]=10
+buffer[3]=40
+total=100
+--- Slice Aliasing ---
+mid.Length=2
+mid[0]=20
+mid[1]=30
+buffer[1]=99
+--- ReadOnlySpan ---
+ro.Length=3
+ro[0]=0
+--- stackalloc Struct Element ---
+points[0].x=1
+points[1].y=4
+--- Ambient AsSpan Identity ---
+view.Length=3
+view[2]=9
+--- Span Argument ---
+SumSpan=179
+=== StackOnlyTypes Done ===
 === Done! ===

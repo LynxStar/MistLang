@@ -112,3 +112,7 @@ The compiler rejects any attempt to store a ref struct value in a location that 
 | Assignment to an interface variable | Interface assignment boxes the value |
 
 Note that a ref struct **can** declare that it implements an interface (e.g., `ref struct Foo : IBar`). The restriction applies at the usage site — you cannot assign a ref struct value to an interface-typed variable or pass it where an interface type is expected.
+
+### Span Types and `stackalloc`
+
+The most common ref structs in practice are `Span<T>` and `ReadOnlySpan<T>` — lightweight views over contiguous memory. Combined with `stackalloc`, they enable zero-allocation stack buffers with full type safety and frame-escape enforcement. See [Stack-Only Spans](../advanced/stack-only-spans.md) for the full syntax, API, bounds-checking rules, and frame-escape restrictions.

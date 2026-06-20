@@ -1,0 +1,36 @@
+using Standard;
+
+// stackalloc allocates contiguous memory on the stack frame
+// and yields a Span<T> — a lightweight view over that memory.
+
+// Known length: stackalloc with a literal size
+Span<int> buffer = stackalloc int[4];
+buffer[0] = 10;
+buffer[1] = 20;
+buffer[2] = 30;
+buffer[3] = 40;
+
+// Span<T>.Length reports the element count
+Console.WriteLine($"Length={buffer.Length}");
+
+// Indexer read
+Console.WriteLine($"buffer[0]={buffer[0]}");
+Console.WriteLine($"buffer[3]={buffer[3]}");
+
+// foreach iteration over span elements
+int total = 0;
+foreach (int v in buffer)
+{
+    total = total + v;
+}
+Console.WriteLine($"total={total}");
+
+// Slice returns a span over a sub-range of the same memory
+var mid = buffer.Slice(1, 2);
+Console.WriteLine($"mid.Length={mid.Length}");
+Console.WriteLine($"mid[0]={mid[0]}");
+
+// Writes through a slice alias the original span
+mid[0] = 99;
+Console.WriteLine($"buffer[1]={buffer[1]}");
+

@@ -171,6 +171,16 @@ public sealed class MistPrettyPrinter
 
     // ─── Type Alias Declarations ────────────────────────────────────────
 
+    private void EmitMemberTypeAliasDeclaration(MemberTypeAliasDeclarationNode aliasDecl)
+    {
+        var modifiers = EmitModifiers(aliasDecl.Modifiers);
+        var name = aliasDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(aliasDecl.TypeParams);
+        var typeExpr = EmitRefinableTypeExpression(aliasDecl.Type);
+        var constraints = EmitConstraintClauses(aliasDecl.Constraints);
+        AppendLine($"{modifiers}type {name}{typeParams} = {typeExpr}{constraints};");
+    }
+
     private void EmitTypeAliasDeclaration(TypeAliasDeclarationNode aliasDecl)
     {
         var name = aliasDecl.Name.Lexeme;
@@ -363,8 +373,8 @@ public sealed class MistPrettyPrinter
             case UnconstrainedAssociatedTypeMemberMemberDeclarationNode unconstrainedMember:
                 EmitUnconstrainedAssociatedTypeSlotDeclaration(unconstrainedMember.UnconstrainedAssociatedType);
                 break;
-            case ModifiedAssociatedTypeMemberMemberDeclarationNode modifiedMember:
-                EmitModifiedAssociatedTypeSlotDeclaration(modifiedMember.ModifiedAssociatedType);
+            case MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias:
+                EmitMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias);
                 break;
         }
     }
@@ -2201,6 +2211,14 @@ public sealed class MistPrettyPrinter
                 var type = EmitElementTypeRef(arrayCreation.Type);
                 var size = EmitExpression(arrayCreation.Size);
                 return $"new {type}[{size}]";
+            }
+            case StackallocExpressionPrimaryNode stackallocExpr:
+            {
+                // Mirror the array-creation case: stackalloc T[n] reprints with the
+                // element type and bracketed size so parse→print→parse round-trips.
+                var type = EmitElementTypeRef(stackallocExpr.Type);
+                var size = EmitExpression(stackallocExpr.Size);
+                return $"stackalloc {type}[{size}]";
             }
             case ObjectCreationExpressionPrimaryNode objCreation:
             {

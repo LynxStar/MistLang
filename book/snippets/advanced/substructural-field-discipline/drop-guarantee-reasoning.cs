@@ -47,7 +47,6 @@ public class Program
 {
     public static void Main()
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var __with_0 = new AffineContainer(1);
         MistContext.Push<AffineContainer>(__with_0);
         try

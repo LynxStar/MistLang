@@ -17,7 +17,8 @@ public sealed class CSharpCompilationDriver
 {
     // Core runtime references needed for every compilation.
     // Resolved once and reused across all compilations.
-    private static readonly ImmutableArray<RoslynApi.MetadataReference> CoreReferences = BuildCoreReferences();
+    // Internal so that in-process Roslyn verification tests can reuse the same reference set.
+    internal static readonly ImmutableArray<RoslynApi.MetadataReference> CoreReferences = BuildCoreReferences();
 
     private static ImmutableArray<RoslynApi.MetadataReference> BuildCoreReferences()
     {

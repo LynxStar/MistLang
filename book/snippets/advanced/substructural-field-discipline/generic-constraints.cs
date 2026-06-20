@@ -34,13 +34,13 @@ public class LinearBox<T>
     {
         System.Console.WriteLine("LinearBox<T>.Drop()");
         return Value;
+        ((dynamic)this.Value).Drop();
     }
 }
 public class Program
 {
     public static void Main()
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var box = new LinearBox<FileHandle>(new FileHandle(42));
         try
         {

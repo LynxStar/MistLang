@@ -2202,6 +2202,14 @@ public sealed class MistPrettyPrinter
                 var size = EmitExpression(arrayCreation.Size);
                 return $"new {type}[{size}]";
             }
+            case StackallocExpressionPrimaryNode stackallocExpr:
+            {
+                // Mirror the array-creation case: stackalloc T[n] reprints with the
+                // element type and bracketed size so parse→print→parse round-trips.
+                var type = EmitElementTypeRef(stackallocExpr.Type);
+                var size = EmitExpression(stackallocExpr.Size);
+                return $"stackalloc {type}[{size}]";
+            }
             case ObjectCreationExpressionPrimaryNode objCreation:
             {
                 var type = ExtractQualifiedName(objCreation.Type);

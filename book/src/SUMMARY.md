@@ -61,6 +61,7 @@
 - [Default Keyword](advanced/default-keyword.md)
 - [Nested Scoping](advanced/nested-scoping.md)
 - [Structured Concurrency](advanced/structured-concurrency.md)
+- [Stack-Only Spans](advanced/stack-only-spans.md)
 
 # Standard Library
 

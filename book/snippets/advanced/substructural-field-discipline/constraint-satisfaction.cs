@@ -33,6 +33,7 @@ public class AffineHolder<T>
     public void Drop()
     {
         System.Console.WriteLine("AffineHolder<T>.Drop()");
+        ((dynamic)this.Value).Drop();
     }
 }
 public class RelevantHolder<T>
@@ -55,13 +56,13 @@ public class RelevantHolder<T>
         }
         this.Dropped = true;
         System.Console.WriteLine("RelevantHolder<T>.Drop()");
+        ((dynamic)this.Value).Drop();
     }
 }
 public class Program
 {
     public static void Main()
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var __with_0 = new AffineHolder<Connection>(new Connection(1));
         MistContext.Push<AffineHolder<Connection>>(__with_0);
         try

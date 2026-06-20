@@ -9049,6 +9049,14 @@ internal sealed class CSharpSourceWriter
                 if (declaredType is ArrayType targetArrayType)
                     _arrayLiteralTargetElementType = targetArrayType.ElementType;
 
+                // Span types: the type reference may contain `unknown` (e.g.,
+                // `ReadOnlySpan<int, unknown>`), which EmitTypeReference lowers
+                // to `dynamic`. Override with the proper CLR type name from the
+                // resolved SpanType so the C# compiler sees System.Span<T> /
+                // System.ReadOnlySpan<T> instead of `dynamic`.
+                if (declaredType is Semantics.Model.Types.SpanType typedSpanType)
+                    type = CSharpTypeMap.GetTypeName(typedSpanType);
+
                 // Task 14.2: When the declared type is a two-constituent T | void union,
                 // emit Void.Void as null instead of MistVoid.Instance.
                 // Also check the emitted type string — if it ends with '?', the type
@@ -9115,7 +9123,22 @@ internal sealed class CSharpSourceWriter
                     _ => "",
                 };
                 FlushPendingArrayInitStatements();
-                AppendLine($"{refPrefix}var {name} = {refInitPrefix}{init};");
+
+                // Stackalloc-backed locals: emit the explicit System.Span<T> /
+                // System.ReadOnlySpan<T> type instead of `var` so that the C#
+                // compiler uses the safe Span path rather than pointer allocation
+                // (which requires an unsafe context). The declared type on the
+                // symbol is a SpanType set during semantic model construction.
+                var inferredDeclaredType = inferredSymbol?.DeclaredType;
+                if (inferredDeclaredType is Semantics.Model.Types.SpanType inferredSpanType)
+                {
+                    var spanTypeName = CSharpTypeMap.GetTypeName(inferredSpanType);
+                    AppendLine($"{refPrefix}{spanTypeName} {name} = {refInitPrefix}{init};");
+                }
+                else
+                {
+                    AppendLine($"{refPrefix}var {name} = {refInitPrefix}{init};");
+                }
                 break;
             }
             case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
@@ -11969,6 +11992,16 @@ internal sealed class CSharpSourceWriter
                 var type = EmitElementTypeRef(arrayCreation.Type);
                 var size = EmitExpression(arrayCreation.Size);
                 return $"new {type}[{size}]";
+            }
+            case StackallocExpressionPrimaryNode stackallocExpr:
+            {
+                // Mirror the array-creation case: the element type resolves to its
+                // CLR/backing name via EmitElementTypeRef and the size expression is
+                // emitted exactly once. The resulting `stackalloc T[n]` initializes a
+                // C# Span<T>/ReadOnlySpan<T> local (length erased — see CSharpTypeMap).
+                var type = EmitElementTypeRef(stackallocExpr.Type);
+                var size = EmitExpression(stackallocExpr.Size);
+                return $"stackalloc {type}[{size}]";
             }
             case ObjectCreationExpressionPrimaryNode objCreation:
             {

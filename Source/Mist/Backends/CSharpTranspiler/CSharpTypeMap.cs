@@ -212,6 +212,15 @@ internal static class CSharpTypeMap
         ClassType ct when ct.IsTypeType() => "System.Type",
 
         ArrayType a => $"{GetTypeName(a.ElementType, isValueContext)}[]",
+
+        // SpanType — the Array length-erasure path (Requirements 6.2, 6.3, 7.1, 7.2).
+        // Span<T, Length> lowers to System.Span<T> and ReadOnlySpan<T, Length> lowers to
+        // System.ReadOnlySpan<T>, erasing the Length type argument — exactly as
+        // Array<T, Length> erases to T[] above. This is deliberately NOT the
+        // Task/IntrinsicTypeMap single-BackingTypes-entry ConstructedType path.
+        SpanType s when s.IsReadOnly => $"System.ReadOnlySpan<{GetTypeName(s.ElementType, isValueContext)}>",
+        SpanType s => $"System.Span<{GetTypeName(s.ElementType, isValueContext)}>",
+
         TupleType t => EmitTupleTypeName(t, isValueContext),
         TypeParameterType tp => tp.Name,
 
@@ -433,6 +442,9 @@ internal static class CSharpTypeMap
         {
             UnknownType => true,
             ArrayType a => TypeContainsUnknown(a.ElementType),
+            // The erased Length is irrelevant to emission; only an unknown *element*
+            // type matters, handled exactly like arrays above.
+            SpanType s => TypeContainsUnknown(s.ElementType),
             ConstructedType ct => ConstructedTypeContainsUnknown(ct),
             _ => false,
         };

@@ -796,6 +796,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
+        // Synthetic alias registration for Span<T> / ReadOnlySpan<T>.
+        // The Span.mist file uses `Length:ZeroOrPositiveInt` (a non-primitive dependent
+        // type parameter constraint) which the PEG parser's TypeParameterList rule cannot
+        // parse. This causes the entire file content to be silently skipped (the file-scoped
+        // namespace produces zero body items). This is the Array<T,Length> precedent:
+        // Array.mist is also unparseable but Array doesn't need a name-resolvable alias
+        // because `int[]` / `new int[n]` are handled as special syntax. Span DOES need
+        // name-resolvable aliases (`Span<T>` / `ReadOnlySpan<T>`) so user code like
+        // `Span<int> buffer = stackalloc int[4];` can resolve the type annotation.
+        // Register synthetic arity-1 aliases in the Standard namespace scope.
+        EnsureSpanAliasesRegistered(globalScope, symbolTable);
+
         // Pass 1: Validate namespace declarations.
         // After all types are registered, walk each compilation unit to detect:
         //   * MIST0301 — duplicate file-scoped namespaces in the same file.
@@ -1349,6 +1361,85 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // Synthetic Span Alias Registration
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Registers synthetic <c>Span&lt;T&gt;</c> and <c>ReadOnlySpan&lt;T&gt;</c> type alias
+    /// symbols in the <c>Standard</c> namespace scope. These aliases resolve to
+    /// <see cref="Types.SpanType"/> with unknown length, enabling user code like
+    /// <c>Span&lt;int&gt; buffer = stackalloc int[4];</c> to resolve the type annotation.
+    /// <para>
+    /// This is necessary because <c>Span.mist</c> uses <c>Length:ZeroOrPositiveInt</c>
+    /// (a non-primitive dependent type parameter constraint) which the PEG parser cannot
+    /// handle, causing the entire file to be silently skipped. The aliases are registered
+    /// idempotently — if they already exist (e.g., if the grammar is later extended to
+    /// parse the file), this method is a no-op.
+    /// </para>
+    /// </summary>
+    private static void EnsureSpanAliasesRegistered(Scope globalScope, SymbolTable symbolTable)
+    {
+        // Find or create the Standard namespace scope.
+        _namespaceScopeMap ??= new Dictionary<string, Scope>();
+        if (!_namespaceScopeMap.TryGetValue("Standard", out var standardScope))
+        {
+            // Standard namespace wasn't created by any parsed file — create it now.
+            standardScope = new Scope(parent: globalScope);
+            _namespaceScopeMap["Standard"] = standardScope;
+        }
+
+        // Register Span<T> alias (arity 1) if not already present.
+        RegisterSyntheticSpanAlias(standardScope, symbolTable, "Span", isReadOnly: false);
+
+        // Register ReadOnlySpan<T> alias (arity 1) if not already present.
+        RegisterSyntheticSpanAlias(standardScope, symbolTable, "ReadOnlySpan", isReadOnly: true);
+    }
+
+    /// <summary>
+    /// Registers a single synthetic span type alias symbol with arity 1.
+    /// The alias wraps a <see cref="Types.SpanType"/> with unknown length.
+    /// Skips registration if an alias with the same name and arity already exists.
+    /// </summary>
+    private static void RegisterSyntheticSpanAlias(
+        Scope standardScope, SymbolTable symbolTable, string aliasName, bool isReadOnly)
+    {
+        // Check if an alias with this name and arity 1 already exists.
+        foreach (var member in standardScope.Members)
+        {
+            if (member.Name != aliasName)
+                continue;
+            if (member.Kind != SymbolKind.TypeAlias)
+                continue;
+            // Check arity: the alias should have exactly 1 type parameter.
+            var arity = (member as Symbol)?.TypeParameters.Count ?? 0;
+            if (arity == 1)
+                return; // Already registered — skip.
+        }
+
+        // Create the type parameter T.
+        var typeParamT = new Types.TypeParameterType("T", 0);
+        var typeParams = new IType[] { typeParamT };
+
+        // Create the underlying SpanType with unknown length, using T as the element type.
+        var underlyingSpanType = new Types.SpanType(typeParamT, isReadOnly);
+
+        // Create the TypeAliasType.
+        var typeAliasType = new Types.TypeAliasType(aliasName, underlyingSpanType, typeParams);
+
+        // Create and register the symbol.
+        var aliasSymbol = new Symbol(
+            aliasName,
+            SymbolKind.TypeAlias,
+            SymbolOrigin.UserCode,
+            standardScope,
+            typeAliasType,
+            declarationSpan: null);
+
+        aliasSymbol.TypeParameters = typeParams;
+        standardScope.AddMember(aliasSymbol);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // Pass 1: Namespace Declaration Validation
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -1663,12 +1754,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var structName = structDecl.Name.Lexeme;
         var typeScope = new Scope(parent: parentScope);
         var isBackendBacked = HasIntrinsicModifier(structDecl.Modifiers);
+
+        // Standard.Span<T, Length> / Standard.ReadOnlySpan<T, Length> are canonical
+        // backend-backed ref-struct intrinsics (R1.3/R2.3): the registration MUST set
+        // IsRefStruct and IsBackendBacked to true. The declaration already carries
+        // `intrinsic public ref struct`, so the normal modifier path satisfies this;
+        // force the invariant defensively in case those modifiers were incomplete so
+        // an inconsistent type is never registered.
+        var isCanonicalSpan = namespaceName == "Standard"
+            && (structName == "Span" || structName == "ReadOnlySpan");
+        if (isCanonicalSpan)
+            isBackendBacked = true;
+
         var structType = new StructType(structName, typeScope, namespaceName, isBackendBacked);
 
         var isReadonly = HasReadonlyModifier(structDecl.Modifiers);
         structType.IsReadonly = isReadonly;
 
         structType.IsRefStruct = HasRefModifier(structDecl.Modifiers);
+        if (isCanonicalSpan)
+            structType.IsRefStruct = true;
 
         structType.IsOwnedType = HasOwnedModifier(structDecl.Modifiers);
 
@@ -17391,8 +17496,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // Case 2b: T is a ref struct — ref structs cannot be optional (Requirement 3.9).
-        var isRefStruct = effectiveType is StructType { IsRefStruct: true }
-            || (effectiveType is ConstructedType ct && ct.GenericDefinition is StructType { IsRefStruct: true });
+        var isRefStruct = IsRefStructType(effectiveType);
         if (isRefStruct)
         {
             var typeName = effectiveType.DisplayName;
@@ -17476,12 +17580,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // ── MIST2005: Ref struct union type restriction (Requirement 3.8) ──
             // A ref struct type cannot participate in union types, since union types
             // may require boxing the value to store it in a discriminated container.
-            if (resolved is StructType { IsRefStruct: true } refStructConstituent)
+            if (IsRefStructType(resolved))
             {
                 diagnostics.Add(MakeDiagnosticWithLocation(
                     "MIST2005",
                     DiagnosticSeverity.Error,
-                    $"Ref struct type '{refStructConstituent.DisplayName}' cannot participate in union types",
+                    $"Ref struct type '{resolved.DisplayName}' cannot participate in union types",
                     singleRef,
                     sourceText));
             }
@@ -17731,6 +17835,47 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             sourceText));
                         return ErrorType.Instance;
                     }
+                }
+
+                // ── Span<T, Length> / ReadOnlySpan<T, Length> → SpanType ──────
+                // Mirrors the Array<T, Length> → ArrayType routing: the arity-2
+                // intrinsic span form is represented at use-sites by the dedicated
+                // SpanType IType rather than a StructType/ConstructedType. This also
+                // makes the `type Span<T> = Span<T, unknown>;` /
+                // `type ReadOnlySpan<T> = ReadOnlySpan<T, unknown>;` aliases resolve
+                // to SpanType(T, unknown): the alias RHS is a 2-arg reference handled
+                // here, and the arity-1 alias name is applied via type substitution.
+                // A literal integer Length yields a known-length span; any other
+                // Length argument (including `unknown`) yields an unknown-length span.
+                if (namedRef.TypeArgs is not null
+                    && (typeName is "Span" or "Standard.Span" or "ReadOnlySpan" or "Standard.ReadOnlySpan")
+                    && CountTypeArgs(namedRef.TypeArgs) == 2)
+                {
+                    var spanIsReadOnly = typeName is "ReadOnlySpan" or "Standard.ReadOnlySpan";
+                    var spanTypeArgList = namedRef.TypeArgs;
+                    var spanElementRef = spanTypeArgList.GetTypeReference();
+                    var spanElement = ResolveTypeReference(spanElementRef, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+                    // Inspect the second type argument: an integer literal is a known
+                    // compile-time Length; everything else (e.g. `unknown`) is unknown.
+                    long? spanKnownLength = null;
+                    var spanArgNodes = new List<TypeArgumentNode> { spanTypeArgList.TypeArgument };
+                    foreach (var extra in spanTypeArgList.TypeArguments)
+                        spanArgNodes.Add(extra);
+                    if (spanArgNodes.Count > 1
+                        && spanArgNodes[1] is IntegerLiteralTypeArgumentTypeArgumentNode spanIntLit
+                        && long.TryParse(spanIntLit.Literal.Lexeme, out var spanLen))
+                    {
+                        spanKnownLength = spanLen;
+                    }
+
+                    IType spanType = spanKnownLength.HasValue
+                        ? new SpanType(spanElement, spanKnownLength.Value, spanIsReadOnly)
+                        : new SpanType(spanElement, spanIsReadOnly);
+
+                    if (namedRef.Optional is { } spanOptToken)
+                        return ApplyOptionalSuffix(spanType, spanOptToken, fileScope, symbolTable, sourceText, diagnostics);
+                    return spanType;
                 }
 
                 var baseType = ResolveNamedType(typeName, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics,
@@ -18672,6 +18817,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var substitutedElement = SubstituteTypeParameters(arrayType.ElementType, typeParameters, typeArguments);
             if (!ReferenceEquals(substitutedElement, arrayType.ElementType))
                 return new ArrayType(substitutedElement);
+            return type;
+        }
+
+        if (type is SpanType spanType)
+        {
+            var substitutedElement = SubstituteTypeParameters(spanType.ElementType, typeParameters, typeArguments);
+            if (!ReferenceEquals(substitutedElement, spanType.ElementType))
+                return new SpanType(substitutedElement, spanType.IsReadOnly);
             return type;
         }
 
@@ -21840,6 +21993,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             }
 
+            case StackallocExpressionPrimaryNode stackallocExpr:
+            {
+                // Mirrors ArrayCreationExpressionPrimaryNode: resolve the element type
+                // and the size expression, extract a literal size, and build a SpanType.
+                // A literal size N yields the known-length Span<T, N>; a runtime size
+                // yields the unknown-length Span<T> (R4.1, R4.2).
+                var spanElementType = ResolveElementTypeRef(stackallocExpr.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                ResolveExpression(stackallocExpr.Size, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                var stackallocLiteralSize = TryExtractIntegerLiteral(stackallocExpr.Size);
+
+                // The read-only target context is threaded the same way the builder
+                // threads _emptyArrayTargetType for array literals: when the declared
+                // target type at the stackalloc position is a ReadOnlySpan<T, Length>
+                // SpanType, the result is a read-only span; otherwise it is a mutable
+                // Span (R4.3).
+                var stackallocIsReadOnly = _emptyArrayTargetType is SpanType { IsReadOnly: true };
+
+                result = stackallocLiteralSize.HasValue
+                    ? new SpanType(spanElementType, stackallocLiteralSize.Value, stackallocIsReadOnly)
+                    : new SpanType(spanElementType, stackallocIsReadOnly);
+                break;
+            }
+
             case ObjectCreationExpressionPrimaryNode objCreation:
             {
                 var typeName = ExtractQualifiedName(objCreation.Type, sourceText);
@@ -22577,7 +22753,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // For array types, look up Length via the stdlib Standard.Array<T> type.
         // After Task 42, Array is no longer an ambient type — it's a stdlib type.
-        if (targetType is ArrayType)
+        if (targetType is ArrayType arrayTargetForMember)
         {
             // Special case: .Length on arrays returns int. Standard.Array defines
             // Length as a type parameter (not a member property), so we resolve it
@@ -22600,6 +22776,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
                 // Legacy fallback: return a basic int type.
                 return LegacyPrimitiveTypes.Int;
+            }
+
+            // Special case: .AsSpan() on arrays returns a Span<T> with unknown length.
+            // This is an extension method from System.MemoryExtensions but is resolved
+            // directly here to avoid the ambient extension scanner complexity.
+            if (memberName == "AsSpan")
+            {
+                return new Semantics.Model.Types.SpanType(arrayTargetForMember.ElementType, isReadOnly: false);
             }
 
             var globalScope = FindGlobalScope(fileScope);
@@ -22634,6 +22818,52 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             // If globalScope is null, skip the System.Array fallback entirely.
             // Extension method lookup will handle any methods not in Standard.Array.
+        }
+
+        // Span member access: mirrors the Array member lookup above.
+        // SpanType is a dedicated IType (no member scope), so .Length and .Slice
+        // are resolved directly here — exactly as Array resolves .Length above.
+        if (targetType is Semantics.Model.Types.SpanType spanMemberTarget)
+        {
+            if (memberName == "Length")
+            {
+                var globalScope2 = FindGlobalScope(fileScope);
+                if (globalScope2 is not null)
+                {
+                    try
+                    {
+                        var int32Type = LookupQualifiedStdlibType(globalScope2, symbolTable, "Standard.Int32");
+                        if (int32Type is not null)
+                            return int32Type;
+                    }
+                    catch (StdlibMissingException) { }
+                }
+                return LegacyPrimitiveTypes.Int;
+            }
+
+            if (memberName == "Slice")
+            {
+                // Slice returns a SpanType of the same kind with unknown length.
+                // The TypeCheckerAnalyzer infers the precise length from the call
+                // site arguments (literal → known, else unknown).
+                return new Semantics.Model.Types.SpanType(spanMemberTarget.ElementType, spanMemberTarget.IsReadOnly);
+            }
+
+            // Fall through to ambient resolver for other members (e.g., GetEnumerator).
+            if (ambientTypeResolver is not null)
+            {
+                var clrTypeName = spanMemberTarget.IsReadOnly ? "ReadOnlySpan" : "Span";
+                var resolvedClrType = ambientTypeResolver.ResolveType("System", clrTypeName);
+                if (resolvedClrType is not null)
+                {
+                    var members = ambientTypeResolver.GetMembers(resolvedClrType);
+                    foreach (var member in members)
+                    {
+                        if (member.Name == memberName)
+                            return member.DeclaredType ?? ErrorType.Instance;
+                    }
+                }
+            }
         }
 
         // Tuple element access: resolve ItemN positional access and named access.
@@ -23363,6 +23593,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var substitutedElement = SubstituteTypeInMember(arrayType.ElementType, typeParams, typeArgs);
             if (!ReferenceEquals(substitutedElement, arrayType.ElementType))
                 return new ArrayType(substitutedElement);
+            return type;
+        }
+
+        if (type is SpanType spanType)
+        {
+            var substitutedElement = SubstituteTypeInMember(spanType.ElementType, typeParams, typeArgs);
+            if (!ReferenceEquals(substitutedElement, spanType.ElementType))
+                return new SpanType(substitutedElement, spanType.IsReadOnly);
             return type;
         }
 
@@ -25229,5 +25467,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             Location: location,
             CompilationUnitPath: compilationUnitPath,
             AnalyzerName: null);
+    }
+
+    /// <summary>
+    /// Returns true if the given type is a ref struct (stack-only value type).
+    /// Handles <see cref="SpanType"/>, plain <see cref="StructType"/>, and <see cref="ConstructedType"/>
+    /// whose generic definition is a ref struct.
+    /// </summary>
+    private static bool IsRefStructType(IType type)
+    {
+        return type is SpanType
+            || type is StructType { IsRefStruct: true }
+            || (type is ConstructedType ct && ct.GenericDefinition is StructType { IsRefStruct: true });
     }
 }

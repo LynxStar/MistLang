@@ -693,6 +693,7 @@ rule Primary
     | THIS                                                                         as ThisExpression
     | FIELD                                                                        as FieldKeywordExpression
     | NEW type:ElementTypeRef LEFT_BRACKET size:Expression RIGHT_BRACKET            as ArrayCreationExpression
+    | STACKALLOC type:ElementTypeRef LEFT_BRACKET size:Expression RIGHT_BRACKET     as StackallocExpression
     | NEW type:QualifiedIdentifier typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS initializer:PropertyInitializerBlock? as ObjectCreationExpression
     | NEW type:QualifiedIdentifier typeArgs:TypeArgumentList? initializer:PropertyInitializerBlock as ObjectCreationExpressionNoArgs
     | LEFT_PARENTHESIS first:TupleLiteralElement COMMA rest:TupleLiteralElement (COMMA additional:TupleLiteralElement)* RIGHT_PARENTHESIS as TupleLiteralExpression

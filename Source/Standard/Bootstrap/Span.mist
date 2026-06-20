@@ -1,0 +1,40 @@
+namespace Standard;
+
+intrinsic public ref struct Span<T, Length:ZeroOrPositiveInt> : IEnumerable<T>
+{
+    public type SpanBounds = ZeroOrPositiveInt and < Length;
+
+    intrinsic public Int32 Length { get; }
+
+    intrinsic public T this[SpanBounds index];
+
+    intrinsic public Span<T, unknown> Slice(SpanBounds start, Int32 length);
+
+    intrinsic public struct Enumerator : IEnumerator<T> {
+        intrinsic public bool MoveNext();
+        intrinsic public T Current { get; }
+    }
+
+    intrinsic public Enumerator GetEnumerator();
+}
+
+intrinsic public ref struct ReadOnlySpan<T, Length:ZeroOrPositiveInt> : IEnumerable<T>
+{
+    public type SpanBounds = ZeroOrPositiveInt and < Length;
+
+    intrinsic public Int32 Length { get; }
+
+    intrinsic public T this[SpanBounds index];
+
+    intrinsic public ReadOnlySpan<T, unknown> Slice(SpanBounds start, Int32 length);
+
+    intrinsic public struct Enumerator : IEnumerator<T> {
+        intrinsic public bool MoveNext();
+        intrinsic public T Current { get; }
+    }
+
+    intrinsic public Enumerator GetEnumerator();
+}
+
+type Span<T> = Span<T, unknown>;
+type ReadOnlySpan<T> = ReadOnlySpan<T, unknown>;

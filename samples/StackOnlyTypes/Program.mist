@@ -1,0 +1,106 @@
+using Standard;
+
+namespace StackOnlyTypes;
+
+// PROOF: a pure struct with only primitive fields is stampable,
+// so it is a legal stackalloc element type
+public struct Point
+{
+    public int x;
+    public int y;
+
+    public Point(int a, int b)
+    {
+        this.x = a;
+        this.y = b;
+    }
+}
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== StackOnlyTypes Sample ===");
+
+        // PROOF: stackalloc int[n] parses, type-checks as Span<int>, and emits C# stackalloc
+        // PROOF: Span<int> indexer write and read both work
+        // PROOF: Span<int>.Length property resolves
+        Console.WriteLine("--- stackalloc Span ---");
+        Span<int> buffer = stackalloc int[4];
+        buffer[0] = 10;
+        buffer[1] = 20;
+        buffer[2] = 30;
+        buffer[3] = 40;
+        Console.WriteLine($"buffer.Length={buffer.Length}");
+        Console.WriteLine($"buffer[0]={buffer[0]}");
+        Console.WriteLine($"buffer[3]={buffer[3]}");
+
+        // PROOF: Span<int> is foreachable via the intrinsic Enumerator/GetEnumerator
+        int total = 0;
+        foreach (int v in buffer)
+        {
+            total = total + v;
+        }
+        Console.WriteLine($"total={total}");
+
+        // PROOF: Span<T>.Slice returns a Span<T> over the SAME backing memory (aliasing)
+        // PROOF: a write through the slice is visible through the original span
+        Console.WriteLine("--- Slice Aliasing ---");
+        var mid = buffer.Slice(1, 2);
+        Console.WriteLine($"mid.Length={mid.Length}");
+        Console.WriteLine($"mid[0]={mid[0]}");
+        Console.WriteLine($"mid[1]={mid[1]}");
+        mid[0] = 99;
+        Console.WriteLine($"buffer[1]={buffer[1]}");
+
+        // PROOF: stackalloc target-typed into a ReadOnlySpan<int> binding yields ReadOnlySpan<int>
+        // PROOF: ReadOnlySpan<int>.Length and indexer read resolve; memory is zero-initialized
+        Console.WriteLine("--- ReadOnlySpan ---");
+        ReadOnlySpan<int> ro = stackalloc int[3];
+        Console.WriteLine($"ro.Length={ro.Length}");
+        Console.WriteLine($"ro[0]={ro[0]}");
+
+        // PROOF: a stampable user struct (Point) is a legal stackalloc element type
+        // PROOF: Span<Point> indexer write/read and field access on elements work
+        Console.WriteLine("--- stackalloc Struct Element ---");
+        Span<Point> points = stackalloc Point[2];
+        points[0] = new Point(1, 2);
+        points[1] = new Point(3, 4);
+        Console.WriteLine($"points[0].x={points[0].x}");
+        Console.WriteLine($"points[1].y={points[1].y}");
+
+        // PROOF: System.Span<int> returned from int[].AsSpan() unifies with Standard.Span<int>
+        // PROOF: the Array-precedent length erasure (Span<T,Length> -> System.Span<T>) holds for Span
+        Console.WriteLine("--- Ambient AsSpan Identity ---");
+        int[] arr = new int[3];
+        arr[0] = 7;
+        arr[1] = 8;
+        arr[2] = 9;
+        Span<int> view = arr.AsSpan();
+        Console.WriteLine($"view.Length={view.Length}");
+        Console.WriteLine($"view[2]={view[2]}");
+
+        // PROOF: a stackalloc-backed span passed as a method argument is allowed
+        // (used only for the duration of the call, does not escape the frame)
+        Console.WriteLine("--- Span Argument ---");
+        Console.WriteLine($"SumSpan={SumSpan(buffer)}");
+
+        Console.WriteLine("=== StackOnlyTypes Done ===");
+    }
+
+    // PROOF: a Span<int> parameter is accepted; reading it inside the callee is allowed
+    public static int SumSpan(Span<int> s)
+    {
+        int sum = 0;
+        foreach (int v in s)
+        {
+            sum = sum + v;
+        }
+        return sum;
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

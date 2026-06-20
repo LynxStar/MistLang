@@ -91,7 +91,6 @@ public class Program
 {
     public static void Main()
     {
-        System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         var holder = new LinearHolder();
         try
         {

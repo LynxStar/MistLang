@@ -1,6 +1,7 @@
 using Standard;
 using System.IO;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 
 namespace CSharpInteropV2;
 
@@ -46,7 +47,22 @@ public class Program
         var decoded = Encoding.UTF8.GetString(encoded);
         Console.WriteLine($"decoded={decoded}");
 
+        // PROOF: Extension methods from NuGet packages resolve on non-generic class receivers.
+        // DbContextOptionsBuilder is a class; UseNpgsql is an extension method in namespace
+        // Microsoft.EntityFrameworkCore from the Npgsql.EntityFrameworkCore.PostgreSQL package.
+        // This exercises the structural equality fix in ExtensionRegistry.IsApplicable —
+        // without it, the projected receiver type (disconnected shell) would not match the
+        // cached type instance resolved during Pass 2, producing MIST_UNDEFINED_MEMBER.
+        DemoEfCoreExtensions();
+
         Console.WriteLine("--- C# Interop V2 Done ---");
+    }
+
+    public static void DemoEfCoreExtensions()
+    {
+        var builder = new DbContextOptionsBuilder();
+        builder.UseNpgsql("Host=localhost;Database=demo");
+        Console.WriteLine($"efConfigured={builder.IsConfigured}");
     }
 
     public static void Main()

@@ -323,6 +323,12 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private bool _insideStruct;
     /// <summary>
+    /// The <see cref="ClassType"/> of the class currently being emitted, or <c>null</c>
+    /// if not inside a class declaration. Used by <see cref="EmitMethodDeclaration"/>
+    /// to detect implicit override matches against CLR base class virtual/abstract methods.
+    /// </summary>
+    private ClassType? _currentClassType;
+    /// <summary>
     /// The namespace of the current compilation unit being emitted.
     /// Used to scope type alias fallback resolution to the correct namespace.
     /// </summary>
@@ -2965,6 +2971,10 @@ internal sealed class CSharpSourceWriter
             _currentTypeDependentParamNames = depNames.Count > 0 ? depNames : null;
         }
 
+        // Track the current class type for implicit override detection.
+        var previousClassType = _currentClassType;
+        _currentClassType = symbol?.DeclaredType as ClassType;
+
         // Emit every member in declaration order. No name-based grouping or
         // deduplication is performed, so overloaded methods and constructors
         // are each emitted as separate C# declarations.
@@ -2980,6 +2990,7 @@ internal sealed class CSharpSourceWriter
         // Clear class-level factory tracking after emitting all members.
         _currentClassFactoryTypeParams = null;
         _currentTypeDependentParamNames = previousTypeDependentParamNames;
+        _currentClassType = previousClassType;
         _currentParameterizedSlots = previousParameterizedSlotsForClass;
         _currentInterfaceTypeParamSubs = previousInterfaceTypeParamSubs;
 
@@ -4955,6 +4966,55 @@ internal sealed class CSharpSourceWriter
         var name = methodDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
 
+        // ── Implicit override detection for CLR base class virtual/abstract methods ──
+        // When a Mist class inherits from a CLR base and defines a method with the same
+        // name as a virtual/abstract method on that base, automatically emit `override`
+        // with the base method's access modifier. This is purely a C# backend concern —
+        // Mist source has no override keyword.
+        var implicitOverridePrefix = "";
+        if (!_insideStruct && _currentClassType?.BaseType is not null)
+        {
+            var baseOverrideSlot = FindBaseOverrideSlot(name, methodDecl);
+            if (baseOverrideSlot is not null)
+            {
+                var clrAccess = baseOverrideSlot.ClrAccessModifier ?? "public";
+
+                // Validate access level compatibility:
+                // - Base is protected/protected internal → Mist private (or unspecified) can match
+                // - Base is public → Mist public can match
+                var mistIsPublic = methodDecl.Modifiers.Any(m => m is PublicModifierModifierNode);
+                var baseIsPublic = clrAccess == "public";
+
+                if (baseIsPublic && mistIsPublic)
+                {
+                    implicitOverridePrefix = "public override ";
+                    modifiers = ""; // Replace Mist modifiers entirely
+                }
+                else if (!baseIsPublic && !mistIsPublic)
+                {
+                    implicitOverridePrefix = $"{clrAccess} override ";
+                    modifiers = ""; // Replace Mist modifiers entirely
+                }
+                // If Mist declares public but base is protected, don't override —
+                // we won't expose something as public that was protected in C#.
+                // The method just becomes a new method (no override).
+
+                if (implicitOverridePrefix.Length > 0)
+                {
+                    // Emit informational diagnostic: "hey, we automatically made this link"
+                    _diagnostics.Add(new Diagnostic(
+                        new DiagnosticId("MIST_BE_INFO_OVERRIDE"),
+                        DiagnosticSeverity.Info,
+                        PipelineStage.Backend,
+                        $"Method '{name}' implicitly overrides '{_currentClassType.BaseType.DisplayName}.{name}' " +
+                        $"(emitted as '{clrAccess} override'). If this was not intentional, rename the method.",
+                        Location: default,
+                        CompilationUnitPath: _sourceText.Path,
+                        AnalyzerName: "ImplicitOverride"));
+                }
+            }
+        }
+
         // Task 12.4 — Emit C# `readonly` modifier on struct methods with ReadonlyStatus != Mutable.
         // C# has no `readonly` method concept for classes, so only emit for structs.
         var readonlyPrefix = "";
@@ -5059,7 +5119,7 @@ internal sealed class CSharpSourceWriter
                 : factoryParams;
         }
 
-        AppendLine($"{modifiers}{asyncPrefix}{readonlyPrefix}{refReturnPrefix}{returnType} {name}{typeParams}({parameters})");
+        AppendLine($"{(implicitOverridePrefix.Length > 0 ? implicitOverridePrefix : modifiers)}{asyncPrefix}{readonlyPrefix}{refReturnPrefix}{returnType} {name}{typeParams}({parameters})");
         // Emit constraint clauses for the method's type parameters.
         // When associated type slots are present, interface constraints need to include
         // the synthesized type parameters as additional type arguments.
@@ -5511,7 +5571,6 @@ internal sealed class CSharpSourceWriter
             PublicModifierModifierNode => "public ",
             PrivateModifierModifierNode => "private ",
             StaticModifierModifierNode => "static ",
-            OverrideModifierModifierNode => "override ",
             _ => "",
         };
     }
@@ -12866,9 +12925,6 @@ internal sealed class CSharpSourceWriter
                 case StaticModifierModifierNode:
                     parts.Add("static");
                     break;
-                case OverrideModifierModifierNode:
-                    parts.Add("override");
-                    break;
             }
         }
 
@@ -14423,5 +14479,58 @@ internal sealed class CSharpSourceWriter
             }
             _sb.AppendLine(text);
         }
+    }
+
+    // ─── Implicit Override Detection ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Searches the CLR base type's member scope for a virtual/abstract method with the
+    /// same name as the given Mist method. Only matches when the base type chain contains
+    /// a CLR-origin (Backend) type. Returns the base method symbol if found, null otherwise.
+    /// </summary>
+    private Symbol? FindBaseOverrideSlot(string methodName, MethodDeclarationNode methodDecl)
+    {
+        // Walk the inheritance chain looking for a CLR base with a matching virtual/abstract method.
+        var baseType = _currentClassType?.BaseType;
+
+        while (baseType is not null)
+        {
+            var effectiveClassType = baseType switch
+            {
+                ClassType ct => ct,
+                ConstructedType constructed when constructed.GenericDefinition is ClassType ctDef => ctDef,
+                _ => null
+            };
+
+            if (effectiveClassType is null)
+                break;
+
+            var isClrType = effectiveClassType.MemberScope.Members
+                .Any(m => m.Origin == SymbolOrigin.Backend);
+
+            if (!isClrType)
+            {
+                baseType = effectiveClassType.BaseType;
+                continue;
+            }
+
+            // Search the base type's member scope for a matching virtual/abstract method.
+            foreach (var member in effectiveClassType.MemberScope.Members)
+            {
+                if (member is Symbol memberSym
+                    && memberSym.Kind == SymbolKind.Method
+                    && memberSym.Name == methodName
+                    && memberSym.IsVirtualOrAbstract
+                    && !memberSym.IsStatic)
+                {
+                    return memberSym;
+                }
+            }
+
+            // Continue up the chain.
+            baseType = effectiveClassType.BaseType;
+        }
+
+        return null;
     }
 }

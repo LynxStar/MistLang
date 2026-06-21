@@ -2,6 +2,7 @@ name = "CSharpInteropV2"
 
 [packages]
 "Newtonsoft.Json" = "13.0.3"
+"Npgsql.EntityFrameworkCore.PostgreSQL" = "9.0.4"
 
 [framework_references]
 "Microsoft.AspNetCore.App" = true

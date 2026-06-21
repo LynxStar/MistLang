@@ -21,7 +21,7 @@ class Point
         Y = y;
     }
 
-    public override string ToString()
+    public string Describe()
     {
         return $"Point({X}, {Y})";
     }
@@ -38,7 +38,7 @@ class Pair<T>
         Second = second;
     }
 
-    public override string ToString()
+    public string Describe()
     {
         return $"Pair({First}, {Second})";
     }
@@ -61,7 +61,7 @@ class Program
     // PROOF: parameter type inference
     public static void PrintPoint(Point p)
     {
-        Console.WriteLine($"  param: {p}");
+        Console.WriteLine($"  param: {p.Describe()}");
     }
 
     public static void RunDemo()
@@ -70,11 +70,11 @@ class Program
 
         // PROOF: local variable with explicit type
         Point p1 = new(3, 4);
-        Console.WriteLine($"  local: {p1}");
+        Console.WriteLine($"  local: {p1.Describe()}");
 
         // PROOF: return type
         var p2 = MakePoint(5, 6);
-        Console.WriteLine($"  return: {p2}");
+        Console.WriteLine($"  return: {p2.Describe()}");
 
         // PROOF: method argument
         PrintPoint(new(7, 8));
@@ -82,15 +82,15 @@ class Program
         // PROOF: assignment to existing typed variable
         Point p3 = new(0, 0);
         p3 = new(9, 10);
-        Console.WriteLine($"  assign: {p3}");
+        Console.WriteLine($"  assign: {p3.Describe()}");
 
         // PROOF: field initializer
         var c = new Container();
-        Console.WriteLine($"  field: {c.Origin}");
+        Console.WriteLine($"  field: {c.Origin.Describe()}");
 
         // PROOF: generic target type
         Pair<int> pair = new(1, 2);
-        Console.WriteLine($"  generic: {pair}");
+        Console.WriteLine($"  generic: {pair.Describe()}");
     }
 
     public static void Main(string[] args)

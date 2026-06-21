@@ -9,7 +9,7 @@ class Pair<T>
         Second = second;
     }
 
-    public override string ToString()
+    public string Describe()
     {
         return $"Pair({First}, {Second})";
     }
@@ -22,7 +22,7 @@ class Program
         // Generic target type — type arguments are inferred from the declaration
         Pair<int> intPair = new(1, 2);
         Pair<string> strPair = new("hello", "world");
-        Console.WriteLine(intPair);
-        Console.WriteLine(strPair);
+        Console.WriteLine(intPair.Describe());
+        Console.WriteLine(strPair.Describe());
     }
 }

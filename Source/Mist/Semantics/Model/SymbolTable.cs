@@ -208,6 +208,23 @@ public sealed class Symbol : ISymbol
     /// Only meaningful for method symbols.
     /// </summary>
     public ThisTier InferredThisTier { get; internal set; } = ThisTier.None;
+
+    /// <summary>
+    /// Indicates that this method symbol is a CLR virtual or abstract method that can be
+    /// overridden by derived types. Set during type projection for methods that are
+    /// virtual/abstract on the CLR type. Used by the C# emitter to detect implicit
+    /// override matches (Mist methods that fill a CLR base class slot).
+    /// </summary>
+    public bool IsVirtualOrAbstract { get; internal set; }
+
+    /// <summary>
+    /// The CLR access level of this method, when it differs from Mist's visibility model.
+    /// Stores the C# access modifier string (e.g., "protected", "protected internal")
+    /// for methods projected from CLR assemblies. Null for Mist-native symbols or when
+    /// the access level is public (already expressible in Mist).
+    /// Used by the emitter during implicit override emission.
+    /// </summary>
+    public string? ClrAccessModifier { get; internal set; }
 }
 
 /// <summary>

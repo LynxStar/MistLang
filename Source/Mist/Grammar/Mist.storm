@@ -329,7 +329,6 @@ rule Modifier
     | RELEVANT  as RelevantModifier
     | ASYNC     as AsyncModifier
     | REF       as RefModifier
-    | OVERRIDE  as OverrideModifier
     ;
 
 // ─── Parser Rules — Ownership Specifiers ─────────────────────────────────────

@@ -1904,6 +1904,8 @@ internal sealed class TypeProjector
     /// <summary>
     /// Projects public instance and static methods of a CLR type as Mist method symbols.
     /// Excludes property accessors, event accessors, and operator methods (handled separately).
+    /// Also projects protected virtual/abstract methods as override slot candidates for
+    /// implicit override matching in the C# emitter.
     /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2070",
         Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
@@ -1951,6 +1953,13 @@ internal sealed class TypeProjector
             // can skip it (static methods are only reachable via the type name).
             methodSymbol.IsStatic = method.IsStatic;
 
+            // Mark virtual/abstract public methods for implicit override matching.
+            if (method.IsVirtual || method.IsAbstract)
+            {
+                methodSymbol.IsVirtualOrAbstract = true;
+                methodSymbol.ClrAccessModifier = "public";
+            }
+
             // Mark mutable ref returns (Requirements 5.1, 5.2).
             if (isRefReturn)
             {
@@ -1965,6 +1974,82 @@ internal sealed class TypeProjector
 
             // Project parameters into the method's scope and store on the symbol
             // for nullable emission wrapping in the emitter (Task 8.2).
+            var parameterSymbols = ProjectParametersWithResult(method.GetParameters(), methodScope, stdlib);
+            methodSymbol.Parameters = parameterSymbols;
+
+            memberScope.AddMember(methodSymbol);
+            symbols.Add(methodSymbol);
+        }
+
+        // Project protected virtual/abstract methods as override slot candidates.
+        // These are not callable from Mist code directly, but are needed by the emitter
+        // to detect implicit override matches when a Mist-derived class defines a method
+        // with the same name and signature as a CLR base's protected virtual/abstract slot.
+        var protectedMethods = clrType.GetMethods(
+            BindingFlags.NonPublic | BindingFlags.Instance);
+
+        foreach (var method in protectedMethods)
+        {
+            // Only project virtual/abstract methods (override slots).
+            if (!method.IsVirtual && !method.IsAbstract)
+                continue;
+
+            // Only project protected and protected internal methods.
+            if (!method.IsFamily && !method.IsFamilyOrAssembly)
+                continue;
+
+            // Skip property accessors, event accessors, and operators.
+            if (method.IsSpecialName)
+                continue;
+
+            // Note: We do NOT call _filter.IsMemberExcluded() here because that filter
+            // rejects non-public members. We've already verified accessibility above.
+            // If the method signature contains pointer types or other unsupported elements,
+            // the C# compiler will catch any issues downstream.
+
+            // Skip if a public method with the same name already exists (the public
+            // projection already covers it).
+            if (memberScope.Lookup(method.Name) is not null)
+                continue;
+
+            // Project return type.
+            IType returnType;
+            var isRefReturn = method.ReturnType.IsByRef;
+            if (isRefReturn)
+            {
+                var elementType = method.ReturnType.GetElementType()!;
+                returnType = ProjectMemberType(elementType, stdlib);
+            }
+            else
+            {
+                returnType = ProjectMemberType(method.ReturnType, stdlib);
+            }
+
+            var methodScope = new Scope(memberScope);
+
+            var methodSymbol = new Symbol(
+                method.Name,
+                SymbolKind.Method,
+                SymbolOrigin.Backend,
+                memberScope,
+                returnType,
+                null);
+
+            methodSymbol.IsVirtualOrAbstract = true;
+            methodSymbol.ClrAccessModifier = method.IsFamilyOrAssembly
+                ? "protected"  // protected internal from another assembly is overridden as just "protected"
+                : "protected";
+
+            if (isRefReturn)
+            {
+                methodSymbol.ReturnRefKind = RefKind.Ref;
+            }
+
+            if (method.IsGenericMethodDefinition)
+            {
+                methodSymbol.TypeParameters = ProjectMethodTypeParameters(method, stdlib);
+            }
+
             var parameterSymbols = ProjectParametersWithResult(method.GetParameters(), methodScope, stdlib);
             methodSymbol.Parameters = parameterSymbols;
 

@@ -20400,7 +20400,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var lambdaScope = new Scope(parent: currentScope);
 
             // Register lambda parameters in the child scope.
-            RegisterLambdaParameters(lambda, paramTypes, lambdaScope, symbolTable, sourceText, diagnostics);
+            RegisterLambdaParameters(lambda, paramTypes, lambdaScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
 
             // Set async context if the lambda has the async modifier.
             var isAsync = IsAsyncLambda(lambda);
@@ -20746,7 +20746,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         LambdaExpressionNode lambda,
         List<IType> paramTypes,
         Scope lambdaScope,
+        Scope fileScope,
         SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
@@ -20809,10 +20811,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         case TypedLambdaParamLambdaParamNode typed:
                         {
                             // Explicitly-typed param — resolve the type annotation.
-                            // The fileScope is needed for type resolution but we don't have it here;
-                            // use the target type argument as a fallback since the type checker will
-                            // validate compatibility later.
-                            var paramType = i < paramTypes.Count ? paramTypes[i] : UnknownType.Instance;
+                            // The explicit annotation takes precedence over the target
+                            // delegate's parameter type. This enables ASP.NET Core minimal
+                            // API patterns where typed lambda parameters are DI-injected
+                            // services, not necessarily matching the delegate signature.
+                            var paramType = ResolveTypeReference(typed.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                            if (paramType is ErrorType or UnknownType)
+                            {
+                                // Resolution failed — fall back to the target type.
+                                paramType = i < paramTypes.Count ? paramTypes[i] : UnknownType.Instance;
+                            }
                             var paramName = typed.Name.Lexeme;
                             var paramSpan = ToMistSourceSpan(typed.Name.Span);
                             var paramSymbol = new Symbol(paramName, SymbolKind.Parameter, SymbolOrigin.UserCode, lambdaScope, paramType, paramSpan);

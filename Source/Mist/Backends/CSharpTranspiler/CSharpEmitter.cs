@@ -2272,10 +2272,17 @@ internal sealed class CSharpSourceWriter
     /// <summary>
     /// Emits the value expression for a name-only enum member.
     /// For byte underlying types, emits <c>(byte)N</c>. For other integral types,
-    /// emits the numeric literal directly.
+    /// Emits the value expression for a name-only enum member.
+    /// For byte underlying types, emits <c>(byte)N</c>. For string underlying types,
+    /// emits the string literal. For other integral types, emits the numeric literal directly.
     /// </summary>
     private static string EmitEnumMemberValue(object? resolvedValue, string underlyingTypeName)
     {
+        if (resolvedValue is string strVal)
+        {
+            return $"\"{strVal}\"";
+        }
+
         if (resolvedValue is long longVal)
         {
             return underlyingTypeName switch

@@ -350,6 +350,16 @@ narrowed-back value: 42
   Pet.Cat = Cat
   Pet.Fish = Fish
   Pet.Dog as Animal = Animal(Dog)
+--- String auto-inferred variant names ---
+  Permission.Read = Read
+  Permission.Write = Write
+  Permission.Execute = Execute
+  Permission.Read as string = Read
+  Permission.Write as string = Write
+--- String mixed explicit/inferred ---
+  Environment.Development as string = dev
+  Environment.Staging as string = Staging
+  Environment.Production as string = prod
 Done!
 === Single-level inheritance ===
 Rex is a German Shepherd, age 5

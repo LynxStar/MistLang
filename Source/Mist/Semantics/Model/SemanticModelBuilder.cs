@@ -570,6 +570,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId DuplicateEnumName = new("MIST_SB_0084");
 
+    /// <summary>
+    /// Two members of the same enum resolve to the same underlying value
+    /// (e.g., two string-backed members both map to the same string, or
+    /// two integer-backed members share a numeric value). Fires during Pass 2
+    /// after all member values have been resolved.
+    /// </summary>
+    internal static readonly DiagnosticId DuplicateEnumMemberValue = new("MIST_SB_0085");
+
     // ── Member kind mismatch diagnostic IDs ──────────────────────────────
 
     /// <summary>
@@ -14590,11 +14598,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         IType underlyingType;
 
-        if (enumDecl.TypeAnnotation is not null)
+        // Note: The grammar defines typeAnnotation:(COLON type:TypeReference)? which
+        // produces two properties on EnumDeclarationNode: 'TypeAnnotation' (the outer
+        // optional label — always null due to a code-gen quirk in labeled optional
+        // sequences) and 'Type' (the inner label, holding the actual TypeReferenceNode
+        // when a type annotation is present, or null/default when absent).
+        // We check 'Type' as the reliable indicator of whether a type annotation exists.
+        if (enumDecl.Type is { } typeAnnotationNode)
         {
             // Explicit type annotation — resolve the TypeReference node.
             underlyingType = ResolveTypeReference(
-                enumDecl.TypeAnnotation, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                typeAnnotationNode, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
 
             if (underlyingType is ErrorType)
             {
@@ -14662,6 +14676,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // ── Step 2: Resolve member values ────────────────────────────────
 
+        var isStringBacked = IsStringLikeType(underlyingType);
         var memberInfos = new List<EnumMemberInfo>();
         long nextSequentialValue = 0;
 
@@ -14704,6 +14719,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Don't advance nextSequentialValue for non-integer explicit values.
                 }
             }
+            else if (isStringBacked)
+            {
+                // String-backed enum with no explicit value — use the variant name.
+                memberInfo.ResolvedValue = memberNode.Name.Lexeme;
+                memberInfo.ValueType = underlyingType;
+            }
             else
             {
                 // Name-only member — assign sequential value.
@@ -14713,6 +14734,42 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             memberInfos.Add(memberInfo);
+        }
+
+        // ── Step 3: Check for duplicate enum member values ───────────────
+
+        var seenValues = new Dictionary<string, string>(); // value → first member name
+        foreach (var memberInfo in memberInfos)
+        {
+            // Determine the effective string representation of the value for comparison.
+            string? valueKey = null;
+            if (memberInfo.ResolvedValue is string strVal)
+            {
+                valueKey = $"s:{strVal}";
+            }
+            else if (memberInfo.ResolvedValue is long longVal)
+            {
+                valueKey = $"i:{longVal}";
+            }
+
+            if (valueKey is not null)
+            {
+                if (seenValues.TryGetValue(valueKey, out var firstMember))
+                {
+                    diagnostics.Add(new Diagnostic(
+                        DuplicateEnumMemberValue,
+                        DiagnosticSeverity.Error,
+                        PipelineStage.SemanticModelConstruction,
+                        $"Enum member '{memberInfo.Name}' has the same value as member '{firstMember}' in enum '{enumType.DisplayName}'.",
+                        Location: default,
+                        CompilationUnitPath: sourceText?.Path ?? "<unknown>",
+                        AnalyzerName: null));
+                }
+                else
+                {
+                    seenValues[valueKey] = memberInfo.Name;
+                }
+            }
         }
 
         enumType.Members = memberInfos;

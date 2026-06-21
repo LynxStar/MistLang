@@ -184,15 +184,19 @@ var buf = new FixedBuffer<128>();
 
 ## Enums Have Arbitrary Underlying Types
 
-Mist enums are value-bearing and can be backed by any type — including `string`, structs, and classes — not just integers. They implicitly convert to their underlying type.
+Mist enums are value-bearing and can be backed by any readonly type — including `string`, structs, and classes — not just integers. They implicitly convert to their underlying type. Primitive types (`int`, `string`, `byte`, etc.) are inherently readonly; user-defined structs and classes must be marked `readonly` to be used as enum underlying types.
 
 ```mist
 public enum Direction : string { North: "N", South: "S" }
-public enum Color { Red, Green, Blue }                 // auto-assigned byte
-public enum CardinalDir : Vec2 { Up: new Vec2(0, 1) }  // struct-backed
+public enum Permission : string { Read, Write, Execute }   // auto-inferred: "Read", "Write", "Execute"
+public enum Color { Red, Green, Blue }                     // auto-assigned byte
+public enum CardinalDir : Vec2 { Up: new Vec2(0, 1) }     // struct-backed
 
 string n = Direction.North;   // implicit conversion → "N"
+string p = Permission.Read;   // implicit conversion → "Read"
 ```
+
+For string-backed enums, members without explicit values use their variant name as the string value. This applies when the underlying type is `string` (explicit annotation or inferred from other members' string values).
 
 ## Extension Syntax
 

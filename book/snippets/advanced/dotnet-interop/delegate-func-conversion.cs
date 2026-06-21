@@ -24,10 +24,10 @@ public class Program
         var alsoPositives = numbers.FindAll(IsPositive);
         System.Console.WriteLine($"alsoPositives={alsoPositives.Count}");
         System.Func<int, bool> isEven = x => x % 2 == 0;
-        System.Predicate<int> predicate = isEven;
+        System.Predicate<int> predicate = new System.Predicate<int>(isEven);
         var evens = numbers.FindAll(predicate);
         System.Console.WriteLine($"evens={evens.Count}");
-        System.Func<int, bool> backToFunc = predicate;
+        System.Func<int, bool> backToFunc = new System.Func<int, bool>(predicate);
         System.Console.WriteLine($"backToFunc(4)={backToFunc(4)}");
         System.Console.WriteLine($"predicate(6)={predicate(6)}");
         System.Console.WriteLine($"predicate(7)={predicate(7)}");

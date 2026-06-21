@@ -3,7 +3,7 @@ using System;
 namespace Snippet;
 
 [DependentType("Count", typeof(int))]
-public class SizedCollection<Count>
+public class SizedCollection<TCount>
     where TCount : IConstInt
 {
     public static int Count => TCount.Value;
@@ -19,7 +19,7 @@ public class SizedCollection<Count>
     }
 }
 [DependentType("Capacity", typeof(int))]
-public struct FixedSlot<Capacity>
+public struct FixedSlot<TCapacity>
     where TCapacity : IConstInt
 {
     public static int Capacity => TCapacity.Value;

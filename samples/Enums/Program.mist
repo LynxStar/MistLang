@@ -20,6 +20,8 @@
 //  17. Enum with user-defined class underlying type
 //  18. Enum with user-defined interface underlying type
 //  19. Enum with trait-implementing class underlying type
+//  20. String-backed enum with auto-inferred variant names
+//  21. String-backed enum with mixed explicit/inferred values
 
 using Standard;
 
@@ -31,6 +33,22 @@ public enum Direction : string {
     South: "S",
     East: "E",
     West: "W"
+}
+
+// --- 20. String-backed enum with auto-inferred variant names ---
+// When the underlying type is string, omitting a value uses the variant name.
+public enum Permission : string {
+    Read,
+    Write,
+    Execute
+}
+
+// --- 21. String-backed enum with mixed explicit/inferred values ---
+// Some variants have explicit values, others auto-infer from name.
+public enum Environment : string {
+    Development: "dev",
+    Staging,
+    Production: "prod"
 }
 
 // --- 2. Inferred underlying type (all members are int) ---
@@ -316,6 +334,25 @@ public class Program
         Console.WriteLine($"  Pet.Fish = {Pet.Fish}");
         Animal dogAnimal = Pet.Dog;
         Console.WriteLine($"  Pet.Dog as Animal = {dogAnimal.Describe()}");
+
+        // 20. String-backed enum with auto-inferred variant names
+        Console.WriteLine("--- String auto-inferred variant names ---");
+        Console.WriteLine($"  Permission.Read = {Permission.Read}");
+        Console.WriteLine($"  Permission.Write = {Permission.Write}");
+        Console.WriteLine($"  Permission.Execute = {Permission.Execute}");
+        string readStr = Permission.Read;
+        string writeStr = Permission.Write;
+        Console.WriteLine($"  Permission.Read as string = {readStr}");
+        Console.WriteLine($"  Permission.Write as string = {writeStr}");
+
+        // 21. String-backed enum with mixed explicit/inferred values
+        Console.WriteLine("--- String mixed explicit/inferred ---");
+        string devStr = Environment.Development;
+        string stagingStr = Environment.Staging;
+        string prodStr = Environment.Production;
+        Console.WriteLine($"  Environment.Development as string = {devStr}");
+        Console.WriteLine($"  Environment.Staging as string = {stagingStr}");
+        Console.WriteLine($"  Environment.Production as string = {prodStr}");
 
         Console.WriteLine("Done!");
     }

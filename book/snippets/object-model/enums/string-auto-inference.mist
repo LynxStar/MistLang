@@ -1,0 +1,29 @@
+using Standard;
+
+namespace Enums;
+
+public enum Permission : string
+{
+    Read,
+    Write,
+    Execute
+}
+
+public enum Environment : string
+{
+    Development: "dev",
+    Staging,
+    Production: "prod"
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        string perm = Permission.Read;
+        Console.WriteLine(perm);
+
+        string env = Environment.Staging;
+        Console.WriteLine(env);
+    }
+}

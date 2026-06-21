@@ -76,6 +76,25 @@ The underlying type can be a type union, allowing members to hold values of diff
 
 Each member's value is implicitly converted into the union type. We'll cover type unions in detail in the [Type Unions](../type-system/type-unions.md) chapter.
 
+## String Enums with Auto-Inferred Values
+
+When an enum's underlying type is `string`, members without explicit values automatically use their variant name as the string value. This is convenient for enums where the string representation matches the member name.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/object-model/enums/string-auto-inference.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/object-model/enums/string-auto-inference.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`Permission` uses all-implicit values — each member gets its own name as the string value. `Environment` mixes explicit and implicit: `Development` maps to `"dev"` and `Production` maps to `"prod"`, while `Staging` defaults to `"Staging"`. This only applies to `string`-backed enums; numeric enums still auto-increment from 0.
+
 ## User-Defined Underlying Types
 
 Enums can use user-defined structs or classes as their underlying type, provided the type is `readonly`. Each member's value is an instance of that type.

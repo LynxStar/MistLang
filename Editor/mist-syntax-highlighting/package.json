@@ -24,7 +24,131 @@
         "scopeName": "source.mist",
         "path": "./syntaxes/mist.tmLanguage.json"
       }
-    ]
+    ],
+    "configurationDefaults": {
+      "editor.tokenColorCustomizations": {
+        "textMateRules": [
+          {
+            "name": "Comments",
+            "scope": ["comment.line.double-slash.mist"],
+            "settings": { "foreground": "#969896", "fontStyle": "italic" }
+          },
+          {
+            "name": "Keywords (purple)",
+            "scope": [
+              "keyword.control.mist",
+              "keyword.declaration.mist",
+              "keyword.other.mist",
+              "keyword.operator.new.mist"
+            ],
+            "settings": { "foreground": "#b294bb" }
+          },
+          {
+            "name": "Storage modifiers (orange)",
+            "scope": ["storage.modifier.mist", "storage.type.mist"],
+            "settings": { "foreground": "#de935f" }
+          },
+          {
+            "name": "Primitive types (blue)",
+            "scope": [
+              "storage.type.primitive.mist",
+              "storage.type.void.mist",
+              "storage.type.metatype.mist"
+            ],
+            "settings": { "foreground": "#81a2be" }
+          },
+          {
+            "name": "Type/class names (aqua)",
+            "scope": [
+              "entity.name.type.mist",
+              "entity.name.type.class.mist",
+              "entity.name.type.struct.mist",
+              "entity.name.type.interface.mist",
+              "entity.name.type.trait.mist",
+              "entity.name.type.enum.mist",
+              "entity.name.type.alias.mist",
+              "entity.name.type.newtype.mist",
+              "entity.name.type.parameter.mist"
+            ],
+            "settings": { "foreground": "#8abeb7" }
+          },
+          {
+            "name": "Function/method names (aqua)",
+            "scope": [
+              "entity.name.function.mist",
+              "entity.name.function.destructor.mist"
+            ],
+            "settings": { "foreground": "#8abeb7" }
+          },
+          {
+            "name": "Property names (aqua)",
+            "scope": [
+              "entity.name.variable.property.mist",
+              "variable.other.property.mist"
+            ],
+            "settings": { "foreground": "#8abeb7" }
+          },
+          {
+            "name": "Operators (yellow)",
+            "scope": [
+              "keyword.operator.comparison.mist",
+              "keyword.operator.logical.mist",
+              "keyword.operator.arithmetic.mist",
+              "keyword.operator.arrow.mist",
+              "keyword.operator.assignment.mist",
+              "keyword.operator.void-coalescing.mist",
+              "keyword.operator.void-coalescing-assignment.mist",
+              "keyword.operator.void-conditional.mist",
+              "keyword.operator.type.union.mist"
+            ],
+            "settings": { "foreground": "#f0c674" }
+          },
+          {
+            "name": "Numbers (red)",
+            "scope": [
+              "constant.numeric.integer.mist",
+              "constant.numeric.float.mist",
+              "constant.numeric.hex.mist",
+              "constant.numeric.binary.mist"
+            ],
+            "settings": { "foreground": "#cc6666" }
+          },
+          {
+            "name": "Boolean literals (red)",
+            "scope": ["constant.language.boolean.mist"],
+            "settings": { "foreground": "#cc6666" }
+          },
+          {
+            "name": "Strings (green)",
+            "scope": [
+              "string.quoted.double.mist",
+              "string.quoted.single.mist",
+              "string.interpolated.mist",
+              "string.regexp.mist"
+            ],
+            "settings": { "foreground": "#b5bd68" }
+          },
+          {
+            "name": "Escape characters (red)",
+            "scope": ["constant.character.escape.mist"],
+            "settings": { "foreground": "#cc6666" }
+          },
+          {
+            "name": "Interpolation braces (red)",
+            "scope": [
+              "punctuation.definition.interpolation.begin.mist",
+              "punctuation.definition.interpolation.end.mist"
+            ],
+            "settings": { "foreground": "#cc6666" }
+          },
+          {
+            "name": "Language variables — discard (red)",
+            "scope": ["variable.language.mist"],
+            "settings": { "foreground": "#cc6666" }
+          }
+        ]
+      }
+    }
   },
   "scripts": {
     "test": "npx vscode-tmgrammar-test -g syntaxes/mist.tmLanguage.json tests/*.mist"

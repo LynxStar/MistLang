@@ -494,6 +494,16 @@
           "captures": {
             "1": { "name": "entity.name.variable.property.mist" }
           }
+        },
+        {
+          "comment": "Field declaration: PascalCase type (optional ? and []) followed by identifier followed by ;",
+          "match": "\\b([A-Z]\\w*)(\\?)?(?:(\\[\\]))?\\s+([a-zA-Z_]\\w*)\\s*(?=;)",
+          "captures": {
+            "1": { "name": "entity.name.type.mist" },
+            "2": { "name": "punctuation.nullable.mist" },
+            "3": { "name": "punctuation.squarebracket.mist" },
+            "4": { "name": "variable.other.field.mist" }
+          }
         }
       ]
     },

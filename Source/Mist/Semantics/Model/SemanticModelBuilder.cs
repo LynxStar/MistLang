@@ -22114,7 +22114,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (methodCall.TypeArgs is not null)
                 {
                     // Look up the method symbol to check its type parameters.
-                    var methodSymbol = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                    // When multiple overloads exist (e.g., Get<T>() and Get(Type)),
+                    // prefer a generic overload whose arity matches the provided
+                    // type argument count.
+                    var providedArity = CountTypeArgs(methodCall.TypeArgs);
+                    var methodSymbol = LookupGenericMemberSymbol(targetType, memberName, providedArity, ambientTypeResolver, fileScope, symbolTable);
                     if (methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
                     {
                         // Resolve the type arguments. Use the dependent-aware resolver
@@ -22510,7 +22514,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Handle method-level type arguments.
                 if (optionalMethodCall.TypeArgs is not null)
                 {
-                    var methodSymbol = LookupMemberSymbol(projectedType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                    var optProvidedArity = CountTypeArgs(optionalMethodCall.TypeArgs);
+                    var methodSymbol = LookupGenericMemberSymbol(projectedType, memberName, optProvidedArity, ambientTypeResolver, fileScope, symbolTable);
                     if (methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
                     {
                         var hasDependentParams = false;
@@ -24107,16 +24112,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Before emitting MIST_UNDEFINED_MEMBER, check the extension registry
         // for applicable extension members matching the name.
         // Task 7.6: Do NOT fall back to extension lookup when the receiver type
-        // is a trait or interface. Extensions are orthogonal to traits/interfaces
-        // and should not be discoverable on trait-typed or interface-typed variables.
-        // Exception: ConstructedType whose generic definition is an interface
-        // (e.g., IEnumerable<int>) SHOULD allow extension lookup, because the
-        // user has a concrete parameterized interface type (like a LINQ result).
+        // is a trait. Extensions are orthogonal to traits and should not be
+        // discoverable on trait-typed variables. Interface-typed receivers ARE
+        // allowed because .NET extension methods targeting interfaces (e.g.,
+        // LINQ on IEnumerable, DI on IServiceCollection) are the primary API
+        // consumption pattern and must resolve as instance calls.
         // Task 7.2: Collect ALL candidates and apply specificity ordering.
         var isUnwrappedFromConstructed = constructedTypeParams is not null && constructedTypeArgs is not null;
         if (_extensionRegistryContext is not null
-            && targetType is not TraitType
-            && (targetType is not InterfaceType || isUnwrappedFromConstructed))
+            && targetType is not TraitType)
         {
             // Use the original target type (before ConstructedType unwrapping)
             // for the extension registry query. If the original was a
@@ -24192,6 +24196,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             if (candidates.Count > 1)
             {
+                // Deduplicate candidates that originate from structurally identical
+                // receiver types (e.g., the same interface projected from multiple
+                // assemblies creating separate InterfaceType instances).
+                var deduplicated = new List<(IType ReceiverType, IType MemberType)> { candidates[0] };
+                for (var i = 1; i < candidates.Count; i++)
+                {
+                    var isDuplicate = false;
+                    for (var j = 0; j < deduplicated.Count; j++)
+                    {
+                        if (AreStructurallyEquivalentReceivers(candidates[i].ReceiverType, deduplicated[j].ReceiverType))
+                        {
+                            isDuplicate = true;
+                            break;
+                        }
+                    }
+                    if (!isDuplicate)
+                        deduplicated.Add(candidates[i]);
+                }
+                candidates = deduplicated;
+
+                if (candidates.Count == 1)
+                {
+                    return candidates[0].MemberType;
+                }
+
                 // Apply specificity ordering: find the most-specific candidate.
                 var bestIndex = 0;
                 var ambiguous = false;
@@ -24452,6 +24481,37 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 if (ReferenceEquals(iface, target))
                     return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether two receiver types are structurally equivalent.
+    /// Used to deduplicate extension candidates that originate from the same logical
+    /// interface projected as separate InterfaceType instances (e.g., from multiple assemblies).
+    /// </summary>
+    private static bool AreStructurallyEquivalentReceivers(IType r1, IType r2)
+    {
+        if (ReferenceEquals(r1, r2))
+            return true;
+
+        // Both plain InterfaceType: compare by name + namespace.
+        if (r1 is InterfaceType i1 && r2 is InterfaceType i2)
+        {
+            return i1.DisplayName == i2.DisplayName
+                && i1.ContainingNamespace == i2.ContainingNamespace;
+        }
+
+        // Both ConstructedType with interface generic definitions.
+        if (r1 is ConstructedType ct1 && r2 is ConstructedType ct2)
+        {
+            if (ct1.GenericDefinition is InterfaceType gi1 && ct2.GenericDefinition is InterfaceType gi2)
+            {
+                return gi1.DisplayName == gi2.DisplayName
+                    && gi1.ContainingNamespace == gi2.ContainingNamespace
+                    && ct1.TypeArguments.Count == ct2.TypeArguments.Count;
             }
         }
 
@@ -25032,6 +25092,73 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var member = memberScope.Lookup(memberName);
             if (member is not null)
                 return member;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Looks up a method symbol by name, preferring a generic overload whose type
+    /// parameter count matches the provided type argument count. Falls back to the
+    /// first match (generic or non-generic) if no exact arity match is found.
+    /// Used for type argument validation on method invocations.
+    /// </summary>
+    private static ISymbol? LookupGenericMemberSymbol(
+        IType targetType,
+        string memberName,
+        int typeArgCount,
+        IAmbientTypeResolver? ambientTypeResolver,
+        Scope fileScope,
+        SymbolTable symbolTable)
+    {
+        if (targetType is ErrorType or NamespaceReferenceType)
+            return null;
+
+        // For ConstructedType, look up in the generic definition's member scope.
+        if (targetType is ConstructedType ct)
+            targetType = ct.GenericDefinition;
+
+        IScope? memberScope = targetType switch
+        {
+            ClassType classType => classType.MemberScope,
+            StructType structType => structType.MemberScope,
+            InterfaceType interfaceType => interfaceType.MemberScope,
+            _ => null,
+        };
+
+        if (targetType is ClassType classTarget)
+        {
+            ClassType? current = classTarget;
+            while (current is not null)
+            {
+                ISymbol? firstMatch = null;
+                foreach (var m in current.MemberScope.Members)
+                {
+                    if (m.Name == memberName)
+                    {
+                        firstMatch ??= m;
+                        if (m is Symbol s && s.TypeParameters.Count == typeArgCount)
+                            return s;
+                    }
+                }
+                if (firstMatch is not null)
+                    return firstMatch;
+                current = current.BaseType as ClassType;
+            }
+        }
+        else if (memberScope is not null)
+        {
+            var allMembers = memberScope.LookupAll(memberName);
+            if (allMembers.Count > 0)
+            {
+                // Prefer the overload whose type parameter count matches.
+                foreach (var m in allMembers)
+                {
+                    if (m is Symbol s && s.TypeParameters.Count == typeArgCount)
+                        return s;
+                }
+                return allMembers[0];
+            }
         }
 
         return null;

@@ -211,13 +211,14 @@ public class UnknownTypeParserTests
     }
 
     [Fact]
-    public void Rejects_Namespace_Named_Unknown()
+    public void Accepts_Namespace_Named_Unknown()
     {
-        // Valid analog: `namespace Geometry;` — NamespaceDeclaration's QualifiedIdentifier
-        // requires IDENTIFIER tokens only.
-        var (cuInvalid, _) = ParseSource("namespace unknown;");
-        Assert.NotNull(cuInvalid);
-        Assert.Null(cuInvalid!.GetNamespace());
+        // After the keyword-in-namespace-segment fix, keyword tokens like `unknown`
+        // are reclassified as IDENTIFIER in namespace/using qualified identifiers.
+        // This enables CLR namespaces with keyword-like segments to parse correctly.
+        var (cuUnknown, _) = ParseSource("namespace unknown;");
+        Assert.NotNull(cuUnknown);
+        Assert.NotNull(cuUnknown!.GetNamespace());
 
         var (cuValid, _) = ParseSource("namespace Geometry;");
         Assert.NotNull(cuValid);

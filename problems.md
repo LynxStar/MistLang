@@ -1,34 +1,24 @@
+# Mist: Known Limitations & Issues
 
+## Ambiguous Extension Method Resolution with Multiple Overloads
 
+When an extension method has multiple overloads on the same receiver type, Mist reports ambiguity even when argument count should disambiguate:
+
+```mist
+// This FAILS — Configure has 4 overloads on IServiceCollection
+builder.Services.Configure<AppSettings>(configuration);
+```
+
+```
+error MIST_TC_0082: Ambiguous extension method resolution: member 'Configure' is provided by multiple equally-specific extension blocks: extension(IServiceCollection), extension(IServiceCollection).
+```
+
+The overloads differ by parameter count (`IConfiguration` vs `String, IConfiguration` vs `IConfiguration, Action<BinderOptions>`), so the 2-arg call should unambiguously resolve to `Configure(IServiceCollection, IConfiguration)`.
+
+**Workaround:** Use the static call form which does resolve correctly:
+
+```mist
+OptionsConfigurationServiceCollectionExtensions.Configure<AppSettings>(builder.Services, configuration);
+```
 
 ---
-
-## Issue 5: `mist inspect` Crashes with Duplicate Assembly When Packages Overlap Shared Framework — RESOLVED
-
-**Symptom:** `mist inspect Microsoft.EntityFrameworkCore.DbContext` and `mist inspect Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory` both crash with:
-
-```
-Unhandled exception. System.IO.FileLoadException: The assembly 'Microsoft.Extensions.Logging.Abstractions, Version=10.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60' has already loaded been loaded into this MetadataLoadContext.
-```
-
-**Reproduction:**
-
-```toml
-# mist.toml
-[packages]
-"Npgsql.EntityFrameworkCore.PostgreSQL" = "9.0.4"
-"Microsoft.AspNetCore.Mvc.Testing" = "10.0.0"
-
-[framework_references]
-"Microsoft.AspNetCore.App" = true
-```
-
-Then run:
-```bash
-mist inspect Microsoft.EntityFrameworkCore.DbContext
-# crashes with FileLoadException
-```
-
-**Root cause:** The `inspect` and `restore` CLI commands called `PackageResolver.ResolvePackages` using the two-argument overload that doesn't pass framework references for deduplication. The build path already used the four-argument overload with framework references, which is why `mist build` worked fine.
-
-**Fix:** Updated both the `inspect` and `restore` CLI code paths to pass `config.FrameworkReferences` to `PackageResolver.ResolvePackages`, giving them the same framework-provided assembly deduplication as the build path.

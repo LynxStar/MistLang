@@ -267,6 +267,21 @@ public sealed class ExtensionRegistry
                 return true;
         }
 
+        // Check interface-typed receivers: when the value IS an interface type,
+        // check if it structurally matches the extension receiver or inherits from it.
+        // This enables .NET extension methods targeting interfaces (e.g., LINQ on
+        // IEnumerable, DI on IServiceCollection) to resolve on interface-typed variables.
+        if (valueType is InterfaceType valueIface)
+        {
+            if (InterfaceMatches(valueIface, extensionReceiverType))
+                return true;
+
+            // Check inherited interfaces of the value interface.
+            if (valueIface.Interfaces.Count > 0
+                && ImplementsInterfaceStructural(valueIface.Interfaces, extensionReceiverType))
+                return true;
+        }
+
         return false;
     }
 

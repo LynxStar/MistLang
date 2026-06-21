@@ -14,11 +14,17 @@ public sealed class MistParser : IParser
 {
     public ParseResult Parse(TokenStream tokens, DiagnosticBag diagnostics)
     {
+        // Pre-process the token stream to reclassify keyword tokens as IDENTIFIER
+        // when they appear as segments in dotted qualified identifiers following
+        // `using` or `namespace`. This allows CLR namespaces containing keyword-
+        // like segments (e.g., "System.Runtime.in.Something") to parse correctly.
+        var processedTokens = ReclassifyKeywordsInQualifiedNames(tokens.AllTokens);
+
         // Bridge to Storm-generated parser.
         var stormDiagnostics = new Storm.Runtime.DiagnosticBag();
         var stormTokenStream = new Storm.Runtime.TokenStream(
             new Storm.Runtime.SourceText(tokens.Source.Path, tokens.Source.Contents),
-            tokens.AllTokens);
+            processedTokens);
 
         Storm.Runtime.SyntaxNode? root = null;
         try
@@ -297,5 +303,157 @@ public sealed class MistParser : IParser
                 AssignOrigin(child, origin);
             }
         }
+    }
+
+    /// <summary>
+    /// Scans the token stream and reclassifies keyword tokens as IDENTIFIER when
+    /// they appear as namespace segments in using declarations or namespace declarations.
+    /// <para>
+    /// CLR namespaces may contain segments that coincide with Mist keywords (e.g.,
+    /// <c>using Some.Namespace.type.Foo;</c>). The DFA lexer produces keyword token
+    /// kinds for these, causing the PEG parser's <c>QualifiedIdentifier</c> rule
+    /// (which expects IDENTIFIER tokens) to fail. This pre-processing step fixes up
+    /// those tokens so parsing succeeds.
+    /// </para>
+    /// </summary>
+    private static ImmutableArray<Storm.Runtime.Token> ReclassifyKeywordsInQualifiedNames(
+        ImmutableArray<Storm.Runtime.Token> tokens)
+    {
+        var identifierKind = (int)Mist.Generated.TokenKind.IDENTIFIER;
+        var usingKind = (int)Mist.Generated.TokenKind.USING;
+        var namespaceKind = (int)Mist.Generated.TokenKind.NAMESPACE;
+        var dotKind = (int)Mist.Generated.TokenKind.DOT;
+
+        // Quick scan: check if any reclassification is needed.
+        // A qualified identifier following USING or NAMESPACE is a sequence of
+        // identifier-like tokens separated by DOTs. A keyword token appearing
+        // after a DOT (or directly after USING/NAMESPACE) in such a position
+        // needs reclassification.
+        var needsFixup = false;
+        for (var i = 0; i < tokens.Length - 1; i++)
+        {
+            var kind = tokens[i].Kind;
+            if (kind != usingKind && kind != namespaceKind)
+                continue;
+
+            // Check segments: (DOT segment)* pattern after the first segment.
+            var j = i + 1;
+            while (j < tokens.Length)
+            {
+                var segKind = tokens[j].Kind;
+                if (segKind == identifierKind)
+                {
+                    j++;
+                    // Check for DOT after identifier.
+                    if (j < tokens.Length && tokens[j].Kind == dotKind)
+                    {
+                        j++; // skip DOT, continue to next segment
+                        continue;
+                    }
+                    break; // end of qualified identifier
+                }
+                else if (segKind == dotKind)
+                {
+                    // DOT without preceding identifier — shouldn't happen normally
+                    break;
+                }
+                else if (IsIdentifierLikeKeyword(segKind))
+                {
+                    // Found a keyword where we expect an identifier — fixup needed.
+                    needsFixup = true;
+                    break;
+                }
+                else
+                {
+                    break; // end of qualified identifier
+                }
+            }
+            if (needsFixup) break;
+        }
+
+        if (!needsFixup)
+            return tokens;
+
+        // Build a new token array with reclassified tokens.
+        var builder = ImmutableArray.CreateBuilder<Storm.Runtime.Token>(tokens.Length);
+        for (var i = 0; i < tokens.Length; i++)
+        {
+            builder.Add(tokens[i]);
+        }
+
+        for (var i = 0; i < builder.Count - 1; i++)
+        {
+            var kind = builder[i].Kind;
+            if (kind != usingKind && kind != namespaceKind)
+                continue;
+
+            // Reclassify keyword tokens in the qualified identifier that follows.
+            // The qualified identifier is: segment (DOT segment)* where segment is
+            // IDENTIFIER or a keyword that looks like an identifier.
+            var j = i + 1;
+            while (j < builder.Count)
+            {
+                var tok = builder[j];
+                if (tok.Kind == identifierKind)
+                {
+                    j++; // valid segment, continue
+                }
+                else if (IsIdentifierLikeKeyword(tok.Kind))
+                {
+                    // Reclassify this keyword token as IDENTIFIER.
+                    builder[j] = new Storm.Runtime.Token(
+                        identifierKind,
+                        tok.Span,
+                        tok.Start,
+                        tok.End,
+                        tok.Channel,
+                        tok.Lexeme);
+                    j++;
+                }
+                else if (tok.Kind == dotKind)
+                {
+                    j++; // DOT separator, continue to next segment
+                }
+                else
+                {
+                    break; // end of qualified identifier (semicolon, brace, etc.)
+                }
+            }
+        }
+
+        return builder.MoveToImmutable();
+    }
+
+    /// <summary>
+    /// Returns true if the given token kind is a keyword that could appear as a
+    /// namespace segment (i.e., it looks like an identifier but was lexed as a keyword).
+    /// </summary>
+    private static bool IsIdentifierLikeKeyword(int kind)
+    {
+        // All keyword token kinds that have identifier-like lexemes.
+        // Excludes punctuation, operators, and structural tokens.
+        return kind != (int)Mist.Generated.TokenKind.IDENTIFIER
+            && kind != (int)Mist.Generated.TokenKind.DOT
+            && kind != (int)Mist.Generated.TokenKind.SEMICOLON
+            && kind != (int)Mist.Generated.TokenKind.LEFT_BRACE
+            && kind != (int)Mist.Generated.TokenKind.RIGHT_BRACE
+            && kind != (int)Mist.Generated.TokenKind.LEFT_PARENTHESIS
+            && kind != (int)Mist.Generated.TokenKind.RIGHT_PARENTHESIS
+            && kind != (int)Mist.Generated.TokenKind.LEFT_BRACKET
+            && kind != (int)Mist.Generated.TokenKind.RIGHT_BRACKET
+            && kind != (int)Mist.Generated.TokenKind.LESS_THAN
+            && kind != (int)Mist.Generated.TokenKind.GREATER_THAN
+            && kind != (int)Mist.Generated.TokenKind.EndOfFile
+            && kind != (int)Mist.Generated.TokenKind.COMMA
+            && kind != (int)Mist.Generated.TokenKind.COLON
+            && kind != (int)Mist.Generated.TokenKind.EQUAL
+            && kind != (int)Mist.Generated.TokenKind.STAR
+            && kind != (int)Mist.Generated.TokenKind.PLUS
+            && kind != (int)Mist.Generated.TokenKind.MINUS
+            && kind != (int)Mist.Generated.TokenKind.SLASH
+            && kind != (int)Mist.Generated.TokenKind.MODULO
+            && kind != (int)Mist.Generated.TokenKind.EXCLAMATION
+            && kind != (int)Mist.Generated.TokenKind.QUESTION
+            && kind != (int)Mist.Generated.TokenKind.PIPE;
     }
 }

@@ -20424,17 +20424,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // type. This allows the TypeArgumentInferenceEngine to unify the method's parameter
             // type (Func<int, T>) with the lambda's concrete type (Func<int, string>) and
             // deduce T = string.
-            if (ContainsTypeParameter(returnType))
+            //
+            // Also infer when the lambda has explicitly-typed parameters that differ from
+            // the target delegate's parameter types (e.g., ASP.NET Core minimal API lambdas
+            // with DI-injected parameters like IOptions<T>). In this case the lambda's
+            // actual signature takes precedence over the target delegate.
+            var hasExplicitlyTypedParams = HasExplicitlyTypedParameters(lambda);
+            if (ContainsTypeParameter(returnType) || hasExplicitlyTypedParams)
             {
                 var inferredReturnType = InferLambdaBodyReturnType(lambda, expressionTypes, fileScope, symbolTable, isAsync);
                 if (inferredReturnType is not null && inferredReturnType is not ErrorType && inferredReturnType is not UnknownType)
                 {
+                    // When explicitly-typed params are present, use the resolved param
+                    // types from the lambda scope instead of the target delegate's types.
+                    var actualParamTypes = hasExplicitlyTypedParams
+                        ? CollectLambdaResolvedParamTypes(lambda, lambdaScope)
+                        : paramTypes;
+
                     // Construct a concrete Func type from the actual param types and inferred return type.
-                    var concreteArity = paramTypes.Count + 1;
+                    var concreteArity = actualParamTypes.Count + 1;
                     var concreteTypeArgs = new IType[concreteArity];
-                    for (var i = 0; i < paramTypes.Count; i++)
+                    for (var i = 0; i < actualParamTypes.Count; i++)
                     {
-                        concreteTypeArgs[i] = paramTypes[i];
+                        concreteTypeArgs[i] = actualParamTypes[i];
                     }
                     concreteTypeArgs[^1] = inferredReturnType;
 
@@ -20848,6 +20860,80 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         };
 
         return modifiers.Any(m => m is AsyncLambdaModifierLambdaModifierNode);
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the lambda has all explicitly-typed parameters.
+    /// </summary>
+    private static bool HasExplicitlyTypedParameters(LambdaExpressionNode lambda)
+    {
+        var paramList = lambda switch
+        {
+            ExpressionLambdaLambdaExpressionNode exprLambda => exprLambda.Params,
+            BlockLambdaLambdaExpressionNode blockLambda => blockLambda.Params,
+            _ => null,
+        };
+
+        if (paramList is not ParenthesizedLambdaParamsLambdaParameterListNode parenParams)
+            return false;
+
+        if (parenParams.Params is null)
+            return false; // zero-parameter lambda
+
+        // Check if the first param is typed.
+        if (parenParams.Params.LambdaParam is not TypedLambdaParamLambdaParamNode)
+            return false;
+
+        // Check all remaining params are typed.
+        foreach (var param in parenParams.Params.LambdaParams)
+        {
+            if (param is not TypedLambdaParamLambdaParamNode)
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Collects the resolved parameter types from the lambda scope.
+    /// Used when the lambda has explicitly-typed parameters to construct the
+    /// correct Func type based on the actual resolved annotations.
+    /// </summary>
+    private static List<IType> CollectLambdaResolvedParamTypes(LambdaExpressionNode lambda, Scope lambdaScope)
+    {
+        var paramList = lambda switch
+        {
+            ExpressionLambdaLambdaExpressionNode exprLambda => exprLambda.Params,
+            BlockLambdaLambdaExpressionNode blockLambda => blockLambda.Params,
+            _ => null,
+        };
+
+        var result = new List<IType>();
+
+        if (paramList is ParenthesizedLambdaParamsLambdaParameterListNode parenParams && parenParams.Params is not null)
+        {
+            // Collect param names in order and look up their types from the scope.
+            var paramNodes = new List<LambdaParamNode> { parenParams.Params.LambdaParam };
+            paramNodes.AddRange(parenParams.Params.LambdaParams);
+
+            foreach (var paramNode in paramNodes)
+            {
+                var name = paramNode switch
+                {
+                    TypedLambdaParamLambdaParamNode typed => typed.Name.Lexeme,
+                    UntypedLambdaParamLambdaParamNode untyped => untyped.Name.Lexeme,
+                    _ => null,
+                };
+
+                if (name is not null)
+                {
+                    var symbol = lambdaScope.Lookup(name);
+                    result.Add(symbol?.DeclaredType ?? UnknownType.Instance);
+                }
+            }
+        }
+
+        return result;
     }
 
     /// <summary>

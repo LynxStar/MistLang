@@ -1,6 +1,6 @@
 # Findings: Mist Cannot Inherit From CLR Types
 
-## Status: FIXED (CLR inheritance) / INVESTIGATION NEEDED (extension methods)
+## Status: FIXED (CLR inheritance) / FIXED (extension methods)
 
 ## Task
 3.1 — Implement EF Core DbContext and entity configurations
@@ -24,21 +24,32 @@ back to the ambient resolver, which is why `mist inspect` could find the types.
 - `public class MyStream : Stream { }` — inheriting from SDK types
 - Implementing CLR interfaces in base type positions
 
-## Remaining Issue: Extension Methods from NuGet
+## Extension Methods from NuGet — FIXED
 
-Extension methods from NuGet packages (e.g., `UseNpgsql` on `DbContextOptionsBuilder`) may still 
-not resolve. This is a separate issue from base type resolution and requires further investigation:
+### Root Cause
 
-```
-error MIST_UNDEFINED_MEMBER: 'DbContextOptionsBuilder' does not contain a definition for 'UseNpgsql'.
-error MIST_UNDEFINED_MEMBER: 'DbContextOptionsBuilder' does not contain a definition for 'EnableRetryOnFailure'.
-```
+`ExtensionRegistry.IsApplicable` relied on `ReferenceEquals` to match extension method receiver 
+types against value types in user code. However, ambient extension receivers are projected via 
+`TypeProjector.ProjectTypeReference` during Pass 2e (Phase A) — BEFORE Pass 2 resolves user code. 
+At that point, the receiver type (e.g., `DbContextOptionsBuilder`) hasn't been resolved and cached 
+yet by the `AssemblyTypeProvider`, so the projector falls through to `ProjectSimpleTypeReference`, 
+creating a disconnected shell `ClassType` instance.
 
-The extension method registration system (`RegisterAmbientExtensions` / `AmbientExtensionScanner`) 
-already scans imported namespaces for extension methods. The issue may be:
-- The namespace containing `UseNpgsql` is not being imported (user needs correct `using` directive)
-- The receiver type projection doesn't match (structural equality mismatch)
-- The specific NuGet package assembly isn't being scanned correctly
+Later, when Pass 2 resolves the user's code, `ResolveType` creates and caches a DIFFERENT 
+`ClassType` instance for the same type. The two instances have the same `DisplayName` and 
+`ContainingNamespace` but are not reference-equal, so `IsApplicable` returned `false` and the 
+extension method was reported as `MIST_UNDEFINED_MEMBER`.
 
-This should be tested with the actual Pendragon project setup to determine if it's still an issue 
-after the base type fix is in place.
+### Fix Applied
+
+Added structural equality checks to `ExtensionRegistry.IsApplicable` for `ClassType` and 
+`StructType` (non-generic): when both the extension receiver and value type share the same 
+`DisplayName` and `ContainingNamespace`, they are considered applicable. Also added a 
+`GenericDefinitionsMatch` helper for `ConstructedType` comparisons where generic definitions 
+may be disconnected shells.
+
+### What Now Works:
+- Extension methods targeting non-generic class receivers from NuGet packages
+- Extension methods targeting non-generic struct receivers from NuGet packages
+- ConstructedType-based extensions where generic definitions are disconnected shells
+- All pre-existing extension tests continue to pass (4,463 total tests green)

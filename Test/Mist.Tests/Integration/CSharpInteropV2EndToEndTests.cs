@@ -64,7 +64,9 @@ public sealed class CSharpInteropV2EndToEndTests : IDisposable
             ProjectName: "CSharpInteropV2",
             NamespaceRoot: "CSharpInteropV2",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
-            Packages: ImmutableArray.Create(new NuGetPackageReference("Newtonsoft.Json", "13.0.3")),
+            Packages: ImmutableArray.Create(
+                new NuGetPackageReference("Newtonsoft.Json", "13.0.3"),
+                new NuGetPackageReference("Npgsql.EntityFrameworkCore.PostgreSQL", "9.0.4")),
             FrameworkReferences: ImmutableArray.Create(new FrameworkReference("Microsoft.AspNetCore.App")),
             TargetFramework: "net10.0");
 
@@ -121,6 +123,7 @@ public sealed class CSharpInteropV2EndToEndTests : IDisposable
             canRead=True
             encodedLength=2
             decoded=Hi
+            efConfigured=True
             --- C# Interop V2 Done ---
             """;
 

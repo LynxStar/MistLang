@@ -200,6 +200,27 @@ public sealed class ExtensionRegistry
         if (ReferenceEquals(extensionReceiverType, valueType))
             return true;
 
+        // Structural equality for ClassType: ambient extension receivers are projected
+        // before Pass 2 resolves user code, so the receiver may be a disconnected shell
+        // (different instance) from the cached type the user's variable resolves to.
+        // Match by DisplayName + ContainingNamespace to bridge this gap.
+        if (extensionReceiverType is ClassType extClass && valueType is ClassType valClass
+            && extClass.TypeParameters.Count == 0 && valClass.TypeParameters.Count == 0)
+        {
+            if (extClass.DisplayName == valClass.DisplayName
+                && extClass.ContainingNamespace == valClass.ContainingNamespace)
+                return true;
+        }
+
+        // Structural equality for StructType (same reasoning as ClassType above).
+        if (extensionReceiverType is StructType extStruct && valueType is StructType valStruct
+            && extStruct.TypeParameters.Count == 0 && valStruct.TypeParameters.Count == 0)
+        {
+            if (extStruct.DisplayName == valStruct.DisplayName
+                && extStruct.ContainingNamespace == valStruct.ContainingNamespace)
+                return true;
+        }
+
         // Array type structural match: two ArrayType instances with the same
         // element type are applicable (ArrayType uses reference equality, so
         // different instances of int[] won't match via ReferenceEquals).
@@ -233,7 +254,13 @@ public sealed class ExtensionRegistry
             // For ConstructedType values, check if the generic definitions match.
             if (valueType is ConstructedType ctValue)
             {
-                return ReferenceEquals(ctReceiver.GenericDefinition, ctValue.GenericDefinition);
+                if (ReferenceEquals(ctReceiver.GenericDefinition, ctValue.GenericDefinition))
+                    return true;
+
+                // Structural fallback: when the generic definitions are projected from
+                // different instances (ambient extension scanner vs. type resolver cache),
+                // compare by DisplayName + ContainingNamespace.
+                return GenericDefinitionsMatch(ctReceiver.GenericDefinition, ctValue.GenericDefinition);
             }
 
             // For other types, include as potential match (type inference will filter).
@@ -242,9 +269,15 @@ public sealed class ExtensionRegistry
 
         // If the value type is a constructed type, check if the extension receiver
         // matches the generic definition.
-        if (valueType is ConstructedType constructed &&
-            ReferenceEquals(extensionReceiverType, constructed.GenericDefinition))
-            return true;
+        if (valueType is ConstructedType constructed)
+        {
+            if (ReferenceEquals(extensionReceiverType, constructed.GenericDefinition))
+                return true;
+
+            // Structural fallback for disconnected shell instances.
+            if (GenericDefinitionsMatch(extensionReceiverType, constructed.GenericDefinition))
+                return true;
+        }
 
         // Check base type chain for class types.
         if (valueType is ClassType classType && classType.BaseType is not null)
@@ -405,5 +438,28 @@ public sealed class ExtensionRegistry
         var name = iface.DisplayName;
         return name is "IEnumerable" or "ICollection" or "IList"
             or "IReadOnlyCollection" or "IReadOnlyList";
+    }
+
+    /// <summary>
+    /// Structural comparison of two generic type definitions by DisplayName and
+    /// ContainingNamespace. Used when the ambient extension scanner projects a
+    /// receiver type before the main type resolver caches it, producing a
+    /// disconnected shell that won't satisfy ReferenceEquals.
+    /// </summary>
+    private static bool GenericDefinitionsMatch(IType a, IType b)
+    {
+        if (ReferenceEquals(a, b))
+            return true;
+
+        return (a, b) switch
+        {
+            (ClassType ca, ClassType cb) =>
+                ca.DisplayName == cb.DisplayName && ca.ContainingNamespace == cb.ContainingNamespace,
+            (StructType sa, StructType sb) =>
+                sa.DisplayName == sb.DisplayName && sa.ContainingNamespace == sb.ContainingNamespace,
+            (InterfaceType ia, InterfaceType ib) =>
+                ia.DisplayName == ib.DisplayName && ia.ContainingNamespace == ib.ContainingNamespace,
+            _ => false
+        };
     }
 }

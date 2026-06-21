@@ -30,10 +30,21 @@ public sealed class CSharpCompilationDriver
 
         var refs = new List<RoslynApi.MetadataReference>();
 
-        // Core runtime assemblies — resolved to the shared-framework
-        // implementation DLLs. We explicitly include `System.Private.CoreLib.dll`
-        // which is an implementation-only assembly (it has no ref DLL),
-        // so reading from the ref pack would break compilation.
+        // When a reference-assembly pack is available, reference ALL assemblies
+        // from it. This ensures that transitive framework dependencies (e.g.,
+        // System.Data.Common referenced by EF Core NuGet packages) are available
+        // to the Roslyn compilation without maintaining a manual list.
+        if (refPackDir is not null)
+        {
+            foreach (var dll in Directory.GetFiles(refPackDir, "*.dll"))
+            {
+                refs.Add(RoslynApi.MetadataReference.CreateFromFile(dll));
+            }
+
+            return [.. refs];
+        }
+
+        // Fallback: no ref pack installed — use the minimal set from the runtime dir.
         foreach (var name in new[]
         {
             "System.Runtime.dll",
@@ -57,12 +68,7 @@ public sealed class CSharpCompilationDriver
         // carries the DLR binder surface that Roslyn compiles `dynamic`
         // dispatch against. `System.Linq.Expressions` and
         // `System.Dynamic.Runtime` are transitively required by the
-        // DLR's lowering. All three must resolve to the ref DLL when
-        // a ref pack is installed so Roslyn sees the full public
-        // surface — the shared-framework implementation DLLs omit
-        // some surface-level metadata that causes errors like
-        // "Missing compiler required member
-        // 'Microsoft.CSharp.RuntimeBinder.Binder.InvokeMember'".
+        // DLR's lowering.
         foreach (var name in new[]
         {
             "Microsoft.CSharp.dll",
@@ -70,22 +76,8 @@ public sealed class CSharpCompilationDriver
             "System.Dynamic.Runtime.dll",
         })
         {
-            string? path = null;
-            if (refPackDir is not null)
-            {
-                var refPath = Path.Combine(refPackDir, name);
-                if (File.Exists(refPath)) path = refPath;
-            }
-            // Fallback: shared-framework implementation. Dynamic
-            // dispatch may still work at the text level but some
-            // binder members may not resolve, producing compile-time
-            // errors. Ref pack is strongly preferred.
-            if (path is null)
-            {
-                var fallbackPath = Path.Combine(runtimeDir, name);
-                if (File.Exists(fallbackPath)) path = fallbackPath;
-            }
-            if (path is not null)
+            var path = Path.Combine(runtimeDir, name);
+            if (File.Exists(path))
                 refs.Add(RoslynApi.MetadataReference.CreateFromFile(path));
         }
 

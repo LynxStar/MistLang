@@ -6,45 +6,45 @@ Add the `as` operator to the Mist programming language. The `as` operator provid
 
 ## Tasks
 
-- [ ] 1. Add `AsExpression` grammar rule
-  - [ ] 1.1 Add `AsExpression` variant to the `Relational` rule in `Mist.storm`
+- [x] 1. Add `AsExpression` grammar rule
+  - [x] 1.1 Add `AsExpression` variant to the `Relational` rule in `Mist.storm`
     - Add `| left:Additive AS targetType:TypeReference as AsExpression` to the `Relational` rule
     - Place it after `IsExpression` and before `RelationalComparison` (the PEG parser tries alternatives in order; since `IS` and `AS` are distinct tokens, ordering between them doesn't affect correctness but keeps them logically grouped)
     - No changes to `keywords.storm` — the `AS` token already exists
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 9.1, 9.2, 9.3, 9.4_
 
-  - [ ] 1.2 Verify the project builds with the new grammar
+  - [x] 1.2 Verify the project builds with the new grammar
     - Run `dotnet build` to confirm the Storm source generator produces `AsExpressionRelationalNode` with `Left` and `TargetType` fields
     - _Requirements: 1.3_
 
-- [ ] 2. Add pretty-printer support for `as` expressions
-  - [ ] 2.1 Add `AsExpressionRelationalNode` formatting to `MistPrettyPrinter`
+- [x] 2. Add pretty-printer support for `as` expressions
+  - [x] 2.1 Add `AsExpressionRelationalNode` formatting to `MistPrettyPrinter`
     - In the method that handles Relational nodes, add a case for `AsExpressionRelationalNode`
     - Format as `{left} as {targetType}` with spaces around `as`, consistent with `is` formatting
     - _Requirements: 1.3, 9.1_
 
-  - [ ] 2.2 Write round-trip test for `as` expressions
+  - [x] 2.2 Write round-trip test for `as` expressions
     - **Property 1: As expression round-trip**
     - Verify that parsing → pretty-printing → parsing → pretty-printing produces identical output for `as` expressions with varying operand and target type combinations
     - _Requirements: 1.1, 1.2, 1.3_
 
-- [ ] 3. Implement Pass 2 resolution for `as` expressions
-  - [ ] 3.1 Resolve `as` expressions in SemanticModelBuilder Pass 2
+- [x] 3. Implement Pass 2 resolution for `as` expressions
+  - [x] 3.1 Resolve `as` expressions in SemanticModelBuilder Pass 2
     - Add `AsExpressionRelationalNode` case to the method that resolves Relational expressions
     - Resolve the target type reference to an `IType`
     - Resolve the left operand expression to determine its Compile_Time_Type
     - Record the resolved target type on the node (set it as a preliminary type; the type checker will override with the final result type — `T` or `T | void`)
     - _Requirements: 5.1, 5.2_
 
-- [ ] 4. Implement `AsConversionKind` metadata infrastructure
-  - [ ] 4.1 Add `AsConversionKind` enum and semantic model storage
+- [x] 4. Implement `AsConversionKind` metadata infrastructure
+  - [x] 4.1 Add `AsConversionKind` enum and semantic model storage
     - Define `AsConversionKind` enum: `Provable`, `NonProvable`
     - Add `RecordAsConversionKind(SyntaxNode, AsConversionKind)` and `GetAsConversionKind(SyntaxNode)` methods to the semantic model interface and implementation
     - Add a `Dictionary<SyntaxNode, AsConversionKind>` backing store
     - _Requirements: 5.4_
 
-- [ ] 5. Implement type checker `as` expression classification
-  - [ ] 5.1 Implement `CheckAsExpression` in TypeCheckerAnalyzer
+- [x] 5. Implement type checker `as` expression classification
+  - [x] 5.1 Implement `CheckAsExpression` in TypeCheckerAnalyzer
     - Add `AsExpressionRelationalNode` case to the method that checks Relational nodes
     - Implement `CheckAsExpression`:
       - Get source type from left operand, target type from resolved type reference
@@ -56,7 +56,7 @@ Add the `as` operator to the Mist programming language. The `as` operator provid
       - For Invalid: emit `MIST_TC_0070`
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.3, 5.4, 8.1, 8.2, 8.3, 8.4_
 
-  - [ ] 5.2 Implement `ClassifyAsConversion` helper
+  - [x] 5.2 Implement `ClassifyAsConversion` helper
     - Provable if `IsDirectlyAssignable(source, target, model)` (identity, subtype, interface, trait, constituent→union)
     - NonProvable if `IsDirectlyAssignable(target, source, model)` (narrowing: base→derived)
     - NonProvable if source is `UnknownType`
@@ -66,7 +66,7 @@ Add the `as` operator to the Mist programming language. The `as` operator provid
     - Invalid otherwise
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 7.5_
 
-  - [ ] 5.3 Write tests for `as` expression type classification
+  - [x] 5.3 Write tests for `as` expression type classification
     - Test provable cases: identity, class widening, struct widening, interface widening, constituent→union
     - Test non-provable cases: class narrowing, struct narrowing, union→constituent, unknown→concrete, class→interface (unproven)
     - Test invalid cases: unrelated types (int→string, Dog→Cat with no common hierarchy), void source, void target
@@ -74,16 +74,16 @@ Add the `as` operator to the Mist programming language. The `as` operator provid
     - **Validates: Properties 2, 3, 4**
     - _Requirements: 2.1–2.5, 3.1–3.5, 4.1–4.4_
 
-  - [ ] 5.4 Write test for `as` operator not triggering user-defined conversions
+  - [x] 5.4 Write test for `as` operator not triggering user-defined conversions
     - Define a type with `implicit operator T(...)` and verify that `as T` does NOT use it (classified as Invalid when no hierarchy relationship exists)
     - **Validates: Property 7**
     - _Requirements: 7.5_
 
-- [ ] 6. Checkpoint — Ensure all tests pass
+- [x] 6. Checkpoint — Ensure all tests pass
   - Run `dotnet test` and verify all existing and new tests pass.
 
-- [ ] 7. Implement C# emission for `as` expressions
-  - [ ] 7.1 Implement `EmitAsExpression` in CSharpEmitter
+- [x] 7. Implement C# emission for `as` expressions
+  - [x] 7.1 Implement `EmitAsExpression` in CSharpEmitter
     - Add `AsExpressionRelationalNode` case to the method that emits Relational expressions
     - Dispatch based on `GetAsConversionKind`:
       - **Provable + identity**: emit operand unchanged
@@ -94,51 +94,51 @@ Add the `as` operator to the Mist programming language. The `as` operator provid
       - **NonProvable + union source**: emit union extraction using existing union emission infrastructure
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7_
 
-  - [ ] 7.2 Write emission tests for `as` expressions
+  - [x] 7.2 Write emission tests for `as` expressions
     - Verify provable conversions emit no runtime checks (Property 5)
     - Verify non-provable conversions emit safe runtime checks (Property 6)
     - Verify emitted code compiles and produces correct results for each conversion category
     - _Requirements: 6.1–6.7_
 
-- [ ] 8. Checkpoint — Ensure all tests pass
+- [x] 8. Checkpoint — Ensure all tests pass
   - Run `dotnet test` and verify all existing and new tests pass.
 
-- [ ] 9. Update syntax highlighting and documentation
-  - [ ] 9.1 Verify/update TextMate grammar for `as` in expression context
+- [x] 9. Update syntax highlighting and documentation
+  - [x] 9.1 Verify/update TextMate grammar for `as` in expression context
     - Verify that `as` is highlighted as `keyword.operator.mist` (or `keyword.operator.type.mist`) in expression contexts
     - If needed, add or adjust pattern to cover `as` followed by a type reference
     - _Requirements: 10.1, 10.2_
 
-  - [ ] 9.2 Update `CSHARP_FEATURES.md`
+  - [x] 9.2 Update `CSHARP_FEATURES.md`
     - Add `as operator (safe type conversion)` entry and mark it ✅
     - Update the Summary table counts
     - _Requirements: 13.1, 13.2_
 
-- [ ] 10. Create sample application
-  - [ ] 10.1 Create `samples/AsOperator/Program.mist` with proof code
+- [x] 10. Create sample application
+  - [x] 10.1 Create `samples/AsOperator/Program.mist` with proof code
     - Use the exact proof code from Requirement 11 verbatim
     - Create `samples/AsOperator/mist.toml` with appropriate project configuration
     - _Requirements: 11.1, 11.2, 11.3, 11.5_
 
-  - [ ] 10.2 Integrate into AllFeatures orchestrator
+  - [x] 10.2 Integrate into AllFeatures orchestrator
     - Add `AsOperator.Program.RunDemo()` call to `samples/AllFeatures/Program.mist`
     - Add project reference to `samples/AllFeatures/mist.toml`
     - _Requirements: 11.4_
 
-  - [ ] 10.3 Verify sample compiles and produces expected output
+  - [x] 10.3 Verify sample compiles and produces expected output
     - Build and run the sample
     - Verify output matches the expected output from Requirement 11 exactly
     - _Requirements: 11.5_
 
-- [ ] 11. Book documentation
-  - [ ] 11.1 Add `as` operator section to the book
+- [x] 11. Book documentation
+  - [x] 11.1 Add `as` operator section to the book
     - Create or update the appropriate chapter (likely Type System or Expressions)
     - Cover: identity, widening, narrowing, union narrowing, unknown narrowing, composition with `??` and `?.`, difference from explicit casts
     - Add compiled snippets to `book/snippets/`
     - Update `book/src/SUMMARY.md`
     - _Requirements: 12.1, 12.2, 12.3, 12.4_
 
-- [ ] 12. Final checkpoint — Ensure all tests pass
+- [x] 12. Final checkpoint — Ensure all tests pass
   - Run `dotnet test` and verify all existing and new tests pass. Build all samples and verify no regressions.
 
 ## Notes

@@ -21234,6 +21234,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return boolType;
             }
 
+            case AsExpressionRelationalNode asExpr:
+            {
+                // Resolve the left-hand side operand to determine its Compile_Time_Type.
+                ResolveAdditive(asExpr.Left, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                // Resolve the target type reference to an IType.
+                var targetType = ResolveTypeReference(asExpr.TargetType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+                // Store the resolved target type on the TargetType node so the emitter
+                // can retrieve the raw target type via GetTypeOf(asExpr.TargetType).
+                // This is needed because the type checker overwrites the expression type
+                // on `asExpr` itself with the result type (T or T | void).
+                expressionTypes[asExpr.TargetType] = targetType;
+
+                // Record the resolved target type as a preliminary type on the node.
+                // The type checker will override this with the final result type (T or T | void).
+                expressionTypes[node] = targetType;
+                return targetType;
+            }
+
             default:
             {
                 expressionTypes[node] = ErrorType.Instance;
@@ -21347,7 +21367,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case TypePatternPrimaryPatternNode typePattern:
             {
                 // Resolve the type reference to get the pattern type.
-                ResolveTypeReference(typePattern.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                var resolvedPatternType = ResolveTypeReference(typePattern.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                // Store the resolved type so the type checker can retrieve it via
+                // GetTypeOf(typePattern.Type) — especially needed for discard patterns
+                // where no symbol is registered (no GetDeclaredSymbol fallback).
+                expressionTypes[typePattern.Type] = resolvedPatternType;
                 break;
             }
 

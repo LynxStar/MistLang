@@ -1865,6 +1865,9 @@ public sealed class MistPrettyPrinter
                 return $"{scrutinee} is {pattern}";
             }
 
+            case AsExpressionRelationalNode asExpr:
+                return $"{EmitAdditive(asExpr.Left)} as {EmitTypeReference(asExpr.TargetType)}";
+
             default:
                 return "";
         }

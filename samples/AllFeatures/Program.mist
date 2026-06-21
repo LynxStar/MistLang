@@ -74,6 +74,7 @@ public class Program
         StackOnlyTypes.Program.RunDemo();
         DependentTypeRefinementConstraints.Program.RunDemo();
         TargetTypedNew.Program.RunDemo();
+        AsOperator.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

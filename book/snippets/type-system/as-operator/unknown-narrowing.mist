@@ -1,0 +1,21 @@
+using Standard;
+
+namespace Snippet;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        unknown box = 99;
+        int? maybeInt = box as int;  // unknown narrowing — result type is int?
+
+        if (maybeInt is int n)
+        {
+            Console.WriteLine($"Got int: {n}");
+        }
+        else
+        {
+            Console.WriteLine("Not an int");
+        }
+    }
+}

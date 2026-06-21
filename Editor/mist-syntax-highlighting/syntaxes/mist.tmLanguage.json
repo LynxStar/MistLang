@@ -133,7 +133,7 @@
         },
         {
           "name": "keyword.other.mist",
-          "match": "\\b(new|stackalloc|var|this|get|set|init|field|operator|with|as|default|where)\\b"
+          "match": "\\b(new|stackalloc|var|this|get|set|init|field|operator|with|default|where)\\b"
         },
         {
           "comment": "Discard pattern: standalone _ in pattern contexts",
@@ -528,6 +528,20 @@
         {
           "name": "keyword.operator.void-conditional.mist",
           "match": "\\?\\."
+        },
+        {
+          "comment": "Type conversion operator: expr as Type — highlight keyword and following type",
+          "match": "\\b(as)\\s+(?:(int|uint|long|ulong|short|ushort|byte|sbyte|float|double|decimal|bool|char|string|regex|unknown)|([A-Z]\\w*))",
+          "captures": {
+            "1": { "name": "keyword.operator.type.mist" },
+            "2": { "name": "storage.type.primitive.mist" },
+            "3": { "name": "entity.name.type.mist" }
+          }
+        },
+        {
+          "comment": "Fallback: bare as keyword in expression context (e.g., before generic types)",
+          "name": "keyword.operator.type.mist",
+          "match": "\\b(as)\\b"
         },
         {
           "name": "keyword.operator.comparison.mist",

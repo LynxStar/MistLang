@@ -45,6 +45,7 @@
 - [Pattern Matching](type-system/pattern-matching.md)
 - [Switch Expressions](type-system/switch-expressions.md)
 - [Cast Operators](type-system/cast-operators.md)
+- [The As Operator](type-system/as-operator.md)
 - [Refinement Types](type-system/refinement-types.md)
 - [Dependent Types](type-system/dependent-types.md)
 - [Definite Assignment](type-system/definite-assignment.md)

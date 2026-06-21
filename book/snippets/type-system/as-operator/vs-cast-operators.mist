@@ -1,0 +1,45 @@
+using Standard;
+
+namespace Snippet;
+
+public struct Celsius
+{
+    public double Degrees;
+
+    public Celsius(double degrees)
+    {
+        Degrees = degrees;
+    }
+
+    // User-defined explicit cast: Celsius → Fahrenheit
+    public static explicit operator Fahrenheit(Celsius c)
+    {
+        return new Fahrenheit(c.Degrees * 9.0 / 5.0 + 32.0);
+    }
+}
+
+public struct Fahrenheit
+{
+    public double Degrees;
+
+    public Fahrenheit(double degrees)
+    {
+        Degrees = degrees;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var boiling = new Celsius(100.0);
+
+        // Explicit cast invokes the user-defined operator:
+        var f = (Fahrenheit)boiling;
+        Console.WriteLine($"{f.Degrees} F");
+
+        // `as` does NOT invoke user-defined operators.
+        // This would be a compile error:
+        // Fahrenheit? attempt = boiling as Fahrenheit;  // ERROR: no type relationship
+    }
+}

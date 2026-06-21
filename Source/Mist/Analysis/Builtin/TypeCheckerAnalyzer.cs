@@ -923,6 +923,41 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId RefinementPredicateIncompatible = new("MIST_REFINEMENT_0007");
 
+    // ── as-operator feature: type checker diagnostics ────────────────────
+    //
+    // Note on numbering: the as-operator design document's Diagnostic ID
+    // Allocation table originally proposed MIST_TC_0070 / MIST_TC_0071 /
+    // MIST_TC_0072 for the three as-operator diagnostics below. Those codes
+    // were already allocated to the type-unions feature (see
+    // UnionNonConstituentAssignment, UnionToNonUnionAssignment, and
+    // UnionIncompatibleConstituents above), so the as-operator diagnostics
+    // were reallocated to MIST_TC_0160 / MIST_TC_0161 / MIST_TC_0162 —
+    // the next free codes after the stack-only-types diagnostics
+    // (MIST_TC_0150–0157). This continues the same reallocation strategy
+    // used throughout this file.
+
+    /// <summary>
+    /// Emitted when an <c>as</c> expression is used between two types that have
+    /// no type relationship (neither is a subtype of the other, no interface/trait
+    /// relationship, no union membership, neither is <c>unknown</c>).
+    /// (Requirements 4.1, 4.2, 8.1).
+    /// </summary>
+    internal static readonly DiagnosticId AsOperatorNoRelationship = new("MIST_TC_0160");
+
+    /// <summary>
+    /// Emitted when an <c>as</c> expression targets <c>void</c>. Converting to
+    /// <c>void</c> is meaningless — the result would always be <c>void</c>.
+    /// (Requirements 4.3, 8.2).
+    /// </summary>
+    internal static readonly DiagnosticId AsOperatorVoidTarget = new("MIST_TC_0161");
+
+    /// <summary>
+    /// Emitted when the left operand of an <c>as</c> expression has a <c>void</c>
+    /// static type. A void-typed expression carries no value and cannot be converted.
+    /// (Requirements 4.4, 8.3).
+    /// </summary>
+    internal static readonly DiagnosticId AsOperatorVoidSource = new("MIST_TC_0162");
+
     /// <summary>
     /// Feature flag gating the operator overload-resolution path introduced by
     /// Task 14 of the Mist Standard Library spec. When <c>true</c> (the
@@ -2896,6 +2931,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 break;
             case IsExpressionRelationalNode isExpr:
                 AnalyzeAdditiveForReads(isExpr.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
+                break;
+            case AsExpressionRelationalNode asExpr:
+                AnalyzeAdditiveForReads(asExpr.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 break;
         }
     }
@@ -8156,7 +8194,217 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
                 break;
             }
+
+            case AsExpressionRelationalNode asExpr:
+            {
+                CheckAdditiveNode(asExpr.Left, model, diagnostics);
+                CheckAsExpression(asExpr, model, diagnostics);
+                break;
+            }
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // As expression classification (MIST_TC_0160 – MIST_TC_0162)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates and classifies an <c>as</c> expression. Determines whether the
+    /// conversion is provable (result type = T), non-provable (result type = T | void),
+    /// or invalid (compile error). Sets the expression type and records the conversion
+    /// kind on the semantic model.
+    /// </summary>
+    private static void CheckAsExpression(
+        AsExpressionRelationalNode asExpr,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // The target type was resolved by Pass 2 and set as the preliminary type.
+        var targetType = model.GetTypeOf(asExpr);
+        if (targetType is null || IsErrorType(targetType))
+            return;
+
+        // Get the compile-time type of the left operand.
+        var sourceType = model.GetTypeOf(asExpr.Left);
+        if (sourceType is null || IsErrorType(sourceType))
+            return;
+
+        // Reject void source.
+        if (sourceType.IsVoid())
+        {
+            diagnostics.Add(MakeDiagnostic(
+                AsOperatorVoidSource.Value,
+                "A void-typed expression cannot be used with the 'as' operator.",
+                asExpr,
+                model));
+            return;
+        }
+
+        // Reject void target.
+        if (targetType.IsVoid())
+        {
+            diagnostics.Add(MakeDiagnostic(
+                AsOperatorVoidTarget.Value,
+                "'as void' is not a valid conversion.",
+                asExpr,
+                model));
+            return;
+        }
+
+        // Classify the conversion.
+        var classification = ClassifyAsConversion(sourceType, targetType, model);
+
+        switch (classification)
+        {
+            case AsConversionClassification.Provable:
+                model.SetTypeOf(asExpr, targetType);
+                model.RecordAsConversionKind(asExpr, AsConversionKind.Provable);
+                break;
+
+            case AsConversionClassification.NonProvable:
+                var optionalType = new UnionType(new List<IType> { targetType, LegacyPrimitiveTypes.Void });
+                model.SetTypeOf(asExpr, optionalType);
+                model.RecordAsConversionKind(asExpr, AsConversionKind.NonProvable);
+                break;
+
+            case AsConversionClassification.Invalid:
+                diagnostics.Add(MakeDiagnostic(
+                    AsOperatorNoRelationship.Value,
+                    $"The 'as' operator cannot be used between '{sourceType.DisplayName}' and '{targetType.DisplayName}' because no type relationship exists. Use an explicit cast operator if a user-defined conversion is needed.",
+                    asExpr,
+                    model));
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Internal classification result for <see cref="ClassifyAsConversion"/>. Distinct
+    /// from <see cref="AsConversionKind"/> because this enum includes the Invalid case
+    /// which never gets recorded on the model (it produces a diagnostic instead).
+    /// </summary>
+    private enum AsConversionClassification
+    {
+        Provable,
+        NonProvable,
+        Invalid,
+    }
+
+    /// <summary>
+    /// Classifies the conversion relationship between a source type and target type
+    /// for an <c>as</c> expression. Returns Provable (always succeeds), NonProvable
+    /// (requires runtime check), or Invalid (no type relationship exists).
+    /// </summary>
+    private static AsConversionClassification ClassifyAsConversion(
+        IType sourceType, IType targetType, ISemanticModel model)
+    {
+        // 1. Provable: source is directly assignable to target
+        //    (identity, subtype, interface, trait — NOT implicit cast operators)
+        if (IsDirectlyAssignable(sourceType, targetType, model))
+            return AsConversionClassification.Provable;
+
+        // 2. Non-provable: target is directly assignable to source (narrowing)
+        //    Base → Derived, Interface → Concrete
+        if (IsDirectlyAssignable(targetType, sourceType, model))
+            return AsConversionClassification.NonProvable;
+
+        // 3. Non-provable: source is unknown → any concrete target
+        if (sourceType is UnknownType)
+            return AsConversionClassification.NonProvable;
+
+        // 4. Non-provable: source is a union and target is a constituent or related
+        if (sourceType is UnionType sourceUnion)
+        {
+            if (IsConstituentOf(targetType, sourceUnion))
+                return AsConversionClassification.NonProvable;
+
+            // Target shares inheritance with a constituent
+            foreach (var constituent in sourceUnion.Constituents)
+            {
+                if (IsDirectlyAssignable(targetType, constituent, model)
+                    || IsDirectlyAssignable(constituent, targetType, model))
+                    return AsConversionClassification.NonProvable;
+            }
+        }
+
+        // 5. Non-provable: both are classes in the same hierarchy (sibling types)
+        if (SharesTypeHierarchy(sourceType, targetType))
+            return AsConversionClassification.NonProvable;
+
+        // 6. Non-provable: target is an interface/trait that source MIGHT implement
+        if (targetType.Kind is TypeKind.Interface or TypeKind.Trait)
+        {
+            if (sourceType.Kind is TypeKind.Class or TypeKind.Struct)
+                return AsConversionClassification.NonProvable;
+        }
+
+        // 7. Invalid: no type relationship exists
+        return AsConversionClassification.Invalid;
+    }
+
+    /// <summary>
+    /// Determines whether two types share a class or struct hierarchy — i.e., they
+    /// have a common ancestor (sibling types). This covers cases where neither is a
+    /// direct ancestor of the other, but both descend from the same base.
+    /// </summary>
+    private static bool SharesTypeHierarchy(IType a, IType b)
+    {
+        // Class hierarchy sharing
+        if (a is ClassType classA && b is ClassType classB)
+        {
+            var ancestorsA = CollectClassAncestors(classA);
+            var ancestorsB = CollectClassAncestors(classB);
+            foreach (var ancestor in ancestorsA)
+            {
+                if (ancestorsB.Contains(ancestor))
+                    return true;
+            }
+        }
+
+        // Struct hierarchy sharing
+        if (a is StructType structA && b is StructType structB)
+        {
+            var ancestorsA = CollectStructAncestors(structA);
+            var ancestorsB = CollectStructAncestors(structB);
+            foreach (var ancestor in ancestorsA)
+            {
+                if (ancestorsB.Contains(ancestor))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Collects all ancestor class display names for a class type by walking
+    /// the inheritance chain.
+    /// </summary>
+    private static HashSet<string> CollectClassAncestors(ClassType classType)
+    {
+        var ancestors = new HashSet<string>(StringComparer.Ordinal);
+        var current = classType.BaseType as ClassType;
+        while (current is not null)
+        {
+            ancestors.Add(current.DisplayName);
+            current = current.BaseType as ClassType;
+        }
+        return ancestors;
+    }
+
+    /// <summary>
+    /// Collects all ancestor struct display names for a struct type by walking
+    /// the inheritance chain.
+    /// </summary>
+    private static HashSet<string> CollectStructAncestors(StructType structType)
+    {
+        var ancestors = new HashSet<string>(StringComparer.Ordinal);
+        var current = structType.BaseType as StructType;
+        while (current is not null)
+        {
+            ancestors.Add(current.DisplayName);
+            current = current.BaseType as StructType;
+        }
+        return ancestors;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

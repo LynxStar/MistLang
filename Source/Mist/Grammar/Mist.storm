@@ -639,6 +639,7 @@ rule LogicalAnd = left:Equality   (LOGICAL_AND right:Equality)*;
 rule Equality   = left:Relational (operator:(EQUAL_EQUAL | NOT_EQUAL) right:Relational)*;
 rule Relational
     = left:Additive IS pattern:Pattern                                          as IsExpression
+    | left:Additive AS targetType:TypeReference                                 as AsExpression
     | left:Additive (operator:(LESS_THAN | GREATER_THAN | LESS_THAN_OR_EQUAL
                               | GREATER_THAN_OR_EQUAL) right:Additive)*         as RelationalComparison
     ;

@@ -13672,6 +13672,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             if (ParameterSignature.AreEqualWithRefKind(
                                 memberSignature!, memberRefKinds!, ancestorSignature, ancestorRefKinds))
                             {
+                                // If the ancestor method is virtual/abstract (a CLR override slot),
+                                // this is not a redeclaration — it's an implicit override that the
+                                // C# emitter will handle by emitting `override`.
+                                if (ancestorMember is Symbol ancestorSym && ancestorSym.IsVirtualOrAbstract)
+                                {
+                                    goto nextMember;
+                                }
+
                                 EmitRedeclarationDiagnostic(classType, member, ancestor, symbolTable, asts, compilation, diagnostics);
                                 goto nextMember;
                             }

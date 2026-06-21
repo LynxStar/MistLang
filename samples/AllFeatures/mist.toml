@@ -63,3 +63,4 @@ SubstructuralFieldDiscipline = { path = "../SubstructuralFieldDiscipline" }
 DefiniteAssignment = { path = "../DefiniteAssignment" }
 StackOnlyTypes = { path = "../StackOnlyTypes" }
 DependentTypeRefinementConstraints = { path = "../DependentTypeRefinementConstraints" }
+TargetTypedNew = { path = "../TargetTypedNew" }

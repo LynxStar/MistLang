@@ -1611,4 +1611,11 @@ SumSpan=179
   slot.GetCapacity() = 3
   coll10.Describe() = SizedCollection<10>
 === Done ===
+=== Target-Typed New ===
+  local: Point(3, 4)
+  return: Point(5, 6)
+  param: Point(7, 8)
+  assign: Point(9, 10)
+  field: Point(0, 0)
+  generic: Pair(1, 2)
 === Done! ===

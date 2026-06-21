@@ -582,6 +582,7 @@ public sealed class MistPrettyPrinter
             PublicModifierModifierNode => "public ",
             PrivateModifierModifierNode => "private ",
             StaticModifierModifierNode => "static ",
+            OverrideModifierModifierNode => "override ",
             _ => "",
         };
     }
@@ -2262,6 +2263,21 @@ public sealed class MistPrettyPrinter
                 var assignments = EmitPropertyAssignmentList(objCreationNoArgs.Initializer);
                 return $"new {type}{typeArgs} {{ {assignments} }}";
             }
+            case TargetTypedNewExpressionPrimaryNode targetNew:
+            {
+                var args = EmitArgumentList(targetNew.Arguments);
+                if (targetNew.Initializer is not null)
+                {
+                    var assignments = EmitPropertyAssignmentList(targetNew.Initializer);
+                    return $"new({args}) {{ {assignments} }}";
+                }
+                return $"new({args})";
+            }
+            case TargetTypedNewExpressionNoArgsPrimaryNode targetNewNoArgs:
+            {
+                var assignments = EmitPropertyAssignmentList(targetNewNoArgs.Initializer);
+                return $"new {{ {assignments} }}";
+            }
             case ParenthesizedExpressionPrimaryNode paren:
                 return $"({EmitExpression(paren.Inner)})";
             case TupleLiteralExpressionPrimaryNode tupleLit:
@@ -2380,6 +2396,9 @@ public sealed class MistPrettyPrinter
                     break;
                 case RefModifierModifierNode:
                     parts.Add("ref");
+                    break;
+                case OverrideModifierModifierNode:
+                    parts.Add("override");
                     break;
             }
         }

@@ -63,6 +63,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     [ThreadStatic]
     private static IType? _voidLiteralTargetType;
 
+    // ── Target type context for target-typed new expression resolution ────
+    // Set before resolving an expression whose target type is known (typed
+    // field initializer, typed variable initializer, return statement, method
+    // argument, assignment RHS) so that TargetTypedNewExpressionPrimaryNode
+    // and TargetTypedNewExpressionNoArgsPrimaryNode can resolve their type
+    // from the surrounding context. Cleared immediately after resolution.
+    [ThreadStatic]
+    private static IType? _targetTypedNewTargetType;
+
     // ── Current method return type for return-statement lambda/void inference ──
     // Set when entering a method body so that return statements can propagate
     // the method's return type as a lambda target type and as the target type
@@ -15532,10 +15541,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 _lambdaTargetType = fieldType;
             }
             _voidLiteralTargetType = fieldType;
+            _targetTypedNewTargetType = fieldType;
             ResolveExpression(initExpr, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
             _emptyArrayTargetType = null;
             _lambdaTargetType = null;
             _voidLiteralTargetType = null;
+            _targetTypedNewTargetType = null;
         }
     }
 
@@ -16416,8 +16427,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // from the enclosing method's declared return type.
                     var previousVoidTarget = _voidLiteralTargetType;
                     _voidLiteralTargetType = _currentMethodReturnType;
+
+                    // Set target type context for target-typed new expression
+                    // from the enclosing method's declared return type.
+                    var previousTargetNewTarget = _targetTypedNewTargetType;
+                    _targetTypedNewTargetType = _currentMethodReturnType;
+
                     var returnValueType = ResolveExpression(returnStmt.ReturnStatement.Value, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     _voidLiteralTargetType = previousVoidTarget;
+                    _targetTypedNewTargetType = previousTargetNewTarget;
                     _lambdaTargetType = previousLambdaTarget;
 
                     // Named Task<T> variables returned from the method transfer
@@ -16661,10 +16679,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 // Set target type context for void value literal resolution.
                 _voidLiteralTargetType = declaredType;
+                _targetTypedNewTargetType = declaredType;
                 var initType = ResolveExpression(typed.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 _emptyArrayTargetType = null;
                 _lambdaTargetType = null;
                 _voidLiteralTargetType = null;
+                _targetTypedNewTargetType = null;
 
                 var varName = typed.Name.Lexeme;
                 var varSpan = ToMistSourceSpan(typed.Name.Span);
@@ -20978,7 +20998,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // This is an assignment expression: target = value.
             // The RHS is now a full ExpressionNode (widened to reach lambdas), so
             // resolve it through the Expression-level entry point.
+            // Set target type context for target-typed new expression from the
+            // assignment target's resolved type.
+            var previousTargetNewTarget = _targetTypedNewTargetType;
+            _targetTypedNewTargetType = targetType;
             var valueType = ResolveExpression(assignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _targetTypedNewTargetType = previousTargetNewTarget;
             expressionTypes[assignment] = targetType;
             return targetType;
         }
@@ -23149,6 +23174,120 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             }
 
+            case TargetTypedNewExpressionPrimaryNode targetNew:
+            {
+                var targetType = _targetTypedNewTargetType;
+                if (targetType is null || targetType is ErrorType)
+                {
+                    // No target type available — resolve arguments for IDE support
+                    // but record ErrorType. The type checker will emit the diagnostic.
+                    if (targetNew.Arguments is not null)
+                    {
+                        ResolveArgumentList(targetNew.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+
+                    if (targetNew.Initializer?.Assignments is not null)
+                    {
+                        var assignments = targetNew.Initializer.Assignments;
+                        ResolvePropertyAssignmentValue(assignments.PropertyAssignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                        foreach (var assignment in assignments.PropertyAssignments)
+                        {
+                            ResolvePropertyAssignmentValue(assignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                        }
+                    }
+
+                    result = ErrorType.Instance;
+                    break;
+                }
+
+                // Resolve arguments using constructor parameter types from target type.
+                if (targetNew.Arguments is not null)
+                {
+                    IReadOnlyList<IType>? ctorParamTypes = null;
+                    var ctorLookupType = targetType is ConstructedType ict ? ict.GenericDefinition : targetType;
+                    IScope? ctorMemberScope = ctorLookupType switch
+                    {
+                        ClassType ct => ct.MemberScope,
+                        StructType st => st.MemberScope,
+                        _ => null,
+                    };
+                    if (ctorMemberScope is not null)
+                    {
+                        var ctorSymbol = ctorMemberScope.Members
+                            .FirstOrDefault(m => m.Kind == SymbolKind.Constructor);
+                        if (ctorSymbol is not null)
+                        {
+                            ctorParamTypes = ParameterSignature.Extract(ctorSymbol, symbolTable);
+                            // Apply type argument substitution for generic types.
+                            if (targetType is ConstructedType constructedType && ctorParamTypes.Count > 0)
+                            {
+                                var typeParams = GetTypeParameters(constructedType.GenericDefinition);
+                                if (typeParams is not null && typeParams.Count == constructedType.TypeArguments.Count)
+                                {
+                                    var substituted = new List<IType>(ctorParamTypes.Count);
+                                    foreach (var pt in ctorParamTypes)
+                                    {
+                                        substituted.Add(SubstituteTypeParameters(pt, typeParams, constructedType.TypeArguments));
+                                    }
+                                    ctorParamTypes = substituted;
+                                }
+                            }
+                        }
+                    }
+                    ResolveArgumentList(targetNew.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics, ctorParamTypes);
+                }
+
+                // Resolve property initializer values if present.
+                if (targetNew.Initializer?.Assignments is not null)
+                {
+                    var assignments = targetNew.Initializer.Assignments;
+                    ResolvePropertyAssignmentValue(assignments.PropertyAssignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    foreach (var assignment in assignments.PropertyAssignments)
+                    {
+                        ResolvePropertyAssignmentValue(assignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+                }
+
+                result = targetType;
+                break;
+            }
+
+            case TargetTypedNewExpressionNoArgsPrimaryNode targetNewNoArgs:
+            {
+                var targetType = _targetTypedNewTargetType;
+                if (targetType is null || targetType is ErrorType)
+                {
+                    // No target type available — resolve initializer for IDE support
+                    // but record ErrorType. The type checker will emit the diagnostic.
+                    if (targetNewNoArgs.Initializer.Assignments is not null)
+                    {
+                        var assignments = targetNewNoArgs.Initializer.Assignments;
+                        ResolvePropertyAssignmentValue(assignments.PropertyAssignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                        foreach (var assignment in assignments.PropertyAssignments)
+                        {
+                            ResolvePropertyAssignmentValue(assignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                        }
+                    }
+
+                    result = ErrorType.Instance;
+                    break;
+                }
+
+                // Resolve property initializer values.
+                if (targetNewNoArgs.Initializer.Assignments is not null)
+                {
+                    var assignments = targetNewNoArgs.Initializer.Assignments;
+                    ResolvePropertyAssignmentValue(assignments.PropertyAssignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    foreach (var assignment in assignments.PropertyAssignments)
+                    {
+                        ResolvePropertyAssignmentValue(assignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    }
+                }
+
+                result = targetType;
+                break;
+            }
+
             case TupleLiteralExpressionPrimaryNode tupleLit:
             {
                 // Collect all elements: First + Rest + Additional.
@@ -24955,10 +25094,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Also handles nullable Func types (UnionType containing a Func constituent).
             IType? previousLambdaTarget = _lambdaTargetType;
             var previousVoidTarget = _voidLiteralTargetType;
+            var previousTargetNewTarget = _targetTypedNewTargetType;
             if (parameterTypes is not null && i < parameterTypes.Count)
             {
                 var paramType = parameterTypes[i];
                 _voidLiteralTargetType = paramType;
+                _targetTypedNewTargetType = paramType;
                 if (IsFuncType(paramType))
                 {
                     _lambdaTargetType = paramType;
@@ -24992,6 +25133,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Restore previous target types.
             _lambdaTargetType = previousLambdaTarget;
             _voidLiteralTargetType = previousVoidTarget;
+            _targetTypedNewTargetType = previousTargetNewTarget;
         }
     }
 

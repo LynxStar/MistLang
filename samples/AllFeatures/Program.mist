@@ -73,6 +73,7 @@ public class Program
         DefiniteAssignment.Program.RunDemo();
         StackOnlyTypes.Program.RunDemo();
         DependentTypeRefinementConstraints.Program.RunDemo();
+        TargetTypedNew.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

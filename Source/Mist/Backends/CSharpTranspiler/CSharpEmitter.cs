@@ -5499,6 +5499,7 @@ internal sealed class CSharpSourceWriter
             PublicModifierModifierNode => "public ",
             PrivateModifierModifierNode => "private ",
             StaticModifierModifierNode => "static ",
+            OverrideModifierModifierNode => "override ",
             _ => "",
         };
     }
@@ -12433,6 +12434,50 @@ internal sealed class CSharpSourceWriter
                 }
                 return $"new {type}{typeArgs}() {{ {string.Join(", ", initParts)} }}";
             }
+            case TargetTypedNewExpressionPrimaryNode targetNew:
+            {
+                var resolvedType = _model.GetTypeOf(targetNew);
+                if (resolvedType is null || resolvedType is ErrorType)
+                    return "default /* error: unresolved target-typed new */";
+
+                var typeName = CSharpTypeMap.GetTypeName(resolvedType);
+                var args = EmitArgumentList(targetNew.Arguments);
+
+                if (targetNew.Initializer is not null)
+                {
+                    var initParts = new List<string>();
+                    if (targetNew.Initializer.Assignments is not null)
+                    {
+                        var assignments = targetNew.Initializer.Assignments;
+                        initParts.Add(EmitPropertyAssignmentEntry(assignments.PropertyAssignment));
+                        foreach (var assignment in assignments.PropertyAssignments)
+                        {
+                            initParts.Add(EmitPropertyAssignmentEntry(assignment));
+                        }
+                    }
+                    return $"new {typeName}({args}) {{ {string.Join(", ", initParts)} }}";
+                }
+                return $"new {typeName}({args})";
+            }
+            case TargetTypedNewExpressionNoArgsPrimaryNode targetNewNoArgs:
+            {
+                var resolvedType = _model.GetTypeOf(targetNewNoArgs);
+                if (resolvedType is null || resolvedType is ErrorType)
+                    return "default /* error: unresolved target-typed new */";
+
+                var typeName = CSharpTypeMap.GetTypeName(resolvedType);
+                var initParts = new List<string>();
+                if (targetNewNoArgs.Initializer.Assignments is not null)
+                {
+                    var assignments = targetNewNoArgs.Initializer.Assignments;
+                    initParts.Add(EmitPropertyAssignmentEntry(assignments.PropertyAssignment));
+                    foreach (var assignment in assignments.PropertyAssignments)
+                    {
+                        initParts.Add(EmitPropertyAssignmentEntry(assignment));
+                    }
+                }
+                return $"new {typeName}() {{ {string.Join(", ", initParts)} }}";
+            }
             case ParenthesizedExpressionPrimaryNode paren:
                 return $"({EmitExpression(paren.Inner)})";
             case TupleLiteralExpressionPrimaryNode tupleLit:
@@ -12685,6 +12730,9 @@ internal sealed class CSharpSourceWriter
                     break;
                 case StaticModifierModifierNode:
                     parts.Add("static");
+                    break;
+                case OverrideModifierModifierNode:
+                    parts.Add("override");
                     break;
             }
         }

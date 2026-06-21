@@ -10510,6 +10510,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CheckObjectCreationNoArgs(objectCreationNoArgs, model, diagnostics);
                 break;
 
+            case TargetTypedNewExpressionPrimaryNode targetTypedNew:
+                CheckTargetTypedNewExpression(targetTypedNew, model, diagnostics);
+                break;
+
+            case TargetTypedNewExpressionNoArgsPrimaryNode targetTypedNewNoArgs:
+                CheckTargetTypedNewExpressionNoArgs(targetTypedNewNoArgs, model, diagnostics);
+                break;
+
             case ParenthesizedExpressionPrimaryNode paren:
                 CheckExpression(paren.Inner, model, diagnostics);
                 break;
@@ -14223,6 +14231,313 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // ── Property initializer block validation ────────────────────────
         CheckPropertyInitializerBlock(objectCreation.Initializer, createdType, objectCreation, model, diagnostics);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Target-typed new expression validation (MIST_TARGET_NEW_*)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Validates a <c>new(args)</c> target-typed new expression. Checks for:
+    /// <list type="bullet">
+    ///   <item><c>var</c> declaration context (no target type from <c>var</c>)</item>
+    ///   <item>No target type available (ErrorType)</item>
+    ///   <item>Target type is an interface</item>
+    ///   <item>Target type is a trait</item>
+    ///   <item>Target type is an abstract class</item>
+    ///   <item>Constructor argument mismatch</item>
+    /// </list>
+    /// </summary>
+    private void CheckTargetTypedNewExpression(
+        TargetTypedNewExpressionPrimaryNode targetNew,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Check argument expressions first (for nested expression validation).
+        if (targetNew.Arguments is not null)
+        {
+            CheckArgumentListExpressions(targetNew.Arguments, model, diagnostics);
+        }
+
+        // Detect var context: if the parent chain leads to an InferredVariableDeclaration,
+        // the target type is unknowable and we emit a specific diagnostic.
+        if (IsInVarDeclarationContext(targetNew))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                DiagnosticId.TargetNewWithVar.Value,
+                "The type of 'new()' cannot be inferred because 'var' does not provide a target type. Use an explicit type or provide the type name after 'new'.",
+                targetNew,
+                model));
+            return;
+        }
+
+        // Get the resolved type from the semantic model.
+        var resolvedType = model.GetTypeOf(targetNew);
+        if (resolvedType is null || IsErrorType(resolvedType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                DiagnosticId.TargetNewNoContext.Value,
+                "The type of 'new()' cannot be inferred from context.",
+                targetNew,
+                model));
+            return;
+        }
+
+        // Unwrap type aliases for validation.
+        var validationType = resolvedType;
+        if (validationType is TypeAliasType aliasType)
+            validationType = aliasType.UnderlyingType;
+
+        // Check for non-instantiable types.
+        if (IsInterfaceTargetType(validationType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                DiagnosticId.TargetNewInterface.Value,
+                $"Cannot create an instance of interface type '{resolvedType.DisplayName}' with target-typed new.",
+                targetNew,
+                model));
+            return;
+        }
+
+        if (IsTraitTargetType(validationType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                DiagnosticId.TargetNewTrait.Value,
+                $"Cannot create an instance of trait type '{resolvedType.DisplayName}' with target-typed new.",
+                targetNew,
+                model));
+            return;
+        }
+
+        if (validationType is ClassType { IsAbstract: true })
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_ABSTRACT_INSTANTIATION",
+                $"Cannot create an instance of abstract type '{resolvedType.DisplayName}'.",
+                targetNew,
+                model));
+            return;
+        }
+
+        // Constructor resolution — validate arguments against accessible constructors.
+        var constructors = CollectConstructorOverloads(validationType, model);
+        var argTypes = CollectArgumentTypes(targetNew.Arguments, model);
+
+        if (constructors.Count == 0)
+        {
+            // No constructors defined — default parameterless constructor implied.
+            if (argTypes.Count > 0)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0011",
+                    $"Type '{resolvedType.DisplayName}' does not contain a constructor matching the given arguments",
+                    targetNew,
+                    model));
+                return;
+            }
+        }
+        else if (constructors.Count > 1)
+        {
+            // Multiple constructors — use overload resolution.
+            (IReadOnlyList<IType> TypeParams, IReadOnlyList<IType> TypeArgs)? typeSubstitution = null;
+            if (validationType is ConstructedType ctForSubst)
+            {
+                var tp = GetTypeParameters(ctForSubst.GenericDefinition);
+                if (tp is not null)
+                    typeSubstitution = (tp, ctForSubst.TypeArguments);
+            }
+
+            var argRefKinds = CollectArgumentRefKinds(targetNew.Arguments);
+            var result = OverloadResolver.Resolve(constructors, argTypes, model, typeSubstitution: typeSubstitution, argumentRefKinds: argRefKinds);
+
+            switch (result.Status)
+            {
+                case OverloadResolutionStatus.NoApplicableCandidate:
+                    var argTypeNames = string.Join(", ", argTypes.Select(t => t.DisplayName));
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0031",
+                        $"No overload for '{resolvedType.DisplayName}' constructor matches argument types ({argTypeNames})",
+                        targetNew,
+                        model));
+                    return;
+
+                case OverloadResolutionStatus.AmbiguousCall:
+                    var sigs = result.AmbiguousCandidates!
+                        .Select(c => FormatCandidateSignature(c, resolvedType.DisplayName, model));
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_TC_0032",
+                        $"Call to '{resolvedType.DisplayName}' constructor is ambiguous between: {string.Join(" and ", sigs)}",
+                        targetNew,
+                        model));
+                    return;
+
+                case OverloadResolutionStatus.Success:
+                    ValidateParameterRefinementConstraints(targetNew.Arguments, result.BestCandidate!, model, diagnostics, targetNew);
+                    if (targetNew.Arguments is not null)
+                    {
+                        CheckRefCallSiteAnnotationsForSymbol(targetNew.Arguments, result.BestCandidate!, model, diagnostics);
+                    }
+                    break;
+            }
+        }
+        else
+        {
+            // Single constructor — check match.
+            var hasMatch = ConstructorMatches(constructors[0], argTypes, validationType, model);
+            if (!hasMatch)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0011",
+                    $"Type '{resolvedType.DisplayName}' does not contain a constructor matching the given arguments",
+                    targetNew,
+                    model));
+            }
+            else
+            {
+                ValidateParameterRefinementConstraints(targetNew.Arguments, constructors[0], model, diagnostics, targetNew);
+                if (targetNew.Arguments is not null)
+                {
+                    CheckRefCallSiteAnnotationsForSymbol(targetNew.Arguments, constructors[0], model, diagnostics);
+                }
+            }
+        }
+
+        // Property initializer block validation.
+        if (targetNew.Initializer is not null)
+        {
+            CheckPropertyInitializerBlock(targetNew.Initializer, validationType, targetNew, model, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Validates a <c>new { ... }</c> target-typed new expression (no parentheses, no arguments).
+    /// Same validation as <see cref="CheckTargetTypedNewExpression"/> but without argument checks
+    /// and always verifying a parameterless constructor exists.
+    /// </summary>
+    private void CheckTargetTypedNewExpressionNoArgs(
+        TargetTypedNewExpressionNoArgsPrimaryNode targetNewNoArgs,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Detect var context.
+        if (IsInVarDeclarationContext(targetNewNoArgs))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                DiagnosticId.TargetNewWithVar.Value,
+                "The type of 'new()' cannot be inferred because 'var' does not provide a target type. Use an explicit type or provide the type name after 'new'.",
+                targetNewNoArgs,
+                model));
+            return;
+        }
+
+        // Get the resolved type from the semantic model.
+        var resolvedType = model.GetTypeOf(targetNewNoArgs);
+        if (resolvedType is null || IsErrorType(resolvedType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                DiagnosticId.TargetNewNoContext.Value,
+                "The type of 'new()' cannot be inferred from context.",
+                targetNewNoArgs,
+                model));
+            return;
+        }
+
+        // Unwrap type aliases for validation.
+        var validationType = resolvedType;
+        if (validationType is TypeAliasType aliasType)
+            validationType = aliasType.UnderlyingType;
+
+        // Check for non-instantiable types.
+        if (IsInterfaceTargetType(validationType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                DiagnosticId.TargetNewInterface.Value,
+                $"Cannot create an instance of interface type '{resolvedType.DisplayName}' with target-typed new.",
+                targetNewNoArgs,
+                model));
+            return;
+        }
+
+        if (IsTraitTargetType(validationType))
+        {
+            diagnostics.Add(MakeDiagnostic(
+                DiagnosticId.TargetNewTrait.Value,
+                $"Cannot create an instance of trait type '{resolvedType.DisplayName}' with target-typed new.",
+                targetNewNoArgs,
+                model));
+            return;
+        }
+
+        if (validationType is ClassType { IsAbstract: true })
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_ABSTRACT_INSTANTIATION",
+                $"Cannot create an instance of abstract type '{resolvedType.DisplayName}'.",
+                targetNewNoArgs,
+                model));
+            return;
+        }
+
+        // Verify parameterless constructor exists.
+        var constructors = CollectConstructorOverloads(validationType, model);
+        if (constructors.Count > 0)
+        {
+            var hasParameterless = false;
+            foreach (var ctor in constructors)
+            {
+                var paramTypes = ParameterSignature.Extract(ctor, model);
+                if (paramTypes.Count == 0)
+                {
+                    hasParameterless = true;
+                    break;
+                }
+            }
+
+            if (!hasParameterless)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_TC_0011",
+                    $"Type '{resolvedType.DisplayName}' does not contain a constructor matching the given arguments",
+                    targetNewNoArgs,
+                    model));
+            }
+        }
+
+        // Property initializer block validation.
+        CheckPropertyInitializerBlock(targetNewNoArgs.Initializer, validationType, targetNewNoArgs, model, diagnostics);
+    }
+
+    /// <summary>
+    /// Determines whether the given target-typed new expression node is the initializer
+    /// of a <c>var</c> (inferred) variable declaration.
+    /// </summary>
+    private static bool IsInVarDeclarationContext(SyntaxNode node)
+    {
+        // Walk up the parent chain looking for InferredVariableDeclarationVariableDeclarationStatementNode.
+        // The typical chain is: TargetTypedNew → Primary → Postfix → Unary → ... → Expression → InferredVarDecl.
+        var current = node.Parent;
+        while (current is not null)
+        {
+            if (current is InferredVariableDeclarationVariableDeclarationStatementNode)
+                return true;
+
+            // Stop at statement or declaration boundaries to avoid false positives.
+            if (current is TypedVariableDeclarationVariableDeclarationStatementNode)
+                return false;
+
+            current = current.Parent;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the type is a trait type or a constructed generic trait type.
+    /// </summary>
+    private static bool IsTraitTargetType(IType type)
+    {
+        return type is TraitType
+            || (type is ConstructedType ct && ct.GenericDefinition is TraitType);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

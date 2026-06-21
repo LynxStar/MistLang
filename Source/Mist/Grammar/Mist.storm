@@ -329,6 +329,7 @@ rule Modifier
     | RELEVANT  as RelevantModifier
     | ASYNC     as AsyncModifier
     | REF       as RefModifier
+    | OVERRIDE  as OverrideModifier
     ;
 
 // ─── Parser Rules — Ownership Specifiers ─────────────────────────────────────
@@ -711,6 +712,8 @@ rule Primary
     | STACKALLOC type:ElementTypeRef LEFT_BRACKET size:Expression RIGHT_BRACKET     as StackallocExpression
     | NEW type:QualifiedIdentifier typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS initializer:PropertyInitializerBlock? as ObjectCreationExpression
     | NEW type:QualifiedIdentifier typeArgs:TypeArgumentList? initializer:PropertyInitializerBlock as ObjectCreationExpressionNoArgs
+    | NEW LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS initializer:PropertyInitializerBlock? as TargetTypedNewExpression
+    | NEW initializer:PropertyInitializerBlock as TargetTypedNewExpressionNoArgs
     | LEFT_PARENTHESIS first:TupleLiteralElement COMMA rest:TupleLiteralElement (COMMA additional:TupleLiteralElement)* RIGHT_PARENTHESIS as TupleLiteralExpression
     | LEFT_PARENTHESIS inner:Expression RIGHT_PARENTHESIS                          as ParenthesizedExpression
     | DEFAULT LEFT_PARENTHESIS type:TypeReference RIGHT_PARENTHESIS               as DefaultExpression

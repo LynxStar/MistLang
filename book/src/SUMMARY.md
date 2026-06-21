@@ -31,6 +31,7 @@
 - [Traits](object-model/traits.md)
 - [Enums](object-model/enums.md)
 - [Extensions](object-model/extension-methods.md)
+- [Target-Typed New](object-model/target-typed-new.md)
 
 # Type System
 

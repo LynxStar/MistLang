@@ -329,7 +329,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | Array initializers (`new[] { 1, 2 }`) | 🔲 | |
 | Collection initializers | 🔲 | |
 | Object initializers (`new T { P = v }`) | 🔲 | |
-| Target-typed `new()` | 🔲 | C# 9 |
+| Target-typed `new()` | ✅ | C# 9 |
 | `with` expressions (records) | 🔲 | C# 9 |
 | Collection expressions (`[1, 2, 3]`) | 🔲 | C# 12 |
 
@@ -925,7 +925,7 @@ Features introduced by Mist that don't map directly to a single C# feature. Thes
 | Expressions — Bitwise | 0 | 7 | 0 |
 | Expressions — Assignment | 1 | 4 | 0 |
 | Expressions — Member Access | 4 | 3 | 0 |
-| Expressions — Object Creation | 2 | 5 | 0 |
+| Expressions — Object Creation | 3 | 4 | 0 |
 | Expressions — Other | 5 | 11 | 2 |
 | Inheritance | 3 | 8 | 0 |
 | Structural Typing — Traits | 5 | 0 | 0 |

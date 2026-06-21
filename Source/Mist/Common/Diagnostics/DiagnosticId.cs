@@ -263,4 +263,30 @@ public readonly record struct DiagnosticId(string Value)
 
     /// <summary>A type name is ambiguous between multiple imported CLR namespaces.</summary>
     public static readonly DiagnosticId TypeAmbiguous = new("MIST_TYPE_AMBIGUOUS");
+
+    // ── Target-typed new diagnostics ─────────────────────────────────────
+
+    /// <summary>
+    /// Emitted when a target-typed new expression is used in a <c>var</c> declaration.
+    /// <c>var</c> does not provide a target type, so the type cannot be inferred.
+    /// </summary>
+    public static readonly DiagnosticId TargetNewWithVar = new("MIST_TARGET_NEW_WITH_VAR");
+
+    /// <summary>
+    /// Emitted when a target-typed new expression appears in a context where no
+    /// target type can be determined (e.g., bare expression statement).
+    /// </summary>
+    public static readonly DiagnosticId TargetNewNoContext = new("MIST_TARGET_NEW_NO_CONTEXT");
+
+    /// <summary>
+    /// Emitted when a target-typed new expression resolves to an interface type,
+    /// which cannot be instantiated.
+    /// </summary>
+    public static readonly DiagnosticId TargetNewInterface = new("MIST_TARGET_NEW_INTERFACE");
+
+    /// <summary>
+    /// Emitted when a target-typed new expression resolves to a trait type,
+    /// which cannot be instantiated.
+    /// </summary>
+    public static readonly DiagnosticId TargetNewTrait = new("MIST_TARGET_NEW_TRAIT");
 }

@@ -1,0 +1,100 @@
+using Standard;
+
+namespace TargetTypedNew;
+
+// PROOF: Target-typed new resolves type from field declaration
+// PROOF: Constructor arguments are forwarded correctly
+// PROOF: Target-typed new resolves type from local variable with explicit type
+// PROOF: Target-typed new resolves type from return statement
+// PROOF: Target-typed new resolves type from method parameter type
+// PROOF: Target-typed new resolves type from assignment to existing variable
+// PROOF: Target-typed new works with generic types
+
+class Point
+{
+    public int X;
+    public int Y;
+
+    public Point(int x, int y)
+    {
+        X = x;
+        Y = y;
+    }
+
+    public override string ToString()
+    {
+        return $"Point({X}, {Y})";
+    }
+}
+
+class Pair<T>
+{
+    public T First;
+    public T Second;
+
+    public Pair(T first, T second)
+    {
+        First = first;
+        Second = second;
+    }
+
+    public override string ToString()
+    {
+        return $"Pair({First}, {Second})";
+    }
+}
+
+class Container
+{
+    // PROOF: field initializer with target-typed new
+    public Point Origin = new(0, 0);
+}
+
+class Program
+{
+    // PROOF: return type inference
+    public static Point MakePoint(int x, int y)
+    {
+        return new(x, y);
+    }
+
+    // PROOF: parameter type inference
+    public static void PrintPoint(Point p)
+    {
+        Console.WriteLine($"  param: {p}");
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Target-Typed New ===");
+
+        // PROOF: local variable with explicit type
+        Point p1 = new(3, 4);
+        Console.WriteLine($"  local: {p1}");
+
+        // PROOF: return type
+        var p2 = MakePoint(5, 6);
+        Console.WriteLine($"  return: {p2}");
+
+        // PROOF: method argument
+        PrintPoint(new(7, 8));
+
+        // PROOF: assignment to existing typed variable
+        Point p3 = new(0, 0);
+        p3 = new(9, 10);
+        Console.WriteLine($"  assign: {p3}");
+
+        // PROOF: field initializer
+        var c = new Container();
+        Console.WriteLine($"  field: {c.Origin}");
+
+        // PROOF: generic target type
+        Pair<int> pair = new(1, 2);
+        Console.WriteLine($"  generic: {pair}");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}
